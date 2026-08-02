@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAOS · System Architecture & Operating Flows</title>
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script>
+  (function(){
+    try{
+      var light = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+    }catch(e){}
+  })();
+</script>
+<style>
+/* tokens shared with Mission Control: warm graphite / linen, brass structure,
+   pigment inks for state. */
+:root{
+  --bg:#151310; --bg-glow:#231F19;
+  --panel:#1C1A16; --panel-2:#232019; --panel-3:#2A261E;
+  --line:#37322A; --line-soft:#2B2721; --grid-line:rgba(214,178,112,.055);
+  --ink:#EFE8DA; --ink-2:#B3A992; --ink-3:#807867;
+  --brass:#CFA047; --brass-soft:#8A6D2C;
+  --run:#7BA6DC; --done:#8FAF6B; --block:#DCA544; --fail:#C86458; --know:#A585CE;
+  --shadow:0 24px 46px -24px rgba(0,0,0,.9);
+  --font-display:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r-s:5px; --r-m:10px; --r-l:14px;
+  --toc-w:264px;
+}
+[data-theme="light"]{
+  --bg:#E4E2D8; --bg-glow:#F1EFE7;
+  --panel:#FAF8F2; --panel-2:#F0EDE3; --panel-3:#E6E2D5;
+  --line:#CBC5B4; --line-soft:#DAD5C6; --grid-line:rgba(90,78,52,.075);
+  --ink:#22211C; --ink-2:#55524A; --ink-3:#7C7767;
+  --brass:#8A6716; --brass-soft:#B79A55;
+  --run:#2C63A6; --done:#4C7534; --block:#96681A; --fail:#A6473A; --know:#65429B;
+  --shadow:0 18px 34px -20px rgba(58,50,30,.42);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:radial-gradient(1100px 520px at 60% -8%, var(--bg-glow) 0%, transparent 60%), var(--bg);
+  color:var(--ink);font-family:var(--font-body);font-size:14.5px;line-height:1.65;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:3px}
+.mono{font-family:var(--font-mono)}
+.eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ---------- layout ---------- */
+.wrap{display:grid;grid-template-columns:var(--toc-w) minmax(0,1fr);align-items:start}
+.toc{
+  position:sticky;top:0;height:100vh;overflow:auto;
+  border-right:1px solid var(--line);background:var(--panel);padding:20px 16px 30px;
+}
+.toc-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.mark{width:32px;height:32px;flex:0 0 32px;position:relative;border:1px solid var(--brass-soft);border-radius:7px;background:var(--panel-2)}
+.mark svg{position:absolute;inset:0}
+.toc-brand b{font-family:var(--font-display);font-size:15px;font-weight:700;display:block;line-height:1.2}
+.toc-brand span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.toc h3{font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);
+  margin:20px 0 8px;font-weight:500;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.toc a{
+  display:block;color:var(--ink-2);text-decoration:none;font-size:13px;padding:5px 9px;
+  border-left:2px solid transparent;border-radius:0 var(--r-s) var(--r-s) 0;
+}
+.toc a:hover{background:var(--panel-2);color:var(--ink)}
+.toc a.on{background:var(--panel-2);border-left-color:var(--brass);color:var(--ink)}
+.toc a i{font-family:var(--font-mono);font-style:normal;font-size:10.5px;color:var(--ink-3);margin-right:7px}
+
+main{padding:34px 40px 90px;max-width:1120px;min-width:0}
+.doc-head{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:34px;position:relative}
+.doc-head h1{font-family:var(--font-display);font-size:38px;font-weight:700;margin:8px 0 8px;letter-spacing:-.01em;line-height:1.1}
+.doc-head p{margin:0;font-size:15.5px;color:var(--ink-2);max-width:66ch}
+.doc-head .sp{position:absolute;top:0;right:0;display:flex;gap:8px}
+.icon-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:7px;display:grid;place-items:center;
+  color:var(--ink-2);background:var(--panel-2)}
+.icon-btn:hover{border-color:var(--brass-soft);color:var(--ink)}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+[data-theme="dark"] .i-moon{display:none}
+[data-theme="light"] .i-sun{display:none}
+
+section{margin-bottom:52px;scroll-margin-top:20px}
+section > h2{
+  font-family:var(--font-display);font-size:25px;font-weight:700;margin:0 0 4px;letter-spacing:-.005em;
+  display:flex;align-items:baseline;gap:12px;
+}
+section > h2 .num{font-family:var(--font-mono);font-size:13px;color:var(--brass);font-weight:500}
+section > .lede{margin:0 0 20px;color:var(--ink-2);max-width:70ch}
+h3{font-family:var(--font-display);font-size:17.5px;font-weight:600;margin:28px 0 8px}
+h4{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 8px;font-weight:500}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 14px;padding-left:20px}
+li{margin-bottom:5px}
+code{font-family:var(--font-mono);font-size:.88em;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px}
+a{color:var(--brass)}
+
+.note,.warn,.ok{
+  border:1px solid var(--line-soft);border-left:2px solid var(--brass);
+  background:var(--panel);border-radius:0 var(--r-m) var(--r-m) 0;
+  padding:13px 15px;margin:16px 0;font-size:13.5px;
+}
+.warn{border-left-color:var(--block)}
+.ok{border-left-color:var(--done)}
+.note b,.warn b,.ok b{font-weight:600}
+
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{border:1px solid var(--line-soft);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel-2);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;
+   text-transform:uppercase;color:var(--ink-3);font-weight:500}
+td.mono,th.mono{font-family:var(--font-mono);font-size:12.5px}
+tbody tr:nth-child(odd) td{background:var(--panel)}
+
+pre{
+  font-family:var(--font-mono);font-size:12.5px;line-height:1.65;
+  background:var(--panel);border:1px solid var(--line-soft);border-left:2px solid var(--brass-soft);
+  border-radius:0 var(--r-m) var(--r-m) 0;padding:13px 15px;overflow-x:auto;margin:14px 0;color:var(--ink-2);
+}
+pre b{color:var(--ink);font-weight:500}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:14px 0}
+.card{border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel);padding:14px}
+.card h5{font-family:var(--font-display);font-size:15px;font-weight:600;margin:0 0 6px}
+.card p{margin:0;font-size:13px;color:var(--ink-2)}
+.card ul{margin:8px 0 0;font-size:13px;color:var(--ink-2)}
+
+/* ---------- figures ---------- */
+figure{margin:20px 0 8px;border:1px solid var(--line);border-radius:var(--r-l);background:var(--panel);overflow:hidden}
+figure > figcaption{
+  display:flex;align-items:baseline;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);
+  background:var(--panel-2);flex-wrap:wrap;
+}
+figcaption b{font-family:var(--font-display);font-size:14.5px;font-weight:600}
+figcaption .fig{font-family:var(--font-mono);font-size:10.5px;color:var(--brass);letter-spacing:.08em}
+figcaption .hint{margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.canvas{padding:18px 14px;overflow-x:auto;background:
+  linear-gradient(var(--grid-line) 1px,transparent 1px),
+  linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:34px 34px;}
+.canvas svg{display:block;margin:0 auto;max-width:100%;height:auto}
+
+/* flowchart primitives */
+.fc .box{fill:var(--panel-2);stroke:var(--line);stroke-width:1.2}
+.fc .box.start{fill:var(--panel-3);stroke:var(--brass-soft)}
+.fc .box.state{fill:var(--panel-3);stroke:var(--brass);stroke-width:1.6}
+.fc .box.stop{stroke:var(--fail)}
+.fc .box.good{stroke:var(--done)}
+.fc .box.warnb{stroke:var(--block)}
+.fc .box.link{stroke:var(--know);stroke-dasharray:4 3}
+.fc .dia{fill:var(--panel-2);stroke:var(--run);stroke-width:1.3}
+.fc text{font-family:var(--font-body);font-size:11.5px;fill:var(--ink)}
+.fc text.k{font-family:var(--font-mono);font-size:9.5px;fill:var(--ink-3);letter-spacing:.08em}
+.fc text.big{font-family:var(--font-display);font-size:13px;font-weight:600}
+.fc .edge{stroke:var(--ink-3);stroke-width:1.3;fill:none}
+.fc .edge.yes{stroke:var(--done)}
+.fc .edge.no{stroke:var(--fail)}
+.fc .edge.loop{stroke:var(--block);stroke-dasharray:5 4}
+.fc .edge.alt{stroke:var(--know)}
+.fc text.lab{font-family:var(--font-mono);font-size:9.5px;fill:var(--ink-2)}
+.fc text.lab.yes{fill:var(--done)}
+.fc text.lab.no{fill:var(--fail)}
+.fc text.lab.loop{fill:var(--block)}
+.fc rect.labbg{fill:var(--panel);stroke:none}
+.fc .lane{fill:none;stroke:var(--line-soft);stroke-width:1;stroke-dasharray:3 5}
+.fc text.lanel{font-family:var(--font-mono);font-size:9.5px;fill:var(--ink-3);letter-spacing:.14em}
+
+.legend-row{display:flex;gap:18px;flex-wrap:wrap;padding:10px 15px;border-top:1px solid var(--line-soft);
+  font-family:var(--font-mono);font-size:10px;color:var(--ink-3);background:var(--panel-2)}
+.legend-row span{display:flex;align-items:center;gap:6px}
+.legend-row i{width:14px;height:9px;border:1px solid var(--line);background:var(--panel-3);display:block}
+.legend-row i.d{transform:rotate(45deg);width:9px;border-color:var(--run)}
+.legend-row i.s{border-radius:999px;border-color:var(--brass-soft)}
+.legend-row i.st{border-color:var(--brass);border-width:1.5px}
+
+/* score bar used in the knowledge rubric */
+.bands{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:16px 0 6px}
+.band{padding:10px 12px;border:1px solid var(--line-soft);background:var(--panel)}
+.band b{display:block;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.band span{font-size:12px;color:var(--ink-2);display:block;margin-top:3px}
+.band.b0{border-top:3px solid var(--fail)}
+.band.b1{border-top:3px solid var(--block)}
+.band.b2{border-top:3px solid var(--run)}
+.band.b3{border-top:3px solid var(--done)}
+
+footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);font-size:13px}
+
+@media (max-width:1000px){
+  .wrap{grid-template-columns:1fr}
+  .toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:24px 18px 60px}
+  .bands{grid-template-columns:1fr 1fr}
+}
+@media print{
+  .toc,.doc-head .sp{display:none}
+  .wrap{display:block}
+  body{background:#fff;color:#111}
+  section{page-break-inside:avoid}
+  figure{page-break-inside:avoid;border-color:#bbb}
+  .canvas{background:none}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <div class="toc-brand">
+    <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32">
+      <line x1="10" y1="10" x2="22" y2="10" stroke="var(--brass-soft)"/><line x1="10" y1="10" x2="16" y2="22" stroke="var(--brass-soft)"/>
+      <line x1="22" y1="10" x2="16" y2="22" stroke="var(--brass-soft)"/>
+      <circle cx="10" cy="10" r="2" fill="var(--brass)"/><circle cx="22" cy="10" r="2" fill="var(--brass)"/><circle cx="16" cy="22" r="2" fill="var(--brass)"/>
+    </svg></span>
+    <span><b>GAOS</b><span>architecture &amp; flows</span></span>
+  </div>
+
+  <h3>Foundations</h3>
+  <a href="#overview"><i>01</i>What this document is</a>
+  <a href="#layers"><i>02</i>System architecture</a>
+  <a href="#objects"><i>03</i>Objects and edges</a>
+
+  <h3>Operating flows</h3>
+  <a href="#flow-setup"><i>04</i>Setup → autonomous run</a>
+  <a href="#flow-split"><i>05</i>Task split &amp; role selection</a>
+  <a href="#flow-retry"><i>06</i>Scoring &amp; retry loop</a>
+  <a href="#flow-knowledge"><i>07</i>Knowledge maturity</a>
+  <a href="#flow-replay"><i>08</i>Replay</a>
+
+  <h3>Implementation</h3>
+  <a href="#schema"><i>09</i>Schema &amp; API surface</a>
+  <a href="#build"><i>10</i>Build order</a>
+</nav>
+
+<main>
+
+<header class="doc-head">
+  <div class="sp">
+    <button class="icon-btn" id="themeBtn" aria-label="Switch theme" title="Switch theme (T)">
+      <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
+    </button>
+    <button class="icon-btn" id="printBtn" aria-label="Print" title="Print">
+      <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/></svg>
+    </button>
+  </div>
+  <span class="eyebrow">graph-native agent operating system</span>
+  <h1>System architecture and operating flows</h1>
+  <p>How a product goes from an empty record to agents working on it without supervision — and the five control loops that decide what runs, who runs it, when to stop, when the knowledge is good enough, and how any of it can be replayed.</p>
+</header>
+
+<!-- ============================================================ -->
+<section id="overview">
+  <h2><span class="num">01</span> What this document is</h2>
+  <p class="lede">A companion to the Mission Control prototype: the same system described as something you can build, with each control loop drawn as a flowchart you can implement directly.</p>
+
+  <p>GAOS makes one bet: <b>the graph is the primitive, not the prompt.</b> Every other decision follows from it. Scheduling is a traversal. Context assembly is a traversal. Impact analysis is a traversal. Recovery is a fold over the event stream, not memory inside a process.</p>
+
+  <p>That bet only pays off if two invariants hold everywhere in the codebase:</p>
+  <div class="cols">
+    <div class="card">
+      <h5>State lives in the graph</h5>
+      <p>The orchestrator holds no authoritative state. Kill it mid-run, start it again, and it rebuilds from vertices, edges, and events. Anything cached in memory must be reconstructible.</p>
+    </div>
+    <div class="card">
+      <h5>Every change emits an event</h5>
+      <p>An event that was never written is a state change that never happened. Replay, audit, and recovery all read the same stream; there is no second path.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>How to read the flowcharts.</b> Rectangles are work, diamonds are decisions, rounded ends are entry and exit, and double-ruled boxes are durable states the system can sit in. Dashed amber edges are loops back into an earlier step — those are the ones that need termination conditions.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="layers">
+  <h2><span class="num">02</span> System architecture</h2>
+  <p class="lede">Six layers. The three at the bottom are the ones that must be right first; the top three can be replaced without touching the model of the system.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 1</span><b>Layer map and the direction state flows</b>
+      <span class="hint">read bottom-up for dependency, top-down for a request</span></figcaption>
+    <div class="canvas" id="fig-layers"></div>
+  </figure>
+
+  <table>
+    <thead><tr><th>Layer</th><th>Owns</th><th>Must never</th></tr></thead>
+    <tbody>
+      <tr><td>UI / Mission Control</td><td>Projection of graph state; operator actions.</td><td>Invent state the graph does not have.</td></tr>
+      <tr><td>API gateway</td><td>Auth, tenant scoping, request validation, event fan-out.</td><td>Let a tenant boundary be enforced further down only.</td></tr>
+      <tr><td>Orchestration</td><td>Planner, scheduler, review engine, retry policy.</td><td>Hold long-lived state in process memory.</td></tr>
+      <tr><td>Execution</td><td>Detached processes, workspace leases, heartbeats.</td><td>Die with the orchestrator.</td></tr>
+      <tr><td>Model gateway</td><td>Adapters, routing, cost and token accounting.</td><td>Leak provider-specific shapes upward.</td></tr>
+      <tr><td>ArcadeDB</td><td>Graph, documents, events, full-text, time series.</td><td>Be bypassed by a side channel.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Why the orchestrator is stateless</h3>
+  <p>The scheduler is a pure function of the graph: given the current vertices, edges, leases, and quotas, the set of READY tasks is fully determined. Two replicas computing it independently reach the same answer, so leader election protects against duplicate dispatch rather than against divergent state. Restart becomes uninteresting — the loop reads the graph and continues.</p>
+
+  <pre><b>Recovery on boot</b>
+read tasks WHERE status IN (DISPATCHED, RUNNING)
+  → for each, check lease and heartbeat
+     → heartbeat fresh   : adopt, keep monitoring
+     → lease expired     : mark orphaned, release workspace, requeue
+     → process gone      : write TaskFailed(reason=orphaned), apply retry policy
+then resume the normal scheduler loop</pre>
+</section>
+
+<!-- ============================================================ -->
+<section id="objects">
+  <h2><span class="num">03</span> Objects and edges</h2>
+  <p class="lede">The vocabulary the rest of the document assumes. Keep it small; every new vertex type is a new thing to keep consistent.</p>
+
+  <table>
+    <thead><tr><th>Vertex</th><th>Created by</th><th>Key properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Product</td><td>Back office</td><td>name, owner, tenant, repos, readiness_score</td></tr>
+      <tr><td class="mono">Requirement</td><td>BRD ingestion</td><td>kind (goal / rule / boundary), text, source</td></tr>
+      <tr><td class="mono">Issue</td><td>User story ingestion</td><td>role, want, benefit, priority</td></tr>
+      <tr><td class="mono">AcceptanceCriterion</td><td>Story ingestion</td><td>text, verified_by</td></tr>
+      <tr><td class="mono">Artifact</td><td>Diagram upload / agent output</td><td>kind (sequence, erd, diff, commit), body_ref</td></tr>
+      <tr><td class="mono">Workflow / Task</td><td>Planner</td><td>status, role, model_hint, retry_count, escalation_count</td></tr>
+      <tr><td class="mono">Agent / Workspace</td><td>Registry / runner</td><td>capability, availability, lease_until</td></tr>
+      <tr><td class="mono">Review / Decision / Knowledge</td><td>Review engine, meetings</td><td>score, verdict, confidence, evidence refs</td></tr>
+      <tr><td class="mono">Event</td><td>Everything</td><td>type, entity_id, payload, ts, actor</td></tr>
+    </tbody>
+  </table>
+
+  <pre><b>Edges that carry the load</b>
+Product     -HAS_REQUIREMENT-&gt; Requirement
+Product     -HAS_ISSUE-&gt;       Issue -HAS_CRITERION-&gt; AcceptanceCriterion
+Workflow    -HAS_TASK-&gt;        Task  -DEPENDS_ON-&gt;     Task
+Task        -IMPLEMENTS-&gt;      Issue
+Task        -EXECUTED_BY-&gt;     Agent
+Task        -USES_CONTEXT-&gt;    Requirement | Artifact | Knowledge | File
+Task        -REVIEWED_BY-&gt;     Review -LEARNS_FROM-&gt;  Knowledge
+Knowledge   -APPLIES_TO-&gt;      Issue | File | Product</pre>
+
+  <div class="note">
+    <b>USES_CONTEXT is the audit trail that matters.</b> Every prompt sent to a model is reconstructible from those edges. Without them you can see that a task failed but never why the model believed what it believed.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="flow-setup">
+  <h2><span class="num">04</span> Setup → autonomous run</h2>
+  <p class="lede">The full path: an operator fills in a product record, and the system reaches a point where it dispatches, reviews, and advances work without anyone watching.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 2</span><b>From empty product record to a self-running workflow</b>
+      <span class="hint">two gates: knowledge readiness, then the approval gate</span></figcaption>
+    <div class="canvas" id="fig-setup"></div>
+    <div class="legend-row">
+      <span><i class="s"></i>entry / exit</span><span><i></i>work</span><span><i class="d"></i>decision</span>
+      <span><i class="st"></i>durable state</span><span style="color:var(--block)">— — loop back</span>
+    </div>
+  </figure>
+
+  <h3>Where autonomy actually begins</h3>
+  <p>Autonomy is not a switch. It starts at the moment the scheduler can find a READY task without a human naming it, which requires four things to already be true: the dependency graph is acyclic, a capable agent exists for the role, a workspace lease can be acquired, and the readiness gate has passed. Miss any one and the floor looks idle for reasons nobody can explain — so surface all four in the UI as the blocking reason.</p>
+
+  <table>
+    <thead><tr><th>Stage</th><th>Human does</th><th>System does</th><th>Written to the graph</th></tr></thead>
+    <tbody>
+      <tr><td>Product setup</td><td>BRD, stories, diagrams, repo link</td><td>Parses into vertices; indexes the codebase</td><td>Product, Requirement, Issue, Artifact, File, Function</td></tr>
+      <tr><td>Readiness check</td><td>Fixes what is missing</td><td>Scores the record, refuses below the floor</td><td>readiness_score, ReadinessEvaluated event</td></tr>
+      <tr><td>Workflow creation</td><td>Objective, scope, gate policy</td><td>Planner expands the task graph</td><td>Workflow, Task, DEPENDS_ON, IMPLEMENTS</td></tr>
+      <tr><td>Execution</td><td>Nothing</td><td>Schedules, dispatches, monitors, reviews, retries</td><td>Events, Review, Artifact, Metric</td></tr>
+      <tr><td>Gate</td><td>Approves or rejects</td><td>Holds the merge until resolved</td><td>ApprovalRequested / Granted, Decision</td></tr>
+      <tr><td>Close</td><td>Nothing</td><td>Extracts lessons and links them back to the product</td><td>Knowledge, LEARNS_FROM, APPLIES_TO</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>The failure mode to design against.</b> A team fills in the record once, the system runs, and nobody ever updates the record again. Knowledge decays silently against a moving codebase. Section 07 handles this with a staleness rule — build it in from the start rather than adding it after the first bad plan.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="flow-split">
+  <h2><span class="num">05</span> Task split and role selection</h2>
+  <p class="lede">Two separate decisions that are easy to conflate: how the goal breaks into tasks, and which agent and model each task gets. Keep them apart — the first is about the work, the second is about capacity and risk.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 3</span><b>Goal decomposition into an executable task graph</b>
+      <span class="hint">planner only — no execution happens here</span></figcaption>
+    <div class="canvas" id="fig-split"></div>
+  </figure>
+
+  <h3>What makes a task atomic</h3>
+  <p>A task is atomic when it can be verified on its own. That is a stricter test than "small". Three practical rules:</p>
+  <ul>
+    <li><b>One concern.</b> A task that changes a migration and a UI form has two failure modes and one score, so the score tells you nothing.</li>
+    <li><b>One workspace.</b> If it needs two repositories checked out simultaneously, it is a workflow, not a task.</li>
+    <li><b>One acceptance criterion, at minimum.</b> No criterion means no verdict; the reviewer will invent one and it will drift.</li>
+  </ul>
+
+  <figure>
+    <figcaption><span class="fig">FIG 4</span><b>Role and model selection for a single task</b>
+      <span class="hint">capability first, then risk, then cost</span></figcaption>
+    <div class="canvas" id="fig-role"></div>
+  </figure>
+
+  <p>Ordering matters here. Selecting on cost first produces a system that routes a security-critical migration to the cheapest model because it happened to be free. Capability is a hard filter, risk overrides cost, and cost only decides between options that are already acceptable.</p>
+
+  <table>
+    <thead><tr><th>Task signal</th><th>Required role</th><th>Model floor</th><th>Extra reviewer</th></tr></thead>
+    <tbody>
+      <tr><td>Schema migration, money arithmetic, auth</td><td>Backend + Security</td><td>Top tier</td><td>Always</td></tr>
+      <tr><td>Public API contract change</td><td>Architect</td><td>Top tier</td><td>Frontend + QA notified</td></tr>
+      <tr><td>New feature within an existing boundary</td><td>Backend or Frontend</td><td>Mid tier</td><td>QA</td></tr>
+      <tr><td>Test authoring, docs, mechanical refactor</td><td>QA / any</td><td>Low tier</td><td>None</td></tr>
+      <tr><td>Retry after a failed attempt</td><td>Same role</td><td>One tier above the last attempt</td><td>Senior on second retry</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Role capacity is a scheduling constraint, not a suggestion.</b> Senior roles — architect, security — are shared across every product. Model them with explicit capacity or they become the bottleneck that nobody sees until three workflows are all waiting on the same reviewer.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="flow-retry">
+  <h2><span class="num">06</span> Scoring and the retry loop</h2>
+  <p class="lede">The most dangerous loop in the system. Every path through it must terminate, and every termination must record a reason code.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 5</span><b>Score, then decide: accept, iterate, escalate, or stop</b>
+      <span class="hint">safety is a veto, evaluated before anything else</span></figcaption>
+    <div class="canvas" id="fig-retry"></div>
+  </figure>
+
+  <h3>The score</h3>
+  <pre><b>final = 0.45·correctness + 0.20·completeness + 0.15·safety + 0.10·quality + 0.10·efficiency</b>
+
+correctness   tests pass, rule checks, reviewer verdict against acceptance criteria
+completeness  every criterion addressed; no silently skipped file
+safety        no secret leakage, no unsafe command, no out-of-scope change
+quality       complexity, duplication, coverage delta
+efficiency    tokens, latency, retries consumed</pre>
+
+  <p>Correctness dominates deliberately. A beautiful implementation of the wrong behaviour should score below an ugly implementation of the right one, because the second is cheap to improve and the first is expensive to discover.</p>
+
+  <h3>Thresholds and what each one does</h3>
+  <table>
+    <thead><tr><th class="mono">final</th><th>Action</th><th>Model</th><th>Records</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">85–100</td><td>Accept</td><td>—</td><td>Review, Knowledge if novel</td></tr>
+      <tr><td class="mono">70–84</td><td>Accept, spawn a cleanup task</td><td>Same</td><td>Review, follow-up Task</td></tr>
+      <tr><td class="mono">50–69</td><td>Iterate with a widened context slice</td><td>Same tier</td><td>RetryRequested + reason</td></tr>
+      <tr><td class="mono">30–49</td><td>Escalate a tier and re-run</td><td>One above</td><td>ModelEscalated</td></tr>
+      <tr><td class="mono">0–29</td><td>Stop; call a design review</td><td>Meeting</td><td>MeetingStarted, later Decision</td></tr>
+      <tr><td class="mono">safety &lt; 60</td><td>Stop immediately, regardless of total</td><td>—</td><td>SafetyVeto, human queue</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Guardrails that make it terminate</h3>
+  <table>
+    <thead><tr><th>Guard</th><th>Typical value</th><th>What it prevents</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">max_retry_count</td><td>3 per task</td><td>Grinding on the same approach forever.</td></tr>
+      <tr><td class="mono">max_escalation_count</td><td>2 per task</td><td>Walking up the model tiers until the budget is gone.</td></tr>
+      <tr><td class="mono">same_failure_signature_limit</td><td>2</td><td>Retrying an identical failure and expecting a different result.</td></tr>
+      <tr><td class="mono">cooldown_backoff</td><td>exponential, capped</td><td>Tight loops against a degraded provider.</td></tr>
+      <tr><td class="mono">budget_cap</td><td>per workflow and per tenant</td><td>One runaway task consuming a month of spend.</td></tr>
+      <tr><td class="mono">human_intervention_threshold</td><td>2 escalations, or any safety veto</td><td>Automation quietly failing where a person should decide.</td></tr>
+    </tbody>
+  </table>
+
+  <p>The failure signature is what makes retries intelligent rather than superstitious. Hash the normalised error — failing test name, error class, offending file — and compare across attempts. <b>Signature changed</b> means progress: the model fixed one thing and hit the next, so retry. <b>Signature identical twice</b> means the approach itself is wrong: escalating a tier will usually reproduce the same wrong answer more expensively, so route it to a design review instead.</p>
+
+  <div class="ok">
+    <b>Acceptance test for this loop:</b> run a task that can never succeed — a criterion that contradicts a domain rule. A correct implementation stops within the guard limits, records a reason code, and leaves a human queue item. If it loops or fails silently, the loop is not finished.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="flow-knowledge">
+  <h2><span class="num">07</span> Knowledge maturity: when is a product ready?</h2>
+  <p class="lede">The question this section answers: is the information given to the agents enough yet? Make it a number, publish the rubric, and let the planner refuse below the floor.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 6</span><b>From an empty record to complete knowledge, and the decay that pulls it back</b>
+      <span class="hint">three gates, two feedback loops</span></figcaption>
+    <div class="canvas" id="fig-knowledge"></div>
+  </figure>
+
+  <h3>The readiness rubric</h3>
+  <p>One hundred points, checkable by a machine. Nothing here requires judgment, which is the point — a subjective bar gets argued away.</p>
+
+  <table>
+    <thead><tr><th>Signal</th><th class="mono">pts</th><th>Passes when</th></tr></thead>
+    <tbody>
+      <tr><td>Problem statement</td><td class="mono">8</td><td>Present, ≥ 40 characters, names a real symptom.</td></tr>
+      <tr><td>Goals</td><td class="mono">8</td><td>At least one, phrased as an outcome not a task.</td></tr>
+      <tr><td>Domain rules</td><td class="mono">12</td><td>≥ 3 rules the reviewer can score against.</td></tr>
+      <tr><td>Out of scope</td><td class="mono">6</td><td>≥ 1 explicit exclusion.</td></tr>
+      <tr><td>Stories exist</td><td class="mono">10</td><td>≥ 1 story in as / want / so form.</td></tr>
+      <tr><td>Criteria coverage</td><td class="mono">12</td><td>Every <em>must</em> story has ≥ 2 acceptance criteria.</td></tr>
+      <tr><td>Behaviour diagram</td><td class="mono">10</td><td>≥ 1 sequence or flow showing the call order.</td></tr>
+      <tr><td>Data model</td><td class="mono">8</td><td>Entities and cardinality recorded.</td></tr>
+      <tr><td>Repository linked</td><td class="mono">8</td><td>Repo indexed; entrypoint identified.</td></tr>
+      <tr><td>Decisions</td><td class="mono">8</td><td>≥ 1 ADR carried into every prompt.</td></tr>
+      <tr><td>Success metrics</td><td class="mono">5</td><td>≥ 1 measurable outcome.</td></tr>
+      <tr><td>Verification strategy</td><td class="mono">5</td><td>How correctness is proven: tests, replay, manual check.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The four bands</h3>
+  <div class="bands">
+    <div class="band b0"><b>0–44 · Insufficient</b><span>Planner refuses and returns the missing list. Nothing is dispatched.</span></div>
+    <div class="band b1"><b>45–69 · Minimum</b><span>Planning allowed. Every task gated, model capped mid tier, no auto-merge.</span></div>
+    <div class="band b2"><b>70–89 · Working</b><span>Normal autonomy. Gates only on risk signals. Full model range.</span></div>
+    <div class="band b3"><b>90–100 · Complete</b><span>Low-risk tasks may merge without a human. Gates remain on money, auth, schema.</span></div>
+  </div>
+
+  <p><b>Minimum knowledge</b> is the 45-point floor: enough for the planner to produce a defensible task graph, but not enough to trust unsupervised merges. <b>Complete knowledge</b> at 90 is not perfection — it means every question an agent routinely asks has a recorded answer, so the remaining risk is in the code rather than in the brief.</p>
+
+  <h3>Staleness: why the score must decay</h3>
+  <p>A record scored 92 six months ago describes a codebase that no longer exists. Recompute on a schedule and on repo events:</p>
+  <pre><b>effective = raw − drift_penalty</b>
+
+drift_penalty = min(25, 4 × months_since_last_review
+                      + 6 × (boundary_files_changed_since_injection &gt; 0)
+                      + 8 × (open_contradiction_count &gt; 0))
+
+contradiction = a Decision that conflicts with a Requirement,
+                or an acceptance criterion no test maps to</pre>
+  <p>Falling below a band boundary is an event, not a silent recalculation: emit <code>ReadinessDropped</code>, show it on the product card, and re-apply the stricter band's gates immediately.</p>
+
+  <div class="note">
+    <b>Closing the loop.</b> Every completed workflow writes Knowledge back to the product — lessons, decisions, failure patterns. That is what makes the second workflow on a product cheaper than the first, and it is the only mechanism that raises readiness without a human typing.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="flow-replay">
+  <h2><span class="num">08</span> Replay</h2>
+  <p class="lede">Replay is not a recording. It is the same fold over the event stream that recovery uses, stopped at an earlier timestamp — which is why building it forces the event model to be honest.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 7</span><b>Reconstructing any past moment from the event stream</b>
+      <span class="hint">read-only; live subscriptions are suspended, not cancelled</span></figcaption>
+    <div class="canvas" id="fig-replay"></div>
+  </figure>
+
+  <h3>Why fold, not snapshot</h3>
+  <p>Snapshots are an optimisation, never the source. If the UI can only replay from stored snapshots, then any moment between two snapshots is unreachable and any bug in snapshot writing is invisible. Fold from the nearest snapshot forward, and keep a periodic test that folds from genesis and compares — that test is what proves the event model is complete.</p>
+
+  <pre><b>state(t) = fold(reduce, events.filter(e =&gt; e.ts &lt;= t), snapshot_before(t) ?? empty)</b>
+
+reduce(state, event) must be:
+  pure          same inputs, same output, no clock, no random
+  total         an unknown event type is skipped, never fatal
+  order-stable  ties broken by (ts, seq) so replays are identical</pre>
+
+  <table>
+    <thead><tr><th>Replay scope</th><th>Reconstructs</th><th>Primary use</th></tr></thead>
+    <tbody>
+      <tr><td>Workflow</td><td>Desk state, task statuses, scores, gates at time t</td><td>"Why did this ship in that shape?"</td></tr>
+      <tr><td>Task</td><td>Prompt, context slice, logs, diff, review findings</td><td>Debugging a single bad output</td></tr>
+      <tr><td>Meeting</td><td>Proposals, evidence, confidence curve, decision</td><td>Understanding why an ADR was chosen</td></tr>
+      <tr><td>Comparison</td><td>Two runs of the same task, different models</td><td>Model routing decisions backed by evidence</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>Guard the write path during replay.</b> The reconstructed state must be structurally impossible to save. Route replay through a read-only store handle rather than a flag someone can forget to check — a flag will eventually be forgotten and will overwrite live state with a historical one.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="schema">
+  <h2><span class="num">09</span> Schema and API surface</h2>
+  <p class="lede">Enough detail to start; the shapes below are the ones the flowcharts assume.</p>
+
+  <h4>Indexes that decide whether this is fast or slow</h4>
+  <table>
+    <thead><tr><th class="mono">Index</th><th>Serves</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Task.status + Task.workflow_id</td><td>Scheduler scan, every tick.</td></tr>
+      <tr><td class="mono">Task.status + Task.lease_until</td><td>Orphan detection on boot.</td></tr>
+      <tr><td class="mono">Event.entity_id + Event.ts</td><td>Replay fold and audit.</td></tr>
+      <tr><td class="mono">Product.readiness_score</td><td>Back office listing, band gates.</td></tr>
+      <tr><td class="mono">File.path + Repository.id</td><td>Impact analysis from a diff.</td></tr>
+      <tr><td class="mono">Knowledge.tags</td><td>Lesson recall during planning.</td></tr>
+    </tbody>
+  </table>
+
+  <h4>API</h4>
+  <pre><b>Product master</b>
+POST   /products                      create a record
+PUT    /products/{id}/brd             problem, goals, rules, scope
+POST   /products/{id}/stories         story + acceptance criteria
+POST   /products/{id}/diagrams        sequence / erd / flow source
+POST   /products/{id}/inject          parse → vertices + edges, rescore
+GET    /products/{id}/readiness       score, band, missing items
+
+<b>Workflow lifecycle</b>
+POST   /workflows                     objective, product_id, scope, gate policy
+POST   /workflows/{id}/plan           planner expands the task graph
+GET    /workflows/{id}/graph          DAG for the UI
+POST   /tasks/{id}/dispatch|complete|fail|retry|approve
+GET    /tasks/{id}/context            the exact slice sent to the model
+
+<b>History</b>
+GET    /events?entity={id}&amp;until={ts} replay source
+GET    /replay/{workflow}?t={ts}      folded state at t</pre>
+
+  <div class="note">
+    <b>One rule for the whole API:</b> every mutation returns either the new state or a rejection reason, never a bare 200. The UI, the scheduler, and the tests all depend on being told <em>why</em> something did not happen.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="build">
+  <h2><span class="num">10</span> Build order</h2>
+  <p class="lede">Sequenced so each step is testable before the next one exists. Resist starting with the visual layer — it is the most rewarding to build and the least load-bearing.</p>
+
+  <table>
+    <thead><tr><th class="mono">#</th><th>Deliverable</th><th>Done when</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td>Graph schema + event store</td><td>Every write emits an event; a fold reproduces current state exactly.</td></tr>
+      <tr><td class="mono">2</td><td>Task state machine</td><td>Illegal transitions are rejected at the boundary, not by convention.</td></tr>
+      <tr><td class="mono">3</td><td>Product master + readiness scoring</td><td>The rubric runs on ingestion; below 45 the planner refuses with a list.</td></tr>
+      <tr><td class="mono">4</td><td>Planner producing a static task graph</td><td>One goal yields an acyclic DAG with roles and dependencies.</td></tr>
+      <tr><td class="mono">5</td><td>Runner with one detached process</td><td>Kill the orchestrator mid-task; the work survives and is re-adopted.</td></tr>
+      <tr><td class="mono">6</td><td>Review, scoring, retry policy</td><td>The unsatisfiable-task test terminates with a reason code.</td></tr>
+      <tr><td class="mono">7</td><td>Context assembly from the master record</td><td><code>GET /tasks/{id}/context</code> matches what the model actually received.</td></tr>
+      <tr><td class="mono">8</td><td>Approval gates</td><td>A gated task cannot merge, through the API or otherwise.</td></tr>
+      <tr><td class="mono">9</td><td>Mission Control + replay</td><td>Fold-from-genesis matches fold-from-snapshot on a real workflow.</td></tr>
+      <tr><td class="mono">10</td><td>Meetings, knowledge extraction, multi-repo</td><td>The second workflow on a product plans faster than the first.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="ok">
+    <b>The one measurement that tells you it works.</b> Run the same objective on the same product twice, a week apart. If the second run needs fewer retries and less human intervention, knowledge is accumulating and the loop closes. If it does not, the extraction step is decorative and everything above it is expensive theatre.
+  </div>
+</section>
+
+<footer class="doc">
+  GAOS · architecture companion to the Mission Control prototype. Every flow drawn here maps to a named event in the stream; if a step cannot emit an event, it does not belong in the system.
+</footer>
+
+</main>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   Small declarative flowchart engine.
+   Nodes sit on a grid; edges are anchored to named sides and
+   routed with orthogonal elbows. No dependencies, prints cleanly.
+   ============================================================ */
+const COL = 218, ROW = 96;
+const W = 168, H = 52, DW = 176, DH = 74, STUB = 20;
+
+function nodeBox(n){
+  const w = n.w != null ? n.w : (n.kind === "dec" ? DW : W);
+  const h = n.h != null ? n.h : (n.kind === "dec" ? DH : H);
+  return {w, h, cx: n.x * COL, cy: n.y * ROW};
+}
+
+function anchor(n, side){
+  const b = nodeBox(n);
+  if (n.kind === "dec"){
+    if (side === "n") return {x:b.cx, y:b.cy - b.h/2, dx:0, dy:-1};
+    if (side === "s") return {x:b.cx, y:b.cy + b.h/2, dx:0, dy:1};
+    if (side === "w") return {x:b.cx - b.w/2, y:b.cy, dx:-1, dy:0};
+    return {x:b.cx + b.w/2, y:b.cy, dx:1, dy:0};
+  }
+  if (side === "n") return {x:b.cx, y:b.cy - b.h/2, dx:0, dy:-1};
+  if (side === "s") return {x:b.cx, y:b.cy + b.h/2, dx:0, dy:1};
+  if (side === "w") return {x:b.cx - b.w/2, y:b.cy, dx:-1, dy:0};
+  return {x:b.cx + b.w/2, y:b.cy, dx:1, dy:0};
+}
+
+function route(a, b, bend){
+  const p0 = {x:a.x, y:a.y};
+  const p1 = {x:a.x + a.dx * STUB, y:a.y + a.dy * STUB};
+  const pn = {x:b.x, y:b.y};
+  const pm = {x:b.x + b.dx * STUB, y:b.y + b.dy * STUB};
+  const pts = [p0, p1];
+  const aVert = a.dx === 0, bVert = b.dx === 0;
+
+  if (aVert && bVert){
+    if (Math.abs(p1.x - pm.x) > 1){
+      if (a.dy === b.dy){                       // same direction: go around
+        const yy = a.dy > 0 ? Math.max(p1.y, pm.y) + (bend || 26)
+                            : Math.min(p1.y, pm.y) - (bend || 26);
+        pts.push({x:p1.x, y:yy}, {x:pm.x, y:yy});
+      } else {
+        const my = (p1.y + pm.y) / 2;
+        pts.push({x:p1.x, y:my}, {x:pm.x, y:my});
+      }
+    }
+  } else if (!aVert && !bVert){
+    if (Math.abs(p1.y - pm.y) > 1){
+      let xx;
+      if (a.dx === b.dx){
+        xx = a.dx > 0 ? Math.max(p1.x, pm.x) + (bend || 26)
+                      : Math.min(p1.x, pm.x) - (bend || 26);
+      } else {
+        xx = (p1.x + pm.x) / 2;
+      }
+      pts.push({x:xx, y:p1.y}, {x:xx, y:pm.y});
+    }
+  } else if (aVert){
+    pts.push({x:p1.x, y:pm.y});
+  } else {
+    pts.push({x:pm.x, y:p1.y});
+  }
+  pts.push(pm, pn);
+  return pts;
+}
+
+/* label goes on the longest segment: that is the one most likely
+   to be running through open space rather than past a node */
+function midOf(pts){
+  let best = 0, bestLen = -1;
+  for (let i = 0; i < pts.length - 1; i++){
+    const d = Math.abs(pts[i+1].x - pts[i].x) + Math.abs(pts[i+1].y - pts[i].y);
+    if (d > bestLen){ bestLen = d; best = i; }
+  }
+  return {x:(pts[best].x + pts[best+1].x) / 2, y:(pts[best].y + pts[best+1].y) / 2};
+}
+
+function wrap(text, max){
+  const words = String(text).split(" ");
+  const lines = []; let cur = "";
+  words.forEach(w => {
+    const t = cur ? cur + " " + w : w;
+    if (t.length > max && cur){ lines.push(cur); cur = w; } else { cur = t; }
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+function escapeX(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function drawNode(n){
+  const b = nodeBox(n);
+  const cls = n.cls ? " " + n.cls : "";
+  let shape = "";
+  if (n.kind === "dec"){
+    const pts = [
+      [b.cx, b.cy - b.h/2], [b.cx + b.w/2, b.cy],
+      [b.cx, b.cy + b.h/2], [b.cx - b.w/2, b.cy]
+    ].map(p => p.join(",")).join(" ");
+    shape = `<polygon class="dia${cls}" points="${pts}"/>`;
+  } else if (n.kind === "start" || n.kind === "end"){
+    shape = `<rect class="box start${cls}" x="${b.cx - b.w/2}" y="${b.cy - b.h/2}" width="${b.w}" height="${b.h}" rx="${b.h/2}"/>`;
+  } else if (n.kind === "state"){
+    shape = `<rect class="box state${cls}" x="${b.cx - b.w/2}" y="${b.cy - b.h/2}" width="${b.w}" height="${b.h}" rx="4"/>`
+          + `<rect class="box state${cls}" x="${b.cx - b.w/2 + 4}" y="${b.cy - b.h/2 + 4}" width="${b.w - 8}" height="${b.h - 8}" rx="2" fill="none" opacity=".5"/>`;
+  } else {
+    shape = `<rect class="box${cls}" x="${b.cx - b.w/2}" y="${b.cy - b.h/2}" width="${b.w}" height="${b.h}" rx="4"/>`;
+  }
+
+  const maxChars = Math.round((b.w - 18) / 5.9);
+  const lines = wrap(n.text, maxChars);
+  const big = n.kind === "state" || n.kind === "start" || n.kind === "end";
+  const lh = 13.5;
+  const hasKicker = !!n.k;
+  const blockH = lines.length * lh + (hasKicker ? 11 : 0);
+  let y = b.cy - blockH/2 + lh - 3;
+  let txt = "";
+  if (hasKicker){
+    txt += `<text class="k" x="${b.cx}" y="${y - 2}" text-anchor="middle">${escapeX(n.k)}</text>`;
+    y += 12;
+  }
+  lines.forEach(l => {
+    txt += `<text class="${big ? "big" : ""}" x="${b.cx}" y="${y}" text-anchor="middle">${escapeX(l)}</text>`;
+    y += lh;
+  });
+  return shape + txt;
+}
+
+function drawChart(spec){
+  const nodes = {};
+  spec.nodes.forEach(n => { nodes[n.id] = n; });
+
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  spec.nodes.forEach(n => {
+    const b = nodeBox(n);
+    minX = Math.min(minX, b.cx - b.w/2); maxX = Math.max(maxX, b.cx + b.w/2);
+    minY = Math.min(minY, b.cy - b.h/2); maxY = Math.max(maxY, b.cy + b.h/2);
+  });
+
+  let edges = "";
+  const bends = [];
+  spec.edges.forEach(e => {
+    const [fromId, fromSide] = e.from.split(":");
+    const [toId, toSide] = e.to.split(":");
+    const a = anchor(nodes[fromId], fromSide || "s");
+    const b = anchor(nodes[toId], toSide || "n");
+    const pts = route(a, b, e.bend);
+    pts.forEach(p => {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    });
+    const cls = e.cls ? " " + e.cls : "";
+    const marker = e.cls === "yes" ? "mYes" : e.cls === "no" ? "mNo"
+                 : e.cls === "loop" ? "mLoop" : e.cls === "alt" ? "mAlt" : "mDef";
+    edges += `<polyline class="edge${cls}" points="${pts.map(p => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ")}" marker-end="url(#${marker})"/>`;
+    if (e.label){
+      const m = midOf(pts);
+      const lx = m.x + (e.lx || 0), ly = m.y + (e.ly || 0);
+      const wpx = e.label.length * 5.6 + 8;
+      bends.push(`<rect class="labbg" x="${(lx - wpx/2).toFixed(1)}" y="${(ly - 8).toFixed(1)}" width="${wpx.toFixed(1)}" height="13" rx="2"/>`
+        + `<text class="lab${cls}" x="${lx.toFixed(1)}" y="${(ly + 2.5).toFixed(1)}" text-anchor="middle">${escapeX(e.label)}</text>`);
+    }
+  });
+
+  const pad = 22;
+  const vbW = (maxX - minX) + pad * 2, vbH = (maxY - minY) + pad * 2;
+  const ox = -minX + pad, oy = -minY + pad;
+
+  const mk = (id, color) => `<marker id="${id}" viewBox="0 0 8 8" refX="7.2" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" fill="${color}"/></marker>`;
+
+  return `<svg class="fc" viewBox="0 0 ${vbW.toFixed(0)} ${vbH.toFixed(0)}" width="${Math.min(vbW, 1020).toFixed(0)}" role="img" aria-label="${escapeX(spec.title)}">
+    <defs>
+      ${mk("mDef","var(--ink-3)")}${mk("mYes","var(--done)")}${mk("mNo","var(--fail)")}
+      ${mk("mLoop","var(--block)")}${mk("mAlt","var(--know)")}
+    </defs>
+    <g transform="translate(${ox.toFixed(1)},${oy.toFixed(1)})">
+      ${edges}
+      ${spec.nodes.map(drawNode).join("")}
+      ${bends.join("")}
+    </g>
+  </svg>`;
+}
+
+/* ============================================================
+   FIG 1 — layers
+   ============================================================ */
+const LAYERS = {
+  title:"Layer map",
+  nodes:[
+    {id:"ui",  kind:"state", x:0, y:0, w:470, h:56, k:"presentation", text:"Mission Control · floor, inspector, timeline, back office"},
+    {id:"api", kind:"proc",  x:0, y:1, w:470, h:52, k:"boundary", text:"API gateway · auth, tenant scope, validation, event fan-out"},
+    {id:"orc", kind:"proc",  x:0, y:2, w:470, h:52, k:"stateless", text:"Orchestration · planner, scheduler, review, retry policy"},
+    {id:"exe", kind:"proc",  x:0, y:3, w:470, h:52, k:"survives restarts", text:"Execution · runner manager, detached processes, workspace leases"},
+    {id:"mgw", kind:"proc",  x:0, y:4, w:470, h:52, k:"swappable", text:"Model gateway · adapters, routing, cost and token accounting"},
+    {id:"db",  kind:"state", x:0, y:5, w:470, h:56, k:"source of truth", text:"ArcadeDB · graph · documents · events · full-text · time series"},
+    {id:"ev",  kind:"proc",  x:1.85, y:2.5, w:150, h:150, cls:"link", k:"read + write", text:"Event stream drives the UI and recovery alike"}
+  ],
+  edges:[
+    {from:"ui:s",  to:"api:n", label:"intent"},
+    {from:"api:s", to:"orc:n"},
+    {from:"orc:s", to:"exe:n", label:"dispatch"},
+    {from:"exe:s", to:"mgw:n"},
+    {from:"mgw:s", to:"db:n",  label:"persist"},
+    {from:"db:e",  to:"ev:s",  cls:"alt", label:"events"},
+    {from:"ev:n",  to:"ui:e",  cls:"alt", label:"projection"},
+    {from:"ev:w",  to:"orc:e", cls:"alt", label:"recovery"}
+  ]
+};
+
+/* ============================================================
+   FIG 2 — setup to autonomous run
+   ============================================================ */
+const SETUP = {
+  title:"Setup to autonomous run",
+  nodes:[
+    {id:"s",    kind:"start", x:0, y:0, text:"Operator signs in to the back office"},
+    {id:"prod", kind:"proc",  x:0, y:1, k:"master", text:"Create the product record"},
+    {id:"brd",  kind:"proc",  x:0, y:2, k:"master", text:"Write BRD: problem, goals, rules, out of scope"},
+    {id:"story",kind:"proc",  x:0, y:3, k:"master", text:"Add stories with acceptance criteria"},
+    {id:"dgm",  kind:"proc",  x:0, y:4, k:"master", text:"Add sequence and data model diagrams"},
+    {id:"repo", kind:"proc",  x:0, y:5, k:"indexer", text:"Link the repository; build the code graph"},
+    {id:"inj",  kind:"proc",  x:0, y:6, k:"ingest", text:"Inject: write vertices and edges, rescore"},
+    {id:"gate1",kind:"dec",   x:0, y:7, text:"Readiness ≥ 45?"},
+    {id:"miss", kind:"proc",  x:1.5, y:7, cls:"warnb", k:"blocked", text:"Return the missing items; nothing is dispatched"},
+    {id:"wf",   kind:"proc",  x:0, y:8.2, k:"operator", text:"Create the workflow: objective, scope, gate policy"},
+    {id:"plan", kind:"proc",  x:0, y:9.2, k:"planner", text:"Expand into a task graph with DEPENDS_ON"},
+    {id:"sched",kind:"state", x:0, y:10.3, k:"loop", text:"Scheduler scans for READY tasks"},
+    {id:"cap",  kind:"dec",   x:0, y:11.4, text:"Agent, workspace and quota free?"},
+    {id:"wait", kind:"proc",  x:1.5, y:11.4, k:"fairness", text:"Task waits; priority ages upward"},
+    {id:"disp", kind:"proc",  x:0, y:12.6, k:"runner", text:"Spawn the detached process; write pid and lease"},
+    {id:"work", kind:"proc",  x:0, y:13.6, k:"agent", text:"Read the context slice, change files, stream logs"},
+    {id:"rev",  kind:"proc",  x:0, y:14.6, k:"review", text:"Score the output against the criteria"},
+    {id:"acc",  kind:"dec",   x:0, y:15.7, text:"Accepted?"},
+    {id:"toC",  kind:"end",   x:1.5, y:15.7, cls:"link", text:"→ Fig 5: retry loop"},
+    {id:"gate2",kind:"dec",   x:0, y:16.9, text:"Approval gate on this task?"},
+    {id:"hold", kind:"state", x:1.5, y:16.9, cls:"warnb", k:"paused", text:"Merge held for a human decision"},
+    {id:"merge",kind:"proc",  x:0, y:18.1, k:"release", text:"Merge, deploy, extract the lesson"},
+    {id:"more", kind:"dec",   x:0, y:19.2, text:"More tasks in the graph?"},
+    {id:"done", kind:"end",   x:0, y:20.4, cls:"good", text:"Workflow COMPLETED · knowledge linked back"}
+  ],
+  edges:[
+    {from:"s:s",to:"prod:n"},{from:"prod:s",to:"brd:n"},{from:"brd:s",to:"story:n"},
+    {from:"story:s",to:"dgm:n"},{from:"dgm:s",to:"repo:n"},{from:"repo:s",to:"inj:n"},
+    {from:"inj:s",to:"gate1:n"},
+    {from:"gate1:e",to:"miss:w",cls:"no",label:"no"},
+    {from:"miss:n",to:"brd:e",cls:"loop",label:"fill the gaps",bend:30},
+    {from:"gate1:s",to:"wf:n",cls:"yes",label:"yes"},
+    {from:"wf:s",to:"plan:n"},{from:"plan:s",to:"sched:n"},{from:"sched:s",to:"cap:n"},
+    {from:"cap:e",to:"wait:w",cls:"no",label:"no"},
+    {from:"wait:s",to:"sched:e",cls:"loop",label:"next tick",bend:34},
+    {from:"cap:s",to:"disp:n",cls:"yes",label:"yes"},
+    {from:"disp:s",to:"work:n"},{from:"work:s",to:"rev:n"},{from:"rev:s",to:"acc:n"},
+    {from:"acc:e",to:"toC:w",cls:"no",label:"no"},
+    {from:"acc:s",to:"gate2:n",cls:"yes",label:"yes"},
+    {from:"gate2:e",to:"hold:w",cls:"no",label:"required"},
+    {from:"hold:s",to:"merge:e",cls:"alt",label:"approved",bend:30},
+    {from:"gate2:s",to:"merge:n",cls:"yes",label:"not required"},
+    {from:"merge:s",to:"more:n"},
+    {from:"more:w",to:"sched:w",cls:"loop",label:"yes · next READY task",bend:80},
+    {from:"more:s",to:"done:n",cls:"yes",label:"no"}
+  ]
+};
+
+/* ============================================================
+   FIG 3 — decomposition
+   ============================================================ */
+const SPLIT = {
+  title:"Goal decomposition",
+  nodes:[
+    {id:"s",   kind:"start",x:0,y:0,text:"Objective + selected stories"},
+    {id:"read",kind:"proc", x:0,y:1,k:"context",text:"Read the master record and the code graph"},
+    {id:"imp", kind:"proc", x:0,y:2,k:"traversal",text:"Traverse impact: files, functions, downstream repos"},
+    {id:"cand",kind:"proc", x:0,y:3,text:"Derive candidate work items per story"},
+    {id:"atom",kind:"dec",  x:0,y:4.1,text:"Item covers more than one concern?"},
+    {id:"cut", kind:"proc", x:1.55,y:4.1,k:"split",text:"Cut into single-concern tasks"},
+    {id:"cap", kind:"proc", x:0,y:5.3,k:"routing",text:"Attach required capability and risk class"},
+    {id:"dep", kind:"proc", x:0,y:6.3,text:"Add DEPENDS_ON from data and API direction"},
+    {id:"cyc", kind:"dec",  x:0,y:7.4,text:"Cycle in the graph?"},
+    {id:"iface",kind:"proc",x:1.55,y:7.4,cls:"warnb",k:"repair",text:"Extract an interface task to break it"},
+    {id:"ac",  kind:"dec",  x:0,y:8.6,text:"Every task maps to a criterion?"},
+    {id:"orph",kind:"proc", x:1.55,y:8.6,cls:"warnb",text:"Flag orphan task for the operator"},
+    {id:"est", kind:"proc", x:0,y:9.8,text:"Estimate risk, complexity and cost"},
+    {id:"gate",kind:"proc", x:0,y:10.8,k:"policy",text:"Mark tasks that need approval before merge"},
+    {id:"out", kind:"end",  x:0,y:11.9,cls:"good",text:"Task graph written · TaskPlanned emitted"}
+  ],
+  edges:[
+    {from:"s:s",to:"read:n"},{from:"read:s",to:"imp:n"},{from:"imp:s",to:"cand:n"},
+    {from:"cand:s",to:"atom:n"},
+    {from:"atom:e",to:"cut:w",cls:"no",label:"yes"},
+    {from:"cut:s",to:"cap:e",cls:"loop",label:"re-check",bend:30},
+    {from:"atom:s",to:"cap:n",cls:"yes",label:"no · atomic"},
+    {from:"cap:s",to:"dep:n"},{from:"dep:s",to:"cyc:n"},
+    {from:"cyc:e",to:"iface:w",cls:"no",label:"yes"},
+    {from:"iface:n",to:"dep:e",cls:"loop",label:"rewire",bend:30},
+    {from:"cyc:s",to:"ac:n",cls:"yes",label:"no"},
+    {from:"ac:e",to:"orph:w",cls:"no",label:"no"},
+    {from:"orph:s",to:"est:e",cls:"alt",label:"accepted with note",bend:30},
+    {from:"ac:s",to:"est:n",cls:"yes",label:"yes"},
+    {from:"est:s",to:"gate:n"},{from:"gate:s",to:"out:n"}
+  ]
+};
+
+/* ============================================================
+   FIG 4 — role and model selection
+   ============================================================ */
+const ROLE = {
+  title:"Role and model selection",
+  nodes:[
+    {id:"s",   kind:"start",x:0,y:0,text:"Task needs an agent"},
+    {id:"cap", kind:"proc", x:0,y:1,k:"hard filter",text:"Match required capability to role"},
+    {id:"risk",kind:"dec",  x:0,y:2.1,text:"High-risk class? money, auth, schema"},
+    {id:"sen", kind:"proc", x:1.6,y:2.1,cls:"warnb",k:"override",text:"Force top tier + security reviewer"},
+    {id:"ret", kind:"dec",  x:0,y:3.4,text:"Retry or escalation on this task?"},
+    {id:"tier",kind:"proc", x:1.6,y:3.4,k:"escalate",text:"Raise one tier above the last attempt"},
+    {id:"bud", kind:"dec",  x:0,y:4.7,text:"Budget headroom left?"},
+    {id:"cheap",kind:"proc",x:1.6,y:4.7,cls:"warnb",text:"Cap at the cheapest capable tier"},
+    {id:"avail",kind:"dec", x:0,y:6,text:"Agent free in that role?"},
+    {id:"adj", kind:"dec",  x:1.6,y:6,text:"Adjacent role qualified?"},
+    {id:"queue",kind:"proc",x:1.6,y:7.1,cls:"warnb",k:"backlog",text:"Queue on the role; age the priority"},
+    {id:"borrow",kind:"proc",x:3.05,y:6,k:"capacity",text:"Borrow the adjacent role; note it on the task"},
+    {id:"res", kind:"proc", x:0,y:7.3,k:"lease",text:"Reserve the agent and the workspace"},
+    {id:"out", kind:"end",  x:0,y:8.4,cls:"good",text:"Dispatch with role, model and reason code"}
+  ],
+  edges:[
+    {from:"s:s",to:"cap:n"},{from:"cap:s",to:"risk:n"},
+    {from:"risk:e",to:"sen:w",cls:"no",label:"yes"},
+    {from:"sen:s",to:"ret:e",cls:"alt",label:"floor set",bend:26},
+    {from:"risk:s",to:"ret:n",cls:"yes",label:"no"},
+    {from:"ret:e",to:"tier:w",cls:"no",label:"yes"},
+    {from:"tier:s",to:"bud:e",cls:"alt",label:"tier raised",bend:26},
+    {from:"ret:s",to:"bud:n",cls:"yes",label:"first attempt"},
+    {from:"bud:e",to:"cheap:w",cls:"no",label:"tight"},
+    {from:"cheap:s",to:"avail:e",cls:"alt",bend:26},
+    {from:"bud:s",to:"avail:n",cls:"yes",label:"yes"},
+    {from:"avail:e",to:"adj:w",cls:"no",label:"no"},
+    {from:"adj:e",to:"borrow:w",cls:"yes",label:"yes"},
+    {from:"adj:s",to:"queue:n",cls:"no",label:"no"},
+    {from:"borrow:s",to:"res:e",cls:"alt",label:"seat it",bend:40, ly:22},
+    {from:"queue:w",to:"avail:s",cls:"loop",label:"retry next tick",bend:30, ly:-19},
+    {from:"avail:s",to:"res:n",cls:"yes",label:"yes"},
+    {from:"res:s",to:"out:n"}
+  ]
+};
+
+/* ============================================================
+   FIG 5 — scoring and retry
+   ============================================================ */
+const RETRY = {
+  title:"Scoring and retry",
+  nodes:[
+    {id:"s",    kind:"start",x:0,y:0,text:"Task run finished"},
+    {id:"dims", kind:"proc", x:0,y:1,k:"review",text:"Score correctness, completeness, safety, quality, efficiency"},
+    {id:"calc", kind:"proc", x:0,y:2,k:"weights .45 .20 .15 .10 .10",text:"Compute the weighted final score"},
+    {id:"veto", kind:"dec",  x:0,y:3.2,text:"Safety ≥ 60?"},
+    {id:"stop1",kind:"end",  x:1.65,y:3.2,cls:"stop",k:"terminal",text:"STOP · safety veto → human queue"},
+    {id:"a85",  kind:"dec",  x:0,y:4.4,text:"Score ≥ 85?"},
+    {id:"acc",  kind:"end",  x:1.65,y:4.4,cls:"good",text:"ACCEPT · write Review and Knowledge"},
+    {id:"a70",  kind:"dec",  x:0,y:5.6,text:"Score ≥ 70?"},
+    {id:"clean",kind:"end",  x:1.65,y:5.6,cls:"good",text:"ACCEPT · spawn a cleanup task"},
+    {id:"bud",  kind:"dec",  x:0,y:6.8,text:"Budget and retry guards still open?"},
+    {id:"stop2",kind:"end",  x:1.65,y:6.8,cls:"stop",k:"terminal",text:"STOP · guard exhausted, reason code stored"},
+    {id:"sig",  kind:"dec",  x:0,y:8.1,text:"Failure signature changed?"},
+    {id:"same", kind:"dec",  x:1.65,y:8.1,text:"Same signature twice?"},
+    {id:"a50",  kind:"dec",  x:0,y:9.4,text:"Score ≥ 50?"},
+    {id:"iter", kind:"proc", x:-1.6,y:9.4,k:"same tier",text:"Iterate: widen the context slice, re-run"},
+    {id:"esc",  kind:"dec",  x:0,y:10.6,text:"Escalations below the cap?"},
+    {id:"up",   kind:"proc", x:-1.6,y:10.6,k:"tier +1",text:"Escalate the model and re-run"},
+    {id:"meet", kind:"proc", x:1.65,y:10.6,cls:"link",k:"collaboration",text:"Call a design review meeting"},
+    {id:"adr",  kind:"proc", x:1.65,y:11.7,k:"decision",text:"Record the ADR and reset the approach"},
+    {id:"back", kind:"state",x:0,y:12.9,k:"loop entry",text:"Re-dispatch the task"}
+  ],
+  edges:[
+    {from:"s:s",to:"dims:n"},{from:"dims:s",to:"calc:n"},{from:"calc:s",to:"veto:n"},
+    {from:"veto:e",to:"stop1:w",cls:"no",label:"no"},
+    {from:"veto:s",to:"a85:n",cls:"yes",label:"yes"},
+    {from:"a85:e",to:"acc:w",cls:"yes",label:"yes"},
+    {from:"a85:s",to:"a70:n",cls:"no",label:"no"},
+    {from:"a70:e",to:"clean:w",cls:"yes",label:"yes"},
+    {from:"a70:s",to:"bud:n",cls:"no",label:"no"},
+    {from:"bud:e",to:"stop2:w",cls:"no",label:"no"},
+    {from:"bud:s",to:"sig:n",cls:"yes",label:"yes"},
+    {from:"sig:e",to:"same:w",cls:"no",label:"no · identical"},
+    {from:"same:s",to:"meet:n",cls:"no",label:"yes"},
+    {from:"sig:s",to:"a50:n",cls:"yes",label:"yes · progress"},
+    {from:"a50:w",to:"iter:e",cls:"yes",label:"yes"},
+    {from:"a50:s",to:"esc:n",cls:"no",label:"no"},
+    {from:"esc:w",to:"up:e",cls:"yes",label:"yes"},
+    {from:"esc:e",to:"meet:w",cls:"no",label:"no"},
+    {from:"meet:s",to:"adr:n",cls:"alt"},
+    {from:"adr:s",to:"back:e",cls:"alt",label:"new approach",bend:26},
+    {from:"iter:s",to:"back:w",cls:"loop",label:"retry",bend:26},
+    {from:"up:s",to:"back:w",cls:"loop",bend:52},
+    {from:"back:s",to:"s:w",cls:"loop",label:"one attempt, guards applied",bend:150, ly:-46}
+  ]
+};
+
+/* ============================================================
+   FIG 6 — knowledge maturity
+   ============================================================ */
+const KNOW = {
+  title:"Knowledge maturity",
+  nodes:[
+    {id:"s",    kind:"start",x:0,y:0,text:"Empty product record · score 0"},
+    {id:"base", kind:"proc", x:0,y:1,k:"+22",text:"Problem, goals, one exclusion"},
+    {id:"rules",kind:"proc", x:0,y:2,k:"+12",text:"Three domain rules the reviewer can score against"},
+    {id:"st",   kind:"proc", x:0,y:3,k:"+10",text:"At least one story in as / want / so form"},
+    {id:"g45",  kind:"dec",  x:0,y:4.1,text:"Score ≥ 45?"},
+    {id:"block",kind:"state",x:1.7,y:4.1,cls:"stop",k:"gate 1",text:"INSUFFICIENT · planner refuses, returns the gap list"},
+    {id:"min",  kind:"state",x:0,y:5.3,cls:"warnb",k:"gate 1 passed",text:"MINIMUM · plans allowed, every task gated, model capped"},
+    {id:"ac",   kind:"proc", x:0,y:6.4,k:"+12",text:"Two criteria on every must story"},
+    {id:"dg",   kind:"proc", x:0,y:7.4,k:"+10",text:"A sequence or flow showing the call order"},
+    {id:"adr",  kind:"proc", x:0,y:8.4,k:"+8",text:"One decision carried into every prompt"},
+    {id:"g70",  kind:"dec",  x:0,y:9.5,text:"Score ≥ 70?"},
+    {id:"work", kind:"state",x:0,y:10.7,cls:"good",k:"gate 2 passed",text:"WORKING · normal autonomy, gates only on risk"},
+    {id:"data", kind:"proc", x:0,y:11.8,k:"+16",text:"Data model, repository indexed, entrypoint named"},
+    {id:"ver",  kind:"proc", x:0,y:12.8,k:"+10",text:"Success metrics and a verification strategy"},
+    {id:"g90",  kind:"dec",  x:0,y:13.9,text:"Score ≥ 90 and no open contradiction?"},
+    {id:"comp", kind:"state",x:0,y:15.1,cls:"good",k:"gate 3 passed",text:"COMPLETE · low-risk tasks may merge unattended"},
+    {id:"run",  kind:"proc", x:-1.75,y:12.3,cls:"link",k:"automatic",text:"Completed workflows write lessons back"},
+    {id:"drift",kind:"dec",  x:1.75,y:12.3,text:"Repo drift, stale review or contradiction?"},
+    {id:"dec",  kind:"proc", x:1.75,y:13.9,cls:"warnb",k:"ReadinessDropped",text:"Apply the drift penalty; re-apply the stricter band"}
+  ],
+  edges:[
+    {from:"s:s",to:"base:n"},{from:"base:s",to:"rules:n"},{from:"rules:s",to:"st:n"},
+    {from:"st:s",to:"g45:n"},
+    {from:"g45:e",to:"block:w",cls:"no",label:"no"},
+    {from:"block:s",to:"base:e",cls:"loop",label:"fill the gaps",bend:56},
+    {from:"g45:s",to:"min:n",cls:"yes",label:"yes"},
+    {from:"min:s",to:"ac:n"},{from:"ac:s",to:"dg:n"},{from:"dg:s",to:"adr:n"},
+    {from:"adr:s",to:"g70:n"},
+    {from:"g70:w",to:"ac:w",cls:"loop",label:"no · keep filling",bend:44},
+    {from:"g70:s",to:"work:n",cls:"yes",label:"yes"},
+    {from:"work:s",to:"data:n"},{from:"data:s",to:"ver:n"},{from:"ver:s",to:"g90:n"},
+    {from:"g90:s",to:"comp:n",cls:"yes",label:"yes"},
+    {from:"g90:w",to:"data:w",cls:"loop",label:"no",bend:44},
+    {from:"run:n",to:"work:w",cls:"alt",label:"raises the score",bend:30},
+    {from:"comp:e",to:"drift:s",cls:"alt",label:"monitored",bend:40},
+    {from:"drift:s",to:"dec:n",cls:"no",label:"yes"},
+    {from:"dec:e",to:"g70:e",cls:"loop",label:"re-evaluate the band",bend:44}
+  ]
+};
+
+/* ============================================================
+   FIG 7 — replay
+   ============================================================ */
+const REPLAY = {
+  title:"Replay",
+  nodes:[
+    {id:"s",    kind:"start",x:0,y:0,text:"Operator picks a moment on the timeline"},
+    {id:"scope",kind:"dec",  x:0,y:1.2,text:"Scope: workflow, task, or meeting?"},
+    {id:"sel",  kind:"proc", x:1.7,y:1.2,text:"Resolve the entity and its event range"},
+    {id:"susp", kind:"proc", x:0,y:2.4,k:"read-only",text:"Suspend live subscriptions; take a read-only store handle"},
+    {id:"snap", kind:"dec",  x:0,y:3.6,text:"Snapshot at or before t?"},
+    {id:"gen",  kind:"proc", x:1.7,y:3.6,text:"Fold from genesis"},
+    {id:"delta",kind:"proc", x:-1.7,y:3.6,text:"Load the snapshot, apply the delta"},
+    {id:"fold", kind:"proc", x:0,y:4.9,k:"pure · total · order-stable",text:"reduce(state, event) over events where ts ≤ t"},
+    {id:"chk",  kind:"dec",  x:0,y:6.1,text:"Unknown event type encountered?"},
+    {id:"skip", kind:"proc", x:1.7,y:6.1,cls:"warnb",text:"Skip and record it; never fail the fold"},
+    {id:"draw", kind:"state",x:0,y:7.3,k:"reconstructed",text:"Render the floor, inspector and scores at t"},
+    {id:"act",  kind:"dec",  x:0,y:8.5,text:"Scrub, step, or compare?"},
+    {id:"cmp",  kind:"proc", x:1.7,y:8.5,cls:"link",text:"Fold a second run; diff prompt, context and score"},
+    {id:"live", kind:"end",  x:0,y:9.8,cls:"good",text:"Return to live · drop the state, resubscribe"}
+  ],
+  edges:[
+    {from:"s:s",to:"scope:n"},
+    {from:"scope:e",to:"sel:w",label:"any"},
+    {from:"sel:s",to:"susp:e",bend:26},
+    {from:"scope:s",to:"susp:n"},
+    {from:"susp:s",to:"snap:n"},
+    {from:"snap:e",to:"gen:w",cls:"no",label:"none"},
+    {from:"snap:w",to:"delta:e",cls:"yes",label:"yes"},
+    {from:"gen:s",to:"fold:e",bend:26},
+    {from:"delta:s",to:"fold:w",bend:26},
+    {from:"snap:s",to:"fold:n"},
+    {from:"fold:s",to:"chk:n"},
+    {from:"chk:e",to:"skip:w",cls:"no",label:"yes"},
+    {from:"skip:s",to:"draw:e",cls:"alt",bend:26},
+    {from:"chk:s",to:"draw:n",cls:"yes",label:"no"},
+    {from:"draw:s",to:"act:n"},
+    {from:"act:e",to:"cmp:w",cls:"alt",label:"compare"},
+    {from:"cmp:s",to:"live:e",cls:"alt",bend:26},
+    {from:"act:w",to:"fold:w",cls:"loop",label:"scrub · fold again at t′",bend:96},
+    {from:"act:s",to:"live:n",cls:"yes",label:"done"}
+  ]
+};
+
+/* ---------- mount ---------- */
+const CHARTS = [
+  ["fig-layers", LAYERS], ["fig-setup", SETUP], ["fig-split", SPLIT],
+  ["fig-role", ROLE], ["fig-retry", RETRY], ["fig-knowledge", KNOW], ["fig-replay", REPLAY]
+];
+CHARTS.forEach(([id, spec]) => {
+  const host = document.getElementById(id);
+  if (host) host.innerHTML = drawChart(spec);
+});
+
+/* ---------- theme ---------- */
+const themeBtn = document.getElementById("themeBtn");
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  themeBtn.setAttribute("aria-label", t === "dark" ? "Switch to light theme" : "Switch to dark theme");
+}
+themeBtn.addEventListener("click", () =>
+  applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+document.getElementById("printBtn").addEventListener("click", () => window.print());
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "t" || e.key === "T") themeBtn.click();
+});
+
+/* ---------- table of contents highlight ---------- */
+const links = [].slice.call(document.querySelectorAll(".toc a"));
+const sections = links.map(a => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+if (window.IntersectionObserver){
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting){
+        links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + en.target.id));
+      }
+    });
+  }, {rootMargin:"-10% 0px -80% 0px"});
+  sections.forEach(s => obs.observe(s));
+}
+})();
+</script>
+</body>
+</html>

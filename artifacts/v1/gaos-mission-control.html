@@ -1,0 +1,2948 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAOS · Mission Control</title>
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script>
+  /* set the theme before first paint so there is no flash */
+  (function(){
+    try{
+      var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
+    }catch(e){}
+  })();
+</script>
+<style>
+/* ============================================================
+   GAOS Mission Control
+   Direction: an engineering floor after hours — drafting table,
+   brass lamp light, pigment inks. Not a neon sci-fi console.
+   Structure colour = brass. State colour = printed ink.
+   ============================================================ */
+:root{
+  /* ---- surfaces: warm graphite, brown undertone ---- */
+  --bg:#151310;
+  --bg-glow:#231F19;
+  --panel:#1C1A16;
+  --panel-2:#232019;
+  --panel-3:#2A261E;
+  --line:#37322A;
+  --line-soft:#2B2721;
+  --grid-line:rgba(214,178,112,.055);
+
+  /* ---- type ---- */
+  --ink:#EFE8DA;
+  --ink-2:#B3A992;
+  --ink-3:#807867;
+
+  /* ---- structure accent: brass ---- */
+  --brass:#CFA047;
+  --brass-soft:#8A6D2C;
+
+  /* ---- state inks (blueprint semantics, pigment values) ---- */
+  --run:#7BA6DC;      /* running   — ink blue      */
+  --done:#8FAF6B;     /* completed — olive sage    */
+  --block:#DCA544;    /* blocked   — amber ochre   */
+  --fail:#C86458;     /* failed    — madder        */
+  --know:#A585CE;     /* knowledge — heliotrope    */
+
+  /* ---- desk scene ---- */
+  --lamp-glow:rgba(255,199,119,.30);
+  --scene-1:#2A2519;
+  --scene-2:#14110C;
+  --surface-1:#4C4130;
+  --surface-2:#332B1F;
+  --surface-edge:#6B5B41;
+  --chair:#2A251C;
+  --chair-line:#453C2C;
+  --floorline:#100E0A;
+
+  /* ---- monitor stays dark in both themes: a screen is a screen ---- */
+  --monitor-frame:#0B0C0E;
+  --monitor-bezel:#3A3B3F;
+  --screen-bg:#07080A;
+  --screen-line:#31404F;
+
+  --shadow:0 24px 46px -24px rgba(0,0,0,.9);
+
+  /* ---- roles ---- */
+  --role-architect:#8FA6DE;
+  --role-backend:#6FB39C;
+  --role-frontend:#7FA9D6;
+  --role-qa:#D9A552;
+  --role-security:#C97F73;
+  --role-devops:#A288CC;
+  --role-planner:#A79E8B;
+
+  /* ---- type roles ---- */
+  --font-display:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --r-s:5px; --r-m:10px; --r-l:14px;
+  --topbar-h:64px;
+  --timeline-h:190px;
+  --inspector-w:400px;
+  --rail-w:240px;
+}
+
+[data-theme="light"]{
+  /* ---- surfaces: linen drafting paper, cool-warm neutral ---- */
+  --bg:#E4E2D8;
+  --bg-glow:#F1EFE7;
+  --panel:#FAF8F2;
+  --panel-2:#F0EDE3;
+  --panel-3:#E6E2D5;
+  --line:#CBC5B4;
+  --line-soft:#DAD5C6;
+  --grid-line:rgba(90,78,52,.075);
+
+  --ink:#22211C;
+  --ink-2:#55524A;
+  --ink-3:#7C7767;
+
+  --brass:#8A6716;
+  --brass-soft:#B79A55;
+
+  --run:#2C63A6;
+  --done:#4C7534;
+  --block:#96681A;
+  --fail:#A6473A;
+  --know:#65429B;
+
+  --lamp-glow:rgba(214,150,49,.24);
+  --scene-1:#D8D3C2;
+  --scene-2:#BDB6A0;
+  --surface-1:#B6A886;
+  --surface-2:#9A8C6D;
+  --surface-edge:#D3C7A5;
+  --chair:#8E8571;
+  --chair-line:#A79D86;
+  --floorline:#ADA48D;
+
+  --shadow:0 18px 34px -20px rgba(58,50,30,.42);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 560px at 50% -10%, var(--bg-glow) 0%, transparent 62%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:14px;
+  line-height:1.5;
+  overflow:hidden;
+  transition:background-color .25s,color .25s;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:3px}
+.mono{font-family:var(--font-mono)}
+.eyebrow{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+
+/* ============================================================
+   TOP BAR
+   Root cause of the old misalignment: one flex row where the
+   search asked to grow while the stat strip pushed right, with
+   no min-width:0 anywhere, so the intrinsic width (~1420px)
+   overflowed and the right cluster was clipped by
+   body{overflow:hidden}; the fixed 72px height also let the
+   uppercase stat labels wrap to two lines.
+   Fix: a 3-column grid, every cell allowed to shrink, all labels
+   nowrap, and stats that drop by priority instead of overflowing.
+   ============================================================ */
+.topbar{
+  height:var(--topbar-h);
+  display:grid;
+  grid-template-columns:minmax(0,auto) minmax(0,1fr) minmax(0,auto);
+  align-items:center;
+  column-gap:20px;
+  padding:0 16px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel);
+  position:relative;z-index:20;
+}
+.topbar > *{min-width:0}
+
+.tb-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-mark{
+  width:32px;height:32px;flex:0 0 32px;position:relative;
+  border:1px solid var(--brass-soft);border-radius:7px;background:var(--panel-2);
+}
+.brand-mark svg{position:absolute;inset:0}
+.brand-mark i{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--brass)}
+.brand-mark i:nth-of-type(1){top:8px;left:8px}
+.brand-mark i:nth-of-type(2){top:8px;right:8px}
+.brand-mark i:nth-of-type(3){bottom:8px;left:14px}
+.brand-text{display:flex;flex-direction:column;min-width:0}
+.brand-text b{
+  font-family:var(--font-display);font-size:16px;font-weight:700;
+  letter-spacing:.01em;line-height:1.15;white-space:nowrap;
+}
+.brand-text em{
+  font-family:var(--font-mono);font-style:normal;font-size:9.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+.tb-search{display:flex;justify-content:center}
+.searchbox{
+  width:100%;max-width:380px;display:flex;align-items:center;gap:8px;
+  background:var(--panel-2);border:1px solid var(--line-soft);border-radius:7px;
+  padding:6px 11px;color:var(--ink-3);min-width:0;
+}
+.searchbox:focus-within{border-color:var(--brass-soft)}
+.searchbox input{
+  flex:1;min-width:0;background:none;border:0;color:var(--ink);font:inherit;font-size:13px;
+}
+.searchbox input:focus{outline:0}
+.searchbox input::placeholder{color:var(--ink-3)}
+.searchbox kbd{
+  font-family:var(--font-mono);font-size:10px;border:1px solid var(--line);
+  border-radius:3px;padding:0 4px;color:var(--ink-3);flex:0 0 auto;
+}
+
+.tb-right{display:flex;align-items:center;gap:16px;justify-content:flex-end;flex-wrap:nowrap}
+.stat-strip{display:flex;align-items:center;gap:20px;flex:0 0 auto}
+.stat{display:flex;flex-direction:column;line-height:1.15;flex:0 0 auto}
+.stat b{
+  font-family:var(--font-display);font-size:16px;font-weight:600;
+  white-space:nowrap;letter-spacing:.01em;
+}
+.stat span{
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-3);white-space:nowrap;
+}
+.stat.ok b{color:var(--done)}
+.stat.warn b{color:var(--block)}
+.tb-sep{width:1px;height:30px;background:var(--line);flex:0 0 auto}
+.tb-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+
+.btn{
+  border:1px solid var(--line);border-radius:7px;padding:7px 12px;
+  font-size:13px;color:var(--ink-2);background:var(--panel-2);
+  white-space:nowrap;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.btn:hover{border-color:var(--brass-soft);color:var(--ink);background:var(--panel-3)}
+.btn[disabled]{cursor:not-allowed}
+.btn-primary{
+  border-color:var(--brass-soft);color:#211B0C;font-weight:600;
+  background:linear-gradient(180deg,var(--brass),var(--brass-soft));
+}
+.btn-primary:hover{filter:brightness(1.08);color:#211B0C;border-color:var(--brass)}
+.icon-btn{
+  width:32px;height:32px;flex:0 0 32px;border:1px solid var(--line);border-radius:7px;
+  display:grid;place-items:center;color:var(--ink-2);background:var(--panel-2);
+  transition:border-color .15s,color .15s,background .15s;
+}
+.icon-btn:hover{border-color:var(--brass-soft);color:var(--ink);background:var(--panel-3)}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+[data-theme="dark"] .i-moon{display:none}
+[data-theme="light"] .i-sun{display:none}
+.bell{position:relative}
+.bell b{
+  position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:999px;
+  background:var(--fail);color:#FFF3EF;font-family:var(--font-mono);font-size:9.5px;
+  display:grid;place-items:center;padding:0 3px;border:1px solid var(--panel);
+}
+
+/* light-theme corrections where a dark-on-dark pairing would appear */
+[data-theme="light"] .btn-primary{
+  background:linear-gradient(180deg,#A17715,#84620F);
+  border-color:#6E5210;color:#FDF6E6;
+}
+[data-theme="light"] .btn-primary:hover{color:#FDF6E6}
+[data-theme="light"] .role-pill em{color:#FBF8EF}
+[data-theme="light"] .av-head,
+[data-theme="light"] .seat .h,
+[data-theme="light"] .walker .h{border-color:rgba(0,0,0,.18)}
+[data-theme="light"] .wall-grid{background-image:linear-gradient(90deg,rgba(60,50,30,.05) 1px,transparent 1px)}
+
+/* ---------------- shell ---------------- */
+.shell{
+  display:grid;
+  grid-template-columns:var(--rail-w) minmax(0,1fr) var(--inspector-w);
+  height:calc(100vh - var(--topbar-h) - var(--timeline-h));
+}
+
+/* ---------------- left rail ---------------- */
+.rail{
+  border-right:1px solid var(--line);background:var(--panel);
+  overflow-y:auto;padding:16px 14px 24px;
+}
+.rail h2{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 10px;font-weight:500;
+  padding-bottom:6px;border-bottom:1px solid var(--line-soft);
+}
+.rail section + section{margin-top:22px}
+.room{
+  width:100%;text-align:left;display:block;
+  border:1px solid var(--line-soft);border-left:2px solid var(--line);
+  border-radius:0 var(--r-s) var(--r-s) 0;
+  padding:8px 10px;margin-bottom:6px;background:var(--panel-2);
+  transition:border-color .15s,background .15s;
+}
+.room:hover{border-left-color:var(--brass);background:var(--panel-3)}
+.room[aria-current="true"]{border-left-color:var(--brass);background:var(--panel-3)}
+.room-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.room-top b{font-family:var(--font-display);font-size:13.5px;font-weight:600}
+.room-top span{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.meter{height:3px;background:var(--panel-3);margin-top:7px;overflow:hidden;border-radius:2px}
+.meter i{display:block;height:100%;background:var(--run);transition:width .6s ease}
+.room.full .meter i{background:var(--block)}
+.room-note{font-size:11px;color:var(--ink-3);margin-top:5px}
+
+.prod-row{
+  width:100%;display:flex;align-items:center;gap:9px;
+  padding:6px 8px;border-radius:var(--r-s);text-align:left;
+  border-left:2px solid transparent;
+}
+.prod-row:hover{background:var(--panel-2)}
+.prod-row[aria-current="true"]{background:var(--panel-2);border-left-color:var(--brass)}
+.dot{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:var(--ink-3)}
+.prod-row .nm{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-row .sc{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+
+.legend{display:flex;flex-direction:column;gap:6px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-2)}
+
+/* ---------------- floor ---------------- */
+.floor{position:relative;overflow:hidden;display:flex;flex-direction:column}
+.floor-head{display:flex;align-items:flex-end;gap:14px;padding:14px 22px 0}
+.floor-head h2{font-family:var(--font-display);font-size:20px;font-weight:700;margin:0;letter-spacing:.01em}
+.floor-head p{margin:2px 0 0;font-size:12px;color:var(--ink-3)}
+.floor-ctl{margin-left:auto;display:flex;align-items:center;gap:8px}
+.chip{
+  font-family:var(--font-mono);font-size:11px;color:var(--ink-2);
+  border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap;
+}
+.chip.live{color:var(--done);border-color:var(--line)}
+.chip.live::before{
+  content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--done);margin-right:7px;vertical-align:1px;animation:pulse 1.8s infinite;
+}
+.chip.replay{color:var(--know);border-color:var(--know)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.22}}
+
+.stage{flex:1;position:relative;min-height:0;padding:16px 0 8px}
+.stage::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--grid-line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:40px 40px;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 20%,#000 74%,transparent);
+  mask-image:linear-gradient(180deg,transparent,#000 20%,#000 74%,transparent);
+}
+.carousel{
+  height:100%;display:flex;align-items:center;gap:20px;
+  padding:0 calc(50% - 188px);
+  overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;
+}
+.carousel::-webkit-scrollbar{display:none}
+
+/* ============================================================
+   THE DESK — signature element
+   ============================================================ */
+.desk{
+  flex:0 0 336px;scroll-snap-align:center;
+  border:1px solid var(--line);border-radius:var(--r-l);
+  background:var(--panel);
+  padding:0 0 13px;overflow:hidden;
+  transform:scale(.91) translateY(9px);opacity:.5;
+  transition:transform .38s cubic-bezier(.22,.9,.24,1),opacity .38s,border-color .3s,box-shadow .38s;
+  cursor:pointer;position:relative;
+}
+.desk.focus{
+  transform:scale(1) translateY(0);opacity:1;
+  border-color:var(--brass-soft);box-shadow:var(--shadow);
+}
+.desk::before{ /* brass hairline appears only on the focused desk */
+  content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:var(--brass);opacity:0;transition:opacity .3s;
+}
+.desk.focus::before{opacity:1}
+
+.desk-head{display:flex;align-items:center;gap:8px;padding:12px 13px 10px}
+.desk-head .nm{font-family:var(--font-display);font-size:15.5px;font-weight:600}
+.desk-head .repo{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.badges{margin-left:auto;display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.badge{
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;
+  border-radius:3px;padding:2px 7px;border:1px solid;white-space:nowrap;
+}
+.badge.score{color:var(--run);border-color:var(--run);background:var(--panel-2)}
+.badge.score.good{color:var(--done);border-color:var(--done)}
+.badge.score.low{color:var(--block);border-color:var(--block)}
+.badge.retry{color:var(--block);border-color:var(--block);background:var(--panel-2)}
+.badge.esc{color:var(--know);border-color:var(--know);background:var(--panel-2)}
+.badge.approve{color:var(--fail);border-color:var(--fail);background:var(--panel-2)}
+
+/* scene */
+.scene{
+  position:relative;height:182px;margin:0 13px;
+  border-radius:var(--r-m);overflow:hidden;
+  border:1px solid var(--line-soft);
+  background:radial-gradient(130% 96% at 50% 2%,var(--scene-1) 0%,var(--scene-2) 74%);
+}
+.wall-grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+.lampglow{
+  position:absolute;left:50%;top:-16px;width:252px;height:190px;transform:translateX(-50%);
+  background:radial-gradient(50% 60% at 50% 0%,var(--lamp-glow),transparent 70%);
+  opacity:0;transition:opacity .5s;
+}
+.desk[data-state="active"] .lampglow,
+.desk[data-state="review"] .lampglow{opacity:1}
+.desk[data-state="blocked"] .lampglow{opacity:.35}
+
+.monitor{
+  position:absolute;left:50%;top:15px;transform:translateX(-50%);
+  width:150px;height:88px;border-radius:4px;
+  background:var(--monitor-frame);border:1px solid var(--monitor-bezel);
+  box-shadow:0 12px 20px -12px rgba(0,0,0,.7);
+}
+.monitor::after{
+  content:"";position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);
+  width:46px;height:10px;background:var(--monitor-bezel);border-radius:0 0 4px 4px;opacity:.85;
+}
+.screen{position:absolute;inset:4px;overflow:hidden;border-radius:2px;background:var(--screen-bg);padding:5px}
+.screen .ln{height:3px;border-radius:1px;background:var(--screen-line);margin:0 0 5px;width:var(--w,70%)}
+.screen .ln.hi{background:var(--run)}
+.screen .ln.ok{background:var(--done)}
+.screen .caret{
+  display:inline-block;width:5px;height:8px;background:var(--brass);
+  animation:blink 1.1s steps(2) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+.screen[data-mode="diagram"] .ln,.screen[data-mode="diagram"] .caret{display:none}
+.dgm{display:none;position:absolute;inset:0}
+.screen[data-mode="diagram"] .dgm{display:block}
+.dgm circle{fill:var(--screen-bg);stroke:var(--know);stroke-width:1.2}
+.dgm line{stroke:var(--screen-line);stroke-width:1}
+.dgm .flow{stroke:var(--know);stroke-dasharray:3 4;animation:dash 1.5s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-14}}
+.dots{display:none;gap:4px;flex-wrap:wrap;position:absolute;inset:6px}
+.screen[data-mode="tests"] .dots{display:flex}
+.screen[data-mode="tests"] .ln,.screen[data-mode="tests"] .caret{display:none}
+.dots i{width:7px;height:7px;border-radius:1px;background:var(--screen-line);opacity:.55}
+.dots i.p{background:var(--done);opacity:1}
+.dots i.f{background:var(--fail);opacity:1}
+
+.surface{
+  position:absolute;left:50%;bottom:19px;transform:translateX(-50%);
+  width:252px;height:32px;border-radius:3px 3px 2px 2px;
+  background:linear-gradient(180deg,var(--surface-1),var(--surface-2));
+  border-top:1px solid var(--surface-edge);
+}
+.surface::after{
+  content:"";position:absolute;left:0;right:0;top:-4px;height:4px;
+  background:radial-gradient(60% 100% at 50% 100%,var(--lamp-glow),transparent 72%);
+  opacity:0;transition:opacity .4s;
+}
+.desk[data-state="active"] .surface::after{opacity:1}
+.floorline{position:absolute;left:0;right:0;bottom:0;height:19px;background:var(--floorline)}
+
+.avatar{position:absolute;left:50%;bottom:31px;transform:translateX(-50%);width:66px;height:74px}
+.av-head{
+  position:absolute;left:50%;top:0;transform:translateX(-50%);
+  width:24px;height:24px;border-radius:50%;
+  background:var(--av,var(--role-planner));border:1px solid rgba(255,255,255,.16);
+}
+.av-head::after{
+  content:"";position:absolute;left:-4px;top:7px;width:32px;height:11px;
+  border:2px solid rgba(255,255,255,.24);border-bottom:0;border-radius:12px 12px 0 0;
+}
+.av-body{
+  position:absolute;left:50%;top:22px;transform:translateX(-50%);
+  width:42px;height:38px;border-radius:13px 13px 4px 4px;
+  background:var(--av,var(--role-planner));
+  background:color-mix(in srgb,var(--av,#8b8270) 76%,#100D08);
+}
+.av-arm{
+  position:absolute;top:34px;width:9px;height:22px;border-radius:4px;
+  background:var(--av,var(--role-planner));
+  background:color-mix(in srgb,var(--av,#8b8270) 58%,#100D08);
+  transform-origin:50% 0;
+}
+.av-arm.l{left:6px}
+.av-arm.r{right:6px}
+.chair{
+  position:absolute;left:50%;bottom:13px;transform:translateX(-50%);
+  width:54px;height:44px;border-radius:10px 10px 3px 3px;
+  background:var(--chair);border:1px solid var(--chair-line);
+}
+.desk[data-state="active"] .av-arm{animation:type .34s ease-in-out infinite alternate}
+.desk[data-state="active"] .av-arm.r{animation-delay:.17s}
+@keyframes type{from{transform:rotate(0)}to{transform:rotate(-13deg)}}
+.desk[data-state="active"] .avatar{animation:breathe 3.6s ease-in-out infinite}
+@keyframes breathe{50%{transform:translateX(-50%) translateY(-2px)}}
+.desk[data-state="blocked"] .avatar{animation:none;transform:translateX(-50%) rotate(-3deg)}
+.desk[data-state="review"] .av-arm.r{transform:rotate(-42deg)}
+.desk[data-state="completed"] .avatar{animation:cheer 1.5s ease-in-out infinite}
+@keyframes cheer{50%{transform:translateX(-50%) translateY(-6px)}}
+.desk[data-state="completed"] .av-arm{transform:rotate(-150deg)}
+.desk[data-state="idle"] .avatar,
+.desk[data-state="meeting"] .avatar{opacity:0;transition:opacity .3s}
+.desk[data-state="idle"] .scene,
+.desk[data-state="meeting"] .scene{filter:saturate(.55) brightness(.9)}
+
+.bubble{
+  position:absolute;left:calc(50% + 40px);top:13px;
+  font-family:var(--font-mono);font-size:10px;color:var(--ink-2);
+  background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  padding:3px 7px;max-width:118px;opacity:0;transform:translateY(4px);
+  transition:opacity .3s,transform .3s;
+}
+.desk.focus .bubble{opacity:1;transform:translateY(0)}
+
+.ribbon{display:flex;align-items:center;gap:6px;margin:11px 13px 8px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.ribbon i{flex:1;height:3px;border-radius:1px;background:var(--panel-3)}
+.ribbon i.on{background:var(--run)}
+.ribbon i.done{background:var(--done)}
+.ribbon span{color:var(--ink-3);white-space:nowrap}
+.task-line{
+  font-size:12.5px;color:var(--ink-2);margin:0 13px;
+  display:flex;gap:7px;align-items:baseline;min-height:38px;
+}
+.task-line b{
+  font-family:var(--font-mono);font-size:10px;color:var(--ink-3);flex:0 0 auto;
+  border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px;
+}
+.progress{height:3px;background:var(--panel-3);overflow:hidden;margin:9px 13px 0}
+.progress i{display:block;height:100%;width:0;background:var(--run);transition:width .9s linear}
+.desk[data-state="completed"] .progress i{background:var(--done)}
+.desk[data-state="blocked"] .progress i{background:var(--block)}
+.role-row{display:flex;align-items:center;gap:7px;margin:10px 13px 0}
+.role-pill{
+  display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);
+  border:1px solid var(--line-soft);border-radius:999px;padding:2px 9px 2px 3px;
+  background:var(--panel-2);white-space:nowrap;
+}
+.role-pill em{
+  width:17px;height:17px;border-radius:50%;background:var(--av,var(--role-planner));
+  font-style:normal;font-size:8.5px;display:grid;place-items:center;color:#15120C;font-weight:700;
+  font-family:var(--font-mono);flex:0 0 17px;
+}
+.stacked{margin-left:-14px}
+.quick{margin-left:auto;display:flex;gap:5px}
+.quick button{
+  font-family:var(--font-mono);font-size:10px;border:1px solid var(--line-soft);
+  border-radius:3px;padding:3px 7px;color:var(--ink-3);white-space:nowrap;
+}
+.quick button:hover{border-color:var(--brass-soft);color:var(--ink)}
+
+/* ---------------- meeting room ---------------- */
+.meeting{position:absolute;inset:auto 0 0;height:0;overflow:hidden;transition:height .45s cubic-bezier(.22,.9,.24,1);z-index:6}
+.meeting.open{height:100%}
+.meeting-in{
+  position:absolute;inset:14px;border-radius:var(--r-l);
+  background:var(--panel);border:1px solid var(--know);
+  display:grid;grid-template-rows:auto 1fr auto;padding:15px 17px;
+  box-shadow:var(--shadow);
+}
+.meeting-head{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.meeting-head h3{font-family:var(--font-display);font-size:16px;font-weight:600;margin:0}
+.meeting-head .chip{border-color:var(--know);color:var(--know)}
+.table-wrap{position:relative;display:grid;place-items:center}
+.mtable{
+  width:min(60%,430px);height:112px;border-radius:56px/40px;
+  background:var(--panel-3);border:1px solid var(--line);position:relative;
+}
+.mtable::after{
+  content:"whiteboard";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;
+}
+.seat{position:absolute;width:34px;height:40px;left:50%;top:50%;transform:translate(-50%,-50%);opacity:0;transition:opacity .3s}
+.seat.filled{opacity:1}
+.seat .h{width:20px;height:20px;border-radius:50%;background:var(--av);margin:0 auto;border:1px solid rgba(255,255,255,.16)}
+.seat .b{
+  width:30px;height:18px;border-radius:9px 9px 3px 3px;margin:2px auto 0;
+  background:var(--av);background:color-mix(in srgb,var(--av) 74%,#100D08);
+}
+.seat label{
+  position:absolute;left:50%;top:-15px;transform:translateX(-50%);
+  font-family:var(--font-mono);font-size:9px;color:var(--ink-3);white-space:nowrap;
+}
+.meeting-foot{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:8px}
+.meeting-foot .bar{flex:1;min-width:110px;height:3px;background:var(--panel-3);overflow:hidden}
+.meeting-foot .bar i{display:block;height:100%;background:var(--know);transition:width .6s}
+.mlog{font-family:var(--font-mono);font-size:11px;color:var(--ink-2);max-height:68px;overflow:hidden}
+.mlog div{opacity:0;animation:fadeUp .4s forwards}
+.mlog b{color:var(--know);font-weight:500}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.walkers{position:absolute;inset:0;pointer-events:none;z-index:7}
+.walker{position:absolute;width:30px;height:38px;transition:transform 1.15s cubic-bezier(.4,0,.5,1),opacity .3s}
+.walker .h{width:18px;height:18px;border-radius:50%;background:var(--av);margin:0 auto}
+.walker .b{
+  width:26px;height:17px;border-radius:8px 8px 3px 3px;margin:2px auto 0;
+  background:var(--av);background:color-mix(in srgb,var(--av) 74%,#100D08);
+}
+.walker.step{animation:step .34s ease-in-out infinite alternate}
+@keyframes step{to{transform:translateY(-4px) rotate(3deg)}}
+
+/* ---------------- inspector ---------------- */
+.inspector{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:16px 16px 28px}
+.insp-head{display:flex;align-items:flex-start;gap:10px}
+.insp-head h2{font-family:var(--font-display);font-size:18px;font-weight:700;margin:1px 0 0}
+.insp-head p{margin:2px 0 0;font-size:12px;color:var(--ink-3)}
+.state-tag{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  border-radius:3px;padding:3px 8px;border:1px solid;margin-left:auto;white-space:nowrap;
+}
+.card{border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel-2);padding:12px;margin-top:13px}
+.card h3{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 9px;font-weight:500;
+}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0}
+.kv span{color:var(--ink-3)}
+.kv b{font-family:var(--font-mono);font-weight:500}
+.trace{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--ink-2);
+  background:var(--panel-3);border:1px solid var(--line-soft);border-radius:var(--r-s);
+  padding:8px;line-height:1.75;word-break:break-word;
+}
+.trace u{color:var(--brass);text-decoration:none}
+.score-row{display:grid;grid-template-columns:78px 1fr 30px;gap:8px;align-items:center;font-size:11.5px;margin-bottom:6px}
+.score-row .bar{height:4px;background:var(--panel-3);overflow:hidden}
+.score-row .bar i{display:block;height:100%;background:var(--run);transition:width .5s}
+.score-row .w{font-family:var(--font-mono);color:var(--ink-3);font-size:10px}
+.ctxchips{display:flex;flex-wrap:wrap;gap:5px}
+.ctxchips span{
+  font-family:var(--font-mono);font-size:10px;color:var(--ink-2);
+  border:1px solid var(--line-soft);border-radius:3px;padding:2px 6px;background:var(--panel-3);
+}
+.logs{
+  font-family:var(--font-mono);font-size:11px;line-height:1.75;
+  background:var(--screen-bg);color:#C6BFAE;border:1px solid var(--line-soft);
+  border-radius:var(--r-s);padding:9px;max-height:156px;overflow-y:auto;
+}
+.logs div{white-space:pre-wrap}
+.logs .t{color:#8B8574}
+.logs .g{color:#9CC178}
+.logs .y{color:#E0B159}
+.logs .r{color:#D9776A}
+.logs .p{color:#B79BDC}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:13px}
+.actions .btn{padding:9px 0;text-align:center;font-size:12.5px}
+.hint{font-size:11px;color:var(--ink-3);margin-top:9px}
+
+/* ---------------- timeline ---------------- */
+.timeline{
+  height:var(--timeline-h);border-top:1px solid var(--line);background:var(--panel);
+  display:grid;grid-template-rows:auto 1fr;padding:11px 18px 12px;
+}
+.tl-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tl-head h2{font-family:var(--font-display);font-size:15px;font-weight:600;margin:0}
+.tl-head .sp{margin-left:auto;display:flex;gap:7px;align-items:center}
+.speed{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.speed button{font-family:var(--font-mono);font-size:11px;padding:5px 9px;color:var(--ink-3)}
+.speed button[aria-pressed="true"]{background:var(--panel-3);color:var(--ink)}
+.track{position:relative;overflow-x:auto;overflow-y:hidden;padding:16px 0 6px;scrollbar-width:thin}
+.track::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+.tl-row{display:flex;align-items:center;min-width:100%;height:72px;position:relative}
+.ev{position:relative;flex:0 0 auto;padding:0 9px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.ev i{width:8px;height:8px;border-radius:50%;background:var(--run);box-shadow:0 0 0 3px var(--panel)}
+.ev.done i{background:var(--done)}
+.ev.warn i{background:var(--block)}
+.ev.fail i{background:var(--fail)}
+.ev.know i{background:var(--know)}
+.ev.meet i{background:var(--know);border-radius:1px;width:9px;height:9px}
+.ev label{
+  font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3);white-space:nowrap;
+  max-width:104px;overflow:hidden;text-overflow:ellipsis;
+}
+.ev .tm{font-family:var(--font-mono);font-size:9px;color:var(--ink-3);opacity:.7}
+.ev:hover label{color:var(--ink)}
+.ev[aria-current="true"] i{outline:2px solid var(--brass);outline-offset:3px}
+.ev button{position:absolute;inset:0}
+.empty{font-size:12px;color:var(--ink-3);font-family:var(--font-mono);padding-top:22px}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+}
+/* stats drop by priority instead of pushing the header out of view */
+@media (max-width:1580px){ .stat[data-pri="3"]{display:none} }
+@media (max-width:1420px){
+  :root{--inspector-w:360px;--rail-w:214px}
+  .stat[data-pri="2"]{display:none}
+  .desk{flex-basis:312px}
+  .carousel{padding:0 calc(50% - 176px)}
+}
+@media (max-width:1240px){ .brand-text em{display:none} }
+@media (max-width:1180px){
+  body{overflow:auto}
+  .topbar{grid-template-columns:minmax(0,1fr) auto;height:auto;padding:10px 14px}
+  .tb-search{display:none}
+  .stat-strip,.tb-sep{display:none}
+  .shell{grid-template-columns:1fr;height:auto}
+  .rail{border-right:0;border-bottom:1px solid var(--line)}
+  .inspector{border-left:0;border-top:1px solid var(--line)}
+  .stage{height:420px}
+  .carousel{padding:0 22px}
+  .timeline{height:auto}
+}
+/* ============================================================
+   SHEETS — login, back office, create workflow
+   Full-surface layers over the floor. Same tokens, no new palette.
+   ============================================================ */
+.sheet{
+  position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
+  background:
+    radial-gradient(1100px 560px at 50% -10%, var(--bg-glow) 0%, transparent 62%),
+    var(--bg);
+}
+.sheet[hidden]{display:none}
+.sheet-head{
+  height:var(--topbar-h);flex:0 0 auto;
+  display:flex;align-items:center;gap:14px;padding:0 16px;
+  border-bottom:1px solid var(--line);background:var(--panel);
+}
+.sheet-head h2{font-family:var(--font-display);font-size:17px;font-weight:700;margin:0;white-space:nowrap}
+.sheet-head .eyebrow{display:block}
+.sheet-head .sp{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sheet-body{flex:1;min-height:0;overflow:auto}
+
+/* ---------------- login ---------------- */
+.login-wrap{
+  min-height:100%;display:grid;place-items:center;padding:40px 20px;
+}
+.login-card{
+  width:100%;max-width:380px;
+  border:1px solid var(--line);border-radius:var(--r-l);background:var(--panel);
+  padding:26px 24px 22px;box-shadow:var(--shadow);position:relative;
+}
+.login-card::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--brass);border-radius:var(--r-l) var(--r-l) 0 0}
+.login-card h1{font-family:var(--font-display);font-size:21px;font-weight:700;margin:14px 0 4px}
+.login-card > p{margin:0 0 20px;font-size:12.5px;color:var(--ink-3)}
+.field{margin-bottom:13px}
+.field label{
+  display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;
+}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-s);
+  padding:8px 10px;color:var(--ink);font:inherit;font-size:13px;
+}
+.field textarea{resize:vertical;min-height:74px;line-height:1.6}
+.field input:focus,.field select:focus,.field textarea:focus{outline:0;border-color:var(--brass-soft)}
+.field .help{font-size:11px;color:var(--ink-3);margin-top:5px}
+.field.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field.row > div{min-width:0}
+.btn-block{width:100%;justify-content:center;text-align:center;padding:10px 0;margin-top:6px}
+.login-note{
+  margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft);
+  font-size:11.5px;color:var(--ink-3);line-height:1.65;
+}
+.login-note b{color:var(--ink-2);font-weight:500}
+.form-error{
+  font-size:12px;color:var(--fail);margin:2px 0 10px;min-height:16px;
+}
+
+/* ---------------- back office ---------------- */
+.bo{display:grid;grid-template-columns:212px minmax(0,1fr);min-height:100%}
+.bo-nav{border-right:1px solid var(--line);background:var(--panel);padding:16px 12px}
+.bo-nav h3{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 9px;font-weight:500;padding-bottom:6px;border-bottom:1px solid var(--line-soft);
+}
+.bo-nav button{
+  width:100%;text-align:left;padding:7px 9px;border-radius:var(--r-s);
+  border-left:2px solid transparent;font-size:13px;color:var(--ink-2);margin-bottom:2px;
+}
+.bo-nav button:hover{background:var(--panel-2)}
+.bo-nav button[aria-current="true"]{background:var(--panel-2);border-left-color:var(--brass);color:var(--ink)}
+.bo-nav .count{float:right;font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.bo-main{padding:20px 24px 40px;min-width:0}
+.bo-main > header{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.bo-main h2{font-family:var(--font-display);font-size:20px;font-weight:700;margin:2px 0 0}
+.bo-main header p{margin:3px 0 0;font-size:12.5px;color:var(--ink-3);max-width:60ch}
+.bo-main header .sp{margin-left:auto;display:flex;gap:8px}
+
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px}
+.mcard{
+  border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);
+  padding:13px;text-align:left;width:100%;transition:border-color .15s,background .15s;
+}
+.mcard:hover{border-color:var(--brass-soft);background:var(--panel-2)}
+.mcard-top{display:flex;align-items:center;gap:9px}
+.mcode{
+  width:30px;height:30px;flex:0 0 30px;border-radius:var(--r-s);display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:11px;font-weight:600;
+  border:1px solid var(--brass-soft);color:var(--brass);background:var(--panel-2);
+}
+.mcard-top b{font-family:var(--font-display);font-size:14.5px;font-weight:600;display:block}
+.mcard-top span{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.mcard p{margin:9px 0 10px;font-size:12px;color:var(--ink-2);line-height:1.55}
+.mstats{display:flex;gap:14px;border-top:1px solid var(--line-soft);padding-top:9px}
+.mstat{display:flex;flex-direction:column;line-height:1.2}
+.mstat b{font-family:var(--font-mono);font-size:13px}
+.mstat span{font-family:var(--font-mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.mcard.add{border-style:dashed;display:grid;place-items:center;min-height:150px;color:var(--ink-3);font-size:13px}
+.mcard.add:hover{color:var(--brass)}
+
+/* tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:6px 0 18px;flex-wrap:wrap}
+.tabs button{
+  padding:8px 13px;font-size:13px;color:var(--ink-3);
+  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;
+}
+.tabs button:hover{color:var(--ink-2)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brass)}
+.tabs .n{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-left:5px}
+
+.panel-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.block{border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel);padding:14px;margin-bottom:14px}
+.block h4{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 10px;font-weight:500;
+}
+.block h4 .sp{float:right;text-transform:none;letter-spacing:0}
+.lines{margin:0;padding-left:17px;font-size:13px;line-height:1.75}
+.lines li{margin-bottom:3px}
+.lines.empty-state{list-style:none;padding:0;color:var(--ink-3);font-size:12.5px}
+
+/* user stories */
+.story{
+  border:1px solid var(--line-soft);border-left:2px solid var(--line);
+  border-radius:0 var(--r-s) var(--r-s) 0;background:var(--panel-2);
+  padding:11px 12px;margin-bottom:8px;
+}
+.story.must{border-left-color:var(--fail)}
+.story.should{border-left-color:var(--block)}
+.story.could{border-left-color:var(--ink-3)}
+.story-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.story-top b{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+.story-top .pri{
+  font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+  border:1px solid var(--line);border-radius:3px;padding:1px 6px;color:var(--ink-3);
+}
+.story-top .cov{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+.story-top .cov.on{color:var(--done)}
+.story p{margin:7px 0 0;font-size:13px;line-height:1.6}
+.story p em{font-style:normal;color:var(--brass)}
+.story ul{margin:8px 0 0;padding-left:17px;font-size:12px;color:var(--ink-2);line-height:1.7}
+
+/* diagrams */
+.dgm-card{border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel-2);margin-bottom:12px;overflow:hidden}
+.dgm-card header{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--line-soft)}
+.dgm-card header b{font-family:var(--font-display);font-size:14px;font-weight:600}
+.dgm-card header .kind{
+  font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--know);border:1px solid var(--know);border-radius:3px;padding:1px 6px;
+}
+.dgm-card header .sp{margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.dgm-body{padding:12px;overflow-x:auto;background:var(--panel-3)}
+.dgm-body pre{
+  margin:0;font-family:var(--font-mono);font-size:11.5px;line-height:1.6;color:var(--ink-2);white-space:pre;
+}
+.seq text{font-family:var(--font-mono);font-size:10px;fill:var(--ink-2)}
+.seq text.actor{fill:var(--ink);font-size:11px}
+.seq .life{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.seq .box{fill:var(--panel);stroke:var(--brass-soft);stroke-width:1}
+.seq .arrow{stroke:var(--run);stroke-width:1.3;fill:none;marker-end:url(#ah)}
+.seq .arrow.ret{stroke:var(--ink-3);stroke-dasharray:4 3}
+
+/* injection sidebar */
+.inject{position:sticky;top:0}
+.inject .block{background:var(--panel-2)}
+.proj{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11.5px;padding:4px 0;border-bottom:1px dashed var(--line-soft)}
+.proj:last-child{border-bottom:0}
+.proj span{color:var(--ink-3)}
+.proj b{font-weight:500}
+.cov-bar{height:4px;background:var(--panel-3);overflow:hidden;margin:8px 0 6px}
+.cov-bar i{display:block;height:100%;background:var(--done);transition:width .5s}
+.readiness{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.readiness div{display:flex;align-items:center;gap:8px;color:var(--ink-2)}
+.readiness .tick{
+  width:15px;height:15px;flex:0 0 15px;border-radius:3px;display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:10px;border:1px solid var(--line);color:var(--ink-3);
+}
+.readiness .tick.ok{border-color:var(--done);color:var(--done)}
+.readiness .tick.no{border-color:var(--block);color:var(--block)}
+
+/* ---------------- modal ---------------- */
+.modal-back{
+  position:fixed;inset:0;z-index:70;background:rgba(8,6,4,.62);
+  display:grid;place-items:center;padding:24px;
+}
+[data-theme="light"] .modal-back{background:rgba(40,34,20,.34)}
+.modal-back[hidden]{display:none}
+.modal{
+  width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);
+  box-shadow:var(--shadow);overflow:hidden;
+}
+.modal > header{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.modal > header h3{font-family:var(--font-display);font-size:17px;font-weight:700;margin:0}
+.modal > header .x{margin-left:auto}
+.modal-body{padding:16px 18px;overflow:auto;flex:1;min-height:0}
+.modal > footer{
+  display:flex;align-items:center;gap:9px;padding:13px 18px;border-top:1px solid var(--line);
+  background:var(--panel-2);
+}
+.modal > footer .sp{margin-left:auto;display:flex;gap:8px}
+.steps{display:flex;gap:0;align-items:center;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+.steps b{font-weight:500;color:var(--ink-3);white-space:nowrap}
+.steps b.on{color:var(--brass)}
+.steps b.done{color:var(--done)}
+.steps s{width:18px;height:1px;background:var(--line);margin:0 8px;text-decoration:none}
+
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.pick{
+  border:1px solid var(--line);border-radius:var(--r-s);background:var(--panel-2);
+  padding:9px 10px;text-align:left;
+}
+.pick:hover{border-color:var(--brass-soft)}
+.pick[aria-pressed="true"]{border-color:var(--brass);background:var(--panel-3)}
+.pick b{display:block;font-size:13px;font-family:var(--font-display);font-weight:600}
+.pick span{font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+
+.story-pick{
+  display:flex;gap:9px;align-items:flex-start;padding:8px 10px;width:100%;text-align:left;
+  border:1px solid var(--line-soft);border-radius:var(--r-s);background:var(--panel-2);margin-bottom:6px;
+}
+.story-pick:hover{border-color:var(--brass-soft)}
+.story-pick[aria-pressed="true"]{border-color:var(--brass)}
+.story-pick .box{
+  width:15px;height:15px;flex:0 0 15px;margin-top:2px;border:1px solid var(--line);border-radius:3px;
+  display:grid;place-items:center;font-family:var(--font-mono);font-size:10px;color:transparent;
+}
+.story-pick[aria-pressed="true"] .box{border-color:var(--brass);color:var(--brass)}
+.story-pick .tx{min-width:0;font-size:12.5px;line-height:1.5}
+.story-pick .tx b{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3);font-weight:500}
+
+.plan-task{
+  display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;
+  padding:8px 10px;border:1px solid var(--line-soft);border-radius:var(--r-s);
+  background:var(--panel-2);margin-bottom:6px;font-size:12.5px;
+}
+.plan-task .id{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+.plan-task .dep{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);display:block;margin-top:2px}
+.plan-task .rl{
+  font-family:var(--font-mono);font-size:10px;border:1px solid var(--line);border-radius:3px;
+  padding:2px 7px;color:var(--ink-2);white-space:nowrap;
+}
+.plan-task.gate{border-left:2px solid var(--fail)}
+
+/* toast */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);z-index:90;
+  background:var(--panel);border:1px solid var(--brass-soft);border-radius:var(--r-s);
+  padding:9px 14px;font-size:13px;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:900px){
+  .bo{grid-template-columns:1fr}
+  .bo-nav{border-right:0;border-bottom:1px solid var(--line)}
+  .panel-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tb-brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <line x1="10" y1="10" x2="22" y2="10" stroke="var(--brass-soft)" stroke-width="1"/>
+        <line x1="10" y1="10" x2="16" y2="22" stroke="var(--brass-soft)" stroke-width="1"/>
+        <line x1="22" y1="10" x2="16" y2="22" stroke="var(--brass-soft)" stroke-width="1"/>
+      </svg>
+      <i></i><i></i><i></i>
+    </span>
+    <span class="brand-text">
+      <b>Mission Control</b>
+      <em>GAOS · graph-native agent OS</em>
+    </span>
+  </div>
+
+  <div class="tb-search">
+    <div class="searchbox">
+      <span class="mono" style="font-size:12px" aria-hidden="true">⌕</span>
+      <input id="search" placeholder="Search products, tasks, agents, lessons" aria-label="Search the floor">
+      <kbd>/</kbd>
+    </div>
+  </div>
+
+  <div class="tb-right">
+    <div class="stat-strip">
+      <div class="stat" data-pri="3"><b id="statTenant">loop-eng</b><span>tenant</span></div>
+      <div class="stat ok" data-pri="2"><b id="statHealth">healthy</b><span>gateway</span></div>
+      <div class="stat" data-pri="3"><b id="statCost">$0.00</b><span>spend</span></div>
+      <div class="stat" data-pri="1"><b id="statAgents">0/9</b><span>seated</span></div>
+      <div class="stat warn" data-pri="1"><b id="statBlocked">0</b><span>attention</span></div>
+    </div>
+    <span class="tb-sep" aria-hidden="true"></span>
+    <div class="tb-actions">
+      <button class="icon-btn" id="backofficeBtn" aria-label="Open the back office" title="Back office · product master">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V8.5L12 4l8 4.5V20"/><path d="M9.5 20v-5h5v5"/><path d="M3 20h18"/></svg>
+      </button>
+      <button class="icon-btn" id="themeBtn" aria-label="Switch to light theme" title="Switch theme">
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
+      </button>
+      <button class="icon-btn bell" id="bellBtn" aria-label="Notifications" title="Notifications">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10Z"/><path d="M10 18.5a2 2 0 0 0 4 0"/></svg>
+        <b id="bellCount">0</b>
+      </button>
+      <button class="btn btn-primary" id="createWorkflowBtn">Create workflow</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <aside class="rail">
+    <section>
+      <h2>Floor</h2>
+      <div id="rooms"></div>
+    </section>
+    <section>
+      <h2>Products</h2>
+      <div id="prodList"></div>
+    </section>
+    <section>
+      <h2>Reading the floor</h2>
+      <div class="legend">
+        <div><span class="dot" style="background:var(--run)"></span> Running a task</div>
+        <div><span class="dot" style="background:var(--done)"></span> Done, lesson written</div>
+        <div><span class="dot" style="background:var(--block)"></span> Waiting on a blocker</div>
+        <div><span class="dot" style="background:var(--fail)"></span> Failed, needs a decision</div>
+        <div><span class="dot" style="background:var(--know)"></span> In a meeting</div>
+      </div>
+    </section>
+  </aside>
+
+  <main class="floor">
+    <div class="floor-head">
+      <div>
+        <h2>Engineering floor</h2>
+        <p id="floorSub">9 agents across 5 products. Every desk is one workflow.</p>
+      </div>
+      <div class="floor-ctl">
+        <span class="chip live" id="modeChip">live</span>
+        <button class="icon-btn" id="prevDesk" title="Previous desk (←)" aria-label="Previous desk">‹</button>
+        <button class="icon-btn" id="nextDesk" title="Next desk (→)" aria-label="Next desk">›</button>
+        <button class="btn" id="playBtn" title="Pause the floor (space)">Pause floor</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="carousel" id="carousel"></div>
+
+      <div class="meeting" id="meeting" aria-hidden="true">
+        <div class="meeting-in">
+          <div class="meeting-head">
+            <h3 id="mTitle">Design review</h3>
+            <span class="chip" id="mAgenda">Agenda: —</span>
+            <span class="chip" id="mConf">Confidence 0%</span>
+            <button class="btn" id="mSkip" style="margin-left:auto">Skip to decision</button>
+          </div>
+          <div class="table-wrap"><div class="mtable" id="mTable"></div></div>
+          <div>
+            <div class="mlog" id="mLog"></div>
+            <div class="meeting-foot">
+              <span class="eyebrow">consensus</span>
+              <span class="bar"><i id="mBar" style="width:0"></i></span>
+              <span class="mono" id="mStep">Gathering</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="walkers" id="walkers"></div>
+    </div>
+  </main>
+
+  <aside class="inspector" id="inspector">
+    <div class="insp-head">
+      <div>
+        <span class="eyebrow">inspector</span>
+        <h2 id="iName">—</h2>
+        <p id="iSub">Pick a desk to inspect its workflow.</p>
+      </div>
+      <span class="state-tag" id="iState">idle</span>
+    </div>
+
+    <div class="card">
+      <h3>Current task</h3>
+      <div class="kv"><span>Task</span><b id="iTask">—</b></div>
+      <div class="kv"><span>Role</span><b id="iRole">—</b></div>
+      <div class="kv"><span>Model</span><b id="iModel">—</b></div>
+      <div class="kv"><span>Retries</span><b id="iRetry">0</b></div>
+      <div class="kv"><span>Escalations</span><b id="iEsc">0</b></div>
+      <div class="kv"><span>Cost so far</span><b id="iCost">$0.00</b></div>
+    </div>
+
+    <div class="card">
+      <h3>Where this came from</h3>
+      <div class="trace" id="iTrace">—</div>
+    </div>
+
+    <div class="card">
+      <h3>Score breakdown</h3>
+      <div id="iScores"></div>
+      <div class="kv" style="border-top:1px solid var(--line-soft);margin-top:8px;padding-top:8px">
+        <span>Weighted score</span><b id="iScore">—</b>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Context slice sent to the model</h3>
+      <div class="ctxchips" id="iCtx"></div>
+    </div>
+
+    <div class="card">
+      <h3>Runner log</h3>
+      <div class="logs" id="iLogs"><div class="t">no runner attached</div></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="actApprove">Approve</button>
+      <button class="btn" id="actRetry">Retry</button>
+      <button class="btn" id="actCancel">Cancel</button>
+    </div>
+    <p class="hint" id="iHint">Approving releases the merge gate. Retrying keeps the workspace and raises the model tier.</p>
+  </aside>
+</div>
+
+<footer class="timeline">
+  <div class="tl-head">
+    <h2>Event timeline</h2>
+    <span class="eyebrow" id="tlCount">0 events recorded</span>
+    <div class="sp">
+      <button class="btn" id="liveBtn">Return to live</button>
+      <div class="speed" role="group" aria-label="Floor speed">
+        <button data-speed="1" aria-pressed="true">1×</button>
+        <button data-speed="2" aria-pressed="false">2×</button>
+        <button data-speed="4" aria-pressed="false">4×</button>
+      </div>
+    </div>
+  </div>
+  <div class="track" id="track">
+    <div class="tl-row" id="tlRow"><span class="empty">Events appear here as the floor runs. Click one to replay the floor at that moment.</span></div>
+  </div>
+</footer>
+
+<!-- ============ back-office login ============ -->
+<div class="sheet" id="loginSheet" hidden aria-label="Back office sign in">
+  <div class="sheet-head">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <line x1="10" y1="10" x2="22" y2="10" stroke="var(--brass-soft)" stroke-width="1"/>
+        <line x1="10" y1="10" x2="16" y2="22" stroke="var(--brass-soft)" stroke-width="1"/>
+        <line x1="22" y1="10" x2="16" y2="22" stroke="var(--brass-soft)" stroke-width="1"/>
+      </svg>
+      <i></i><i></i><i></i>
+    </span>
+    <div>
+      <span class="eyebrow">GAOS</span>
+      <h2>Back office</h2>
+    </div>
+    <div class="sp">
+      <button class="btn" data-close-sheet="loginSheet">Back to the floor</button>
+    </div>
+  </div>
+
+  <div class="sheet-body">
+    <div class="login-wrap">
+      <div class="login-card">
+        <span class="eyebrow">product master</span>
+        <h1>Sign in to the back office</h1>
+        <p>Manage product records, requirements, user stories, and diagrams that agents read before they start work.</p>
+
+        <div class="field">
+          <label for="loginTenant">Tenant</label>
+          <select id="loginTenant">
+            <option value="loop-eng">loop-eng</option>
+            <option value="loop-labs">loop-labs</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="loginUser">Email</label>
+          <input id="loginUser" type="email" autocomplete="username" placeholder="you@loop.eng" value="ardi@loop.eng">
+        </div>
+        <div class="field">
+          <label for="loginPass">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" value="demo">
+        </div>
+        <p class="form-error" id="loginErr"></p>
+        <button class="btn btn-primary btn-block" id="loginBtn">Sign in</button>
+
+        <p class="login-note">
+          <b>This is a static prototype.</b> Nothing is sent anywhere and no password is checked — any value opens the back office.
+          When you wire it to Go, this form posts to <span class="mono">POST /auth/login</span> and the tenant here becomes the
+          hard boundary applied to every graph query behind it.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ back office ============ -->
+<div class="sheet" id="boSheet" hidden aria-label="Back office">
+  <div class="sheet-head">
+    <div>
+      <span class="eyebrow" id="boTenant">loop-eng</span>
+      <h2>Product master</h2>
+    </div>
+    <div class="sp">
+      <button class="icon-btn" id="boTheme" aria-label="Switch theme" title="Switch theme (T)">
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
+      </button>
+      <button class="btn" id="boSignOut">Sign out</button>
+      <button class="btn btn-primary" data-close-sheet="boSheet">Back to the floor</button>
+    </div>
+  </div>
+
+  <div class="sheet-body">
+    <div class="bo">
+      <nav class="bo-nav">
+        <h3>Records</h3>
+        <button data-bo="products" aria-current="true">Products <span class="count" id="navProducts">0</span></button>
+        <button data-bo="stories">User stories <span class="count" id="navStories">0</span></button>
+        <button data-bo="diagrams">Diagrams <span class="count" id="navDiagrams">0</span></button>
+        <button data-bo="knowledge">Knowledge <span class="count" id="navKnow">0</span></button>
+        <h3 style="margin-top:20px">Access</h3>
+        <button data-bo="agents">Agents <span class="count" id="navAgents">0</span></button>
+      </nav>
+      <div class="bo-main" id="boMain"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ create workflow ============ -->
+<div class="modal-back" id="cwModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cwTitle">
+    <header>
+      <h3 id="cwTitle">Create workflow</h3>
+      <div class="steps" id="cwSteps">
+        <b class="on">1 Objective</b><s></s><b>2 Scope</b><s></s><b>3 Plan</b>
+      </div>
+      <button class="icon-btn x" id="cwClose" aria-label="Close">✕</button>
+    </header>
+    <div class="modal-body" id="cwBody"></div>
+    <footer>
+      <span class="eyebrow" id="cwHint">Pick the product this work belongs to.</span>
+      <span class="sp">
+        <button class="btn" id="cwBack">Back</button>
+        <button class="btn btn-primary" id="cwNext">Continue</button>
+      </span>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   Every visual element is derived from the mock graph below.
+   Swap simulate() for a WebSocket/SSE feed and the render layer
+   (paintFloor / renderInspector / renderTimeline) stays as is.
+   ============================================================ */
+
+const RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- theme ---------- */
+const themeBtn = document.getElementById("themeBtn");
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  themeBtn.setAttribute("aria-label", t === "dark" ? "Switch to light theme" : "Switch to dark theme");
+}
+themeBtn.addEventListener("click", () => {
+  applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+});
+if (window.matchMedia){
+  const mq = window.matchMedia("(prefers-color-scheme: light)");
+  const onSys = e => applyTheme(e.matches ? "light" : "dark");
+  if (mq.addEventListener) mq.addEventListener("change", onSys);
+}
+applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+
+/* ---------- roles / agents ---------- */
+const ROLES = {
+  architect: {label:"System Architect",  short:"SA", color:"var(--role-architect)", room:"architecture", model:"claude-opus-5"},
+  backend:   {label:"Backend Developer", short:"BE", color:"var(--role-backend)",   room:"backend",      model:"claude-sonnet-5"},
+  frontend:  {label:"Frontend Developer",short:"FE", color:"var(--role-frontend)",  room:"backend",      model:"claude-sonnet-5"},
+  qa:        {label:"QA Reviewer",       short:"QA", color:"var(--role-qa)",        room:"qa",           model:"claude-haiku-4.5"},
+  security:  {label:"Security Reviewer", short:"SR", color:"var(--role-security)",  room:"architecture", model:"claude-opus-5"},
+  devops:    {label:"DevOps",            short:"DO", color:"var(--role-devops)",    room:"release",      model:"claude-sonnet-5"},
+  planner:   {label:"Planner",           short:"PL", color:"var(--role-planner)",   room:"knowledge",    model:"claude-sonnet-5"}
+};
+
+const AGENTS = [
+  {id:"a-1", name:"Aster", role:"architect"},
+  {id:"a-2", name:"Bolt",  role:"backend"},
+  {id:"a-3", name:"Cedar", role:"backend"},
+  {id:"a-4", name:"Dune",  role:"frontend"},
+  {id:"a-5", name:"Ember", role:"qa"},
+  {id:"a-6", name:"Flint", role:"qa"},
+  {id:"a-7", name:"Grove", role:"security"},
+  {id:"a-8", name:"Halo",  role:"devops"},
+  {id:"a-9", name:"Iris",  role:"planner"}
+];
+const agentById = id => AGENTS.find(a => a.id === id);
+
+const ROOMS = [
+  {id:"architecture", name:"Architecture", capacity:3, note:"Design, ADRs, trade-offs"},
+  {id:"backend",      name:"Backend",      capacity:4, note:"API, domain, migrations"},
+  {id:"qa",           name:"QA",           capacity:3, note:"Tests, regressions, scores"},
+  {id:"release",      name:"Release",      capacity:2, note:"Approvals, rollout"},
+  {id:"knowledge",    name:"Knowledge",    capacity:2, note:"Lessons, replay, ADR history"},
+  {id:"meeting",      name:"Meeting room", capacity:5, note:"Multi-agent decisions"}
+];
+
+const STAGES = ["planning","architecture","coding","testing","review","deployment"];
+const SCREEN_MODE = {planning:"diagram",architecture:"diagram",coding:"terminal",testing:"tests",review:"terminal",deployment:"terminal"};
+
+const TASKS = {
+  planning:     ["Break the goal into tasks","Map impacted domain areas","Estimate risk and cost"],
+  architecture: ["Draft the service boundaries","Write the ADR","Check the security surface"],
+  coding:       ["Add the pricing migration","Update the invoice service","Build the membership form","Wire the discount rules"],
+  testing:      ["Write integration tests","Run the regression suite","Check rounding edge cases"],
+  review:       ["Score the diff","Review the migration plan","Verify the approval gate"],
+  deployment:   ["Prepare the rollout","Run the smoke checks","Record the lesson"]
+};
+
+const PRODUCTS = [
+  {id:"p-1", name:"Laundry Membership", repo:"loop/laundry-api",  goal:"Add membership pricing and discounts"},
+  {id:"p-2", name:"Invoice Engine",     repo:"loop/billing-core", goal:"Rework invoice rounding"},
+  {id:"p-3", name:"Fleet Dispatch",     repo:"loop/dispatch",     goal:"Route optimisation v2"},
+  {id:"p-4", name:"Partner Portal",     repo:"loop/portal-web",   goal:"Self-serve onboarding"},
+  {id:"p-5", name:"Ops Warehouse",      repo:"loop/warehouse",    goal:"Stock reconciliation job"}
+];
+
+let clock = 0, running = true, speed = 1, focusIdx = 0, replayAt = null, notifications = 0, spend = 0;
+
+const desks = PRODUCTS.map((p, i) => ({
+  ...p,
+  workflowId: "wf-" + (i + 1),
+  taskSeq: 0,
+  state: i === 4 ? "idle" : "active",
+  stageIdx: [0,2,1,3,0][i],
+  progress: [12,58,34,71,0][i],
+  score: null, scoreParts: null,
+  retry: 0, esc: 0,
+  cost: [0.42,1.86,0.91,2.35,0][i],
+  blockReason: null,
+  approvalRequired: false,
+  agents: [["a-1"],["a-2","a-3"],["a-1"],["a-5"],[]][i],
+  task: null, logs: [], meeting: null
+}));
+
+function pickTask(d){
+  const pool = TASKS[STAGES[d.stageIdx]];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+desks.forEach(d => { d.task = pickTask(d); });
+
+function taskId(d){ return "t-" + d.workflowId.split("-")[1] + "" + (d.taskSeq + 11); }
+function leadAgent(d){ return d.agents.length ? agentById(d.agents[0]) : null; }
+function stageOf(d){ return STAGES[d.stageIdx]; }
+
+/* ---------- event log ---------- */
+const events = [];
+function emit(type, deskId, text, kind){
+  events.push({type, deskId, text, kind: kind || "info", t: clock,
+               snapshot: JSON.parse(JSON.stringify(desks))});
+  if (kind === "warn" || kind === "fail" || type === "ApprovalRequested") notifications++;
+  if (events.length > 160) events.shift();
+  renderTimeline();
+  renderTopbar();
+}
+function log(d, line, cls){
+  d.logs.push({line, cls: cls || "t", t: clock});
+  if (d.logs.length > 40) d.logs.shift();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const carousel = document.getElementById("carousel");
+const stageEl = document.getElementById("stage");
+
+function deskMarkup(d, i){
+  const lead = leadAgent(d);
+  const role = lead ? ROLES[lead.role] : null;
+  return `
+  <article class="desk${i === focusIdx ? " focus" : ""}" data-idx="${i}" data-state="${d.state}"
+           tabindex="0" role="button" aria-label="${d.name} desk">
+    <div class="desk-head">
+      <div>
+        <div class="nm">${d.name}</div>
+        <div class="repo">${d.repo}</div>
+      </div>
+      <div class="badges" data-badges></div>
+    </div>
+
+    <div class="scene">
+      <div class="wall-grid"></div>
+      <div class="lampglow"></div>
+      <div class="monitor">
+        <div class="screen" data-mode="${SCREEN_MODE[stageOf(d)]}" data-screen>
+          <div class="ln" style="--w:82%"></div>
+          <div class="ln hi" style="--w:54%"></div>
+          <div class="ln" style="--w:68%"></div>
+          <div class="ln" style="--w:40%"></div>
+          <div class="ln ok" style="--w:60%"></div>
+          <div class="ln" style="--w:30%"></div>
+          <span class="caret"></span>
+          <svg class="dgm" viewBox="0 0 140 78">
+            <line x1="30" y1="20" x2="70" y2="44"/><line x1="110" y1="20" x2="70" y2="44"/>
+            <line class="flow" x1="30" y1="20" x2="110" y2="20"/>
+            <circle cx="30" cy="20" r="7"/><circle cx="110" cy="20" r="7"/><circle cx="70" cy="44" r="7"/>
+          </svg>
+          <div class="dots" data-dots></div>
+        </div>
+      </div>
+      <div class="surface"></div>
+      <div class="chair"></div>
+      <div class="avatar" data-avatar style="--av:${role ? role.color : "var(--role-planner)"}">
+        <span class="av-arm l"></span><span class="av-arm r"></span>
+        <span class="av-body"></span><span class="av-head"></span>
+      </div>
+      <div class="floorline"></div>
+      <div class="bubble" data-bubble>—</div>
+    </div>
+
+    <div class="ribbon" data-ribbon></div>
+    <div class="task-line" data-task></div>
+    <div class="progress"><i data-prog></i></div>
+    <div class="role-row" data-roles></div>
+  </article>`;
+}
+
+function buildFloor(){
+  carousel.innerHTML = desks.map(deskMarkup).join("");
+  carousel.querySelectorAll(".desk").forEach(el => {
+    el.addEventListener("click", () => selectDesk(+el.dataset.idx));
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " "){ e.preventDefault(); selectDesk(+el.dataset.idx); }
+    });
+  });
+  paintFloor();
+}
+
+function paintFloor(){
+  const view = replayAt === null ? desks : events[replayAt].snapshot;
+  view.forEach((d, i) => {
+    const el = carousel.children[i];
+    if (!el) return;
+    el.dataset.state = d.state;
+    el.classList.toggle("focus", i === focusIdx);
+
+    const b = [];
+    if (d.score !== null){
+      const cls = d.score >= 85 ? "good" : d.score < 70 ? "low" : "";
+      b.push(`<span class="badge score ${cls}">${d.score}</span>`);
+    }
+    if (d.retry) b.push(`<span class="badge retry">retry ${d.retry}</span>`);
+    if (d.esc) b.push(`<span class="badge esc">escalated</span>`);
+    if (d.approvalRequired) b.push(`<span class="badge approve">approval</span>`);
+    el.querySelector("[data-badges]").innerHTML = b.join("");
+
+    el.querySelector("[data-ribbon]").innerHTML =
+      `<span>${stageOf(d)}</span>` +
+      STAGES.map((s, si) => `<i class="${si < d.stageIdx ? "done" : si === d.stageIdx ? "on" : ""}"></i>`).join("");
+
+    el.querySelector("[data-task]").innerHTML = d.state === "idle"
+      ? `<b>idle</b> No agent seated. The workflow is planned and waiting for capacity.`
+      : d.state === "blocked"
+        ? `<b>${taskId(d)}</b> ${d.blockReason}`
+        : `<b>${taskId(d)}</b> ${d.task}`;
+
+    el.querySelector("[data-prog]").style.width = Math.min(100, d.progress) + "%";
+
+    const screen = el.querySelector("[data-screen]");
+    screen.dataset.mode = SCREEN_MODE[stageOf(d)];
+    if (screen.dataset.mode === "tests"){
+      const total = 24, pass = Math.round(total * Math.min(1, d.progress / 100));
+      const fail = d.score !== null && d.score < 70 ? 2 : 0;
+      screen.querySelector("[data-dots]").innerHTML =
+        Array.from({length: total}, (_, k) =>
+          `<i class="${k < pass - fail ? "p" : k < pass ? "f" : ""}"></i>`).join("");
+    }
+
+    const bub = el.querySelector("[data-bubble]");
+    bub.textContent = d.state === "blocked" ? "waiting…"
+      : d.state === "meeting" ? "in meeting"
+      : d.state === "review" ? "scoring diff"
+      : d.state === "completed" ? "lesson saved"
+      : d.state === "idle" ? "chair free"
+      : d.task.length > 26 ? d.task.slice(0, 26) + "…" : d.task;
+
+    const roles = d.agents.map((id, k) => {
+      const a = agentById(id), r = ROLES[a.role];
+      return `<span class="role-pill${k ? " stacked" : ""}" style="--av:${r.color}">
+                <em>${r.short}</em>${a.name} · ${r.label}</span>`;
+    }).join("");
+    el.querySelector("[data-roles]").innerHTML = roles +
+      `<span class="quick">
+         <button data-act="open">Open</button>
+         <button data-act="meet">Call review</button>
+       </span>`;
+
+    const lead = leadAgent(d);
+    el.querySelector("[data-avatar]").style.setProperty("--av", lead ? ROLES[lead.role].color : "var(--role-planner)");
+  });
+
+  carousel.querySelectorAll("[data-act]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const idx = +btn.closest(".desk").dataset.idx;
+      selectDesk(idx);
+      if (btn.dataset.act === "meet") callReview(idx);
+    });
+  });
+}
+
+function selectDesk(i){
+  focusIdx = Math.max(0, Math.min(desks.length - 1, i));
+  const el = carousel.children[focusIdx];
+  if (el && typeof el.scrollIntoView === "function"){
+    el.scrollIntoView(RM ? {inline:"center", block:"nearest"}
+                         : {behavior:"smooth", inline:"center", block:"nearest"});
+  }
+  paintFloor(); renderInspector(); renderRail();
+}
+
+/* ---------- rail ---------- */
+function occupancy(id){
+  if (id === "meeting") return desks.filter(d => d.state === "meeting").reduce((n, d) => n + d.agents.length, 0);
+  let n = 0;
+  desks.forEach(d => {
+    if (d.state === "idle" || d.state === "meeting") return;
+    d.agents.forEach(aid => { if (ROLES[agentById(aid).role].room === id) n++; });
+  });
+  return n;
+}
+
+function renderRail(){
+  document.getElementById("rooms").innerHTML = ROOMS.map(r => {
+    const occ = occupancy(r.id), pct = Math.min(100, occ / r.capacity * 100);
+    const full = occ >= r.capacity;
+    return `<button class="room${full ? " full" : ""}" data-room="${r.id}">
+      <span class="room-top"><b>${r.name}</b><span>${occ}/${r.capacity}</span></span>
+      <span class="meter"><i style="width:${pct}%"></i></span>
+      <span class="room-note">${full ? "At capacity — new work queues here" : r.note}</span>
+    </button>`;
+  }).join("");
+
+  document.getElementById("prodList").innerHTML = desks.map((d, i) => {
+    const c = {active:"var(--run)",completed:"var(--done)",blocked:"var(--block)",
+               review:"var(--run)",meeting:"var(--know)",idle:"var(--ink-3)"}[d.state];
+    return `<button class="prod-row" data-idx="${i}" aria-current="${i === focusIdx}">
+      <span class="dot" style="background:${c}"></span>
+      <span class="nm">${d.name}</span>
+      <span class="sc">${d.score === null ? "—" : d.score}</span>
+    </button>`;
+  }).join("");
+
+  document.querySelectorAll(".prod-row").forEach(b =>
+    b.addEventListener("click", () => selectDesk(+b.dataset.idx)));
+  document.querySelectorAll(".room").forEach(b =>
+    b.addEventListener("click", () => {
+      const rid = b.dataset.room;
+      const hit = desks.findIndex(d => d.agents.some(a => ROLES[agentById(a).role].room === rid) && d.state !== "idle");
+      if (hit >= 0) selectDesk(hit);
+      document.querySelectorAll(".room").forEach(x => x.setAttribute("aria-current", x === b));
+    }));
+}
+
+/* ---------- topbar ---------- */
+function renderTopbar(){
+  const busy = desks.reduce((n, d) => n + (d.state === "idle" ? 0 : d.agents.length), 0);
+  document.getElementById("statAgents").textContent = busy + "/" + AGENTS.length;
+  document.getElementById("statCost").textContent = "$" + spend.toFixed(2);
+  document.getElementById("statBlocked").textContent =
+    desks.filter(d => d.state === "blocked" || d.approvalRequired).length;
+  document.getElementById("bellCount").textContent = notifications;
+  document.getElementById("floorSub").textContent =
+    `${busy} of ${AGENTS.length} agents seated across ${desks.length} products. Every desk is one workflow.`;
+}
+
+/* ---------- inspector ---------- */
+const SCORE_DIMS = [["correctness",.45],["completeness",.20],["safety",.15],["quality",.10],["efficiency",.10]];
+
+/* the slice is assembled from the product master, not invented */
+function contextSlice(d, lead){
+  const m = (typeof MASTER !== "undefined") ? MASTER[d.id] : null;
+  if (!lead) return ["planner output only"];
+  const out = ["task:" + taskId(d), "dependency subgraph (3)"];
+  if (m){
+    if (m.brd.problem) out.push("brd:problem");
+    if (m.brd.rules.length) out.push("rules(" + m.brd.rules.length + ")");
+    if (m.brd.outOfScope.length) out.push("out-of-scope(" + m.brd.outOfScope.length + ")");
+    m.stories.filter(x => x.tasks > 0).slice(0, 2).forEach(x => out.push("story:" + x.id));
+    m.diagrams.slice(0, 2).forEach(g => out.push("diagram:" + g.id));
+    m.adr.slice(0, 2).forEach(a => out.push("adr:" + a.id));
+    if (m.repos[0]) out.push("repo:" + m.repos[0]);
+    out.push("policy:no-secrets-in-prompt");
+  } else {
+    out.push("repo:" + d.repo, "policy:no-secrets-in-prompt");
+  }
+  out.push("diff:workspace HEAD");
+  return out;
+}
+
+function renderInspector(){
+  const view = replayAt === null ? desks : events[replayAt].snapshot;
+  const d = view[focusIdx];
+  const lead = leadAgent(d);
+  const role = lead ? ROLES[lead.role] : null;
+
+  document.getElementById("iName").textContent = d.name;
+  document.getElementById("iSub").textContent = d.goal;
+
+  const tag = document.getElementById("iState");
+  tag.textContent = d.state;
+  const col = {active:"var(--run)",completed:"var(--done)",blocked:"var(--block)",
+               review:"var(--run)",meeting:"var(--know)",idle:"var(--ink-3)"}[d.state];
+  tag.style.color = col; tag.style.borderColor = col;
+
+  document.getElementById("iTask").textContent = d.state === "idle" ? "—" : taskId(d);
+  document.getElementById("iRole").textContent = role ? role.label : "unassigned";
+  document.getElementById("iModel").textContent = role ? (d.esc ? "claude-opus-5" : role.model) : "—";
+  document.getElementById("iRetry").textContent = d.retry;
+  document.getElementById("iEsc").textContent = d.esc;
+  document.getElementById("iCost").textContent = "$" + d.cost.toFixed(2);
+
+  document.getElementById("iTrace").innerHTML = lead
+    ? `<u>Workflow</u> ${d.workflowId} —HAS_TASK→ <u>Task</u> ${taskId(d)}<br>
+       —EXECUTED_BY→ <u>Agent</u> ${lead.id} (${role.label})<br>
+       —USES_WORKSPACE→ <u>Workspace</u> ws-${d.workflowId.split("-")[1]}${d.retry}<br>
+       —USES_CONTEXT→ <u>Requirement</u> + <u>Issue</u> from the ${esc(d.name)} master record`
+    : `<u>Workflow</u> ${d.workflowId} is PLANNED. No task dispatched yet, so there is nothing to trace.`;
+
+  const parts = d.scoreParts;
+  document.getElementById("iScores").innerHTML = SCORE_DIMS.map(([k]) => {
+    const v = parts ? parts[k] : 0;
+    return `<div class="score-row">
+      <span>${k}</span><span class="bar"><i style="width:${v}%"></i></span><span class="w">${Math.round(v)}</span>
+    </div>`;
+  }).join("") + `<div class="score-row"><span class="w" style="grid-column:1/-1">weights 0.45 / 0.20 / 0.15 / 0.10 / 0.10</span></div>`;
+  document.getElementById("iScore").textContent = d.score === null ? "not scored yet" : d.score;
+
+  document.getElementById("iCtx").innerHTML = contextSlice(d, lead)
+    .map(c => `<span>${esc(c)}</span>`).join("");
+
+  const logs = document.getElementById("iLogs");
+  logs.innerHTML = d.logs.length
+    ? d.logs.slice(-24).map(l => `<div class="${l.cls}">${String(l.t).padStart(4,"0")}  ${l.line}</div>`).join("")
+    : `<div class="t">no runner attached — dispatch a task to stream logs</div>`;
+  logs.scrollTop = logs.scrollHeight;
+
+  const ap = document.getElementById("actApprove");
+  ap.disabled = !d.approvalRequired;
+  ap.style.opacity = d.approvalRequired ? 1 : .45;
+  document.getElementById("iHint").textContent = d.approvalRequired
+    ? "This task is holding the merge gate. Approve to continue to deployment."
+    : d.state === "blocked" ? d.blockReason
+    : "Approving releases the merge gate. Retrying keeps the workspace and raises the model tier.";
+}
+
+/* ---------- timeline ---------- */
+const KIND_CLASS = {info:"", done:"done", warn:"warn", fail:"fail", know:"know", meet:"meet"};
+function renderTimeline(){
+  const row = document.getElementById("tlRow");
+  document.getElementById("tlCount").textContent = events.length + " events recorded";
+  if (!events.length) return;
+  row.innerHTML = events.map((e, i) => `
+    <span class="ev ${KIND_CLASS[e.kind] || ""}" aria-current="${replayAt === i}">
+      <label>${e.type}</label><i></i><span class="tm">${fmt(e.t)}</span>
+      <button title="${e.text}" data-ev="${i}" aria-label="Replay ${e.type} at ${fmt(e.t)}"></button>
+    </span>`).join("");
+  row.querySelectorAll("[data-ev]").forEach(b => b.addEventListener("click", () => scrubTo(+b.dataset.ev)));
+  const track = document.getElementById("track");
+  if (replayAt === null) track.scrollLeft = track.scrollWidth;
+}
+function fmt(s){
+  const m = Math.floor(s / 60), r = s % 60;
+  return String(m).padStart(2,"0") + ":" + String(r).padStart(2,"0");
+}
+function scrubTo(i){
+  replayAt = i;
+  const e = events[i];
+  const hit = desks.findIndex(d => d.id === e.deskId);
+  focusIdx = hit < 0 ? 0 : hit;
+  const chip = document.getElementById("modeChip");
+  chip.textContent = "replay " + fmt(e.t);
+  chip.classList.remove("live"); chip.classList.add("replay");
+  paintFloor(); renderInspector(); renderTimeline();
+}
+function goLive(){
+  replayAt = null;
+  const chip = document.getElementById("modeChip");
+  chip.textContent = "live";
+  chip.classList.add("live"); chip.classList.remove("replay");
+  paintFloor(); renderInspector(); renderTimeline();
+}
+
+/* ============================================================
+   MEETING — avatars walk off their desks into the room
+   ============================================================ */
+const meetingEl = document.getElementById("meeting");
+const walkersEl = document.getElementById("walkers");
+let activeMeeting = null;
+
+const MEETING_LINES = [
+  ["Facilitator","Agenda locked: rounding drift in the discount path."],
+  ["Architect","Proposal A keeps rounding in the invoice aggregate."],
+  ["Backend","Proposal B moves it into the pricing service."],
+  ["Security","B widens the audit surface. A is easier to prove."],
+  ["QA","Regression from ADR-011 already covers A."],
+  ["Recorder","Consensus on A. Writing ADR-014 and two follow-up tasks."]
+];
+
+function startMeeting(d, reason){
+  const participants = ["a-1","a-7","a-5"].concat(d.agents)
+    .filter((v, i, a) => a.indexOf(v) === i).slice(0, 5);
+  activeMeeting = {desk:d, participants, step:0, conf:38, reason, ticks:0};
+  d.state = "meeting";
+  d.meeting = {reason, participants};
+
+  document.getElementById("mTitle").textContent = "Design review · " + d.name;
+  document.getElementById("mAgenda").textContent = "Agenda: " + reason;
+  document.getElementById("mLog").innerHTML = "";
+  document.getElementById("mStep").textContent = "Gathering";
+  document.getElementById("mBar").style.width = "0%";
+
+  const table = document.getElementById("mTable");
+  const n = participants.length;
+  table.innerHTML = participants.map((id, k) => {
+    const a = agentById(id), r = ROLES[a.role];
+    const dx = (k - (n - 1) / 2) * 74;
+    const dy = k % 2 ? 46 : -46;
+    return `<span class="seat" data-seat="${k}" style="--av:${r.color};
+      transform:translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))">
+      <label>${r.short} ${a.name}</label><span class="h"></span><span class="b"></span></span>`;
+  }).join("");
+
+  meetingEl.classList.add("open");
+  meetingEl.setAttribute("aria-hidden","false");
+  emit("MeetingStarted", d.id, reason, "meet");
+  walkAvatars(participants);
+  paintFloor(); renderRail(); renderInspector();
+}
+
+function walkAvatars(participants){
+  const table = document.getElementById("mTable").getBoundingClientRect();
+  const host = stageEl.getBoundingClientRect();
+  const srcEl = carousel.children[focusIdx] && carousel.children[focusIdx].querySelector("[data-avatar]");
+  const src = srcEl ? srcEl.getBoundingClientRect() : null;
+  walkersEl.innerHTML = "";
+  participants.forEach((id, k) => {
+    const a = agentById(id), r = ROLES[a.role];
+    const w = document.createElement("div");
+    w.className = "walker step";
+    w.style.setProperty("--av", r.color);
+    w.innerHTML = `<span class="h"></span><span class="b"></span>`;
+    const sx = (src ? src.left - host.left : host.width / 2) + k * 8;
+    const sy = (src ? src.top - host.top : host.height / 2);
+    w.style.transform = `translate(${sx}px,${sy}px)`;
+    walkersEl.appendChild(w);
+    const tx = table.left - host.left + 40 + k * 74;
+    const ty = table.top - host.top + 22;
+    requestAnimationFrame(() => { w.style.transform = `translate(${tx}px,${ty}px)`; });
+    setTimeout(() => {
+      w.style.opacity = 0;
+      const seat = document.querySelector(`[data-seat="${k}"]`);
+      if (seat) seat.classList.add("filled");
+    }, RM ? 0 : 1150 + k * 60);
+  });
+  setTimeout(() => { document.getElementById("mStep").textContent = "Discussion"; }, RM ? 0 : 1300);
+}
+
+function tickMeeting(){
+  const m = activeMeeting;
+  if (!m) return;
+  m.ticks++;
+  if (m.ticks % 2) return;
+
+  if (m.step < MEETING_LINES.length){
+    const pair = MEETING_LINES[m.step++];
+    const el = document.createElement("div");
+    el.innerHTML = `<b>${pair[0]}</b> · ${pair[1]}`;
+    const box = document.getElementById("mLog");
+    box.appendChild(el);
+    while (box.children.length > 3) box.removeChild(box.firstChild);
+    m.conf = Math.min(96, m.conf + 11 + Math.random() * 6);
+    document.getElementById("mConf").textContent = "Confidence " + Math.round(m.conf) + "%";
+    document.getElementById("mBar").style.width = m.conf + "%";
+    if (m.step === MEETING_LINES.length) document.getElementById("mStep").textContent = "Decision";
+    return;
+  }
+  closeMeeting();
+}
+
+function closeMeeting(){
+  const m = activeMeeting;
+  if (!m) return;
+  const d = m.desk;
+  activeMeeting = null;
+  walkersEl.innerHTML = "";
+  meetingEl.classList.remove("open");
+  meetingEl.setAttribute("aria-hidden","true");
+
+  emit("DecisionRecorded", d.id, "ADR-014 accepted · 2 action items created", "know");
+  d.state = "active";
+  d.esc++; d.retry = 0; d.progress = 8;
+  d.score = null; d.scoreParts = null;
+  d.task = "Apply ADR-014: move rounding into the pricing service";
+  d.meeting = null;
+  log(d, "meeting decision applied · model upgraded to claude-opus-5", "p");
+  emit("ModelEscalated", d.id, "Retry running on a stronger model after the review", "know");
+  paintFloor(); renderRail(); renderInspector();
+}
+
+document.getElementById("mSkip").addEventListener("click", closeMeeting);
+
+function callReview(idx){
+  if (activeMeeting || replayAt !== null) return;
+  const d = desks[idx];
+  if (d.state === "idle" || d.state === "meeting") return;
+  startMeeting(d, "Operator called a review on " + taskId(d));
+}
+
+/* ============================================================
+   SIMULATION — stands in for the scheduler + runner feed
+   ============================================================ */
+const LOG_LINES = {
+  coding:["reading context slice (8 nodes)","patch applied to pricing.go","go build ./... ok","gofmt clean"],
+  testing:["go test ./internal/pricing -run Round","3 cases passed","1 case failed: half-even vs half-up"],
+  planning:["traversing repository graph","4 impacted domain areas found","split into 6 atomic tasks"],
+  architecture:["loading ADR-011, ADR-013","boundary check: pricing ↔ invoicing","risk: medium"],
+  review:["scoring diff against expected_output","reviewer verdict pending","checking approval policy"],
+  deployment:["building release artifact","smoke checks queued","rollback plan recorded"]
+};
+
+function score(d){
+  const base = 46 + Math.random() * 48 - (d.retry ? 4 : 0) + (d.esc ? 12 : 0);
+  const parts = {};
+  SCORE_DIMS.forEach(([k]) => { parts[k] = Math.max(20, Math.min(100, base + (Math.random() * 22 - 11))); });
+  d.scoreParts = parts;
+  d.score = Math.round(SCORE_DIMS.reduce((s, kw) => s + parts[kw[0]] * kw[1], 0));
+  return d.score;
+}
+
+function simulate(){
+  clock += 1;
+  if (activeMeeting){ tickMeeting(); return; }
+
+  desks.forEach(d => {
+    if (d.state === "meeting") return;
+
+    if (d.state === "idle"){
+      if (Math.random() < .12 && occupancy("backend") < 4){
+        d.agents = ["a-4"]; d.state = "active"; d.progress = 2; d.task = pickTask(d);
+        log(d, "workspace ws-5 leased · branch feat/reconcile", "t");
+        emit("TaskDispatched", d.id, `${d.name}: ${d.task}`, "info");
+      }
+      return;
+    }
+
+    if (d.state === "blocked"){
+      if (Math.random() < .22){
+        d.state = "active"; d.blockReason = null;
+        log(d, "blocker cleared, resuming", "g");
+        emit("TaskResumed", d.id, "Dependency resolved", "info");
+      }
+      return;
+    }
+
+    if (d.state === "completed"){
+      if (Math.random() < .18){
+        d.stageIdx = 0; d.progress = 3; d.state = "active";
+        d.score = null; d.scoreParts = null; d.retry = 0; d.taskSeq++;
+        d.task = pickTask(d);
+        emit("WorkflowCreated", d.id, "Next objective planned for " + d.name, "info");
+      }
+      return;
+    }
+
+    if (d.approvalRequired) return;
+
+    const step = 3 + Math.random() * 9;
+    d.progress = Math.min(100, d.progress + step);
+    const tick = 0.008 + Math.random() * 0.03;
+    d.cost += tick; spend += tick;
+
+    if (Math.random() < .5){
+      const pool = LOG_LINES[stageOf(d)] || LOG_LINES.coding;
+      log(d, pool[Math.floor(Math.random() * pool.length)]);
+    }
+
+    if (d.state === "active" && d.progress < 90 && Math.random() < .035){
+      d.state = "blocked";
+      d.blockReason = "Waiting on " + taskId(d) + "-dep · migration must land first";
+      log(d, "blocked: dependency not satisfied", "y");
+      emit("TaskBlocked", d.id, d.blockReason, "warn");
+      return;
+    }
+
+    if (d.progress < 100) return;
+
+    if (d.state === "active"){
+      d.state = "review"; d.progress = 100;
+      log(d, "runner exited 0 · handing off to review", "t");
+      emit("TaskCompleted", d.id, d.task, "done");
+      return;
+    }
+
+    if (d.state === "review"){
+      const s = score(d);
+      log(d, "score " + s + " (" + (s >= 85 ? "accept" : s >= 70 ? "accept with cleanup" : s >= 50 ? "iterate" : "escalate") + ")",
+          s >= 70 ? "g" : s >= 50 ? "y" : "r");
+      emit("ReviewCompleted", d.id, "Score " + s, s >= 70 ? "done" : "warn");
+
+      if (s < 50 || (d.retry >= 2 && s < 70)){
+        startMeeting(d, s < 50 ? "Low score on " + taskId(d) : "Repeated retries on " + taskId(d));
+        return;
+      }
+      if (s < 70){
+        d.retry++; d.state = "active"; d.progress = 12;
+        d.task = "Fix: " + d.task.toLowerCase();
+        emit("RetryRequested", d.id, "Retry " + d.retry + " with richer context", "warn");
+        return;
+      }
+      if (stageOf(d) === "review" && !d.approvalRequired && Math.random() < .7){
+        d.approvalRequired = true;
+        log(d, "approval gate: merge held for a human", "y");
+        emit("ApprovalRequested", d.id, "Merge held on " + taskId(d), "warn");
+        renderTopbar();
+        return;
+      }
+      advance(d);
+    }
+  });
+
+  paintFloor(); renderRail(); renderTopbar();
+  if (replayAt === null) renderInspector();
+}
+
+function advance(d){
+  d.taskSeq++;
+  if (d.stageIdx >= STAGES.length - 1){
+    d.state = "completed"; d.progress = 100;
+    log(d, "knowledge node written · linked to task, files, ADR", "p");
+    emit("KnowledgeExtracted", d.id, "Lesson stored for " + d.name, "know");
+    emit("WorkflowCompleted", d.id, d.name + " shipped", "done");
+    return;
+  }
+  d.stageIdx++;
+  d.progress = 4; d.state = "active";
+  d.score = null; d.scoreParts = null; d.retry = 0;
+  d.task = pickTask(d);
+  const wantRole = {planning:"planner",architecture:"architect",coding:"backend",
+                    testing:"qa",review:"security",deployment:"devops"}[stageOf(d)];
+  const cand = AGENTS.filter(a => a.role === wantRole);
+  if (cand.length) d.agents = [cand[Math.floor(Math.random() * cand.length)].id];
+  log(d, "stage → " + stageOf(d) + " · agent reseated", "t");
+  emit("TaskDispatched", d.id, `${stageOf(d)}: ${d.task}`, "info");
+}
+
+/* ---------- inspector actions ---------- */
+document.getElementById("actApprove").addEventListener("click", () => {
+  const d = desks[focusIdx];
+  if (!d.approvalRequired) return;
+  d.approvalRequired = false;
+  log(d, "approval granted by operator", "g");
+  emit("ApprovalGranted", d.id, "Merge gate released on " + taskId(d), "done");
+  advance(d);
+  paintFloor(); renderInspector(); renderRail(); renderTopbar();
+});
+document.getElementById("actRetry").addEventListener("click", () => {
+  const d = desks[focusIdx];
+  d.retry++; d.state = "active"; d.progress = 6; d.score = null; d.scoreParts = null;
+  log(d, "manual retry · context widened by one hop", "y");
+  emit("RetryRequested", d.id, "Operator retry on " + taskId(d), "warn");
+  paintFloor(); renderInspector();
+});
+document.getElementById("actCancel").addEventListener("click", () => {
+  const d = desks[focusIdx];
+  d.state = "idle"; d.agents = []; d.progress = 0; d.approvalRequired = false;
+  log(d, "task canceled · workspace released", "r");
+  emit("TaskCanceled", d.id, "Operator canceled " + taskId(d), "fail");
+  paintFloor(); renderInspector(); renderRail(); renderTopbar();
+});
+
+/* ---------- controls ---------- */
+const playBtn = document.getElementById("playBtn");
+playBtn.addEventListener("click", () => {
+  running = !running;
+  playBtn.textContent = running ? "Pause floor" : "Resume floor";
+});
+document.getElementById("prevDesk").addEventListener("click", () => selectDesk(focusIdx - 1));
+document.getElementById("nextDesk").addEventListener("click", () => selectDesk(focusIdx + 1));
+document.getElementById("liveBtn").addEventListener("click", goLive);
+document.getElementById("bellBtn").addEventListener("click", () => {
+  notifications = 0; renderTopbar();
+  const hit = desks.findIndex(d => d.approvalRequired || d.state === "blocked");
+  if (hit >= 0) selectDesk(hit);
+});
+document.querySelectorAll(".speed button").forEach(b =>
+  b.addEventListener("click", () => {
+    speed = +b.dataset.speed;
+    document.querySelectorAll(".speed button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    restartLoop();
+  }));
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowRight"){ selectDesk(focusIdx + 1); }
+  if (e.key === "ArrowLeft"){ selectDesk(focusIdx - 1); }
+  if (e.key === " "){ e.preventDefault(); playBtn.click(); }
+  if (e.key === "/"){ e.preventDefault(); document.getElementById("search").focus(); }
+  if (e.key === "m" || e.key === "M"){ callReview(focusIdx); }
+  if (e.key === "t" || e.key === "T"){ themeBtn.click(); }
+});
+document.getElementById("search").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return;
+  const hit = desks.findIndex(d => (d.name + d.repo + d.goal + (d.task || "")).toLowerCase().includes(q));
+  if (hit >= 0) selectDesk(hit);
+});
+
+/* ---------- loop ---------- */
+let loopId = null;
+function restartLoop(){
+  if (loopId) clearInterval(loopId);
+  loopId = setInterval(() => { if (running && replayAt === null) simulate(); }, 1400 / speed);
+}
+
+/* ============================================================
+   PRODUCT MASTER — the record every workflow is planned from.
+   One product = one master record. Requirements, stories and
+   diagrams live here; the planner reads them, and the context
+   assembler slices them into each task's prompt.
+   ============================================================ */
+function esc(v){
+  return String(v == null ? "" : v)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+const MASTER = {
+  "p-1":{
+    code:"LM", owner:"team-a", priority:"high", stage:"live",
+    repos:["loop/laundry-api","loop/laundry-web"],
+    brd:{
+      problem:"Repeat customers pay the same as walk-ins, so there is no reason to come back. Staff hand out ad-hoc discounts that never reach the invoice.",
+      goals:["Sell a paid membership with a fixed monthly fee","Apply the member rate automatically at checkout","Show members what they saved on every invoice"],
+      scope:["Membership plans and pricing","Member discount in the invoice engine","Member badge on the customer record","Revenue report split by member and non-member"],
+      outOfScope:["Loyalty points","Referral rewards","Family or corporate accounts"],
+      rules:["A customer holds at most one active membership","Discount applies to service lines only, never to delivery fees","Rounding is half-up to the smallest currency unit","An expired membership must never silently renew"],
+      metrics:["30% of active customers on a plan within two quarters","Member repeat rate above 60%","Zero rounding disputes after launch"]
+    },
+    stories:[
+      {id:"US-01",pri:"must",role:"returning customer",want:"subscribe to a membership plan",so:"I pay less on every order",ac:["Plans are listed with price and benefits","Payment failure leaves no partial membership","Confirmation shows the start and renewal date"],tasks:3},
+      {id:"US-02",pri:"must",role:"cashier",want:"see the member rate applied automatically",so:"I never calculate a discount by hand",ac:["Member price replaces list price at checkout","The invoice line shows the original price and the saving","Non-service lines keep the list price"],tasks:2},
+      {id:"US-03",pri:"should",role:"owner",want:"see revenue split by member and non-member",so:"I can tell whether the plan pays for itself",ac:["Report filters by date range","Discount total is shown separately from revenue"],tasks:1},
+      {id:"US-04",pri:"could",role:"member",want:"pause my plan for a month",so:"I am not charged while I travel",ac:["A paused plan does not renew","Pausing is limited to once per quarter"],tasks:0}
+    ],
+    diagrams:[
+      {id:"DG-01",kind:"sequence",title:"Member checkout",
+       src:"Cashier -> OrderAPI: submit order\nOrderAPI -> Membership: look up active plan\nMembership --> OrderAPI: plan + rate\nOrderAPI -> Pricing: apply member rate\nPricing --> OrderAPI: priced lines\nOrderAPI -> Invoice: issue invoice\nInvoice --> Cashier: total + saving"},
+      {id:"DG-02",kind:"erd",title:"Membership data model",
+       src:"Customer 1---0..1 Membership\nMembership *---1 Plan\nPlan 1---* PriceRule\nInvoice *---1 Customer\nInvoiceLine *---1 Invoice\nInvoiceLine 0..1---1 PriceRule   (which rule set the price)"}
+    ],
+    adr:[
+      {id:"ADR-011",title:"Money is stored as integer minor units",confidence:.94},
+      {id:"ADR-014",title:"Rounding lives in the pricing service, not the invoice aggregate",confidence:.86}
+    ]
+  },
+  "p-2":{
+    code:"IE", owner:"team-a", priority:"high", stage:"live",
+    repos:["loop/billing-core"],
+    brd:{
+      problem:"Invoice totals drift by one minor unit when several discounted lines are combined, and finance reconciles the difference by hand every month.",
+      goals:["One rounding rule across every price path","Reproduce any historical invoice exactly","Remove the manual reconciliation step"],
+      scope:["Rounding in the pricing service","Backfill check against last year's invoices","Regression suite for combined discounts"],
+      outOfScope:["Tax engine rewrite","Multi-currency invoices"],
+      rules:["Round once, at the line level, never on the total","Half-up, and the same rule in reports and invoices","Any change to a rule must be versioned and dated"],
+      metrics:["Zero reconciliation entries for two closing cycles","100% match on a 12-month replay"]
+    },
+    stories:[
+      {id:"US-01",pri:"must",role:"finance officer",want:"invoice totals that match the sum of the lines",so:"I stop adjusting the ledger by hand",ac:["Line totals sum exactly to the invoice total","A replay of last year's invoices matches to the minor unit"],tasks:4},
+      {id:"US-02",pri:"must",role:"engineer",want:"one rounding helper used everywhere",so:"reports and invoices cannot disagree",ac:["Only one rounding function is exported","A lint rule fails a direct float division on money"],tasks:2}
+    ],
+    diagrams:[
+      {id:"DG-01",kind:"flow",title:"Where rounding may happen",
+       src:"list price\n   |\n   v\ndiscount rule ---> rounded HERE (line level, half-up)\n   |\n   v\nline total ------> summed, never rounded again\n   |\n   v\ninvoice total"}
+    ],
+    adr:[{id:"ADR-011",title:"Money is stored as integer minor units",confidence:.94}]
+  },
+  "p-3":{
+    code:"FD", owner:"team-b", priority:"medium", stage:"live",
+    repos:["loop/dispatch"],
+    brd:{
+      problem:"Routes are assigned in the order orders arrive, so drivers cross the same district several times a day.",
+      goals:["Group nearby pickups into one run","Respect the promised pickup window","Let a dispatcher override any suggestion"],
+      scope:["Route grouping","Driver capacity","Dispatcher override log"],
+      outOfScope:["Live traffic data","Driver payroll"],
+      rules:["A run never exceeds the vehicle capacity","A promised window is never broken to save distance","Every override records who made it and why"],
+      metrics:["15% less distance per completed order","No increase in late pickups"]
+    },
+    stories:[
+      {id:"US-01",pri:"must",role:"dispatcher",want:"suggested runs grouped by district",so:"I stop building routes by hand",ac:["Suggestions respect capacity and windows","I can accept, edit, or reject a suggestion"],tasks:2},
+      {id:"US-02",pri:"should",role:"driver",want:"my run in pickup order",so:"I do not backtrack",ac:["Stops are ordered","Changes push a notification"],tasks:0}
+    ],
+    diagrams:[
+      {id:"DG-01",kind:"sequence",title:"Run assignment",
+       src:"Dispatcher -> Dispatch: request suggestions\nDispatch -> Router: group open orders\nRouter --> Dispatch: candidate runs\nDispatch --> Dispatcher: runs + reasons\nDispatcher -> Dispatch: accept run\nDispatch -> Driver: assign stops"}
+    ],
+    adr:[]
+  },
+  "p-4":{
+    code:"PP", owner:"team-b", priority:"medium", stage:"live",
+    repos:["loop/portal-web"],
+    brd:{
+      problem:"Every new partner is onboarded over email, so it takes about nine days and nobody can tell where a request is stuck.",
+      goals:["Partners register themselves","Documents are checked in one queue","Both sides can see the current step"],
+      scope:["Registration","Document upload and review","Status tracking"],
+      outOfScope:["Contract e-signature","Commission setup"],
+      rules:["A partner cannot trade before approval","Rejected documents state a reason","Personal data is redacted from logs"],
+      metrics:["Onboarding under two days","80% of partners finish without support"]
+    },
+    stories:[
+      {id:"US-01",pri:"must",role:"prospective partner",want:"register and upload my documents",so:"I do not wait on email",ac:["Progress is saved between sessions","Rejections say what to fix"],tasks:3}
+    ],
+    diagrams:[],
+    adr:[]
+  },
+  "p-5":{
+    code:"OW", owner:"team-c", priority:"low", stage:"draft",
+    repos:["loop/warehouse"],
+    brd:{
+      problem:"Counted stock and recorded stock disagree, and nobody knows when the gap appeared.",
+      goals:["Reconcile stock nightly","Explain every variance"],
+      scope:["Nightly reconciliation job","Variance report"],
+      outOfScope:["Purchase ordering"],
+      rules:["A variance is never auto-corrected without a reason code"],
+      metrics:["Variance under 0.5% of item value"]
+    },
+    stories:[],
+    diagrams:[],
+    adr:[]
+  }
+};
+
+/* what a master record projects into the graph */
+function projection(m){
+  const stories = m.stories.length;
+  const acs = m.stories.reduce((n, s) => n + s.ac.length, 0);
+  const req = m.brd.goals.length + m.brd.rules.length;
+  const dg = m.diagrams.length;
+  const adr = m.adr.length;
+  const vertices = 1 + req + stories + acs + dg + adr + m.repos.length;
+  const edges = req + stories * 2 + acs + dg * 2 + adr + m.repos.length;
+  return {vertices, edges, req, stories, acs, dg, adr};
+}
+function coverage(m){
+  if (!m.stories.length) return 0;
+  return Math.round(m.stories.filter(s => s.tasks > 0).length / m.stories.length * 100);
+}
+function masterOf(id){ return MASTER[id]; }
+function deskById(id){ return desks.find(d => d.id === id); }
+
+/* ============================================================
+   SHEETS, TOAST
+   ============================================================ */
+let signedIn = false;
+let boView = "products";
+let boProduct = "p-1";
+let boTab = "brd";
+
+function openSheet(id){
+  document.getElementById(id).hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeSheet(id){
+  document.getElementById(id).hidden = true;
+  if (document.querySelectorAll(".sheet:not([hidden])").length === 0 && window.innerWidth > 1180){
+    document.body.style.overflow = "hidden";
+  }
+}
+document.querySelectorAll("[data-close-sheet]").forEach(b =>
+  b.addEventListener("click", () => closeSheet(b.dataset.closeSheet)));
+
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+/* ---------- back office entry ---------- */
+document.getElementById("backofficeBtn").addEventListener("click", () => {
+  if (signedIn){ openSheet("boSheet"); renderBO(); }
+  else { openSheet("loginSheet"); setTimeout(() => document.getElementById("loginPass").focus(), 60); }
+});
+document.getElementById("loginBtn").addEventListener("click", doLogin);
+["loginUser","loginPass"].forEach(id =>
+  document.getElementById(id).addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); }));
+
+function doLogin(){
+  const user = document.getElementById("loginUser").value.trim();
+  const err = document.getElementById("loginErr");
+  if (!user || user.indexOf("@") < 0){
+    err.textContent = "Enter the email you use for this tenant.";
+    document.getElementById("loginUser").focus();
+    return;
+  }
+  err.textContent = "";
+  signedIn = true;
+  document.getElementById("boTenant").textContent =
+    document.getElementById("loginTenant").value + " · " + user;
+  closeSheet("loginSheet");
+  openSheet("boSheet");
+  renderBO();
+}
+document.getElementById("boSignOut").addEventListener("click", () => {
+  signedIn = false;
+  closeSheet("boSheet");
+  toast("Signed out of the back office.");
+});
+document.getElementById("boTheme").addEventListener("click", () => themeBtn.click());
+
+document.querySelectorAll("[data-bo]").forEach(b =>
+  b.addEventListener("click", () => {
+    boView = b.dataset.bo;
+    document.querySelectorAll("[data-bo]").forEach(x => x.setAttribute("aria-current", x === b));
+    renderBO();
+  }));
+
+/* ============================================================
+   BACK OFFICE RENDER
+   ============================================================ */
+function renderBO(){
+  const ids = Object.keys(MASTER);
+  document.getElementById("navProducts").textContent = ids.length;
+  document.getElementById("navStories").textContent = ids.reduce((n, k) => n + MASTER[k].stories.length, 0);
+  document.getElementById("navDiagrams").textContent = ids.reduce((n, k) => n + MASTER[k].diagrams.length, 0);
+  document.getElementById("navKnow").textContent = ids.reduce((n, k) => n + MASTER[k].adr.length, 0);
+  document.getElementById("navAgents").textContent = AGENTS.length;
+
+  const main = document.getElementById("boMain");
+  if (boView === "products") main.innerHTML = viewProducts();
+  else if (boView === "agents") main.innerHTML = viewAgents();
+  else main.innerHTML = viewRollup(boView);
+  wireBO();
+}
+
+function productName(id){
+  const p = PRODUCTS.find(x => x.id === id);
+  return p ? p.name : id;
+}
+function productGoal(id){
+  const p = PRODUCTS.find(x => x.id === id);
+  return p ? p.goal : "";
+}
+
+function viewProducts(){
+  return boProduct ? viewProductDetail(boProduct) : viewProductList();
+}
+
+function viewProductList(){
+  return `
+  <header>
+    <div>
+      <span class="eyebrow">records</span>
+      <h2>Products</h2>
+      <p>One record per product. Agents read this before planning, so an empty record produces a vague plan.</p>
+    </div>
+    <span class="sp"><button class="btn btn-primary" data-act="new-product">Add product</button></span>
+  </header>
+  <div class="mgrid">
+    ${Object.keys(MASTER).map(id => {
+      const m = MASTER[id], pr = projection(m), cov = coverage(m);
+      return `<button class="mcard" data-open-product="${id}">
+        <span class="mcard-top">
+          <span class="mcode">${esc(m.code)}</span>
+          <span><b>${esc(productName(id))}</b><span>${esc(m.repos[0] || "no repo")} · ${esc(m.owner)}</span></span>
+        </span>
+        <p>${esc(m.brd.problem).slice(0,110)}${m.brd.problem.length > 110 ? "…" : ""}</p>
+        <span class="mstats">
+          <span class="mstat"><b>${m.stories.length}</b><span>stories</span></span>
+          <span class="mstat"><b>${m.diagrams.length}</b><span>diagrams</span></span>
+          <span class="mstat"><b>${pr.vertices}</b><span>vertices</span></span>
+          <span class="mstat"><b>${cov}%</b><span>covered</span></span>
+        </span>
+      </button>`;
+    }).join("")}
+    <button class="mcard add" data-act="show-new">+ Add a product record</button>
+  </div>
+
+  <div class="block" id="newProduct" hidden style="margin-top:16px;max-width:520px">
+    <h4>New product record</h4>
+    <div class="field row">
+      <div><label for="npName">Product name</label><input id="npName" placeholder="Route Planner"></div>
+      <div><label for="npOwner">Owner</label><input id="npOwner" placeholder="team-b"></div>
+    </div>
+    <div class="field"><label for="npRepo">Repository</label><input id="npRepo" placeholder="loop/route-planner"></div>
+    <div class="field"><label for="npGoal">Objective</label><input id="npGoal" placeholder="Plan driver runs by district"></div>
+    <button class="btn btn-primary" data-act="new-product">Create record</button>
+    <button class="btn" data-act="cancel-new">Cancel</button>
+  </div>`;
+}
+
+function viewProductDetail(id){
+  const m = MASTER[id];
+  if (!m) { boProduct = null; return viewProductList(); }
+  const pr = projection(m), cov = coverage(m);
+  const tab = boTab;
+
+  return `
+  <header>
+    <div>
+      <button class="btn" data-act="back-to-list" style="margin-bottom:8px">‹ All products</button>
+      <h2>${esc(productName(id))}</h2>
+      <p>${esc(productGoal(id))} · owner ${esc(m.owner)} · ${esc(m.repos.join(", ") || "no repository linked")}</p>
+    </div>
+    <span class="sp">
+      <button class="btn" data-act="inject" data-p="${id}">Inject into graph</button>
+      <button class="btn btn-primary" data-act="cw-from" data-p="${id}">Create workflow</button>
+    </span>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="${tab==="brd"}" data-tab="brd">Requirements</button>
+    <button role="tab" aria-selected="${tab==="stories"}" data-tab="stories">User stories<span class="n">${m.stories.length}</span></button>
+    <button role="tab" aria-selected="${tab==="diagrams"}" data-tab="diagrams">Diagrams<span class="n">${m.diagrams.length}</span></button>
+    <button role="tab" aria-selected="${tab==="knowledge"}" data-tab="knowledge">Knowledge<span class="n">${m.adr.length}</span></button>
+  </div>
+
+  <div class="panel-grid">
+    <div>${tab === "brd" ? paneBRD(id, m) : tab === "stories" ? paneStories(id, m)
+          : tab === "diagrams" ? paneDiagrams(id, m) : paneKnowledge(id, m)}</div>
+
+    <aside class="inject">
+      <div class="block">
+        <h4>Graph projection</h4>
+        <div class="proj"><span>Requirement</span><b>${pr.req}</b></div>
+        <div class="proj"><span>Issue (story)</span><b>${pr.stories}</b></div>
+        <div class="proj"><span>AcceptanceCriterion</span><b>${pr.acs}</b></div>
+        <div class="proj"><span>Artifact (diagram)</span><b>${pr.dg}</b></div>
+        <div class="proj"><span>Decision (ADR)</span><b>${pr.adr}</b></div>
+        <div class="proj"><span>Repository</span><b>${m.repos.length}</b></div>
+        <div class="proj" style="border-top:1px solid var(--line);margin-top:6px;padding-top:7px">
+          <span>vertices · edges</span><b>${pr.vertices} · ${pr.edges}</b></div>
+      </div>
+
+      <div class="block">
+        <h4>Story coverage</h4>
+        <div class="cov-bar"><i style="width:${cov}%"></i></div>
+        <p style="margin:0;font-size:12px;color:var(--ink-3)">
+          ${m.stories.filter(s => s.tasks > 0).length} of ${m.stories.length} stories have at least one task.
+        </p>
+      </div>
+
+      <div class="block">
+        <h4>Planner readiness</h4>
+        <div class="readiness">
+          ${check(m.brd.problem.length > 40, "Problem statement")}
+          ${check(m.brd.goals.length > 0, "Goals")}
+          ${check(m.brd.rules.length > 0, "Domain rules")}
+          ${check(m.stories.length > 0, "At least one story")}
+          ${check(m.stories.every(s => s.ac.length > 0) && m.stories.length > 0, "Every story has criteria")}
+          ${check(m.diagrams.length > 0, "A diagram to reason from")}
+          ${check(m.repos.length > 0, "Repository linked")}
+        </div>
+      </div>
+    </aside>
+  </div>`;
+}
+function check(ok, label){
+  return `<div><span class="tick ${ok ? "ok" : "no"}">${ok ? "✓" : "!"}</span>${esc(label)}</div>`;
+}
+
+/* ---------- requirements pane ---------- */
+function paneBRD(id, m){
+  const list = (arr, empty) => arr.length
+    ? `<ul class="lines">${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`
+    : `<ul class="lines empty-state"><li>${empty}</li></ul>`;
+  return `
+  <div class="block">
+    <h4>Problem <span class="sp"><button class="btn" data-act="edit-brd" data-p="${id}" style="padding:3px 9px;font-size:11px">Edit</button></span></h4>
+    <p style="margin:0;font-size:13.5px;line-height:1.65">${esc(m.brd.problem)}</p>
+  </div>
+  <div class="block"><h4>Goals</h4>${list(m.brd.goals, "No goal recorded — the planner will invent one.")}</div>
+  <div class="block"><h4>In scope</h4>${list(m.brd.scope, "Nothing listed.")}</div>
+  <div class="block"><h4>Out of scope</h4>${list(m.brd.outOfScope, "Nothing excluded, so nothing is safe from the planner.")}</div>
+  <div class="block"><h4>Domain rules</h4>${list(m.brd.rules, "No rules — reviewers have nothing to score against.")}</div>
+  <div class="block"><h4>Success metrics</h4>${list(m.brd.metrics, "No metrics recorded.")}</div>
+
+  <div class="block" id="brdForm" hidden>
+    <h4>Edit the record</h4>
+    <div class="field"><label for="fProblem">Problem</label><textarea id="fProblem">${esc(m.brd.problem)}</textarea></div>
+    <div class="field"><label for="fGoals">Goals — one per line</label><textarea id="fGoals">${esc(m.brd.goals.join("\n"))}</textarea></div>
+    <div class="field"><label for="fRules">Domain rules — one per line</label><textarea id="fRules">${esc(m.brd.rules.join("\n"))}</textarea></div>
+    <div class="field row">
+      <div><label for="fScope">In scope</label><textarea id="fScope">${esc(m.brd.scope.join("\n"))}</textarea></div>
+      <div><label for="fOut">Out of scope</label><textarea id="fOut">${esc(m.brd.outOfScope.join("\n"))}</textarea></div>
+    </div>
+    <div class="field"><label for="fMetrics">Success metrics — one per line</label><textarea id="fMetrics">${esc(m.brd.metrics.join("\n"))}</textarea></div>
+    <button class="btn btn-primary" data-act="save-brd" data-p="${id}">Save record</button>
+    <button class="btn" data-act="cancel-brd">Cancel</button>
+  </div>`;
+}
+
+/* ---------- stories pane ---------- */
+function paneStories(id, m){
+  return `
+  ${m.stories.length ? m.stories.map(s => `
+    <div class="story ${esc(s.pri)}">
+      <div class="story-top">
+        <b>${esc(s.id)}</b>
+        <span class="pri">${esc(s.pri)}</span>
+        <span class="cov ${s.tasks ? "on" : ""}">${s.tasks ? s.tasks + " task" + (s.tasks > 1 ? "s" : "") : "no task yet"}</span>
+      </div>
+      <p>As a <em>${esc(s.role)}</em> I want to <em>${esc(s.want)}</em> so that <em>${esc(s.so)}</em>.</p>
+      ${s.ac.length ? `<ul>${s.ac.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
+    </div>`).join("")
+   : `<div class="block"><p style="margin:0;font-size:13px;color:var(--ink-3)">No stories yet. Add the first one below — the planner turns each story into an Issue vertex and plans tasks against its criteria.</p></div>`}
+
+  <div class="block">
+    <h4>Add a user story</h4>
+    <div class="field row">
+      <div><label for="sRole">As a</label><input id="sRole" placeholder="returning customer"></div>
+      <div><label for="sPri">Priority</label>
+        <select id="sPri"><option value="must">must</option><option value="should">should</option><option value="could">could</option></select>
+      </div>
+    </div>
+    <div class="field"><label for="sWant">I want to</label><input id="sWant" placeholder="subscribe to a membership plan"></div>
+    <div class="field"><label for="sSo">So that</label><input id="sSo" placeholder="I pay less on every order"></div>
+    <div class="field"><label for="sAc">Acceptance criteria — one per line</label><textarea id="sAc" placeholder="Plans are listed with price and benefits"></textarea></div>
+    <button class="btn btn-primary" data-act="add-story" data-p="${id}">Add story</button>
+  </div>`;
+}
+
+/* ---------- diagrams pane ---------- */
+function paneDiagrams(id, m){
+  return `
+  ${m.diagrams.length ? m.diagrams.map(g => `
+    <div class="dgm-card">
+      <header>
+        <b>${esc(g.title)}</b>
+        <span class="kind">${esc(g.kind)}</span>
+        <span class="sp">${esc(g.id)}</span>
+      </header>
+      <div class="dgm-body">${g.kind === "sequence" ? renderSequence(g.src) : `<pre>${esc(g.src)}</pre>`}</div>
+    </div>`).join("")
+   : `<div class="block"><p style="margin:0;font-size:13px;color:var(--ink-3)">No diagrams yet. A sequence or data model gives the architect something to reason from instead of guessing the call order.</p></div>`}
+
+  <div class="block">
+    <h4>Add a diagram</h4>
+    <div class="field row">
+      <div><label for="gTitle">Title</label><input id="gTitle" placeholder="Member checkout"></div>
+      <div><label for="gKind">Type</label>
+        <select id="gKind">
+          <option value="sequence">sequence — drawn</option>
+          <option value="erd">data model — text</option>
+          <option value="flow">flow — text</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="gSrc">Source</label>
+      <textarea id="gSrc" style="min-height:110px" placeholder="Cashier -> OrderAPI: submit order&#10;OrderAPI -> Pricing: apply member rate&#10;Pricing --> OrderAPI: priced lines"></textarea>
+      <p class="help">Sequence syntax: <span class="mono">Actor -&gt; Actor: message</span>, and <span class="mono">--&gt;</span> for a reply. Other types are kept as text.</p>
+    </div>
+    <button class="btn btn-primary" data-act="add-diagram" data-p="${id}">Add diagram</button>
+  </div>`;
+}
+
+/* tiny sequence renderer: "A -> B: msg" / "A --> B: msg" */
+function renderSequence(src){
+  const rows = [];
+  const actors = [];
+  src.split("\n").forEach(raw => {
+    const line = raw.trim();
+    if (!line) return;
+    const m = line.match(/^(.+?)\s*(-->|->)\s*(.+?)\s*:\s*(.*)$/);
+    if (!m) return;
+    const from = m[1].trim(), to = m[3].trim();
+    if (actors.indexOf(from) < 0) actors.push(from);
+    if (actors.indexOf(to) < 0) actors.push(to);
+    rows.push({from, to, msg: m[4].trim(), ret: m[2] === "-->"});
+  });
+  if (!rows.length) return `<pre>${esc(src)}</pre>`;
+
+  const colW = 132, top = 40, rowH = 30, pad = 14;
+  const w = pad * 2 + Math.max(1, actors.length) * colW;
+  const h = top + rows.length * rowH + 24;
+  const x = i => pad + i * colW + colW / 2;
+
+  let svg = `<svg class="seq" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Sequence diagram">
+    <defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" fill="var(--run)"/></marker></defs>`;
+  actors.forEach((a, i) => {
+    svg += `<line class="life" x1="${x(i)}" y1="${top - 4}" x2="${x(i)}" y2="${h - 12}"/>`;
+    svg += `<rect class="box" x="${x(i) - colW / 2 + 8}" y="8" width="${colW - 16}" height="24" rx="3"/>`;
+    svg += `<text class="actor" x="${x(i)}" y="24" text-anchor="middle">${esc(a.slice(0, 15))}</text>`;
+  });
+  rows.forEach((r, i) => {
+    const y = top + 18 + i * rowH;
+    const a = x(actors.indexOf(r.from)), b = x(actors.indexOf(r.to));
+    svg += `<line class="arrow${r.ret ? " ret" : ""}" x1="${a}" y1="${y}" x2="${b}" y2="${y}"/>`;
+    svg += `<text x="${(a + b) / 2}" y="${y - 6}" text-anchor="middle">${esc(r.msg.slice(0, 34))}</text>`;
+  });
+  return svg + `</svg>`;
+}
+
+/* ---------- knowledge pane ---------- */
+function paneKnowledge(id, m){
+  return `
+  <div class="block">
+    <h4>Decisions carried into every prompt</h4>
+    ${m.adr.length ? m.adr.map(a => `
+      <div class="proj" style="padding:7px 0">
+        <span style="color:var(--ink);font-family:var(--font-body);font-size:13px">
+          <b class="mono" style="color:var(--know);font-size:11px">${esc(a.id)}</b> ${esc(a.title)}
+        </span>
+        <b>${Math.round(a.confidence * 100)}%</b>
+      </div>`).join("")
+     : `<p style="margin:0;font-size:13px;color:var(--ink-3)">No decisions recorded yet. Meetings on the floor write them here automatically.</p>`}
+  </div>
+  <div class="block">
+    <h4>Add a decision</h4>
+    <div class="field row">
+      <div><label for="kId">Reference</label><input id="kId" placeholder="ADR-015"></div>
+      <div><label for="kConf">Confidence</label><input id="kConf" type="number" min="1" max="100" value="80"></div>
+    </div>
+    <div class="field"><label for="kTitle">Decision</label><input id="kTitle" placeholder="Rounding lives in the pricing service"></div>
+    <button class="btn btn-primary" data-act="add-adr" data-p="${id}">Add decision</button>
+  </div>`;
+}
+
+/* ---------- rollups and agents ---------- */
+function viewRollup(kind){
+  const ids = Object.keys(MASTER);
+  const title = {stories:"User stories", diagrams:"Diagrams", knowledge:"Knowledge"}[kind];
+  const sub = {
+    stories:"Every story across the tenant, grouped by product. A story with no task is work nobody has planned yet.",
+    diagrams:"Sequences and models the architect reads before proposing a boundary change.",
+    knowledge:"Decisions and lessons reused by the planner on the next similar goal."
+  }[kind];
+
+  const body = ids.map(id => {
+    const m = MASTER[id];
+    const items = kind === "stories" ? m.stories : kind === "diagrams" ? m.diagrams : m.adr;
+    if (!items.length) return "";
+    return `<div class="block">
+      <h4>${esc(productName(id))} <span class="sp"><button class="btn" data-open-product="${id}" style="padding:3px 9px;font-size:11px">Open record</button></span></h4>
+      ${kind === "stories"
+        ? items.map(s => `<div class="story ${esc(s.pri)}" style="margin-bottom:6px">
+            <div class="story-top"><b>${esc(s.id)}</b><span class="pri">${esc(s.pri)}</span>
+              <span class="cov ${s.tasks ? "on" : ""}">${s.tasks ? s.tasks + " task" + (s.tasks > 1 ? "s" : "") : "no task yet"}</span></div>
+            <p>As a <em>${esc(s.role)}</em> I want to <em>${esc(s.want)}</em>.</p></div>`).join("")
+        : kind === "diagrams"
+          ? items.map(g => `<div class="proj"><span>${esc(g.id)} · ${esc(g.kind)}</span><b>${esc(g.title)}</b></div>`).join("")
+          : items.map(a => `<div class="proj"><span>${esc(a.id)}</span><b>${esc(a.title)}</b></div>`).join("")}
+    </div>`;
+  }).join("");
+
+  return `<header><div><span class="eyebrow">records</span><h2>${title}</h2><p>${sub}</p></div></header>
+          ${body || `<div class="block"><p style="margin:0;color:var(--ink-3);font-size:13px">Nothing recorded yet.</p></div>`}`;
+}
+
+function viewAgents(){
+  return `<header><div><span class="eyebrow">access</span><h2>Agents</h2>
+    <p>Roles the scheduler can seat. Capability and model routing are read from here when a task is dispatched.</p></div></header>
+    <div class="block">
+      ${AGENTS.map(a => {
+        const r = ROLES[a.role];
+        const seated = desks.find(d => d.state !== "idle" && d.agents.indexOf(a.id) >= 0);
+        return `<div class="proj" style="padding:8px 0">
+          <span style="display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:13px;color:var(--ink)">
+            <em style="width:18px;height:18px;border-radius:50%;background:${r.color};display:grid;place-items:center;
+                       font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700">${r.short}</em>
+            ${esc(a.name)} · ${esc(r.label)}
+          </span>
+          <b style="color:${seated ? "var(--run)" : "var(--ink-3)"}">${seated ? "seated · " + esc(seated.name) : "idle"}</b>
+        </div>`;
+      }).join("")}
+    </div>`;
+}
+
+/* ---------- back office wiring ---------- */
+function wireBO(){
+  const main = document.getElementById("boMain");
+
+  main.querySelectorAll("[data-open-product]").forEach(b =>
+    b.addEventListener("click", () => {
+      boProduct = b.dataset.openProduct; boView = "products"; boTab = "brd";
+      document.querySelectorAll("[data-bo]").forEach(x => x.setAttribute("aria-current", x.dataset.bo === "products"));
+      renderBO();
+    }));
+
+  main.querySelectorAll("[data-tab]").forEach(b =>
+    b.addEventListener("click", () => { boTab = b.dataset.tab; renderBO(); }));
+
+  main.querySelectorAll("[data-act]").forEach(b =>
+    b.addEventListener("click", () => boAction(b.dataset.act, b.dataset.p, b)));
+}
+
+function boAction(act, pid, btn){
+  const m = MASTER[pid];
+
+  if (act === "back-to-list"){ boProduct = null; renderBO(); return; }
+
+  if (act === "show-new"){
+    const f = document.getElementById("newProduct");
+    f.hidden = false;
+    document.getElementById("npName").focus();
+    return;
+  }
+  if (act === "cancel-new"){ document.getElementById("newProduct").hidden = true; return; }
+
+  if (act === "new-product"){
+    const name = document.getElementById("npName").value.trim();
+    if (!name){ toast("Give the product a name."); return; }
+    const repo = document.getElementById("npRepo").value.trim()
+      || "loop/" + name.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+    const id = "p-" + (PRODUCTS.length + 1);
+    PRODUCTS.push({id, name, repo, goal:document.getElementById("npGoal").value.trim() || "No objective set yet"});
+    MASTER[id] = {
+      code:name.slice(0,2).toUpperCase(),
+      owner:document.getElementById("npOwner").value.trim() || "unassigned",
+      priority:"medium", stage:"draft", repos:[repo],
+      brd:{problem:"",goals:[],scope:[],outOfScope:[],rules:[],metrics:[]},
+      stories:[], diagrams:[], adr:[]
+    };
+    boProduct = id; boTab = "brd";
+    renderBO();
+    toast("Product record created. Fill the requirements before planning work.");
+    return;
+  }
+
+  if (act === "edit-brd"){ document.getElementById("brdForm").hidden = false;
+    document.getElementById("brdForm").scrollIntoView({block:"nearest"}); return; }
+  if (act === "cancel-brd"){ document.getElementById("brdForm").hidden = true; return; }
+
+  if (act === "save-brd"){
+    const lines = v => v.split("\n").map(x => x.trim()).filter(Boolean);
+    m.brd.problem = document.getElementById("fProblem").value.trim();
+    m.brd.goals = lines(document.getElementById("fGoals").value);
+    m.brd.rules = lines(document.getElementById("fRules").value);
+    m.brd.scope = lines(document.getElementById("fScope").value);
+    m.brd.outOfScope = lines(document.getElementById("fOut").value);
+    m.brd.metrics = lines(document.getElementById("fMetrics").value);
+    renderBO();
+    toast("Requirements saved.");
+    return;
+  }
+
+  if (act === "add-story"){
+    const role = document.getElementById("sRole").value.trim();
+    const want = document.getElementById("sWant").value.trim();
+    const so = document.getElementById("sSo").value.trim();
+    if (!role || !want){ toast("A story needs at least a role and a want."); return; }
+    m.stories.push({
+      id:"US-" + String(m.stories.length + 1).padStart(2,"0"),
+      pri:document.getElementById("sPri").value,
+      role, want, so: so || "the outcome is worth building",
+      ac:document.getElementById("sAc").value.split("\n").map(x => x.trim()).filter(Boolean),
+      tasks:0
+    });
+    renderBO();
+    toast("Story added. It becomes an Issue vertex on the next injection.");
+    return;
+  }
+
+  if (act === "add-diagram"){
+    const title = document.getElementById("gTitle").value.trim();
+    const src = document.getElementById("gSrc").value.trim();
+    if (!title || !src){ toast("A diagram needs a title and a source."); return; }
+    m.diagrams.push({id:"DG-" + String(m.diagrams.length + 1).padStart(2,"0"),
+                     kind:document.getElementById("gKind").value, title, src});
+    renderBO();
+    toast("Diagram added.");
+    return;
+  }
+
+  if (act === "add-adr"){
+    const t = document.getElementById("kTitle").value.trim();
+    if (!t){ toast("Write the decision first."); return; }
+    m.adr.push({
+      id: document.getElementById("kId").value.trim() || "ADR-" + String(m.adr.length + 20),
+      title:t,
+      confidence: Math.max(1, Math.min(100, +document.getElementById("kConf").value || 80)) / 100
+    });
+    renderBO();
+    toast("Decision recorded.");
+    return;
+  }
+
+  if (act === "inject"){
+    const pr = projection(m);
+    const d = deskById(pid);
+    emit("KnowledgeInjected", pid, `${productName(pid)}: ${pr.vertices} vertices, ${pr.edges} edges written`, "know");
+    if (d) log(d, `master record injected · ${pr.vertices} vertices, ${pr.edges} edges`, "p");
+    renderInspector();
+    toast(`Injected ${pr.vertices} vertices and ${pr.edges} edges into the graph.`);
+    return;
+  }
+
+  if (act === "cw-from"){
+    closeSheet("boSheet");
+    openCW(pid);
+    return;
+  }
+}
+
+/* ============================================================
+   CREATE WORKFLOW — objective, scope, plan
+   ============================================================ */
+let cw = null;
+
+function openCW(preselect){
+  cw = {step:1, product:preselect || null, goal:"", priority:"high", gate:true, stories:[], plan:[]};
+  document.getElementById("cwModal").hidden = false;
+  renderCW();
+}
+function closeCW(){ document.getElementById("cwModal").hidden = true; cw = null; }
+
+document.getElementById("cwClose").addEventListener("click", closeCW);
+document.getElementById("cwModal").addEventListener("mousedown", e => {
+  if (e.target.id === "cwModal") closeCW();
+});
+document.getElementById("createWorkflowBtn").addEventListener("click", () => openCW(null));
+
+function renderCW(){
+  const body = document.getElementById("cwBody");
+  const steps = document.getElementById("cwSteps");
+  const hint = document.getElementById("cwHint");
+  const next = document.getElementById("cwNext");
+  const back = document.getElementById("cwBack");
+
+  steps.innerHTML = ["1 Objective","2 Scope","3 Plan"].map((s, i) => {
+    const n = i + 1;
+    return `<b class="${cw.step === n ? "on" : cw.step > n ? "done" : ""}">${s}</b>`;
+  }).join("<s></s>");
+
+  back.style.visibility = cw.step === 1 ? "hidden" : "visible";
+
+  if (cw.step === 1){
+    hint.textContent = "The product record supplies the context the planner reads.";
+    next.textContent = "Continue";
+    body.innerHTML = `
+      <div class="field">
+        <label>Product</label>
+        <div class="picker">
+          ${Object.keys(MASTER).map(id => `
+            <button class="pick" data-pick="${id}" aria-pressed="${cw.product === id}">
+              <b>${esc(productName(id))}</b>
+              <span>${MASTER[id].stories.length} stories · ${coverage(MASTER[id])}% covered</span>
+            </button>`).join("")}
+        </div>
+      </div>
+      <div class="field">
+        <label for="cwGoal">Objective in plain language</label>
+        <textarea id="cwGoal" placeholder="Add membership pricing so returning customers pay a member rate at checkout">${esc(cw.goal)}</textarea>
+      </div>
+      <div class="field row">
+        <div><label for="cwPri">Priority</label>
+          <select id="cwPri">
+            <option value="high"${cw.priority==="high"?" selected":""}>high</option>
+            <option value="medium"${cw.priority==="medium"?" selected":""}>medium</option>
+            <option value="low"${cw.priority==="low"?" selected":""}>low</option>
+          </select></div>
+        <div><label for="cwGate">Approval before merge</label>
+          <select id="cwGate">
+            <option value="yes"${cw.gate?" selected":""}>required</option>
+            <option value="no"${!cw.gate?" selected":""}>not required</option>
+          </select></div>
+      </div>`;
+    body.querySelectorAll("[data-pick]").forEach(b =>
+      b.addEventListener("click", () => { cw.product = b.dataset.pick; renderCW(); }));
+    return;
+  }
+
+  if (cw.step === 2){
+    const m = MASTER[cw.product];
+    hint.textContent = "Each selected story becomes an Issue the tasks are planned against.";
+    next.textContent = "Build the plan";
+    body.innerHTML = `
+      <p style="margin:0 0 12px;font-size:13px;color:var(--ink-2)">
+        ${esc(productName(cw.product))} — pick the stories this workflow delivers.
+        ${m.stories.length ? "" : "This record has no stories yet, so the plan will follow the stage template only."}
+      </p>
+      ${m.stories.map(s => `
+        <button class="story-pick" data-story="${esc(s.id)}" aria-pressed="${cw.stories.indexOf(s.id) >= 0}">
+          <span class="box">✓</span>
+          <span class="tx"><b>${esc(s.id)} · ${esc(s.pri)}</b><br>
+            As a ${esc(s.role)} I want to ${esc(s.want)}.</span>
+        </button>`).join("")}
+      <div class="block" style="margin-top:12px">
+        <h4>Context the planner will read</h4>
+        <div class="proj"><span>Problem statement</span><b>${m.brd.problem ? "yes" : "missing"}</b></div>
+        <div class="proj"><span>Domain rules</span><b>${m.brd.rules.length}</b></div>
+        <div class="proj"><span>Out of scope items</span><b>${m.brd.outOfScope.length}</b></div>
+        <div class="proj"><span>Diagrams</span><b>${m.diagrams.length}</b></div>
+        <div class="proj"><span>Decisions carried in</span><b>${m.adr.length}</b></div>
+      </div>`;
+    body.querySelectorAll("[data-story]").forEach(b =>
+      b.addEventListener("click", () => {
+        const id = b.dataset.story, k = cw.stories.indexOf(id);
+        if (k >= 0) cw.stories.splice(k, 1); else cw.stories.push(id);
+        renderCW();
+      }));
+    return;
+  }
+
+  /* step 3 — plan preview */
+  hint.textContent = `${cw.plan.length} tasks · ${cw.plan.filter(t => t.gate).length} approval gate`;
+  next.textContent = "Create workflow";
+  body.innerHTML = `
+    <p style="margin:0 0 12px;font-size:13px;color:var(--ink-2)">
+      ${esc(cw.goal || productGoal(cw.product))}
+    </p>
+    ${cw.plan.map(t => `
+      <div class="plan-task${t.gate ? " gate" : ""}">
+        <span class="id">${esc(t.id)}</span>
+        <span>${esc(t.title)}
+          <span class="dep">${t.dep ? "DEPENDS_ON " + esc(t.dep) : "no prerequisite"}${t.story ? " · IMPLEMENTS " + esc(t.story) : ""}</span>
+        </span>
+        <span class="rl">${esc(ROLES[t.role].short)} · ${esc(t.model)}</span>
+      </div>`).join("")}
+    <p style="margin:12px 0 0;font-size:12px;color:var(--ink-3)">
+      Creating this writes one Workflow vertex, ${cw.plan.length} Task vertices and
+      ${cw.plan.filter(t => t.dep).length} DEPENDS_ON edges, then opens a desk on the floor.
+    </p>`;
+}
+
+function buildPlan(){
+  const m = MASTER[cw.product];
+  const picked = m.stories.filter(s => cw.stories.indexOf(s.id) >= 0);
+  const plan = [];
+  let n = 0;
+  const add = (title, role, story, dep, gate) => {
+    n++;
+    const id = "t-" + n;
+    plan.push({id, title, role, story, dep,
+               model: gate ? "claude-opus-5" : ROLES[role].model, gate: !!gate});
+    return id;
+  };
+
+  const p1 = add("Read the record and split the goal into tasks", "planner", null, null, false);
+  const p2 = add("Confirm boundaries against the diagrams and ADRs", "architect", null, p1, false);
+
+  let last = p2;
+  if (picked.length){
+    picked.forEach(s => {
+      const impl = add("Implement " + s.want, "backend", s.id, last, false);
+      const test = add("Verify: " + (s.ac[0] || "acceptance criteria for " + s.id), "qa", s.id, impl, false);
+      last = test;
+    });
+  } else {
+    const impl = add("Implement the objective", "backend", null, last, false);
+    last = add("Write integration tests", "qa", null, impl, false);
+  }
+
+  const sec = add("Review the security and pricing edge cases", "security", null, last, false);
+  const rel = add("Prepare the rollout and record the lesson", "devops", null, sec, cw.gate);
+  return plan;
+}
+
+document.getElementById("cwBack").addEventListener("click", () => {
+  if (cw.step > 1){ cw.step--; renderCW(); }
+});
+document.getElementById("cwNext").addEventListener("click", () => {
+  if (cw.step === 1){
+    cw.goal = (document.getElementById("cwGoal").value || "").trim();
+    cw.priority = document.getElementById("cwPri").value;
+    cw.gate = document.getElementById("cwGate").value === "yes";
+    if (!cw.product){ toast("Pick the product this work belongs to."); return; }
+    if (!cw.goal){ toast("Write the objective in one sentence."); return; }
+    cw.step = 2; renderCW(); return;
+  }
+  if (cw.step === 2){
+    cw.plan = buildPlan();
+    cw.step = 3; renderCW(); return;
+  }
+  commitWorkflow();
+});
+
+function commitWorkflow(){
+  const m = MASTER[cw.product];
+  const base = PRODUCTS.find(p => p.id === cw.product);
+  const existing = deskById(cw.product);
+
+  /* stories now have planned tasks */
+  m.stories.forEach(s => { if (cw.stories.indexOf(s.id) >= 0) s.tasks += 2; });
+
+  const first = cw.plan[0];
+  const seed = {
+    workflowId:"wf-" + (desks.length + 1),
+    taskSeq:0, state:"active", stageIdx:0, progress:2,
+    score:null, scoreParts:null, retry:0, esc:0, cost:0,
+    blockReason:null, approvalRequired:false,
+    agents:["a-9"], task:first.title, logs:[], meeting:null,
+    plan:cw.plan, goal:cw.goal, priority:cw.priority
+  };
+
+  let target;
+  if (existing){
+    Object.assign(existing, seed, {id:existing.id, name:existing.name, repo:existing.repo});
+    target = existing;
+  } else {
+    target = Object.assign({id:base.id, name:base.name, repo:base.repo}, seed);
+    desks.push(target);
+  }
+
+  log(target, "planner read the master record · " + m.stories.length + " stories, " + m.brd.rules.length + " rules", "p");
+  log(target, "workspace " + seed.workflowId.replace("wf","ws") + " leased", "t");
+  emit("WorkflowCreated", target.id, cw.goal, "info");
+  emit("TaskPlanned", target.id, cw.plan.length + " tasks planned from the product master", "know");
+
+  const idx = desks.findIndex(d => d.id === target.id);
+  closeCW();
+  buildFloor();
+  renderRail(); renderTopbar();
+  selectDesk(idx < 0 ? 0 : idx);
+  toast("Workflow created. The desk is live on the floor.");
+}
+
+/* ---------- boot ---------- */
+buildFloor();
+renderRail();
+renderTopbar();
+renderInspector();
+emit("FloorOpened", desks[0].id, "Mission Control attached to 5 workflows", "info");
+desks.forEach(d => {
+  if (d.state !== "idle") log(d, "runner attached · pid " + (11000 + Math.floor(Math.random() * 900)), "t");
+});
+selectDesk(0);
+restartLoop();
+})();
+</script>
+</body>
+</html>

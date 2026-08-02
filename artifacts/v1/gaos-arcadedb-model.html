@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAOS · ArcadeDB Data Model</title>
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script>
+  (function(){
+    try{
+      var light = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+    }catch(e){}
+  })();
+</script>
+<style>
+:root{
+  --bg:#151310; --bg-glow:#231F19;
+  --panel:#1C1A16; --panel-2:#232019; --panel-3:#2A261E;
+  --line:#37322A; --line-soft:#2B2721; --grid-line:rgba(214,178,112,.055);
+  --ink:#EFE8DA; --ink-2:#B3A992; --ink-3:#807867;
+  --brass:#CFA047; --brass-soft:#8A6D2C;
+  --run:#7BA6DC; --done:#8FAF6B; --block:#DCA544; --fail:#C86458; --know:#A585CE;
+  --shadow:0 24px 46px -24px rgba(0,0,0,.9);
+  --font-display:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r-s:5px; --r-m:10px; --r-l:14px;
+  --toc-w:270px;
+}
+[data-theme="light"]{
+  --bg:#E4E2D8; --bg-glow:#F1EFE7;
+  --panel:#FAF8F2; --panel-2:#F0EDE3; --panel-3:#E6E2D5;
+  --line:#CBC5B4; --line-soft:#DAD5C6; --grid-line:rgba(90,78,52,.075);
+  --ink:#22211C; --ink-2:#55524A; --ink-3:#7C7767;
+  --brass:#8A6716; --brass-soft:#B79A55;
+  --run:#2C63A6; --done:#4C7534; --block:#96681A; --fail:#A6473A; --know:#65429B;
+  --shadow:0 18px 34px -20px rgba(58,50,30,.42);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:radial-gradient(1100px 520px at 60% -8%, var(--bg-glow) 0%, transparent 60%), var(--bg);
+  color:var(--ink);font-family:var(--font-body);font-size:14.5px;line-height:1.65;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:3px}
+.mono{font-family:var(--font-mono)}
+.eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+
+.wrap{display:grid;grid-template-columns:var(--toc-w) minmax(0,1fr);align-items:start}
+.toc{position:sticky;top:0;height:100vh;overflow:auto;border-right:1px solid var(--line);background:var(--panel);padding:20px 16px 30px}
+.toc-brand{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.mark{width:32px;height:32px;flex:0 0 32px;position:relative;border:1px solid var(--brass-soft);border-radius:7px;background:var(--panel-2)}
+.mark svg{position:absolute;inset:0}
+.toc-brand b{font-family:var(--font-display);font-size:15px;font-weight:700;display:block;line-height:1.2}
+.toc-brand span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.toc h3{font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);
+  margin:18px 0 8px;font-weight:500;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.toc a{display:block;color:var(--ink-2);text-decoration:none;font-size:13px;padding:5px 9px;border-left:2px solid transparent;border-radius:0 var(--r-s) var(--r-s) 0}
+.toc a:hover{background:var(--panel-2);color:var(--ink)}
+.toc a.on{background:var(--panel-2);border-left-color:var(--brass);color:var(--ink)}
+.toc a i{font-family:var(--font-mono);font-style:normal;font-size:10.5px;color:var(--ink-3);margin-right:7px}
+.toc .dl{margin-top:16px;width:100%;border:1px solid var(--brass-soft);border-radius:var(--r-s);
+  padding:8px 10px;font-size:12.5px;color:var(--ink);background:var(--panel-2);text-align:left}
+.toc .dl:hover{border-color:var(--brass);background:var(--panel-3)}
+.toc .dl span{display:block;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase}
+
+main{padding:34px 40px 90px;max-width:1140px;min-width:0}
+.doc-head{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:34px;position:relative}
+.doc-head h1{font-family:var(--font-display);font-size:38px;font-weight:700;margin:8px 0 8px;letter-spacing:-.01em;line-height:1.1}
+.doc-head p{margin:0;font-size:15.5px;color:var(--ink-2);max-width:66ch}
+.doc-head .sp{position:absolute;top:0;right:0;display:flex;gap:8px}
+.icon-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:7px;display:grid;place-items:center;color:var(--ink-2);background:var(--panel-2)}
+.icon-btn:hover{border-color:var(--brass-soft);color:var(--ink)}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+[data-theme="dark"] .i-moon{display:none}
+[data-theme="light"] .i-sun{display:none}
+
+section{margin-bottom:52px;scroll-margin-top:20px}
+section > h2{font-family:var(--font-display);font-size:25px;font-weight:700;margin:0 0 4px;display:flex;align-items:baseline;gap:12px}
+section > h2 .num{font-family:var(--font-mono);font-size:13px;color:var(--brass);font-weight:500}
+section > .lede{margin:0 0 20px;color:var(--ink-2);max-width:70ch}
+h3{font-family:var(--font-display);font-size:17.5px;font-weight:600;margin:28px 0 8px}
+h4{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 8px;font-weight:500}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 14px;padding-left:20px}
+li{margin-bottom:5px}
+code{font-family:var(--font-mono);font-size:.88em;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px}
+a{color:var(--brass)}
+
+.note,.warn,.ok{border:1px solid var(--line-soft);border-left:2px solid var(--brass);background:var(--panel);
+  border-radius:0 var(--r-m) var(--r-m) 0;padding:13px 15px;margin:16px 0;font-size:13.5px}
+.warn{border-left-color:var(--block)}
+.ok{border-left-color:var(--done)}
+
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{border:1px solid var(--line-soft);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel-2);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+td.mono,th.mono{font-family:var(--font-mono);font-size:12.5px}
+tbody tr:nth-child(odd) td{background:var(--panel)}
+td b{font-weight:600}
+
+/* code block with copy */
+.code{position:relative;margin:14px 0}
+.code > .bar{display:flex;align-items:center;gap:10px;padding:7px 12px;border:1px solid var(--line-soft);
+  border-bottom:0;border-radius:var(--r-m) var(--r-m) 0 0;background:var(--panel-2)}
+.code > .bar b{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.code > .bar .sp{margin-left:auto;display:flex;gap:6px}
+.code .cp{font-family:var(--font-mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:2px 8px;color:var(--ink-3)}
+.code .cp:hover{border-color:var(--brass-soft);color:var(--ink)}
+.code pre{margin:0;border-radius:0 0 var(--r-m) var(--r-m);border-top-left-radius:0}
+pre{font-family:var(--font-mono);font-size:12.5px;line-height:1.7;background:var(--panel);
+  border:1px solid var(--line-soft);border-left:2px solid var(--brass-soft);border-radius:0 var(--r-m) var(--r-m) 0;
+  padding:13px 15px;overflow-x:auto;margin:14px 0;color:var(--ink-2);white-space:pre}
+pre .c{color:var(--ink-3)}
+pre .k{color:var(--brass)}
+pre .t{color:var(--run)}
+pre .s{color:var(--done)}
+pre .e{color:var(--know)}
+
+figure{margin:20px 0 8px;border:1px solid var(--line);border-radius:var(--r-l);background:var(--panel);overflow:hidden}
+figure > figcaption{display:flex;align-items:baseline;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);background:var(--panel-2);flex-wrap:wrap}
+figcaption b{font-family:var(--font-display);font-size:14.5px;font-weight:600}
+figcaption .fig{font-family:var(--font-mono);font-size:10.5px;color:var(--brass);letter-spacing:.08em}
+figcaption .hint{margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--ink-3)}
+.canvas{padding:18px 14px;overflow-x:auto;background:
+  linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:34px 34px}
+.canvas svg{display:block;margin:0 auto;max-width:100%;height:auto}
+
+.fc .box{fill:var(--panel-2);stroke:var(--line);stroke-width:1.2}
+.fc .box.start{fill:var(--panel-3);stroke:var(--brass-soft)}
+.fc .box.state{fill:var(--panel-3);stroke:var(--brass);stroke-width:1.6}
+.fc .box.good{stroke:var(--done)}
+.fc .box.warnb{stroke:var(--block)}
+.fc .box.link{stroke:var(--know);stroke-dasharray:4 3}
+.fc .clu{fill:var(--panel-2);stroke:var(--brass-soft);stroke-width:1.1;stroke-dasharray:5 4}
+.fc .dia{fill:var(--panel-2);stroke:var(--run);stroke-width:1.3}
+.fc text{font-family:var(--font-body);font-size:11.5px;fill:var(--ink)}
+.fc text.k{font-family:var(--font-mono);font-size:9.5px;fill:var(--ink-3);letter-spacing:.08em}
+.fc text.big{font-family:var(--font-display);font-size:13px;font-weight:600}
+.fc text.item{font-family:var(--font-mono);font-size:11px;fill:var(--ink-2)}
+.fc text.item.hd{fill:var(--ink);font-size:11.5px}
+.fc .edge{stroke:var(--ink-3);stroke-width:1.3;fill:none}
+.fc .edge.alt{stroke:var(--know)}
+.fc .edge.yes{stroke:var(--done)}
+.fc .edge.loop{stroke:var(--block);stroke-dasharray:5 4}
+.fc text.lab{font-family:var(--font-mono);font-size:9.5px;fill:var(--ink-2)}
+.fc text.lab.alt{fill:var(--know)}
+.fc text.lab.loop{fill:var(--block)}
+.fc rect.labbg{fill:var(--panel);stroke:none}
+
+footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);font-size:13px}
+
+@media (max-width:1000px){
+  .wrap{grid-template-columns:1fr}
+  .toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:24px 18px 60px}
+}
+@media print{
+  .toc,.doc-head .sp,.code .cp{display:none}
+  .wrap{display:block}
+  body{background:#fff;color:#111}
+  section,figure,.code{page-break-inside:avoid}
+  .canvas{background:none}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <div class="toc-brand">
+    <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32">
+      <line x1="10" y1="10" x2="22" y2="10" stroke="var(--brass-soft)"/><line x1="10" y1="10" x2="16" y2="22" stroke="var(--brass-soft)"/>
+      <line x1="22" y1="10" x2="16" y2="22" stroke="var(--brass-soft)"/>
+      <circle cx="10" cy="10" r="2" fill="var(--brass)"/><circle cx="22" cy="10" r="2" fill="var(--brass)"/><circle cx="16" cy="22" r="2" fill="var(--brass)"/>
+    </svg></span>
+    <span><b>GAOS</b><span>arcadedb data model</span></span>
+  </div>
+
+  <h3>Model</h3>
+  <a href="#principles"><i>01</i>Modelling principles</a>
+  <a href="#map"><i>02</i>Domain map</a>
+  <a href="#vertices"><i>03</i>Vertex catalog</a>
+  <a href="#edges"><i>04</i>Edge catalog</a>
+
+  <h3>Schema</h3>
+  <a href="#ddl-core"><i>05</i>DDL · supertypes &amp; master</a>
+  <a href="#ddl-exec"><i>06</i>DDL · execution &amp; capacity</a>
+  <a href="#ddl-mem"><i>07</i>DDL · judgment &amp; memory</a>
+  <a href="#ddl-event"><i>08</i>DDL · events &amp; telemetry</a>
+  <a href="#ddl-edges"><i>09</i>DDL · edge types</a>
+  <a href="#indexes"><i>10</i>Indexes</a>
+
+  <h3>Using it</h3>
+  <a href="#invariants"><i>11</i>Invariants</a>
+  <a href="#queries"><i>12</i>Query cookbook</a>
+  <a href="#storage"><i>13</i>Storage &amp; tenancy</a>
+  <a href="#wiring"><i>14</i>Wiring to the UI</a>
+
+  <button class="dl" id="dlBtn"><span>download</span>gaos-schema.sql — every DDL block on this page</button>
+</nav>
+
+<main>
+
+<header class="doc-head">
+  <div class="sp">
+    <button class="icon-btn" id="themeBtn" aria-label="Switch theme" title="Switch theme (T)">
+      <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
+    </button>
+    <button class="icon-btn" id="printBtn" aria-label="Print" title="Print">
+      <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/></svg>
+    </button>
+  </div>
+  <span class="eyebrow">graph · document · event store</span>
+  <h1>The ArcadeDB data model</h1>
+  <p>Every screen in Mission Control and every flow in the architecture document reduces to the types below. This is the schema that makes those two documents executable: 25 vertex types, 3 document types, 32 edge types, the indexes that keep the scheduler fast, and the invariants that keep the graph honest.</p>
+</header>
+
+<!-- ============================================================ -->
+<section id="principles">
+  <h2><span class="num">01</span> Modelling principles</h2>
+  <p class="lede">Six decisions that shape everything after them. Each one is reversible only at high cost, so they are worth arguing about now.</p>
+
+  <h3>1 · Schema-full where it is read by machines, schema-less where it is written by humans</h3>
+  <p><cite index="14-1">ArcadeDB supports schema-less, schema-full and hybrid operation, and inserting into a declared type accepts additional undeclared properties as long as no declared constraint is violated.</cite> Use that deliberately: <code>Task</code>, <code>Event</code>, and <code>Review</code> are strictly declared because the scheduler and the replay fold depend on their shape. <code>Requirement</code> and <code>Artifact</code> carry a declared spine plus free-form fields, because product records grow shapes nobody predicted.</p>
+
+  <h3>2 · A business id alongside the RID</h3>
+  <p>ArcadeDB gives every record a RID (<code>#bucket:position</code>) which is fast but physical. Every vertex also carries a <code>id</code> string that the API, the UI, and the event stream use. Events reference <code>id</code>, never RID — otherwise a restore into different buckets breaks the history.</p>
+
+  <h3>3 · Edges carry meaning, not just connection</h3>
+  <p>An edge type per relationship, not one generic <code>REL</code> with a <code>type</code> property. Traversal by edge type is an index-free adjacency lookup; filtering a generic edge by property is a scan of every neighbour. This is the single biggest performance decision in the model.</p>
+
+  <h3>4 · The event stream is a first-class type, not a log file</h3>
+  <p>Replay, recovery, and audit all read <code>Event</code>. It is append-only, never updated, partitioned by time, and it is the only type whose retention policy differs from everything else.</p>
+
+  <h3>5 · Heavy payloads go outside the record</h3>
+  <p><cite index="10-1">Properties are serialized inline in the same page as the vertex topology, so traversal-only queries pay for heavy properties in cache misses even when the projection never touches them; properties marked EXTERNAL are stored in a paired external bucket instead.</cite> Prompt bodies, diffs, and log blobs are exactly that problem: large, rarely projected, and sitting on vertices the scheduler traverses constantly. Mark them <code>EXTERNAL</code> or keep them as a reference to object storage.</p>
+
+  <h3>6 · Tenancy is a database boundary first, a property second</h3>
+  <p>ArcadeDB runs many databases in one server. One database per tenant gives a boundary that cannot be forgotten in a WHERE clause. Keep <code>tenantId</code> on every vertex anyway — it survives exports, makes cross-tenant analytics possible on purpose rather than by accident, and costs nothing.</p>
+
+  <div class="warn">
+    <b>Version check before you run this.</b> The DDL below follows the ArcadeDB SQL dialect as documented at the time of writing. Constraint syntax and index options do move between releases, so run the schema against your target version in a scratch database first and adjust rather than assuming.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="map">
+  <h2><span class="num">02</span> Domain map</h2>
+  <p class="lede">Six clusters. Work flows left to right; memory flows back.</p>
+
+  <figure>
+    <figcaption><span class="fig">FIG 1</span><b>Type clusters and the edges that cross between them</b>
+      <span class="hint">detail lives in the catalogs below</span></figcaption>
+    <div class="canvas" id="fig-map"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">FIG 2</span><b>The spine: one requirement becoming one lesson</b>
+      <span class="hint">the path every audit question walks</span></figcaption>
+    <div class="canvas" id="fig-spine"></div>
+  </figure>
+
+  <p>Read Fig 2 as the answer to "why does this code exist?" Every commit traces back through a run, a task, an issue, and a requirement to a sentence someone wrote in the back office. If any link in that chain is optional, the audit trail has a hole.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="vertices">
+  <h2><span class="num">03</span> Vertex catalog</h2>
+  <p class="lede">28 types in six clusters — 25 vertices and 3 documents. Properties listed are the declared ones; undeclared extras are allowed on the hybrid types.</p>
+
+  <h4>Product master · what agents read before they start</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Tenant</td><td>Isolation root and quota holder.</td><td class="mono">id, name, plan, maxConcurrentTasks, budgetCapUsd</td></tr>
+      <tr><td class="mono">Product</td><td>The master record. One per product.</td><td class="mono">id, name, code, owner, stage, readinessScore, readinessBand, lastInjectedAt, driftPenalty</td></tr>
+      <tr><td class="mono">Requirement</td><td>Goal, domain rule, or boundary from the BRD.</td><td class="mono">id, kind, text, sourceRef, active</td></tr>
+      <tr><td class="mono">Issue</td><td>A user story or a defect.</td><td class="mono">id, key, role, want, benefit, priority, status</td></tr>
+      <tr><td class="mono">AcceptanceCriterion</td><td>One verifiable statement under an issue.</td><td class="mono">id, text, verifiedBy, verifiedAt</td></tr>
+      <tr><td class="mono">Artifact</td><td>Diagram, diff, commit ref, report, upload.</td><td class="mono">id, kind, title, body, bodyRef, mimeType, sizeBytes</td></tr>
+      <tr><td class="mono">Metric</td><td>A measured outcome or a success target.</td><td class="mono">id, name, target, unit, current, measuredAt</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Code graph · built by the indexer, not by hand</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Repository</td><td>One codebase.</td><td class="mono">id, name, url, defaultBranch, language, indexedAt</td></tr>
+      <tr><td class="mono">File</td><td>Source file node.</td><td class="mono">id, path, checksum, language, loc</td></tr>
+      <tr><td class="mono">Function</td><td>Callable unit; the impact-analysis grain.</td><td class="mono">id, name, signature, startLine, complexity</td></tr>
+      <tr><td class="mono">Commit</td><td>Git history node.</td><td class="mono">id, sha, author, message, committedAt</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Execution · what the scheduler and runner touch every tick</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Workflow</td><td>One objective on one product.</td><td class="mono">id, title, goal, status, priority, gatePolicy, budgetUsd, spentUsd</td></tr>
+      <tr><td class="mono">Task</td><td>Atomic unit of work. The hottest type in the database.</td><td class="mono">id, title, role, status, riskClass, modelHint, retryCount, escalationCount, approvalRequired, leaseUntil, priority, score</td></tr>
+      <tr><td class="mono">TaskRun</td><td><b>One attempt.</b> A task with three retries has three runs.</td><td class="mono">id, attempt, status, model, pid, startedAt, endedAt, exitCode, tokensIn, tokensOut, costUsd, failureSignature</td></tr>
+      <tr><td class="mono">Prompt</td><td>Versioned instruction fragment.</td><td class="mono">id, name, version, hash, scope, template</td></tr>
+      <tr><td class="mono">ContextSlice</td><td>The exact graph slice sent to a model, frozen.</td><td class="mono">id, assembledAt, tokenCount, nodeCount, digest</td></tr>
+      <tr><td class="mono">Workspace</td><td>Isolated filesystem and branch.</td><td class="mono">id, path, branch, state, leaseUntil, leasedBy</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Task and TaskRun are separate on purpose.</b> Folding attempts into the task means every retry destroys the evidence of the previous one — cost, model, failure signature, logs. The retry loop in the architecture document cannot be audited or tuned without per-attempt records, and model comparison in replay becomes impossible.
+  </div>
+
+  <h4>Capacity · the team model</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Agent</td><td>Role plus model plus permissions.</td><td class="mono">id, name, role, model, availability, capacity, reliabilityScore, costScore, allowedTools</td></tr>
+      <tr><td class="mono">Room</td><td>Floor grouping with an occupancy cap.</td><td class="mono">id, name, kind, capacity</td></tr>
+      <tr><td class="mono">CalendarSlot</td><td>Focus, review, meeting, or cooldown time.</td><td class="mono">id, kind, startsAt, endsAt, reason</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Judgment and memory · what makes the second run cheaper</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Review</td><td>One scoring pass over one run.</td><td class="mono">id, verdict, finalScore, correctness, completeness, safety, quality, efficiency, findings, reviewedAt</td></tr>
+      <tr><td class="mono">Approval</td><td>A gate decision by a human or a policy.</td><td class="mono">id, decision, decidedBy, decidedAt, reason</td></tr>
+      <tr><td class="mono">Decision</td><td>An ADR. Carried into every later prompt.</td><td class="mono">id, key, title, statement, confidence, supersedes, status</td></tr>
+      <tr><td class="mono">Knowledge</td><td>A reusable lesson with evidence links.</td><td class="mono">id, title, summary, tags, confidence, reuseCount, embedding</td></tr>
+      <tr><td class="mono">Meeting</td><td>A multi-agent session that produced a decision.</td><td class="mono">id, reason, agenda, state, confidence, startedAt, closedAt</td></tr>
+    </tbody>
+  </table>
+
+  <h4>History</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Event</td><td>Append-only fact. The replay source.</td><td class="mono">id, seq, type, entityId, entityType, actor, payload, ts, tenantId</td></tr>
+      <tr><td class="mono">Snapshot</td><td>Fold optimisation, never a source of truth.</td><td class="mono">id, scope, scopeId, uptoSeq, state, ts</td></tr>
+      <tr><td class="mono">Sample</td><td>Time-series point: cost, latency, occupancy.</td><td class="mono">id, series, value, ts, dims</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="edges">
+  <h2><span class="num">04</span> Edge catalog</h2>
+  <p class="lede">Cardinality is enforced where ArcadeDB can do it and by the repository layer where it cannot. The <b>unique</b> column marks edge types declared <code>UNIQUE</code>, which allows at most one edge per ordered pair.</p>
+
+  <table>
+    <thead><tr><th class="mono">Edge</th><th class="mono">From → To</th><th>Cardinality</th><th>Properties</th><th>Unique</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">OWNS</td><td class="mono">Tenant → Product</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_REQUIREMENT</td><td class="mono">Product → Requirement</td><td>1 → n</td><td>addedAt</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_ISSUE</td><td class="mono">Product → Issue</td><td>1 → n</td><td>addedAt</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_CRITERION</td><td class="mono">Issue → AcceptanceCriterion</td><td>1 → n</td><td>ordinal</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_ARTIFACT</td><td class="mono">Product → Artifact</td><td>1 → n</td><td>role</td><td>yes</td></tr>
+      <tr><td class="mono">TRACKS_METRIC</td><td class="mono">Product → Metric</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">USES_REPOSITORY</td><td class="mono">Product → Repository</td><td>n → n</td><td>primary</td><td>yes</td></tr>
+      <tr><td class="mono">CONTAINS</td><td class="mono">Repository → File → Function</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">CALLS</td><td class="mono">Function → Function</td><td>n → n</td><td>callCount</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_WORKFLOW</td><td class="mono">Product → Workflow</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_TASK</td><td class="mono">Workflow → Task</td><td>1 → n</td><td>ordinal</td><td>yes</td></tr>
+      <tr><td class="mono">DEPENDS_ON</td><td class="mono">Task → Task</td><td>n → n</td><td>kind, createdBy</td><td>yes</td></tr>
+      <tr><td class="mono">IMPLEMENTS</td><td class="mono">Task → Issue</td><td>n → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">SATISFIES</td><td class="mono">Task → AcceptanceCriterion</td><td>n → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_RUN</td><td class="mono">Task → TaskRun</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">EXECUTED_BY</td><td class="mono">TaskRun → Agent</td><td>n → 1</td><td>reservedAt</td><td>yes</td></tr>
+      <tr><td class="mono">USES_WORKSPACE</td><td class="mono">TaskRun → Workspace</td><td>n → 1</td><td>leaseUntil</td><td>yes</td></tr>
+      <tr><td class="mono">USES_PROMPT</td><td class="mono">TaskRun → Prompt</td><td>n → 1</td><td>renderedHash</td><td>yes</td></tr>
+      <tr><td class="mono">ASSEMBLED</td><td class="mono">TaskRun → ContextSlice</td><td>1 → 1</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">USES_CONTEXT</td><td class="mono">ContextSlice → any vertex</td><td>1 → n</td><td>role, weight, tokens</td><td>yes</td></tr>
+      <tr><td class="mono">MODIFIES</td><td class="mono">TaskRun → File</td><td>n → n</td><td>changeKind, linesAdded, linesRemoved</td><td>yes</td></tr>
+      <tr><td class="mono">GENERATES</td><td class="mono">TaskRun → Artifact | Commit</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">REVIEWED_BY</td><td class="mono">TaskRun → Review</td><td>1 → 1</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">GATED_BY</td><td class="mono">Task → Approval</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">LEARNS_FROM</td><td class="mono">Knowledge → Review | Meeting</td><td>n → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">APPLIES_TO</td><td class="mono">Knowledge → Product | Issue | File</td><td>n → n</td><td>score</td><td>yes</td></tr>
+      <tr><td class="mono">PRODUCES</td><td class="mono">Meeting → Decision</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">DISCUSSES</td><td class="mono">Meeting → Task | Issue</td><td>1 → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">HAS_PARTICIPANT</td><td class="mono">Meeting → Agent</td><td>1 → n</td><td>meetingRole</td><td>yes</td></tr>
+      <tr><td class="mono">GOVERNS</td><td class="mono">Decision → Product | Repository</td><td>n → n</td><td>—</td><td>yes</td></tr>
+      <tr><td class="mono">SEATED_IN</td><td class="mono">Agent → Room</td><td>n → 1</td><td>since</td><td>yes</td></tr>
+      <tr><td class="mono">RESERVED_BY</td><td class="mono">CalendarSlot → Agent</td><td>n → 1</td><td>—</td><td>yes</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Why <code>USES_CONTEXT</code> hangs off <code>ContextSlice</code> and not off <code>Task</code>.</b> The slice differs per attempt — that is the whole point of "retry with a widened context". Attaching it to the task would overwrite the evidence of what attempt 1 actually saw, and the comparison view in replay would be comparing a run against a context that no longer exists.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ddl-core">
+  <h2><span class="num">05</span> DDL · supertypes and product master</h2>
+  <p class="lede">Run these in order in a fresh database. Every statement is idempotent through <code>IF NOT EXISTS</code>, so the script doubles as a migration for new installs.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>01-supertypes.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Common spine. Every vertex carries identity, tenancy and audit stamps.
+-- Indexes are declared on concrete types, not here: an index on a supertype
+-- spreads across every child bucket and hides which lookups are actually hot.</span>
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">GaosVertex</span> <span class="k">IF NOT EXISTS</span>;
+<span class="k">CREATE PROPERTY</span> GaosVertex.id        <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> GaosVertex.tenantId  <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> GaosVertex.createdAt <span class="s">DATETIME</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> GaosVertex.updatedAt <span class="s">DATETIME</span>;
+
+<span class="c">-- Edges share a spine too: who created the edge and when, so a rewired
+-- dependency graph can be explained after the fact.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">GaosEdge</span> <span class="k">IF NOT EXISTS</span>;
+<span class="k">CREATE PROPERTY</span> GaosEdge.createdAt <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> GaosEdge.createdBy <span class="s">STRING</span>;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>02-master.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Tenant</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Tenant.name               <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Tenant.plan               <span class="s">STRING</span>  (default <span class="s">'standard'</span>);
+<span class="k">CREATE PROPERTY</span> Tenant.maxConcurrentTasks <span class="s">INTEGER</span> (default 8, min 1);
+<span class="k">CREATE PROPERTY</span> Tenant.budgetCapUsd       <span class="s">FLOAT</span>   (default 500.0, min 0);
+
+<span class="c">-- readinessScore / readinessBand are the gate from architecture §07.
+-- Stored, not computed on read: the scheduler checks them on every plan
+-- request and a recompute-per-read would dominate the request.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Product</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Product.name           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 2);
+<span class="k">CREATE PROPERTY</span> Product.code           <span class="s">STRING</span>  (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Product.owner          <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Product.stage          <span class="s">STRING</span>  (default <span class="s">'draft'</span>, regexp <span class="s">'draft|live|archived'</span>);
+<span class="k">CREATE PROPERTY</span> Product.readinessScore <span class="s">INTEGER</span> (default 0, min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Product.readinessBand  <span class="s">STRING</span>  (default <span class="s">'INSUFFICIENT'</span>,
+                 regexp <span class="s">'INSUFFICIENT|MINIMUM|WORKING|COMPLETE'</span>);
+<span class="k">CREATE PROPERTY</span> Product.driftPenalty   <span class="s">INTEGER</span> (default 0, min 0, max 25);
+<span class="k">CREATE PROPERTY</span> Product.lastInjectedAt <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> Product.lastReviewedAt <span class="s">DATETIME</span>;
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Requirement</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Requirement.kind      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'goal|rule|scope|out_of_scope|constraint'</span>);
+<span class="k">CREATE PROPERTY</span> Requirement.text      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 8);
+<span class="k">CREATE PROPERTY</span> Requirement.sourceRef <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Requirement.active    <span class="s">BOOLEAN</span> (default <span class="k">true</span>);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Issue</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Issue.key      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);   <span class="c">-- US-01</span>
+<span class="k">CREATE PROPERTY</span> Issue.role     <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Issue.want     <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Issue.benefit  <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Issue.priority <span class="s">STRING</span> (default <span class="s">'should'</span>, regexp <span class="s">'must|should|could'</span>);
+<span class="k">CREATE PROPERTY</span> Issue.status   <span class="s">STRING</span> (default <span class="s">'OPEN'</span>, regexp <span class="s">'OPEN|PLANNED|DELIVERED|DROPPED'</span>);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">AcceptanceCriterion</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> AcceptanceCriterion.text       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 5);
+<span class="k">CREATE PROPERTY</span> AcceptanceCriterion.verifiedBy <span class="s">STRING</span>;   <span class="c">-- test id, replay, manual</span>
+<span class="k">CREATE PROPERTY</span> AcceptanceCriterion.verifiedAt <span class="s">DATETIME</span>;
+
+<span class="c">-- Artifact is hybrid: kind and title are declared, body shape is not.
+-- body holds small sources (a sequence diagram); bodyRef points at object
+-- storage for anything large. Never both.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Artifact</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Artifact.kind      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'sequence|erd|flow|diff|commit|report|log|upload'</span>);
+<span class="k">CREATE PROPERTY</span> Artifact.title     <span class="s">STRING</span> (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Artifact.body      <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Artifact.bodyRef   <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Artifact.mimeType  <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Artifact.sizeBytes <span class="s">LONG</span> (min 0);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Metric</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Metric.name       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Metric.target     <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Metric.unit       <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Metric.current    <span class="s">FLOAT</span>;
+<span class="k">CREATE PROPERTY</span> Metric.measuredAt <span class="s">DATETIME</span>;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>03-code-graph.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Written by the indexer. Volume here is 10-100x the rest of the model,
+-- so File and Function get multiple buckets for insert concurrency.</span>
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Repository</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Repository.name          <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Repository.url           <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Repository.defaultBranch <span class="s">STRING</span> (default <span class="s">'main'</span>);
+<span class="k">CREATE PROPERTY</span> Repository.language      <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Repository.indexedAt     <span class="s">DATETIME</span>;
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">File</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex <span class="k">BUCKETS</span> 8;
+<span class="k">CREATE PROPERTY</span> File.path     <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> File.checksum <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> File.language <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> File.loc      <span class="s">INTEGER</span> (min 0);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Function</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex <span class="k">BUCKETS</span> 8;
+<span class="k">CREATE PROPERTY</span> Function.name       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Function.signature  <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Function.startLine  <span class="s">INTEGER</span> (min 0);
+<span class="k">CREATE PROPERTY</span> Function.complexity <span class="s">INTEGER</span> (min 0);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Commit</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Commit.sha         <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Commit.author      <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Commit.message     <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Commit.committedAt <span class="s">DATETIME</span>;</pre>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ddl-exec">
+  <h2><span class="num">06</span> DDL · execution and capacity</h2>
+  <p class="lede">The hot path. Constraints here are the difference between a scheduler that is explainable and one that drifts.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>04-execution.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Workflow</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Workflow.title      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Workflow.goal       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 10);
+<span class="k">CREATE PROPERTY</span> Workflow.status     <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'DRAFT'</span>,
+                 regexp <span class="s">'DRAFT|PLANNED|RUNNING|BLOCKED|COMPLETED|FAILED|CANCELED'</span>);
+<span class="k">CREATE PROPERTY</span> Workflow.priority   <span class="s">STRING</span> (default <span class="s">'medium'</span>, regexp <span class="s">'low|medium|high|urgent'</span>);
+<span class="k">CREATE PROPERTY</span> Workflow.gatePolicy <span class="s">STRING</span> (default <span class="s">'on_risk'</span>,
+                 regexp <span class="s">'always|on_risk|never'</span>);
+<span class="k">CREATE PROPERTY</span> Workflow.budgetUsd  <span class="s">FLOAT</span> (min 0);
+<span class="k">CREATE PROPERTY</span> Workflow.spentUsd   <span class="s">FLOAT</span> (default 0.0, min 0);
+
+<span class="c">-- Task carries the scheduling decision; TaskRun carries what happened.
+-- retryCount and escalationCount live here because the guards in
+-- architecture §06 are per task, across all of its attempts.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Task</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex <span class="k">BUCKETS</span> 8;
+<span class="k">CREATE PROPERTY</span> Task.title            <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Task.status           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'PENDING'</span>,
+                 regexp <span class="s">'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DONE|FAILED|CANCELED'</span>);
+<span class="k">CREATE PROPERTY</span> Task.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops'</span>);
+<span class="k">CREATE PROPERTY</span> Task.riskClass        <span class="s">STRING</span>  (default <span class="s">'normal'</span>,
+                 regexp <span class="s">'low|normal|high|critical'</span>);
+<span class="k">CREATE PROPERTY</span> Task.modelHint        <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Task.priority         <span class="s">INTEGER</span> (default 50, min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Task.retryCount       <span class="s">INTEGER</span> (default 0, min 0, max 10);
+<span class="k">CREATE PROPERTY</span> Task.escalationCount  <span class="s">INTEGER</span> (default 0, min 0, max 5);
+<span class="k">CREATE PROPERTY</span> Task.approvalRequired <span class="s">BOOLEAN</span> (default <span class="k">false</span>);
+<span class="k">CREATE PROPERTY</span> Task.score            <span class="s">INTEGER</span> (min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Task.blockReason      <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Task.leaseUntil       <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> Task.lastHeartbeatAt  <span class="s">DATETIME</span>;
+
+<span class="c">-- One row per attempt. failureSignature is the normalised error hash that
+-- drives the "signature changed?" branch of the retry loop.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">TaskRun</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex <span class="k">BUCKETS</span> 8;
+<span class="k">CREATE PROPERTY</span> TaskRun.attempt          <span class="s">INTEGER</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 1);
+<span class="k">CREATE PROPERTY</span> TaskRun.status           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'STARTED|RUNNING|EXITED|TIMEOUT|ORPHANED|KILLED'</span>);
+<span class="k">CREATE PROPERTY</span> TaskRun.model            <span class="s">STRING</span>  (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> TaskRun.pid              <span class="s">INTEGER</span>;
+<span class="k">CREATE PROPERTY</span> TaskRun.startedAt        <span class="s">DATETIME</span> (mandatory <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> TaskRun.endedAt          <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> TaskRun.exitCode         <span class="s">INTEGER</span>;
+<span class="k">CREATE PROPERTY</span> TaskRun.tokensIn         <span class="s">LONG</span>  (min 0);
+<span class="k">CREATE PROPERTY</span> TaskRun.tokensOut        <span class="s">LONG</span>  (min 0);
+<span class="k">CREATE PROPERTY</span> TaskRun.costUsd          <span class="s">FLOAT</span> (min 0);
+<span class="k">CREATE PROPERTY</span> TaskRun.failureSignature <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> TaskRun.logRef           <span class="s">STRING</span>;   <span class="c">-- object storage key</span>
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Prompt</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Prompt.name     <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Prompt.version  <span class="s">INTEGER</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 1);
+<span class="k">CREATE PROPERTY</span> Prompt.hash     <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Prompt.scope    <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Prompt.template <span class="s">STRING</span>;
+
+<span class="c">-- The frozen slice. digest lets you prove two runs saw the same context
+-- without re-reading every edge.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">ContextSlice</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> ContextSlice.assembledAt <span class="s">DATETIME</span> (mandatory <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> ContextSlice.tokenCount  <span class="s">INTEGER</span> (min 0);
+<span class="k">CREATE PROPERTY</span> ContextSlice.nodeCount   <span class="s">INTEGER</span> (min 0);
+<span class="k">CREATE PROPERTY</span> ContextSlice.digest      <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> ContextSlice.rendered    <span class="s">STRING</span>;   <span class="c">-- see EXTERNAL note in §13</span>
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Workspace</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Workspace.path       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Workspace.branch     <span class="s">STRING</span> (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Workspace.state      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'ALLOCATED'</span>,
+                 regexp <span class="s">'ALLOCATED|PREPARED|ACTIVE|SNAPSHOTTED|RELEASED'</span>);
+<span class="k">CREATE PROPERTY</span> Workspace.leaseUntil <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> Workspace.leasedBy   <span class="s">STRING</span>;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>05-capacity.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Agent</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Agent.name             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Agent.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops'</span>);
+<span class="k">CREATE PROPERTY</span> Agent.model            <span class="s">STRING</span>  (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Agent.availability     <span class="s">STRING</span>  (default <span class="s">'IDLE'</span>,
+                 regexp <span class="s">'IDLE|RESERVED|BUSY|IN_MEETING|COOLDOWN|OFFLINE'</span>);
+<span class="k">CREATE PROPERTY</span> Agent.capacity         <span class="s">INTEGER</span> (default 1, min 1, max 8);
+<span class="k">CREATE PROPERTY</span> Agent.reliabilityScore <span class="s">FLOAT</span>   (default 0.5, min 0, max 1);
+<span class="k">CREATE PROPERTY</span> Agent.costScore        <span class="s">FLOAT</span>   (default 0.5, min 0, max 1);
+<span class="k">CREATE PROPERTY</span> Agent.allowedTools     <span class="s">LIST</span>;
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Room</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Room.name     <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Room.kind     <span class="s">STRING</span>  (regexp <span class="s">'architecture|backend|qa|release|knowledge|meeting'</span>);
+<span class="k">CREATE PROPERTY</span> Room.capacity <span class="s">INTEGER</span> (default 3, min 1);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">CalendarSlot</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> CalendarSlot.kind     <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'focus|meeting|review|cooldown|milestone'</span>);
+<span class="k">CREATE PROPERTY</span> CalendarSlot.startsAt <span class="s">DATETIME</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> CalendarSlot.endsAt   <span class="s">DATETIME</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> CalendarSlot.reason   <span class="s">STRING</span>;</pre>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ddl-mem">
+  <h2><span class="num">07</span> DDL · judgment and memory</h2>
+  <p class="lede">The types that turn finished work into cheaper future work.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>06-judgment.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Dimension scores are stored separately from the weighted total so the
+-- weights can change later without losing the evidence they were applied to.
+-- safety is the veto dimension from architecture §06.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Review</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Review.verdict      <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'ACCEPT|ACCEPT_WITH_CLEANUP|ITERATE|ESCALATE|STOP|SAFETY_VETO'</span>);
+<span class="k">CREATE PROPERTY</span> Review.finalScore   <span class="s">INTEGER</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Review.correctness  <span class="s">INTEGER</span> (min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Review.completeness <span class="s">INTEGER</span> (min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Review.safety       <span class="s">INTEGER</span> (min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Review.quality      <span class="s">INTEGER</span> (min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Review.efficiency   <span class="s">INTEGER</span> (min 0, max 100);
+<span class="k">CREATE PROPERTY</span> Review.weights      <span class="s">MAP</span>;      <span class="c">-- the weights actually used</span>
+<span class="k">CREATE PROPERTY</span> Review.findings     <span class="s">LIST</span>;
+<span class="k">CREATE PROPERTY</span> Review.reasonCode   <span class="s">STRING</span>;   <span class="c">-- mandatory on every STOP</span>
+<span class="k">CREATE PROPERTY</span> Review.reviewedAt   <span class="s">DATETIME</span> (mandatory <span class="k">true</span>);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Approval</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Approval.decision  <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'REQUESTED|GRANTED|REJECTED|EXPIRED'</span>);
+<span class="k">CREATE PROPERTY</span> Approval.decidedBy <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Approval.decidedAt <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> Approval.reason    <span class="s">STRING</span>;
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Decision</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Decision.key        <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);   <span class="c">-- ADR-014</span>
+<span class="k">CREATE PROPERTY</span> Decision.title      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Decision.statement  <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Decision.confidence <span class="s">FLOAT</span>  (default 0.5, min 0, max 1);
+<span class="k">CREATE PROPERTY</span> Decision.status     <span class="s">STRING</span> (default <span class="s">'ACCEPTED'</span>,
+                 regexp <span class="s">'PROPOSED|ACCEPTED|SUPERSEDED|REJECTED'</span>);
+<span class="k">CREATE PROPERTY</span> Decision.supersedes <span class="s">STRING</span>;
+
+<span class="c">-- embedding is optional. If you enable it, index it with LSM_VECTOR so
+-- "have we solved something like this before?" is a similarity search
+-- rather than a tag match.</span>
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Knowledge</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Knowledge.title      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Knowledge.summary    <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Knowledge.kind       <span class="s">STRING</span> (regexp <span class="s">'lesson|failure_pattern|pattern|routing'</span>);
+<span class="k">CREATE PROPERTY</span> Knowledge.tags       <span class="s">LIST</span>;
+<span class="k">CREATE PROPERTY</span> Knowledge.confidence <span class="s">FLOAT</span>   (default 0.5, min 0, max 1);
+<span class="k">CREATE PROPERTY</span> Knowledge.reuseCount <span class="s">INTEGER</span> (default 0, min 0);
+<span class="k">CREATE PROPERTY</span> Knowledge.embedding  <span class="s">ARRAY_OF_FLOATS</span>;
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">Meeting</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Meeting.reason     <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Meeting.agenda     <span class="s">LIST</span>;
+<span class="k">CREATE PROPERTY</span> Meeting.state      <span class="s">STRING</span> (default <span class="s">'PREPARING'</span>,
+                 regexp <span class="s">'PREPARING|GATHERING|DISCUSSION|DECISION|CLOSED'</span>);
+<span class="k">CREATE PROPERTY</span> Meeting.confidence <span class="s">FLOAT</span>  (default 0, min 0, max 1);
+<span class="k">CREATE PROPERTY</span> Meeting.startedAt  <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> Meeting.closedAt   <span class="s">DATETIME</span>;</pre>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ddl-event">
+  <h2><span class="num">08</span> DDL · events and telemetry</h2>
+  <p class="lede">Append-only, time-partitioned, and the only types with their own retention policy.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>07-events.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Event is a DOCUMENT type, not a vertex. It has no traversal role: it is
+-- always read by (entityId, ts) or by (tenantId, seq). Making it a vertex
+-- would add edge-list overhead to the highest-volume type in the database.
+
+-- seq is a monotonic per-tenant counter. ts alone is not enough: two events
+-- in the same millisecond must still fold in a deterministic order, which is
+-- the "order-stable" requirement from architecture §08.</span>
+
+<span class="k">CREATE DOCUMENT TYPE</span> <span class="t">Event</span> <span class="k">IF NOT EXISTS BUCKETS</span> 16;
+<span class="k">CREATE PROPERTY</span> Event.id         <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Event.tenantId   <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Event.seq        <span class="s">LONG</span>     (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, min 0);
+<span class="k">CREATE PROPERTY</span> Event.type       <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Event.entityId   <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Event.entityType <span class="s">STRING</span>   (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Event.actor      <span class="s">STRING</span>;   <span class="c">-- agent id, user id, or 'system'</span>
+<span class="k">CREATE PROPERTY</span> Event.payload    <span class="s">MAP</span>;
+<span class="k">CREATE PROPERTY</span> Event.ts         <span class="s">DATETIME</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+
+<span class="c">-- Snapshot is an optimisation. uptoSeq says exactly which events are already
+-- folded into it, so the delta is unambiguous and a corrupt snapshot can
+-- always be discarded in favour of a fold from genesis.</span>
+<span class="k">CREATE DOCUMENT TYPE</span> <span class="t">Snapshot</span> <span class="k">IF NOT EXISTS</span>;
+<span class="k">CREATE PROPERTY</span> Snapshot.id      <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Snapshot.scope   <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'workflow|task|meeting|floor'</span>);
+<span class="k">CREATE PROPERTY</span> Snapshot.scopeId <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Snapshot.uptoSeq <span class="s">LONG</span>     (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Snapshot.state   <span class="s">MAP</span>;
+<span class="k">CREATE PROPERTY</span> Snapshot.ts      <span class="s">DATETIME</span> (mandatory <span class="k">true</span>);
+
+<span class="c">-- Time series: cost, latency, room occupancy, queue depth.
+-- dims holds the labels you would slice by in Grafana.</span>
+<span class="k">CREATE DOCUMENT TYPE</span> <span class="t">Sample</span> <span class="k">IF NOT EXISTS BUCKETS</span> 8;
+<span class="k">CREATE PROPERTY</span> Sample.id     <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Sample.series <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Sample.value  <span class="s">DOUBLE</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Sample.ts     <span class="s">DATETIME</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Sample.dims   <span class="s">MAP</span>;</pre>
+  </div>
+
+  <h4>The event catalog</h4>
+  <p>Keep this list closed. A new event type is a schema change to the fold, not a free addition.</p>
+  <table>
+    <thead><tr><th class="mono">Group</th><th class="mono">Types</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">master</td><td class="mono">ProductCreated · RecordUpdated · KnowledgeInjected · ReadinessEvaluated · ReadinessDropped</td></tr>
+      <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned · DependencyRewired · WorkflowCanceled</td></tr>
+      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned</td></tr>
+      <tr><td class="mono">judgment</td><td class="mono">ReviewCompleted · RetryRequested · ModelEscalated · SafetyVeto · GuardExhausted</td></tr>
+      <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
+      <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
+      <tr><td class="mono">memory</td><td class="mono">KnowledgeExtracted · KnowledgeReused · DecisionSuperseded</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="ddl-edges">
+  <h2><span class="num">09</span> DDL · edge types</h2>
+  <p class="lede">Declared <code>UNIQUE</code> where at most one edge should exist per ordered pair, which turns a class of duplication bugs into a constraint violation at write time.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>08-edges.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Structural containment. UNIQUE stops a double-injection from creating a
+-- second HAS_ISSUE between the same product and story.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">OWNS</span>            <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_REQUIREMENT</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_ISSUE</span>       <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_CRITERION</span>   <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_ARTIFACT</span>    <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">TRACKS_METRIC</span>   <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">USES_REPOSITORY</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_WORKFLOW</span>    <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_TASK</span>        <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_RUN</span>         <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> HAS_TASK.ordinal      <span class="s">INTEGER</span>;
+<span class="k">CREATE PROPERTY</span> HAS_CRITERION.ordinal <span class="s">INTEGER</span>;
+<span class="k">CREATE PROPERTY</span> HAS_ARTIFACT.role     <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> USES_REPOSITORY.primary <span class="s">BOOLEAN</span> (default <span class="k">false</span>);
+
+<span class="c">-- Code graph. CONTAINS is reused for Repository→File and File→Function;
+-- both are strict containment, so one type keeps traversals uniform.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">CONTAINS</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">CALLS</span>    <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> CALLS.callCount <span class="s">INTEGER</span> (default 1, min 1);
+
+<span class="c">-- Planning. DEPENDS_ON points from the dependent task to its prerequisite:
+--   Task -DEPENDS_ON-> Task   means the OUT side waits for the IN side.
+-- Every readiness query in §12 assumes that direction.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">DEPENDS_ON</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> DEPENDS_ON.kind <span class="s">STRING</span> (default <span class="s">'hard'</span>, regexp <span class="s">'hard|soft|data|api'</span>);
+
+<span class="k">CREATE EDGE TYPE</span> <span class="e">IMPLEMENTS</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">SATISFIES</span>  <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+
+<span class="c">-- Execution. Bound to TaskRun, not Task, so each attempt keeps its own
+-- agent, workspace, prompt and context.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">EXECUTED_BY</span>    <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">USES_WORKSPACE</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">USES_PROMPT</span>    <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">ASSEMBLED</span>      <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">MODIFIES</span>       <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">GENERATES</span>      <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> EXECUTED_BY.reservedAt    <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> USES_WORKSPACE.leaseUntil <span class="s">DATETIME</span>;
+<span class="k">CREATE PROPERTY</span> USES_PROMPT.renderedHash  <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> MODIFIES.changeKind       <span class="s">STRING</span> (regexp <span class="s">'add|edit|delete|rename'</span>);
+<span class="k">CREATE PROPERTY</span> MODIFIES.linesAdded       <span class="s">INTEGER</span> (min 0);
+<span class="k">CREATE PROPERTY</span> MODIFIES.linesRemoved     <span class="s">INTEGER</span> (min 0);
+
+<span class="c">-- The audit edge. role says why a node was in the prompt; weight and tokens
+-- let you tune the assembler with evidence instead of intuition.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">USES_CONTEXT</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> USES_CONTEXT.role   <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'requirement|rule|boundary|story|criterion|diagram|decision|lesson|code|diff|policy'</span>);
+<span class="k">CREATE PROPERTY</span> USES_CONTEXT.weight <span class="s">FLOAT</span>   (min 0, max 1);
+<span class="k">CREATE PROPERTY</span> USES_CONTEXT.tokens <span class="s">INTEGER</span> (min 0);
+
+<span class="c">-- Judgment and memory.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">REVIEWED_BY</span>     <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">GATED_BY</span>        <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">LEARNS_FROM</span>     <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">APPLIES_TO</span>      <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">PRODUCES</span>        <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">HAS_PARTICIPANT</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">DISCUSSES</span>       <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">GOVERNS</span>         <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> APPLIES_TO.score           <span class="s">FLOAT</span>  (min 0, max 1);
+<span class="k">CREATE PROPERTY</span> HAS_PARTICIPANT.meetingRole <span class="s">STRING</span>
+                 (regexp <span class="s">'facilitator|recorder|architect|reviewer|planner|participant'</span>);
+
+<span class="c">-- Capacity.</span>
+<span class="k">CREATE EDGE TYPE</span> <span class="e">SEATED_IN</span>   <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE EDGE TYPE</span> <span class="e">RESERVED_BY</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosEdge <span class="k">UNIQUE</span>;
+<span class="k">CREATE PROPERTY</span> SEATED_IN.since <span class="s">DATETIME</span>;</pre>
+  </div>
+
+  <div class="warn">
+    <b>One caution on <code>UNIQUE</code> edge types.</b> It buys duplicate protection at the cost of an index on <code>(@out, @in)</code> for that edge type. On <code>MODIFIES</code> and <code>USES_CONTEXT</code> — the two highest-volume edge types — measure the write path before keeping it. If bulk injection becomes the bottleneck, drop <code>UNIQUE</code> there and deduplicate in the repository layer instead.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="indexes">
+  <h2><span class="num">10</span> Indexes</h2>
+  <p class="lede">Each one exists to serve a named query from the architecture flows. If you cannot name the query, do not create the index — every index is write amplification on the hot path.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>09-indexes.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Identity. Unique per tenant, not globally: ids are generated per tenant
+-- and a restore of one tenant must not collide with another.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Product     (tenantId, id) <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Workflow    (tenantId, id) <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Task        (tenantId, id) <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> TaskRun     (tenantId, id) <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Agent       (tenantId, id) <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Issue       (tenantId, id) <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Knowledge   (tenantId, id) <span class="k">UNIQUE</span>;
+
+<span class="c">-- THE scheduler index. Runs every tick, on every tenant, forever.
+-- Order matters: equality columns first, then the ordering column.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Task (tenantId, status, priority) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Orphan detection on boot: RUNNING tasks whose lease has expired.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Task      (status, leaseUntil)    <span class="k">NOTUNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Workspace (state, leaseUntil)     <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Role matching for dispatch.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Agent (tenantId, role, availability) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Replay fold. Both orders are needed: per-entity for a task or workflow
+-- replay, per-tenant for a floor replay and for the seq watermark.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Event (entityId, seq)  <span class="k">NOTUNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Event (tenantId, seq)  <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Event (tenantId, ts)   <span class="k">NOTUNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Snapshot (scope, scopeId, uptoSeq) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Back office listing and the readiness band gates.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Product (tenantId, readinessBand) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Impact analysis starts from a changed path.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> File   (tenantId, path) <span class="k">NOTUNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Commit (sha)            <span class="k">UNIQUE</span>;
+
+<span class="c">-- Retry intelligence: "have we seen this exact failure before?"</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> TaskRun (failureSignature) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Telemetry rollups.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Sample (series, ts) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Lesson recall by tag: BY ITEM indexes each element of the list.</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Knowledge (tags <span class="k">BY ITEM</span>) <span class="k">NOTUNIQUE</span>;
+
+<span class="c">-- Free-text search across the master record (Lucene-backed).</span>
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Requirement (text)    <span class="k">FULL_TEXT</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Knowledge   (summary) <span class="k">FULL_TEXT</span>;
+
+<span class="c">-- Optional: semantic lesson recall. Only if you populate embeddings.
+-- Set dimensions to match your embedding model.</span>
+<span class="c">-- CREATE INDEX IF NOT EXISTS ON Knowledge (embedding) LSM_VECTOR
+--   METADATA {dimensions: 1024, similarity: 'COSINE'};</span></pre>
+  </div>
+
+  <p><cite index="10-1">ArcadeDB supports several index algorithms optimised for different access patterns, with LSM Tree the default for range scans and ordered iteration.</cite> <cite index="6-1">FULL_TEXT uses Apache Lucene for tokenisation, and list properties can be indexed BY KEY, BY VALUE, or BY ITEM.</cite> <cite index="12-1">Vector indexes are created with LSM_VECTOR plus a METADATA block specifying dimensions and similarity.</cite></p>
+
+  <table>
+    <thead><tr><th class="mono">Index</th><th>Serves the query</th><th>Read frequency</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Task (tenantId, status, priority)</td><td>READY-task scan in the scheduler loop</td><td><b>Every tick</b></td></tr>
+      <tr><td class="mono">Task (status, leaseUntil)</td><td>Orphan reconciliation on orchestrator boot</td><td>On boot, then periodic</td></tr>
+      <tr><td class="mono">Agent (tenantId, role, availability)</td><td>Role selection, Fig 4 of the architecture doc</td><td>Per dispatch</td></tr>
+      <tr><td class="mono">Event (entityId, seq)</td><td>Replay fold for one workflow or task</td><td>Per replay</td></tr>
+      <tr><td class="mono">Event (tenantId, seq) UNIQUE</td><td>Sequence watermark; also enforces no duplicate seq</td><td>Per write</td></tr>
+      <tr><td class="mono">TaskRun (failureSignature)</td><td>"Same signature twice?" retry branch</td><td>Per review</td></tr>
+      <tr><td class="mono">Knowledge (tags BY ITEM)</td><td>Lesson recall during planning</td><td>Per plan</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="invariants">
+  <h2><span class="num">11</span> Invariants</h2>
+  <p class="lede">Rules the schema cannot express on its own. Enforce each one in exactly one place — a rule enforced in two layers will eventually disagree with itself.</p>
+
+  <table>
+    <thead><tr><th>Invariant</th><th>Enforced by</th><th>Detection query</th></tr></thead>
+    <tbody>
+      <tr><td>A task has at most one workspace lease that has not expired.</td><td>Repository layer, inside the dispatch transaction</td><td class="mono">TaskRun with USES_WORKSPACE where leaseUntil &gt; now, grouped by task, having count &gt; 1</td></tr>
+      <tr><td>DEPENDS_ON is acyclic.</td><td>Planner, on every graph write</td><td class="mono">shortestPath / cycle check across DEPENDS_ON</td></tr>
+      <tr><td>Every TaskRun has exactly one Review once it has exited.</td><td>Review engine</td><td class="mono">TaskRun status EXITED with out('REVIEWED_BY').size() = 0</td></tr>
+      <tr><td>Every Knowledge links to at least one piece of evidence.</td><td>Extraction step</td><td class="mono">Knowledge with out('LEARNS_FROM').size() = 0</td></tr>
+      <tr><td>Every STOP verdict carries a reason code.</td><td>Schema-adjacent check in the review writer</td><td class="mono">Review where verdict = 'STOP' and reasonCode is null</td></tr>
+      <tr><td>A gated task cannot reach DONE without a GRANTED approval.</td><td>State machine at the API boundary</td><td class="mono">Task done and approvalRequired with no granted Approval</td></tr>
+      <tr><td>Event.seq is gapless per tenant.</td><td>Single writer per tenant, or a sequence vertex under transaction</td><td class="mono">max(seq) − min(seq) + 1 ≠ count(*)</td></tr>
+      <tr><td>Product.readinessScore matches a recomputation of the rubric.</td><td>Nightly job</td><td class="mono">recompute and compare; emit ReadinessDropped on divergence</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Run the detection queries as a scheduled consistency check, not only as tests.</b> Every one of them is a bug that will happen in production under concurrency, and each returns rows rather than throwing — so they can run continuously and feed a health panel on the floor.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="queries">
+  <h2><span class="num">12</span> Query cookbook</h2>
+  <p class="lede">One query per flow in the architecture document. These are the shapes to optimise for; everything else is reporting.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>READY tasks · scheduler loop</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- A task is READY when every prerequisite it points at is DONE.
+-- DEPENDS_ON points from dependent to prerequisite, so prerequisites are out().</span>
+<span class="k">SELECT</span> id, title, role, riskClass, priority
+<span class="k">FROM</span> Task
+<span class="k">WHERE</span> tenantId = :tenant
+  <span class="k">AND</span> status = <span class="s">'PENDING'</span>
+  <span class="k">AND</span> out(<span class="s">'DEPENDS_ON'</span>)[status <span class="k">&lt;&gt;</span> <span class="s">'DONE'</span>].size() = 0
+<span class="k">ORDER BY</span> priority <span class="k">DESC</span>, createdAt
+<span class="k">LIMIT</span> 50;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Blocking reason · why is this task waiting?</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">SELECT</span> dep.id <span class="k">AS</span> blockerId, dep.title <span class="k">AS</span> blocker, dep.status <span class="k">AS</span> blockerStatus
+<span class="k">FROM</span> (<span class="k">SELECT</span> expand(out(<span class="s">'DEPENDS_ON'</span>)) <span class="k">FROM</span> Task <span class="k">WHERE</span> id = :taskId) dep
+<span class="k">WHERE</span> dep.status <span class="k">&lt;&gt;</span> <span class="s">'DONE'</span>;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Context slice · what the model should see</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Assembled at dispatch time, then frozen onto a ContextSlice vertex.
+-- This is the traversal the assembler runs; USES_CONTEXT records the result.</span>
+<span class="k">MATCH</span>
+  {type: Task, as: t, where: (id = :taskId)}
+    -IMPLEMENTS-&gt; {type: Issue, as: i},
+  {as: i} -HAS_CRITERION-&gt; {type: AcceptanceCriterion, as: ac},
+  {as: i} &lt;-HAS_ISSUE- {type: Product, as: p},
+  {as: p} -HAS_REQUIREMENT-&gt; {type: Requirement, as: r, where: (active = <span class="k">true</span>)},
+  {as: p} -HAS_ARTIFACT-&gt; {type: Artifact, as: d, where: (kind <span class="k">IN</span> [<span class="s">'sequence'</span>,<span class="s">'erd'</span>,<span class="s">'flow'</span>])}
+<span class="k">RETURN</span> t.id, i.key, ac.text, r.kind, r.text, d.title, d.body;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Readiness rubric · the counts the score is built from</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- The weighting lives in application code so the rubric can be versioned;
+-- the database supplies the facts. Compare against architecture §07.</span>
+<span class="k">SELECT</span>
+  id,
+  name,
+  out(<span class="s">'HAS_REQUIREMENT'</span>)[kind = <span class="s">'goal'</span>].size()         <span class="k">AS</span> goals,
+  out(<span class="s">'HAS_REQUIREMENT'</span>)[kind = <span class="s">'rule'</span>].size()         <span class="k">AS</span> rules,
+  out(<span class="s">'HAS_REQUIREMENT'</span>)[kind = <span class="s">'out_of_scope'</span>].size() <span class="k">AS</span> exclusions,
+  out(<span class="s">'HAS_ISSUE'</span>).size()                              <span class="k">AS</span> stories,
+  out(<span class="s">'HAS_ISSUE'</span>)[priority = <span class="s">'must'</span>].size()          <span class="k">AS</span> mustStories,
+  out(<span class="s">'HAS_ARTIFACT'</span>)[kind <span class="k">IN</span> [<span class="s">'sequence'</span>,<span class="s">'flow'</span>]].size() <span class="k">AS</span> behaviourDiagrams,
+  out(<span class="s">'HAS_ARTIFACT'</span>)[kind = <span class="s">'erd'</span>].size()             <span class="k">AS</span> dataModels,
+  out(<span class="s">'USES_REPOSITORY'</span>).size()                        <span class="k">AS</span> repos,
+  out(<span class="s">'TRACKS_METRIC'</span>).size()                          <span class="k">AS</span> metrics,
+  in(<span class="s">'GOVERNS'</span>).size()                                <span class="k">AS</span> decisions
+<span class="k">FROM</span> Product
+<span class="k">WHERE</span> tenantId = :tenant <span class="k">AND</span> id = :productId;
+
+<span class="c">-- Must-stories missing criteria: the 12-point item that is failed most often.</span>
+<span class="k">SELECT</span> key, want
+<span class="k">FROM</span> (<span class="k">SELECT</span> expand(out(<span class="s">'HAS_ISSUE'</span>)) <span class="k">FROM</span> Product <span class="k">WHERE</span> id = :productId)
+<span class="k">WHERE</span> priority = <span class="s">'must'</span> <span class="k">AND</span> out(<span class="s">'HAS_CRITERION'</span>).size() <span class="k">&lt;</span> 2;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Retry decision · the inputs to the loop</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Everything the retry branch needs in one read: guards, last verdict,
+-- and whether this failure signature has been seen on this task before.</span>
+<span class="k">SELECT</span>
+  t.id, t.retryCount, t.escalationCount, t.riskClass,
+  runs[0].failureSignature <span class="k">AS</span> lastSignature,
+  runs[1].failureSignature <span class="k">AS</span> previousSignature,
+  runs[0].out(<span class="s">'REVIEWED_BY'</span>)[0].finalScore <span class="k">AS</span> lastScore,
+  runs[0].out(<span class="s">'REVIEWED_BY'</span>)[0].safety     <span class="k">AS</span> lastSafety
+<span class="k">FROM</span> (
+  <span class="k">SELECT</span> @this <span class="k">AS</span> t,
+         out(<span class="s">'HAS_RUN'</span>).<span class="k">ORDER BY</span>(attempt <span class="k">DESC</span>) <span class="k">AS</span> runs
+  <span class="k">FROM</span> Task <span class="k">WHERE</span> id = :taskId
+);</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Replay · fold to a moment</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- 1. nearest snapshot at or before the target sequence</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> Snapshot
+<span class="k">WHERE</span> scope = <span class="s">'workflow'</span> <span class="k">AND</span> scopeId = :workflowId <span class="k">AND</span> uptoSeq <span class="k">&lt;=</span> :seq
+<span class="k">ORDER BY</span> uptoSeq <span class="k">DESC</span> <span class="k">LIMIT</span> 1;
+
+<span class="c">-- 2. the delta, in a deterministic order</span>
+<span class="k">SELECT</span> seq, type, entityId, entityType, actor, payload, ts
+<span class="k">FROM</span> Event
+<span class="k">WHERE</span> tenantId = :tenant
+  <span class="k">AND</span> seq <span class="k">&gt;</span> :snapshotSeq <span class="k">AND</span> seq <span class="k">&lt;=</span> :seq
+<span class="k">ORDER BY</span> seq;
+
+<span class="c">-- 3. the completeness test: fold from genesis and compare.
+--    Run this on a schedule, not only in CI.</span>
+<span class="k">SELECT</span> seq, type, entityId, payload, ts
+<span class="k">FROM</span> Event
+<span class="k">WHERE</span> tenantId = :tenant <span class="k">AND</span> seq <span class="k">&lt;=</span> :seq
+<span class="k">ORDER BY</span> seq;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Impact analysis · what a changed file reaches</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Three call hops out from the functions in a changed file, then back up
+-- to the files and products that own them.</span>
+<span class="k">SELECT</span> <span class="k">DISTINCT</span> f.path <span class="k">AS</span> impactedFile, p.name <span class="k">AS</span> product
+<span class="k">FROM</span> (
+  <span class="k">TRAVERSE</span> out(<span class="s">'CALLS'</span>) <span class="k">FROM</span> (
+    <span class="k">SELECT</span> expand(out(<span class="s">'CONTAINS'</span>)) <span class="k">FROM</span> File <span class="k">WHERE</span> path = :path
+  ) <span class="k">MAXDEPTH</span> 3
+) fn
+<span class="k">LET</span> f = fn.in(<span class="s">'CONTAINS'</span>)[0],
+    p = f.in(<span class="s">'CONTAINS'</span>)[0].in(<span class="s">'USES_REPOSITORY'</span>)[0];</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Room occupancy · the capacity meter on the floor</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">SELECT</span> name, kind, capacity,
+       in(<span class="s">'SEATED_IN'</span>)[availability <span class="k">IN</span> [<span class="s">'BUSY'</span>,<span class="s">'RESERVED'</span>]].size() <span class="k">AS</span> occupied
+<span class="k">FROM</span> Room
+<span class="k">WHERE</span> tenantId = :tenant
+<span class="k">ORDER BY</span> name;</pre>
+  </div>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>Orphan reconciliation · on orchestrator boot</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">SELECT</span> id, title, leaseUntil, lastHeartbeatAt
+<span class="k">FROM</span> Task
+<span class="k">WHERE</span> status <span class="k">IN</span> [<span class="s">'DISPATCHED'</span>,<span class="s">'RUNNING'</span>]
+  <span class="k">AND</span> (leaseUntil <span class="k">&lt;</span> :now <span class="k">OR</span> lastHeartbeatAt <span class="k">&lt;</span> :heartbeatDeadline);</pre>
+  </div>
+
+  <div class="warn">
+    <b>Verify the projection-filter syntax on your version.</b> The <code>out('EDGE')[field = value].size()</code> form is concise and reads well, but it is also the part of the dialect most likely to differ between releases. Run each query against a seeded database and check the plan with <code>EXPLAIN</code> before wiring it into the scheduler loop.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="storage">
+  <h2><span class="num">13</span> Storage, tenancy and operations</h2>
+  <p class="lede">The decisions that only matter once there is real data — which is exactly when they are expensive to change.</p>
+
+  <h3>Buckets and partitioning</h3>
+  <p><cite index="9-1">A type is stored in buckets, the number can be set with the BUCKETS option at creation time, and multiple buckets are recommended when working with multiple cores to improve insert concurrency.</cite> The high-volume types above declare 8 or 16 buckets for that reason. <cite index="9-1">A partitioned bucket selection strategy is recommended when you have a unique id, and is set with ALTER TYPE.</cite></p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>10-storage.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="c">-- Route records to buckets by tenant so one tenant's write burst does not
+-- contend with another's, and so a per-tenant export is a bucket-local scan.</span>
+<span class="k">ALTER TYPE</span> Task    BucketSelectionStrategy `partitioned('tenantId')`;
+<span class="k">ALTER TYPE</span> TaskRun BucketSelectionStrategy `partitioned('tenantId')`;
+<span class="k">ALTER TYPE</span> Event   BucketSelectionStrategy `partitioned('tenantId')`;
+
+<span class="c">-- Heavy, rarely projected payloads move out of the topology page.
+-- Available from v26.5.1; check your version before relying on it.</span>
+<span class="k">ALTER PROPERTY</span> ContextSlice.rendered EXTERNAL <span class="k">true</span>;
+<span class="k">ALTER PROPERTY</span> Prompt.template       EXTERNAL <span class="k">true</span>;
+<span class="k">ALTER PROPERTY</span> Artifact.body         EXTERNAL <span class="k">true</span>;</pre>
+  </div>
+
+  <h3>Tenancy: pick one and be strict</h3>
+  <table>
+    <thead><tr><th>Strategy</th><th>Good for</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td><b>Database per tenant</b></td><td>Hard isolation, per-tenant backup and restore, noisy-neighbour containment. The default recommendation.</td><td>Connection pool per tenant; cross-tenant analytics needs a separate pipeline; schema migrations run N times.</td></tr>
+      <tr><td><b>Shared database, tenantId everywhere</b></td><td>Many small tenants, cross-tenant reporting, one migration.</td><td>Every query must filter, forever. One missing WHERE is a data breach rather than a bug.</td></tr>
+      <tr><td><b>Hybrid</b></td><td>Large tenants isolated, small ones pooled.</td><td>Two code paths in the repository layer. Only worth it at scale.</td></tr>
+    </tbody>
+  </table>
+  <p>Whichever you pick, keep <code>tenantId</code> declared and indexed. In the shared model it is the boundary; in the isolated model it is the thing that makes a misrouted restore detectable.</p>
+
+  <h3>Retention</h3>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Keep</th><th>Then</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Event</td><td>Full fidelity 90 days</td><td>Archive to cold storage; keep the fold checkpoint so replay past 90 days starts from a snapshot.</td></tr>
+      <tr><td class="mono">Sample</td><td>Raw 14 days</td><td>Downsample to hourly, then daily.</td></tr>
+      <tr><td class="mono">TaskRun logs</td><td>Reference only</td><td>Blob lives in object storage with its own lifecycle rule.</td></tr>
+      <tr><td class="mono">Snapshot</td><td>One per 500 events, plus one per closed workflow</td><td>Prune intermediate snapshots older than the event retention window.</td></tr>
+      <tr><td class="mono">Everything else</td><td>Indefinitely</td><td>This is the audit trail. It is the product.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Migrations</h3>
+  <p>Every DDL block on this page is idempotent, so the migration story is a numbered directory of files applied in order, with a <code>SchemaVersion</code> document recording the last applied number. Two rules make it survive:</p>
+  <ul>
+    <li><b>Additive first.</b> Add the new property, backfill it, switch readers, then drop the old one in a later release — never in the same one.</li>
+    <li><b>Never rename an edge type in place.</b> Create the new type, copy edges, switch traversals, drop the old. A rename is invisible to running orchestrators until they crash on an unknown edge.</li>
+  </ul>
+
+  <h3>Backup and HA</h3>
+  <p>Use ArcadeDB's backup command on a schedule, and treat the event stream as the second recovery path: a restore that is missing the last few minutes can be rolled forward by replaying events from an external broker if you publish them there too. That redundancy is cheap and it is the difference between losing five minutes of agent work and losing an afternoon of it.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="wiring">
+  <h2><span class="num">14</span> Wiring it to the UI and the flows</h2>
+  <p class="lede">Which types feed which surface. If a screen needs something that is not in this table, either the screen is inventing state or the model is missing a type.</p>
+
+  <table>
+    <thead><tr><th>Surface</th><th class="mono">Reads</th><th class="mono">Writes</th></tr></thead>
+    <tbody>
+      <tr><td><b>Floor · desk card</b></td><td class="mono">Workflow, Task, TaskRun, Agent, Review</td><td>—</td></tr>
+      <tr><td><b>Floor · room meters</b></td><td class="mono">Room, Agent, SEATED_IN</td><td>—</td></tr>
+      <tr><td><b>Inspector · current task</b></td><td class="mono">Task, TaskRun, Agent, Review</td><td>—</td></tr>
+      <tr><td><b>Inspector · "where this came from"</b></td><td class="mono">HAS_TASK, EXECUTED_BY, USES_WORKSPACE, IMPLEMENTS</td><td>—</td></tr>
+      <tr><td><b>Inspector · context slice chips</b></td><td class="mono">ContextSlice, USES_CONTEXT</td><td>—</td></tr>
+      <tr><td><b>Inspector · score breakdown</b></td><td class="mono">Review dimensions</td><td>—</td></tr>
+      <tr><td><b>Inspector · approve / retry / cancel</b></td><td class="mono">Task</td><td class="mono">Approval, Event, Task.status</td></tr>
+      <tr><td><b>Timeline · events and replay</b></td><td class="mono">Event, Snapshot</td><td>—</td></tr>
+      <tr><td><b>Back office · product record</b></td><td class="mono">Product, Requirement, Issue, AcceptanceCriterion, Artifact, Decision</td><td class="mono">all of them, plus Event</td></tr>
+      <tr><td><b>Back office · readiness panel</b></td><td class="mono">the rubric counts in §12</td><td class="mono">Product.readinessScore, readinessBand</td></tr>
+      <tr><td><b>Back office · inject</b></td><td class="mono">the whole master subgraph</td><td class="mono">Event(KnowledgeInjected), Product.lastInjectedAt</td></tr>
+      <tr><td><b>Create workflow · plan preview</b></td><td class="mono">Issue, AcceptanceCriterion, Agent</td><td class="mono">Workflow, Task, DEPENDS_ON, IMPLEMENTS, Event</td></tr>
+      <tr><td><b>Meeting room</b></td><td class="mono">Meeting, Agent, HAS_PARTICIPANT</td><td class="mono">Decision, PRODUCES, Knowledge, Event</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    <figcaption><span class="fig">FIG 3</span><b>Write path: one state change, four consequences</b>
+      <span class="hint">nothing reaches the UI except through the event stream</span></figcaption>
+    <div class="canvas" id="fig-write"></div>
+  </figure>
+
+  <div class="ok">
+    <b>The check that proves the model is wired correctly.</b> Take any badge on the Mission Control floor and walk it back: badge → projection → event → vertex property → the write that set it → the API call that caused it. If you cannot complete that walk for every visible element, something on screen is decorative — and decorative state is the failure mode this whole architecture exists to prevent.
+  </div>
+</section>
+
+<footer class="doc">
+  GAOS · data model companion to the architecture document and the Mission Control prototype. Schema statements follow the ArcadeDB SQL dialect; verify constraint and index syntax against your target version before running them in anger.
+</footer>
+
+</main>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- flowchart engine (same primitives as the architecture doc) ---------- */
+const COL = 218, ROW = 96, W = 168, H = 52, DW = 176, DH = 74, STUB = 20;
+
+function nodeBox(n){
+  const w = n.w != null ? n.w : (n.kind === "dec" ? DW : W);
+  const h = n.h != null ? n.h : (n.kind === "dec" ? DH : H);
+  return {w, h, cx: n.x * COL, cy: n.y * ROW};
+}
+function anchor(n, side){
+  const b = nodeBox(n);
+  if (side === "n") return {x:b.cx, y:b.cy - b.h/2, dx:0, dy:-1};
+  if (side === "s") return {x:b.cx, y:b.cy + b.h/2, dx:0, dy:1};
+  if (side === "w") return {x:b.cx - b.w/2, y:b.cy, dx:-1, dy:0};
+  return {x:b.cx + b.w/2, y:b.cy, dx:1, dy:0};
+}
+function route(a, b, bend){
+  const p0 = {x:a.x, y:a.y}, p1 = {x:a.x + a.dx*STUB, y:a.y + a.dy*STUB};
+  const pn = {x:b.x, y:b.y}, pm = {x:b.x + b.dx*STUB, y:b.y + b.dy*STUB};
+  const pts = [p0, p1];
+  const aV = a.dx === 0, bV = b.dx === 0;
+  if (aV && bV){
+    if (Math.abs(p1.x - pm.x) > 1){
+      if (a.dy === b.dy){
+        const yy = a.dy > 0 ? Math.max(p1.y, pm.y) + (bend || 26) : Math.min(p1.y, pm.y) - (bend || 26);
+        pts.push({x:p1.x, y:yy}, {x:pm.x, y:yy});
+      } else {
+        const my = (p1.y + pm.y) / 2;
+        pts.push({x:p1.x, y:my}, {x:pm.x, y:my});
+      }
+    }
+  } else if (!aV && !bV){
+    if (Math.abs(p1.y - pm.y) > 1){
+      const xx = a.dx === b.dx
+        ? (a.dx > 0 ? Math.max(p1.x, pm.x) + (bend || 26) : Math.min(p1.x, pm.x) - (bend || 26))
+        : (p1.x + pm.x) / 2;
+      pts.push({x:xx, y:p1.y}, {x:xx, y:pm.y});
+    }
+  } else if (aV){ pts.push({x:p1.x, y:pm.y}); }
+  else { pts.push({x:pm.x, y:p1.y}); }
+  pts.push(pm, pn);
+  return pts;
+}
+function midOf(pts){
+  let best = 0, bestLen = -1;
+  for (let i = 0; i < pts.length - 1; i++){
+    const d = Math.abs(pts[i+1].x - pts[i].x) + Math.abs(pts[i+1].y - pts[i].y);
+    if (d > bestLen){ bestLen = d; best = i; }
+  }
+  return {x:(pts[best].x + pts[best+1].x)/2, y:(pts[best].y + pts[best+1].y)/2};
+}
+function wrap(text, max){
+  const words = String(text).split(" ");
+  const lines = []; let cur = "";
+  words.forEach(w => {
+    const t = cur ? cur + " " + w : w;
+    if (t.length > max && cur){ lines.push(cur); cur = w; } else { cur = t; }
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function drawNode(n){
+  const b = nodeBox(n);
+  const cls = n.cls ? " " + n.cls : "";
+
+  /* cluster: dashed panel with a header and a left-aligned type list */
+  if (n.kind === "cluster"){
+    let out = `<rect class="clu${cls}" x="${b.cx-b.w/2}" y="${b.cy-b.h/2}" width="${b.w}" height="${b.h}" rx="8"/>`;
+    out += `<text class="k" x="${b.cx-b.w/2+13}" y="${b.cy-b.h/2+19}">${esc(n.k || "")}</text>`;
+    out += `<text class="big" x="${b.cx-b.w/2+13}" y="${b.cy-b.h/2+37}">${esc(n.text)}</text>`;
+    let y = b.cy - b.h/2 + 57;
+    (n.list || []).forEach(item => {
+      out += `<text class="item" x="${b.cx-b.w/2+13}" y="${y}">${esc(item)}</text>`;
+      y += 15;
+    });
+    return out;
+  }
+
+  let shape;
+  if (n.kind === "dec"){
+    const pts = [[b.cx,b.cy-b.h/2],[b.cx+b.w/2,b.cy],[b.cx,b.cy+b.h/2],[b.cx-b.w/2,b.cy]]
+      .map(p => p.join(",")).join(" ");
+    shape = `<polygon class="dia${cls}" points="${pts}"/>`;
+  } else if (n.kind === "start" || n.kind === "end"){
+    shape = `<rect class="box start${cls}" x="${b.cx-b.w/2}" y="${b.cy-b.h/2}" width="${b.w}" height="${b.h}" rx="${b.h/2}"/>`;
+  } else if (n.kind === "state"){
+    shape = `<rect class="box state${cls}" x="${b.cx-b.w/2}" y="${b.cy-b.h/2}" width="${b.w}" height="${b.h}" rx="4"/>`
+          + `<rect class="box state${cls}" x="${b.cx-b.w/2+4}" y="${b.cy-b.h/2+4}" width="${b.w-8}" height="${b.h-8}" rx="2" fill="none" opacity=".5"/>`;
+  } else {
+    shape = `<rect class="box${cls}" x="${b.cx-b.w/2}" y="${b.cy-b.h/2}" width="${b.w}" height="${b.h}" rx="4"/>`;
+  }
+
+  const lines = wrap(n.text, Math.round((b.w - 18) / 5.9));
+  const big = n.kind === "state" || n.kind === "start" || n.kind === "end";
+  const lh = 13.5, hasK = !!n.k;
+  const blockH = lines.length * lh + (hasK ? 11 : 0);
+  let y = b.cy - blockH/2 + lh - 3, txt = "";
+  if (hasK){ txt += `<text class="k" x="${b.cx}" y="${y-2}" text-anchor="middle">${esc(n.k)}</text>`; y += 12; }
+  lines.forEach(l => {
+    txt += `<text class="${big ? "big" : ""}" x="${b.cx}" y="${y}" text-anchor="middle">${esc(l)}</text>`;
+    y += lh;
+  });
+  return shape + txt;
+}
+
+function drawChart(spec){
+  const nodes = {};
+  spec.nodes.forEach(n => { nodes[n.id] = n; });
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  spec.nodes.forEach(n => {
+    const b = nodeBox(n);
+    minX = Math.min(minX, b.cx-b.w/2); maxX = Math.max(maxX, b.cx+b.w/2);
+    minY = Math.min(minY, b.cy-b.h/2); maxY = Math.max(maxY, b.cy+b.h/2);
+  });
+
+  let edges = "";
+  const labels = [];
+  spec.edges.forEach(e => {
+    const [fi, fs] = e.from.split(":"), [ti, ts] = e.to.split(":");
+    const a = anchor(nodes[fi], fs || "s"), b = anchor(nodes[ti], ts || "n");
+    const pts = route(a, b, e.bend);
+    pts.forEach(p => {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    });
+    const cls = e.cls ? " " + e.cls : "";
+    const marker = e.cls === "alt" ? "mAlt" : e.cls === "loop" ? "mLoop" : e.cls === "yes" ? "mYes" : "mDef";
+    edges += `<polyline class="edge${cls}" points="${pts.map(p => p.x.toFixed(1)+","+p.y.toFixed(1)).join(" ")}" marker-end="url(#${marker})"/>`;
+    if (e.label){
+      const m = midOf(pts);
+      const lx = m.x + (e.lx || 0), ly = m.y + (e.ly || 0);
+      const wpx = e.label.length * 5.6 + 8;
+      labels.push(`<rect class="labbg" x="${(lx-wpx/2).toFixed(1)}" y="${(ly-8).toFixed(1)}" width="${wpx.toFixed(1)}" height="13" rx="2"/>`
+        + `<text class="lab${cls}" x="${lx.toFixed(1)}" y="${(ly+2.5).toFixed(1)}" text-anchor="middle">${esc(e.label)}</text>`);
+    }
+  });
+
+  const pad = 22, vbW = (maxX-minX)+pad*2, vbH = (maxY-minY)+pad*2;
+  const mk = (id, c) => `<marker id="${id}" viewBox="0 0 8 8" refX="7.2" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="${c}"/></marker>`;
+  return `<svg class="fc" viewBox="0 0 ${vbW.toFixed(0)} ${vbH.toFixed(0)}" width="${Math.min(vbW,1040).toFixed(0)}" role="img" aria-label="${esc(spec.title)}">
+    <defs>${mk("mDef","var(--ink-3)")}${mk("mAlt","var(--know)")}${mk("mLoop","var(--block)")}${mk("mYes","var(--done)")}</defs>
+    <g transform="translate(${(-minX+pad).toFixed(1)},${(-minY+pad).toFixed(1)})">
+      ${edges}${spec.nodes.map(drawNode).join("")}${labels.join("")}
+    </g></svg>`;
+}
+
+/* ---------- FIG 1 · domain map ---------- */
+const MAP = {
+  title:"Domain map",
+  nodes:[
+    {id:"master", kind:"cluster", x:0, y:0, w:250, h:184, k:"cluster 1", text:"Product master",
+     list:["Tenant","Product","Requirement","Issue","AcceptanceCriterion","Artifact","Metric"]},
+    {id:"code", kind:"cluster", x:0, y:2.15, w:250, h:130, k:"cluster 2", text:"Code graph",
+     list:["Repository","File","Function","Commit"]},
+    {id:"exec", kind:"cluster", x:1.95, y:0.55, w:250, h:169, k:"cluster 3", text:"Execution",
+     list:["Workflow","Task","TaskRun","ContextSlice","Prompt","Workspace"]},
+    {id:"cap", kind:"cluster", x:3.9, y:0, w:240, h:115, k:"cluster 4", text:"Capacity",
+     list:["Agent","Room","CalendarSlot"]},
+    {id:"mem", kind:"cluster", x:3.9, y:1.72, w:240, h:154, k:"cluster 5", text:"Judgment & memory",
+     list:["Review","Approval","Decision","Knowledge","Meeting"]},
+    {id:"hist", kind:"cluster", x:1.95, y:2.95, w:250, h:104, k:"cluster 6", text:"History",
+     list:["Event","Snapshot","Sample"]}
+  ],
+  edges:[
+    {from:"master:e", to:"exec:w", label:"HAS_WORKFLOW"},
+    {from:"master:s", to:"code:n", label:"USES_REPOSITORY"},
+    {from:"code:e", to:"exec:w", label:"MODIFIES", bend:30},
+    {from:"exec:e", to:"cap:w", label:"EXECUTED_BY"},
+    {from:"exec:e", to:"mem:w", label:"REVIEWED_BY"},
+    {from:"mem:w", to:"master:e", cls:"alt", label:"APPLIES_TO · GOVERNS", bend:64},
+    {from:"mem:s", to:"hist:e", cls:"alt", label:"emits", bend:30},
+    {from:"exec:s", to:"hist:n", cls:"alt", label:"emits"},
+    {from:"cap:s", to:"mem:n", label:"HAS_PARTICIPANT"}
+  ]
+};
+
+/* ---------- FIG 2 · the spine ---------- */
+const SPINE = {
+  title:"Requirement to lesson",
+  nodes:[
+    {id:"p",  kind:"state", x:0, y:0, k:"master", text:"Product"},
+    {id:"r",  kind:"proc",  x:0, y:1, k:"BRD", text:"Requirement"},
+    {id:"i",  kind:"proc",  x:0, y:2, k:"story", text:"Issue"},
+    {id:"ac", kind:"proc",  x:0, y:3, k:"verifiable", text:"AcceptanceCriterion"},
+    {id:"t",  kind:"proc",  x:1.42, y:3, k:"planned", text:"Task"},
+    {id:"tr", kind:"proc",  x:1.42, y:2, k:"one attempt", text:"TaskRun"},
+    {id:"cs", kind:"proc",  x:2.84, y:3, cls:"link", k:"frozen", text:"ContextSlice"},
+    {id:"rv", kind:"proc",  x:2.84, y:2, k:"scored", text:"Review"},
+    {id:"a",  kind:"proc",  x:2.84, y:1, k:"gate", text:"Approval"},
+    {id:"kn", kind:"state", x:2.84, y:0, cls:"good", k:"memory", text:"Knowledge"}
+  ],
+  edges:[
+    {from:"p:s",  to:"r:n",  label:"HAS_REQUIREMENT"},
+    {from:"r:s",  to:"i:n",  label:"informs"},
+    {from:"i:s",  to:"ac:n", label:"HAS_CRITERION"},
+    {from:"ac:e", to:"t:w",  label:"SATISFIES"},
+    {from:"t:n",  to:"tr:s", label:"HAS_RUN"},
+    {from:"t:e",  to:"cs:w", cls:"alt", label:"ASSEMBLED"},
+    {from:"tr:e", to:"rv:w", label:"REVIEWED_BY"},
+    {from:"rv:n", to:"a:s",  label:"GATED_BY"},
+    {from:"a:n",  to:"kn:s", label:"LEARNS_FROM"},
+    {from:"kn:w", to:"p:e",  cls:"alt", label:"APPLIES_TO"}
+  ]
+};
+
+/* ---------- FIG 3 · write path ---------- */
+const WRITE = {
+  title:"Write path",
+  nodes:[
+    {id:"api", kind:"start", x:0, y:0, text:"API mutation arrives"},
+    {id:"tx",  kind:"proc",  x:0, y:1, k:"one transaction", text:"Validate transition, write vertex and edges"},
+    {id:"ev",  kind:"proc",  x:0, y:2, k:"same transaction", text:"Append Event with the next seq"},
+    {id:"ok",  kind:"dec",   x:0, y:3.1, text:"Commit succeeded?"},
+    {id:"rb",  kind:"end",   x:1.5, y:3.1, cls:"warnb", text:"Roll back both; return the reason"},
+    {id:"pub", kind:"proc",  x:0, y:4.3, k:"after commit", text:"Publish to the SSE / WebSocket stream"},
+    {id:"ui",  kind:"state", x:-1.5, y:5.4, k:"projection", text:"Floor, inspector and timeline update"},
+    {id:"snap",kind:"proc",  x:0, y:5.4, cls:"link", k:"every N events", text:"Write a Snapshot checkpoint"},
+    {id:"met", kind:"proc",  x:1.5, y:5.4, cls:"link", text:"Emit Samples for cost and latency"}
+  ],
+  edges:[
+    {from:"api:s", to:"tx:n"},
+    {from:"tx:s",  to:"ev:n"},
+    {from:"ev:s",  to:"ok:n"},
+    {from:"ok:e",  to:"rb:w", label:"no"},
+    {from:"ok:s",  to:"pub:n", cls:"yes", label:"yes"},
+    {from:"pub:w", to:"ui:n", cls:"alt", bend:26},
+    {from:"pub:s", to:"snap:n"},
+    {from:"pub:e", to:"met:n", cls:"alt", bend:26}
+  ]
+};
+
+[["fig-map", MAP], ["fig-spine", SPINE], ["fig-write", WRITE]].forEach(([id, spec]) => {
+  const host = document.getElementById(id);
+  if (host) host.innerHTML = drawChart(spec);
+});
+
+/* ---------- copy buttons + full script download ---------- */
+function blockText(block){
+  const pre = block.querySelector("pre");
+  return pre ? pre.textContent : "";
+}
+document.querySelectorAll(".code .cp").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const text = blockText(btn.closest(".code"));
+    const done = () => { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Copy"; }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else fallback();
+    function fallback(){
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); done(); } catch(e){ btn.textContent = "Select manually"; }
+      document.body.removeChild(ta);
+    }
+  });
+});
+
+document.getElementById("dlBtn").addEventListener("click", () => {
+  const parts = ["-- GAOS schema for ArcadeDB",
+                 "-- Generated from the data model document.",
+                 "-- Verify constraint and index syntax against your ArcadeDB version.",
+                 ""];
+  document.querySelectorAll(".code[data-sql]").forEach(block => {
+    const name = block.querySelector(".bar b");
+    const body = blockText(block);
+    if (!/^\d/.test(name ? name.textContent : "")) return;   // DDL files only
+    parts.push("-- ===== " + name.textContent + " =====", body, "");
+  });
+  const blob = new Blob([parts.join("\n")], {type:"text/plain;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "gaos-schema.sql";
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+/* ---------- theme, print, toc ---------- */
+const themeBtn = document.getElementById("themeBtn");
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  themeBtn.setAttribute("aria-label", t === "dark" ? "Switch to light theme" : "Switch to dark theme");
+}
+themeBtn.addEventListener("click", () =>
+  applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+document.getElementById("printBtn").addEventListener("click", () => window.print());
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "t" || e.key === "T") themeBtn.click();
+});
+
+const links = [].slice.call(document.querySelectorAll(".toc a"));
+const sections = links.map(a => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+if (window.IntersectionObserver){
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting){
+        links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + en.target.id));
+      }
+    });
+  }, {rootMargin:"-10% 0px -80% 0px"});
+  sections.forEach(s => obs.observe(s));
+}
+})();
+</script>
+</body>
+</html>
