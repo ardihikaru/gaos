@@ -1,0 +1,39 @@
+# Traefik static configuration for the LOCAL stack (compose.yaml at the repo
+# root). The tunnelled stacks use deploy/stacks/traefik.yml instead, which is
+# this file plus a forwardedHeaders trust list.
+#
+# ONE ENTRYPOINT. That is the whole point: exactly one port is published, and
+# everything behind it is reached by path. Adding a second entryPoint undoes it.
+
+# The dashboard and the API are OFF. Both would be a second route on the one
+# published port, and the dashboard lists every router, service and middleware
+# -- a standing map of the internal topology, served next to the app.
+api:
+  dashboard: false
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+
+# FILE PROVIDER, NOT DOCKER. Two reasons, and neither is taste:
+#
+#   - No docker socket. The label-driven provider needs /var/run/docker.sock
+#     mounted into the proxy, and access to that socket is root on the host.
+#     A reverse proxy is the last container that should hold it.
+#   - It is also why traefik:v3.3 still works here. The Docker Engine 29 API
+#     break that forces other stacks onto v3.6+ is in the DOCKER PROVIDER -- it
+#     negotiates API 1.24 and the daemon refuses -- and that code path never
+#     runs when `providers` names only `file`.
+#
+# Service names on the compose network are fixed, so a static file loses
+# nothing: the routing table is deterministic, reviewable, and diffable.
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: INFO
+
+accessLog: {}

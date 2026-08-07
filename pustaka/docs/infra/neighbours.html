@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Living beside other products — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="infra-neighbours">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Infrastructure</p>
+  <h1>Living beside other products</h1>
+  <p class="lede">GAOS is not alone on the private VM. Several unrelated products share the same
+  machine, the same tunnel and the same databases — held apart by a port register, a naming
+  convention, and network boundaries that are structural rather than promised.</p>
+
+  <div class="page-meta"
+       data-tags="multi-tenant, isolation, conventions"
+       data-hashtags="infra, ports, networks, shared"
+       data-published="2026-08-04"
+       data-updated="2026-08-04"
+       data-version-from="0.1.0"
+       data-version-to=""></div>
+
+  <h2 id="one-vm-many">One VM, many products</h2>
+  <p>Each product owns a stack, its own proxy, and exactly one tunnel port per environment. Nothing
+  is shared at the routing layer: one product's misconfiguration cannot capture another product's
+  traffic, because the two proxies never see each other's containers.</p>
+
+  <div class="flow rv">
+    <div class="node"><b>Edge nginx</b><span>one map<br>host → port</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>GAOS</b><span>own Traefik<br><code>:18301</code></span></div>
+    <div class="node"><b>Laundry</b><span>own Traefik<br><code>:18101</code></span></div>
+    <div class="node"><b>…</b><span>own Traefik<br>own port</span></div>
+  </div>
+
+  <p>That per-product proxy is worth the roughly 30–40&nbsp;MB it idles at. The alternative — one
+  shared ingress reading every container on the host — means a mislabelled container in one product
+  can silently start answering for another, and the failure presents as a 404 with a healthy
+  backend and nothing in any log.</p>
+
+  <h2 id="port-register">The port register</h2>
+  <p>Ports are derived, not remembered. The pattern is <code>1&lt;env&gt;&lt;product&gt;1</code>:
+  the second digit is the environment — <code>18xx1</code> production, <code>19xx1</code>
+  non-production — and the middle pair identifies the product.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Digits</th><th>Product</th><th>Production</th><th>Development</th></tr></thead>
+    <tbody>
+      <tr><td><code>00</code></td><td>portal</td><td>18001</td><td>—</td></tr>
+      <tr><td><code>01</code></td><td>laundry</td><td>18101</td><td>19101</td></tr>
+      <tr><td><code>02</code></td><td>cubiq</td><td>18201</td><td>19201</td></tr>
+      <tr><td><code>03</code></td><td><b>gaos</b></td><td><b>18301</b></td><td><b>19301</b></td></tr>
+      <tr><td><code>04</code></td><td>pustaka</td><td>18401</td><td>—</td></tr>
+      <tr><td><code>05</code></td><td>jagara</td><td>18501</td><td>—</td></tr>
+      <tr><td><code>06</code></td><td>saas</td><td>18601</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <p>A product's development port therefore falls out of its production port without a lookup. The
+  register is the only thing preventing two products from claiming the same number, so claiming a
+  slot means writing it down, not just using it.</p>
+
+  <h2 id="dns">One namespace per product</h2>
+  <p>Each product gets a wildcard namespace and one line in the edge's host map. Adding a subdomain
+  <em>inside</em> that namespace costs nothing at the edge — no DNS change, no certificate change,
+  no nginx change — because the wildcard and the map entry already cover it.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">Wildcards match exactly one level</p>
+    <p><code>*.gaos.mfardiansyah.id</code> covers <code>dev.gaos.mfardiansyah.id</code>, but it
+    does <strong>not</strong> cover <code>a.b.gaos.mfardiansyah.id</code>. Every namespace level
+    needs its own DNS record and its own certificate SAN. The classic symptom is one product
+    working while another answers with a bare connection reset: a third-level wildcard was never
+    created, or its SAN never made it onto the certificate.</p>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>Namespace</th><th>Product</th><th>Certificate</th></tr></thead>
+    <tbody>
+      <tr><td><code>clino.id</code> · <code>*.clino.id</code> · <code>*.dev.clino.id</code></td><td>laundry</td><td><code>clino</code></td></tr>
+      <tr><td><code>*.gaos.mfardiansyah.id</code></td><td><b>gaos</b></td><td><code>mfardiansyah</code></td></tr>
+      <tr><td><code>*.gaos.</code> · <code>*.pustaka.</code> · <code>*.jagara.</code> · <code>*.saas.mfardiansyah.id</code></td><td>allocated</td><td><code>mfardiansyah</code></td></tr>
+      <tr><td><code>mfardiansyah.id</code> · <code>*.mfardiansyah.id</code></td><td>portal</td><td><code>mfardiansyah</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>Every one of these is an <code>A</code> record pointing at the same address,
+  <code>EDGE_IP</code>. There is no second IP anywhere in the design.</p>
+
+  <h2 id="boundaries">What is shared and what is not</h2>
+  <p>Databases are shared infrastructure — one database stack per environment, joined by the
+  products that need it as an <em>external</em> network. That sharing is real, so the boundaries
+  around it are drawn deliberately.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Service</th><th>Container</th><th>Host port</th><th>Whose</th></tr></thead>
+    <tbody>
+      <tr><td>ArcadeDB · prod</td><td><code>arcadedb-master</code></td><td><code>9480</code> HTTP · <code>9688</code> Bolt</td><td><b>GAOS probes it; no schema applied yet</b></td></tr>
+      <tr><td>ArcadeDB · dev</td><td><code>arcadedb-master-dev</code></td><td><code>9580</code> HTTP · <code>9788</code> Bolt</td><td><b>GAOS probes it; no schema applied yet</b></td></tr>
+      <tr><td>MinIO</td><td><code>minio-master</code></td><td><code>11000</code> API · <code>11001</code> console</td><td>other projects — GAOS stores nothing there</td></tr>
+      <tr><td>MySQL</td><td><code>mysqldb-master</code></td><td><code>5306</code></td><td>other projects</td></tr>
+      <tr><td>Redis</td><td><code>redis-master-prod</code></td><td><code>7379</code></td><td>other projects</td></tr>
+      <tr><td>Qdrant</td><td><code>qdrant-master</code></td><td><code>8333</code> · <code>8334</code></td><td>other projects</td></tr>
+      <tr><td>RabbitMQ</td><td><code>rabbitmq-master</code></td><td><code>7672</code> · <code>17672</code></td><td>other projects</td></tr>
+      <tr><td>phpMyAdmin</td><td><code>pma-master</code></td><td><code>8082</code></td><td>other projects</td></tr>
+    </tbody>
+  </table>
+
+  <p>Networks: <code>master-compose-ai-net</code> (<code>172.24.0.0/16</code>) for production and
+  <code>master-compose-ai-dev-net</code> (<code>172.28.0.0/16</code>) for development. GAOS's own
+  internal networks are <code>gaos-prod-int</code> (<code>172.30.12.0/24</code>) and
+  <code>gaos-dev-int</code> (<code>172.30.13.0/24</code>) — pinned deliberately, because this host
+  already carries eleven bridge networks across <code>172.17</code>–<code>172.29</code> and an
+  unpinned range eventually collides with a neighbour.</p>
+
+  <div class="pillars">
+    <div class="pillar">
+      <h3>Only what needs data joins the data network</h3>
+      <p>In GAOS's stacks, only the dashboard joins the shared network. The
+      proxy, the PWA, the panel and these docs cannot resolve — let alone reach — the neighbouring
+      products' databases. Least privilege as a topology, not a policy.</p>
+    </div>
+    <div class="pillar">
+      <h3>The shared stack is nobody's to restart</h3>
+      <p>The database stack belongs to the environment, not to a product. A product declares the
+      network as external so it can never create it, and can therefore never quietly bring up a
+      half-configured replacement of something its neighbours depend on.</p>
+    </div>
+    <div class="pillar">
+      <h3>A product touches only its own data</h3>
+      <p>GAOS owns its own database and nothing else in the shared
+      stack — the other schemas and buckets there belong to other projects. Sharing a network is
+      not a licence to read what is on it.</p>
+    </div>
+    <div class="pillar">
+      <h3>Credentials come from the environment</h3>
+      <p>No shared credential is ever copied into a product's repository. Values are referenced by
+      name and supplied on the host, so a leak in one repository cannot expose infrastructure the
+      other products depend on.</p>
+    </div>
+  </div>
+
+  <div class="adm warn">
+    <p class="adm-title">Never bulk-import the shared environment file</p>
+    <p>An <code>env_file</code> injects every line it finds. Appending the shared infrastructure
+    <code>.env</code> into a product's file hands that product's containers the credentials of every
+    other project on the host. Copy the handful of names actually needed, one line at a time.</p>
+  </div>
+
+  <h2 id="adding">Adding a product</h2>
+  <p>The routine work is three steps at the edge, and then nothing at the edge ever again.</p>
+
+  <ol>
+    <li>Claim the next free slot in the port register and write it down.</li>
+    <li>Add the DNS record for the new wildcard namespace, and add the same name as a SAN on the
+    certificate the edge renews.</li>
+    <li>Add one line to the edge's host map, ordered so the more specific pattern wins.</li>
+  </ol>
+
+  <p>Everything after that belongs to the product: its own compose stack, its own proxy on its own
+  tunnel port, its own routing table, its own secrets. Subdomains within its namespace are its own
+  business and cost nothing to add.</p>
+
+  <div class="adm tip">
+    <p class="adm-title">The checks that catch a bad neighbour</p>
+    <p>Two things go wrong quietly when a new stack lands: a port published without the tunnel
+    address, which puts the stack on the local network; and a stack joining the wrong environment's
+    shared network, which is undetectable at runtime because it simply works. Assert both
+    mechanically. A smoke test will never find either one.</p>
+  </div>
+
+  <p>For the machinery underneath these conventions, see
+  <a href="overview.html">How the infrastructure runs</a>; for GAOS's own two tiers, see
+  <a href="environments.html">Development and production</a>.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

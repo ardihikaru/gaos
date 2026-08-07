@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>How the infrastructure runs — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="infra-overview">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Infrastructure</p>
+  <h1>How the infrastructure runs</h1>
+  <p class="lede">Two machines and one public address. A 1&nbsp;vCPU edge server holds the
+  certificates and answers the internet; a private machine with no public address runs every
+  container. Every value on this page is the real one.</p>
+
+  <div class="page-meta"
+       data-tags="infrastructure, topology, operations"
+       data-hashtags="infra, wireguard, tls, traefik"
+       data-published="2026-08-04"
+       data-updated="2026-08-04"
+       data-version-from="0.1.0"
+       data-version-to=""></div>
+
+  <h2 id="two-machines">Two machines, one public IP</h2>
+  <p>Only one host is reachable from the internet, and it is deliberately the least interesting
+  one. It runs nginx and a WireGuard tunnel and <strong>nothing else</strong> — no Docker, no
+  application, no database, no state worth stealing. Everything an attacker would actually want
+  sits on the far side of the tunnel, on a machine with no public address at all.</p>
+
+  <table class="tbl">
+    <thead><tr><th></th><th>Public edge</th><th>Private VM</th></tr></thead>
+    <tbody>
+      <tr><td>Hostname</td><td><code>clino</code></td><td><code>vm-rnd-ardi</code></td></tr>
+      <tr><td>SSH</td><td><code>ssh clino</code>, user <code>EDGE_USER</code></td><td>reachable over the tunnel / LAN</td></tr>
+      <tr><td>Public address</td><td><code>EDGE_IP/23</code> on <code>eth0</code></td><td><b>none</b></td></tr>
+      <tr><td>Tunnel address</td><td><code>10.10.0.1/24</code> on <code>wg0</code></td><td><code>10.10.0.2/24</code> on <code>wg1</code></td></tr>
+      <tr><td>Other interfaces</td><td>—</td><td><code>eth0 LAN_IP/24</code>, <code>eth1 LAN_IP/24</code></td></tr>
+      <tr><td>CPU / RAM / disk</td><td>1 vCPU · 957 MiB · 58 GB</td><td>8 vCPU · 23 GiB</td></tr>
+      <tr><td>Runs</td><td>nginx + <code>wg-quick@wg0</code>. Nothing else.</td><td>Docker 29.6.1 — every container, every product</td></tr>
+    </tbody>
+  </table>
+
+  <div class="adm note">
+    <p class="adm-title">The interface names are asymmetric on purpose</p>
+    <p>The tunnel is <code>wg0</code> on the edge but <code>wg1</code> on the private VM, because
+    that machine already had a <code>wg0</code> from an earlier site-to-site VPN. Any firewall or
+    routing rule written against &ldquo;<code>wg0</code>&rdquo; is therefore correct on one host and
+    silently wrong on the other. Always name the interface for the machine you are on.</p>
+  </div>
+
+  <p>The trade is stated rather than hidden: one edge is one failure domain. If
+  <code>EDGE_IP</code> goes down, every product behind it goes down together. That is
+  accepted in exchange for a single place to patch, a single certificate story, and a machine
+  holding the real data that is simply not addressable from the internet.</p>
+
+  <h2 id="wireguard">The tunnel</h2>
+  <p>WireGuard carries everything between the two machines. The edge listens; the private VM dials
+  out, which is what lets it live behind consumer NAT with no port forwarding and no static
+  address of its own.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Subnet</td><td><code>10.10.0.0/24</code></td></tr>
+      <tr><td>Edge (listener)</td><td><code>10.10.0.1</code>, interface <code>wg0</code>, UDP port <code>51820</code></td></tr>
+      <tr><td>Private VM (dialer)</td><td><code>10.10.0.2</code>, interface <code>wg1</code>, service <code>wg-quick@wg1</code></td></tr>
+      <tr><td>Peer allowed IPs, seen from the edge</td><td><code>10.10.0.2/32</code> — one peer, one address</td></tr>
+      <tr><td>Spare addresses</td><td><code>10.10.0.3</code>+ — reserved for a second compute host</td></tr>
+    </tbody>
+  </table>
+
+  <p>The edge firewall is four rules and no more. Note that <code>51820/udp</code> must stay open
+  or the tunnel never re-establishes after a restart:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">ufw status · clino</span><button class="copy">copy</button></div>
+    <pre>OpenSSH      ALLOW  Anywhere
+51820/udp    ALLOW  Anywhere      <span class="c"># WireGuard — the tunnel itself</span>
+80/tcp       ALLOW  Anywhere      <span class="c"># http</span>
+443/tcp      ALLOW  Anywhere      <span class="c"># https</span></pre>
+  </div>
+
+  <p>Check the tunnel is alive with <code>sudo wg show</code> on either end — a
+  <code>latest handshake</code> older than about three minutes means it is down, and every product
+  is unreachable regardless of how healthy the containers look.</p>
+
+  <h2 id="system-architecture">The system, in one picture</h2>
+  <p>Three layers, and the boundary that matters is the third one: which containers may join a
+  shared database network, and which simply cannot reach one.</p>
+
+  <div class="flow rv">
+    <div class="node">Browser</div>
+    <div class="arrow">→</div>
+    <div class="node">clino · nginx<br>terminates TLS</div>
+    <div class="arrow">→</div>
+    <div class="node">WireGuard<br>plain HTTP</div>
+    <div class="arrow">→</div>
+    <div class="node">Traefik<br>per product</div>
+    <div class="arrow">→</div>
+    <div class="node">landing · dashboard<br>docs</div>
+  </div>
+
+  <h3 id="membership">Who may reach a database</h3>
+  <p>A container reaches only what sits on a network it has joined. In GAOS&#39;s stacks that is
+  one service out of four — the rest cannot resolve a database name at all, not GAOS&#39;s and not
+  a neighbouring product&#39;s.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Container</th><th>Own stack network</th><th>Shared database network</th></tr></thead>
+    <tbody>
+      <tr><td><code>dashboard</code></td><td>yes</td><td><b>yes</b> — this is the point of it</td></tr>
+      <tr><td><code>traefik</code></td><td>yes</td><td>no</td></tr>
+      <tr><td><code>landing</code></td><td>yes</td><td>no</td></tr>
+      <tr><td><code>docs</code></td><td>yes</td><td>no</td></tr>
+    </tbody>
+  </table>
+
+  <div class="adm note">
+    <p class="adm-title">Least privilege as topology, not as policy</p>
+    <p>The shared network also carries MySQL, Redis, Qdrant and RabbitMQ belonging to other
+    projects. Because the proxy, the landing page and the docs never join it, they cannot reach
+    any of that even by accident — there is no rule to remember and nothing to enforce at runtime.
+    <code>deploy/check-stacks.sh</code> asserts the membership so a future edit cannot quietly
+    widen it.</p>
+  </div>
+
+  <h2 id="request-path">The path of one request</h2>
+  <p>A request crosses three hops, and the load-bearing detail is that <em>TLS ends at the first
+  one</em>. Inside the tunnel everything is plain HTTP — WireGuard is already the encryption, so a
+  second TLS layer within it would buy nothing and cost a second set of certificates to manage.</p>
+
+  <div class="flow rv">
+    <div class="node"><b>Browser</b><span>HTTPS :443<br><code>gaos.mfardiansyah.id</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>nginx · clino</b><span>terminates TLS<br><code>EDGE_IP</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>WireGuard</b><span>plain HTTP<br><code>10.10.0.1 → 10.10.0.2</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Traefik</b><span>GAOS's own<br><code>:18301</code> → <code>:80</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Container</b><span>landing · dashboard<br>docs</span></div>
+  </div>
+
+  <p>nginx picks the backend from a map keyed on hostname, forwarding to a port that belongs to
+  exactly one product and one environment. It also sets the headers the application can no longer
+  work out for itself:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">nginx · clino</span><button class="copy">copy</button></div>
+    <pre><span class="k">map</span> $host $backend {
+    hostnames;
+    .dev.gaos.mfardiansyah.id   <span class="s">10.10.0.2:19301</span>;   <span class="c"># longer pattern wins</span>
+    .gaos.mfardiansyah.id       <span class="s">10.10.0.2:18301</span>;
+    .dev.clino.id                <span class="s">10.10.0.2:19101</span>;
+    .clino.id                    <span class="s">10.10.0.2:18101</span>;
+    default                      <span class="s">""</span>;
+}
+<span class="k">server</span> {
+    listen 443 ssl;
+    http2 on;
+    ssl_certificate     /etc/letsencrypt/live/mfardiansyah/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mfardiansyah/privkey.pem;
+    <span class="k">if</span> ($backend = <span class="s">""</span>) { <span class="k">return</span> 444; }   <span class="c"># unknown host: answer nothing at all</span>
+    <span class="k">location</span> / {
+        proxy_pass       <span class="s">http://$backend</span>;             <span class="c"># http, not https — see above</span>
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
+        proxy_read_timeout 3600s;
+    }
+}</pre>
+  </div>
+
+  <h2 id="who-owns-tls">Who owns TLS</h2>
+  <p>Certificates live on <code>clino</code> and nowhere else, issued by certbot over
+  <strong>HTTP-01</strong> for two exact hostnames. Nothing behind the tunnel holds a certificate,
+  and no wildcard is involved.</p>
+
+  <div class="adm note">
+    <p class="adm-title">The design said DNS-01 wildcards; reality said otherwise</p>
+    <p>The infrastructure spec called for wildcard certificates via
+    <code>certbot --dns-cloudflare</code>. These domains are <strong>not on Cloudflare</strong> —
+    both <code>mfardiansyah.id</code> and <code>clino.id</code> delegate to
+    <code>ns1/ns2.dns-parking.com</code>, so there is no Cloudflare API to authenticate against.
+    GAOS needs only two exact names, never a wildcard, and an exact name validates over HTTP-01
+    with no DNS credentials at all. The problem disappeared rather than moving somewhere else.</p>
+  </div>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">certbot · clino</span><button class="copy">copy</button></div>
+    <pre><span class="c"># no --dns-* plugin: HTTP-01 answers from the webroot nginx already serves</span>
+certbot certonly --webroot -w /var/www/acme \
+  -d gaos.mfardiansyah.id -d dev.gaos.mfardiansyah.id \
+  --cert-name <span class="s">gaos</span> --agree-tos -m &lt;email&gt; --non-interactive
+
+<span class="c"># renew hook: validate first, then RELOAD -- never restart</span>
+nginx -t &amp;&amp; systemctl reload nginx</pre>
+  </div>
+
+  <p>A wildcard would still need DNS-01, so a product that wants many subdomains has to solve the
+  provider question first. GAOS sidesteps it by serving one origin per environment.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">No proxy behind the tunnel has ACME</p>
+    <p>Every product's Traefik runs a single <code>web</code> entrypoint on port 80, with no
+    <code>websecure</code> entrypoint and no <code>certificatesResolvers</code> block. That is not
+    an oversight waiting to be tidied up. Adding one would create a second, unmanaged certificate
+    story competing with the real one — on a machine that cannot answer a challenge from the
+    internet in the first place.</p>
+  </div>
+
+  <h2 id="real-client-ip">The real client IP</h2>
+  <p>Because the edge terminates TLS it is an ordinary reverse proxy, not a transparent one: every
+  connection arriving at a product's Traefik comes from <code>10.10.0.1</code>, not from the user.
+  The user's real address travels in <code>X-Forwarded-For</code>, and each proxy must be told which
+  peers are allowed to assert it.</p>
+
+  <p>Get that wrong and nothing looks broken. Traefik discards a header it does not trust and
+  substitutes the peer's own address, so every visitor on earth collapses into one value — and any
+  per-IP rate limit behind it silently becomes a single global bucket. It stays invisible until the
+  first abuse incident.</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">deploy/stacks/traefik.yml</span><button class="copy">copy</button></div>
+    <pre>entryPoints:
+  web:
+    address: <span class="s">":80"</span>
+    forwardedHeaders:
+      trustedIPs:
+        - <span class="s">"10.10.0.0/24"</span>     <span class="c"># the tunnel — the edge is 10.10.0.1</span>
+        - <span class="s">"172.30.10.1/32"</span>   <span class="c"># gaos-prod-int gateway</span>
+        - <span class="s">"172.30.11.1/32"</span>   <span class="c"># gaos-dev-int  gateway</span></pre>
+  </div>
+
+  <p>The two <code>/32</code> entries exist because this daemon runs with
+  <code>EnableUserlandProxy: true</code>. Ingress to a published port is normally DNAT'd with the
+  source address preserved, in which case Traefik sees <code>10.10.0.1</code> and the first line is
+  the one that matters — but where <code>docker-proxy</code> relays instead, the connection is
+  re-opened from the bridge gateway and Traefik sees <code>172.30.10.1</code>. Each stack pins its
+  own subnet precisely so that gateway address is stable enough to name here.</p>
+
+  <div class="adm tip">
+    <p class="adm-title">Verify it, do not assume it</p>
+    <p>Send a request through the tunnel carrying a recognisable header, then read the first field
+    of the access log:</p>
+    <div class="codeblock">
+      <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+      <pre>ssh clino <span class="s">"curl -sS -H 'Host: gaos.mfardiansyah.id' \
+  -H 'X-Forwarded-For: 203.0.113.9' http://10.10.0.2:18301/api/healthz &gt; /dev/null"</span>
+
+docker compose -f deploy/stacks/compose.prod.yaml logs --tail 1 traefik
+<span class="c"># first field (ClientHost) must read 203.0.113.9 — not 10.10.0.1, not 172.30.10.1</span></pre>
+    </div>
+  </div>
+
+  <h2 id="rules">Rules that keep it standing</h2>
+  <p>Four constraints hold the design together. Each fails quietly when broken, which is why they
+  are written down rather than left to judgement.</p>
+
+  <div class="pillars">
+    <div class="pillar">
+      <h3>Nothing runs on clino</h3>
+      <p>No Docker, no application, no state. It has 1 vCPU and 957 MiB and is shared by every
+      product — anything consuming memory there risks taking down the front door for all of them,
+      not just for itself.</p>
+    </div>
+    <div class="pillar">
+      <h3>Nothing binds a public interface</h3>
+      <p>Published ports name <code>10.10.0.2</code> explicitly. Without that prefix a port also
+      listens on <code>LAN_IP</code> and <code>LAN_IP</code>, works perfectly, and is
+      quietly reachable from the office LAN.</p>
+    </div>
+    <div class="pillar">
+      <h3>TLS belongs to the edge</h3>
+      <p>One certificate story, one renewal process, one place to look. A stack that terminates its
+      own TLS has to be discovered before it can be debugged.</p>
+    </div>
+    <div class="pillar">
+      <h3>Headers, not PROXY protocol</h3>
+      <p>The edge speaks HTTP and sets forwarded headers. Sending a PROXY protocol preamble to a
+      proxy not expecting one returns HTTP 400 on <em>every</em> request — the two settings are a
+      contract and have to change together.</p>
+    </div>
+  </div>
+
+  <h2 id="tls-setup">How TLS was set up, step by step</h2>
+  <p>Done on 2026-08-04. Recorded because the ordering is not obvious: nginx needs a certificate
+  to open a <code>:443</code> block, and the certificate needs nginx to answer <code>:80</code>.
+  The way out is to serve <code>:80</code> first, issue, then add <code>:443</code>.</p>
+
+  <ol>
+    <li><b>DNS first.</b> Two <code>A</code> records to <code>EDGE_IP</code>. Wait for real
+    propagation — HTTP-01 fails on a name that does not resolve, and Let&#39;s Encrypt rate-limits
+    failures.</li>
+    <li><b>Back up</b> <code>/etc/nginx</code> before touching anything.</li>
+    <li><b>Install certbot</b> — no DNS plugin needed.</li>
+    <li><b>Move <code>:80</code> from the stream block to an HTTP block</b> serving the ACME webroot
+    plus a redirect. Both cannot bind <code>:80</code>, so they change together.</li>
+    <li><b>Issue</b> with <code>--dry-run</code> first, then for real.</li>
+    <li><b>Add the <code>:443</code> block</b> and remove <code>:443</code> from the stream block —
+    again, together.</li>
+    <li><b>Add the renewal hook.</b> Without it nginx keeps serving the expired certificate after a
+    successful renewal, which surfaces roughly 60 days later as a total outage.</li>
+  </ol>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash · clino</span><button class="copy">copy</button></div>
+    <pre><span class="c"># 3 — no --dns-* plugin: HTTP-01 needs no DNS credentials</span>
+apt install certbot
+
+<span class="c"># 5 — rehearse against staging before spending a real attempt</span>
+certbot certonly --webroot -w /var/www/acme \
+  -d gaos.mfardiansyah.id -d dev.gaos.mfardiansyah.id \
+  --cert-name gaos --agree-tos -m &lt;email&gt; --non-interactive --dry-run
+<span class="c"># then again without --dry-run</span>
+
+<span class="c"># 7 — /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh</span>
+<span class="c">#     validate, then RELOAD. A restart drops live connections, and a</span>
+<span class="c">#     broken config that gets restarted takes the edge down completely.</span>
+nginx -t &amp;&amp; systemctl reload nginx</pre>
+  </div>
+
+  <div class="adm warn">
+    <p class="adm-title">Two traps, both caught by <code>nginx -t</code> or worth knowing</p>
+    <p><code>http2 on;</code> is nginx <b>1.25+</b>; this box runs 1.18, where the syntax is
+    <code>listen 443 ssl http2;</code>. Always <code>nginx -t</code> before <code>reload</code> — a
+    rejected config never reaches the running process. And the certificate covers
+    <em>only</em> the two GAOS names: any other host reaching <code>:443</code> falls to
+    <code>default ""</code> and gets <code>444</code>, a closed connection that says nothing.</p>
+  </div>
+
+  <h2 id="verify-live">Verifying it end to end</h2>
+  <p>The one check nothing else will make for you is whether the real client address survived the
+  hop. Everything can look healthy while every visitor on earth shares one rate-limit bucket.</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS https://gaos.mfardiansyah.id/api/healthz      <span class="c"># {"ok":true,"database":"gaos"}</span>
+curl -sS https://dev.gaos.mfardiansyah.id/api/healthz
+
+<span class="c"># certificate: issuer, dates, and BOTH names in the SAN</span>
+echo | openssl s_client -connect EDGE_IP:443 \
+  -servername gaos.mfardiansyah.id 2&gt;/dev/null \
+  | openssl x509 -noout -subject -dates -ext subjectAltName
+
+<span class="c"># THE ONE THAT MATTERS: compare your own public IP with what Traefik logged</span>
+curl -s https://api.ipify.org; echo
+docker compose -f deploy/stacks/compose.prod.yaml logs --tail 1 traefik
+<span class="c"># first field must be YOUR address — not 10.10.0.1, not 172.30.x</span></pre>
+  </div>
+
+  <p>Measured on 2026-08-04 the logged <code>ClientHost</code> matched the caller's real public
+  address exactly, so the <code>X-Forwarded-For</code> chain is intact from nginx through Traefik
+  to the application.</p>
+
+  <p>Where GAOS's own two environments sit inside this, and how to bring either up, is in
+  <a href="environments.html">Development and production</a>. How the machine is shared with
+  unrelated products is in <a href="neighbours.html">Living beside other products</a>.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Build context: ./landing-page
+#
+# Nothing is rewritten at build time — unlike Dockerfile.app, which bakes the
+# API origin into js/00-api.js. The landing page calls nothing: its CSP says
+# `connect-src 'none'` and there is no fetch in it to contradict that.
+#
+# So this only copies. The stacks build it anyway rather than bind-mounting the
+# working tree, for the same reason the app is built there: a deployed tier must
+# not serve whatever happens to be checked out on the host.
+FROM nginx:alpine
+COPY . /srv/landing
+# The server block stays a bind mount in every stack, same file the local
+# compose uses, so cache headers live in exactly one place.
+EXPOSE 80

@@ -1,0 +1,26 @@
+# Build context: ./pustaka
+#
+# pustaka/ is a vendored fork of the upstream docs framework and stays
+# byte-clean -- that is why this file lives in deploy/ rather than inside it.
+# Same reasoning as app-pwa/vendor: an upstream update should be a copy, not a
+# merge.
+FROM golang:1.24-alpine AS build
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/pustaka .
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/pustaka /pustaka
+# The docs themselves are read at runtime, not embedded, so they are copied in.
+COPY --from=build /src/docs /docs
+USER nonroot:nonroot
+EXPOSE 8080
+# --prod turns off the filesystem watcher; the docs cannot change inside the image.
+#
+# The login layer works behind the /docs strip because pustaka now reads the
+# X-Forwarded-Prefix that stripPrefix sets; its redirects are root-absolute and
+# would otherwise land on the landing page, which owns the site root. PUSTAKA_AUTH
+# and friends come from the stack's docs env file -- see
+# deploy/stacks/docs.env.example. Nothing is baked here: an image carrying a
+# default password is a password in every registry that ever pulled it.
+ENTRYPOINT ["/pustaka", "serve", "/docs", "--addr", ":8080", "--prod"]

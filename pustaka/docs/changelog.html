@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Changelog — GAOS</title>
+<link rel="stylesheet" href="assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-page="changelog">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Project</p>
+  <h1>Changelog</h1>
+  <p class="lede">GAOS's single release history. Every user-visible change lands here, versioned
+  with semantic versioning.</p>
+
+  <h2 id="versioning-policy">Versioning policy</h2>
+  <p>Releases follow <a href="https://semver.org" target="_blank" rel="noopener">SemVer</a>:
+  <code>MAJOR.MINOR.PATCH</code>.</p>
+  <div class="pillars">
+    <div class="pillar rv"><h3>Major</h3><p>Breaking changes: the graph schema, the event catalog, or a deployment needs attention to keep working.</p></div>
+    <div class="pillar rv"><h3>Minor</h3><p>New capability, backwards compatible — new views, endpoints, deployment targets.</p></div>
+    <div class="pillar rv"><h3>Patch</h3><p>Fixes and internal improvements. Nothing to change on your side.</p></div>
+  </div>
+  <div class="adm note">
+    <p class="adm-title">Keeping it honest</p>
+    <p>The current version lives in <code>assets/toc.js</code> (<code>product.semver</code>) and is
+    shown in the header badge. A release isn't done until this page and that field are updated —
+    treat them as one change.</p>
+  </div>
+
+  <h2 id="releases">Releases</h2>
+  <div class="clog">
+
+    <section class="rel rv">
+      <h3 id="v0-1-0">v0.1.0 <time datetime="2026-08-07">2026-08-07</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Stands the product up as a
+      deployable thing. The agent OS itself is design only — this release is the path from a
+      browser to a running container, proved end to end.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>Mission Control</b> at <code>/app/</code> — the
+        prototype in <code>artifacts/v1/gaos-mission-control.html</code> ported to Go and HTMX.
+        Stdlib only, no <code>go.sum</code>, templates and assets embedded, 33 tests. The floor,
+        inspector, timeline, replay scrub, meeting overlay, back office and the create-workflow
+        wizard all render server-side.</li>
+        <li><span class="chg add">Added</span> <b>Architecture</b> — the system (six layers, the
+        control loops, scoring and guardrails, readiness bands, replay, build order) and the graph
+        (25 vertex types, 32 edge types, the event document, the indexes and invariants).</li>
+        <li><span class="chg add">Added</span> <b>Infrastructure</b> — product slot <b>03</b>,
+        ports <code>18301</code> and <code>19301</code>, both tiers behind the WireGuard tunnel with
+        the edge config and its runbook committed under <code>deploy/edge/</code>.</li>
+        <li><span class="chg add">Added</span> <code>deploy/check-stacks.sh</code>, which asserts
+        the two failures a running stack will never tell you about: a dev tier wired to the
+        production database, and a proxy published on every interface instead of the tunnel.</li>
+        <li><span class="chg add">Added</span> This documentation site and a landing page, both
+        vendored from a sibling repository. The docs engine underneath is Pustaka; its own
+        authoring guides are kept under <em>Maintaining these docs</em>.</li>
+        <li><span class="chg note">Note</span> <b>Not built yet, and each page says so:</b> no DDL
+        is applied and no graph query is issued — the dashboard reads fixtures behind an interface
+        and probes ArcadeDB only for reachability; the floor is a simulation goroutine standing in
+        for the scheduler and runner; and the back-office login checks nothing, exactly as the
+        prototype did.</li>
+      </ul>
+      <p style="color:var(--faint); font-size:13.5px; margin-top:6px">Version numbering starts
+      here: this history tracks GAOS, not the docs engine it happens to run on.</p>
+    </section>
+
+  </div>
+
+</main>
+</div>
+
+<script src="assets/toc.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>
