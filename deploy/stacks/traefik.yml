@@ -1,0 +1,54 @@
+# Traefik static config for the TUNNELLED stacks (gaos-prod and gaos-dev).
+#
+# NO TLS HERE, AND NO ACME -- that is not an omission. Certificates live on the
+# public edge VM (clino), issued by certbot over HTTP-01, and nginx there
+# terminates TLS and proxies PLAIN HTTP over WireGuard to us. A `websecure`
+# entrypoint or a certificatesResolvers block in this file would be a second,
+# unmanaged certificate story competing with the real one. There is exactly one,
+# and it is not ours. See deploy/STACKS.md and deploy/edge/README.md.
+#
+# Shared by both stacks on purpose: the only thing that legitimately differs
+# between dev and prod is in the compose file, so a difference that shows up
+# here would be a mistake.
+
+api:
+  dashboard: false
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    forwardedHeaders:
+      # WHY THIS LIST EXISTS, AND WHAT BREAKS IF SOMEONE TIDIES IT AWAY:
+      #
+      # nginx at the edge is the only thing that knows the real client address
+      # -- it arrives here in X-Forwarded-For. Traefik only believes that header
+      # from a peer in this list; from anyone else it DISCARDS it and
+      # substitutes the peer's own address. So an empty or wrong list does not
+      # fail loudly, it collapses every caller on earth into one value, and any
+      # per-IP accounting behind it silently becomes one global bucket. It looks
+      # completely healthy until the first abuse report.
+      #
+      # 10.10.0.0/24 is the WireGuard tunnel, and MEASUREMENT SAYS IT IS ENOUGH.
+      # Read out of a real access log on the neighbouring product on 2026-08-04:
+      #   from clino through the tunnel  -> 10.10.0.1
+      #   from the private VM itself     -> 10.10.0.2
+      #   with X-Forwarded-For set       -> the forwarded address, honoured
+      # No request arrived as 172.30.x, so bridge-gateway entries were left out
+      # rather than added as a hedge. Re-run the check in deploy/STACKS.md if
+      # the daemon's userland-proxy setting or the publish syntax ever changes.
+      trustedIPs:
+        - "10.10.0.0/24"
+
+providers:
+  # File, not docker -- see deploy/traefik/traefik.yml for the full reasoning.
+  # A proxy that never opens the Docker socket cannot adopt a neighbour's
+  # containers, needs no constraint, and does not hold what is effectively root
+  # on the host.
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: INFO
+accessLog: {}

@@ -1,0 +1,386 @@
+{{define "login-sheet"}}
+<div class="sheet" id="loginSheet" {{if not .ShowLogin}}hidden{{end}} aria-label="Back office sign in" hx-swap-oob="true">
+  <div class="sheet-head">
+    {{template "brand-mark" .}}
+    <div>
+      <span class="eyebrow">GAOS</span>
+      <h2>Back office</h2>
+    </div>
+    <div class="sp">
+      <button class="btn" data-close-sheet="loginSheet">Back to the floor</button>
+    </div>
+  </div>
+
+  <div class="sheet-body">
+    <div class="login-wrap">
+      <form class="login-card" hx-post="auth/login" hx-target="#sink" hx-swap="innerHTML">
+        <span class="eyebrow">product master</span>
+        <h1>Sign in to the back office</h1>
+        <p>Manage product records, requirements, user stories, and diagrams that agents read before they start work.</p>
+
+        <div class="field">
+          <label for="loginTenant">Tenant</label>
+          <select id="loginTenant" name="tenant">
+            <option value="loop-eng">loop-eng</option>
+            <option value="loop-labs">loop-labs</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="loginUser">Email</label>
+          <input id="loginUser" name="email" type="email" autocomplete="username" placeholder="you@loop.eng" value="ardi@loop.eng">
+        </div>
+        <div class="field">
+          <label for="loginPass">Password</label>
+          <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" value="demo">
+        </div>
+        <p class="form-error">{{.LoginErr}}</p>
+        <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+
+        <p class="login-note">
+          <b>No password is checked yet.</b> This posts to <span class="mono">POST /auth/login</span> and sets a
+          plain cookie — the prototype's behaviour, kept honestly. Real auth is the HMAC-signed cookie, credential
+          fingerprint and per-IP throttle that <span class="mono">pustaka</span> already implements next door, and
+          the tenant selected here becomes the hard boundary applied to every graph query behind it.
+        </p>
+      </form>
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "bo-sheet"}}
+<div class="sheet" id="boSheet" {{if not .BO}}hidden{{end}} aria-label="Back office" hx-swap-oob="true">
+  {{if .BO}}
+  <div class="sheet-head">
+    <div>
+      <span class="eyebrow">{{.Tenant}}</span>
+      <h2>Product master</h2>
+    </div>
+    <div class="sp">
+      <button class="icon-btn" id="boTheme" aria-label="Switch theme" title="Switch theme (T)">
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
+      </button>
+      <button class="btn" hx-post="auth/logout" hx-target="#sink" hx-swap="innerHTML">Sign out</button>
+      <button class="btn btn-primary" data-close-sheet="boSheet">Back to the floor</button>
+    </div>
+  </div>
+
+  <div class="sheet-body">
+    <div class="bo">
+      <nav class="bo-nav">
+        <h3>Records</h3>
+        <button aria-current="{{eq .BO.View "products"}}"  hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="count">{{.BO.Counts.Products}}</span></button>
+        <button aria-current="{{eq .BO.View "stories"}}"   hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">User stories <span class="count">{{.BO.Counts.Stories}}</span></button>
+        <button aria-current="{{eq .BO.View "diagrams"}}"  hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="count">{{.BO.Counts.Diagrams}}</span></button>
+        <button aria-current="{{eq .BO.View "knowledge"}}" hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="count">{{.BO.Counts.Knowledge}}</span></button>
+        <h3 style="margin-top:20px">Access</h3>
+        <button aria-current="{{eq .BO.View "agents"}}"    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="count">{{.BO.Counts.Agents}}</span></button>
+      </nav>
+      {{template "bo-main" .}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{/* No hx-swap-oob here: this block is always carried inside "bo-sheet", which
+     is the swap unit. An oob element nested inside another oob element is
+     ambiguous, so this application never produces one. */}}
+{{define "bo-main"}}
+<div class="bo-main" id="boMain">
+  {{with .BO}}
+    {{if eq .View "agents"}}{{template "bo-agents" .}}
+    {{else if .Detail}}{{template "bo-product-detail" .}}
+    {{else if eq .View "products"}}{{template "bo-product-list" .}}
+    {{else}}{{template "bo-rollup" .}}{{end}}
+  {{end}}
+</div>
+{{end}}
+
+{{/* The nav counts sit inside #boSheet, so a mutation has to resend the sheet
+     to move them. One fragment carries both: the pane that changed and the
+     chrome that counts it. */}}
+{{define "bo-main-oob"}}{{template "bo-sheet" .}}{{end}}
+
+{{/* Both sheets at once, for the transitions that close one and open the
+     other: sign in, sign out, and opening the back office unauthenticated. */}}
+{{define "sheets"}}{{template "login-sheet" .}}{{template "bo-sheet" .}}{{end}}
+
+{{define "bo-product-list"}}
+<header>
+  <div>
+    <span class="eyebrow">records</span>
+    <h2>{{.Title}}</h2>
+    <p>{{.Sub}}</p>
+  </div>
+  <span class="sp"><button class="btn btn-primary" hx-get="products?new=1" hx-target="#sink" hx-swap="innerHTML">Add product</button></span>
+</header>
+<div class="mgrid">
+  {{range .List}}
+  <button class="mcard" hx-get="products/{{.ID}}" hx-target="#sink" hx-swap="innerHTML">
+    <span class="mcard-top">
+      <span class="mcode">{{.Code}}</span>
+      <span><b>{{.Name}}</b><span>{{.Repo}} · {{.Owner}}</span></span>
+    </span>
+    <p>{{.Problem}}</p>
+    <span class="mstats">
+      <span class="mstat"><b>{{.Stories}}</b><span>stories</span></span>
+      <span class="mstat"><b>{{.Diagrams}}</b><span>diagrams</span></span>
+      <span class="mstat"><b>{{.Vertices}}</b><span>vertices</span></span>
+      <span class="mstat"><b>{{.Coverage}}%</b><span>covered</span></span>
+    </span>
+  </button>
+  {{end}}
+  <button class="mcard add" hx-get="products?new=1" hx-target="#sink" hx-swap="innerHTML">+ Add a product record</button>
+</div>
+
+<form class="block" id="newProduct" {{if not .NewOpen}}hidden{{end}} style="margin-top:16px;max-width:520px"
+      hx-post="products" hx-target="#sink" hx-swap="innerHTML">
+  <h4>New product record</h4>
+  <div class="field row">
+    <div><label for="npName">Product name</label><input id="npName" name="name" placeholder="Route Planner"></div>
+    <div><label for="npOwner">Owner</label><input id="npOwner" name="owner" placeholder="team-b"></div>
+  </div>
+  <div class="field"><label for="npRepo">Repository</label><input id="npRepo" name="repo" placeholder="loop/route-planner"></div>
+  <div class="field"><label for="npGoal">Objective</label><input id="npGoal" name="goal" placeholder="Plan driver runs by district"></div>
+  <button class="btn btn-primary" type="submit">Create record</button>
+  <button class="btn" type="button" hx-get="products" hx-target="#sink" hx-swap="innerHTML">Cancel</button>
+</form>
+{{end}}
+
+{{define "bo-product-detail"}}
+{{with .Detail}}
+<header>
+  <div>
+    <button class="btn" style="margin-bottom:8px" hx-get="products" hx-target="#sink" hx-swap="innerHTML">‹ All products</button>
+    <h2>{{.Name}}</h2>
+    <p>{{.Goal}} · owner {{.Owner}} · {{.Repos}}</p>
+  </div>
+  <span class="sp">
+    <button class="btn" hx-post="products/{{.ID}}/inject?tab={{.Tab}}" hx-target="#sink" hx-swap="innerHTML">Inject into graph</button>
+    <button class="btn btn-primary" hx-get="ui/cw?product={{.ID}}" hx-target="#sink" hx-swap="innerHTML">Create workflow</button>
+  </span>
+</header>
+
+<div class="tabs" role="tablist">
+  <button role="tab" aria-selected="{{eq .Tab "brd"}}"       hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</button>
+  <button role="tab" aria-selected="{{eq .Tab "stories"}}"   hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">User stories<span class="n">{{len .Master.Stories}}</span></button>
+  <button role="tab" aria-selected="{{eq .Tab "diagrams"}}"  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams<span class="n">{{len .Master.Diagrams}}</span></button>
+  <button role="tab" aria-selected="{{eq .Tab "knowledge"}}" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge<span class="n">{{len .Master.Decisions}}</span></button>
+</div>
+
+<div class="panel-grid">
+  <div>
+    {{if eq .Tab "stories"}}{{template "pane-stories" .}}
+    {{else if eq .Tab "diagrams"}}{{template "pane-diagrams" .}}
+    {{else if eq .Tab "knowledge"}}{{template "pane-knowledge" .}}
+    {{else}}{{template "pane-brd" .}}{{end}}
+  </div>
+
+  <aside class="inject">
+    <div class="block">
+      <h4>Graph projection</h4>
+      <div class="proj"><span>Requirement</span><b>{{.Projection.Req}}</b></div>
+      <div class="proj"><span>Issue (story)</span><b>{{.Projection.Stories}}</b></div>
+      <div class="proj"><span>AcceptanceCriterion</span><b>{{.Projection.ACs}}</b></div>
+      <div class="proj"><span>Artifact (diagram)</span><b>{{.Projection.Diagrams}}</b></div>
+      <div class="proj"><span>Decision (ADR)</span><b>{{.Projection.Decisions}}</b></div>
+      <div class="proj"><span>Repository</span><b>{{len .Master.Repos}}</b></div>
+      <div class="proj" style="border-top:1px solid var(--line);margin-top:6px;padding-top:7px">
+        <span>vertices · edges</span><b>{{.Projection.Vertices}} · {{.Projection.Edges}}</b></div>
+    </div>
+
+    <div class="block">
+      <h4>Story coverage</h4>
+      <div class="cov-bar"><i style="{{.CovStyle}}"></i></div>
+      <p style="margin:0;font-size:12px;color:var(--ink-3)">
+        {{.WithTasks}} of {{len .Master.Stories}} stories have at least one task.
+      </p>
+    </div>
+
+    {{template "readiness-block" .}}
+  </aside>
+</div>
+{{end}}
+{{end}}
+
+{{define "readiness-block"}}
+<div class="block" id="readinessBlock">
+  <h4>Planner readiness</h4>
+  <div class="readiness">
+    {{range .Readiness}}
+    <div><span class="tick {{if .OK}}ok{{else}}no{{end}}">{{if .OK}}✓{{else}}!{{end}}</span>{{.Label}}</div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+{{define "lines-block"}}
+{{if .Items}}<ul class="lines">{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+{{else}}<ul class="lines empty-state"><li>{{.Empty}}</li></ul>{{end}}
+{{end}}
+
+{{define "pane-brd"}}
+<div class="block">
+  <h4>Problem <span class="sp"><button class="btn" style="padding:3px 9px;font-size:11px" data-toggle="brdForm">Edit</button></span></h4>
+  <p style="margin:0;font-size:13.5px;line-height:1.65">{{.Master.BRD.Problem}}</p>
+</div>
+<div class="block"><h4>Goals</h4>{{if .Master.BRD.Goals}}<ul class="lines">{{range .Master.BRD.Goals}}<li>{{.}}</li>{{end}}</ul>{{else}}<ul class="lines empty-state"><li>No goal recorded — the planner will invent one.</li></ul>{{end}}</div>
+<div class="block"><h4>In scope</h4>{{if .Master.BRD.Scope}}<ul class="lines">{{range .Master.BRD.Scope}}<li>{{.}}</li>{{end}}</ul>{{else}}<ul class="lines empty-state"><li>Nothing listed.</li></ul>{{end}}</div>
+<div class="block"><h4>Out of scope</h4>{{if .Master.BRD.OutOfScope}}<ul class="lines">{{range .Master.BRD.OutOfScope}}<li>{{.}}</li>{{end}}</ul>{{else}}<ul class="lines empty-state"><li>Nothing excluded, so nothing is safe from the planner.</li></ul>{{end}}</div>
+<div class="block"><h4>Domain rules</h4>{{if .Master.BRD.Rules}}<ul class="lines">{{range .Master.BRD.Rules}}<li>{{.}}</li>{{end}}</ul>{{else}}<ul class="lines empty-state"><li>No rules — reviewers have nothing to score against.</li></ul>{{end}}</div>
+<div class="block"><h4>Success metrics</h4>{{if .Master.BRD.Metrics}}<ul class="lines">{{range .Master.BRD.Metrics}}<li>{{.}}</li>{{end}}</ul>{{else}}<ul class="lines empty-state"><li>No metrics recorded.</li></ul>{{end}}</div>
+
+<form class="block" id="brdForm" hidden hx-put="products/{{.ID}}/brd" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Edit the record</h4>
+  <div class="field"><label for="fProblem">Problem</label><textarea id="fProblem" name="problem">{{.Master.BRD.Problem}}</textarea></div>
+  <div class="field"><label for="fGoals">Goals — one per line</label><textarea id="fGoals" name="goals">{{lines .Master.BRD.Goals}}</textarea></div>
+  <div class="field"><label for="fRules">Domain rules — one per line</label><textarea id="fRules" name="rules">{{lines .Master.BRD.Rules}}</textarea></div>
+  <div class="field row">
+    <div><label for="fScope">In scope</label><textarea id="fScope" name="scope">{{lines .Master.BRD.Scope}}</textarea></div>
+    <div><label for="fOut">Out of scope</label><textarea id="fOut" name="outofscope">{{lines .Master.BRD.OutOfScope}}</textarea></div>
+  </div>
+  <div class="field"><label for="fMetrics">Success metrics — one per line</label><textarea id="fMetrics" name="metrics">{{lines .Master.BRD.Metrics}}</textarea></div>
+  <button class="btn btn-primary" type="submit">Save record</button>
+  <button class="btn" type="button" data-toggle="brdForm">Cancel</button>
+</form>
+{{end}}
+
+{{define "pane-stories"}}
+{{if .Master.Stories}}
+  {{range .Master.Stories}}
+  <div class="story {{.Pri}}">
+    <div class="story-top">
+      <b>{{.ID}}</b>
+      <span class="pri">{{.Pri}}</span>
+      <span class="cov {{if .Tasks}}on{{end}}">{{if .Tasks}}{{.Tasks}} task{{pluralS .Tasks}}{{else}}no task yet{{end}}</span>
+    </div>
+    <p>As a <em>{{.Role}}</em> I want to <em>{{.Want}}</em> so that <em>{{.So}}</em>.</p>
+    {{if .AC}}<ul>{{range .AC}}<li>{{.}}</li>{{end}}</ul>{{end}}
+  </div>
+  {{end}}
+{{else}}
+  <div class="block"><p style="margin:0;font-size:13px;color:var(--ink-3)">No stories yet. Add the first one below — the planner turns each story into an Issue vertex and plans tasks against its criteria.</p></div>
+{{end}}
+
+<form class="block" hx-post="products/{{.ID}}/stories" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Add a user story</h4>
+  <div class="field row">
+    <div><label for="sRole">As a</label><input id="sRole" name="role" placeholder="returning customer"></div>
+    <div><label for="sPri">Priority</label>
+      <select id="sPri" name="pri"><option value="must">must</option><option value="should">should</option><option value="could">could</option></select>
+    </div>
+  </div>
+  <div class="field"><label for="sWant">I want to</label><input id="sWant" name="want" placeholder="subscribe to a membership plan"></div>
+  <div class="field"><label for="sSo">So that</label><input id="sSo" name="so" placeholder="I pay less on every order"></div>
+  <div class="field"><label for="sAc">Acceptance criteria — one per line</label><textarea id="sAc" name="ac" placeholder="Plans are listed with price and benefits"></textarea></div>
+  <button class="btn btn-primary" type="submit">Add story</button>
+</form>
+{{end}}
+
+{{define "pane-diagrams"}}
+{{if .Diagrams}}
+  {{range .Diagrams}}
+  <div class="dgm-card">
+    <header>
+      <b>{{.Title}}</b>
+      <span class="kind">{{.Kind}}</span>
+      <span class="sp">{{.ID}}</span>
+    </header>
+    <div class="dgm-body">{{if eq .Kind "sequence"}}{{.SVG}}{{else}}<pre>{{.Src}}</pre>{{end}}</div>
+  </div>
+  {{end}}
+{{else}}
+  <div class="block"><p style="margin:0;font-size:13px;color:var(--ink-3)">No diagrams yet. A sequence or data model gives the architect something to reason from instead of guessing the call order.</p></div>
+{{end}}
+
+<form class="block" hx-post="products/{{.ID}}/diagrams" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Add a diagram</h4>
+  <div class="field row">
+    <div><label for="gTitle">Title</label><input id="gTitle" name="title" placeholder="Member checkout"></div>
+    <div><label for="gKind">Type</label>
+      <select id="gKind" name="kind">
+        <option value="sequence">sequence — drawn</option>
+        <option value="erd">data model — text</option>
+        <option value="flow">flow — text</option>
+      </select>
+    </div>
+  </div>
+  <div class="field">
+    <label for="gSrc">Source</label>
+    <textarea id="gSrc" name="src" style="min-height:110px" placeholder="Cashier -&gt; OrderAPI: submit order&#10;OrderAPI -&gt; Pricing: apply member rate"></textarea>
+    <p class="help">Sequence syntax: <span class="mono">Actor -&gt; Actor: message</span>, and <span class="mono">--&gt;</span> for a reply. Other types are kept as text.</p>
+  </div>
+  <button class="btn btn-primary" type="submit">Add diagram</button>
+</form>
+{{end}}
+
+{{define "pane-knowledge"}}
+<div class="block">
+  <h4>Decisions carried into every prompt</h4>
+  {{if .Master.Decisions}}
+    {{range .Master.Decisions}}
+    <div class="proj" style="padding:7px 0">
+      <span style="color:var(--ink);font-family:var(--font-body);font-size:13px">
+        <b class="mono" style="color:var(--know);font-size:11px">{{.ID}}</b> {{.Title}}
+      </span>
+      <b>{{confPct .Confidence}}%</b>
+    </div>
+    {{end}}
+  {{else}}
+    <p style="margin:0;font-size:13px;color:var(--ink-3)">No decisions recorded yet. Meetings on the floor write them here automatically.</p>
+  {{end}}
+</div>
+<form class="block" hx-post="products/{{.ID}}/knowledge" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Add a decision</h4>
+  <div class="field row">
+    <div><label for="kId">Reference</label><input id="kId" name="ref" placeholder="ADR-015"></div>
+    <div><label for="kConf">Confidence</label><input id="kConf" name="confidence" type="number" min="1" max="100" value="80"></div>
+  </div>
+  <div class="field"><label for="kTitle">Decision</label><input id="kTitle" name="title" placeholder="Rounding lives in the pricing service"></div>
+  <button class="btn btn-primary" type="submit">Add decision</button>
+</form>
+{{end}}
+
+{{define "bo-rollup"}}
+<header><div><span class="eyebrow">records</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+{{if .Rollup}}
+  {{$view := .View}}
+  {{range .Rollup}}
+  <div class="block">
+    <h4>{{.Name}} <span class="sp"><button class="btn" style="padding:3px 9px;font-size:11px" hx-get="products/{{.ProductID}}" hx-target="#sink" hx-swap="innerHTML">Open record</button></span></h4>
+    {{if eq $view "stories"}}
+      {{range .Stories}}
+      <div class="story {{.Pri}}" style="margin-bottom:6px">
+        <div class="story-top"><b>{{.ID}}</b><span class="pri">{{.Pri}}</span>
+          <span class="cov {{if .Tasks}}on{{end}}">{{if .Tasks}}{{.Tasks}} task{{pluralS .Tasks}}{{else}}no task yet{{end}}</span></div>
+        <p>As a <em>{{.Role}}</em> I want to <em>{{.Want}}</em>.</p>
+      </div>
+      {{end}}
+    {{else if eq $view "diagrams"}}
+      {{range .Diagrams}}<div class="proj"><span>{{.ID}} · {{.Kind}}</span><b>{{.Title}}</b></div>{{end}}
+    {{else}}
+      {{range .Decisions}}<div class="proj"><span>{{.ID}}</span><b>{{.Title}}</b></div>{{end}}
+    {{end}}
+  </div>
+  {{end}}
+{{else}}
+  <div class="block"><p style="margin:0;color:var(--ink-3);font-size:13px">Nothing recorded yet.</p></div>
+{{end}}
+{{end}}
+
+{{define "bo-agents"}}
+<header><div><span class="eyebrow">access</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+<div class="block">
+  {{range .Agents}}
+  <div class="proj" style="padding:8px 0">
+    <span style="display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:13px;color:var(--ink)">
+      <em style="{{.Style}};width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700">{{.Short}}</em>
+      {{.Name}} · {{.Label}}
+    </span>
+    <b class="{{if .IsOn}}seated{{end}}">{{.Seated}}</b>
+  </div>
+  {{end}}
+</div>
+{{end}}

@@ -1,0 +1,31 @@
+# Build context: ./dashboard
+#
+# Templates, stylesheets, fonts and htmx are EMBEDDED in the binary
+# (//go:embed templates static in render.go), so unlike Dockerfile.pustaka there
+# is no second COPY of content into the runtime image. The difference is not
+# taste: pustaka serves user-authored docs that are validated at runtime, while
+# these are program assets that change only when the binary changes. Embedding
+# makes the image one file and removes a COPY that could drift from the code
+# reading it.
+FROM golang:1.24-alpine AS build
+WORKDIR /src
+COPY . .
+# No `go mod download`: there is nothing to download. The module has no require
+# block and no go.sum, and a build that suddenly needs the network is the signal
+# that a dependency crept in.
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dashboard .
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/dashboard /dashboard
+USER nonroot:nonroot
+EXPOSE 8080
+
+# NO HEALTHCHECK INSTRUCTION. Distroless has no shell and no curl, so a
+# HEALTHCHECK here could only be a lie. The check lives in the deploy runbook
+# and hits /healthz over the tunnel, which is the hop that actually breaks.
+#
+# --prod parses the templates once. Everything else -- the listen address, the
+# ArcadeDB URL and credentials -- comes from the environment, and nothing is
+# baked in: an image carrying a default password is a password in every registry
+# that ever pulled it.
+ENTRYPOINT ["/dashboard", "--addr", ":8080", "--prod"]

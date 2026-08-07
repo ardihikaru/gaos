@@ -1,0 +1,180 @@
+{{define "rail"}}
+<aside class="rail">
+  <section>
+    <h2>Floor</h2>
+    {{template "rooms" .}}
+  </section>
+  <section>
+    <h2>Products</h2>
+    {{template "prod-list" .}}
+  </section>
+  <section>
+    <h2>Reading the floor</h2>
+    <div class="legend">
+      <div><span class="dot" style="background:var(--run)"></span> Running a task</div>
+      <div><span class="dot" style="background:var(--done)"></span> Done, lesson written</div>
+      <div><span class="dot" style="background:var(--block)"></span> Waiting on a blocker</div>
+      <div><span class="dot" style="background:var(--fail)"></span> Failed, needs a decision</div>
+      <div><span class="dot" style="background:var(--know)"></span> In a meeting</div>
+    </div>
+  </section>
+</aside>
+{{end}}
+
+{{define "rooms"}}
+<div id="rooms" hx-swap-oob="true">
+  {{range .Rooms}}
+  <button class="room{{if .Full}} full{{end}}" data-room="{{.ID}}">
+    <span class="room-top"><b>{{.Name}}</b><span>{{.Occupancy}}/{{.Capacity}}</span></span>
+    <span class="meter"><i style="{{.MeterStyle}}"></i></span>
+    <span class="room-note">{{.Note}}</span>
+  </button>
+  {{end}}
+</div>
+{{end}}
+
+{{define "prod-list"}}
+<div id="prodList" hx-swap-oob="true">
+  {{range .Products}}
+  <button class="prod-row" aria-current="{{.Current}}"
+          hx-get="ui/desk/{{.Idx}}" hx-target="#sink" hx-swap="innerHTML">
+    <span class="dot" style="{{.DotStyle}}"></span>
+    <span class="nm">{{.Name}}</span>
+    <span class="sc">{{.Score}}</span>
+  </button>
+  {{end}}
+</div>
+{{end}}
+
+{{/* The mode chip lives inside this block rather than being its own out-of-band
+     element. Nesting one hx-swap-oob element inside another is ambiguous -- the
+     outer swap already carries the inner markup -- so every fragment in this
+     application is a swap unit with no oob descendants. */}}
+{{define "floor-ctl"}}
+<div class="floor-ctl" id="floorCtl" hx-swap-oob="true">
+  <span class="chip {{if .Stats.Replay}}replay{{else}}live{{end}}" id="modeChip">{{if .Stats.Replay}}replay {{.Stats.ReplayAt}}{{else}}live{{end}}</span>
+  <button class="icon-btn" id="prevDesk" title="Previous desk (←)" aria-label="Previous desk" data-nav="prev">‹</button>
+  <button class="icon-btn" id="nextDesk" title="Next desk (→)" aria-label="Next desk" data-nav="next">›</button>
+  <button class="btn" id="playBtn" title="Pause the floor (space)"
+          hx-post="ui/pause" hx-target="#sink" hx-swap="innerHTML">{{if .Stats.Paused}}Resume floor{{else}}Pause floor{{end}}</button>
+</div>
+{{end}}
+
+{{/* One tick of the floor: everything that can move between two frames, as a
+     set of independent out-of-band swaps. This is also what a desk click, a
+     task action and a replay scrub return, because all four change the same
+     things and a per-action fragment list is a list somebody forgets to update. */}}
+{{define "floor-tick"}}
+{{template "carousel" .}}
+{{template "inspector" .}}
+{{template "rooms" .}}
+{{template "prod-list" .}}
+{{template "meeting" .}}
+{{template "floor-ctl" .}}
+{{end}}
+
+{{define "rail-oob"}}{{template "rooms" .}}{{template "prod-list" .}}{{end}}
+
+{{/* A replay scrub additionally repaints the whole timeline, because it moves
+     aria-current onto a pill that is already on the page. */}}
+{{define "replay-tick"}}{{template "floor-tick" .}}{{template "tl-row-oob" .}}{{end}}
+
+{{define "carousel"}}
+<div class="carousel" id="carousel" hx-swap-oob="true">
+  {{range .Floor}}{{template "desk" .}}{{end}}
+</div>
+{{end}}
+
+{{/* One desk card. Everything conditional was computed in NewDeskView -- there
+     is no arithmetic here on purpose, so the shapes stay assertable in Go. */}}
+{{define "desk"}}
+<article class="desk{{if .Focused}} focus{{end}}" data-idx="{{.Idx}}" data-state="{{.State}}"
+         tabindex="0" role="button" aria-label="{{.Name}} desk"
+         hx-get="ui/desk/{{.Idx}}" hx-trigger="click, keyup[key=='Enter']"
+         hx-target="#sink" hx-swap="innerHTML">
+  <div class="desk-head">
+    <div>
+      <div class="nm">{{.Name}}</div>
+      <div class="repo">{{.Repo}}</div>
+    </div>
+    <div class="badges">
+      {{range .Badges}}<span class="{{.Class}}">{{.Text}}</span>{{end}}
+    </div>
+  </div>
+
+  <div class="scene">
+    <div class="wall-grid"></div>
+    <div class="lampglow"></div>
+    <div class="monitor">
+      <div class="screen" data-mode="{{.ScreenMode}}">
+        <div class="ln" style="--w:82%"></div>
+        <div class="ln hi" style="--w:54%"></div>
+        <div class="ln" style="--w:68%"></div>
+        <div class="ln" style="--w:40%"></div>
+        <div class="ln ok" style="--w:60%"></div>
+        <div class="ln" style="--w:30%"></div>
+        <span class="caret"></span>
+        <svg class="dgm" viewBox="0 0 140 78">
+          <line x1="30" y1="20" x2="70" y2="44"/><line x1="110" y1="20" x2="70" y2="44"/>
+          <line class="flow" x1="30" y1="20" x2="110" y2="20"/>
+          <circle cx="30" cy="20" r="7"/><circle cx="110" cy="20" r="7"/><circle cx="70" cy="44" r="7"/>
+        </svg>
+        <div class="dots">{{range .TestDots}}<i class="{{.}}"></i>{{end}}</div>
+      </div>
+    </div>
+    <div class="surface"></div>
+    <div class="chair"></div>
+    <div class="avatar" style="{{.AvStyle}}">
+      <span class="av-arm l"></span><span class="av-arm r"></span>
+      <span class="av-body"></span><span class="av-head"></span>
+    </div>
+    <div class="floorline"></div>
+    <div class="bubble">{{.Bubble}}</div>
+  </div>
+
+  <div class="ribbon">
+    <span>{{.Stage}}</span>{{range .StageMarks}}<i class="{{.}}"></i>{{end}}
+  </div>
+  <div class="task-line">
+    {{if .IsIdle}}<b>idle</b> {{.TaskText}}{{else}}<b>{{.TaskID}}</b> {{.TaskText}}{{end}}
+  </div>
+  <div class="progress"><i style="{{.ProgStyle}}"></i></div>
+  <div class="role-row">
+    {{range .RolePills}}
+    <span class="role-pill{{if .Stacked}} stacked{{end}}" style="{{.Style}}">
+      <em>{{.Short}}</em>{{.Name}} · {{.Label}}</span>
+    {{end}}
+    <span class="quick">
+      <button hx-get="ui/desk/{{.Idx}}" hx-target="#sink" hx-swap="innerHTML">Open</button>
+      <button hx-post="ui/desk/{{.Idx}}/review" hx-target="#sink" hx-swap="innerHTML">Call review</button>
+    </span>
+  </div>
+</article>
+{{end}}
+
+{{define "meeting"}}
+<div class="meeting{{if .Meeting}} open{{end}}" id="meeting" aria-hidden="{{if .Meeting}}false{{else}}true{{end}}" hx-swap-oob="true">
+  {{with .Meeting}}
+  <div class="meeting-in">
+    <div class="meeting-head">
+      <h3>{{.Title}}</h3>
+      <span class="chip">Agenda: {{.Agenda}}</span>
+      <span class="chip">Confidence {{.Conf}}%</span>
+      <button class="btn" style="margin-left:auto"
+              hx-post="ui/meeting/close" hx-target="#sink" hx-swap="innerHTML">Skip to decision</button>
+    </div>
+    <div class="table-wrap"><div class="mtable">
+      {{range .Seats}}<span class="seat filled" style="{{.Style}}"><label>{{.Label}}</label><span class="h"></span><span class="b"></span></span>{{end}}
+    </div></div>
+    <div>
+      <div class="mlog">{{range .Log}}<div><b>{{.Who}}</b> · {{.Says}}</div>{{end}}</div>
+      <div class="meeting-foot">
+        <span class="eyebrow">consensus</span>
+        <span class="bar"><i style="{{.BarStyle}}"></i></span>
+        <span class="mono">{{.Step}}</span>
+      </div>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}

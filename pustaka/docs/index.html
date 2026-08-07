@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GAOS — a graph-native agent operating system</title>
+<meta name="description" content="GAOS is a graph-native agent operating system: state lives in a graph rather than a prompt chain, and every change emits an event so any run can be replayed. Documentation for the system design, the ArcadeDB model and the infrastructure it deploys onto.">
+<link rel="stylesheet" href="assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<!-- data-layout="landing" swaps the docs chrome for a marketing top bar:
+     no sidebar, no page-toc rail, no prev/next. Only this page uses it. -->
+<body data-page="home" data-layout="landing">
+
+<div class="shell">
+<main class="doc wide no-pn no-toc">
+
+  <!-- ========================= HERO ========================= -->
+  <section class="lp-hero">
+    <canvas class="lp-network" id="lp-network" aria-hidden="true"></canvas>
+    <div class="inner">
+      <div>
+        <span class="kicker"><span class="dot"></span> v0.1.0 · graph-native · event-sourced</span>
+        <h1>The graph is the primitive, not the prompt.</h1>
+        <p class="sub">
+          GAOS runs software agents against a product record that lives in a graph. State is in
+          vertices and edges rather than a conversation, <strong>every change emits an event</strong>,
+          and the orchestrator holds nothing — kill it mid-run and it rebuilds from the graph.
+        </p>
+        <div class="cta-row">
+          <a class="btn primary" href="architecture/system.html">How the system works →</a>
+          <!-- Root-absolute on purpose: /app is a sibling SERVICE behind the same
+               proxy, not a page of this site, so it does not move with the docs. -->
+          <a class="btn ghost" href="/app/">Open Mission Control</a>
+          <a class="btn ghost" href="infra/overview.html">Infrastructure</a>
+        </div>
+        <div class="quick">
+          <span><b>0 deps</b> · Go stdlib only, no lockfile</span>
+          <span><b>0</b> third-party requests at runtime</span>
+          <span><b>25/32</b> vertex and edge types</span>
+        </div>
+      </div>
+
+      <div class="lp-term rv" id="term">
+        <div class="tb"><i></i><i></i><i></i> <span>bringing a tier up</span></div>
+        <pre id="term-out"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== LIVE SEARCH (full bleed) ==================== -->
+  <section class="lp-full">
+    <div class="inner">
+      <div class="lp-sec-head">
+        <p class="eyebrow">Search</p>
+        <h2 id="search-demo">Answers before you finish typing</h2>
+        <p>Titles, tags and full section text across every page, AND semantics with prefix matching.
+        This box is not a mock-up: it calls the same engine as the ⌘K overlay.</p>
+      </div>
+
+      <div class="lsearch rv" id="ls">
+        <div class="top">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="ls-in" type="search" placeholder="Search the docs — try “wireguard”, “edge”, “replay”…"
+                 autocomplete="off" spellcheck="false" aria-label="Search documentation">
+          <span class="kbd">⌘K anywhere</span>
+        </div>
+        <div class="chips" id="ls-chips">
+          <button data-q="wireguard">wireguard</button>
+          <button data-q="arcadedb">arcadedb</button>
+          <button data-q="replay">replay</button>
+          <button data-q="bootstrap">bootstrap</button>
+          <button data-q="scoring">scoring</button>
+          <button data-q="traefik">traefik</button>
+        </div>
+        <div class="out" id="ls-out"></div>
+        <div class="lsfoot">
+          <span id="ls-stat">ready</span>
+          <span class="mode" id="ls-mode">static index</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== WHAT IT IS ==================== -->
+  <div class="lp-sec-head">
+    <p class="eyebrow">The product</p>
+    <h2 id="what-it-is">Three things, and the first one is a claim</h2>
+    <p>GAOS is an orchestration model, an operator surface, and the infrastructure both run on.
+    Only the first of those is finished as a design; the other two are deliberately at pass one,
+    and each page says which parts are not built yet.</p>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="architecture/system.html">
+      <h3>The system →</h3>
+      <p>Six layers, five control loops, a scoring function with a safety floor, and a readiness
+      rubric the planner refuses to work below. Plus what happens when the orchestrator restarts.</p>
+    </a>
+    <a class="card" href="architecture/graph.html">
+      <h3>The graph →</h3>
+      <p>25 vertex types, 32 edge types and an append-only event stream in ArcadeDB — with the two
+      edge directions that are easy to get backwards and expensive to fix later.</p>
+    </a>
+    <a class="card" href="infra/overview.html">
+      <h3>The infrastructure →</h3>
+      <p>Two machines and one public IP: a 1 vCPU edge that terminates TLS, and a private VM with no
+      public address that runs every container.</p>
+    </a>
+    <a class="card" href="changelog.html">
+      <h3>Changelog →</h3>
+      <p>One product, one semver history.</p>
+    </a>
+  </div>
+
+  <!-- ==================== METRICS (full bleed) ==================== -->
+  <section class="lp-full">
+    <div class="inner">
+      <div class="lp-sec-head">
+        <p class="eyebrow">Counted</p>
+        <h2 id="numbers">Measured, not claimed</h2>
+        <p>Figures from this repository and from a live deployment, not from a pitch deck.</p>
+      </div>
+      <div class="metrics">
+        <div class="metric rv"><div class="v">33</div><div class="k">dashboard tests, zero dependencies, no go.sum</div></div>
+        <div class="metric rv"><div class="v">60</div><div class="k">graph types · 25 vertex · 32 edge · 3 document</div></div>
+        <div class="metric rv"><div class="v">27</div><div class="k">event names, and the catalog is closed</div></div>
+        <div class="metric rv"><div class="v">1</div><div class="k">published port per deployed tier</div></div>
+      </div>
+      <p style="color:var(--faint); font-size:13px; margin-top:14px">
+        The schema is designed but <b>not yet applied</b> — see
+        <a href="architecture/graph.html">the graph page</a>.</p>
+    </div>
+  </section>
+
+  <!-- ==================== WHY ==================== -->
+  <div class="lp-sec-head">
+    <p class="eyebrow">Design</p>
+    <h2 id="why">Why a graph</h2>
+  </div>
+  <div class="pillars">
+    <div class="pillar rv"><h3>A prompt chain has no addressable state</h3>
+      <p>You cannot ask it what a task depended on, which requirement justified a decision, or what
+      was sent to the model on attempt two. In a graph each of those is a traversal.</p></div>
+    <div class="pillar rv"><h3>Kill the orchestrator, lose nothing</h3>
+      <p>It holds no authoritative state. On restart it reconciles running tasks against a workspace
+      lease and a heartbeat, then adopts, requeues, or fails them as orphaned.</p></div>
+    <div class="pillar rv"><h3>Unwritten is unhappened</h3>
+      <p>Every change emits an event from a closed catalog. State at any moment is a fold over the
+      stream from the nearest snapshot, which is what makes a run replayable at all.</p></div>
+    <div class="pillar rv"><h3>Refuse a vague record</h3>
+      <p>Readiness is scored out of 100 by machine-checkable rules, and decays when nobody reads it.
+      Below 45 the planner will not plan — a vague spec produces a vague plan.</p></div>
+  </div>
+
+  <!-- ==================== EXPLORE ==================== -->
+  <div class="lp-sec-head" style="margin-top:clamp(30px,4vw,50px)">
+    <p class="eyebrow">Contents</p>
+    <h2 id="explore">Explore the docs</h2>
+    <p>Type to filter — the same live-filter component any page can use.</p>
+  </div>
+  <div class="filterbox rv">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input data-filter="#page-cards" data-empty="#page-empty" type="search"
+           placeholder="Filter these pages… try “infra”, “graph”, “replay”" aria-label="Filter pages">
+    <span class="count"></span>
+  </div>
+  <div class="cards" id="page-cards">
+    <a class="card" href="architecture/system.html" data-tags="architecture orchestration agents events replay scoring readiness">
+      <h3>The system</h3><p>Six layers, the control loops, scoring and guardrails, readiness bands, replay, and the build order.</p></a>
+    <a class="card" href="architecture/graph.html" data-tags="arcadedb graph schema events edges indexes invariants">
+      <h3>The graph</h3><p>Vertex and edge catalogue, the event document type, the indexes that matter, and the invariants.</p></a>
+    <a class="card" href="infra/overview.html" data-tags="infrastructure topology wireguard tls nginx edge">
+      <h3>How the infrastructure runs</h3><p>Two machines, one public IP, where TLS ends, and the rules that fail quietly.</p></a>
+    <a class="card" href="infra/environments.html" data-tags="dev production compose bootstrap verify deployment">
+      <h3>Development and production</h3><p>Both tiers side by side: what differs, what must not, and how to bring either up.</p></a>
+    <a class="card" href="infra/neighbours.html" data-tags="multi-tenant isolation ports networks shared conventions">
+      <h3>Living beside other products</h3><p>The port register, one namespace per product, and where the boundaries are.</p></a>
+    <a class="card" href="guide/getting-started.html" data-tags="docs authoring start layout registry">
+      <h3>Getting started</h3><p>How this documentation site itself is laid out, and how to add a page to it.</p></a>
+    <a class="card" href="guide/authoring.html" data-tags="components admonitions tabs filter docs">
+      <h3>Writing pages</h3><p>The component vocabulary: admonitions, tabs, code blocks, live filters.</p></a>
+    <a class="card" href="guide/ai-tutorial.html" data-tags="ai prompt generation llm automation docs">
+      <h3>AI authoring tutorial</h3><p>Build the prompt, feed the right context, run the correction loop.</p></a>
+    <a class="card" href="changelog.html" data-tags="changelog releases semver versions project">
+      <h3>Changelog</h3><p>GAOS's release history, kept in strict semver.</p></a>
+  </div>
+  <div class="empty-state" id="page-empty">No pages match — try a broader word.</div>
+
+  <!-- ============================================================
+       Page scripts live INSIDE main.doc as its last children so a
+       partial swap carries and re-executes them. Both use the
+       ready-event pattern from AUTHORING_SPEC §8.
+       ============================================================ -->
+  <script>
+  /* ---------- "Sign in" CTA: only when the server gates this site ---------- */
+  (function () {
+    const start = (H) => {
+      const row = document.querySelector(".lp-hero .cta-row");
+      if (!row || !H.onAuth) return;
+      H.onAuth((auth) => {
+        const present = row.querySelector(".lp-signin");
+        /* absent when auth is off, and once you are signed in */
+        if (!auth || !auth.enabled || auth.authenticated) { if (present) present.remove(); return; }
+        if (present) return;
+        const cta = document.createElement("a");
+        cta.className = "btn ghost lp-signin";
+        cta.href = H.url("__pustaka/auth/login") + "?next=" +
+          encodeURIComponent(location.pathname + location.search);
+        /* width/height as attributes: an inline svg with neither would lay
+           out at its 300x150 default */
+        cta.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
+          'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ' +
+          'aria-hidden="true"><path d="M9.5 4.5h7.7A1.8 1.8 0 0 1 19 6.3v11.4a1.8 1.8 0 0 1-1.8 1.8H9.5"/>' +
+          '<path d="M5.5 12H14M5.5 12l3-3m-3 3 3 3"/></svg>Sign in';
+        row.append(cta);
+      });
+    };
+    if (window.pustaka) start(window.pustaka);
+    else document.addEventListener("pustaka:ready", e => start(e.detail), { once: true });
+  })();
+  </script>
+
+  <script>
+  /* ---------- live search demo: reuses the real engine ---------- */
+  (function () {
+    const start = (H) => {
+      const inp = document.getElementById("ls-in");
+      const out = document.getElementById("ls-out");
+      const stat = document.getElementById("ls-stat");
+      const mode = document.getElementById("ls-mode");
+      const chips = document.getElementById("ls-chips");
+      if (!inp || !out) return;
+
+      const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const paintMode = () => {
+        mode.textContent = (H.serverMode ? "server index · " : "static index · ") + H.records + " records";
+      };
+      paintMode();
+      H.onIndex(paintMode);
+
+      function render(q) {
+        if (!q.trim()) {
+          out.innerHTML = `<p style="padding:16px 12px; color:var(--faint); font-size:13.5px">
+            Type a word, or tap a suggestion above. Matching is AND across terms, with prefix
+            matching on titles.</p>`;
+          stat.textContent = "ready";
+          return;
+        }
+        const t0 = performance.now();
+        const { terms, results } = H.search(q, 8);
+        const ms = (performance.now() - t0).toFixed(2);
+        stat.textContent = `${results.length} match${results.length === 1 ? "" : "es"} in ${ms} ms`;
+        if (!results.length) {
+          out.innerHTML = `<p style="padding:16px 12px; color:var(--faint); font-size:13.5px">
+            No matches for “${esc(q)}”. Every term must appear — try removing one.</p>`;
+          return;
+        }
+        out.innerHTML = results.map(r => `
+          <a class="row" href="${H.url(r.href)}">
+            <span class="t">${H.highlight(r.title, terms)}<span class="pg">${esc(r.page.title)}</span></span>
+            <span class="x">${H.highlight(r.text, terms)}</span>
+          </a>`).join("");
+      }
+
+      let tmr;
+      inp.addEventListener("input", () => {
+        clearTimeout(tmr);
+        tmr = setTimeout(() => render(inp.value), 60);
+        [...chips.children].forEach(b => b.classList.remove("on"));
+      });
+      chips.addEventListener("click", e => {
+        const b = e.target.closest("button[data-q]");
+        if (!b) return;
+        [...chips.children].forEach(x => x.classList.toggle("on", x === b));
+        inp.value = b.dataset.q;
+        render(inp.value);
+        inp.focus();
+      });
+      render("");
+    };
+
+    if (window.pustaka) start(window.pustaka);
+    else document.addEventListener("pustaka:ready", e => start(e.detail), { once: true });
+  })();
+  </script>
+
+  <script>
+  /* ---------- hero terminal: typed replay of the authoring loop ---------- */
+  (function () {
+    const start = (H) => {
+      const out = document.getElementById("term-out");
+      if (!out) return;
+
+      const SCRIPT = [
+        { t: "./deploy/check-stacks.sh", cls: "p", pre: "$ ", speed: 12 },
+        { t: "  ok  dev does not point at the PROD database", cls: "ok" },
+        { t: "  ok  prod publishes on the tunnel address only", cls: "ok" },
+        { t: "", wait: 200 },
+        { t: "docker compose -f deploy/stacks/compose.dev.yaml up -d", cls: "p", pre: "$ ", speed: 12 },
+        { t: "  traefik  Up  10.10.0.2:19301->80/tcp", cls: "c" },
+        { t: "", wait: 240 },
+        { t: "curl -H 'Host: dev.gaos.mfardiansyah.id' \\", cls: "p", pre: "$ ", speed: 12 },
+        { t: "    http://10.10.0.2:19301/api/healthz", cls: "p", speed: 12 },
+        { t: "  {\"ok\":true,\"database\":\"gaos\",\"store\":\"memory\"}", cls: "ok" },
+        { t: "  → one published port, on the tunnel only", cls: "c" }
+      ];
+
+      let timers = [], running = false;
+      const wait = ms => new Promise(r => timers.push(setTimeout(r, ms)));
+
+      async function type(line) {
+        const span = document.createElement("span");
+        if (line.cls) span.className = line.cls;
+        out.append(span);
+        const text = (line.pre || "") + line.t;
+        const speed = line.speed || 8;
+        for (let i = 0; i < text.length; i++) {
+          span.textContent = text.slice(0, i + 1);
+          await wait(speed);
+        }
+        out.append(document.createTextNode("\n"));
+      }
+
+      async function run() {
+        if (running) return;
+        running = true;
+        out.textContent = "";
+        for (const line of SCRIPT) {
+          if (line.wait) { await wait(line.wait); continue; }
+          await type(line);
+        }
+        const cur = document.createElement("span");
+        cur.className = "cur";
+        out.append(cur);
+        running = false;
+      }
+
+      /* reduced motion: show the finished transcript, no typing */
+      if (H.reduced) {
+        out.textContent = SCRIPT.filter(l => !l.wait).map(l => (l.pre || "") + l.t).join("\n");
+        return;
+      }
+      run();
+    };
+
+    if (window.pustaka) start(window.pustaka);
+    else document.addEventListener("pustaka:ready", e => start(e.detail), { once: true });
+  })();
+  </script>
+
+  <script>
+  /* ---------- landing atmosphere: pointer-reactive network + spotlights ---------- */
+  (function () {
+    const start = (H) => {
+      const hero = document.querySelector(".lp-hero");
+      const canvas = document.getElementById("lp-network");
+      if (!hero || !canvas || hero.dataset.networkReady) return;
+      hero.dataset.networkReady = "true";
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const reduced = H.reduced;
+      const finePointer = matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const aborter = new AbortController();
+      const signal = aborter.signal;
+      let width = 0, height = 0, dpr = 1;
+      let nodes = [], frame = 0, visible = true, stopped = false;
+      let palette = {};
+      const pointer = { x: -1000, y: -1000, active: false };
+
+      const cssValue = (name) => getComputedStyle(document.documentElement)
+        .getPropertyValue(name).trim();
+
+      function readPalette() {
+        palette = {
+          node: cssValue("--network-node"),
+          edge: cssValue("--network-edge"),
+          glow: cssValue("--network-glow")
+        };
+        if (reduced) draw(false);
+      }
+
+      function makeNodes() {
+        const count = Math.max(18, Math.min(62, Math.round(width * height / 18000)));
+        nodes = Array.from({ length: count }, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - .5) * .28,
+          vy: (Math.random() - .5) * .28,
+          r: 1.2 + Math.random() * 1.8,
+          phase: Math.random() * Math.PI * 2
+        }));
+      }
+
+      function resize() {
+        const rect = hero.getBoundingClientRect();
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        dpr = Math.min(devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        makeNodes();
+        if (reduced) draw(false);
+      }
+
+      function draw(move) {
+        if (!width || !height) return;
+        ctx.clearRect(0, 0, width, height);
+        const connect = Math.max(104, Math.min(168, width * .14));
+
+        if (move) {
+          for (const node of nodes) {
+            node.x += node.vx;
+            node.y += node.vy;
+            node.phase += .018;
+
+            if (pointer.active) {
+              const dx = node.x - pointer.x;
+              const dy = node.y - pointer.y;
+              const dist = Math.hypot(dx, dy);
+              if (dist > 0 && dist < 145) {
+                const force = (145 - dist) / 145 * .045;
+                node.vx += dx / dist * force;
+                node.vy += dy / dist * force;
+              }
+            }
+
+            node.vx *= .997;
+            node.vy *= .997;
+            const speed = Math.hypot(node.vx, node.vy);
+            if (speed > .75) {
+              node.vx = node.vx / speed * .75;
+              node.vy = node.vy / speed * .75;
+            }
+            if (node.x < -8 || node.x > width + 8) node.vx *= -1;
+            if (node.y < -8 || node.y > height + 8) node.vy *= -1;
+            node.x = Math.max(-8, Math.min(width + 8, node.x));
+            node.y = Math.max(-8, Math.min(height + 8, node.y));
+          }
+        }
+
+        ctx.strokeStyle = palette.edge;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const dist = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y);
+            if (dist >= connect) continue;
+            ctx.globalAlpha = (1 - dist / connect) * .34;
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.stroke();
+          }
+        }
+
+        for (const node of nodes) {
+          const pulse = move ? Math.sin(node.phase) * .45 : 0;
+          ctx.globalAlpha = .16;
+          ctx.fillStyle = palette.glow;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.r + 5 + pulse, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = .62;
+          ctx.fillStyle = palette.node;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, Math.max(.8, node.r + pulse), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function loop() {
+        if (stopped || !visible || document.hidden) return;
+        if (!hero.isConnected) { cleanup(); return; }
+        draw(true);
+        frame = requestAnimationFrame(loop);
+      }
+
+      function syncLoop() {
+        cancelAnimationFrame(frame);
+        frame = 0;
+        if (!reduced && visible && !document.hidden && !stopped) loop();
+      }
+
+      function cleanup() {
+        if (stopped) return;
+        stopped = true;
+        cancelAnimationFrame(frame);
+        aborter.abort();
+        resizeObserver.disconnect();
+        visibilityObserver.disconnect();
+        removalObserver.disconnect();
+      }
+
+      const resizeObserver = new ResizeObserver(resize);
+      const visibilityObserver = new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        syncLoop();
+      }, { rootMargin: "80px" });
+      const removalObserver = new MutationObserver(() => {
+        if (!hero.isConnected) cleanup();
+      });
+
+      readPalette();
+      resizeObserver.observe(hero);
+      visibilityObserver.observe(hero);
+      removalObserver.observe(document.querySelector("main.doc"), { childList: true });
+
+      document.addEventListener("visibilitychange", syncLoop, { signal });
+      document.addEventListener("pustaka:theme", readPalette, { signal });
+
+      if (finePointer && !reduced) {
+        hero.addEventListener("pointermove", (event) => {
+          const rect = hero.getBoundingClientRect();
+          pointer.x = event.clientX - rect.left;
+          pointer.y = event.clientY - rect.top;
+          pointer.active = true;
+          hero.style.setProperty("--hero-x", pointer.x + "px");
+          hero.style.setProperty("--hero-y", pointer.y + "px");
+        }, { signal, passive: true });
+        hero.addEventListener("pointerleave", () => {
+          pointer.active = false;
+          hero.style.removeProperty("--hero-x");
+          hero.style.removeProperty("--hero-y");
+        }, { signal });
+
+        document.querySelectorAll(".lp-term, .lsearch, .card, .metric")
+          .forEach((surface) => {
+            surface.classList.add("lp-interactive");
+            const spotlight = document.createElement("span");
+            spotlight.className = "lp-spotlight";
+            spotlight.setAttribute("aria-hidden", "true");
+            surface.append(spotlight);
+            surface.addEventListener("pointermove", (event) => {
+              const rect = surface.getBoundingClientRect();
+              surface.style.setProperty("--spot-x", event.clientX - rect.left + "px");
+              surface.style.setProperty("--spot-y", event.clientY - rect.top + "px");
+              surface.classList.add("spot-on");
+            }, { signal, passive: true });
+            surface.addEventListener("pointerleave", () => surface.classList.remove("spot-on"), { signal });
+          });
+      }
+
+      if (reduced) draw(false);
+      else syncLoop();
+    };
+
+    if (window.pustaka) start(window.pustaka);
+    else document.addEventListener("pustaka:ready", e => start(e.detail), { once: true });
+  })();
+  </script>
+
+</main>
+</div>
+
+<script src="assets/toc.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

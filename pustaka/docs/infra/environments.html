@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Development and production — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="infra-environments">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Infrastructure</p>
+  <h1>Development and production</h1>
+  <p class="lede">Two tiers of the same four services, on product slot 03. This is what differs
+  between them, what must not, and how to bring either one up and prove it works.</p>
+
+  <div class="page-meta"
+       data-tags="deployment, compose, dev, production, verification"
+       data-hashtags="docker, traefik, wireguard, arcadedb"
+       data-published="2026-08-07"
+       data-updated="2026-08-07"
+       data-version-from="0.1.0"
+       data-version-to=""></div>
+
+  <h2 id="same-shape">The same shape, twice</h2>
+
+  <p>Each tier is four services behind its own Traefik: the landing page, Mission Control, these
+  docs, and the proxy itself. Both are served from a <strong>single origin</strong>, routed by
+  path.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Path</th><th>Service</th><th>Prefix stripped?</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code></td><td>the landing page, static, via nginx — owns the origin's 404</td><td>n/a</td></tr>
+      <tr><td><code>/app/</code></td><td>Mission Control, Go + HTMX</td><td><b>yes</b></td></tr>
+      <tr><td><code>/docs/</code></td><td>these docs, pustaka</td><td><b>yes</b></td></tr>
+      <tr><td><code>/api/</code></td><td>the dashboard's JSON surface — <code>/api/healthz</code></td><td><b>yes</b></td></tr>
+    </tbody>
+  </table>
+
+  <p>One origin is not cosmetic: there is no CORS to configure between anything served here, and
+  it is what lets Mission Control reference every asset, fragment and form action relatively.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">Both stripped services depend on a header, and fail silently without it</p>
+    <p>Neither the dashboard nor pustaka has a base-path option. <code>/app</code> and
+    <code>/docs</code> work solely because Traefik's <code>stripPrefix</code> also sets
+    <code>X-Forwarded-Prefix</code>, and both read it back — the dashboard into a single
+    <code>&lt;base href&gt;</code>, pustaka onto its root-absolute login redirects.</p>
+    <p>Replace <code>stripPrefix</code> with a rewrite that drops that header and you get
+    <b>200 on every document and 404 on every asset</b>. No error is logged and no status-code
+    check sees it.</p>
+  </div>
+
+  <p>The trailing-slash redirects run <em>before</em> the strip, for the same reason. At
+  <code>/app</code> with no slash the document base resolves one level up, so
+  <code>static/app.css</code> becomes <code>/static/app.css</code> — which the landing page answers
+  with its own 404, while the document itself still returns 200.</p>
+
+  <h2 id="what-differs">What differs, exactly</h2>
+
+  <table class="tbl">
+    <thead><tr><th></th><th>Development</th><th>Production</th></tr></thead>
+    <tbody>
+      <tr><td>Hostname</td><td><code>dev.gaos.mfardiansyah.id</code></td><td><code>gaos.mfardiansyah.id</code></td></tr>
+      <tr><td>Published port</td><td><code>10.10.0.2:19301:80</code></td><td><code>10.10.0.2:18301:80</code></td></tr>
+      <tr><td>Compose project</td><td><code>gaos-dev</code></td><td><code>gaos-prod</code></td></tr>
+      <tr><td>Internal network</td><td><code>gaos-dev-int</code> · <code>172.30.13.0/24</code></td><td><code>gaos-prod-int</code> · <code>172.30.12.0/24</code></td></tr>
+      <tr><td>Shared infra network</td><td><code>master-compose-ai-dev-net</code></td><td><code>master-compose-ai-net</code></td></tr>
+      <tr><td>ArcadeDB</td><td><code>http://arcadedb-master-dev:2480</code></td><td><code>http://arcadedb-master:2480</code></td></tr>
+      <tr><td>Certificate lineage</td><td><code>gaos-dev</code></td><td><code>gaos</code></td></tr>
+      <tr><td>Env files</td><td><code>dev.dashboard.env</code> · <code>dev.docs.env</code></td><td><code>prod.dashboard.env</code> · <code>prod.docs.env</code></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>A difference outside this table is a bug rather than a decision.</strong> The two
+  compose files are deliberately the same shape, and <code>deploy/check-stacks.sh</code> asserts
+  the entries that are dangerous to get wrong.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">The expensive mistake is invisible</p>
+    <p>A development stack pointed at the production database starts cleanly, passes every smoke
+    test and behaves normally. Nothing about it looks wrong until it writes something. That is why
+    the network name and the database host are asserted mechanically rather than reviewed.</p>
+  </div>
+
+  <h2 id="what-must-not">What must not differ</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Both tiers</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>GAOS_COOKIE_SECURE</code></td>
+        <td><code>1</code></td>
+        <td>The browser reaches <em>both</em> tiers over real TLS at the edge. The flag is
+        env-driven, never derived from the scheme — these containers only ever see plain HTTP
+        inside the tunnel, so deriving it would drop the flag in production.</td>
+      </tr>
+      <tr>
+        <td><code>GAOS_ARCADE_DB</code></td>
+        <td><code>gaos</code></td>
+        <td>Same database name in two different instances. Renaming one tier's database is how you
+        end up with a migration that only ever ran once.</td>
+      </tr>
+      <tr>
+        <td>Traefik <code>trustedIPs</code></td>
+        <td><code>10.10.0.0/24</code></td>
+        <td>Shared file, one list. See <a href="overview.html#real-client-ip">the real client
+        IP</a> — a wrong list looks perfectly healthy.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="adm note">
+    <p class="adm-title">A cookie-aware client will refuse to store the session over the tunnel</p>
+    <p>That is <em>correct</em>. Check the <code>Secure</code> flag is present in
+    <code>Set-Cookie</code>, defer the login round-trip to HTTPS, and do not &ldquo;fix&rdquo; it by
+    turning the flag off.</p>
+  </div>
+
+  <h2 id="bring-up">Bringing a tier up</h2>
+
+  <p>Development first, always. There is no bootstrap step in this release — no schema is applied
+  yet — so the sequence is short:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>cd /home/ardi/devel/projects/gaos
+./deploy/check-stacks.sh                     <span class="c"># the invariants a running stack hides</span>
+
+S=deploy/stacks/compose.dev.yaml             <span class="c"># then repeat with compose.prod.yaml</span>
+docker compose -f $S build
+docker compose -f $S up -d
+docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
+  </div>
+
+  <div class="adm warn">
+    <p class="adm-title">If compose says the external network cannot be found</p>
+    <p>The infrastructure stack is down. Start it there. <b>Never</b>
+    <code>docker network create</code> it here — that produces an empty network with the right
+    name, and a stack that comes up and then cannot resolve anything.</p>
+  </div>
+
+  <h2 id="access">Where to reach it, and where the credentials are</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Surface</th><th>Development</th><th>Production</th></tr></thead>
+    <tbody>
+      <tr><td>Landing page</td><td><code>https://dev.gaos.mfardiansyah.id/</code></td><td><code>https://gaos.mfardiansyah.id/</code></td></tr>
+      <tr><td>Mission Control</td><td><code>/app/</code></td><td>same</td></tr>
+      <tr><td>These docs</td><td><code>/docs/</code></td><td>same</td></tr>
+      <tr><td>Health</td><td><code>/api/healthz</code></td><td>same</td></tr>
+    </tbody>
+  </table>
+
+  <p>Four gitignored files hold everything secret, split per service and per tier so the docs
+  container never holds the database password:</p>
+
+  <table class="tbl">
+    <thead><tr><th>File</th><th>Holds</th><th>Mode</th></tr></thead>
+    <tbody>
+      <tr><td><code>deploy/stacks/{dev,prod}.dashboard.env</code></td><td>ArcadeDB user and password</td><td><code>600</code></td></tr>
+      <tr><td><code>deploy/stacks/{dev,prod}.docs.env</code></td><td>The docs login and its cookie secret</td><td><code>600</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>The compose files reference them with <code>env_file:</code>, not <code>${…}</code>
+  interpolation — there is no flag to forget, and a missing file is a hard error rather than a
+  silently empty password. The committed <code>*.env.example</code> files document every name.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">Fill them by name, one line at a time</p>
+    <p>Never <code>cat</code> an infrastructure <code>.env</code> into one of these.
+    <code>env_file</code> injects every line it finds, which hands GAOS's containers every other
+    project's credentials on that host.</p>
+  </div>
+
+  <div class="adm note">
+    <p class="adm-title">Generate the docs cookie secret on the host</p>
+    <p><code>openssl rand -hex 32</code> into <code>PUSTAKA_AUTH_SECRET</code>. Left blank, the
+    server invents a random one per process — so every deploy and every restart signs everyone
+    out. Do not copy a value out of another project's compose file: a secret in version control is
+    not a secret.</p>
+  </div>
+
+  <h2 id="verify">Verifying over the tunnel</h2>
+
+  <p><strong>Nothing is bound publicly.</strong> One row per tier, and it must read
+  <code>10.10.0.2</code> — never <code>0.0.0.0</code>:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>ss -ltnp | grep -E ':(18301|19301)'
+curl -sS --connect-timeout 3 http://192.168.30.102:19301/    <span class="c"># must be REFUSED</span></pre>
+  </div>
+
+  <p><strong>Through the tunnel, from the edge</strong> — the real test:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>ssh clino "curl -sS -H 'Host: dev.gaos.mfardiansyah.id' http://10.10.0.2:19301/api/healthz"
+ssh clino "curl -sS -H 'Host: gaos.mfardiansyah.id'     http://10.10.0.2:18301/api/healthz"
+<span class="c"># {"ok":true,"database":"gaos","store":"memory",...}</span></pre>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>What you get</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td><code>502</code></td><td>The <code>dashboard</code> container is not running at all.</td></tr>
+      <tr><td><code>503</code> · <code>"database":"unreachable"</code></td><td>The ArcadeDB leg is wrong — network name, container alias or credentials.</td></tr>
+      <tr><td><code>"database":"unconfigured"</code>, <code>ok:true</code></td><td>No <code>GAOS_ARCADE_URL</code> is set. Correct for the local stack, wrong for a deployed tier.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Then the routing. <code>/</code> answers 200 from the landing page; <code>/app</code> and
+  <code>/docs</code> both answer <b>301</b> to their trailing-slash form.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">Check the base href actually survived the strip</p>
+    <p>This is the failure that returns 200 on the document and 404 on every asset:</p>
+    <div class="codeblock">
+      <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+      <pre>ssh clino "curl -sS -H 'Host: gaos.mfardiansyah.id' \
+  http://10.10.0.2:18301/app/" | grep -o '&lt;base href="[^"]*"&gt;'
+<span class="c"># must read &lt;base href="/app/"&gt; — NOT &lt;base href="/"&gt;</span></pre>
+    </div>
+  </div>
+
+  <p>Finally, the real client IP. Traefik believes <code>X-Forwarded-For</code> only from a peer in
+  its trust list; from anyone else it discards the header and substitutes the peer's own address —
+  so a wrong list collapses every caller on earth into one identity while everything looks
+  healthy. The procedure is on <a href="overview.html#real-client-ip">the overview page</a>, and it
+  is not optional.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

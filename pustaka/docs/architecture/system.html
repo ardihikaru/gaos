@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The system — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="arch-system">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Architecture</p>
+  <h1>The system</h1>
+  <p class="lede">GAOS is a graph-native agent operating system. Six layers, five control loops,
+  and one thesis that decides every other design question: the graph is the primitive, not the
+  prompt.</p>
+
+  <div class="page-meta"
+       data-tags="architecture, orchestration, agents, events"
+       data-hashtags="gaos, graph, orchestration, replay"
+       data-published="2026-08-07"
+       data-updated="2026-08-07"
+       data-version-from="0.1.0"
+       data-version-to=""></div>
+
+  <h2 id="two-invariants">Two invariants everything else follows from</h2>
+
+  <p><strong>State lives in the graph.</strong> The orchestrator holds no authoritative state.
+  Kill it mid-run and it rebuilds from vertices, edges and events. Anything an orchestrator keeps
+  in process memory is state that a restart silently invents a new version of.</p>
+
+  <p><strong>Every change emits an event.</strong> An event that was never written is a state
+  change that never happened. This is not a logging convention — it is what makes replay possible
+  at all, and it is why the event catalog is closed rather than open.</p>
+
+  <div class="adm note">
+    <p class="adm-title">Why the graph and not a prompt chain</p>
+    <p>A prompt chain has no addressable intermediate state. You cannot ask it what a task
+    depended on, which requirement justified a decision, or what exactly was sent to the model on
+    attempt two — because none of that was ever a thing, only a substring. In a graph each of
+    those is a vertex with edges, and the question is a traversal.</p>
+  </div>
+
+  <h2 id="layers">Six layers, and what each may never do</h2>
+
+  <p>The &ldquo;must never&rdquo; column is the load-bearing one. Each entry is a specific way the
+  layering has been broken before, in this kind of system.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Layer</th><th>Owns</th><th>Must never</th></tr></thead>
+    <tbody>
+      <tr><td>UI · Mission Control</td><td>A projection of graph state; operator actions</td><td>Invent state the graph does not have</td></tr>
+      <tr><td>API gateway</td><td>Auth, tenant scoping, request validation, event fan-out</td><td>Let a tenant boundary be enforced further down only</td></tr>
+      <tr><td>Orchestration</td><td>Planner, scheduler, review engine, retry policy</td><td>Hold long-lived state in process memory</td></tr>
+      <tr><td>Execution</td><td>Detached processes, workspace leases, heartbeats</td><td>Die with the orchestrator</td></tr>
+      <tr><td>Model gateway</td><td>Adapters, routing, cost and token accounting</td><td>Leak provider-specific shapes upward</td></tr>
+      <tr><td>ArcadeDB</td><td>Graph, documents, events, full-text, time series</td><td>Be bypassed by a side channel</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="boot-recovery">What happens when the orchestrator restarts</h2>
+
+  <p>Because execution does not die with orchestration, a restart finds tasks that claim to be
+  running. The recovery is a reconciliation, not a reset:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">pseudocode</span><button class="copy">copy</button></div>
+    <pre>for task in tasks where status in (DISPATCHED, RUNNING):
+    lease = task.workspace.leaseUntil
+    beat  = task.lastHeartbeatAt
+
+    if lease &gt; now and beat &gt; now - heartbeat_timeout:
+        adopt(task)                    <span class="c"># the process is alive; reattach</span>
+    elif lease &gt; now:
+        requeue(task)                  <span class="c"># lease held, process gone</span>
+    else:
+        emit TaskFailed(reason=orphaned)</pre>
+  </div>
+
+  <p>A task that cannot be proved alive is not assumed alive. The heartbeat and the lease are two
+  independent signals precisely so that a hung process and a dead one are distinguishable.</p>
+
+  <h2 id="setup-to-autonomy">From an empty record to autonomous work</h2>
+
+  <p>Six stages. The interesting boundary is stage four, where the last human instruction runs
+  out.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Stage</th><th>Human</th><th>System</th><th>Writes to the graph</th></tr></thead>
+    <tbody>
+      <tr><td>Product setup</td><td>Fills the record</td><td>—</td><td>Product, Requirement, Issue, AcceptanceCriterion, Artifact</td></tr>
+      <tr><td>Readiness check</td><td>—</td><td>Scores the rubric</td><td>Product.readinessScore, ReadinessEvaluated</td></tr>
+      <tr><td>Workflow creation</td><td>States an objective</td><td>Planner expands it</td><td>Workflow, Task, DEPENDS_ON, IMPLEMENTS</td></tr>
+      <tr><td>Execution</td><td>—</td><td>Scheduler, runner, reviewer</td><td>TaskRun, ContextSlice, Review, Event</td></tr>
+      <tr><td>Gate</td><td>Approves, or does not</td><td>Holds</td><td>Approval, Event</td></tr>
+      <tr><td>Close</td><td>—</td><td>Extracts the lesson</td><td>Knowledge, Decision, Event</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Autonomy begins when the scheduler can find a READY task without a human naming
+  it.</strong> That requires four things at once: an acyclic dependency graph, a capable agent for
+  the role, an acquirable workspace lease, and a readiness gate that passed. Miss any one and the
+  work queues instead of starting — which is the correct failure, and the one the room-occupancy
+  meters on the floor are there to make visible.</p>
+
+  <h2 id="task-split">Splitting work, and choosing who does it</h2>
+
+  <p>A task is atomic when it has one concern, one workspace, and at least one acceptance
+  criterion. A task with two concerns cannot be scored, because a single number now describes two
+  independent outcomes.</p>
+
+  <table class="tbl">
+    <thead><tr><th>The work</th><th>Role</th><th>Model tier</th><th>Review</th></tr></thead>
+    <tbody>
+      <tr><td>Schema migration, money, auth</td><td>Backend + Security</td><td>top</td><td>always an extra reviewer</td></tr>
+      <tr><td>Public API contract</td><td>Architect</td><td>top</td><td>normal</td></tr>
+      <tr><td>New feature inside an existing boundary</td><td>Backend / Frontend</td><td>mid</td><td>normal</td></tr>
+      <tr><td>Tests, docs, refactor</td><td>QA</td><td>low</td><td>normal</td></tr>
+      <tr><td>A retry</td><td>same role</td><td>one tier above the last attempt</td><td>normal</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="scoring">Scoring, and when to stop trying</h2>
+
+  <p>Every completed run is scored on five dimensions and reduced to one number:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">formula</span><button class="copy">copy</button></div>
+    <pre>final = 0.45·correctness
+      + 0.20·completeness
+      + 0.15·safety
+      + 0.10·quality
+      + 0.10·efficiency</pre>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>Score</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>85–100</td><td>accept</td></tr>
+      <tr><td>70–84</td><td>accept, and plan a cleanup task</td></tr>
+      <tr><td>50–69</td><td>iterate with a widened context slice</td></tr>
+      <tr><td>30–49</td><td>escalate one model tier</td></tr>
+      <tr><td>0–29</td><td>stop, and call a design review</td></tr>
+      <tr><td><b>safety &lt; 60</b></td><td><b>immediate stop, regardless of the total</b></td></tr>
+    </tbody>
+  </table>
+
+  <div class="adm warn">
+    <p class="adm-title">The guardrails are what stop a loop, not the scoring</p>
+    <p><code>max_retry_count</code> 3 per task · <code>max_escalation_count</code> 2 per task ·
+    <code>same_failure_signature_limit</code> 2 · exponential cooldown with a cap · a budget cap
+    per workflow and per tenant · human intervention at two escalations or any safety veto.
+    A scoring function alone will happily retry forever at 68.</p>
+  </div>
+
+  <p>The <strong>failure signature</strong> — a hash of the normalised error — is what decides
+  retry versus design review. Two attempts failing the same way is not bad luck; it is a problem
+  the model cannot see, and a third attempt at a higher tier will fail identically.</p>
+
+  <h2 id="readiness">Knowledge maturity, scored out of 100</h2>
+
+  <p>The planner refuses work it cannot plan. The rubric is machine-checkable on purpose — a
+  human judgement of &ldquo;is this spec good enough&rdquo; is not repeatable, and the whole point
+  is to stop a vague record producing a vague plan.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Item</th><th>Points</th><th>Item</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Problem statement</td><td>8</td><td>Criteria coverage</td><td>12</td></tr>
+      <tr><td>Goals</td><td>8</td><td>Behaviour diagram</td><td>10</td></tr>
+      <tr><td>Domain rules</td><td>12</td><td>Data model</td><td>8</td></tr>
+      <tr><td>Out of scope</td><td>6</td><td>Repository linked</td><td>8</td></tr>
+      <tr><td>Stories exist</td><td>10</td><td>Decisions</td><td>8</td></tr>
+      <tr><td>Success metrics</td><td>5</td><td>Verification strategy</td><td>5</td></tr>
+    </tbody>
+  </table>
+
+  <table class="tbl">
+    <thead><tr><th>Band</th><th>Score</th><th>What the planner will do</th></tr></thead>
+    <tbody>
+      <tr><td>INSUFFICIENT</td><td>0–44</td><td>Refuses to plan</td></tr>
+      <tr><td>MINIMUM</td><td>45–69</td><td>Everything gated, mid-tier cap, no auto-merge</td></tr>
+      <tr><td>WORKING</td><td>70–89</td><td>Normal autonomy</td></tr>
+      <tr><td>COMPLETE</td><td>90–100</td><td>Low-risk changes may auto-merge</td></tr>
+    </tbody>
+  </table>
+
+  <p>A record also <em>decays</em>. The effective score is the raw score minus a drift penalty:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">formula</span><button class="copy">copy</button></div>
+    <pre>drift_penalty = min(25,
+      4 × months_since_last_review
+    + 6 × (boundary_files_changed &gt; 0)
+    + 8 × (open_contradictions &gt; 0))</pre>
+  </div>
+
+  <p>Crossing a band downward emits <code>ReadinessDropped</code>. A document that was accurate a
+  year ago and has not been read since is not a specification; it is a historical artifact, and
+  the planner should treat it as one.</p>
+
+  <h2 id="replay">Replay</h2>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">formula</span><button class="copy">copy</button></div>
+    <pre>state(t) = fold(reduce, events.filter(e =&gt; e.ts &lt;= t), snapshot_before(t) ?? empty)</pre>
+  </div>
+
+  <p><code>reduce</code> must be <strong>pure, total, and order-stable by
+  <code>(ts, seq)</code></strong>. Pure so it can be re-run; total so an unknown event type cannot
+  crash a replay of last month; order-stable so two events in the same second cannot produce two
+  different pasts.</p>
+
+  <p>Replay scopes are Workflow, Task, Meeting, and Comparison. Route replay through a
+  <strong>read-only store handle, not a flag</strong> — a flag is one forgotten branch away from a
+  replay that writes.</p>
+
+  <h2 id="build-order">Build order</h2>
+
+  <p>Ten deliverables, sequenced. Mission Control is number nine, and that is deliberate.</p>
+
+  <ol>
+    <li>Graph schema and event store</li>
+    <li>Task state machine</li>
+    <li>Product master and readiness scoring</li>
+    <li>Planner producing a static task graph</li>
+    <li>Runner with one detached process</li>
+    <li>Review, scoring and retry policy</li>
+    <li>Context assembly</li>
+    <li>Approval gates</li>
+    <li><b>Mission Control and replay</b></li>
+    <li>Meetings, knowledge extraction, multi-repo</li>
+  </ol>
+
+  <div class="adm warn">
+    <p class="adm-title">Resist starting with the visual layer</p>
+    <p>It is the most rewarding to build and the least load-bearing. This repository has done
+    exactly that anyway — see the changelog — but for a stated reason: the first thing worth
+    proving was the deployment path, and a dashboard is the only component that exercises all of
+    it. The store behind it is fixtures, and it says so.</p>
+  </div>
+
+  <h2 id="where-this-lives">Where this lives in the repository</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Path</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>artifacts/v1/gaos-architecture.html</code></td><td>The full design document this page summarises</td></tr>
+      <tr><td><code>artifacts/v1/gaos-arcadedb-model.html</code></td><td>The complete schema — see <a href="graph.html">The graph</a></td></tr>
+      <tr><td><code>artifacts/v1/gaos-mission-control.html</code></td><td>The UI prototype the dashboard was ported from</td></tr>
+      <tr><td><code>dashboard/</code></td><td>Mission Control — Go, stdlib only, HTMX</td></tr>
+      <tr><td><code>dashboard/events.go</code></td><td>The closed event catalog, as typed constants</td></tr>
+      <tr><td><code>dashboard/store.go</code></td><td>The seam an ArcadeDB implementation drops into</td></tr>
+    </tbody>
+  </table>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
