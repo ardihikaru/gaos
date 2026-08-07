@@ -1,0 +1,88 @@
+{{define "page"}}<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAOS · Mission Control</title>
+<meta name="color-scheme" content="dark light">
+
+<!-- MOUNT POINT. This is the only place the prefix appears, and it is why every
+     other URL in every template is relative. Traefik strips /app on the way in
+     and announces the mount in X-Forwarded-Prefix; sitePrefix() reads it back
+     (validated, never trusted) and it lands here. HTMX resolves relative URLs
+     against the document base, so this one tag fixes assets, fragment fetches
+     and form posts at once.
+
+     IT NEEDS THE TRAILING SLASH, and therefore it needs the trailing-slash
+     redirect in deploy/traefik/dynamic.yml to run BEFORE the strip. At /app
+     with no slash the base resolves one level up and every asset 404s against
+     the landing page. -->
+<base href="{{.Prefix}}/">
+
+<script>
+  /* set the theme before first paint so there is no flash. This one stays
+     inline: a server round-trip cannot beat the first paint. */
+  (function(){
+    try{
+      var saved = document.cookie.match(/(?:^|;\s*)gaos_theme=(dark|light)/);
+      if (saved) { document.documentElement.setAttribute("data-theme", saved[1]); return; }
+      var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", prefersLight ? "light" : "dark");
+    }catch(e){}
+  })();
+</script>
+
+<link rel="stylesheet" href="static/fonts.css">
+<link rel="stylesheet" href="static/app.css">
+<script src="static/htmx.min.js" defer></script>
+<script src="static/app.js" defer></script>
+</head>
+<body>
+
+{{template "topbar" .}}
+
+<div class="shell">
+  {{template "rail" .}}
+
+  <main class="floor">
+    <div class="floor-head">
+      <div>
+        <h2>Engineering floor</h2>
+        {{template "floor-sub" .}}
+      </div>
+      {{template "floor-ctl" .}}
+    </div>
+
+    <div class="stage" id="stage">
+      {{template "carousel" .}}
+      {{template "meeting" .}}
+      <div class="walkers" id="walkers"></div>
+    </div>
+  </main>
+
+  {{template "inspector" .}}
+</div>
+
+{{template "timeline" .}}
+
+{{template "login-sheet" .}}
+{{template "bo-sheet" .}}
+{{template "cw-modal" .}}
+{{template "toast" .}}
+
+<!-- The tick. It is a bare element that is never swapped, so the poll survives
+     every fragment replacement on the page. One request per tick returns the
+     whole floor as out-of-band swaps -- see handleFloor. Replace the trigger
+     with hx-ext="sse" and this is the SSE client. -->
+<div id="ticker" hx-get="ui/floor" hx-trigger="every 1400ms" hx-target="#sink" hx-swap="innerHTML"></div>
+
+<!-- Every request in this application targets #sink and returns nothing for it:
+     all real updates arrive as hx-swap-oob elements. One rule, no per-request
+     target juggling, and a fragment has exactly one definition whether it is
+     the thing you asked for or a side effect. -->
+<div id="sink" hidden></div>
+
+</body>
+</html>{{end}}
+
+{{define "empty"}}{{end}}

@@ -1,0 +1,115 @@
+/* ============================================================
+   CUBIQ — landing page, design tokens.
+
+   Dua palet yang TIDAK sama, dan itu disengaja:
+
+   --paper/--ink/…  ikut tema halaman (terang atau gelap).
+   --app-*          warna aplikasi Cubiq yang sebenarnya, dan
+                    selalu gelap. Layar di dalam mockup ponsel dan
+                    tablet memakai token ini, karena aplikasinya
+                    memang hanya punya mode gelap. Menampilkan
+                    layar terang di sana berarti menjanjikan
+                    sesuatu yang tidak ada.
+
+   Warna kubus (kuning/hijau/merah/biru/jingga) sama persis dengan
+   app-pwa/css/01-tokens.css. Itu identitas produk, bukan aksen
+   halaman, jadi nilainya tidak berubah antar tema.
+   ============================================================ */
+
+:root{
+  --kuning:#FFD500; --hijau:#00A651; --merah:#EE3124; --biru:#2F6FD6; --jingga:#FF8200;
+
+  /* layar aplikasi di dalam mockup — tetap gelap di kedua tema */
+  --app-ink:#16181D; --app-ink-2:#1F222A; --app-ink-3:#2A2E38;
+  --app-line:#343945; --app-text:#EDEFF4; --app-muted:#9AA1B0;
+
+  --paper:#FBFBF9; --panel:#FFFFFF; --panel-2:#F3F4F1;
+  --ink:#16181D; --muted:#565C69; --faint:#858C9A; --line:#E3E5E0;
+  /* varian aksen yang lolos kontras di atas kertas terang */
+  --hijau-ink:#067A3E; --biru-ink:#265FB8; --merah-ink:#C7261B;
+  --glow:rgba(255,213,0,.22);
+  --shadow:0 18px 44px rgba(22,24,29,.10);
+  --shadow-s:0 6px 18px rgba(22,24,29,.07);
+  --r-s:8px; --r-m:14px; --r-l:22px; --r-xl:30px;
+  --turn:cubic-bezier(.2,.85,.3,1);
+  --header-h:60px;
+  color-scheme:light;
+}
+
+[data-theme="dark"]{
+  --paper:#0E1014; --panel:#171A21; --panel-2:#1E222B;
+  --ink:#EDEFF4; --muted:#A2A9B8; --faint:#767D8C; --line:#262B36;
+  --hijau-ink:#34D17E; --biru-ink:#7FA9EF; --merah-ink:#FF7A6E;
+  --glow:rgba(255,213,0,.14);
+  --shadow:0 18px 44px rgba(0,0,0,.5);
+  --shadow-s:0 6px 18px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+
+/* Tanpa JavaScript tidak ada data-theme sama sekali, jadi preferensi
+   sistem tetap dihormati. Dengan JavaScript, skrip di <head> menulis
+   data-theme sebelum paint dan aturan ini kalah — itulah maksudnya. */
+@media (prefers-color-scheme:dark){
+  html:not([data-theme]){
+    --paper:#0E1014; --panel:#171A21; --panel-2:#1E222B;
+    --ink:#EDEFF4; --muted:#A2A9B8; --faint:#767D8C; --line:#262B36;
+    --hijau-ink:#34D17E; --biru-ink:#7FA9EF; --merah-ink:#FF7A6E;
+    --glow:rgba(255,213,0,.14);
+    --shadow:0 18px 44px rgba(0,0,0,.5);
+    --shadow-s:0 6px 18px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h) + 14px)}
+body{
+  font-family:'Rubik',system-ui,sans-serif;
+  background:var(--paper); color:var(--ink);
+  line-height:1.6; font-size:16px; -webkit-font-smoothing:antialiased;
+  transition:background .25s var(--turn), color .25s var(--turn);
+}
+h1,h2,h3,.display{font-family:'Chakra Petch',system-ui,sans-serif;line-height:1.12;letter-spacing:-.01em}
+code,kbd,.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+a{color:inherit;text-decoration:none}
+img,svg{max-width:100%;display:block}
+::selection{background:var(--kuning);color:#16181D}
+:focus-visible{outline:3px solid var(--biru);outline-offset:3px;border-radius:6px}
+
+.skip{position:absolute;left:-9999px;top:8px;background:var(--kuning);color:#16181D;
+  padding:10px 16px;border-radius:var(--r-s);font-weight:600;z-index:99}
+.skip:focus{left:12px}
+
+.wrap{width:min(1140px,100% - 40px);margin-inline:auto}
+section{padding:clamp(52px,7vw,96px) 0}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+.sec-head{max-width:62ch;margin-bottom:clamp(26px,3.5vw,44px)}
+.sec-head h2{font-size:clamp(26px,3.6vw,40px);font-weight:700}
+.sec-head p{color:var(--muted);margin-top:12px;font-size:clamp(15px,1.6vw,17.5px)}
+
+.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:999px;
+  font-weight:600;font-size:15.5px;border:1.5px solid transparent;cursor:pointer;
+  transition:transform .18s var(--turn),box-shadow .18s var(--turn),background .18s}
+.btn:hover{transform:translateY(-2px)}
+/* Hitam pekat, bukan --ink. Di atas kuning penuh, #16181D yang kebiruan itu
+   terbaca keabu-abuan — paling kentara di mode gelap, di mana mata sudah
+   menyesuaikan diri ke latar gelap. #000 memberi kontras 15.9:1. Warnanya
+   sama di kedua tema karena latarnya sendiri tidak ikut berubah tema. */
+.btn.primary{background:var(--kuning);color:#000;box-shadow:0 10px 26px var(--glow)}
+.btn.primary:hover{box-shadow:0 16px 34px var(--glow)}
+.btn.ghost{border-color:var(--line);background:var(--panel);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--faint)}
+.btn.big{padding:16px 30px;font-size:17px}
+
+/* Reveal saat masuk viewport. Tanpa JavaScript .rv tidak pernah dapat
+   .in, jadi keadaan awalnya harus tetap terbaca — karena itu opacity
+   diturunkan lewat JS (html.js), bukan di sini. */
+html.js .rv{opacity:0;transform:translateY(16px)}
+html.js .rv.in{opacity:1;transform:none;transition:opacity .6s var(--turn),transform .6s var(--turn)}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  html.js .rv,html.js .rv.in{opacity:1;transform:none;transition:none}
+  .btn:hover{transform:none}
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important}
+}

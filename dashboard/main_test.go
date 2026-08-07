@@ -1,0 +1,635 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+)
+
+// The tests pin the things that fail SILENTLY.
+//
+// A dashboard has almost no assertions of its own: a wrong template renders a
+// page that looks fine, a dropped style attribute renders a page that looks
+// fine in one theme, and a mount-point bug renders a page that looks fine until
+// it is behind a proxy. Each of those has a test here, and the reason is
+// written above it.
+
+func newTestServer(t *testing.T) (*server, *MemStore) {
+	t.Helper()
+	rend, err := NewRenderer(false, ".")
+	if err != nil {
+		t.Fatalf("templates: %v", err)
+	}
+	// A pinned seed. Every branch in sim.go is a probability; a test that
+	// cannot reproduce a sequence cannot assert on one.
+	st := NewMemStore(1)
+	return &server{store: st, rend: rend, arc: &Arcade{DB: "gaos"}}, st
+}
+
+func do(t *testing.T, s *server, method, path string, form url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	var body *strings.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	} else {
+		body = strings.NewReader("")
+	}
+	r := httptest.NewRequest(method, path, body)
+	if form != nil {
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	r.Header.Set("HX-Request", "true")
+	for _, c := range cookies {
+		r.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	s.routes().ServeHTTP(w, r)
+	return w
+}
+
+func boCookies() []*http.Cookie {
+	return []*http.Cookie{{Name: boCookie, Value: "1"}}
+}
+
+// ---------- routes ----------
+
+func TestEveryRouteAnswers(t *testing.T) {
+	s, _ := newTestServer(t)
+	cs := boCookies()
+
+	cases := []struct {
+		method, path string
+		want         int
+	}{
+		{"GET", "/", 200},
+		{"GET", "/healthz", 200},
+		{"GET", "/static/app.css", 200},
+		{"GET", "/ui/floor", 200},
+		{"GET", "/ui/rail", 200},
+		{"GET", "/ui/inspector", 200},
+		{"GET", "/ui/desk/2", 200},
+		{"GET", "/ui/meeting", 200},
+		{"GET", "/ui/timeline", 200},
+		{"GET", "/events", 200},
+		{"GET", "/replay/floor?t=0", 200},
+		{"POST", "/ui/live", 200},
+		{"POST", "/ui/pause", 200},
+		{"POST", "/ui/speed/2", 200},
+		{"POST", "/ui/bell", 200},
+		{"POST", "/tasks/0/retry", 200},
+		{"POST", "/tasks/0/cancel", 200},
+		{"GET", "/tasks/1/context", 200},
+		{"POST", "/ui/desk/1/review", 200},
+		{"POST", "/ui/meeting/close", 200},
+		{"GET", "/ui/bo", 200},
+		{"GET", "/ui/bo/agents", 200},
+		{"GET", "/ui/bo/stories", 200},
+		{"GET", "/ui/bo/diagrams", 200},
+		{"GET", "/ui/bo/knowledge", 200},
+		{"GET", "/products", 200},
+		{"GET", "/products/p-1", 200},
+		{"GET", "/products/p-1?tab=stories", 200},
+		{"GET", "/products/p-1?tab=diagrams", 200},
+		{"GET", "/products/p-1?tab=knowledge", 200},
+		{"GET", "/products/p-1/readiness", 200},
+		{"POST", "/products/p-1/inject", 200},
+		{"GET", "/ui/cw", 200},
+		{"GET", "/products/nope", 404},
+	}
+	for _, c := range cases {
+		w := do(t, s, c.method, c.path, nil, cs...)
+		if w.Code != c.want {
+			t.Errorf("%s %s = %d, want %d\nbody: %s", c.method, c.path, w.Code, c.want, trunc(w.Body.String()))
+		}
+	}
+}
+
+// A template that fails to execute must not leave a 200 and half a page on the
+// wire, and no response may contain the literal ZgotmplZ -- see below.
+func TestNoTemplateErrorEscapesAsSuccess(t *testing.T) {
+	s, _ := newTestServer(t)
+	for _, p := range []string{"/", "/ui/floor", "/ui/inspector", "/ui/timeline"} {
+		w := do(t, s, "GET", p, nil)
+		if strings.Contains(w.Body.String(), "template error") {
+			t.Errorf("%s rendered a template error", p)
+		}
+	}
+}
+
+// THE STYLE-ATTRIBUTE TRAP. html/template refuses to interpolate a plain string
+// into a style="" context and substitutes the literal text ZgotmplZ. The page
+// still renders, still validates, and has silently lost every colour, width and
+// role tint. This is the single most likely regression in this codebase, so it
+// is checked on every surface that carries a computed style.
+func TestNoZgotmplZ(t *testing.T) {
+	s, _ := newTestServer(t)
+	cs := boCookies()
+	for _, p := range []string{
+		"/", "/ui/floor", "/ui/inspector", "/ui/rail",
+		"/ui/bo/agents", "/products/p-1", "/ui/cw",
+	} {
+		w := do(t, s, "GET", p, nil, cs...)
+		if strings.Contains(w.Body.String(), "ZgotmplZ") {
+			t.Errorf("%s emitted ZgotmplZ -- a computed style lost its template.CSS type", p)
+		}
+	}
+}
+
+// ---------- mount point ----------
+
+// If X-Forwarded-Prefix stops arriving, or arrives forged, the <base href> is
+// wrong and every relative asset resolves against whatever owns the site root.
+// The failure is silent and browser-side; a status-code check will not see it.
+func TestBaseHrefFollowsForwardedPrefix(t *testing.T) {
+	s, _ := newTestServer(t)
+
+	cases := []struct{ header, want string }{
+		{"", `<base href="/">`},
+		{"/app", `<base href="/app/">`},
+		{"/app/", `<base href="/app/">`},
+
+		// Every one of these must be REFUSED, not sanitised into something
+		// plausible. The header is attacker-controlled on an unproxied request
+		// and its value lands in browser-visible output.
+		{"https://evil.example", `<base href="/">`},
+		{"//evil.example", `<base href="/">`},
+		{"app", `<base href="/">`},
+		{"/a\\b", `<base href="/">`},
+		{"/a\"b", `<base href="/">`},
+		{"/a\nb", `<base href="/">`},
+		{"/" + strings.Repeat("x", 200), `<base href="/">`},
+	}
+	for _, c := range cases {
+		r := httptest.NewRequest("GET", "/", nil)
+		if c.header != "" {
+			r.Header.Set("X-Forwarded-Prefix", c.header)
+		}
+		w := httptest.NewRecorder()
+		s.routes().ServeHTTP(w, r)
+		if !strings.Contains(w.Body.String(), c.want) {
+			t.Errorf("prefix %q: want %s", c.header, c.want)
+		}
+	}
+}
+
+// ---------- health ----------
+
+func TestHealthUnconfiguredIsHealthy(t *testing.T) {
+	s, _ := newTestServer(t)
+	w := do(t, s, "GET", "/healthz", nil)
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("healthz is not JSON: %v", err)
+	}
+	if body["ok"] != true {
+		t.Errorf("an unconfigured database must stay a 200: that is the local stack")
+	}
+	if body["store"] != "memory" {
+		t.Errorf("store = %v", body["store"])
+	}
+}
+
+// A configured-but-unreachable database is the failure the deploy check exists
+// to catch: wrong network name, wrong alias, wrong password. It must be a 503.
+func TestHealthUnreachableDatabaseIs503(t *testing.T) {
+	s, _ := newTestServer(t)
+	s.arc = &Arcade{URL: "http://127.0.0.1:1", DB: "gaos", client: http.DefaultClient}
+	w := do(t, s, "GET", "/healthz", nil)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", w.Code)
+	}
+	var body map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &body)
+	if body["database"] != "unreachable" {
+		t.Errorf("database = %v, want unreachable", body["database"])
+	}
+}
+
+// ---------- auth boundary ----------
+
+// Every back-office route must refuse an unauthenticated caller. A route that
+// quietly never had a check is the thing this test exists to find, so it walks
+// the list rather than sampling it.
+func TestBackOfficeRoutesRequireASession(t *testing.T) {
+	s, _ := newTestServer(t)
+	guarded := [][2]string{
+		{"GET", "/ui/bo/agents"},
+		{"GET", "/products"},
+		{"GET", "/products/p-1"},
+		{"POST", "/products"},
+		{"PUT", "/products/p-1/brd"},
+		{"POST", "/products/p-1/stories"},
+		{"POST", "/products/p-1/diagrams"},
+		{"POST", "/products/p-1/knowledge"},
+		{"POST", "/products/p-1/inject"},
+	}
+	for _, g := range guarded {
+		w := do(t, s, g[0], g[1], url.Values{})
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("%s %s = %d, want 401", g[0], g[1], w.Code)
+		}
+	}
+}
+
+func TestLoginRejectsANonEmail(t *testing.T) {
+	s, _ := newTestServer(t)
+	w := do(t, s, "POST", "/auth/login", url.Values{"email": {"nope"}})
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "Enter the email") {
+		t.Error("the error message did not reach the form")
+	}
+}
+
+// The tenant label contains a middle dot. net/http DROPS invalid bytes from a
+// cookie value silently, so an unescaped value is a truncated header and a
+// warning in the log, not an error.
+func TestTenantCookieSurvivesNonASCII(t *testing.T) {
+	s, _ := newTestServer(t)
+	w := do(t, s, "POST", "/auth/login", url.Values{"email": {"a@b.c"}, "tenant": {"loop-eng"}})
+	var raw string
+	for _, c := range w.Result().Cookies() {
+		if c.Name == tenantCookie {
+			raw = c.Value
+		}
+	}
+	if raw == "" {
+		t.Fatal("no tenant cookie was set")
+	}
+	r := httptest.NewRequest("GET", "/", nil)
+	r.AddCookie(&http.Cookie{Name: tenantCookie, Value: raw})
+	if got := tenantOf(r); got != "loop-eng · a@b.c" {
+		t.Errorf("round-trip = %q", got)
+	}
+}
+
+// ---------- the store ----------
+
+func TestApproveRequiresAGate(t *testing.T) {
+	s, _ := newTestServer(t)
+	ctx := context.Background()
+	if _, err := s.store.ApproveTask(ctx, 0); err == nil {
+		t.Fatal("approving a desk with no gate must be rejected")
+	}
+}
+
+// Architecture §06: max_retry_count is 3 per task. The guardrail belongs in the
+// store, not the UI, because the UI is not the only caller it will ever have.
+func TestRetryGuardExhausts(t *testing.T) {
+	s, _ := newTestServer(t)
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		if _, err := s.store.RetryTask(ctx, 0); err != nil {
+			t.Fatalf("retry %d: %v", i+1, err)
+		}
+	}
+	_, err := s.store.RetryTask(ctx, 0)
+	if err == nil {
+		t.Fatal("the fourth retry must be refused")
+	}
+	if !strings.Contains(err.Error(), "guard") {
+		t.Errorf("the refusal must say why: %v", err)
+	}
+}
+
+func TestCancelReleasesTheDesk(t *testing.T) {
+	s, st := newTestServer(t)
+	ctx := context.Background()
+	if _, err := s.store.CancelTask(ctx, 0); err != nil {
+		t.Fatal(err)
+	}
+	d, _, _ := st.Desk(ctx, 0)
+	if d.State != StateIdle || len(d.Agents) != 0 {
+		t.Errorf("state=%s agents=%v, want idle with no agents", d.State, d.Agents)
+	}
+}
+
+// A snapshot that shares its slices with the live floor is a replay that keeps
+// changing under the operator. Clone is the whole defence, so it is tested
+// directly rather than through a handler.
+func TestSnapshotsDoNotAliasTheLiveFloor(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+
+	f, _ := st.Snapshot(ctx)
+	before := len(f.Desks[0].Logs)
+	f.Desks[0].Logs = append(f.Desks[0].Logs, LogLine{Line: "mutated by the caller"})
+	f.Desks[0].Agents = append(f.Desks[0].Agents, "a-9")
+
+	again, _ := st.Snapshot(ctx)
+	if len(again.Desks[0].Logs) != before {
+		t.Error("mutating a snapshot changed the store")
+	}
+}
+
+func TestEventsAreCappedAndTheReplayCursorFollows(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	for i := 0; i < maxEvents*2; i++ {
+		st.Tick()
+	}
+	evs, _ := st.Events(ctx)
+	if len(evs) > maxEvents {
+		t.Fatalf("%d events retained, cap is %d", len(evs), maxEvents)
+	}
+	if _, err := st.Replay(ctx, 0); err != nil {
+		t.Fatalf("replay to the oldest retained event: %v", err)
+	}
+	if _, err := st.Replay(ctx, len(evs)+50); err == nil {
+		t.Error("replaying past the end must be a not-found, not a silent clamp")
+	}
+}
+
+// Replay is a read-only view. A ticking simulation must not rewrite the past
+// the operator is looking at.
+func TestReplayFreezesTheFloor(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	for i := 0; i < 20; i++ {
+		st.Tick()
+	}
+	if _, err := st.Replay(ctx, 2); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := st.Snapshot(ctx)
+	for i := 0; i < 20; i++ {
+		st.Tick()
+	}
+	after, _ := st.Snapshot(ctx)
+	if before.Desks[0].Progress != after.Desks[0].Progress {
+		t.Error("the floor advanced while an operator was replaying it")
+	}
+	if _, err := st.Replay(ctx, -1); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSimulationActuallyMoves(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	before, _ := st.Snapshot(ctx)
+	for i := 0; i < 40; i++ {
+		st.Tick()
+	}
+	after, _ := st.Snapshot(ctx)
+	if before.Stats.EventCount == after.Stats.EventCount {
+		t.Error("40 ticks emitted no events")
+	}
+	if after.Stats.Spend <= before.Stats.Spend {
+		t.Error("40 ticks cost nothing")
+	}
+}
+
+func TestPausedFloorDoesNotTick(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	if _, err := st.SetPaused(ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := st.Snapshot(ctx)
+	for i := 0; i < 30; i++ {
+		st.Tick()
+	}
+	after, _ := st.Snapshot(ctx)
+	if before.Stats.Clock != after.Stats.Clock {
+		t.Error("a paused floor advanced its clock")
+	}
+}
+
+// ---------- the master record ----------
+
+func TestProjectionAndCoverage(t *testing.T) {
+	_, st := newTestServer(t)
+	m, err := st.Master(context.Background(), "p-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pr := m.Project()
+	// 1 product + (3 goals + 4 rules) + 4 stories + 10 criteria + 2 diagrams
+	// + 2 decisions + 2 repos
+	if pr.Vertices != 1+7+4+10+2+2+2 {
+		t.Errorf("vertices = %d", pr.Vertices)
+	}
+	// 3 of 4 stories carry a task.
+	if got := m.Coverage(); got != 75 {
+		t.Errorf("coverage = %d, want 75", got)
+	}
+}
+
+func TestReadinessIsHonestAboutAnEmptyRecord(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	full, _ := st.Master(ctx, "p-1")
+	thin, _ := st.Master(ctx, "p-5")
+
+	met := func(items []ReadinessItem) int {
+		n := 0
+		for _, i := range items {
+			if i.OK {
+				n++
+			}
+		}
+		return n
+	}
+	if met(full.Readiness()) != 7 {
+		t.Errorf("p-1 is a complete record: %d of 7", met(full.Readiness()))
+	}
+	if met(thin.Readiness()) >= 7 {
+		t.Error("p-5 has no stories and no diagrams; readiness must say so")
+	}
+}
+
+func TestAddStoryRejectsAnEmptyOne(t *testing.T) {
+	_, st := newTestServer(t)
+	if _, err := st.AddStory(context.Background(), "p-1", Story{Want: "something"}); err == nil {
+		t.Fatal("a story with no role must be refused")
+	}
+}
+
+func TestMasterCloneIsDeep(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	m, _ := st.Master(ctx, "p-1")
+	m.Stories[0].AC = append(m.Stories[0].AC, "injected by the caller")
+	m.BRD.Rules = append(m.BRD.Rules, "injected")
+
+	again, _ := st.Master(ctx, "p-1")
+	if len(again.Stories[0].AC) != 3 || len(again.BRD.Rules) != 4 {
+		t.Error("mutating a returned Master changed the store")
+	}
+}
+
+// ---------- planning ----------
+
+func TestPlanShapeAndDependencies(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	plan, err := st.PlanWorkflow(ctx, WorkflowDraft{ProductID: "p-1", Stories: []string{"US-01", "US-02"}, Gate: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// planner, architect, (backend+qa)x2, security, devops
+	if len(plan) != 8 {
+		t.Fatalf("plan has %d tasks, want 8: %+v", len(plan), plan)
+	}
+	if plan[0].Role != "planner" || plan[1].Role != "architect" {
+		t.Error("a plan always starts planner then architect")
+	}
+
+	// DEPENDS_ON points from the dependent to its prerequisite, and the chain
+	// must be acyclic -- the planner invariant from the ArcadeDB model §11.
+	seen := map[string]bool{}
+	for _, task := range plan {
+		if task.Dep != "" && !seen[task.Dep] {
+			t.Errorf("%s depends on %s, which is not earlier in the plan", task.ID, task.Dep)
+		}
+		seen[task.ID] = true
+	}
+
+	last := plan[len(plan)-1]
+	if last.Role != "devops" || !last.Gate {
+		t.Error("the gated task is the last one, and it is devops")
+	}
+	if last.Model != "claude-opus-5" {
+		t.Errorf("a gated task runs on the top tier, got %s", last.Model)
+	}
+}
+
+func TestPlanWithoutStoriesStillProducesOne(t *testing.T) {
+	_, st := newTestServer(t)
+	plan, err := st.PlanWorkflow(context.Background(), WorkflowDraft{ProductID: "p-5"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) != 6 {
+		t.Errorf("an empty record follows the stage template: %d tasks", len(plan))
+	}
+}
+
+func TestCreateWorkflowMovesCoverage(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	d := WorkflowDraft{ProductID: "p-1", Goal: "Ship membership pricing", Stories: []string{"US-04"}, Gate: true}
+	plan, _ := st.PlanWorkflow(ctx, d)
+
+	before, _ := st.Master(ctx, "p-1")
+	if _, err := st.CreateWorkflow(ctx, d, plan); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := st.Master(ctx, "p-1")
+	if after.Coverage() <= before.Coverage() {
+		t.Errorf("US-04 had no tasks; planning it must raise coverage (%d -> %d)", before.Coverage(), after.Coverage())
+	}
+}
+
+func TestCreateWorkflowNeedsAnObjective(t *testing.T) {
+	_, st := newTestServer(t)
+	ctx := context.Background()
+	d := WorkflowDraft{ProductID: "p-1"}
+	plan, _ := st.PlanWorkflow(ctx, d)
+	if _, err := st.CreateWorkflow(ctx, d, plan); err == nil {
+		t.Fatal("a workflow with no objective must be refused")
+	}
+}
+
+// The wizard's draft round-trips through hidden form fields. If that breaks,
+// step 3 silently plans against the wrong product.
+func TestWizardDraftRoundTrips(t *testing.T) {
+	s, _ := newTestServer(t)
+	form := url.Values{
+		"step": {"2"}, "product": {"p-1"}, "goal": {"Ship it"},
+		"priority": {"medium"}, "gate": {"no"},
+		"stories": {"US-01", "US-02"},
+	}
+	w := do(t, s, "POST", "/ui/cw/step/3", form)
+	if w.Code != 200 {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{`name="product" value="p-1"`, `name="goal" value="Ship it"`, `value="US-01"`, `value="US-02"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the draft lost %s", want)
+		}
+	}
+}
+
+func TestWizardRefusesToAdvanceWithoutAProduct(t *testing.T) {
+	s, _ := newTestServer(t)
+	w := do(t, s, "POST", "/ui/cw/step/2", url.Values{"step": {"1"}})
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "Pick the product") {
+		t.Error("the refusal must reach the operator as a toast")
+	}
+}
+
+// Going BACK must never be blocked by the field you went back to fix.
+func TestWizardBackIsNeverValidated(t *testing.T) {
+	s, _ := newTestServer(t)
+	w := do(t, s, "POST", "/ui/cw/step/1", url.Values{"step": {"2"}, "product": {""}})
+	if w.Code != 200 {
+		t.Fatalf("going back was blocked: %d", w.Code)
+	}
+}
+
+// ---------- the sequence renderer ----------
+
+func TestRenderSequence(t *testing.T) {
+	svg := string(RenderSequence("Cashier -> OrderAPI: submit order\nOrderAPI --> Cashier: total"))
+	for _, want := range []string{`<svg class="seq"`, "Cashier", "OrderAPI", "submit order", `class="arrow ret"`} {
+		if !strings.Contains(svg, want) {
+			t.Errorf("missing %q in\n%s", want, svg)
+		}
+	}
+}
+
+func TestRenderSequenceFallsBackToText(t *testing.T) {
+	got := string(RenderSequence("Customer 1---0..1 Membership"))
+	if !strings.HasPrefix(got, "<pre>") {
+		t.Errorf("a source with no arrow is shown as text, got %q", got)
+	}
+}
+
+// The renderer builds SVG by hand, so every value that reaches it must be
+// escaped by hand too. This is the one place in the codebase where
+// html/template is not doing that work.
+func TestRenderSequenceEscapes(t *testing.T) {
+	got := string(RenderSequence(`<script>x</script> -> B: </text><script>alert(1)</script>`))
+	if strings.Contains(got, "<script>") {
+		t.Errorf("unescaped markup reached the SVG:\n%s", got)
+	}
+}
+
+// ---------- small helpers ----------
+
+func TestSplitLinesDropsBlanks(t *testing.T) {
+	got := splitLines("one\n\n  two  \n\n")
+	if len(got) != 2 || got[0] != "one" || got[1] != "two" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestSlug(t *testing.T) {
+	for in, want := range map[string]string{
+		"Route Planner": "route-planner",
+		"  A  B  ":      "a-b",
+		"Ops/Warehouse": "ops-warehouse",
+	} {
+		if got := slug(in); got != want {
+			t.Errorf("slug(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func trunc(s string) string {
+	if len(s) > 400 {
+		return s[:400] + "…"
+	}
+	return s
+}

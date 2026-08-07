@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The graph — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="arch-graph">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Architecture</p>
+  <h1>The graph</h1>
+  <p class="lede">25 vertex types, 3 document types, 32 edge types in ArcadeDB — one engine
+  covering graph, document and event store. This is the shape, the conventions every type obeys,
+  and the handful of decisions that are expensive to reverse.</p>
+
+  <div class="page-meta"
+       data-tags="database, schema, graph, arcadedb, events"
+       data-hashtags="arcadedb, graph, schema, events"
+       data-published="2026-08-07"
+       data-updated="2026-08-07"
+       data-version-from="0.1.0"
+       data-version-to=""></div>
+
+  <h2 id="principles">Six modelling principles</h2>
+
+  <ol>
+    <li><strong>Schema-full where machines read, schema-less where humans write.</strong>
+    <code>Task</code>, <code>Event</code> and <code>Review</code> are strict. <code>Requirement</code>
+    and <code>Artifact</code> are hybrid — a human filling a record should not hit a validation
+    error for writing a sentence.</li>
+
+    <li><strong>A business <code>id</code> alongside the physical RID.</strong> ArcadeDB gives every
+    record a <code>#bucket:position</code>. <b>Events reference the business id, never the RID</b> —
+    a RID is a storage address, and an event stream that encodes storage addresses cannot survive a
+    migration.</li>
+
+    <li><strong>One edge type per relationship.</strong> Never a generic <code>REL</code> with a
+    <code>type</code> property. This is described in the source document as the single biggest
+    performance decision in the model, and it is: a typed edge is an index; a property filter on a
+    generic edge is a scan of everything.</li>
+
+    <li><strong>The event stream is a first-class type.</strong> Append-only, never updated,
+    time-partitioned.</li>
+
+    <li><strong>Heavy payloads go EXTERNAL.</strong> <code>ContextSlice.rendered</code>,
+    <code>Prompt.template</code>, <code>Artifact.body</code> — or to object storage.</li>
+
+    <li><strong>Tenancy is a database boundary first, a property second.</strong> One ArcadeDB
+    database per tenant — and keep <code>tenantId</code> on every vertex anyway.</li>
+  </ol>
+
+  <h2 id="supertypes">Two supertypes</h2>
+
+  <p>Every vertex extends <code>GaosVertex</code>; every edge extends <code>GaosEdge</code>. The
+  audit and identity properties are defined once.</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">sql · ArcadeDB</span><button class="copy">copy</button></div>
+    <pre>CREATE VERTEX TYPE GaosVertex;
+CREATE PROPERTY GaosVertex.id        STRING   (mandatory true, notnull true);
+CREATE PROPERTY GaosVertex.tenantId  STRING   (mandatory true, notnull true);
+CREATE PROPERTY GaosVertex.createdAt DATETIME;
+CREATE PROPERTY GaosVertex.updatedAt DATETIME;
+
+CREATE EDGE TYPE GaosEdge;
+CREATE PROPERTY GaosEdge.createdAt DATETIME;
+CREATE PROPERTY GaosEdge.createdBy STRING;</pre>
+  </div>
+
+  <h2 id="vertices">The vertex types</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Group</th><th>Types</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Product master</b></td>
+        <td><code>Tenant</code> · <code>Product</code> · <code>Requirement</code> ·
+        <code>Issue</code> · <code>AcceptanceCriterion</code> · <code>Artifact</code> ·
+        <code>Metric</code></td>
+      </tr>
+      <tr>
+        <td><b>Code graph</b></td>
+        <td><code>Repository</code> · <code>File</code> · <code>Function</code> ·
+        <code>Commit</code></td>
+      </tr>
+      <tr>
+        <td><b>Execution</b></td>
+        <td><code>Workflow</code> · <code>Task</code> · <code>TaskRun</code> ·
+        <code>Prompt</code> · <code>ContextSlice</code> · <code>Workspace</code></td>
+      </tr>
+      <tr>
+        <td><b>Capacity</b></td>
+        <td><code>Agent</code> · <code>Room</code> · <code>CalendarSlot</code></td>
+      </tr>
+      <tr>
+        <td><b>Judgment &amp; memory</b></td>
+        <td><code>Review</code> · <code>Approval</code> · <code>Decision</code> ·
+        <code>Knowledge</code> · <code>Meeting</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Three of these carry <code>BUCKETS 8</code> because they are the high-volume ones:
+  <code>Task</code>, <code>TaskRun</code>, and the code-graph types.</p>
+
+  <div class="adm note">
+    <p class="adm-title">Why Task and TaskRun are separate</p>
+    <p>Folding attempts into the task destroys per-retry evidence. Each attempt has its own cost,
+    its own model, its own failure signature and its own log — and the retry policy is a function
+    of exactly those. Collapse them and the second attempt overwrites the reason the first one
+    failed.</p>
+  </div>
+
+  <h2 id="documents">Three document types, not vertices</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Type</th><th>Buckets</th><th>Why a document</th></tr></thead>
+    <tbody>
+      <tr><td><code>Event</code></td><td>16</td><td>Append-only, scanned in order, never traversed backwards</td></tr>
+      <tr><td><code>Snapshot</code></td><td>—</td><td>A fold checkpoint; one per 500 events and one per closed workflow</td></tr>
+      <tr><td><code>Sample</code></td><td>8</td><td>Time series; no relationship to express</td></tr>
+    </tbody>
+  </table>
+
+  <p><code>Event</code> carries a <code>seq LONG</code> that is <strong>monotonic and gapless per
+  tenant</strong>. That invariant is what makes a single writer per tenant a requirement rather
+  than a preference — a gap in the sequence is an event that was lost, and a fold cannot tell the
+  difference between a gap and a deletion.</p>
+
+  <h2 id="edges">The edges, and two direction rules</h2>
+
+  <p>All 32 edge types are <code>UNIQUE</code>. The full list is in the source document; these are
+  the load-bearing ones:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">edge types</span><button class="copy">copy</button></div>
+    <pre>OWNS · HAS_REQUIREMENT · HAS_ISSUE · HAS_CRITERION · HAS_ARTIFACT
+HAS_WORKFLOW · HAS_TASK · DEPENDS_ON · IMPLEMENTS · SATISFIES
+HAS_RUN · EXECUTED_BY · USES_WORKSPACE · USES_PROMPT · ASSEMBLED · USES_CONTEXT
+MODIFIES · GENERATES · REVIEWED_BY · GATED_BY
+LEARNS_FROM · APPLIES_TO · PRODUCES · DISCUSSES · HAS_PARTICIPANT
+CONTAINS · CALLS · USES_REPOSITORY · TRACKS_METRIC · GOVERNS · SEATED_IN · RESERVED_BY</pre>
+  </div>
+
+  <div class="adm warn">
+    <p class="adm-title">Two directions that are easy to get backwards</p>
+    <p><code>DEPENDS_ON</code> points <b>from the dependent to its prerequisite</b>, so
+    <code>out('DEPENDS_ON')</code> is the set of things that must finish first. Reverse it and the
+    READY-task scan silently returns the wrong tasks.</p>
+    <p><code>USES_CONTEXT</code> hangs off <b><code>ContextSlice</code>, not <code>Task</code></b>.
+    Each attempt keeps its own context evidence; attaching it to the task means attempt two
+    overwrites what attempt one was actually given.</p>
+  </div>
+
+  <h2 id="indexes">The indexes that matter</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Purpose</th><th>Index</th></tr></thead>
+    <tbody>
+      <tr><td><b>The scheduler</b> — runs every tick</td><td><code>Task (tenantId, status, priority)</code> NOTUNIQUE</td></tr>
+      <tr><td>Identity</td><td><code>(tenantId, id)</code> UNIQUE on Product, Workflow, Task, TaskRun, Agent, Issue, Knowledge</td></tr>
+      <tr><td>Orphan detection</td><td><code>Task (status, leaseUntil)</code> · <code>Workspace (state, leaseUntil)</code></td></tr>
+      <tr><td>Dispatch</td><td><code>Agent (tenantId, role, availability)</code></td></tr>
+      <tr><td>Replay</td><td><code>Event (entityId, seq)</code> · <code>Event (tenantId, seq)</code> UNIQUE · <code>Event (tenantId, ts)</code></td></tr>
+      <tr><td>Retry policy</td><td><code>TaskRun (failureSignature)</code></td></tr>
+      <tr><td>Recall</td><td><code>Knowledge (tags BY ITEM)</code> · <code>Knowledge (summary)</code> FULL_TEXT</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="invariants">Invariants, each with a detection query</h2>
+
+  <p>These are checked continuously and feed a health panel, rather than being assumed:</p>
+
+  <ul>
+    <li>A task holds at most one unexpired workspace lease</li>
+    <li><code>DEPENDS_ON</code> is acyclic — enforced by the planner, on every write</li>
+    <li>Every exited <code>TaskRun</code> has exactly one <code>Review</code></li>
+    <li>Every <code>Knowledge</code> links to at least one piece of evidence</li>
+    <li>Every STOP verdict carries a <code>reasonCode</code></li>
+    <li>A gated task cannot reach DONE without a GRANTED <code>Approval</code></li>
+    <li><code>Event.seq</code> is gapless per tenant</li>
+    <li><code>Product.readinessScore</code> matches a recomputation</li>
+  </ul>
+
+  <h2 id="the-ready-scan">The one query to understand first</h2>
+
+  <p>Everything the scheduler does starts here — find work whose prerequisites are all done:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">sql · ArcadeDB</span><button class="copy">copy</button></div>
+    <pre>SELECT FROM Task
+WHERE tenantId = :tenant
+  AND status = 'PENDING'
+  AND out('DEPENDS_ON')[status &lt;&gt; 'DONE'].size() = 0
+ORDER BY priority DESC
+LIMIT 20</pre>
+  </div>
+
+  <p>This is why <code>DEPENDS_ON</code>'s direction is not a matter of taste, and why
+  <code>Task (tenantId, status, priority)</code> is the index the whole system's throughput rests
+  on.</p>
+
+  <h2 id="retention">Storage and retention</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Data</th><th>Retention</th></tr></thead>
+    <tbody>
+      <tr><td><code>Event</code></td><td>Full fidelity 90 days, then cold archive</td></tr>
+      <tr><td><code>Sample</code></td><td>Raw 14 days, then downsampled</td></tr>
+      <tr><td><code>TaskRun</code> logs</td><td>By reference, in object storage</td></tr>
+      <tr><td><code>Snapshot</code></td><td>One per 500 events, one per closed workflow</td></tr>
+      <tr><td>Everything else</td><td>Indefinitely — <em>this is the audit trail; it is the product</em></td></tr>
+    </tbody>
+  </table>
+
+  <p>Migrations are a numbered directory plus a <code>SchemaVersion</code> document. Additive
+  first. <strong>Never rename an edge type in place</strong> — every event that referenced it
+  becomes unreadable, and the events are the one thing that cannot be regenerated.</p>
+
+  <h2 id="connection">Connecting to it here</h2>
+
+  <p>Two instances run on the private VM, one per tier, reached by container DNS on a shared
+  network — no host ports:</p>
+
+  <table class="tbl">
+    <thead><tr><th>Tier</th><th>URL</th><th>Network</th></tr></thead>
+    <tbody>
+      <tr><td>dev</td><td><code>http://arcadedb-master-dev:2480</code></td><td><code>master-compose-ai-dev-net</code></td></tr>
+      <tr><td>prod</td><td><code>http://arcadedb-master:2480</code></td><td><code>master-compose-ai-net</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="adm warn">
+    <p class="adm-title">The readiness probe answers 204, not 200</p>
+    <p><code>GET /api/v1/ready</code> returns <b>204 No Content</b>. Measured against both live
+    instances on 2026-08-07. A health check written against 200 reports every healthy database as
+    unreachable, and you go looking at the network for an hour.</p>
+  </div>
+
+  <h2 id="not-yet">What is not built yet</h2>
+
+  <p><strong>None of this schema exists in the databases.</strong> No DDL has been applied. The
+  dashboard reads an in-memory store seeded from fixtures and probes ArcadeDB only for
+  reachability — <code>dashboard/store.go</code> declares the interface an ArcadeDB implementation
+  drops into, and <code>dashboard/events.go</code> already encodes the closed event catalog as
+  typed constants so that the vocabulary cannot drift in the meantime.</p>
+
+  <p>The complete DDL, the query cookbook and the full property lists are in
+  <code>artifacts/v1/gaos-arcadedb-model.html</code>, which also ships a downloadable
+  <code>gaos-schema.sql</code>.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,4 +1,15 @@
+# Secrets. Every deployed tier reads its credentials from a host-side file that
+# is created by hand, chmod 600, and never committed. The *.example files next
+# to them document the names.
+deploy/stacks/*.env
+!deploy/stacks/*.env.example
 
+# Built binaries
+/dashboard/dashboard
+/pustaka/pustaka
+/pustaka/halaman
+coverage.out
 
-artifacts/
-
+# Editor / OS noise
+.DS_Store
+*.swp
