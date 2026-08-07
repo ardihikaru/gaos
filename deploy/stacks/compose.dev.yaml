@@ -1,0 +1,76 @@
+# GAOS DEVELOPMENT, behind the WireGuard tunnel.  Product slot 03 -> port 19301.
+#
+#   browser --HTTPS--> clino (EDGE_IP, nginx terminates TLS)
+#          --plain HTTP over WireGuard--> 10.10.0.2:19301 --> this Traefik
+#
+#   https://dev.gaos.mfardiansyah.id/       the landing page (site root)
+#   https://dev.gaos.mfardiansyah.id/app/   Mission Control  ·  /docs/  ·  /api/
+#
+# Deliberately the same shape as compose.prod.yaml, differing ONLY in: the port,
+# the compose project name, the internal subnet, the infra network and the
+# ArcadeDB host. Anything else that diverges between the two files is a bug.
+# Read the prod file's comments first -- they are not repeated here.
+#
+# THE DEV DATABASE IS A DIFFERENT ARCADEDB INSTANCE, on a different shared
+# network. A dev stack wired to the prod database starts cleanly, passes every
+# smoke test and is invisible at runtime -- which is exactly why
+# test/stacks_test.go asserts that these two files never name each other's
+# network or database host.
+#
+#   docker compose -f deploy/stacks/compose.dev.yaml build
+#   docker compose -f deploy/stacks/compose.dev.yaml up -d
+
+name: gaos-dev
+
+networks:
+  internal:
+    name: gaos-dev-int
+    ipam:
+      config:
+        - subnet: 172.30.13.0/24
+  infra:
+    external: true
+    name: master-compose-ai-dev-net
+
+services:
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    # Tunnel address only -- never 0.0.0.0. See compose.prod.yaml.
+    ports:
+      - "10.10.0.2:19301:80"
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks: [internal]
+
+  landing:
+    build:
+      context: ../../landing-page
+      dockerfile: ../deploy/Dockerfile.landing
+    restart: unless-stopped
+    volumes:
+      - ../nginx/landing.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [internal]
+
+  dashboard:
+    build:
+      context: ../../dashboard
+      dockerfile: ../deploy/Dockerfile.dashboard
+    restart: unless-stopped
+    env_file: [./dev.dashboard.env]
+    environment:
+      GAOS_ADDR: ":8080"
+      GAOS_ARCADE_URL: "http://arcadedb-master-dev:2480"
+      GAOS_ARCADE_DB: "gaos"
+      # "1" even in dev: this tier also sits behind real TLS at the edge.
+      GAOS_COOKIE_SECURE: "1"
+    networks: [internal, infra]
+
+  docs:
+    build:
+      context: ../../pustaka
+      dockerfile: ../deploy/Dockerfile.pustaka
+    restart: unless-stopped
+    env_file: [./dev.docs.env]
+    networks: [internal]

@@ -1,0 +1,107 @@
+# The routing table. Four routers on one entrypoint, all path-based, all on the
+# same origin -- which is what keeps CORS out of the picture entirely.
+#
+# THE LANDING PAGE IS THE SITE ROOT and therefore owns the origin's 404. Mission
+# Control lives under /app and the docs under /docs, both stripped on the way
+# in, because both serve at "/" internally.
+#
+# PRIORITY IS LOAD-BEARING. `landing` is the catch-all and must lose to every
+# specific prefix, so it sits at 1 and the rest at 30. Traefik would otherwise
+# rank by rule length, which is a rule you have to remember rather than read.
+
+http:
+  routers:
+    # /api/... -> the dashboard's JSON surface. Stripped, so /api/healthz
+    # arrives as /healthz. This is the route every deployment check curls.
+    api:
+      rule: "PathPrefix(`/api`)"
+      entryPoints: [web]
+      priority: 30
+      middlewares: [api-strip]
+      service: dashboard
+
+    # /app/... -> Mission Control.
+    #
+    # THE TRAILING SLASH IS NOT COSMETIC -- app-slash runs FIRST for a reason.
+    # The dashboard emits <base href="{prefix}/"> and every asset, fragment
+    # fetch and form post in it is relative to that base. At `/app` with no
+    # slash the base resolves one level up, so `static/app.css` becomes
+    # `/static/app.css` -- which the landing page answers with its own 404. And
+    # stripPrefix on exactly `/app` forwards `/`, so the dashboard replies 200
+    # and the failure is silent, browser-side, and invisible to any status-code
+    # check. Redirect first, strip second.
+    app:
+      rule: "PathPrefix(`/app`)"
+      entryPoints: [web]
+      priority: 30
+      middlewares: [app-slash, app-strip]
+      service: dashboard
+
+    # /docs/... -> pustaka. Same shape, same reason: its pages link assets
+    # depth-relative, so at `/docs` the base URL is `/` and `assets/site.css`
+    # resolves to a landing-page 404.
+    docs:
+      rule: "PathPrefix(`/docs`)"
+      entryPoints: [web]
+      priority: 30
+      middlewares: [docs-slash, docs-strip]
+      service: docs
+
+    # Everything else is the landing page.
+    landing:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [web]
+      priority: 1
+      service: landing
+
+  middlewares:
+    api-strip:
+      stripPrefix:
+        prefixes: ["/api"]
+
+    app-strip:
+      # stripPrefix also sets X-Forwarded-Prefix: /app, and that header is the
+      # ONLY reason the dashboard's <base href> is correct behind this mount.
+      # sitePrefix() in dashboard/render.go reads it back (validated, never
+      # trusted). Replacing this with a rewrite that drops the header breaks
+      # every asset on the page and nothing logs an error.
+      stripPrefix:
+        prefixes: ["/app"]
+
+    docs-strip:
+      # Identical reasoning: pustaka's sitePrefix (pustaka/main.go:836) reads
+      # this header back onto its root-absolute login redirects. Without it the
+      # login layer bounces people onto the landing page.
+      stripPrefix:
+        prefixes: ["/docs"]
+
+    app-slash:
+      # A RELATIVE Location on purpose. Traefik sees plain http -- TLS ends at
+      # the edge -- so rebuilding an absolute URL here emits http:// and the
+      # browser takes an extra plaintext hop before nginx bounces it back to
+      # https. A relative target inherits whatever scheme and host the browser
+      # is already on, which is correct behind the edge AND on a local stack.
+      redirectRegex:
+        regex: "^https?://[^/]+/app$"
+        replacement: "/app/"
+        permanent: true
+
+    docs-slash:
+      redirectRegex:
+        regex: "^https?://[^/]+/docs$"
+        replacement: "/docs/"
+        permanent: true
+
+  services:
+    landing:
+      loadBalancer:
+        servers:
+          - url: "http://landing:80"
+    dashboard:
+      loadBalancer:
+        servers:
+          - url: "http://dashboard:8080"
+    docs:
+      loadBalancer:
+        servers:
+          - url: "http://docs:8080"
