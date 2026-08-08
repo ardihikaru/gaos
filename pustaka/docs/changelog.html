@@ -36,6 +36,33 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-2-0">v0.2.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Gives the design a business
+      layer. Nothing executable changed — this release is the document that the code implementation
+      will be written against, plus the register of decisions it deliberately does not make.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><a href="product/brd.html">BRD — Business
+        requirements</a></b> — the three documents in <code>artifacts/v1/</code> restated as
+        business requirements across eleven domains, with a 26-entry business rule register, a
+        nine-entry risk register, a scope boundary, and a business decision matrix. Every claim
+        points at an artifact section, a committed file, or git history; everything else is marked
+        open rather than invented.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/open-questions.html">Open
+        questions</a></b> — eighteen decisions with their options and trade-offs: the commercial
+        model, pricing basis, who pays the model provider, plan definitions, service level, data
+        residency, tenancy strategy at scale, the authentication approach, the ArcadeDB target
+        version, and the budget caps that are specified everywhere and implemented nowhere.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html">Decision
+        log</a></b> — twenty-four decisions already made and traceable, from the graph-is-the-primitive
+        thesis through to the cookie rule behind the tunnel. It is where an answered open question
+        lands.</li>
+        <li><span class="chg add">Added</span> A <b>Product</b> navigation group
+        (<code>assets/toc/product.js</code>), placed before Architecture because the business layer
+        reads first.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-1-0">v0.1.0 <time datetime="2026-08-07">2026-08-07</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Stands the product up as a
       deployable thing. The agent OS itself is design only — this release is the path from a
