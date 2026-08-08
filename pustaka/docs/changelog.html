@@ -36,6 +36,95 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-5-0">v0.5.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS is licensed and can be
+      published. Execution stops being CLI-or-API and becomes CLI-and-API behind one switch, and the
+      budget cap gets the thing it was missing: a way to slow down instead of stopping dead.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><code>LICENSE</code></b> — <b>Apache-2.0</b>, plus
+        <code>NOTICE</code> with the trademark reservation and third-party attributions, and
+        <code>CONTRIBUTING.md</code> with a DCO sign-off, the open-core boundary rule, and the local
+        checks that stand in for CI. Logged as
+        <a href="product/decision-log.html#d-035">D-035</a>; closes
+        <a href="product/open-questions.html#oq-20">OQ-20</a>, the one item that blocked publishing
+        the repository at all.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/brd.html#mode-config">BRD
+        §7.6.1–7.6.3</a></b> — the master configuration that selects the execution adapter, a
+        ten-row CLI-versus-API comparison led by the cost consequence (flat subscription with
+        imprecise accounting, or metered with exact accounting), and the containment for each CLI
+        weakness. Requirements D-12 and D-13, and
+        <a href="product/decision-log.html#d-036">D-036</a>.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/brd.html#budget-guard">BRD
+        §8.10.1</a></b> — the budget guard: three zones, spend paced across the period, and
+        <em>deferral</em> instead of failure at the throttle threshold, so work waits for budget
+        rather than dying of it. Five new <code>Tenant</code> properties, requirements J-9…J-13, and
+        <a href="product/decision-log.html#d-037">D-037</a>; answers
+        <a href="product/open-questions.html#oq-18">OQ-18</a>.</li>
+        <li><span class="chg change">Changed</span> The execution path is now dual-mode everywhere it
+        appears — the flowchart, domain D, the third-party table, the constraints, the FAQ — with one
+        prohibition holding it together: the mode may be recorded on an attempt and never branched on
+        (<b>BR-33</b>). <b>BR-34</b> keeps deferral out of the retry accounting; <b>BR-35</b> states
+        that a limit which only warns is not a limit.</li>
+        <li><span class="chg change">Changed</span> An idle desk now has <b>five</b> blocking
+        reasons rather than four — budget deferral joins them, with the time it resumes, so a
+        budget pause never reads as a hang (§7.4, I-7).</li>
+        <li><span class="chg fix">Fixed</span> <a href="product/brd.html#risk-register">R-12</a> is
+        no longer a single point of failure: an operator whose provider CLI cannot be driven safely
+        now changes a setting instead of forking. <a href="product/brd.html#risk-register">R-05</a>
+        keeps its severity — the guard is designed, not built.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-4-0">v0.4.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Answers the commercial block.
+      GAOS is open core and self-hosted, it calls models through a CLI rather than an API, and the
+      question of where a tenant's code goes now has a domain of requirements instead of a
+      placeholder.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><a href="product/faq.html">FAQ</a></b> — is it
+        free, who it is for, what is sold, who pays for the AI models, what support commits to, and
+        where your code goes when an agent runs. It leads with the fact that the engine is not built
+        yet, because a commercial page that buries that would be selling something that does not
+        exist.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-026">D-026</a>…<a href="product/decision-log.html#d-034">D-034</a></b>
+        — nine decisions in two new groups: open core with private submodules and paid services, the
+        target customer, the auditor deferred, service-and-licence pricing, the operator always pays
+        the model provider, response-time support with no uptime SLA, quota profiles instead of
+        billing tiers, CLI-first execution with a mandatory handoff document, and the data-handling
+        position.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/brd.html#to-be-cli">BRD §7.6</a></b>
+        — how a task reaches a model in the MVP, with the execution flowchart, the task-packet and
+        handoff-document contract, the required document shape, and a table of exactly what the CLI
+        route costs against an API.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/brd.html#req-l">BRD domain L</a></b>
+        — data protection, egress and residency: a six-class data inventory, eleven requirements, and
+        the statement that egress is source code chosen by a traversal and widened on every retry.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/brd.html#rate-card">A proposed
+        rate card</a></b> — three installation packages, three support tiers, a submodule licence
+        with a published academic reduction, and a day rate, with the reasoning behind each shape.
+        The only invented numbers in the BRD, and labelled as such.</li>
+        <li><span class="chg add">Added</span> <a href="product/open-questions.html#oq-19">OQ-19</a>…<a href="product/open-questions.html#oq-23">OQ-23</a>
+        — what belongs in a private submodule, the licence and contribution policy, confirming the
+        rate card, estimating cost when a CLI reports none, and which provider CLIs are supported.
+        All five exist because the answers above created them.</li>
+        <li><span class="chg change">Changed</span> <b><a href="product/brd.html#req-k">Domain K</a></b>
+        stops being an agenda and becomes ten requirements; the SaaS framing caveat is replaced;
+        stakeholders now distinguish an operator from a tenant; six business rules
+        (BR-27…BR-32), three risks (R-10…R-12) and three assumptions (A-07…A-09) added.</li>
+        <li><span class="chg change">Changed</span> <a href="product/open-questions.html">Open
+        questions</a> — eight commercial rows flip to <em>Answered</em>, and OQ-11, OQ-16 and OQ-18
+        are marked <em>narrowed</em> with what actually changed about each.</li>
+        <li><span class="chg remove">Removed</span> Requirement <b>J-7</b>, tenant self-service —
+        withdrawn rather than deferred, since a self-hosted deployment has no signup to build. The
+        row is struck through rather than deleted so the withdrawal stays visible.</li>
+        <li><span class="chg fix">Fixed</span> The home page's no-JS version literal was two
+        releases behind the registry it is supposed to mirror, and the QA test plan was missing from
+        the home page's card grid.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-3-0">v0.3.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Closes the first open question.
       QA gets a real plan instead of an implied one, and the deploy tooling gets the positive and
