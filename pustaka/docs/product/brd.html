@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BRD — Business requirements — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="brd">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>BRD — Business requirements</h1>
+  <p class="lede">GAOS's business source of truth: the three design artifacts restated as
+  business requirements, checked line by line against what the repository actually contains,
+  and structured after a standard enterprise BRD table of contents so every section can be
+  assessed the way any other BRD would be.</p>
+
+  <div class="page-meta"
+       data-tags="brd, product, business-requirements, scope, risks, stakeholders"
+       data-hashtags="brd, product, roadmap, requirements"
+       data-published="2026-08-08"
+       data-updated="2026-08-08"
+       data-version-from="0.2.0"
+       data-version-to=""></div>
+
+  <table class="tbl">
+    <tbody>
+      <tr><td><strong>Document</strong></td><td>BRD-GAOS-001</td></tr>
+      <tr><td><strong>Version</strong></td><td>0.1</td></tr>
+      <tr><td><strong>Baseline date</strong></td><td>2026-08-08</td></tr>
+      <tr><td><strong>Classification</strong></td><td>Internal — project owner &amp; contributors</td></tr>
+      <tr><td><strong>Status</strong></td><td><strong>Business open</strong> — the engineering design is complete and grounded; the commercial model is undecided and recorded as open questions, not invented</td></tr>
+      <tr><td><strong>Reviewer</strong></td><td>Product owner (solo project — no review board exists)</td></tr>
+      <tr><td><strong>Role</strong></td><td>Living business source of truth for GAOS; the input to code implementation</td></tr>
+      <tr><td><strong>Next stage</strong></td><td>Product-owner assessment of the <a href="open-questions.html">open questions</a>, one at a time, until each is resolved into a <a href="decision-log.html">logged decision</a></td></tr>
+    </tbody>
+  </table>
+
+  <table class="tbl">
+    <thead><tr><th>Version</th><th>Date</th><th>Change</th><th>Author</th></tr></thead>
+    <tbody>
+      <tr><td>0.1</td><td>2026-08-08</td><td>Initial baseline. The three documents in <code>artifacts/v1/</code> — system architecture, ArcadeDB data model, Mission Control prototype — restated as business requirements across eleven domains, with a business rule register, a risk register, a scope boundary, and every commercial parameter split out as a numbered open question</td><td>Claude (agent), at the product owner's request</td></tr>
+    </tbody>
+  </table>
+
+  <div class="adm note">
+    <p class="adm-title">How to read this document</p>
+    <p>The section structure mirrors a standard enterprise BRD table of contents, adapted to
+    GAOS's actual scale — a design-complete, largely unbuilt project with one owner. Every claim
+    is either <strong>grounded</strong>, meaning it points at a real artifact section, a real file,
+    or real git history, or it is explicitly marked <strong>open</strong>, meaning it is a business
+    decision this document will not invent on the owner's behalf. No numeric target, customer
+    name, price, or date appears here unless it already exists somewhere in the repository.</p>
+  </div>
+
+  <div class="adm warn">
+    <p class="adm-title">The framing caveat, stated once and not repeated</p>
+    <p>This BRD is written on the owner's instruction that GAOS is a <strong>commercial
+    multi-tenant SaaS</strong>. That framing has no evidence in the repository. What does exist is
+    structural multi-tenancy: <code>Tenant</code> carries <code>plan</code>,
+    <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code>; every vertex carries
+    <code>tenantId</code>; database-per-tenant is the data model's stated default; the prototype
+    ships two tenants, <code>loop-eng</code> and <code>loop-labs</code>; and budget caps are
+    specified per workflow and per tenant. There is no price, plan definition, customer, contract,
+    SLA, support model, or onboarding flow anywhere. Section&nbsp;8 domain&nbsp;K therefore holds
+    the commercial requirements as an <em>agenda</em>, with each row pointing at the open question
+    that must be answered before it can be written as a requirement.</p>
+  </div>
+
+  <h2 id="executive-summary">1. Executive summary</h2>
+
+  <h3 id="vision-statement">1.1 Vision statement</h3>
+  <p><em>Drafted from the project's own words — open for the owner to confirm or rewrite:</em></p>
+  <blockquote>An operating system for software agents in which the graph, not the prompt, is the
+  primitive: work is scheduled by traversal, every change is an event, the orchestrator holds
+  nothing, and any moment in a product's history can be reconstructed and explained.</blockquote>
+
+  <h3 id="business-summary">1.2 Business summary</h3>
+  <p>GAOS coordinates fleets of software agents against a <em>product master record</em> — a
+  business brief, user stories, acceptance criteria, diagrams and an indexed repository — stored
+  as a graph in ArcadeDB. The record is scored for completeness before any work is dispatched; the
+  planner refuses to plan against a brief that is too thin. Work is decomposed into an acyclic task
+  graph, routed to a role and a model tier by capability and risk rather than cost, executed by
+  detached runners holding workspace leases, scored on five weighted dimensions, retried under
+  explicit guard limits, and gated by a human where the risk demands it. Everything that happens
+  is written to an append-only event stream, which is simultaneously the recovery path, the audit
+  trail, and the replay source.</p>
+
+  <h3 id="background">1.3 Background</h3>
+  <p>There is no public release and no user. The design is complete and written down in three
+  self-contained documents committed on 2026-08-02 under <code>artifacts/v1/</code>; the repository
+  README calls them "the design — the source of truth". What is built, as of v0.1.0, is the
+  operator surface and the path a browser request takes to reach it. The README states the position
+  plainly: <em>"this release is v0.1.0 and it is a deployment, not an agent OS."</em></p>
+
+  <h3 id="success-definition">1.4 Definition of project success</h3>
+  <p>The design supplies exactly one success measurement, and it is a good one because it cannot be
+  faked by a demo. From the architecture document's closing paragraph:</p>
+  <blockquote>Run the same objective on the same product twice, a week apart. If the second run
+  needs fewer retries and less human intervention, knowledge is accumulating and the loop closes.
+  If it does not, the extraction step is decorative and everything above it is expensive
+  theatre.</blockquote>
+  <div class="adm warn">
+    <p class="adm-title">Open — no measurable business targets exist</p>
+    <p>A standard BRD requires numeric success criteria. GAOS has no operational baseline from
+    which to set one: no users, no tenants, no run has ever executed against a real model, and the
+    measurement above has never been performed. Setting numbers here would be fabrication. See
+    <a href="open-questions.html#oq-08">OQ-08</a>.</p>
+  </div>
+
+  <h2 id="business-background">2. Business background</h2>
+
+  <h3 id="current-state">2.1 Current state</h3>
+  <p>The repository README maintains a designed-versus-built table. It is reproduced here because it
+  is the honest spine of this whole document — most of what follows is a requirement, not a
+  description of something that runs.</p>
+  <table class="tbl">
+    <thead><tr><th>Capability</th><th>State</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>System architecture, control loops, scoring, readiness rubric</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-architecture.html</code></td></tr>
+      <tr><td>Graph schema: 25 vertex types, 3 document types, 32 edge types, event store</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-arcadedb-model.html</code></td></tr>
+      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 33 tests, stdlib only</td></tr>
+      <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
+      <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
+      <tr><td>ArcadeDB schema applied, graph queries</td><td><strong>Not built</strong></td><td><code>dashboard/store.go</code> is the seam</td></tr>
+      <tr><td>Scheduler, runner, real reviews</td><td><strong>Not built</strong></td><td><code>dashboard/sim.go</code> stands in</td></tr>
+      <tr><td>Authentication</td><td><strong>Not built</strong></td><td>the back-office login sets a cookie and checks nothing</td></tr>
+    </tbody>
+  </table>
+  <p>One thing already exists in code that is worth calling out as a business control rather than an
+  implementation detail: the event catalog. All 31 domain event names from the data model's
+  §08 are declared as Go constants in <code>dashboard/events.go</code>, so a typo is a compile
+  error rather than a silent new event type entering the stream that the entire replay model is
+  folded from. Four additional names are kept in a separate block because they are UI lifecycle,
+  not graph state.</p>
+
+  <h3 id="operational-challenges">2.2 Operational challenges</h3>
+  <ul>
+    <li><strong>Nothing past the operator surface exists.</strong> The scheduler, the runner, the
+    review engine and the ArcadeDB schema are all specified in full and implemented in none. The
+    dashboard reads fixtures behind an interface.</li>
+    <li><strong>No model has ever been called.</strong> The role-to-model map in the prototype names
+    <code>claude-opus-5</code>, <code>claude-sonnet-5</code> and <code>claude-haiku-4.5</code>, but
+    no model gateway is built and no run has ever produced a real token.</li>
+    <li><strong>No DDL has ever been applied.</strong> The data model document warns in its own
+    words that the ArcadeDB SQL dialect moves between releases and that the schema should be run
+    against the target version in a scratch database first. That has not happened.</li>
+    <li><strong>Authentication is absent, not partial.</strong> The back office is reachable and its
+    login checks nothing — acceptable for a prototype, disqualifying for a tenant boundary.</li>
+    <li><strong>Single-node infrastructure.</strong> One public edge machine (<code>clino</code>,
+    1&nbsp;vCPU / 957&nbsp;MiB, no Docker) fronts one private VM. High availability is discussed in
+    the data model and deferred.</li>
+  </ul>
+
+  <h3 id="opportunity">2.3 Opportunity</h3>
+  <p>The gap GAOS aims at is not "run an agent" — that is commodity — but <em>account for</em> what
+  an agent did. Because every prompt is reconstructible from <code>ContextSlice</code> and its
+  <code>USES_CONTEXT</code> edges, and every state change is an event, GAOS can answer "why does
+  this code exist?" by walking from a commit back through a run, a task, an issue and a requirement
+  to a sentence someone wrote in the back office. Systems that keep their state in a conversation
+  cannot answer that question at all. Whether that auditability is something teams will pay for is
+  <a href="open-questions.html#oq-02">OQ-02</a>.</p>
+
+  <h2 id="problem-statement">3. Problem statement</h2>
+  <p>Six problems, each named explicitly in the design material rather than inferred here.</p>
+  <table class="tbl">
+    <thead><tr><th>#</th><th>Problem</th><th>Consequence if unaddressed</th></tr></thead>
+    <tbody>
+      <tr><td>P-1</td><td>A prompt chain has no addressable intermediate state.</td><td>Nothing can be scheduled, queried, or impact-analysed; the only way to find out what the system thinks is to run it again.</td></tr>
+      <tr><td>P-2</td><td>Orchestrators that hold state in memory lose it on restart.</td><td>A crash mid-run silently invents a new version of the truth; recovery is guesswork.</td></tr>
+      <tr><td>P-3</td><td>Agents are given briefs that are too thin to work from, and nobody notices until the output is wrong.</td><td>Retries grind against a missing specification. The model is blamed for a gap in the brief.</td></tr>
+      <tr><td>P-4</td><td>Record rot: a team fills in the product record once and never updates it, while the codebase moves.</td><td>Knowledge decays silently. A record scored 92 six months ago describes software that no longer exists.</td></tr>
+      <tr><td>P-5</td><td>Retry loops have no termination condition and no cost ceiling.</td><td>One runaway task consumes a month of spend, or walks up the model tiers reproducing the same wrong answer more expensively.</td></tr>
+      <tr><td>P-6</td><td>Model output is unauditable — you can see that a task failed, never why the model believed what it believed.</td><td>No post-mortem is possible, no model-routing decision can be evidence-based, and no regulated buyer can accept the system.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="business-objectives">4. Business objectives &amp; success metrics</h2>
+  <p>Objectives are stated qualitatively because no baseline exists to quantify them against. Each
+  maps to the problem it answers and to the requirement domain that delivers it.</p>
+  <table class="tbl">
+    <thead><tr><th>Objective</th><th>Answers</th><th>Delivered by</th><th>Measurable target</th></tr></thead>
+    <tbody>
+      <tr><td>O-1 · Work is scheduled from queryable state, not from a conversation</td><td>P-1</td><td>Domains A, C, D</td><td>Binary: the scheduler is a pure function of the graph, or it is not</td></tr>
+      <tr><td>O-2 · A restart loses nothing</td><td>P-2</td><td>Domain D, H</td><td>Binary: kill the orchestrator mid-task and the work survives and is re-adopted</td></tr>
+      <tr><td>O-3 · A thin brief is refused, not guessed at</td><td>P-3</td><td>Domain B</td><td>Binary: below 45 the planner refuses and returns the missing list</td></tr>
+      <tr><td>O-4 · Knowledge accumulates rather than decays</td><td>P-4</td><td>Domains B, G</td><td>The twice-in-a-week measurement in <a href="#success-definition">§1.4</a></td></tr>
+      <tr><td>O-5 · Every loop terminates with a recorded reason</td><td>P-5</td><td>Domain E</td><td>Binary: the unsatisfiable-task test terminates within guard limits and leaves a reason code</td></tr>
+      <tr><td>O-6 · Any past moment is reconstructible</td><td>P-6</td><td>Domain H</td><td>Binary: fold-from-genesis equals fold-from-snapshot on a real workflow</td></tr>
+      <tr><td>O-7 · Commercial viability</td><td>—</td><td>Domain K</td><td><strong>Open</strong> — see <a href="open-questions.html#oq-commercial">OQ-01…OQ-07</a></td></tr>
+    </tbody>
+  </table>
+  <p>Five of these seven are deliberately binary rather than numeric. That is not evasion: each is
+  an acceptance test the design already specifies, and each either passes or does not. They are
+  worth more than an invented percentage.</p>
+
+  <h3 id="evaluation-method">4.1 Evaluation method</h3>
+  <p>The design specifies three acceptance tests that double as the evaluation method, and they are
+  reproduced here as business commitments rather than engineering trivia, because each one is the
+  only honest proof that an objective was met:</p>
+  <ul>
+    <li><strong>The unsatisfiable task.</strong> Run a task whose acceptance criterion contradicts a
+    domain rule. A correct system stops within the guard limits, records a reason code, and leaves a
+    human queue item. Looping or failing silently means the retry loop is not finished.</li>
+    <li><strong>The fold test.</strong> Periodically fold the event stream from genesis and compare
+    against the fold from the nearest snapshot. Divergence proves the event model is incomplete.</li>
+    <li><strong>The second run.</strong> The same objective on the same product, a week apart.</li>
+  </ul>
+  <p>Review cadence for these — who runs them, how often, and what happens when one fails — is
+  <a href="open-questions.html#oq-13">OQ-13</a>.</p>
+
+  <h2 id="stakeholders">5. Stakeholders</h2>
+  <p>Mapped from the roles the system actually models and the operators the deployment actually
+  has, not from an org chart. GAOS has no employees.</p>
+
+  <h3 id="stakeholders-internal">5.1 Internal</h3>
+  <table class="tbl">
+    <thead><tr><th>Stakeholder</th><th>Role</th><th>Primary interest</th></tr></thead>
+    <tbody>
+      <tr><td>Product owner</td><td>Sole decision maker; author of the design artifacts</td><td>That the design survives contact with implementation; that the open questions get answered</td></tr>
+      <tr><td>Platform operator</td><td>Runs the dev and prod stacks on the private VM; owns the edge configuration on <code>clino</code></td><td>That a stack can be rebuilt and restarted safely, and that dev is never wired to the production database</td></tr>
+      <tr><td>Fleet operator</td><td>Watches Mission Control: approves gates, cancels runs, reads the timeline</td><td>That the floor says <em>why</em> something is not moving — the blocking reason must be visible, not inferred</td></tr>
+      <tr><td>Record author</td><td>Fills the product master in the back office: brief, stories, criteria, diagrams</td><td>That the readiness score tells them exactly what is missing rather than failing vaguely</td></tr>
+    </tbody>
+  </table>
+  <div class="adm note">
+    <p class="adm-title">All four are currently one person</p>
+    <p>These are roles the system distinguishes, not headcount. Separating them matters because the
+    permission boundaries in domain&nbsp;F and the tenancy boundary in domain&nbsp;J are drawn
+    between them.</p>
+  </div>
+
+  <h3 id="stakeholders-external">5.2 External</h3>
+  <table class="tbl">
+    <thead><tr><th>Stakeholder</th><th>Role</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Tenant — engineering team</td><td>Buys or is granted a tenant; brings its own repositories and product records</td><td><strong>Open.</strong> No real tenant exists. The two in the prototype (<code>loop-eng</code>, <code>loop-labs</code>) are fixtures. Target segment is <a href="open-questions.html#oq-02">OQ-02</a></td></tr>
+      <tr><td>Tenant administrator</td><td>Manages the tenant's plan, budget cap and concurrency limit</td><td><strong>Open.</strong> The properties exist on <code>Tenant</code>; no surface, no self-service, no billing</td></tr>
+      <tr><td>Auditor / reviewer of record</td><td>Consumes the replay and the <code>USES_CONTEXT</code> trail to answer "why does this code exist?"</td><td><strong>Open.</strong> The capability is designed; whether an external auditor is a real stakeholder is <a href="open-questions.html#oq-03">OQ-03</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="stakeholders-third-party">5.3 Third parties</h3>
+  <table class="tbl">
+    <thead><tr><th>Party</th><th>Role</th><th>Exposure</th></tr></thead>
+    <tbody>
+      <tr><td>Anthropic</td><td>Model provider named throughout the prototype's role map</td><td>Single-provider dependency (<a href="#risk-register">R-08</a>); no key configured, no call ever made. Multi-provider strategy is <a href="open-questions.html#oq-09">OQ-09</a></td></tr>
+      <tr><td>ArcadeDB</td><td>The graph, document, event and time-series store — the one component the whole model assumes</td><td>Version-coupled: <code>EXTERNAL</code> properties need v26.5.1 or later, and the document warns that constraint and index syntax moves between releases</td></tr>
+      <tr><td>Hosting: <code>clino</code> + private VM</td><td>Public nginx edge (TLS, certbot) and the WireGuard-reached VM that runs every container</td><td>Shared with other products; GAOS holds product slot <strong>03</strong> and tunnel ports <code>18301</code> / <code>19301</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="as-is-process">6. Current business process (as-is)</h2>
+  <p>What actually happens today, end to end, with nothing implied:</p>
+  <ol>
+    <li><strong>An operator opens Mission Control</strong> at <code>/app/</code>. The floor, the
+    inspector, the timeline with its replay scrub, the meeting overlay, the back office and the
+    create-workflow wizard all render server-side from Go templates over HTMX.</li>
+    <li><strong>The floor animates a simulation.</strong> Desks advance through planning →
+    architecture → coding → testing → review → deployment because <code>dashboard/sim.go</code>
+    advances them. No task is dispatched, no process is spawned, no model is called.</li>
+    <li><strong>The back office accepts a login and checks nothing.</strong> Any value opens it. It
+    then shows product records, a readiness checklist, a graph projection count and story coverage
+    — computed from fixtures in <code>dashboard/fixtures.go</code>.</li>
+    <li><strong>Events are emitted into an in-memory store.</strong> <code>dashboard/store_mem.go</code>
+    holds them; <code>dashboard/store.go</code> is the interface that ArcadeDB will implement.
+    <code>dashboard/arcade.go</code> reaches the database only for the health probe.</li>
+    <li><strong>The stacks serve four paths from one origin</strong> — <code>/</code> landing,
+    <code>/app/</code> Mission Control, <code>/docs/</code> this site, <code>/api/</code> the health
+    endpoint — behind a per-product Traefik on the private VM, fronted by nginx on
+    <code>clino</code>, which terminates TLS and forwards plain HTTP over WireGuard.</li>
+  </ol>
+
+  <h3 id="as-is-root-cause">6.1 Root cause of the gap</h3>
+  <p>The distance between §6 and §7 has a single shape, and it is the opposite of the usual one:
+  <strong>the specification is ahead of the implementation, not behind it.</strong> Every control
+  loop below is written down to the level of thresholds, guard limits and index definitions. What
+  is missing is the code, and the build order that produces it already exists as a ten-step
+  sequence in the architecture document — with an explicit warning not to start with the visual
+  layer, which is precisely the step that has already been done.</p>
+
+  <h2 id="to-be-process">7. Future business process (to-be)</h2>
+
+  <h3 id="value-chain">7.1 The value chain</h3>
+  <div class="flow rv">
+    <div class="node"><b>Record</b><span>brief, stories, criteria, diagrams, repo</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Inject</b><span>parse to vertices, index the code</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Score</b><span>readiness out of 100, band applied</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Plan</b><span>objective becomes an acyclic task graph</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Run</b><span>dispatch, lease, heartbeat, review</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Gate</b><span>approve, or hold the merge</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Learn</b><span>lessons written back to the product</span></div>
+  </div>
+  <p>The last arrow is the one the business case rests on. If <em>Learn</em> does not feed
+  <em>Score</em>, the second workflow on a product costs the same as the first and GAOS is an
+  expensive scheduler.</p>
+
+  <h3 id="to-be-activities">7.2 Activities per stage</h3>
+  <table class="tbl">
+    <thead><tr><th>Stage</th><th>Human does</th><th>System does</th><th>Written to the graph</th></tr></thead>
+    <tbody>
+      <tr><td>Product setup</td><td>Brief, stories, diagrams, repository link</td><td>Parses into vertices; indexes the codebase</td><td><code>Product</code>, <code>Requirement</code>, <code>Issue</code>, <code>AcceptanceCriterion</code>, <code>Artifact</code>, <code>File</code>, <code>Function</code></td></tr>
+      <tr><td>Readiness check</td><td>Fixes what is missing</td><td>Scores the record; refuses below the floor</td><td><code>readinessScore</code>, <code>ReadinessEvaluated</code></td></tr>
+      <tr><td>Workflow creation</td><td>Objective, scope, gate policy</td><td>Planner expands the task graph</td><td><code>Workflow</code>, <code>Task</code>, <code>DEPENDS_ON</code>, <code>IMPLEMENTS</code></td></tr>
+      <tr><td>Execution</td><td>Nothing</td><td>Schedules, dispatches, monitors, reviews, retries</td><td><code>TaskRun</code>, <code>Review</code>, <code>Artifact</code>, <code>Event</code>, <code>Sample</code></td></tr>
+      <tr><td>Gate</td><td>Approves or rejects</td><td>Holds the merge until resolved</td><td><code>ApprovalRequested</code> / <code>ApprovalGranted</code>, <code>Decision</code></td></tr>
+      <tr><td>Close</td><td>Nothing</td><td>Extracts lessons and links them back to the product</td><td><code>Knowledge</code>, <code>LEARNS_FROM</code>, <code>APPLIES_TO</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="to-be-happy-path">7.3 Happy path</h3>
+  <p>An operator creates a product record and pastes in a brief, four stories with two acceptance
+  criteria each, a sequence diagram and a repository URL. Injection parses it and indexes the code;
+  readiness scores 78, which is the <em>Working</em> band, so planning is allowed with gates only on
+  risk signals. The operator states an objective and a gate policy. The planner produces an acyclic
+  graph of eleven tasks with roles attached. The scheduler finds four tasks whose prerequisites are
+  all satisfied, acquires a workspace lease for each, and dispatches them to detached runners. Each
+  run assembles a context slice from the master record, calls a model, writes a diff, and is scored.
+  Nine tasks score above 85 and are accepted. One scores 61 and is retried with a widened context
+  slice; the second attempt scores 88. One touches a schema migration, so it carries a security
+  reviewer and an approval gate; the operator approves it. The workflow closes, three lessons are
+  extracted as <code>Knowledge</code>, linked back to the product, and the readiness score rises.</p>
+
+  <h3 id="to-be-autonomy">7.4 Where autonomy actually begins</h3>
+  <p>Autonomy is not a switch. It starts at the moment the scheduler can find a ready task without a
+  human naming it, which requires four things to already be true at once: the dependency graph is
+  acyclic, a capable agent exists for the role, a workspace lease can be acquired, and the readiness
+  gate has passed. Miss any one and the floor looks idle for reasons nobody can explain. <strong>All
+  four must be surfaced in the UI as the blocking reason</strong> — this is a business requirement,
+  not a nicety, because an unexplained idle floor is indistinguishable from a broken product.</p>
+
+  <h3 id="to-be-exceptions">7.5 Exception flows</h3>
+  <table class="tbl">
+    <thead><tr><th>Exception</th><th>Trigger</th><th>System response</th><th>Terminates as</th></tr></thead>
+    <tbody>
+      <tr><td>Safety veto</td><td>Safety dimension scores below 60, whatever the total</td><td>Stop immediately; emit <code>SafetyVeto</code>; queue for a human</td><td>Human queue item</td></tr>
+      <tr><td>Unproductive retry</td><td>Identical failure signature twice</td><td>Do not escalate the tier — route to a design review</td><td><code>MeetingStarted</code>, later a <code>Decision</code></td></tr>
+      <tr><td>Guard exhaustion</td><td>3 retries, or 2 escalations, or the budget cap</td><td>Stop; emit <code>GuardExhausted</code> with a reason code</td><td>Human intervention</td></tr>
+      <tr><td>Orphaned task</td><td>On boot, a task claims to be running but its lease expired or its process is gone</td><td>Release the workspace, emit <code>TaskOrphaned</code>, apply the retry policy</td><td>Requeued or failed</td></tr>
+      <tr><td>Readiness drop</td><td>Drift penalty pushes the effective score below a band boundary</td><td>Emit <code>ReadinessDropped</code>, show it on the product card, re-apply the stricter band's gates immediately</td><td>Stricter gating, not a silent recalculation</td></tr>
+      <tr><td>Total collapse</td><td>Final score below 30</td><td>Stop; call a multi-agent design review</td><td>A recorded <code>Decision</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="business-requirements">8. Business requirements</h2>
+  <p>Eleven domains. Each requirement is <strong>Designed</strong> (specified in an artifact,
+  not implemented), <strong>Built</strong> (running in this repository), or <strong>Open</strong>
+  (a decision that does not exist yet). Nothing is marked Built that the README does not confirm.</p>
+
+  <h3 id="req-a">8.1 Domain A — Product master &amp; knowledge ingestion</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>A-1</td><td>Create and own a product record per product, scoped to a tenant</td><td>Agents must read the same brief a human would</td><td>Designed</td></tr>
+      <tr><td>A-2</td><td>Capture the brief as structured requirements — goals, domain rules, boundaries — not free prose</td><td>A reviewer must be able to score an output <em>against</em> a rule</td><td>Designed</td></tr>
+      <tr><td>A-3</td><td>Capture user stories in as / want / so form, each with acceptance criteria</td><td>No criterion means no verdict; the reviewer will invent one and it will drift</td><td>Designed</td></tr>
+      <tr><td>A-4</td><td>Accept behaviour diagrams and data models as artifacts</td><td>Call order and cardinality are the two things prose loses</td><td>Designed</td></tr>
+      <tr><td>A-5</td><td>Index a linked repository into files and functions, and identify the entrypoint</td><td>Impact analysis from a diff is a traversal, and it needs the code in the graph</td><td>Designed</td></tr>
+      <tr><td>A-6</td><td>Injection parses the record into vertices and edges and rescores it in one operation</td><td>A record that is edited but not injected is a lie the planner will believe</td><td>Designed</td></tr>
+      <tr><td>A-7</td><td>Back-office surface for all of the above</td><td>The record author is a human with a browser</td><td>Built (against fixtures)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-b">8.2 Domain B — Readiness gating</h3>
+  <p>The rubric is 100 points across twelve machine-checkable signals. Nothing in it requires
+  judgment, which is the point — a subjective bar gets argued away.</p>
+  <table class="tbl">
+    <thead><tr><th>Signal</th><th>Points</th><th>Passes when</th></tr></thead>
+    <tbody>
+      <tr><td>Problem statement</td><td>8</td><td>Present, at least 40 characters, names a real symptom</td></tr>
+      <tr><td>Goals</td><td>8</td><td>At least one, phrased as an outcome not a task</td></tr>
+      <tr><td>Domain rules</td><td>12</td><td>At least 3 rules the reviewer can score against</td></tr>
+      <tr><td>Out of scope</td><td>6</td><td>At least 1 explicit exclusion</td></tr>
+      <tr><td>Stories exist</td><td>10</td><td>At least 1 story in as / want / so form</td></tr>
+      <tr><td>Criteria coverage</td><td>12</td><td>Every <em>must</em> story has at least 2 acceptance criteria</td></tr>
+      <tr><td>Behaviour diagram</td><td>10</td><td>At least 1 sequence or flow showing the call order</td></tr>
+      <tr><td>Data model</td><td>8</td><td>Entities and cardinality recorded</td></tr>
+      <tr><td>Repository linked</td><td>8</td><td>Repo indexed; entrypoint identified</td></tr>
+      <tr><td>Decisions</td><td>8</td><td>At least 1 ADR carried into every prompt</td></tr>
+      <tr><td>Success metrics</td><td>5</td><td>At least 1 measurable outcome</td></tr>
+      <tr><td>Verification strategy</td><td>5</td><td>How correctness is proven: tests, replay, manual check</td></tr>
+    </tbody>
+  </table>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>B-1</td><td>Score every record against the rubric on ingestion and on a schedule</td><td>Make "is the brief good enough?" a number instead of an argument</td><td>Designed</td></tr>
+      <tr><td>B-2</td><td>Four bands govern autonomy: 0–44 <em>Insufficient</em> (planner refuses, returns the missing list), 45–69 <em>Minimum</em> (every task gated, model capped mid tier, no auto-merge), 70–89 <em>Working</em> (gates on risk signals, full model range), 90–100 <em>Complete</em> (low-risk tasks may merge unattended; gates remain on money, auth and schema)</td><td>Trust is earned by the completeness of the brief, not granted by configuration</td><td>Designed</td></tr>
+      <tr><td>B-3</td><td>Publish the rubric to the record author, including the missing list</td><td>A refusal that does not say what is missing is a dead end</td><td>Built (checklist renders in the back office)</td></tr>
+      <tr><td>B-4</td><td>Decay the score against staleness: <code>effective = raw − drift_penalty</code>, penalty capped at 25, driven by months since last review, boundary files changed since injection, and open contradictions</td><td>A record scored 92 six months ago describes a codebase that no longer exists (P-4)</td><td>Designed</td></tr>
+      <tr><td>B-5</td><td>Crossing a band boundary downward is an event, not a silent recalculation, and the stricter band's gates apply immediately</td><td>Autonomy must be withdrawn as loudly as it was granted</td><td>Designed</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-c">8.3 Domain C — Planning</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>C-1</td><td>A workflow is one objective on one product, with a scope and a gate policy</td><td>Scope and gates are business inputs, not engineering defaults</td><td>Designed</td></tr>
+      <tr><td>C-2</td><td>The planner expands an objective into an acyclic task graph with dependencies</td><td>Order of work is derived, not typed by a human</td><td>Designed</td></tr>
+      <tr><td>C-3</td><td>Every task is atomic: one concern, one workspace, at least one acceptance criterion</td><td>A task with two failure modes and one score tells you nothing</td><td>Designed</td></tr>
+      <tr><td>C-4</td><td>Role and model are selected capability first, then risk, then cost — never cost first</td><td>Cost-first routing sends a security-critical migration to the cheapest model because it happened to be free</td><td>Designed</td></tr>
+      <tr><td>C-5</td><td>Senior roles (architect, security) are modelled with explicit capacity across all products</td><td>Otherwise they become the bottleneck nobody sees until three workflows wait on one reviewer</td><td>Designed</td></tr>
+      <tr><td>C-6</td><td>Operator wizard to create a workflow: objective, scope, plan preview</td><td>The gate policy must be set by a human before anything runs</td><td>Built (against fixtures)</td></tr>
+    </tbody>
+  </table>
+  <p>The routing table the design specifies, reproduced because it is a business risk policy rather
+  than a technical preference:</p>
+  <table class="tbl">
+    <thead><tr><th>Task signal</th><th>Required role</th><th>Model floor</th><th>Extra reviewer</th></tr></thead>
+    <tbody>
+      <tr><td>Schema migration, money arithmetic, auth</td><td>Backend + Security</td><td>Top tier</td><td>Always</td></tr>
+      <tr><td>Public API contract change</td><td>Architect</td><td>Top tier</td><td>Frontend + QA notified</td></tr>
+      <tr><td>New feature within an existing boundary</td><td>Backend or Frontend</td><td>Mid tier</td><td>QA</td></tr>
+      <tr><td>Test authoring, docs, mechanical refactor</td><td>QA / any</td><td>Low tier</td><td>None</td></tr>
+      <tr><td>Retry after a failed attempt</td><td>Same role</td><td>One tier above the last attempt</td><td>Senior on second retry</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-d">8.4 Domain D — Execution</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>D-1</td><td>The scheduler is a pure function of the graph — two replicas computing it independently reach the same answer</td><td>Leader election then protects against duplicate dispatch, not divergent state; restart becomes uninteresting</td><td>Designed</td></tr>
+      <tr><td>D-2</td><td>Work runs in detached processes that survive the orchestrator</td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Designed</td></tr>
+      <tr><td>D-3</td><td>Each run holds an exclusive workspace lease with an expiry, and heartbeats</td><td>Two runs in one workspace corrupt each other silently</td><td>Designed</td></tr>
+      <tr><td>D-4</td><td>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</td><td>This is the whole of recovery; there is no other path</td><td>Designed</td></tr>
+      <tr><td>D-5</td><td>Each attempt is its own record with its own model, cost, tokens, exit code and failure signature</td><td>Folding attempts into the task destroys the evidence of the previous one, and model comparison becomes impossible</td><td>Designed</td></tr>
+      <tr><td>D-6</td><td>The exact context slice sent to a model is frozen and stored per attempt</td><td>Without it you can see that a task failed but never why the model believed what it believed (P-6)</td><td>Designed</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-e">8.5 Domain E — Review, scoring &amp; retry</h3>
+  <p>The most dangerous loop in the system. Every path through it must terminate and every
+  termination must record a reason code.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">scoring</span><button class="copy">copy</button></div>
+    <pre>final = 0.45·correctness + 0.20·completeness + 0.15·safety + 0.10·quality + 0.10·efficiency
+
+correctness   tests pass, rule checks, reviewer verdict against acceptance criteria
+completeness  every criterion addressed; no silently skipped file
+safety        no secret leakage, no unsafe command, no out-of-scope change
+quality       complexity, duplication, coverage delta
+efficiency    tokens, latency, retries consumed</pre>
+  </div>
+  <p>Correctness dominates deliberately: a beautiful implementation of the wrong behaviour should
+  score below an ugly implementation of the right one, because the second is cheap to improve and
+  the first is expensive to discover.</p>
+  <table class="tbl">
+    <thead><tr><th>Final score</th><th>Action</th><th>Model</th><th>Records</th></tr></thead>
+    <tbody>
+      <tr><td>85–100</td><td>Accept</td><td>—</td><td><code>Review</code>; <code>Knowledge</code> if novel</td></tr>
+      <tr><td>70–84</td><td>Accept, spawn a cleanup task</td><td>Same</td><td><code>Review</code>, follow-up <code>Task</code></td></tr>
+      <tr><td>50–69</td><td>Iterate with a widened context slice</td><td>Same tier</td><td><code>RetryRequested</code> + reason</td></tr>
+      <tr><td>30–49</td><td>Escalate a tier and re-run</td><td>One above</td><td><code>ModelEscalated</code></td></tr>
+      <tr><td>0–29</td><td>Stop; call a design review</td><td>Meeting</td><td><code>MeetingStarted</code>, later <code>Decision</code></td></tr>
+      <tr><td><strong>safety &lt; 60</strong></td><td><strong>Stop immediately, regardless of total</strong></td><td>—</td><td><code>SafetyVeto</code>, human queue</td></tr>
+    </tbody>
+  </table>
+  <table class="tbl">
+    <thead><tr><th>Guard</th><th>Value</th><th>What it prevents</th></tr></thead>
+    <tbody>
+      <tr><td><code>max_retry_count</code></td><td>3 per task</td><td>Grinding on the same approach forever</td></tr>
+      <tr><td><code>max_escalation_count</code></td><td>2 per task</td><td>Walking up the model tiers until the budget is gone</td></tr>
+      <tr><td><code>same_failure_signature_limit</code></td><td>2</td><td>Retrying an identical failure and expecting a different result</td></tr>
+      <tr><td><code>cooldown_backoff</code></td><td>Exponential, capped</td><td>Tight loops against a degraded provider</td></tr>
+      <tr><td><code>budget_cap</code></td><td>Per workflow and per tenant</td><td>One runaway task consuming a month of spend</td></tr>
+      <tr><td><code>human_intervention_threshold</code></td><td>2 escalations, or any safety veto</td><td>Automation quietly failing where a person should decide</td></tr>
+    </tbody>
+  </table>
+  <p>The failure signature is what makes retries intelligent rather than superstitious. Hash the
+  normalised error — failing test name, error class, offending file — and compare across attempts.
+  A <strong>changed signature</strong> means progress: the model fixed one thing and hit the next,
+  so retry. An <strong>identical signature twice</strong> means the approach itself is wrong;
+  escalating a tier will usually reproduce the same wrong answer more expensively, so it routes to
+  a design review instead.</p>
+
+  <h3 id="req-f">8.6 Domain F — Gates &amp; approvals</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>F-1</td><td>A gate policy is set per workflow at creation time</td><td>How much a human wants to watch is a business input</td><td>Designed</td></tr>
+      <tr><td>F-2</td><td>A gated task cannot merge — through the API or otherwise</td><td>A gate enforced only in the UI is not a gate</td><td>Designed</td></tr>
+      <tr><td>F-3</td><td>Gates always apply to money arithmetic, authentication and schema changes, at every readiness band including <em>Complete</em></td><td>These three are where an unattended mistake is not recoverable</td><td>Designed</td></tr>
+      <tr><td>F-4</td><td>Approval and rejection are recorded as vertices with a decider, a timestamp and a reason</td><td>"Who let this through?" must have an answer</td><td>Designed</td></tr>
+      <tr><td>F-5</td><td>Operator approve / retry / cancel controls on the inspector</td><td>The gate needs a surface</td><td>Built (against fixtures)</td></tr>
+      <tr><td>F-6</td><td>Authenticated, authorised operators only</td><td>Currently any value opens the back office</td><td><strong>Not built</strong> — see <a href="#risk-register">R-02</a>, <a href="open-questions.html#oq-11">OQ-11</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-g">8.7 Domain G — Memory &amp; learning</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>G-1</td><td>Every completed workflow writes <code>Knowledge</code> back to the product — lessons, decisions, failure patterns</td><td>This is the only mechanism that raises readiness without a human typing</td><td>Designed</td></tr>
+      <tr><td>G-2</td><td>Decisions are ADRs, carried into every later prompt, with supersession tracked</td><td>An ADR nobody reads is a comment</td><td>Designed</td></tr>
+      <tr><td>G-3</td><td>A multi-agent meeting is a first-class record: agenda, participants, proposals, confidence, and the decision it produced</td><td>"Why was this approach chosen?" is an audit question</td><td>Designed</td></tr>
+      <tr><td>G-4</td><td>Knowledge is recalled during planning by tag and reuse count</td><td>Recall is what makes the second run cheaper</td><td>Designed</td></tr>
+      <tr><td>G-5</td><td>Contradictions — a decision that conflicts with a requirement, or a criterion no test maps to — are detected and penalise readiness</td><td>Accumulated knowledge that contradicts itself is worse than none</td><td>Designed</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-h">8.8 Domain H — Replay &amp; audit</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>H-1</td><td>State at any past moment is a fold over the event stream, from the nearest snapshot forward</td><td>Snapshots are an optimisation, never the source — otherwise any moment between two snapshots is unreachable</td><td>Designed</td></tr>
+      <tr><td>H-2</td><td>The reducer is pure, total and order-stable: no clock, no randomness, unknown event types skipped rather than fatal, ties broken by <code>(ts, seq)</code></td><td>A replay that is not reproducible is not evidence</td><td>Designed</td></tr>
+      <tr><td>H-3</td><td>Replay is structurally read-only — routed through a read-only store handle, not a flag someone can forget to check</td><td>A flag will eventually be forgotten and will overwrite live state with a historical one</td><td>Designed</td></tr>
+      <tr><td>H-4</td><td>Four replay scopes: workflow, task, meeting, and comparison between two runs of the same task on different models</td><td>Model routing decisions must be backed by evidence, not preference</td><td>Designed</td></tr>
+      <tr><td>H-5</td><td>Operator timeline with a replay scrub</td><td>Replay needs a surface an operator can drive</td><td>Built (against fixtures)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-i">8.9 Domain I — Operator surface (Mission Control)</h3>
+  <p>The only domain that is substantially built. Ported from
+  <code>artifacts/v1/gaos-mission-control.html</code> to Go and HTMX, server-rendered, stdlib only,
+  no <code>go.sum</code>, 33 tests.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>I-1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>An operator must see the whole fleet in one glance</td><td>Built</td></tr>
+      <tr><td>I-2</td><td>The inspector: current task, role, model, retries, escalations, cost so far, score breakdown, the context slice, the runner log</td><td>Every number an operator would otherwise ask for</td><td>Built</td></tr>
+      <tr><td>I-3</td><td>The event timeline with scrub-to-replay and speed control</td><td>Understanding <em>when</em> something went wrong precedes understanding why</td><td>Built</td></tr>
+      <tr><td>I-4</td><td>The design-review overlay: agenda, participants, confidence, decision</td><td>Meetings are a system state, not an off-screen event</td><td>Built</td></tr>
+      <tr><td>I-5</td><td>The back office: product master, requirements, stories, diagrams, knowledge, agents, readiness checklist, graph projection, story coverage</td><td>Where the record author works</td><td>Built</td></tr>
+      <tr><td>I-6</td><td>The UI never invents state the graph does not have</td><td>A projection that guesses is worse than a blank</td><td>Designed (architectural prohibition)</td></tr>
+      <tr><td>I-7</td><td>The four blocking reasons for an idle desk are displayed explicitly</td><td><a href="#to-be-autonomy">§7.4</a> — an unexplained idle floor reads as a broken product</td><td>Designed</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-j">8.10 Domain J — Tenancy, capacity &amp; cost control</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>J-1</td><td>Tenancy is a database boundary first and a property second: one database per tenant is the default recommendation, and <code>tenantId</code> is declared and indexed on every vertex regardless</td><td>A boundary that can be forgotten in a <code>WHERE</code> clause makes one missing filter a data breach rather than a bug</td><td>Designed</td></tr>
+      <tr><td>J-2</td><td>The tenant boundary is enforced at the API gateway and never only further down</td><td>Defence in depth is the difference between a bug and an incident</td><td>Designed</td></tr>
+      <tr><td>J-3</td><td>High-volume types are bucket-partitioned by <code>tenantId</code></td><td>One tenant's write burst must not contend with another's; a per-tenant export becomes a bucket-local scan</td><td>Designed</td></tr>
+      <tr><td>J-4</td><td><code>Tenant</code> carries <code>plan</code>, <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code></td><td>Concurrency and spend are the two things a tenant can exhaust</td><td>Designed</td></tr>
+      <tr><td>J-5</td><td>The model gateway accounts cost and tokens per run and never leaks provider-specific shapes upward</td><td>Spend must be attributable to a task, and the provider must be replaceable</td><td>Designed</td></tr>
+      <tr><td>J-6</td><td>Retention: events full-fidelity for 90 days then archived with the fold checkpoint kept; samples raw for 14 days then downsampled; run logs by reference in object storage; everything else indefinitely, because the audit trail is the product</td><td>Storage cost is bounded without discarding the thing being sold</td><td>Designed</td></tr>
+      <tr><td>J-7</td><td>Tenant self-service: signup, plan selection, budget management, usage visibility</td><td>Required by the SaaS framing</td><td><strong>Open</strong> — <a href="open-questions.html#oq-04">OQ-04</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-k">8.11 Domain K — Commercial</h3>
+  <div class="adm warn">
+    <p class="adm-title">Every row here is Open — this is an agenda, not a requirement set</p>
+    <p>Nothing in the repository defines a price, a plan, a customer, a contract, a service level, or
+    a support process. These rows record <em>what must be decided</em> and point at the question
+    that decides it. They will become real requirements once answered, and not before.</p>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>What must be decided</th><th>Why it blocks implementation</th><th>Question</th></tr></thead>
+    <tbody>
+      <tr><td>K-1</td><td>Commercial model: hosted SaaS, self-hosted licence, open source with a paid tier, or internal-only</td><td>Determines whether tenant isolation is a security boundary between strangers or between colleagues — which changes the auth, the tenancy strategy and the deployment shape</td><td><a href="open-questions.html#oq-01">OQ-01</a></td></tr>
+      <tr><td>K-2</td><td>Target customer segment and the buying trigger</td><td>Determines whether the readiness rubric is the product (governance buyer) or a means to an end (throughput buyer)</td><td><a href="open-questions.html#oq-02">OQ-02</a></td></tr>
+      <tr><td>K-3</td><td>Whether an external auditor is a first-class user</td><td>An auditor persona implies exported evidence, retention beyond 90 days, and read-only credentials — none of which are designed</td><td><a href="open-questions.html#oq-03">OQ-03</a></td></tr>
+      <tr><td>K-4</td><td>Plan definitions and what each plan actually limits</td><td><code>Tenant.plan</code> is a declared string with no defined values; <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code> have no defaults</td><td><a href="open-questions.html#oq-04">OQ-04</a></td></tr>
+      <tr><td>K-5</td><td>Pricing basis: per seat, per task, per token pass-through with margin, or flat platform fee</td><td>Model cost is a direct pass-through cost of goods; a per-seat price with unbounded token usage is an unbounded loss</td><td><a href="open-questions.html#oq-05">OQ-05</a></td></tr>
+      <tr><td>K-6</td><td>Who pays the model provider — GAOS resells, or the tenant brings its own key</td><td>Changes the entire cost model, the budget-cap semantics, and whether a tenant can exhaust GAOS's money or only its own</td><td><a href="open-questions.html#oq-06">OQ-06</a></td></tr>
+      <tr><td>K-7</td><td>Service level and support model</td><td>The current infrastructure is a single edge machine and a single database node with no HA; committing to an SLA without changing that is a commitment that cannot be met</td><td><a href="open-questions.html#oq-07">OQ-07</a></td></tr>
+      <tr><td>K-8</td><td>Data residency and tenant data handling commitments</td><td>Tenant repositories, prompts and diffs pass through GAOS and its model provider; a buyer will ask, and there is no answer yet</td><td><a href="open-questions.html#oq-14">OQ-14</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="req-nfr">8.12 Business-level non-functional requirements</h3>
+  <table class="tbl">
+    <thead><tr><th>Property</th><th>Business statement</th><th>How it is proven</th></tr></thead>
+    <tbody>
+      <tr><td>Auditability</td><td>Every prompt ever sent is reconstructible from the graph</td><td>The <code>USES_CONTEXT</code> edges from a stored <code>ContextSlice</code>; <code>GET /tasks/{id}/context</code> matches what the model actually received</td></tr>
+      <tr><td>Recoverability</td><td>Killing the orchestrator mid-run loses nothing</td><td>Boot reconciliation adopts, requeues or orphans every in-flight task</td></tr>
+      <tr><td>Determinism</td><td>The same events always fold to the same state</td><td>A pure, total, order-stable reducer, tested by folding from genesis</td></tr>
+      <tr><td>Isolation</td><td>A tenant cannot see another tenant's data even if a query forgets to filter</td><td>Database-per-tenant, with <code>tenantId</code> as the second line</td></tr>
+      <tr><td>Explicability</td><td>Every rejection tells the caller why</td><td>Every mutation returns the new state or a rejection reason, never a bare 200</td></tr>
+      <tr><td>Termination</td><td>No loop runs forever and no stop is silent</td><td>The six guard limits, each stop carrying a reason code</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="business-rules">9. Business rules</h2>
+  <p>Twenty-six rules, each one traceable to an artifact section or to committed code. These are the
+  statements a reviewer — human or agent — can score an implementation against. They are the
+  reason domain rules are worth 12 points in the readiness rubric.</p>
+
+  <h3 id="rules-invariants">9.1 Core invariants</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-01</td><td>State lives in the graph. The orchestrator holds no authoritative state; anything cached in memory must be reconstructible.</td></tr>
+      <tr><td>BR-02</td><td>Every change emits an event. An event that was never written is a state change that never happened.</td></tr>
+      <tr><td>BR-03</td><td>Events reference the business <code>id</code>, never the physical RID — otherwise a restore into different buckets breaks the history.</td></tr>
+      <tr><td>BR-04</td><td>The event stream is append-only and never updated. It is the only type whose retention policy differs from everything else.</td></tr>
+      <tr><td>BR-05</td><td>The event catalog is closed. A new event type is a schema change to the fold, not a free addition.</td></tr>
+      <tr><td>BR-06</td><td>Every mutation returns either the new state or a rejection reason, never a bare 200.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rules-readiness">9.2 Readiness and planning</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-07</td><td>Below an effective readiness of 45 the planner refuses to plan and returns the list of what is missing. Nothing is dispatched.</td></tr>
+      <tr><td>BR-08</td><td>Band gates are mandatory, not advisory: <em>Minimum</em> caps the model at mid tier and forbids auto-merge; <em>Complete</em> still gates money, auth and schema.</td></tr>
+      <tr><td>BR-09</td><td><code>effective = raw − drift_penalty</code>, with the penalty capped at 25.</td></tr>
+      <tr><td>BR-10</td><td>Crossing a band boundary downward emits <code>ReadinessDropped</code> and applies the stricter band immediately.</td></tr>
+      <tr><td>BR-11</td><td>A task is atomic only if it has one concern, one workspace, and at least one acceptance criterion.</td></tr>
+      <tr><td>BR-12</td><td>Role and model selection is ordered capability → risk → cost. Capability is a hard filter; risk overrides cost; cost decides only between already-acceptable options.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rules-scoring">9.3 Scoring, retry and gates</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-13</td><td>The final score is fixed at <code>0.45·correctness + 0.20·completeness + 0.15·safety + 0.10·quality + 0.10·efficiency</code>.</td></tr>
+      <tr><td>BR-14</td><td>Safety is a veto evaluated before anything else: below 60 the work stops regardless of the total.</td></tr>
+      <tr><td>BR-15</td><td>A retry runs one model tier above the last attempt, and a second retry carries a senior reviewer.</td></tr>
+      <tr><td>BR-16</td><td>An identical failure signature twice routes to a design review, not to a tier escalation.</td></tr>
+      <tr><td>BR-17</td><td>The six guard limits are hard: 3 retries, 2 escalations, 2 identical signatures, capped exponential backoff, per-workflow and per-tenant budget caps, and human intervention at 2 escalations or any safety veto.</td></tr>
+      <tr><td>BR-18</td><td>Every termination records a reason code. A silent stop is a defect.</td></tr>
+      <tr><td>BR-19</td><td>A gated task cannot merge through any path, including the API.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rules-data">9.4 Data and replay</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-20</td><td>Replay reads through a read-only store handle. Never a flag.</td></tr>
+      <tr><td>BR-21</td><td>The reducer is pure, total and order-stable. Snapshots are an optimisation and never a source of truth.</td></tr>
+      <tr><td>BR-22</td><td><code>Task</code> and <code>TaskRun</code> are separate records so per-attempt evidence survives a retry.</td></tr>
+      <tr><td>BR-23</td><td><code>USES_CONTEXT</code> hangs off <code>ContextSlice</code>, not <code>Task</code>, because the slice differs per attempt.</td></tr>
+      <tr><td>BR-24</td><td>One edge type per relationship. No generic edge with a <code>type</code> property — traversal by edge type is index-free adjacency; filtering a generic edge is a scan of every neighbour.</td></tr>
+      <tr><td>BR-25</td><td>Heavy payloads — prompt bodies, diffs, log blobs — are stored <code>EXTERNAL</code> or by reference to object storage, never inline on a vertex the scheduler traverses.</td></tr>
+      <tr><td>BR-26</td><td>Tenancy is a database boundary first and a property second. <code>tenantId</code> is declared and indexed either way.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="scope">10. Scope</h2>
+
+  <h3 id="scope-in">10.1 In scope</h3>
+  <ul>
+    <li>The six-layer system: UI, API gateway, orchestration, execution, model gateway, ArcadeDB.</li>
+    <li>The five control loops: schedule, score-and-retry, readiness, gate, learn.</li>
+    <li>The full graph schema — 25 vertex types, 3 document types, 32 edge types — with its indexes,
+    invariants, retention and migration policy.</li>
+    <li>Mission Control as the operator surface, and the back office as the record-author surface.</li>
+    <li>Multi-tenancy as an isolation and capacity mechanism.</li>
+    <li>Both deployment tiers on product slot 03 behind the WireGuard tunnel.</li>
+  </ul>
+
+  <h3 id="scope-boundary">10.2 Scope boundary</h3>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">boundary</span><button class="copy">copy</button></div>
+    <pre>           ┌─────────────────── GAOS owns ───────────────────┐
+           │  Mission Control · API gateway · orchestration  │
+           │  execution &amp; leases · model gateway · ArcadeDB  │
+           └─────────────────────────────────────────────────┘
+   reads ↑            writes ↓              calls →           runs on ↓
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│ tenant's repo  │ │ tenant's branch│ │ model provider │ │ host machines  │
+│  NOT owned     │ │  NOT owned     │ │  NOT owned     │ │  NOT owned     │
+│ indexed only   │ │ merge is gated │ │ replaceable    │ │ slot 03 only   │
+└────────────────┘ └────────────────┘ └────────────────┘ └────────────────┘</pre>
+  </div>
+  <p>The boundary is drawn where responsibility ends, not where the network does. GAOS reads a
+  tenant's repository and writes to a branch, but it never owns either — which is why the merge is
+  gated rather than performed. It calls a model provider but must never leak provider-specific
+  shapes upward, which is what keeps the provider replaceable.</p>
+
+  <h3 id="scope-constraints">10.3 Constraints</h3>
+  <table class="tbl">
+    <thead><tr><th>Constraint</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>ArcadeDB is assumed, not abstracted. The model uses hybrid schema, bucket partitioning, <code>EXTERNAL</code> properties and index-free adjacency — none of which port cleanly.</td><td>Data model §01, §13</td></tr>
+      <tr><td><code>EXTERNAL</code> properties require ArcadeDB v26.5.1 or later; the DDL must be run against the target version in a scratch database first.</td><td>Data model §05, §13</td></tr>
+      <tr><td>One public edge machine with 1 vCPU and 957 MiB, running nginx and certbot and no Docker. Every container runs on the private VM.</td><td><code>deploy/edge/README.md</code></td></tr>
+      <tr><td>GAOS shares the private VM with other products. It owns product slot 03 and one tunnel port per tier; nothing but the edge is ever publicly bound.</td><td><code>deploy/STACKS.md</code></td></tr>
+      <tr><td>The dashboard is stdlib-only Go with no <code>go.sum</code>; the docs site makes no third-party requests. Both are deliberate and constrain what may be added.</td><td><code>README.md</code>, docs authoring spec</td></tr>
+      <tr><td>Build order is prescribed and the visual layer is step 9 of 10. It has already been built first — the remaining steps must not be reordered further.</td><td>Architecture §10</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="risks-and-assumptions">11. Risks &amp; assumptions</h2>
+
+  <h3 id="assumptions">11.1 Assumptions</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Assumption</th><th>Validated?</th></tr></thead>
+    <tbody>
+      <tr><td>A-01</td><td>A machine-checkable rubric is a sufficient proxy for "this brief is good enough to work from"</td><td>No — the rubric has never scored a real record</td></tr>
+      <tr><td>A-02</td><td>Escalating a model tier improves the outcome when the failure signature has changed</td><td>No — never observed; it is a reasoned design position</td></tr>
+      <tr><td>A-03</td><td>Extracted knowledge measurably reduces retries on a later run of the same product</td><td>No — this is the central business bet and the one measurement that would settle it has never been run</td></tr>
+      <tr><td>A-04</td><td>ArcadeDB's documented hybrid-schema, partitioning and <code>EXTERNAL</code> behaviour holds on the version GAOS will deploy</td><td>No — the document itself says to verify before relying on it</td></tr>
+      <tr><td>A-05</td><td>Detached runners with leases and heartbeats are sufficient to survive orchestrator restarts without a distributed lock service</td><td>No — designed, not exercised</td></tr>
+      <tr><td>A-06</td><td>Teams will accept a system that refuses to plan against an incomplete brief</td><td>No — a product-adoption assumption with no user contact behind it</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="risk-register">11.2 Risk register</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Risk</th><th>Impact</th><th>Current position</th></tr></thead>
+    <tbody>
+      <tr><td>R-01</td><td>Everything past the operator surface is unbuilt — scheduler, runner, review engine, schema</td><td>The product cannot do the thing it is for</td><td>Accepted and stated openly in the README; the build order exists</td></tr>
+      <tr><td>R-02</td><td>No authentication. The back-office login sets a cookie and checks nothing</td><td>Any tenant boundary is currently fictional</td><td>Open. Blocks every commercial requirement in domain K — see <a href="open-questions.html#oq-11">OQ-11</a></td></tr>
+      <tr><td>R-03</td><td>No DDL has ever been applied, and the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td>Open. Mitigation is the document's own advice: apply to a scratch database on the target version first — <a href="open-questions.html#oq-17">OQ-17</a></td></tr>
+      <tr><td>R-04</td><td>Record rot — the record is filled once and never updated while the codebase moves</td><td>Silent degradation; the planner produces defensible-looking plans from a stale brief</td><td>Designed against: the drift penalty and <code>ReadinessDropped</code>. Untested</td></tr>
+      <tr><td>R-05</td><td>Runaway model spend. <code>budget_cap</code> is specified per workflow and per tenant, and implemented nowhere</td><td>Direct, unbounded financial loss the moment a real key is configured</td><td>Open. The single highest-consequence unbuilt guard — <a href="open-questions.html#oq-18">OQ-18</a></td></tr>
+      <tr><td>R-06</td><td>The core bet is unproven — knowledge accumulation reducing retries has never been measured</td><td>If false, GAOS is an expensive scheduler and domain G is decorative</td><td>Open. The measurement is defined; running it is a milestone, not a task</td></tr>
+      <tr><td>R-07</td><td>No commercial model, customer, price or contract exists, while the framing assumes SaaS</td><td>Engineering decisions that depend on the answer (auth strength, tenancy strategy, cost pass-through) are being deferred or guessed</td><td>Open. This BRD's primary purpose is to surface it — see all of <a href="open-questions.html#oq-commercial">OQ-01…OQ-07</a></td></tr>
+      <tr><td>R-08</td><td>Single model-provider dependency; the role map names Anthropic models exclusively</td><td>Pricing, availability and policy changes pass straight through to GAOS's margin and uptime</td><td>Partly mitigated by design: the model gateway exists as a layer whose stated prohibition is leaking provider shapes upward. No second adapter exists</td></tr>
+      <tr><td>R-09</td><td>No high availability: one ArcadeDB node, one edge machine, one private VM</td><td>Any SLA commitment would be unmeetable; a restore that loses minutes loses events</td><td>Accepted for now; the data model's stated second recovery path is the event stream itself. Whether it stays accepted is <a href="open-questions.html#oq-16">OQ-16</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="out-of-scope">12. Out of scope</h2>
+  <p>Deliberate non-goals. Each is a decision with a reason, not an omission.</p>
+  <ul>
+    <li><strong>High availability and replication.</strong> Discussed in the data model and deferred;
+    the event stream is the designated second recovery path.</li>
+    <li><strong>Cross-tenant analytics as a default capability.</strong> Database-per-tenant makes it
+    a separate pipeline, on purpose rather than by accident.</li>
+    <li><strong>Snapshots as a source of truth.</strong> Explicitly rejected: if the UI can only
+    replay from stored snapshots, any moment between two is unreachable and any snapshot-writing bug
+    is invisible.</li>
+    <li><strong>A generic edge type with a discriminator property.</strong> Explicitly rejected as
+    the single biggest performance mistake available in this model.</li>
+    <li><strong>Abstracting the database.</strong> The model is ArcadeDB-specific by choice.</li>
+    <li><strong>Owning the tenant's repository or performing the merge.</strong> GAOS indexes and
+    proposes; the gate is where its authority stops.</li>
+    <li><strong>Building further UI before the loops exist.</strong> The build order puts Mission
+    Control at step 9 and warns explicitly against starting with the visual layer — the warning is
+    now retrospective, and the correction is to stop adding to it.</li>
+  </ul>
+
+  <h2 id="references">13. References</h2>
+  <table class="tbl">
+    <thead><tr><th>Source</th><th>What it supplies to this document</th></tr></thead>
+    <tbody>
+      <tr><td><code>artifacts/v1/gaos-architecture.html</code></td><td>§02 layers · §04 setup→autonomy · §05 task split and routing · §06 scoring, thresholds, guardrails · §07 readiness rubric, bands, drift · §08 replay · §09 API and indexes · §10 build order</td></tr>
+      <tr><td><code>artifacts/v1/gaos-arcadedb-model.html</code></td><td>§01 modelling principles · §03 vertex catalog · §04 edge catalog · §08 event catalog · §10 indexes · §11 invariants · §13 storage, tenancy, retention, migration, HA</td></tr>
+      <tr><td><code>artifacts/v1/gaos-mission-control.html</code></td><td>The operator surface, the role and room model, the back-office record shape, the readiness checklist</td></tr>
+      <tr><td><a href="../architecture/system.html">Architecture — the system</a></td><td>The same design as a docs page, with the repository mapping</td></tr>
+      <tr><td><a href="../architecture/graph.html">Architecture — the graph</a></td><td>The schema as a docs page, including what is not built yet</td></tr>
+      <tr><td><code>dashboard/events.go</code></td><td>The closed event catalog as Go constants, with "pass 2" names marked</td></tr>
+      <tr><td><code>dashboard/store.go</code>, <code>store_mem.go</code>, <code>sim.go</code></td><td>The seam where ArcadeDB lands, and the simulation standing in for the runner</td></tr>
+      <tr><td><code>README.md</code></td><td>The designed-versus-built table and the deployment facts</td></tr>
+      <tr><td><code>deploy/STACKS.md</code>, <code>deploy/edge/README.md</code></td><td>Topology, tunnel ports, TLS termination, the constraints in <a href="#scope-constraints">§10.3</a></td></tr>
+      <tr><td><a href="../infra/overview.html">Infrastructure — overview</a>, <a href="../infra/environments.html">environments</a>, <a href="../infra/neighbours.html">neighbours</a></td><td>How the two tiers run and how GAOS shares the VM</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="decision-log">14. Decision log</h2>
+  <p>Twenty-four decisions are already made and traceable — the thesis itself, the stateless
+  orchestrator, business ids in events, one edge type per relationship, the
+  <code>Task</code>/<code>TaskRun</code> split, database-per-tenant, the readiness floor of 45,
+  capability-first routing, correctness weighted at 0.45, safety as a veto, the build order, and the
+  deployment shape. They are maintained as their own page so that answering an open question has an
+  obvious destination. No commercial decision appears there, because none has been made.</p>
+  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-024)</a></strong></p>
+
+  <h2 id="business-milestones">15. Business milestones</h2>
+  <p>Real dates only, taken from git history.</p>
+  <table class="tbl">
+    <thead><tr><th>Date</th><th>Milestone</th><th>Commit</th></tr></thead>
+    <tbody>
+      <tr><td>2026-08-02</td><td>The three design artifacts committed — architecture, ArcadeDB model, Mission Control prototype</td><td><code>a057a59</code>, <code>30162b1</code></td></tr>
+      <tr><td>2026-08-07</td><td>Mission Control ported to Go + HTMX, the docs site and landing page vendored in, both tunnelled stacks stood up on product slot 03</td><td><code>efcf44e</code></td></tr>
+      <tr><td>2026-08-07</td><td>Edge cookie guidance corrected — <code>auto</code> never sets the Secure flag behind this tunnel</td><td><code>24c2c16</code></td></tr>
+      <tr><td>2026-08-08</td><td>Rebuild-and-restart tooling for both stacks</td><td><code>8531ce6</code></td></tr>
+      <tr><td>2026-08-08</td><td>This BRD baselined; the design restated as business requirements and the open questions registered</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <div class="adm warn">
+    <p class="adm-title">Next milestones — open, pending the owner's roadmap</p>
+    <ul>
+      <li>Apply the DDL to a scratch ArcadeDB on the target version and reconcile the dialect</li>
+      <li>Graph schema plus event store, with a fold that reproduces current state exactly (build order step 1)</li>
+      <li>Task state machine rejecting illegal transitions at the boundary (step 2)</li>
+      <li>Readiness scoring running on ingestion, with the planner refusing below 45 (step 3)</li>
+      <li>First real model call, behind a budget cap that actually exists</li>
+      <li>The unsatisfiable-task test passing</li>
+      <li>The second-run measurement performed for the first time</li>
+      <li>Authentication, before any tenant that is not the owner</li>
+    </ul>
+  </div>
+
+  <h2 id="business-decision-matrix">16. Business decision matrix</h2>
+  <p>Design choices that are genuinely open, each with the options actually available and their
+  trade-offs. These are decisions, not questions of fact; the full question register lives on the
+  <a href="open-questions.html">open questions</a> page.</p>
+  <table class="tbl">
+    <thead><tr><th>Decision</th><th>Option</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4">Commercial model (<a href="open-questions.html#oq-01">OQ-01</a>)</td><td>(A) Hosted multi-tenant SaaS</td><td>Matches the schema's design; requires real authentication, real isolation, billing, and an SLA the current single-node infrastructure cannot support</td></tr>
+      <tr><td>(B) Self-hosted licence</td><td>Tenancy becomes a convenience rather than a security boundary; no billing infrastructure; harder to observe whether the core bet is true</td></tr>
+      <tr><td>(C) Open source with a paid hosted tier</td><td>Distribution and credibility for an unproven thesis; the audit trail becomes the paid differentiator; slowest path to revenue</td></tr>
+      <tr><td>(D) Internal platform only</td><td>Everything already true; no commercial work at all; the SaaS framing of this BRD would be withdrawn</td></tr>
+      <tr><td rowspan="3">Tenancy strategy at scale (<a href="open-questions.html#oq-10">OQ-10</a>)</td><td>(A) Database per tenant</td><td>The data model's default. Hard isolation, per-tenant backup, noisy-neighbour containment. Costs a connection pool per tenant, N migrations, and a separate pipeline for any cross-tenant analytics</td></tr>
+      <tr><td>(B) Shared database, <code>tenantId</code> everywhere</td><td>Many small tenants, one migration, easy reporting. Every query must filter forever, and one missing <code>WHERE</code> is a data breach rather than a bug</td></tr>
+      <tr><td>(C) Hybrid — large tenants isolated, small ones pooled</td><td>Two code paths in the repository layer. Only worth it at scale, and there is no scale yet</td></tr>
+      <tr><td rowspan="2">Model provider strategy (<a href="open-questions.html#oq-09">OQ-09</a>)</td><td>(A) Anthropic only</td><td>One adapter, one bill, one set of tier semantics matching the existing role map. Full exposure to one vendor's pricing and availability</td></tr>
+      <tr><td>(B) Multi-provider behind the gateway</td><td>The gateway layer already exists for this reason. Costs a normalised tier abstraction and per-provider cost accounting, and makes the escalation ladder harder to define</td></tr>
+      <tr><td rowspan="2">Autonomy default (<a href="open-questions.html#oq-12">OQ-12</a>)</td><td>(A) Band-driven, as designed</td><td>Autonomy is earned by record completeness. Coherent, but a team with a thin brief experiences the product as a wall</td></tr>
+      <tr><td>(B) Gates always on until a tenant opts out</td><td>Safer first impression and a gentler onboarding; weakens the incentive that makes the readiness rubric work at all</td></tr>
+      <tr><td rowspan="2">Mission Control's role (<a href="open-questions.html#oq-15">OQ-15</a>)</td><td>(A) The product surface tenants buy</td><td>It is the most finished thing in the repository. Raises the bar on auth, per-tenant theming and accessibility</td></tr>
+      <tr><td>(B) An internal operations console</td><td>Keeps the surface cheap and lets the API be the product. Discards the strongest existing demo asset</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="appendix-glossary">Appendix A — Glossary</h2>
+  <table class="tbl">
+    <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td>Product master record</td><td>The brief, stories, criteria, diagrams and indexed repository that agents read before they start. The thing readiness scores.</td></tr>
+      <tr><td>Readiness score / band</td><td>A 0–100 machine-checkable measure of whether the brief is complete enough to work from, and the four autonomy tiers derived from it.</td></tr>
+      <tr><td>Drift penalty</td><td>The decay subtracted from a raw readiness score for staleness, boundary-file churn and open contradictions. Capped at 25.</td></tr>
+      <tr><td>Atomic task</td><td>One concern, one workspace, at least one acceptance criterion. Stricter than "small" — the test is whether it can be verified on its own.</td></tr>
+      <tr><td>Context slice</td><td>The exact graph slice sent to a model on one attempt, frozen and stored so the prompt is reconstructible.</td></tr>
+      <tr><td>Failure signature</td><td>A hash of the normalised error — failing test name, error class, offending file — compared across attempts to tell progress from repetition.</td></tr>
+      <tr><td>Safety veto</td><td>A stop triggered by the safety dimension scoring below 60, evaluated before the weighted total and overriding it.</td></tr>
+      <tr><td>Workspace lease</td><td>An exclusive, expiring claim on an isolated filesystem and branch, held by one run and reclaimed on expiry.</td></tr>
+      <tr><td>Fold</td><td>Reducing an ordered event stream into state. The same operation serves recovery, audit and replay.</td></tr>
+      <tr><td>Gate</td><td>A hold on a merge pending a human decision, recorded as an <code>Approval</code>.</td></tr>
+      <tr><td>Tenant</td><td>The isolation root and quota holder: a plan, a concurrency limit, a budget cap, and — by default — its own database.</td></tr>
+      <tr><td>Product slot</td><td>The convention by which several products share the private VM; GAOS is slot 03, giving it tunnel ports <code>18301</code> and <code>19301</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="appendix-abbreviations">Appendix B — Abbreviations</h2>
+  <table class="tbl">
+    <thead><tr><th>Abbreviation</th><th>Expansion</th></tr></thead>
+    <tbody>
+      <tr><td>ADR</td><td>Architecture Decision Record — modelled here as the <code>Decision</code> vertex</td></tr>
+      <tr><td>BRD</td><td>Business Requirements Document — this page</td></tr>
+      <tr><td>DAG</td><td>Directed Acyclic Graph — the shape a planned workflow must have</td></tr>
+      <tr><td>DDL</td><td>Data Definition Language — the schema statements in the data model document</td></tr>
+      <tr><td>HA</td><td>High Availability</td></tr>
+      <tr><td>NFR</td><td>Non-Functional Requirement</td></tr>
+      <tr><td>OQ</td><td>Open Question — the register on the <a href="open-questions.html">open questions</a> page</td></tr>
+      <tr><td>RID</td><td>ArcadeDB's physical record id, <code>#bucket:position</code>; never referenced by events</td></tr>
+      <tr><td>SaaS</td><td>Software as a Service</td></tr>
+      <tr><td>SLA</td><td>Service Level Agreement — none exists; see <a href="open-questions.html#oq-07">OQ-07</a></td></tr>
+      <tr><td>WG</td><td>WireGuard — the tunnel between the public edge and the private VM</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="appendix-document-notes">Appendix C — Document notes</h2>
+  <p>The section structure is adapted from the BRD in the sibling Cubiq repository, which in turn
+  adapted an external enterprise template. Sections that did not survive the adaptation are worth
+  naming so their absence is a decision rather than an oversight: there is no formal review board,
+  no signature block, no organisational chart, and no "PO versus Berita Acara" decision matrix —
+  §16 keeps the name and replaces the content with the design choices that are genuinely open.</p>
+  <p>Two structural departures from the reference: the decision log and the consolidated open
+  questions are separate pages rather than trailing sections, because both are registers that will
+  be edited far more often than the body of this document, and because answering a question should
+  move a row from one page to the other. Sections 14 and the closing pointer below are therefore
+  short by design.</p>
+  <p>This document is extensible by design: a new business concept is added as a new
+  <code>h2</code> following the pattern of the closest existing section — usually Business
+  requirements §8 for a new capability, or Business rules §9 for a new constraint — without
+  changing the file layout or the ToC registration.</p>
+
+  <h2 id="open-questions">Consolidated open questions</h2>
+  <p>Every open item in this document is indexed on its own page as <code>OQ-01…OQ-18</code> —
+  eight commercial, three product, four technical, three operational — each with the options
+  available and the reason it cannot be answered from evidence. That page is the next action: answer
+  them one at a time, and each answer becomes a row in the decision log.</p>
+  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-18)</a></strong></p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

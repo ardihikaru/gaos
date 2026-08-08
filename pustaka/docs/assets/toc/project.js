@@ -14,7 +14,7 @@ window.DOCS.nav.push({
         { anchor: "versioning-policy", title: "Versioning policy",
           text: "Semantic versioning: major for breaking changes to the graph schema, the event catalog or a deployment; minor for new capability; patch for fixes. The current version lives in assets/toc.js product.semver." },
         { anchor: "releases", title: "Releases",
-          text: "v0.1.0 stands the product up as a deployable thing: Mission Control ported from the prototype to Go and HTMX, the docs engine and landing page vendored in, and dev and prod stacks on product slot 03 behind the WireGuard tunnel." }
+          text: "v0.2.0 gives the design a business layer: the BRD, the eighteen-question open register, and the twenty-four-entry decision log. v0.1.0 stands the product up as a deployable thing: Mission Control ported from the prototype to Go and HTMX, the docs engine and landing page vendored in, and dev and prod stacks on product slot 03 behind the WireGuard tunnel." }
       ]
     }
     /* pustaka:insert — `pustaka new` adds entries above this marker */

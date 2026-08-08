@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Open questions — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="open-questions">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>Open questions</h1>
+  <p class="lede">Eighteen decisions the <a href="brd.html">BRD</a> deliberately refuses to invent,
+  each with the options actually available, the trade-off each one carries, and what it blocks.
+  Answer them one at a time; every answer becomes a row in the <a href="decision-log.html">decision
+  log</a>.</p>
+
+  <div class="page-meta"
+       data-tags="open-questions, decisions, commercial, pricing, tenancy, roadmap"
+       data-hashtags="brd, product, decisions"
+       data-published="2026-08-08"
+       data-updated="2026-08-08"
+       data-version-from="0.2.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">How to answer</p>
+    <p>Answer by <code>OQ</code> id, one at a time, in any order — though the commercial block gates
+    the most downstream work, so starting at <a href="#oq-01">OQ-01</a> unblocks the most. An answer
+    does not have to be one of the listed options; the options exist so that "none of these,
+    here is what I actually want" is an easy thing to say. Each answer is written into the
+    <a href="decision-log.html">decision log</a> as the next <code>D-</code> number, dated the day it
+    was decided, and this page's row flips to <em>Answered → D-nnn</em>.</p>
+  </div>
+
+  <h2 id="index">The register</h2>
+  <p>All eighteen in one place. Filter by any word in a question, or by theme.</p>
+  <div class="filterbox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+         stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input data-filter="#oq-index" data-empty="#oq-empty" type="search"
+           placeholder="Filter the questions… try &ldquo;pricing&rdquo;, &ldquo;tenant&rdquo;, &ldquo;auth&rdquo;" aria-label="Filter open questions">
+    <span class="count"></span>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Theme</th><th>Question</th><th>Blocks</th><th>Status</th></tr></thead>
+    <tbody id="oq-index">
+      <tr data-tags="commercial model saas licence open-source internal"><td><a href="#oq-01">OQ-01</a></td><td>Commercial</td><td>What is GAOS commercially — hosted SaaS, self-hosted licence, open source with a paid tier, or internal only?</td><td>K-1, auth strength, tenancy strategy</td><td>Open</td></tr>
+      <tr data-tags="commercial segment customer buyer governance throughput"><td><a href="#oq-02">OQ-02</a></td><td>Commercial</td><td>Who is the target customer, and what triggers the purchase?</td><td>K-2, product emphasis</td><td>Open</td></tr>
+      <tr data-tags="commercial auditor compliance evidence retention persona"><td><a href="#oq-03">OQ-03</a></td><td>Commercial</td><td>Is an external auditor a first-class user?</td><td>K-3, retention, export, read-only roles</td><td>Open</td></tr>
+      <tr data-tags="commercial plan tenant quota concurrency budget self-service"><td><a href="#oq-04">OQ-04</a></td><td>Commercial</td><td>What are the plans, what does each one limit, and is any of it self-service?</td><td>K-4, J-7</td><td>Open</td></tr>
+      <tr data-tags="commercial pricing seat token margin cost-of-goods"><td><a href="#oq-05">OQ-05</a></td><td>Commercial</td><td>What is the pricing basis?</td><td>K-5, unit economics</td><td>Open</td></tr>
+      <tr data-tags="commercial provider byok reseller model cost"><td><a href="#oq-06">OQ-06</a></td><td>Commercial</td><td>Who pays the model provider — GAOS resells, or the tenant brings its own key?</td><td>K-6, budget-cap semantics</td><td>Open</td></tr>
+      <tr data-tags="commercial sla support uptime availability"><td><a href="#oq-07">OQ-07</a></td><td>Commercial</td><td>What service level and support model is being offered?</td><td>K-7, HA requirement</td><td>Open</td></tr>
+      <tr data-tags="commercial residency privacy data-handling prompts diffs"><td><a href="#oq-14">OQ-14</a></td><td>Commercial</td><td>What are the data residency and tenant data-handling commitments?</td><td>K-8, provider choice</td><td>Open</td></tr>
+      <tr data-tags="product success metrics targets baseline kpi"><td><a href="#oq-08">OQ-08</a></td><td>Product</td><td>What measurable success targets apply, and when can they be set?</td><td>§1.4, §4</td><td>Open</td></tr>
+      <tr data-tags="product autonomy gates onboarding readiness band default"><td><a href="#oq-12">OQ-12</a></td><td>Product</td><td>Is autonomy band-driven by default, or gated until a tenant opts out?</td><td>§16, B-2, F-1</td><td>Open</td></tr>
+      <tr data-tags="product mission-control surface ui console"><td><a href="#oq-15">OQ-15</a></td><td>Product</td><td>Is Mission Control the product surface, or an internal operations console?</td><td>§16, domain I roadmap</td><td>Open</td></tr>
+      <tr data-tags="technical provider anthropic multi-provider gateway adapter"><td><a href="#oq-09">OQ-09</a></td><td>Technical</td><td>Anthropic only, or multi-provider behind the model gateway?</td><td>R-08, escalation ladder</td><td>Open</td></tr>
+      <tr data-tags="technical tenancy database isolation shared hybrid"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Open</td></tr>
+      <tr data-tags="technical authentication auth login sso identity"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be for the first non-owner tenant?</td><td>R-02, F-6, all of domain K</td><td>Open</td></tr>
+      <tr data-tags="technical arcadedb version ddl dialect external"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Open</td></tr>
+      <tr data-tags="operations cadence review evaluation acceptance tests"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Open</td></tr>
+      <tr data-tags="operations ha availability replication backup single-node"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required before the first external tenant?</td><td>R-09, OQ-07</td><td>Open</td></tr>
+      <tr data-tags="operations budget cap spend guard default limits"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Open</td></tr>
+    </tbody>
+  </table>
+  <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
+
+  <h2 id="oq-commercial">Commercial</h2>
+  <p>Eight questions, and they are first because nothing else in domain K can be written as a
+  requirement until they are answered. The repository contains no price, plan, customer, contract,
+  service level or support process — only the structural multi-tenancy the schema declares.</p>
+
+  <h3 id="oq-01">OQ-01 · What is GAOS commercially?</h3>
+  <p><strong>Why it is open:</strong> the schema declares tenants, plans and budget caps, and the
+  prototype ships two tenant fixtures. Nothing states whether those tenants are strangers who pay,
+  colleagues in one organisation, or an abstraction that will never be exercised. The answer changes
+  how strong authentication has to be, whether tenancy is a security boundary or a convenience, and
+  whether an SLA is being promised to anyone.</p>
+  <table class="tbl">
+    <thead><tr><th>Option</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr><td>(A) Hosted multi-tenant SaaS</td><td>Matches the schema. Requires real authentication, real isolation, billing, and a service level the current single edge machine and single database node cannot support</td></tr>
+      <tr><td>(B) Self-hosted licence</td><td>Tenancy becomes a convenience rather than a security boundary. No billing to build. Hardest path to observing whether the core bet in <a href="brd.html#success-definition">§1.4</a> is true, because the runs happen on someone else's infrastructure</td></tr>
+      <tr><td>(C) Open source, paid hosted tier</td><td>Distribution and credibility for an unproven thesis; the audit trail becomes the paid differentiator. Slowest path to revenue, and the design artifacts become public</td></tr>
+      <tr><td>(D) Internal platform only</td><td>Everything already true; no commercial work at all. The SaaS framing of this BRD would be formally withdrawn and domain K deleted rather than deferred</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="oq-02">OQ-02 · Who is the target customer?</h3>
+  <p><strong>Why it is open:</strong> two very different buyers are consistent with the same design.
+  A <em>governance</em> buyer wants the audit trail and the readiness rubric — the refusal to plan
+  against a thin brief is the feature. A <em>throughput</em> buyer wants more shipped per week and
+  experiences the same refusal as friction. The product emphasis, the onboarding, and the answer to
+  <a href="#oq-12">OQ-12</a> all follow from which one this is.</p>
+
+  <h3 id="oq-03">OQ-03 · Is an external auditor a first-class user?</h3>
+  <p><strong>Why it is open:</strong> GAOS can already answer "why does this code exist?" by walking
+  from a commit back to a sentence in the back office. Whether anyone outside the tenant is meant to
+  ask that question has never been decided, and it is not a small difference: an auditor persona
+  implies exported evidence bundles, retention beyond the 90-day full-fidelity window, read-only
+  credentials, and a tamper-evidence story for the event stream. None of that is designed.</p>
+
+  <h3 id="oq-04">OQ-04 · What are the plans, and what does each limit?</h3>
+  <p><strong>Why it is open:</strong> <code>Tenant.plan</code> is a declared string with no defined
+  values. <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code> exist with no defaults. There
+  is no signup, no plan selection, no usage view, and no billing.</p>
+  <table class="tbl">
+    <thead><tr><th>Sub-question</th><th>What depends on it</th></tr></thead>
+    <tbody>
+      <tr><td>Which dimensions does a plan limit — concurrency, spend, tenants, seats, retention, model tier ceiling?</td><td>Whether the readiness bands and the model tier ladder become commercial levers, which would compromise their safety rationale</td></tr>
+      <tr><td>Is plan management self-service or operator-mediated?</td><td>Requirement J-7 and the whole back-office surface for tenants</td></tr>
+      <tr><td>Is there a free tier, and what does it exclude?</td><td>Abuse surface: an unbounded free tier with GAOS-paid model calls is an unbounded loss — see <a href="#oq-06">OQ-06</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="oq-05">OQ-05 · What is the pricing basis?</h3>
+  <p><strong>Why it is open:</strong> model spend is a direct cost of goods that varies per task by
+  an order of magnitude — the routing table alone spans three model tiers, and a retry deliberately
+  runs one tier higher than the attempt that failed. A pricing basis that is not coupled to that
+  variance loses money on exactly the customers who use the product most.</p>
+  <table class="tbl">
+    <thead><tr><th>Option</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td>Per seat</td><td>Predictable for the buyer, unbounded downside for GAOS unless a hard budget cap is enforced per tenant — which exists in the design and nowhere in the code</td></tr>
+      <tr><td>Per task or per workflow</td><td>Aligns with the unit of work the graph already models. A task that retries three times and escalates twice costs multiples of one that does not</td></tr>
+      <tr><td>Token pass-through plus margin</td><td>Cost-safe and honest; makes the bill unpredictable, and exposes the buyer to the escalation ladder's cost behaviour</td></tr>
+      <tr><td>Flat platform fee plus bring-your-own-key</td><td>Removes the cost-of-goods problem entirely by moving it to the tenant. Depends on <a href="#oq-06">OQ-06</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="oq-06">OQ-06 · Who pays the model provider?</h3>
+  <p><strong>Why it is open:</strong> it changes what a budget cap <em>means</em>. If GAOS resells,
+  <code>budgetCapUsd</code> protects GAOS's money and must be enforced before dispatch, not
+  reconciled afterwards. If the tenant brings its own key, the cap is a courtesy and the tenant's
+  provider account is the real limit. It also decides whether GAOS ever holds a provider credential
+  belonging to a customer, which is a security obligation with its own requirements.</p>
+
+  <h3 id="oq-07">OQ-07 · What service level and support model?</h3>
+  <p><strong>Why it is open:</strong> the honest current position is one public edge machine
+  (1&nbsp;vCPU, 957&nbsp;MiB), one private VM, and one ArcadeDB node with no replica. Any uptime
+  commitment made before that changes is a commitment that cannot be met. Tied directly to
+  <a href="#oq-16">OQ-16</a>.</p>
+
+  <h3 id="oq-14">OQ-14 · Data residency and tenant data handling</h3>
+  <p><strong>Why it is open:</strong> a tenant's repository contents, prompts and diffs pass through
+  GAOS and onward to a model provider. There is no statement of where data is stored, how long, who
+  can read it, whether it may train anything, or what happens on tenant deletion. Retention is
+  specified for operational reasons (90 days of full-fidelity events) but never as a commitment to a
+  customer. Every enterprise buyer asks this in the first meeting.</p>
+
+  <h2 id="oq-product">Product &amp; scope</h2>
+
+  <h3 id="oq-08">OQ-08 · What measurable success targets apply?</h3>
+  <p><strong>Why it is open:</strong> a standard BRD requires numeric criteria. GAOS has no baseline
+  — no users, no tenants, no run against a real model, and the one defined measurement has never
+  been performed. The realistic sequencing is: run the second-run measurement once, then set targets
+  against what it produces. Confirming that sequencing <em>is</em> the answer to this question.</p>
+
+  <h3 id="oq-12">OQ-12 · Band-driven autonomy, or gates on by default?</h3>
+  <p><strong>Why it is open:</strong> the design makes autonomy a function of record completeness —
+  a coherent position, and the whole reason the readiness rubric has teeth. But a new team with a
+  thin brief meets a wall on day one. Turning gates on by default until a tenant opts out is gentler
+  and weakens the incentive that makes the rubric work. This is a product-experience decision, not a
+  safety one; both options keep the money, auth and schema gates.</p>
+
+  <h3 id="oq-15">OQ-15 · What is Mission Control for?</h3>
+  <p><strong>Why it is open:</strong> it is the most finished thing in the repository — ported,
+  tested, deployed — and the build order says it should have been ninth. If it is the surface
+  tenants buy, it needs authentication, per-tenant scoping and accessibility work before anything
+  else is added to it. If it is an internal console and the API is the product, it can stay as it is
+  while the loops beneath it get built, which is what the build order implies.</p>
+
+  <h2 id="oq-technical">Technical policy</h2>
+
+  <h3 id="oq-09">OQ-09 · One model provider, or several?</h3>
+  <p><strong>Why it is open:</strong> the model gateway exists as a layer whose stated prohibition is
+  leaking provider-specific shapes upward — the design anticipated multiple providers. Only one is
+  named anywhere, and no second adapter exists. Multi-provider costs a normalised tier abstraction
+  and per-provider cost accounting, and makes the escalation ladder harder to define, because "one
+  tier above" needs a meaning that spans vendors.</p>
+
+  <h3 id="oq-10">OQ-10 · Tenancy strategy at scale</h3>
+  <p><strong>Why it is open:</strong> the data model presents all three strategies with their costs
+  and recommends database-per-tenant as the default, but explicitly says to pick one and be strict.
+  Picking late is the expensive outcome — the repository layer is written differently for each.</p>
+  <table class="tbl">
+    <thead><tr><th>Option</th><th>Good for</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>Database per tenant <em>(the document's default)</em></td><td>Hard isolation, per-tenant backup and restore, noisy-neighbour containment</td><td>A connection pool per tenant; migrations run N times; cross-tenant analytics needs a separate pipeline</td></tr>
+      <tr><td>Shared database, <code>tenantId</code> everywhere</td><td>Many small tenants, cross-tenant reporting, one migration</td><td>Every query must filter, forever. One missing <code>WHERE</code> is a data breach rather than a bug</td></tr>
+      <tr><td>Hybrid</td><td>Large tenants isolated, small ones pooled</td><td>Two code paths in the repository layer; only worth it at scale, and there is no scale yet</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="oq-11">OQ-11 · Authentication approach</h3>
+  <p><strong>Why it is open:</strong> there is none. The back-office login sets a cookie and checks
+  nothing; any value opens it. This is the single item blocking every commercial requirement,
+  because a tenant boundary without authentication is a diagram. The question is not <em>whether</em>
+  — it is what shape: local accounts, an identity provider, per-tenant SSO, API tokens for
+  machine access, or some combination, and which of those must exist before the first tenant who is
+  not the owner.</p>
+
+  <h3 id="oq-17">OQ-17 · Which ArcadeDB version, validated when?</h3>
+  <p><strong>Why it is open:</strong> no DDL has ever been applied. The data model warns in its own
+  words that constraint syntax and index options move between releases, and that
+  <code>EXTERNAL</code> properties require v26.5.1 or later. Pinning a target version and running the
+  schema against a scratch database is cheap now and expensive after the first migration exists — it
+  is build-order step 1's real precondition.</p>
+
+  <h2 id="oq-operations">Operations</h2>
+
+  <h3 id="oq-13">OQ-13 · Who runs the acceptance tests, and how often?</h3>
+  <p><strong>Why it is open:</strong> the design specifies three tests that are the only honest proof
+  the system works — the unsatisfiable task, the fold-from-genesis comparison, and the second run a
+  week apart. It does not say who runs them, on what cadence, or what happens when one fails. The
+  fold test in particular is described as periodic, which implies automation nobody has scheduled.</p>
+
+  <h3 id="oq-16">OQ-16 · Is high availability required before the first external tenant?</h3>
+  <p><strong>Why it is open:</strong> HA is discussed in the data model and deferred, with the event
+  stream named as the second recovery path — a restore missing the last few minutes can be rolled
+  forward from events. That is a real mitigation and not the same as availability. Whether a single
+  node is acceptable depends entirely on <a href="#oq-01">OQ-01</a> and <a href="#oq-07">OQ-07</a>,
+  which is why this sits behind them.</p>
+
+  <h3 id="oq-18">OQ-18 · Budget caps: initial values and behaviour at the limit</h3>
+  <p><strong>Why it is open:</strong> <code>budget_cap</code> is specified per workflow and per
+  tenant and implemented nowhere. It is the highest-consequence unbuilt guard in the system: the
+  first real model key turns an unenforced cap into unbounded financial exposure. Two things need
+  deciding — the initial values, and the behaviour when one is reached. Stopping mid-workflow leaves
+  a half-finished task graph; refusing to dispatch the next task is cleaner but slower to notice;
+  warning and continuing is not a cap.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">Nothing here is rhetorical</p>
+    <p>Every question on this page exists because answering it changes what gets built. None of them
+    is a placeholder, and none can be resolved by reading the repository more carefully — that has
+    already been done, and the absence is the finding.</p>
+  </div>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
