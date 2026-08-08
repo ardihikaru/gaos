@@ -76,8 +76,8 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Twenty-four decisions GAOS has actually made, each traceable to an artifact section, a committed file, or git history — and the destination for every open question that gets answered.",
-      tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment"],
+      desc: "Twenty-five decisions GAOS has actually made, each traceable to an artifact section, a committed file, or git history — and the destination for every open question that gets answered.",
+      tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
           text: "A decision belongs here when it constrains future work and reversing it costs something. Every row carries evidence; a decision that cannot be pointed at has not been made." },
@@ -88,7 +88,26 @@ window.DOCS.nav.push({
         { anchor: "policy-decisions", title: "Control-loop policy",
           text: "D-013 to D-018: the readiness floor of 45, decay rather than persistence, capability-first routing, correctness weighted 0.45, safety as a veto, and the ten-step build order." },
         { anchor: "delivery-decisions", title: "Delivery and deployment",
-          text: "D-019 to D-024: v0.1.0 ships the surface only and says so, the closed event catalog in Go, product slot 03 and its ports, TLS on the edge, the cookie rule behind the tunnel, and the vendored docs engine." }
+          text: "D-019 to D-024: v0.1.0 ships the surface only and says so, the closed event catalog in Go, product slot 03 and its ports, TLS on the edge, the cookie rule behind the tunnel, and the vendored docs engine." },
+        { anchor: "qa-decisions", title: "Quality assurance",
+          text: "D-025: answers OQ-13. Who runs the acceptance tests and how often, given no CI exists and one person holds every internal stakeholder role — and what happens when one fails." }
+      ]
+    },
+    {
+      id: "qa-test-plan",
+      file: "product/qa-test-plan.html",
+      title: "QA test plan",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates fifty-three positive and negative test cases for the deploy tooling that runs today, plus the three business acceptance tests nothing has ever executed.",
+      tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
+      sections: [
+        { anchor: "cadence", title: "Who runs these tests, and how often",
+          text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
+        { anchor: "register", title: "The register",
+          text: "All fifty-three TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today." },
+        { anchor: "implemented", title: "Test scenarios — implemented automations",
+          text: "check-stacks.sh's eight invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces." },
+        { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
+          text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist." }
       ]
     }
     /* pustaka:insert — `pustaka new` adds entries above this marker */
