@@ -20,7 +20,9 @@
     <canvas class="lp-network" id="lp-network" aria-hidden="true"></canvas>
     <div class="inner">
       <div>
-        <span class="kicker"><span class="dot"></span> v0.1.0 · graph-native · event-sourced</span>
+        <!-- the version is filled from the registry at runtime; the literal is the
+             no-JS fallback and must be kept in step with toc.js site.version -->
+        <span class="kicker"><span class="dot"></span> <span data-site-version>v0.2.0</span> · graph-native · event-sourced</span>
         <h1>The graph is the primitive, not the prompt.</h1>
         <p class="sub">
           GAOS runs software agents against a product record that lives in a graph. State is in
@@ -198,6 +200,24 @@
        partial swap carries and re-executes them. Both use the
        ready-event pattern from AUTHORING_SPEC §8.
        ============================================================ -->
+  <script>
+  /* ---------- hero kicker version: track the registry, not a literal ----------
+     The header badge is rendered by site.js from D.site.version, but this hero
+     kicker is page prose, so a version bump used to leave it behind silently --
+     `pustaka check` has no opinion about prose. Read the same field instead.
+     window.DOCS does not exist yet when this runs on a normal load (toc.js is
+     after main), hence the ready-event pattern from AUTHORING_SPEC section 8. */
+  (function () {
+    const start = () => {
+      const slot = document.querySelector("[data-site-version]");
+      const v = window.DOCS && window.DOCS.site && window.DOCS.site.version;
+      if (slot && v) slot.textContent = v;
+    };
+    if (window.pustaka) start();
+    else document.addEventListener("pustaka:ready", start, { once: true });
+  })();
+  </script>
+
   <script>
   /* ---------- "Sign in" CTA: only when the server gates this site ---------- */
   (function () {
