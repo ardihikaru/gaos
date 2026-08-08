@@ -14,13 +14,13 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Eighteen decisions the <a href="brd.html">BRD</a> deliberately refuses to invent,
-  each with the options actually available, the trade-off each one carries, and what it blocks.
-  Answer them one at a time; every answer becomes a row in the <a href="decision-log.html">decision
-  log</a>.</p>
+  <p class="lede">Twenty-three decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  the options actually available, the trade-off each one carries, and what it blocks. Eleven are
+  answered — the entire commercial block, the licence, and the budget guard. Five of the twelve
+  still open exist <em>because</em> those answers were given.</p>
 
   <div class="page-meta"
-       data-tags="open-questions, decisions, commercial, pricing, tenancy, roadmap"
+       data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
        data-updated="2026-08-08"
@@ -29,130 +29,292 @@
 
   <div class="adm note">
     <p class="adm-title">How to answer</p>
-    <p>Answer by <code>OQ</code> id, one at a time, in any order — though the commercial block gates
-    the most downstream work, so starting at <a href="#oq-01">OQ-01</a> unblocks the most. An answer
-    does not have to be one of the listed options; the options exist so that "none of these,
-    here is what I actually want" is an easy thing to say. Each answer is written into the
-    <a href="decision-log.html">decision log</a> as the next <code>D-</code> number, dated the day it
-    was decided, and this page's row flips to <em>Answered → D-nnn</em>.</p>
+    <p>Answer by <code>OQ</code> id, one at a time, in any order. An answer does not have to be one
+    of the listed options; the options exist so that "none of these, here is what I actually want" is
+    an easy thing to say. Each answer is written into the <a href="decision-log.html">decision log</a>
+    as the next <code>D-</code> number, dated the day it was decided, and this page's row flips to
+    <em>Answered → D-nnn</em>. Answers are expected to open new questions — that is not a failure of
+    the answer, it is what moving from a shape to its parameters looks like.</p>
+  </div>
+
+  <div class="adm tip">
+    <p class="adm-title">What the 2026-08-08 block changed</p>
+    <p>GAOS is <strong>open core, self-hosted</strong>: the repository is given away and works on its
+    own, private submodules may add capability but are never required, and revenue comes from
+    installation, support and licensed add-ons rather than from hosting
+    (<a href="decision-log.html#d-026">D-026</a>…<a href="decision-log.html#d-034">D-034</a>). Three
+    questions that were <em>blocked</em> by that unknown are now merely open, and are marked
+    <em>narrowed</em> below: <a href="#oq-11">OQ-11</a> authentication,
+    <a href="#oq-16">OQ-16</a> high availability, and <a href="#oq-23">OQ-23</a> the supported CLIs.
+    Nothing about their difficulty changed; what changed is whose problem each one is.</p>
+    <p>Later the same day the owner closed two more. <a href="#oq-20">OQ-20</a>: the repository is
+    <strong>Apache-2.0</strong> with a DCO sign-off and a reserved name, so it can be published
+    (<a href="decision-log.html#d-035">D-035</a>). <a href="#oq-18">OQ-18</a>: the budget cap becomes
+    a three-zone guard that paces spend across the period and <em>defers</em> work rather than
+    failing it (<a href="decision-log.html#d-037">D-037</a>). And CLI-versus-API stopped being
+    either/or — both are supported modes behind one master switch
+    (<a href="decision-log.html#d-036">D-036</a>).</p>
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All eighteen in one place. Filter by any word in a question, or by theme.</p>
+  <p>All twenty-three in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     <input data-filter="#oq-index" data-empty="#oq-empty" type="search"
-           placeholder="Filter the questions… try &ldquo;pricing&rdquo;, &ldquo;tenant&rdquo;, &ldquo;auth&rdquo;" aria-label="Filter open questions">
+           placeholder="Filter the questions… try &ldquo;pricing&rdquo;, &ldquo;licence&rdquo;, &ldquo;auth&rdquo;" aria-label="Filter open questions">
     <span class="count"></span>
   </div>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Theme</th><th>Question</th><th>Blocks</th><th>Status</th></tr></thead>
     <tbody id="oq-index">
-      <tr data-tags="commercial model saas licence open-source internal"><td><a href="#oq-01">OQ-01</a></td><td>Commercial</td><td>What is GAOS commercially — hosted SaaS, self-hosted licence, open source with a paid tier, or internal only?</td><td>K-1, auth strength, tenancy strategy</td><td>Open</td></tr>
-      <tr data-tags="commercial segment customer buyer governance throughput"><td><a href="#oq-02">OQ-02</a></td><td>Commercial</td><td>Who is the target customer, and what triggers the purchase?</td><td>K-2, product emphasis</td><td>Open</td></tr>
-      <tr data-tags="commercial auditor compliance evidence retention persona"><td><a href="#oq-03">OQ-03</a></td><td>Commercial</td><td>Is an external auditor a first-class user?</td><td>K-3, retention, export, read-only roles</td><td>Open</td></tr>
-      <tr data-tags="commercial plan tenant quota concurrency budget self-service"><td><a href="#oq-04">OQ-04</a></td><td>Commercial</td><td>What are the plans, what does each one limit, and is any of it self-service?</td><td>K-4, J-7</td><td>Open</td></tr>
-      <tr data-tags="commercial pricing seat token margin cost-of-goods"><td><a href="#oq-05">OQ-05</a></td><td>Commercial</td><td>What is the pricing basis?</td><td>K-5, unit economics</td><td>Open</td></tr>
-      <tr data-tags="commercial provider byok reseller model cost"><td><a href="#oq-06">OQ-06</a></td><td>Commercial</td><td>Who pays the model provider — GAOS resells, or the tenant brings its own key?</td><td>K-6, budget-cap semantics</td><td>Open</td></tr>
-      <tr data-tags="commercial sla support uptime availability"><td><a href="#oq-07">OQ-07</a></td><td>Commercial</td><td>What service level and support model is being offered?</td><td>K-7, HA requirement</td><td>Open</td></tr>
-      <tr data-tags="commercial residency privacy data-handling prompts diffs"><td><a href="#oq-14">OQ-14</a></td><td>Commercial</td><td>What are the data residency and tenant data-handling commitments?</td><td>K-8, provider choice</td><td>Open</td></tr>
+      <tr data-tags="commercial model saas licence open-source self-hosted answered"><td><a href="#oq-01">OQ-01</a></td><td>Commercial</td><td>What is GAOS commercially — hosted SaaS, self-hosted licence, open source with a paid tier, or internal only?</td><td>K-1, auth strength, tenancy strategy</td><td>Answered → <a href="decision-log.html#d-026">D-026</a></td></tr>
+      <tr data-tags="commercial segment customer buyer researcher small-company individual answered"><td><a href="#oq-02">OQ-02</a></td><td>Commercial</td><td>Who is the target customer, and what triggers the purchase?</td><td>K-3, product emphasis</td><td>Answered → <a href="decision-log.html#d-027">D-027</a></td></tr>
+      <tr data-tags="commercial auditor compliance evidence retention persona answered"><td><a href="#oq-03">OQ-03</a></td><td>Commercial</td><td>Is an external auditor a first-class user?</td><td>K-4, retention, export, read-only roles</td><td>Answered → <a href="decision-log.html#d-028">D-028</a></td></tr>
+      <tr data-tags="commercial plan tenant quota concurrency budget profile cli answered"><td><a href="#oq-04">OQ-04</a></td><td>Commercial</td><td>What are the plans, what does each one limit, and is any of it self-service?</td><td>J-4, J-7, and the whole MVP execution path</td><td>Answered → <a href="decision-log.html#d-032">D-032</a>, <a href="decision-log.html#d-033">D-033</a></td></tr>
+      <tr data-tags="commercial pricing installation support day-rate services answered"><td><a href="#oq-05">OQ-05</a></td><td>Commercial</td><td>What is the pricing basis?</td><td>K-5, K-6, unit economics</td><td>Answered → <a href="decision-log.html#d-029">D-029</a></td></tr>
+      <tr data-tags="commercial provider byok reseller model cost answered"><td><a href="#oq-06">OQ-06</a></td><td>Commercial</td><td>Who pays the model provider — GAOS resells, or the operator brings its own?</td><td>K-7, budget-cap semantics</td><td>Answered → <a href="decision-log.html#d-030">D-030</a></td></tr>
+      <tr data-tags="commercial sla support uptime response-time answered"><td><a href="#oq-07">OQ-07</a></td><td>Commercial</td><td>What service level and support model is being offered?</td><td>K-8, HA requirement</td><td>Answered → <a href="decision-log.html#d-031">D-031</a></td></tr>
+      <tr data-tags="commercial residency privacy data-handling egress deletion answered"><td><a href="#oq-14">OQ-14</a></td><td>Commercial</td><td>What are the data residency and tenant data-handling commitments?</td><td>Domain L, provider choice</td><td>Answered → <a href="decision-log.html#d-034">D-034</a></td></tr>
+      <tr data-tags="commercial submodule open-core boundary paid add-on new"><td><a href="#oq-19">OQ-19</a></td><td>Commercial</td><td>Which capabilities go into a private commercial submodule, and which never can?</td><td>K-10, R-10</td><td>Open</td></tr>
+      <tr data-tags="commercial licence apache agpl contribution cla dco trademark answered"><td><a href="#oq-20">OQ-20</a></td><td>Commercial</td><td>What licence does the core ship under, and what is the contribution and trademark policy?</td><td>K-9 — blocked publishing the repository at all</td><td>Answered → <a href="decision-log.html#d-035">D-035</a></td></tr>
+      <tr data-tags="commercial rate-card price confirm invoicing currency tax new"><td><a href="#oq-21">OQ-21</a></td><td>Commercial</td><td>Are the proposed rate-card numbers right, and how is any of it actually invoiced?</td><td>K-6</td><td>Open</td></tr>
       <tr data-tags="product success metrics targets baseline kpi"><td><a href="#oq-08">OQ-08</a></td><td>Product</td><td>What measurable success targets apply, and when can they be set?</td><td>§1.4, §4</td><td>Open</td></tr>
-      <tr data-tags="product autonomy gates onboarding readiness band default"><td><a href="#oq-12">OQ-12</a></td><td>Product</td><td>Is autonomy band-driven by default, or gated until a tenant opts out?</td><td>§16, B-2, F-1</td><td>Open</td></tr>
+      <tr data-tags="product autonomy gates onboarding readiness band default"><td><a href="#oq-12">OQ-12</a></td><td>Product</td><td>Is autonomy band-driven by default, or gated until an operator opts out?</td><td>§16, B-2, F-1</td><td>Open</td></tr>
       <tr data-tags="product mission-control surface ui console"><td><a href="#oq-15">OQ-15</a></td><td>Product</td><td>Is Mission Control the product surface, or an internal operations console?</td><td>§16, domain I roadmap</td><td>Open</td></tr>
       <tr data-tags="technical provider anthropic multi-provider gateway adapter"><td><a href="#oq-09">OQ-09</a></td><td>Technical</td><td>Anthropic only, or multi-provider behind the model gateway?</td><td>R-08, escalation ladder</td><td>Open</td></tr>
       <tr data-tags="technical tenancy database isolation shared hybrid"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Open</td></tr>
-      <tr data-tags="technical authentication auth login sso identity"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be for the first non-owner tenant?</td><td>R-02, F-6, all of domain K</td><td>Open</td></tr>
+      <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a></td></tr>
       <tr data-tags="technical arcadedb version ddl dialect external"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Open</td></tr>
-      <tr data-tags="operations cadence review evaluation acceptance tests"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
-      <tr data-tags="operations ha availability replication backup single-node"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required before the first external tenant?</td><td>R-09, OQ-07</td><td>Open</td></tr>
-      <tr data-tags="operations budget cap spend guard default limits"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Open</td></tr>
+      <tr data-tags="technical cost estimation tokens price-table basis cli new"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open</td></tr>
+      <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Open — narrowed by <a href="decision-log.html#d-036">D-036</a></td></tr>
+      <tr data-tags="operations cadence review evaluation acceptance tests answered"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
+      <tr data-tags="operations ha availability replication backup single-node narrowed"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required, and for whom?</td><td>R-09</td><td>Open — narrowed by <a href="decision-log.html#d-031">D-031</a></td></tr>
+      <tr data-tags="operations budget cap spend guard defer pacing answered"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Answered → <a href="decision-log.html#d-037">D-037</a></td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
 
   <h2 id="oq-commercial">Commercial</h2>
-  <p>Eight questions, and they are first because nothing else in domain K can be written as a
-  requirement until they are answered. The repository contains no price, plan, customer, contract,
-  service level or support process — only the structural multi-tenancy the schema declares.</p>
+  <p>Eleven questions. The first eight were answered together on 2026-08-08 and are kept here in
+  full, because a register that deletes what it resolves teaches nothing. The last three are new,
+  and each one is a direct consequence of an answer above it.</p>
 
   <h3 id="oq-01">OQ-01 · What is GAOS commercially?</h3>
-  <p><strong>Why it is open:</strong> the schema declares tenants, plans and budget caps, and the
-  prototype ships two tenant fixtures. Nothing states whether those tenants are strangers who pay,
-  colleagues in one organisation, or an abstraction that will never be exercised. The answer changes
-  how strong authentication has to be, whether tenancy is a security boundary or a convenience, and
-  whether an SLA is being promised to anyone.</p>
-  <table class="tbl">
-    <thead><tr><th>Option</th><th>Consequence</th></tr></thead>
-    <tbody>
-      <tr><td>(A) Hosted multi-tenant SaaS</td><td>Matches the schema. Requires real authentication, real isolation, billing, and a service level the current single edge machine and single database node cannot support</td></tr>
-      <tr><td>(B) Self-hosted licence</td><td>Tenancy becomes a convenience rather than a security boundary. No billing to build. Hardest path to observing whether the core bet in <a href="brd.html#success-definition">§1.4</a> is true, because the runs happen on someone else's infrastructure</td></tr>
-      <tr><td>(C) Open source, paid hosted tier</td><td>Distribution and credibility for an unproven thesis; the audit trail becomes the paid differentiator. Slowest path to revenue, and the design artifacts become public</td></tr>
-      <tr><td>(D) Internal platform only</td><td>Everything already true; no commercial work at all. The SaaS framing of this BRD would be formally withdrawn and domain K deleted rather than deferred</td></tr>
-    </tbody>
-  </table>
+  <p><strong>Why it was open:</strong> the schema declares tenants, plans and budget caps, and the
+  prototype ships two tenant fixtures. Nothing stated whether those tenants were strangers who pay,
+  colleagues in one organisation, or an abstraction that would never be exercised.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-026">D-026</a>: <strong>option C, in
+  the form that has no hosted tier.</strong> The repository is open source and anyone who clones it
+  can self-host and use it as it is — and it works as it is, which is now a rule rather than a
+  description (<a href="brd.html#rules-commercial">BR-27</a>). Some core capability will live in
+  separate private submodules sold commercially; none of it may ever be required for this repository
+  to function. Setting GAOS up for somebody is itself a commercial service. Hosted SaaS was rejected
+  on infrastructure grounds and internal-only on evidence grounds — the core bet needs users the
+  owner did not recruit.</p>
+  <p><strong>What it changed:</strong> the tenant boundary now separates colleagues inside one
+  operator's deployment rather than paying strangers, which downgraded <a href="brd.html#risk-register">R-02</a>
+  from blocking to serious and narrowed <a href="#oq-11">OQ-11</a>. It also opened
+  <a href="#oq-19">OQ-19</a> and <a href="#oq-20">OQ-20</a>, neither of which existed while the
+  commercial model did not.</p>
 
   <h3 id="oq-02">OQ-02 · Who is the target customer?</h3>
-  <p><strong>Why it is open:</strong> two very different buyers are consistent with the same design.
-  A <em>governance</em> buyer wants the audit trail and the readiness rubric — the refusal to plan
-  against a thin brief is the feature. A <em>throughput</em> buyer wants more shipped per week and
-  experiences the same refusal as friction. The product emphasis, the onboarding, and the answer to
-  <a href="#oq-12">OQ-12</a> all follow from which one this is.</p>
+  <p><strong>Why it was open:</strong> two very different buyers were consistent with the same
+  design. A <em>governance</em> buyer wants the audit trail and the readiness rubric — the refusal to
+  plan against a thin brief is the feature. A <em>throughput</em> buyer wants more shipped per week
+  and experiences the same refusal as friction.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-027">D-027</a>: <strong>researchers,
+  small companies, and individual experts — in IT and outside it.</strong> None of them is the
+  enterprise governance buyer the design would also have suited, and that is the useful part of the
+  answer. It means no procurement process, no security questionnaire, no certification gate, and no
+  sales motion: the acquisition surface is documentation and an install that works.</p>
+  <p>It also resolves the governance-versus-throughput tension rather than picking a side. For a
+  researcher the audit trail is <em>reproducibility</em> — the same capability, wanted for a reason
+  that has nothing to do with compliance. And the non-IT expert is the persona that makes the
+  service business coherent: someone who can write the brief the readiness rubric wants, and cannot
+  stand up a stack to feed it to.</p>
 
   <h3 id="oq-03">OQ-03 · Is an external auditor a first-class user?</h3>
-  <p><strong>Why it is open:</strong> GAOS can already answer "why does this code exist?" by walking
-  from a commit back to a sentence in the back office. Whether anyone outside the tenant is meant to
-  ask that question has never been decided, and it is not a small difference: an auditor persona
-  implies exported evidence bundles, retention beyond the 90-day full-fidelity window, read-only
-  credentials, and a tamper-evidence story for the event stream. None of that is designed.</p>
+  <p><strong>Why it was open:</strong> GAOS can already answer "why does this code exist?" by
+  walking from a commit back to a sentence in the back office. Whether anyone outside the tenant was
+  meant to ask that question had never been decided, and an auditor persona implies exported
+  evidence bundles, retention beyond the 90-day window, read-only credentials, and a tamper-evidence
+  story for the event stream.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-028">D-028</a>, derived from the two
+  answers above rather than decided on its own: <strong>no.</strong> A self-hosted deployment owned
+  by a researcher or a small team has no third-party auditor relationship to serve, and building the
+  persona would add four requirement clusters to a product with no users. The replay trail stays as
+  an internal explainability and reproducibility feature, which is what the actual buyer wants from
+  it.</p>
+  <p>The deferred work is not discarded — it is the most obvious first private submodule, and it
+  appears as option (A) in <a href="#oq-19">OQ-19</a>. That is the pattern to expect from this
+  register: a capability the core does not need becomes a candidate for the paid boundary rather
+  than a deletion.</p>
 
   <h3 id="oq-04">OQ-04 · What are the plans, and what does each limit?</h3>
-  <p><strong>Why it is open:</strong> <code>Tenant.plan</code> is a declared string with no defined
-  values. <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code> exist with no defaults. There
-  is no signup, no plan selection, no usage view, and no billing.</p>
-  <table class="tbl">
-    <thead><tr><th>Sub-question</th><th>What depends on it</th></tr></thead>
-    <tbody>
-      <tr><td>Which dimensions does a plan limit — concurrency, spend, tenants, seats, retention, model tier ceiling?</td><td>Whether the readiness bands and the model tier ladder become commercial levers, which would compromise their safety rationale</td></tr>
-      <tr><td>Is plan management self-service or operator-mediated?</td><td>Requirement J-7 and the whole back-office surface for tenants</td></tr>
-      <tr><td>Is there a free tier, and what does it exclude?</td><td>Abuse surface: an unbounded free tier with GAOS-paid model calls is an unbounded loss — see <a href="#oq-06">OQ-06</a></td></tr>
-    </tbody>
-  </table>
+  <p><strong>Why it was open:</strong> <code>Tenant.plan</code> is a declared string, and there was
+  no signup, no plan selection, no usage view and no billing to give it meaning.</p>
+  <p><strong>Answered</strong> in two parts, because the owner's answer contained two decisions.</p>
+  <p><strong>Part one — <a href="decision-log.html#d-032">D-032</a>:</strong> the quota properties
+  are <strong>instruments for monitoring model usage, not billing tiers</strong>. Three named
+  profiles ship as seed data — <code>solo</code>, <code>standard</code> (the DDL's existing defaults
+  of 8 concurrent tasks and a 500 USD cap, which were there all along and this document previously
+  described as absent) and <code>unmetered</code>, which warns rather than caps and must be chosen
+  deliberately. Profiles are operator-edited; requirement J-7's self-service surface is withdrawn
+  rather than deferred, and a new J-8 requires usage to be visible without writing a query.</p>
+  <p><strong>Part two — <a href="decision-log.html#d-033">D-033</a>:</strong> in the MVP, models are
+  invoked <strong>through their command-line tools, not their APIs</strong>. That is why the cost
+  figures need an estimation path at all: a CLI may report no usage, so every figure now carries a
+  basis, <code>measured</code> or <code>estimated</code>, and the two are never silently summed. It
+  is also why every agent must be instructed to produce a structured <em>handoff document</em> — with
+  no response body to read, that document is the only way one agent's output becomes another's
+  input. The full mechanism, the required document shape and the flowchart the owner asked for are
+  <a href="brd.html#to-be-cli">BRD §7.6</a>.</p>
+  <p><strong>Extended the same day by <a href="decision-log.html#d-036">D-036</a>:</strong> the API
+  path is a supported mode rather than a later replacement. Both adapters sit behind one master
+  configuration, the handoff document is required in both, and development still starts with the
+  CLI. Nothing in D-033 is reversed — what changes is that "CLI, not API" became "CLI first, API
+  supported, one switch".</p>
+  <p><strong>What it opened:</strong> <a href="#oq-22">OQ-22</a> (where the numbers come from when
+  the tool reports nothing) and <a href="#oq-23">OQ-23</a> (which tools are supported and what each
+  must guarantee). It also produced <a href="brd.html#risk-register">R-12</a>, which is the honest
+  cost of this route and is stated there in full.</p>
 
   <h3 id="oq-05">OQ-05 · What is the pricing basis?</h3>
-  <p><strong>Why it is open:</strong> model spend is a direct cost of goods that varies per task by
-  an order of magnitude — the routing table alone spans three model tiers, and a retry deliberately
-  runs one tier higher than the attempt that failed. A pricing basis that is not coupled to that
-  variance loses money on exactly the customers who use the product most.</p>
-  <table class="tbl">
-    <thead><tr><th>Option</th><th>Trade-off</th></tr></thead>
-    <tbody>
-      <tr><td>Per seat</td><td>Predictable for the buyer, unbounded downside for GAOS unless a hard budget cap is enforced per tenant — which exists in the design and nowhere in the code</td></tr>
-      <tr><td>Per task or per workflow</td><td>Aligns with the unit of work the graph already models. A task that retries three times and escalates twice costs multiples of one that does not</td></tr>
-      <tr><td>Token pass-through plus margin</td><td>Cost-safe and honest; makes the bill unpredictable, and exposes the buyer to the escalation ladder's cost behaviour</td></tr>
-      <tr><td>Flat platform fee plus bring-your-own-key</td><td>Removes the cost-of-goods problem entirely by moving it to the tenant. Depends on <a href="#oq-06">OQ-06</a></td></tr>
-    </tbody>
-  </table>
+  <p><strong>Why it was open:</strong> model spend is a cost of goods that varies per task by an
+  order of magnitude, and a pricing basis not coupled to that variance loses money on exactly the
+  customers who use the product most.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-029">D-029</a>: the variance problem
+  disappears, because <a href="#oq-06">OQ-06</a> moves the spend to the operator. What is sold is
+  <strong>installation, support, submodule licences and custom work</strong> — no seats, no tasks, no
+  tokens, no margin on anything. A published, fixed-scope rate card is proposed in
+  <a href="brd.html#rate-card">BRD §8.11.1</a>: three installation packages, three support tiers of
+  which the first is free, a per-install annual submodule licence with a stated academic and
+  individual reduction, and a day rate for everything else.</p>
+  <p>The reasoning behind the shapes is with the rate card rather than here, but the short version is
+  that this buyer does not enter a quote process for a small install, cannot evaluate an hourly
+  estimate, and will use something else rather than email for an academic discount. The numbers
+  themselves are proposed, not committed — <a href="#oq-21">OQ-21</a>.</p>
 
   <h3 id="oq-06">OQ-06 · Who pays the model provider?</h3>
-  <p><strong>Why it is open:</strong> it changes what a budget cap <em>means</em>. If GAOS resells,
-  <code>budgetCapUsd</code> protects GAOS's money and must be enforced before dispatch, not
-  reconciled afterwards. If the tenant brings its own key, the cap is a courtesy and the tenant's
-  provider account is the real limit. It also decides whether GAOS ever holds a provider credential
-  belonging to a customer, which is a security obligation with its own requirements.</p>
+  <p><strong>Why it was open:</strong> it changes what a budget cap <em>means</em>, and whether GAOS
+  ever holds a provider credential belonging to a customer.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-030">D-030</a>: the repository is open
+  source and self-hosted, so <strong>the operator always pays, on their own account</strong>. GAOS
+  never resells tokens, never holds anyone else's credential, and is never in the billing path
+  (<a href="brd.html#rules-commercial">BR-29</a>). Anyone may fork, download, reuse and contribute.</p>
+  <p>The consequence worth stating twice: <code>budgetCapUsd</code> now protects the
+  <em>operator's</em> money. Shipping an unenforced cap stopped being a financial exposure for the
+  project and became a duty-of-care failure toward users — a worse category, because the people
+  exposed did not make the decision. <a href="brd.html#risk-register">R-05</a> is reframed
+  accordingly and <a href="#oq-18">OQ-18</a> is narrowed by it.</p>
 
   <h3 id="oq-07">OQ-07 · What service level and support model?</h3>
-  <p><strong>Why it is open:</strong> the honest current position is one public edge machine
-  (1&nbsp;vCPU, 957&nbsp;MiB), one private VM, and one ArcadeDB node with no replica. Any uptime
-  commitment made before that changes is a commitment that cannot be met. Tied directly to
-  <a href="#oq-16">OQ-16</a>.</p>
+  <p><strong>Why it was open:</strong> the honest position was one public edge machine, one private
+  VM, and one ArcadeDB node with no replica. Any uptime commitment made before that changed would
+  have been unmeetable.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-031">D-031</a>, and the earlier
+  framing turned out to be the wrong question: after <a href="#oq-01">OQ-01</a>, GAOS hosts nothing,
+  so an availability SLA would be a promise about somebody else's machine. Support therefore commits
+  to <strong>response times, not uptime</strong>, within stated business hours in one named timezone.
+  Community support is free and public and stays that way; Standard and Priority add a private
+  channel, a first-response target, an annual allowance of remote assistance and upgrade help.</p>
+  <p>Two constraints on the model, both structural rather than generous. No paid tier ever gates a
+  bug fix — fixes land in the open repository for everyone, and what a subscription buys is
+  attention, not correctness. And no safety control, guard, cap or audit record is ever sold at all
+  (<a href="brd.html#rules-commercial">BR-28</a>).</p>
 
   <h3 id="oq-14">OQ-14 · Data residency and tenant data handling</h3>
-  <p><strong>Why it is open:</strong> a tenant's repository contents, prompts and diffs pass through
-  GAOS and onward to a model provider. There is no statement of where data is stored, how long, who
-  can read it, whether it may train anything, or what happens on tenant deletion. Retention is
-  specified for operational reasons (90 days of full-fidelity events) but never as a commitment to a
-  customer. Every enterprise buyer asks this in the first meeting.</p>
+  <p><strong>Why it was open:</strong> a tenant's repository contents, prompts and diffs pass through
+  GAOS and onward to a model provider, and nothing stated where data lived, for how long, who could
+  read it, whether it might train anything, or what happened on deletion.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-034">D-034</a>, and written out as a
+  full requirement domain — <a href="brd.html#req-l">BRD §8.12, domain L</a>, eleven requirements
+  with a data inventory. The short form: <strong>residency is whatever the operator's machines
+  are</strong>, because the project holds nothing after <a href="#oq-01">OQ-01</a>. That is the easy
+  half.</p>
+  <p>The hard half is egress, and it is worth stating plainly because a data-handling page that does
+  not say it is misleading: <strong>what leaves the host is source code, selected automatically by a
+  traversal, including files nobody reviewed before they were sent — and the selection widens on
+  every retry, because widening the slice is what a retry does.</strong> So the commitment is not a
+  location. It is a published egress inventory, a per-provider data-handling profile the operator
+  fills in and the UI displays, a pre-dispatch redaction and allowlist pass that refuses a dispatch
+  rather than scoring the leak afterwards, a supported no-egress mode for work under confidentiality,
+  and a deletion story that survives an append-only event stream by destroying the payload behind an
+  <code>EXTERNAL</code> reference while the event keeps the reference. Support engagements get no
+  standing access to any customer system.</p>
+
+  <h3 id="oq-19">OQ-19 · What goes into a private submodule, and what never can?</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-026">D-026</a> says private
+  submodules exist and says nothing about what is in them. This is the question that decides whether
+  the open core stays trustworthy: the failure mode that ends open-core projects is a boundary that
+  moves, and it moves one reasonable-looking release at a time
+  (<a href="brd.html#risk-register">R-10</a>).</p>
+  <p>Six candidates, with the recommendation and the reasoning, are laid out in
+  <a href="brd.html#business-decision-matrix">BRD §16</a>. In brief: the <strong>compliance and
+  evidence pack</strong> is the strongest first choice, because <a href="#oq-03">OQ-03</a> just
+  removed exactly that cluster from the core, a small company asks for it and a researcher never
+  does, and none of it is a safety control. An <strong>identity pack</strong> is the natural second,
+  with the caveat that the core's local accounts must stay genuinely sufficient rather than
+  deliberately weak. A <strong>provider pack</strong> that puts cost visibility behind a paywall is
+  the option to reject on principle, since the operator is the one paying. And <strong>none of the
+  above</strong> is a legitimate answer: services-only is the simplest business and the honest
+  default until a customer asks twice for the same missing thing.</p>
+  <p>What the answer must contain, whichever it is: the list, the price, and — for each item — the
+  sentence describing what the core does without it. Two rules already constrain it,
+  <a href="brd.html#rules-commercial">BR-27</a> and <a href="brd.html#rules-commercial">BR-28</a>.</p>
+
+  <h3 id="oq-20">OQ-20 · Licence, contribution policy and trademark</h3>
+  <p><strong>Why it was open:</strong> there was no <code>LICENSE</code> file in the repository.
+  Until there was, "open source" was an intention, contributions could not be accepted, and nobody
+  could safely fork — which made this the one part of
+  <a href="decision-log.html#d-026">D-026</a> that blocked publishing at all, not merely blocking
+  something later.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-035">D-035</a>, and shipped in the
+  same change: <strong>Apache-2.0</strong> in <code>LICENSE</code>, a <strong>DCO sign-off</strong>
+  in <code>CONTRIBUTING.md</code>, and a <strong>trademark reservation</strong> in
+  <code>NOTICE</code>. Apache-2.0 because the buyer in <a href="#oq-02">OQ-02</a> has to be able to
+  adopt it without asking a lawyer, and because its patent grant is worth more to a small company
+  than a copyleft clause many of them refuse on policy. DCO rather than CLA because a CLA exists to
+  enable relicensing and the paid components live in separate repositories the project already owns
+  outright — so there is nothing to relicense, and asking contributors to sign paperwork for an
+  unused power is a cost with no purpose. The name is the one thing kept back: use the code, rename
+  the fork.</p>
+  <p><strong>What it costs, stated once because it cannot be undone:</strong> every future
+  contribution arrives under Apache-2.0, and changing the licence later would need every
+  contributor's consent. And a permissive licence lets anyone — including someone with more capacity
+  than the owner — host GAOS as a service. Since hosting was refused as a business in
+  <a href="#oq-01">OQ-01</a>, that costs little in practice, but it is a real door left open on
+  purpose rather than an oversight.</p>
+  <p>The options that were rejected are kept below, because a licence choice is exactly the kind of
+  decision whose alternatives get re-litigated later by someone who was not in the room.</p>
+  <table class="tbl">
+    <thead><tr><th>Option</th><th>Good for</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Apache-2.0</strong> — the recommendation</td><td>Maximum adoption with zero legal friction for the buyer in <a href="#oq-02">OQ-02</a>; an explicit patent grant; a company can evaluate it without asking a lawyer. Commercial value stays where D-026 put it — in the submodules and the services — rather than in licence restrictions</td><td>Anyone, including someone with more capacity than the owner, may host GAOS as a service. Given that hosting was rejected anyway, this costs little in practice</td></tr>
+      <tr><td>AGPL-3.0</td><td>A hosted competitor must publish their changes. Also a common base for later dual-licensing</td><td>Many companies forbid AGPL outright, which excludes part of the small-company segment on a rule rather than on the merits</td></tr>
+      <tr><td>Business Source License</td><td>Blocks commercial hosting for a term, then converts to an open licence</td><td>Not open source, and would be read as such. The credibility argument that motivated open-sourcing is exactly what this forfeits</td></tr>
+    </tbody>
+  </table>
+  <p><strong>One obligation is not yet discharged.</strong> Apache-2.0 redistribution requires
+  keeping the licence texts of what you bundle, and the vendored web fonts and charting library in
+  <code>pustaka/docs/assets/</code> are named in <code>NOTICE</code> but their full licence texts are
+  not stored beside them. That is a small, mechanical gap and it should close before a public
+  release.</p>
+
+  <h3 id="oq-21">OQ-21 · Confirm the rate card, and decide how it is invoiced</h3>
+  <p><strong>Why it is open:</strong> the numbers in <a href="brd.html#rate-card">BRD §8.11.1</a>
+  were proposed by an agent at the owner's request, not chosen by the owner. They are the only
+  invented figures anywhere in the BRD, which is why they are labelled on the page itself.</p>
+  <p>Confirming them means answering four things the numbers cannot answer on their own: which
+  <strong>currency</strong> is quoted and who absorbs conversion; whether the installation packages
+  survive contact with a customer whose environment is not a clean host; what the <strong>invoicing
+  mechanism</strong> is for a solo maintainer selling internationally — payment processor, taxes,
+  and which jurisdiction's terms of service the customer accepts; and what happens when a fixed-scope
+  install runs over, which is the single most common way this kind of offer loses money.</p>
+  <p>A cheaper alternative to answering it in the abstract: publish the rate card, sell one Starter
+  install, and let the first engagement correct the numbers. That is also the fastest route to
+  <a href="brd.html#business-objectives">O-7</a>.</p>
 
   <h2 id="oq-product">Product &amp; scope</h2>
 
@@ -161,20 +323,31 @@
   — no users, no tenants, no run against a real model, and the one defined measurement has never
   been performed. The realistic sequencing is: run the second-run measurement once, then set targets
   against what it produces. Confirming that sequencing <em>is</em> the answer to this question.</p>
+  <p><a href="decision-log.html#d-026">D-026</a> makes it harder, not easier: runs now happen on
+  other people's machines, so the measurement depends on operators choosing to report it. Whether to
+  ask them, and how, is part of this question now.</p>
 
   <h3 id="oq-12">OQ-12 · Band-driven autonomy, or gates on by default?</h3>
   <p><strong>Why it is open:</strong> the design makes autonomy a function of record completeness —
   a coherent position, and the whole reason the readiness rubric has teeth. But a new team with a
-  thin brief meets a wall on day one. Turning gates on by default until a tenant opts out is gentler
-  and weakens the incentive that makes the rubric work. This is a product-experience decision, not a
-  safety one; both options keep the money, auth and schema gates.</p>
+  thin brief meets a wall on day one. Turning gates on by default until an operator opts out is
+  gentler and weakens the incentive that makes the rubric work. This is a product-experience
+  decision, not a safety one; both options keep the money, auth and schema gates.</p>
+  <p><a href="decision-log.html#d-027">D-027</a> sharpens it: a lone researcher installing GAOS on a
+  laptop meets that wall with nobody to ask, and no support contract. The wall is still defensible —
+  it is the product's thesis — but it now needs to explain itself unusually well.</p>
 
   <h3 id="oq-15">OQ-15 · What is Mission Control for?</h3>
   <p><strong>Why it is open:</strong> it is the most finished thing in the repository — ported,
   tested, deployed — and the build order says it should have been ninth. If it is the surface
-  tenants buy, it needs authentication, per-tenant scoping and accessibility work before anything
+  operators use, it needs authentication, per-tenant scoping and accessibility work before anything
   else is added to it. If it is an internal console and the API is the product, it can stay as it is
   while the loops beneath it get built, which is what the build order implies.</p>
+  <p>Since <a href="decision-log.html#d-026">D-026</a> nobody buys a surface at all, which removes
+  the commercial argument from both sides and leaves the build-order argument standing alone. Domain
+  L adds one concrete requirement to whichever answer wins: the provider data-handling profile and
+  the egress inventory have to be visible somewhere, and Mission Control is the only somewhere that
+  exists.</p>
 
   <h2 id="oq-technical">Technical policy</h2>
 
@@ -184,6 +357,12 @@
   named anywhere, and no second adapter exists. Multi-provider costs a normalised tier abstraction
   and per-provider cost accounting, and makes the escalation ladder harder to define, because "one
   tier above" needs a meaning that spans vendors.</p>
+  <p><a href="decision-log.html#d-033">D-033</a> raised the stakes — execution became coupled to a
+  provider's <em>tool</em> as well as its models, concentrating two dependencies in one vendor
+  instead of one. <a href="decision-log.html#d-036">D-036</a> takes one of them back: with the API
+  a supported mode, a provider whose CLI cannot be driven is still reachable. The question itself is
+  untouched, and <a href="#oq-23">OQ-23</a> is the same question asked at the level of the adapter
+  contract.</p>
 
   <h3 id="oq-10">OQ-10 · Tenancy strategy at scale</h3>
   <p><strong>Why it is open:</strong> the data model presents all three strategies with their costs
@@ -197,14 +376,26 @@
       <tr><td>Hybrid</td><td>Large tenants isolated, small ones pooled</td><td>Two code paths in the repository layer; only worth it at scale, and there is no scale yet</td></tr>
     </tbody>
   </table>
+  <p><a href="decision-log.html#d-026">D-026</a> changes the weighting without deciding it. A typical
+  deployment now has one operator and a handful of tenants that are project compartments, not
+  strangers — which makes the per-database cost look heavy and the shared-database risk look
+  tolerable. The counter-argument survives: the operator who most needs GAOS to be defensible is a
+  small company with client work in separate compartments, and for them the missing
+  <code>WHERE</code> is still a breach.</p>
 
   <h3 id="oq-11">OQ-11 · Authentication approach</h3>
   <p><strong>Why it is open:</strong> there is none. The back-office login sets a cookie and checks
-  nothing; any value opens it. This is the single item blocking every commercial requirement,
-  because a tenant boundary without authentication is a diagram. The question is not <em>whether</em>
-  — it is what shape: local accounts, an identity provider, per-tenant SSO, API tokens for
-  machine access, or some combination, and which of those must exist before the first tenant who is
-  not the owner.</p>
+  nothing; any value opens it. The question is not <em>whether</em> — it is what shape: local
+  accounts, an identity provider, per-tenant SSO, API tokens for machine access, or some
+  combination.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-026">D-026</a>.</strong> It no longer blocks
+  every commercial requirement, because the boundary separates colleagues rather than paying
+  strangers. What it does block is unchanged and is easy to state: <strong>nothing may bind beyond
+  localhost until this is answered.</strong> The likely answer is now local accounts with real
+  password hashing and session handling in the core, sufficient for a lab or a small team, with an
+  identity-provider integration as candidate (B) in <a href="#oq-19">OQ-19</a> — subject to the
+  constraint recorded there, that the core's own accounts must be sufficient rather than
+  deliberately weak.</p>
 
   <h3 id="oq-17">OQ-17 · Which ArcadeDB version, validated when?</h3>
   <p><strong>Why it is open:</strong> no DDL has ever been applied. The data model warns in its own
@@ -212,6 +403,49 @@
   <code>EXTERNAL</code> properties require v26.5.1 or later. Pinning a target version and running the
   schema against a scratch database is cheap now and expensive after the first migration exists — it
   is build-order step 1's real precondition.</p>
+  <p>Domain L adds a requirement to it: <a href="brd.html#req-l">L-7</a>'s deletion story depends on
+  an <code>EXTERNAL</code> payload being destroyable independently of the record that references it.
+  That behaviour needs verifying on the target version at the same time as everything else, because
+  a deletion promise resting on an unverified storage behaviour is not a promise.</p>
+
+  <h3 id="oq-22">OQ-22 · Cost accounting when the CLI reports nothing</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-033">D-033</a> put a subprocess
+  where an API response used to be, and <a href="decision-log.html#d-032">D-032</a> committed to
+  labelling every figure <code>measured</code> or <code>estimated</code>. It did not say how the
+  estimate is produced, and <a href="decision-log.html#d-037">D-037</a> has since made that estimate
+  the thing the budget guard is enforced against for most runs in CLI mode. In API mode the question
+  largely disappears, which is one of the honest advantages of that mode
+  (<a href="brd.html#mode-tradeoffs">§7.6.2</a>).</p>
+  <table class="tbl">
+    <thead><tr><th>Sub-question</th><th>What depends on it</th></tr></thead>
+    <tbody>
+      <tr><td>Which tokenizer counts the packet and the output, given the provider's own may not be available offline?</td><td>How far the estimate can drift before the cap is meaningless. An estimator that is systematically low is worse than no cap, because it looks like one</td></tr>
+      <tr><td>Where does the price table live, who updates it, and what happens when a model is priced that the table does not know?</td><td>Whether a stale table silently under-reports. The safe default is to refuse to estimate an unknown model rather than to guess — which then needs an operator-visible failure mode</td></tr>
+      <tr><td><s>Does the cap block on estimates, or only on measured spend?</s> <strong>Answered</strong> by <a href="decision-log.html#d-037">D-037</a>: estimates count at full weight</td><td>What remains is the consequence — since an estimate can stop work that had budget left, the estimator's drift is now a correctness property of the guard, not a reporting nicety</td></tr>
+      <tr><td>Is a maintained price table part of the core or a subscription?</td><td><a href="#oq-19">OQ-19</a> option (D), and <a href="brd.html#rules-commercial">BR-28</a> constrains the answer</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="oq-23">OQ-23 · Which provider CLIs, and what must each guarantee?</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-033">D-033</a> says "the
+  provider's command-line tool" without naming one or saying what it must be capable of. Every tool
+  in this category has different flags, different output, different session semantics, and no
+  stability guarantee for programmatic use — <a href="brd.html#risk-register">R-12</a>.</p>
+  <p>The answer needs to be an adapter contract before it is a list of tools. At minimum each
+  supported CLI must: run fully non-interactively from a working directory with no prompt for input;
+  accept a file-based instruction rather than only an argument string; exit with a code that
+  distinguishes a refusal from a crash from a completed run; leave its output on disk rather than
+  only on a terminal; and be pinnable to a version with a smoke test that fails loudly when the tool
+  changes underneath it. Anything that cannot do those five is not a supported adapter, however
+  capable it is interactively.</p>
+  <p>The second half is which tools clear that bar on day one, which cannot be answered from this
+  repository — it needs each one tried. That is a small, cheap experiment and it should precede the
+  first adapter being written, not follow it.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-036">D-036</a>.</strong> A tool that fails the
+  contract is no longer a dead end for the operator who needs that provider: API mode is a supported
+  configuration rather than a hypothetical exit, so the answer to "this CLI cannot be driven safely"
+  is a setting rather than a fork. What remains genuinely open is the list, and the version pinning
+  and boot smoke test that keep a passing tool from silently stopping being one.</p>
 
   <h2 id="oq-operations">Operations</h2>
 
@@ -225,26 +459,57 @@
   test scenarios, positive and negative, for the deploy automations that run today and the three
   acceptance tests that do not yet: <a href="qa-test-plan.html">QA test plan</a>.</p>
 
-  <h3 id="oq-16">OQ-16 · Is high availability required before the first external tenant?</h3>
+  <h3 id="oq-16">OQ-16 · Is high availability required, and for whom?</h3>
   <p><strong>Why it is open:</strong> HA is discussed in the data model and deferred, with the event
   stream named as the second recovery path — a restore missing the last few minutes can be rolled
-  forward from events. That is a real mitigation and not the same as availability. Whether a single
-  node is acceptable depends entirely on <a href="#oq-01">OQ-01</a> and <a href="#oq-07">OQ-07</a>,
-  which is why this sits behind them.</p>
+  forward from events. That is a real mitigation and not the same as availability.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-031">D-031</a>,</strong> which removed most of
+  it. GAOS hosts nothing and promises no uptime, so availability is each operator's own capacity
+  decision, and <a href="brd.html#risk-register">R-09</a> stops being commercially blocking. What
+  remains is genuinely smaller and still needs an answer: whether the project's <em>own</em> two
+  tiers need better than one node — they carry the docs, the demo and the owner's own runs — and
+  whether HA guidance ships as documentation, as candidate (C) in <a href="#oq-19">OQ-19</a>, or not
+  at all.</p>
 
   <h3 id="oq-18">OQ-18 · Budget caps: initial values and behaviour at the limit</h3>
-  <p><strong>Why it is open:</strong> <code>budget_cap</code> is specified per workflow and per
-  tenant and implemented nowhere. It is the highest-consequence unbuilt guard in the system: the
-  first real model key turns an unenforced cap into unbounded financial exposure. Two things need
-  deciding — the initial values, and the behaviour when one is reached. Stopping mid-workflow leaves
-  a half-finished task graph; refusing to dispatch the next task is cleaner but slower to notice;
-  warning and continuing is not a cap.</p>
+  <p><strong>Why it was open:</strong> <code>budget_cap</code> is specified per workflow and per
+  tenant and implemented nowhere. Two things needed deciding — the initial values, and the behaviour
+  when one is reached. Stopping mid-workflow leaves a half-finished task graph; refusing to dispatch
+  the next task is cleaner but slower to notice; warning and continuing is not a cap.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-037">D-037</a>, and the answer is that
+  one number with one behaviour was the wrong shape. The cap becomes a <strong>three-zone guard with
+  pacing and deferral</strong>, specified in full at <a href="brd.html#budget-guard">BRD §8.10.1</a>:</p>
+  <ul>
+    <li><strong>Pacing</strong> — the ceiling in force at any moment tracks how much of the budget
+    period has elapsed, times a slack multiplier. Without it a monthly cap can be spent in an
+    afternoon, which is the same as having no cap for the other twenty-nine days.</li>
+    <li><strong>Deferral, not failure</strong> — at the throttle threshold, default 80%, dispatch
+    stops and ready work is <em>deferred</em> with a resume time. The task keeps its place in the
+    graph, releases its lease, and comes back on its own when the window advances. Failing it
+    instead would waste the money already spent and then invite a retry that spends more of the
+    budget that just ran out.</li>
+    <li><strong>A hard stop that refuses rather than kills</strong> — at 100% nothing new is
+    dispatched and a deliberate act is needed to continue, but runs already in flight are always
+    left alone, because killing them forfeits spend and leaves a half-written workspace.</li>
+  </ul>
+  <p><strong>The values</strong> turned out to be the easy half: the DDL already defaults to 500 USD
+  and 8 concurrent tasks, and the five new properties ship with defaults that make a fresh install
+  safe rather than permissive. They are deployment-tunable configuration in software the operator
+  runs, not a published commitment, so committing to them costs nothing — unlike the rate card in
+  <a href="#oq-21">OQ-21</a>, which is why that one is still open and this one is not.</p>
+  <p>Two things this answer does not settle. It depends on <a href="#oq-22">OQ-22</a> for how far an
+  estimate may drift, since estimates count toward the guard at full weight — a cap that ignored them
+  would be no cap at all in CLI mode. And it adds four event names and a task state to a closed
+  catalog, which under <a href="brd.html#rules-invariants">BR-05</a> is a schema change to the fold
+  and lands in three places together or not at all.</p>
 
   <div class="adm warn">
     <p class="adm-title">Nothing here is rhetorical</p>
     <p>Every question on this page exists because answering it changes what gets built. None of them
     is a placeholder, and none can be resolved by reading the repository more carefully — that has
-    already been done, and the absence is the finding.</p>
+    already been done, and the absence is the finding. The eleven that are answered stayed on the
+    page for the same reason: the options that were rejected are the part that gets forgotten
+    first.</p>
   </div>
 
 </main>
