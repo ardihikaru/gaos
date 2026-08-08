@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Decision log — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="decision-log">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>Decision log</h1>
+  <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
+  proves it was made. Twenty entries, each traceable to an artifact section, a committed file, or
+  git history — and a destination for every question the open register resolves.</p>
+
+  <div class="page-meta"
+       data-tags="decisions, adr, product, governance, rationale"
+       data-hashtags="brd, decisions, adr"
+       data-published="2026-08-08"
+       data-updated="2026-08-08"
+       data-version-from="0.2.0"
+       data-version-to=""></div>
+
+  <h2 id="how-this-works">How this log works</h2>
+  <p>A decision belongs here when it constrains future work and reversing it would cost something.
+  It does not belong here because it seemed important at the time. Every row carries evidence: if a
+  decision cannot be pointed at, it has not been made — it is an <a href="open-questions.html">open
+  question</a> that somebody has been acting on informally.</p>
+  <div class="adm note">
+    <p class="adm-title">The lifecycle</p>
+    <p>An entry on the <a href="open-questions.html">open questions</a> page is answered by the
+    product owner. The answer is written here as the next <code>D-</code> number, dated the day it
+    was decided, with the reasoning in the decision text and the evidence pointing at whatever
+    records it. The question's row then flips to <em>Answered → D-nnn</em>. Nothing is deleted from
+    either page; a reversed decision is superseded in place, the way <code>D-004</code> would be if
+    the event id scheme ever changed.</p>
+  </div>
+  <p>Dates appear only where git history or a document supplies one. A dash means the decision is
+  embedded in the design artifacts committed on 2026-08-02 without a separately recorded date —
+  which is honest, and better than inventing a day.</p>
+
+  <h2 id="thesis-decisions">Thesis and architecture</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>D-001</td><td>2026-08-02</td>
+        <td>The graph is the primitive, not the prompt. Scheduling, context assembly and impact analysis are traversals; recovery is a fold over an event stream rather than memory inside a process. Every other decision in this log follows from this one.</td>
+        <td><code>gaos-architecture.html</code> §01</td>
+      </tr>
+      <tr>
+        <td>D-002</td><td>2026-08-02</td>
+        <td>The orchestrator holds no authoritative state. The scheduler is a pure function of the graph, so two replicas reach the same answer independently and leader election protects against duplicate dispatch rather than divergent state.</td>
+        <td><code>gaos-architecture.html</code> §02</td>
+      </tr>
+      <tr>
+        <td>D-003</td><td>2026-08-02</td>
+        <td>Every change emits an event, and the event stream is the single path for replay, recovery and audit. There is no second path, and an event that was never written is a state change that never happened.</td>
+        <td><code>gaos-architecture.html</code> §01; <code>gaos-arcadedb-model.html</code> §01 principle 4</td>
+      </tr>
+      <tr>
+        <td>D-004</td><td>2026-08-02</td>
+        <td>Events reference the business <code>id</code> string, never the physical RID, so that a restore into different buckets does not break the history.</td>
+        <td><code>gaos-arcadedb-model.html</code> §01 principle 2</td>
+      </tr>
+      <tr>
+        <td>D-005</td><td>2026-08-02</td>
+        <td>Six layers with an explicit prohibition each — the UI may not invent state the graph lacks, the gateway may not defer the tenant boundary downward, orchestration may not hold long-lived memory, execution may not die with the orchestrator, the model gateway may not leak provider shapes upward, and the database may not be bypassed by a side channel.</td>
+        <td><code>gaos-architecture.html</code> §02</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="data-decisions">Data model</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>D-006</td><td>2026-08-02</td>
+        <td>One edge type per relationship, never a generic edge with a <code>type</code> property. Traversal by edge type is index-free adjacency; filtering a generic edge by property scans every neighbour. Named in the source document as the single biggest performance decision in the model.</td>
+        <td><code>gaos-arcadedb-model.html</code> §01 principle 3</td>
+      </tr>
+      <tr>
+        <td>D-007</td><td>2026-08-02</td>
+        <td><code>Task</code> and <code>TaskRun</code> are separate types. Folding attempts into the task would destroy the cost, model, failure signature and logs of every previous attempt, making the retry loop untunable and model comparison in replay impossible.</td>
+        <td><code>gaos-arcadedb-model.html</code> §03</td>
+      </tr>
+      <tr>
+        <td>D-008</td><td>2026-08-02</td>
+        <td><code>USES_CONTEXT</code> hangs off <code>ContextSlice</code> rather than <code>Task</code>, because the slice differs per attempt — that is the whole point of retrying with a widened context.</td>
+        <td><code>gaos-arcadedb-model.html</code> §04</td>
+      </tr>
+      <tr>
+        <td>D-009</td><td>2026-08-02</td>
+        <td>Schema-full where machines read, schema-less where humans write: <code>Task</code>, <code>Event</code> and <code>Review</code> are strictly declared because the scheduler and the fold depend on their shape, while <code>Requirement</code> and <code>Artifact</code> carry a declared spine plus free-form fields.</td>
+        <td><code>gaos-arcadedb-model.html</code> §01 principle 1</td>
+      </tr>
+      <tr>
+        <td>D-010</td><td>2026-08-02</td>
+        <td>Heavy payloads — prompt bodies, rendered slices, diffs, log blobs — are marked <code>EXTERNAL</code> or kept as references to object storage, because inline properties are serialized on the same page as the vertex topology and cost cache misses on every traversal that never projects them.</td>
+        <td><code>gaos-arcadedb-model.html</code> §01 principle 5, §13</td>
+      </tr>
+      <tr>
+        <td>D-011</td><td>2026-08-02</td>
+        <td>Tenancy is a database boundary first and a property second. One database per tenant is the default recommendation; <code>tenantId</code> is declared and indexed on every vertex regardless, because it survives exports and makes a misrouted restore detectable.</td>
+        <td><code>gaos-arcadedb-model.html</code> §01 principle 6, §13</td>
+      </tr>
+      <tr>
+        <td>D-012</td><td>2026-08-02</td>
+        <td>Retention differs by type: events at full fidelity for 90 days then archived with the fold checkpoint retained, samples raw for 14 days then downsampled, run logs by reference only, and everything else indefinitely — because the audit trail is the product.</td>
+        <td><code>gaos-arcadedb-model.html</code> §13</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="policy-decisions">Control-loop policy</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>D-013</td><td>2026-08-02</td>
+        <td>Readiness is scored out of 100 against twelve machine-checkable signals, and the planner refuses to plan below 45, returning the list of what is missing. A subjective bar would get argued away; a published rubric cannot be.</td>
+        <td><code>gaos-architecture.html</code> §07</td>
+      </tr>
+      <tr>
+        <td>D-014</td><td>2026-08-02</td>
+        <td>Readiness decays rather than persisting: <code>effective = raw − drift_penalty</code>, penalty capped at 25, and crossing a band boundary downward emits an event and applies the stricter gates immediately instead of recalculating silently.</td>
+        <td><code>gaos-architecture.html</code> §07</td>
+      </tr>
+      <tr>
+        <td>D-015</td><td>2026-08-02</td>
+        <td>Role and model selection is ordered capability → risk → cost, never cost first — selecting on cost first routes a security-critical migration to the cheapest model because it happened to be free.</td>
+        <td><code>gaos-architecture.html</code> §05</td>
+      </tr>
+      <tr>
+        <td>D-016</td><td>2026-08-02</td>
+        <td>Correctness is weighted 0.45 of the final score, dominating the other four dimensions deliberately: a beautiful implementation of the wrong behaviour should score below an ugly implementation of the right one, because the second is cheap to improve and the first is expensive to discover.</td>
+        <td><code>gaos-architecture.html</code> §06</td>
+      </tr>
+      <tr>
+        <td>D-017</td><td>2026-08-02</td>
+        <td>Safety is a veto, not a weight: below 60 the work stops regardless of the total, emits <code>SafetyVeto</code>, and goes to a human queue. And an identical failure signature twice routes to a design review rather than a tier escalation, because escalating usually reproduces the same wrong answer more expensively.</td>
+        <td><code>gaos-architecture.html</code> §06</td>
+      </tr>
+      <tr>
+        <td>D-018</td><td>2026-08-02</td>
+        <td>Build order is prescribed in ten steps, with Mission Control at step 9 and an explicit warning against starting with the visual layer because it is the most rewarding to build and the least load-bearing.</td>
+        <td><code>gaos-architecture.html</code> §10</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="delivery-decisions">Delivery and deployment</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>D-019</td><td>2026-08-07</td>
+        <td>v0.1.0 ships the operator surface only, and says so. Mission Control is ported to Go and HTMX with stdlib only and no <code>go.sum</code>; <code>dashboard/store.go</code> is left as the seam for ArcadeDB and <code>dashboard/sim.go</code> stands in for the runner. Every page states which parts are designed and which are built. <em>This inverts D-018 knowingly</em> — the visual layer was built first — which is why the remaining steps must not be reordered further.</td>
+        <td><code>README.md</code>; commit <code>efcf44e</code></td>
+      </tr>
+      <tr>
+        <td>D-020</td><td>2026-08-07</td>
+        <td>The event catalog is closed and encoded as Go constants in <code>dashboard/events.go</code>, so a typo is a compile error rather than a new event type silently entering the stream. Names belonging to the unbuilt runner, scheduler and review engine are declared anyway and marked "pass 2"; four UI-lifecycle names are kept in a separate block so nobody mistakes them for domain events.</td>
+        <td><code>dashboard/events.go</code>; <code>gaos-arcadedb-model.html</code> §08</td>
+      </tr>
+      <tr>
+        <td>D-021</td><td>2026-08-07</td>
+        <td>GAOS occupies product slot <strong>03</strong> on the shared private VM: tunnel port <code>18301</code> for prod and <code>19301</code> for dev, one Traefik per product, and nothing but the edge ever publicly bound. Locally the whole stack publishes one port, 8083 rather than 8080 because 8080 was already taken, overridable with <code>GAOS_EDGE_PORT</code>.</td>
+        <td><code>deploy/STACKS.md</code>; <code>README.md</code>; <code>compose.yaml</code></td>
+      </tr>
+      <tr>
+        <td>D-022</td><td>2026-08-07</td>
+        <td>TLS terminates on the public edge machine <code>clino</code> — nginx with certbot, two certificate lineages, no Docker, no application state — which forwards plain HTTP over WireGuard to the private VM. The edge is the only publicly reachable machine.</td>
+        <td><code>deploy/edge/README.md</code>; <code>deploy/STACKS.md</code></td>
+      </tr>
+      <tr>
+        <td>D-023</td><td>2026-08-07</td>
+        <td>Behind that tunnel, <code>auto</code> never sets the Secure cookie flag: the application sees plain HTTP, so an automatic rule would silently disable the cookie it was meant to protect.</td>
+        <td>commit <code>24c2c16</code></td>
+      </tr>
+      <tr>
+        <td>D-024</td><td>2026-08-07</td>
+        <td>The documentation site and landing page are vendored from a sibling repository rather than rebuilt. The docs engine is Pustaka; its own authoring guides ship alongside GAOS's content, and the site makes no third-party requests.</td>
+        <td><code>README.md</code>; <code>pustaka/</code>, <code>landing-page/</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="adm warn">
+    <p class="adm-title">What is not in this log</p>
+    <p>No commercial decision appears here, because none has been made. Pricing, plans, target
+    segment, the model-provider strategy, the authentication approach and the tenancy strategy at
+    scale are all live questions — they are on the <a href="open-questions.html">open questions</a>
+    page, and each one lands here the day it is answered.</p>
+  </div>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
