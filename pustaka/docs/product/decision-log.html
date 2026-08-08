@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Twenty entries, each traceable to an artifact section, a committed file, or
+  proves it was made. Twenty-five entries, each traceable to an artifact section, a committed file, or
   git history — and a destination for every question the open register resolves.</p>
 
   <div class="page-meta"
@@ -179,7 +179,7 @@
         <td>TLS terminates on the public edge machine <code>clino</code> — nginx with certbot, two certificate lineages, no Docker, no application state — which forwards plain HTTP over WireGuard to the private VM. The edge is the only publicly reachable machine.</td>
         <td><code>deploy/edge/README.md</code>; <code>deploy/STACKS.md</code></td>
       </tr>
-      <tr>
+      <tr id="d-023">
         <td>D-023</td><td>2026-08-07</td>
         <td>Behind that tunnel, <code>auto</code> never sets the Secure cookie flag: the application sees plain HTTP, so an automatic rule would silently disable the cookie it was meant to protect.</td>
         <td>commit <code>24c2c16</code></td>
@@ -188,6 +188,30 @@
         <td>D-024</td><td>2026-08-07</td>
         <td>The documentation site and landing page are vendored from a sibling repository rather than rebuilt. The docs engine is Pustaka; its own authoring guides ship alongside GAOS's content, and the site makes no third-party requests.</td>
         <td><code>README.md</code>; <code>pustaka/</code>, <code>landing-page/</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="qa-decisions">Quality assurance</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-025">
+        <td>D-025</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-13">OQ-13</a>. Since GAOS has no CI and its four
+        internal stakeholder roles are currently one person, that person is the runner for every
+        acceptance test, whether invoked directly or through the <code>gaos-deploy</code> subagent.
+        <code>check-stacks.sh</code> and the post-deploy verification in
+        <code>rebuild-restart.sh</code> run automatically on every <code>deploy</code> and
+        <code>restart</code>, both tiers, and refuse the action on failure; the test/check gate runs
+        automatically on every <code>deploy</code> only. The three BRD acceptance tests have no
+        automated cadence yet because nothing exists to run them against — proposed cadence is
+        before every release (unsatisfiable task), weekly once a scheduler exists (fold test), and
+        on demand with at least one run to seed the OQ-08 baseline (second run). Fold-test divergence
+        and unsatisfiable-task guard-limit failures are release blockers, not warnings; the second-run
+        result is a viability signal that triggers a review, not an automatic gate.</td>
+        <td><code>product/qa-test-plan.html</code>; <code>deploy/check-stacks.sh</code>;
+        <code>deploy/rebuild-restart.sh</code></td>
       </tr>
     </tbody>
   </table>
