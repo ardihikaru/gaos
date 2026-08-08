@@ -64,7 +64,7 @@
       <tr data-tags="technical tenancy database isolation shared hybrid"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Open</td></tr>
       <tr data-tags="technical authentication auth login sso identity"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be for the first non-owner tenant?</td><td>R-02, F-6, all of domain K</td><td>Open</td></tr>
       <tr data-tags="technical arcadedb version ddl dialect external"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Open</td></tr>
-      <tr data-tags="operations cadence review evaluation acceptance tests"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Open</td></tr>
+      <tr data-tags="operations cadence review evaluation acceptance tests"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
       <tr data-tags="operations ha availability replication backup single-node"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required before the first external tenant?</td><td>R-09, OQ-07</td><td>Open</td></tr>
       <tr data-tags="operations budget cap spend guard default limits"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Open</td></tr>
     </tbody>
@@ -216,10 +216,14 @@
   <h2 id="oq-operations">Operations</h2>
 
   <h3 id="oq-13">OQ-13 · Who runs the acceptance tests, and how often?</h3>
-  <p><strong>Why it is open:</strong> the design specifies three tests that are the only honest proof
+  <p><strong>Why it was open:</strong> the design specifies three tests that are the only honest proof
   the system works — the unsatisfiable task, the fold-from-genesis comparison, and the second run a
-  week apart. It does not say who runs them, on what cadence, or what happens when one fails. The
-  fold test in particular is described as periodic, which implies automation nobody has scheduled.</p>
+  week apart. It did not say who runs them, on what cadence, or what happens when one fails. The
+  fold test in particular is described as periodic, which implies automation nobody had scheduled.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-025">D-025</a>: the product owner runs
+  everything, since no CI exists and every internal stakeholder role is currently one person. Full
+  test scenarios, positive and negative, for the deploy automations that run today and the three
+  acceptance tests that do not yet: <a href="qa-test-plan.html">QA test plan</a>.</p>
 
   <h3 id="oq-16">OQ-16 · Is high availability required before the first external tenant?</h3>
   <p><strong>Why it is open:</strong> HA is discussed in the data model and deferred, with the event
