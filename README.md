@@ -83,3 +83,18 @@ losing its `template.CSS` type (`html/template` emits the literal `ZgotmplZ` and
 the page still renders), a mount-point prefix that stops arriving, a snapshot
 that aliases the live floor, and a back-office route that quietly never had an
 auth check.
+
+## Licence
+
+**Apache-2.0** — `LICENSE`. Clone it, run it, change it, ship it. There is no
+licence key, no trial, and no feature that switches off; this repository is a
+complete system on its own, and no paid component may ever be required to run it.
+
+The name is not covered by the licence: build on GAOS and give your fork its own
+name (`NOTICE`). Contributions take a DCO sign-off rather than a CLA —
+`CONTRIBUTING.md`.
+
+What *is* commercial — optional private submodules, installation, support — and
+what will never be sold, is in the docs under
+`pustaka/docs/product/faq.html`. You always pay your own model provider; GAOS is
+never in that billing path.
