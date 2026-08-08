@@ -15,8 +15,9 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Twenty-five entries, each traceable to an artifact section, a committed file, or
-  git history — and a destination for every question the open register resolves.</p>
+  proves it was made. Thirty-seven entries, each traceable to an artifact section, a committed file, a
+  product-owner ruling, or git history — and a destination for every question the open register
+  resolves.</p>
 
   <div class="page-meta"
        data-tags="decisions, adr, product, governance, rationale"
@@ -58,7 +59,7 @@
         <td>The orchestrator holds no authoritative state. The scheduler is a pure function of the graph, so two replicas reach the same answer independently and leader election protects against duplicate dispatch rather than divergent state.</td>
         <td><code>gaos-architecture.html</code> §02</td>
       </tr>
-      <tr>
+      <tr id="d-003">
         <td>D-003</td><td>2026-08-02</td>
         <td>Every change emits an event, and the event stream is the single path for replay, recovery and audit. There is no second path, and an event that was never written is a state change that never happened.</td>
         <td><code>gaos-architecture.html</code> §01; <code>gaos-arcadedb-model.html</code> §01 principle 4</td>
@@ -216,12 +217,235 @@
     </tbody>
   </table>
 
+  <h2 id="commercial-decisions">Commercial model</h2>
+  <p>Six decisions taken together on 2026-08-08, answering the first block of the open register.
+  They are one decision in six parts: GAOS is given away, and what is sold is the work of making it
+  run and the optional parts nobody needs in order to run it.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-026">
+        <td>D-026</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-01">OQ-01</a>. <strong>Open core, self-hosted,
+        with private submodules and paid services</strong> — not hosted SaaS. Anyone who clones this
+        repository can run GAOS themselves, and <em>this repository alone is a working system</em>:
+        no private component may ever be required for it to function. Commercial value sits in three
+        places instead — one or more private submodules sold as licensed add-ons, paid installation
+        and support, and custom work. The consequence for engineering is the one that matters: the
+        tenant boundary stops being a wall between paying strangers and becomes a boundary between
+        colleagues inside one operator's deployment, which lowers the strength authentication needs
+        on day one without removing the need for it.</td>
+        <td>Product owner ruling; <a href="brd.html#req-k">BRD §8.11 domain K</a></td>
+      </tr>
+      <tr id="d-027">
+        <td>D-027</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-02">OQ-02</a>. The target customers are
+        <strong>researchers, small companies, and individual experts — IT and non-IT alike</strong>.
+        All three buy as practitioners rather than through procurement, which means the product is
+        won on documentation and a working install, not on a sales motion, an enterprise
+        questionnaire or a compliance certificate. The non-IT expert is the persona that pays for
+        installation: they can write the brief the readiness rubric wants and cannot stand up a
+        stack, which is exactly the gap the service offer fills.</td>
+        <td>Product owner ruling; <a href="brd.html#req-k">BRD §8.11 domain K</a>;
+        <a href="faq.html">FAQ</a></td>
+      </tr>
+      <tr id="d-028">
+        <td>D-028</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-03">OQ-03</a>. <strong>An external auditor is
+        not a first-class user</strong>, derived from D-026 and D-027 rather than decided
+        independently: a self-hosted deployment owned by a researcher or a small team has no
+        third-party auditor relationship to serve. The replay and <code>USES_CONTEXT</code> trail
+        stay in the product as an <em>internal</em> explainability and reproducibility feature —
+        which is what a researcher actually wants from them. Evidence-bundle export, tamper-evidence
+        for the event stream, retention beyond the 90-day full-fidelity window and read-only external
+        credentials are therefore all out of scope for the core, and are the strongest candidate for
+        the first commercial submodule (<a href="open-questions.html#oq-19">OQ-19</a>).</td>
+        <td>Derived from D-026, D-027; <a href="brd.html#req-k">BRD §8.11 domain K</a></td>
+      </tr>
+      <tr id="d-029">
+        <td>D-029</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-05">OQ-05</a>. The pricing basis is
+        <strong>service and licence fees, never usage</strong>: a one-time installation fee, an
+        annual support subscription priced per production instance, an annual per-install licence
+        for any commercial submodule, and a day rate for custom work. There is no per-seat price, no
+        per-task price, and no margin on model spend — all three are impossible to bill for anyway
+        once D-030 puts the provider account on the operator's side of the boundary. The rate card
+        itself is proposed in <a href="brd.html#req-k">§8.11</a> and awaits confirmation as
+        <a href="open-questions.html#oq-21">OQ-21</a>; the <em>basis</em> is what is decided here.</td>
+        <td>Product owner ruling; <a href="brd.html#req-k">BRD §8.11 domain K</a></td>
+      </tr>
+      <tr id="d-030">
+        <td>D-030</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-06">OQ-06</a>. <strong>The operator always pays
+        the model provider.</strong> GAOS never resells tokens, never holds a provider credential
+        belonging to somebody else, and never sits in the billing path. The whole cost-of-goods
+        problem moves to the tenant by construction, and <code>budgetCapUsd</code> changes meaning
+        with it: it now protects the operator's own money, which makes shipping an unenforced cap a
+        duty-of-care failure toward users rather than a financial exposure for the project.</td>
+        <td>Product owner ruling; <code>gaos-arcadedb-model.html</code> §03
+        <code>Tenant.budgetCapUsd</code></td>
+      </tr>
+      <tr id="d-031">
+        <td>D-031</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-07">OQ-07</a>. Support commits to
+        <strong>response times, never uptime</strong>. Because GAOS hosts nothing after D-026, an
+        availability SLA would be a promise about somebody else's machine; the single edge node and
+        single database node that made <a href="brd.html#risk-register">R-09</a> block every
+        commercial requirement stop being a commercial obstacle at all, and become the self-hoster's
+        own capacity decision. Three tiers: Community (free, public issue tracker, best effort, no
+        commitment), Standard and Priority (paid, first-response targets within stated business hours
+        in one named timezone, a fixed annual allowance of remote assistance hours, and upgrade
+        support). Nothing in any tier gates a bug fix — fixes land in the open repository for
+        everyone.</td>
+        <td>Product owner ruling; derived from D-026;
+        <a href="brd.html#risk-register">BRD §11.2 R-09</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="execution-decisions">Execution and data handling</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-032">
+        <td>D-032</td><td>2026-08-08</td>
+        <td>Answers the first half of <a href="open-questions.html#oq-04">OQ-04</a>.
+        <code>Tenant.plan</code>, <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code> are
+        <strong>local quota profiles, not billing tiers</strong> — instruments for watching model
+        usage inside one deployment, which is what they were always shaped like. Three named
+        profiles ship as seed data: <code>solo</code>, <code>standard</code> (the DDL's existing
+        defaults, 8 concurrent tasks and a 500 USD cap) and <code>unmetered</code>, which warns
+        instead of capping and must be selected deliberately. Profiles are operator-edited in the
+        back office; there is no signup, no self-service and no billing, so requirement J-7 is
+        withdrawn rather than deferred. Because a CLI-invoked model does not reliably report usage
+        (D-033), every cost figure carries a basis — <code>measured</code> when the provider reported
+        it, <code>estimated</code> when GAOS derived it from a local token count and a configured
+        price table — and the two are never summed without saying so.</td>
+        <td>Product owner ruling; <code>gaos-arcadedb-model.html</code> §05 <code>Tenant</code> DDL
+        defaults; <a href="brd.html#req-j">BRD §8.10 domain J</a></td>
+      </tr>
+      <tr id="d-033">
+        <td>D-033</td><td>2026-08-08</td>
+        <td>Answers the second half of <a href="open-questions.html#oq-04">OQ-04</a>. In the MVP the
+        model gateway <strong>invokes provider command-line tools as subprocesses, not HTTP
+        APIs</strong>. The runner writes a <em>task packet</em> — the frozen context slice as files
+        on disk — into the leased workspace, spawns the CLI non-interactively against it, and
+        requires it to emit a <em>handoff document</em> at a declared path in a declared shape. That
+        document is the interface between agents: it becomes an <code>Artifact</code> vertex, and the
+        next agent's context slice pulls it in through <code>USES_CONTEXT</code>, so the document is
+        the transport and the graph stays the record. Every requirement in domain D survives —
+        D-6's frozen slice is a directory instead of a request body — and the accounting cost is
+        D-032's estimation path. The full contract and the flowchart are
+        <a href="brd.html#to-be-cli">BRD §7.6</a>.</td>
+        <td>Product owner ruling; <a href="brd.html#to-be-cli">BRD §7.6</a>;
+        <code>gaos-architecture.html</code> §02 model gateway</td>
+      </tr>
+      <tr id="d-034">
+        <td>D-034</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-14">OQ-14</a>. <strong>Residency is whatever the
+        operator's own machines are</strong>, because after D-026 the GAOS project stores nothing
+        and processes nothing on anyone's behalf. That answers the residency question and leaves the
+        harder one, which is egress: a context slice carries repository contents off the host to a
+        model provider on every single attempt. So the commitment is not a location, it is a
+        published <em>egress inventory</em>, an explicit per-provider data-handling profile the
+        operator configures and the UI displays, redaction and path allowlists applied before
+        dispatch rather than scored after it, and deletion implemented by destroying the referent of
+        an <code>EXTERNAL</code> payload while the append-only event keeps its reference. Support
+        engagements get no standing access to customer systems. Written out as
+        <a href="brd.html#req-l">BRD §8.12 domain L</a>.</td>
+        <td>Product owner instruction; <a href="brd.html#req-l">BRD §8.12 domain L</a>;
+        <code>gaos-arcadedb-model.html</code> §13 retention</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="licence-decisions">Licence</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-035">
+        <td>D-035</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-20">OQ-20</a>, and is the last part of
+        <a href="#d-026">D-026</a> to land. The core ships under <strong>Apache-2.0</strong>, with a
+        <strong>DCO sign-off</strong> instead of a CLA and a <strong>trademark reservation</strong> on
+        the name. Apache-2.0 because the buyer in <a href="#d-027">D-027</a> must be able to adopt it
+        without asking a lawyer, and because its explicit patent grant is worth more to a small
+        company than a copyleft clause it will refuse on policy. The commercial value stays where
+        D-026 put it — in the submodules and the services — rather than in licence restrictions, and
+        the thing a permissive licence gives away is the right to host GAOS, which was refused as a
+        business anyway. DCO rather than CLA because a CLA exists to enable relicensing, and with the
+        paid components in separate repositories the project owns outright, there is nothing to
+        relicense. The trademark is the one thing kept back: use the code, rename the fork.
+        <em>The cost, stated once: this cannot be undone. Every future contribution arrives under
+        Apache-2.0, and changing it later needs every contributor's consent.</em></td>
+        <td><code>LICENSE</code>, <code>NOTICE</code>, <code>CONTRIBUTING.md</code>;
+        <a href="brd.html#req-k">BRD K-9</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="execution-mode-decisions">Execution mode and spend control</h2>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-036">
+        <td>D-036</td><td>2026-08-08</td>
+        <td><em>Extends <a href="#d-033">D-033</a> rather than reversing it.</em> The model gateway
+        supports <strong>two interchangeable adapters — CLI and API — chosen by one deployment-wide
+        setting</strong>, with an <code>auto</code> compatibility mode that prefers one and falls
+        back to the other by emitting an event rather than substituting silently. Development still
+        starts with the CLI adapter, which is all D-033 ever claimed. The reason for making the API a
+        first-class mode now rather than later is <a href="brd.html#risk-register">R-12</a>: driving
+        an interactive tool from a scheduler may fall outside the terms it runs under, and an
+        operator who hits that needs a switch, not a fork. The choice is a cost decision before it is
+        a technical one — a CLI subscription is a flat fee with imprecise accounting, an API key is
+        metered with exact accounting — and it is the operator's to make, since after
+        <a href="#d-030">D-030</a> it is their bill either way. What holds the two together is a
+        single prohibition: the mode may be <em>recorded</em> on an attempt and never
+        <em>branched on</em> (<a href="brd.html#rules-commercial">BR-33</a>). Configuration, the
+        full trade-off table and the containment for each CLI weakness:
+        <a href="brd.html#to-be-cli">BRD §7.6</a>.</td>
+        <td><a href="brd.html#mode-config">BRD §7.6.1</a>,
+        <a href="brd.html#mode-tradeoffs">§7.6.2</a>; <code>gaos-architecture.html</code> §02</td>
+      </tr>
+      <tr id="d-037">
+        <td>D-037</td><td>2026-08-08</td>
+        <td>Answers <a href="open-questions.html#oq-18">OQ-18</a>. The budget cap becomes a
+        <strong>three-zone guard with pacing and deferral</strong> rather than one number with one
+        behaviour. <code>Tenant</code> gains <code>budgetPeriod</code>,
+        <code>budgetThrottlePct</code>, <code>budgetPacing</code>, <code>pacingSlackPct</code> and
+        <code>maxTokensPerHour</code> beside the existing <code>budgetCapUsd</code>. Spend is paced
+        across the period, so a monthly cap cannot be spent in an afternoon. At the throttle
+        threshold — default 80%, or the paced ceiling, or the token rate ceiling — <strong>dispatch
+        stops and ready work is deferred rather than failed</strong>: the task keeps its place in the
+        graph, releases its lease, shows "deferred — budget window" as an explicit blocking reason,
+        and resumes on its own when the window advances. At 100% dispatch refuses and needs a
+        deliberate act to continue. In every zone, runs already in flight are left alone, because
+        killing them forfeits money already spent. Two rules make the shape hold: deferral consumes
+        no retry, escalation or failure signature (<a href="brd.html#rules-commercial">BR-34</a>), and
+        a limit that only warns is not a limit (<a href="brd.html#rules-commercial">BR-35</a>).
+        Estimated costs count at full weight, because a cap that ignores estimates is no cap at all
+        in CLI mode. Full specification: <a href="brd.html#budget-guard">BRD §8.10.1</a>.</td>
+        <td><a href="brd.html#budget-guard">BRD §8.10.1</a>;
+        <code>gaos-arcadedb-model.html</code> §05 <code>Tenant</code> DDL;
+        <code>gaos-architecture.html</code> §06 guardrails</td>
+      </tr>
+    </tbody>
+  </table>
+
   <div class="adm warn">
     <p class="adm-title">What is not in this log</p>
-    <p>No commercial decision appears here, because none has been made. Pricing, plans, target
-    segment, the model-provider strategy, the authentication approach and the tenancy strategy at
-    scale are all live questions — they are on the <a href="open-questions.html">open questions</a>
-    page, and each one lands here the day it is answered.</p>
+    <p>The commercial <em>shape</em> is decided; several of its parameters are not. The rate-card
+    numbers, which capabilities go into a private submodule, how a CLI's token usage is estimated
+    when it reports none, and which provider CLIs are supported are all live questions — as are the
+    authentication approach, the tenancy strategy at scale, and the ArcadeDB target version. They
+    are on the <a href="open-questions.html">open questions</a> page, and each one lands here the
+    day it is answered.</p>
+    <p>One thing here is decided and not yet true in code. <a href="#d-037">D-037</a> needs four new
+    event names, a new task state and two <code>TaskRun</code> properties, and
+    <a href="#d-003">D-003</a> with <a href="brd.html#rules-invariants">BR-05</a> means those land in
+    the data model document, <code>dashboard/events.go</code> and the fold together or not at all. A
+    decision recorded here is a commitment about what gets built, never a claim that it was.</p>
   </div>
 
 </main>
