@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FAQ — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="faq">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>FAQ</h1>
+  <p class="lede">What GAOS costs, who it is for, what is open and what is sold, who pays for the AI
+  models, and where your code goes when an agent runs. The same answers as the
+  <a href="brd.html">BRD</a>, written for someone who has no reason to read a BRD.</p>
+
+  <div class="page-meta"
+       data-tags="faq, commercial, pricing, licensing, self-hosting, support, data-handling"
+       data-hashtags="faq, product, pricing, open-source"
+       data-published="2026-08-08"
+       data-updated="2026-08-08"
+       data-version-from="0.4.0"
+       data-version-to=""></div>
+
+  <div class="adm warn">
+    <p class="adm-title">Read this one first: GAOS does not work yet</p>
+    <p>Every answer below describes a product whose design is complete and whose engine is not
+    built. As of v0.5.0 what runs is the operator interface, the documentation and the deployment —
+    <strong>no agent has ever been dispatched and no model has ever been called</strong>. The
+    repository's own README keeps a designed-versus-built table and this site repeats it on
+    <a href="brd.html#current-state">§2.1 of the BRD</a>. Nothing here is a promise about a delivery
+    date, because there is no roadmap with dates on it. If you are evaluating GAOS to use next month,
+    the honest answer is: not yet, and watch the <a href="../changelog.html">changelog</a>.</p>
+  </div>
+
+  <h2 id="the-basics">Is it free, and can I run it myself?</h2>
+
+  <h3 id="q-free">Is GAOS free?</h3>
+  <p>Yes. Clone the repository and run it. There is no licence key, no trial period, no seat count
+  and no feature that switches off. Everything described in the architecture and graph documents —
+  the scheduler, the readiness rubric, the review and retry loops, replay, Mission Control — belongs
+  to the open repository.</p>
+  <p>The licence is <strong>Apache-2.0</strong> — <code>LICENSE</code> in the repository root,
+  decided as <a href="decision-log.html#d-035">D-035</a>. Use it commercially, modify it, redistribute
+  it, embed it in something else; keep the notices and you have met the terms. It carries an explicit
+  patent grant, which is the part a company's legal review actually looks for. The one thing the
+  licence does not give you is the name: build on GAOS, say so, and call your fork something else
+  (<code>NOTICE</code>).</p>
+
+  <h3 id="q-self-host">Do I have to self-host?</h3>
+  <p>Yes, and that is deliberate. There is no hosted GAOS, no managed tier and no shared instance,
+  and none is planned. You run it on your machine, your server or your lab's hardware. The upside is
+  the one everybody asks about anyway: your code and your data never touch anything belonging to this
+  project, because this project runs nothing.</p>
+
+  <h3 id="q-need-to-buy">Do I ever have to buy anything?</h3>
+  <p>No. The rule is written into the requirements rather than left to good intentions: <em>the open
+  repository is a complete working system on its own, and no private component may ever be required
+  to install, run, plan, execute, review or replay</em>
+  (<a href="brd.html#rules-commercial">BR-27</a>). A paid add-on that does not exist can only cost
+  you a capability you did not have; it can never break what you are running.</p>
+  <p>You will pay somebody, though — just not this project. Running agents means calling AI models,
+  and <a href="#models-and-cost">those are on your own account</a>.</p>
+
+  <h2 id="who-its-for">Who is GAOS for?</h2>
+  <p>Three kinds of user, decided in <a href="decision-log.html#d-027">D-027</a> rather than inferred
+  from a market study:</p>
+  <div class="pillars">
+    <div class="pillar rv"><h3>Researchers</h3><p>Because a run that can be replayed from its event
+    stream, with the exact context each attempt received, is reproducible. That is the same
+    machinery an enterprise would buy as an audit trail, wanted for a completely different
+    reason.</p></div>
+    <div class="pillar rv"><h3>Small companies</h3><p>Teams that want agents doing real work against
+    a real specification, with gates on the things that are expensive to get wrong — money
+    arithmetic, authentication, schema changes — and without adopting a platform.</p></div>
+    <div class="pillar rv"><h3>Individual experts</h3><p>In IT and outside it. If you know a domain
+    well enough to write down its rules, GAOS is built to make that knowledge the thing agents work
+    from, rather than a prompt you retype.</p></div>
+  </div>
+
+  <h3 id="q-non-technical">I am an expert in my field but not in IT. Is this usable by me?</h3>
+  <p>The part you would work in is designed for you: the back office, where the brief, the domain
+  rules, the user stories and the acceptance criteria live. The readiness score exists precisely so
+  that the system can tell you what is missing from a specification in plain terms instead of failing
+  vaguely later.</p>
+  <p>The part that is not designed for you is standing the thing up — Docker, a database, TLS, a
+  model tool, a tunnel. That gap is exactly why <a href="#pricing">installation is something you can
+  buy</a>. It is fair to describe the paid install as "the bridge for the person who can write the
+  brief but should not have to configure a reverse proxy".</p>
+
+  <h3 id="q-big-company">What if I am a large enterprise?</h3>
+  <p>Nothing stops you, and nothing is aimed at you. There is no SSO, no external-auditor tooling, no
+  certification, no procurement process and no uptime commitment — some of that is deferred
+  (<a href="open-questions.html#oq-19">OQ-19</a>) and some of it, like hosting, is refused on
+  purpose. If your evaluation depends on any of those, GAOS is the wrong product this year.</p>
+
+  <h2 id="commercial">What is commercial, then?</h2>
+  <p>Three things, none of which is the software you just cloned.</p>
+  <table class="tbl">
+    <thead><tr><th>What</th><th>What it is</th><th>What it is not</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Private submodules</strong></td><td>Optional add-on capability in separate private repositories, licensed per install. Which capabilities is not decided yet — <a href="open-questions.html#oq-19">OQ-19</a> — but the leading candidates are a compliance and evidence pack, and an identity pack for organisations with an existing identity provider</td><td>Not a requirement. Not a paywall around anything the core needs. Not a way to make the free version worse</td></tr>
+      <tr><td><strong>Installation and setup</strong></td><td>Somebody who knows the system stands it up on your infrastructure, wires a model tool, sets the quotas and the budget caps, proves a restore, and hands over a runbook written against your hostnames</td><td>Not a subscription, and not a prerequisite. Everything in it is documented and you can do it yourself</td></tr>
+      <tr><td><strong>Support and custom work</strong></td><td>A private channel with a first-response commitment, upgrade help, and a day rate for anything bespoke — connectors, an extra adapter, a migration</td><td>Not a way to get bug fixes other people do not get. Fixes land in the public repository for everyone</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="q-never-sold">Is there anything you promise never to sell?</h3>
+  <p>Yes, and it is written down as a rule rather than a value statement
+  (<a href="brd.html#rules-commercial">BR-28</a>): <strong>no safety control, termination guard,
+  budget cap or audit record is ever a paid feature</strong> — not in a submodule, not behind a
+  support tier. An unattended agent holding a model credential can spend real money and write real
+  code. Charging for the brake would be indefensible when you are the one paying for the fuel.</p>
+
+  <h2 id="pricing">What do the services cost?</h2>
+  <p>Published, fixed-scope and the same for everyone. These figures are
+  <strong>proposed</strong> — they are the one set of invented numbers anywhere in this
+  documentation, and they are pending confirmation as
+  <a href="open-questions.html#oq-21">OQ-21</a>. USD, excluding local taxes. The full table with the
+  reasoning behind each shape is <a href="brd.html#rate-card">BRD §8.11.1</a>.</p>
+  <table class="tbl">
+    <thead><tr><th>Offer</th><th>Roughly</th><th>Proposed price</th></tr></thead>
+    <tbody>
+      <tr><td>Starter install — one environment, one host, one model tool, proved with a real run and a walkthrough</td><td>½ day</td><td><strong>350</strong> one-time</td></tr>
+      <tr><td>Standard install — dev and prod, TLS, backup and restore proved, quotas and caps set, two hours of training, a runbook</td><td>2 days</td><td><strong>1,200</strong> one-time</td></tr>
+      <tr><td>Production hardening — the above plus authentication, egress rules tailored to your repositories, a rehearsed cold restore, monitoring, and a data-handling statement you can show your own stakeholders</td><td>4–5 days</td><td><strong>3,000</strong> one-time</td></tr>
+      <tr><td>Community support — public issue tracker, best effort</td><td>—</td><td><strong>Free, permanently</strong></td></tr>
+      <tr><td>Standard support — private channel, first response within one business day, upgrade guidance, 4 hours of remote assistance a year</td><td>per instance</td><td><strong>1,800</strong>/year</td></tr>
+      <tr><td>Priority support — first response within four business hours, two upgrades performed for you, 12 hours of assistance, a named person</td><td>per instance</td><td><strong>4,800</strong>/year</td></tr>
+      <tr><td>Commercial submodule licence</td><td>per install</td><td><strong>1,200</strong>/year · <strong>300</strong> for an individual or a single named researcher · free for accredited non-commercial academic use</td></tr>
+      <tr><td>Custom development</td><td>2 days minimum</td><td><strong>600</strong>/day</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="q-why-pay">Why would I pay for installing software I can install for free?</h3>
+  <p>Most people should not. The Starter install exists for the person whose time is worth more than
+  350 USD and whose expertise is somewhere other than Docker — which describes a lot of researchers
+  and most non-IT domain experts. If you are comfortable with a compose file, the documentation is
+  the same documentation the installer follows, and it is free.</p>
+
+  <h3 id="q-oss-pricing">Is this how open-source projects normally charge?</h3>
+  <p>It is the common shape for a project with one maintainer, yes, and each choice has a reason
+  worth knowing if you are evaluating whether the business behind the software is durable:</p>
+  <ul>
+    <li><strong>Fixed-scope installation packages, not hourly consulting.</strong> A fixed price with
+    a written scope is something you can say yes to; an hourly estimate with a range is something you
+    have to negotiate. The small tier exists to be bought without a meeting.</li>
+    <li><strong>Support priced per production instance, not per seat.</strong> Seats are
+    unobservable in software nobody hosts for you, and unenforceable in software that is open
+    source. Instances are countable, and you already know how many you have.</li>
+    <li><strong>Response times, not uptime.</strong> Covered <a href="#support">below</a> — it is the
+    only kind of commitment anyone can honestly make about software running on your hardware.</li>
+    <li><strong>The academic and individual reductions are published, not negotiated.</strong> A
+    researcher who has to email for a discount uses something else instead.</li>
+  </ul>
+
+  <h2 id="models-and-cost">Who pays for the AI models?</h2>
+
+  <h3 id="q-who-pays">Do I bring my own model access?</h3>
+  <p>Always. GAOS never resells model capacity, never holds a credential belonging to you, and is
+  never in the billing path (<a href="brd.html#rules-commercial">BR-29</a>,
+  <a href="decision-log.html#d-030">D-030</a>). You use your own provider account, and what you spend
+  is between you and them.</p>
+
+  <h3 id="q-cli">How does GAOS actually call a model?</h3>
+  <p>Two ways, and you choose which with one setting
+  (<a href="decision-log.html#d-036">D-036</a>):</p>
+  <ul>
+    <li><strong>CLI mode</strong> — GAOS runs the provider's command-line tool as a subprocess. No
+    API key anywhere; your existing subscription pays for the work. This is what gets built first.</li>
+    <li><strong>API mode</strong> — GAOS calls the provider's HTTP API with a key from your own
+    environment, billed per token.</li>
+  </ul>
+  <p>Either way it writes the task and its context into the workspace as files, and requires a
+  structured <em>handoff document</em> back. That document is how one agent's work reaches the next
+  agent, and it becomes part of the graph like everything else. The flow, the configuration file and
+  the full comparison are <a href="brd.html#to-be-cli">BRD §7.6</a>.</p>
+  <p><strong>Which should you pick?</strong> It is a cost question more than a technical one.
+  A subscription is a <em>flat fee with imprecise accounting</em>: a busy month costs the same as a
+  quiet one, and a runaway loop wastes time rather than money — but most tools report no token usage,
+  so GAOS has to estimate, and it labels every figure <code>measured</code> or <code>estimated</code>
+  rather than mixing them (<a href="open-questions.html#oq-22">OQ-22</a>). An API key is
+  <em>metered with exact accounting</em>: every cost is precise and every retry is a real charge, so
+  the budget guard below stops being a convenience and becomes the thing standing between a retry
+  loop and a bill.</p>
+  <p>One caveat on CLI mode, recorded rather than hidden: driving an interactive tool from a
+  scheduler may sit outside the terms of the subscription you run it under
+  (<a href="brd.html#risk-register">R-12</a>). Checking your provider's terms is your call, not
+  something GAOS can make for you — and if the answer is no, API mode is a setting rather than a
+  dead end.</p>
+
+  <h3 id="q-budget">Can it spend my money without limit?</h3>
+  <p>The design says no, and since <a href="decision-log.html#d-037">D-037</a> the design is specific
+  about how. The budget cap is not one number that trips at the end — it has three zones:</p>
+  <ul>
+    <li><strong>Paced.</strong> Spend is smoothed across the budget period, so a monthly budget
+    cannot be burned in an afternoon. You set the period and how far ahead of the straight line you
+    are willing to run.</li>
+    <li><strong>Throttled</strong>, by default at 80% of the cap or when you are running ahead of
+    pace or over a token-per-hour ceiling. GAOS stops <em>starting</em> new work and
+    <strong>defers</strong> it with a resume time — the tasks keep their place, nothing fails, and
+    they start again by themselves when the window moves on. Your floor shows "deferred — budget
+    window" rather than looking mysteriously idle.</li>
+    <li><strong>Exhausted</strong> at 100%: nothing new is dispatched until you deliberately raise
+    the cap or the period rolls over. Work already running is always allowed to finish, because
+    killing it would throw away what it already cost you.</li>
+  </ul>
+  <p>Deferring rather than failing is the deliberate part. Failing a task for lack of budget wastes
+  what the attempt already spent and then invites a retry that spends more — so a deferred task
+  counts as neither a retry nor a failure (<a href="brd.html#rules-commercial">BR-34</a>).</p>
+  <p><strong>None of it is implemented yet</strong>, which is why it is the highest-consequence gap
+  in the project (<a href="brd.html#risk-register">R-05</a>) and why the guards must exist before
+  the first real run — most of all in API mode. When you evaluate GAOS, check that this answer has
+  changed before you point it at a metered account.</p>
+
+  <h2 id="data">Where does my code go?</h2>
+
+  <h3 id="q-residency">Where is my data stored?</h3>
+  <p>On your machines. This project stores nothing, backs up nothing and processes nothing on your
+  behalf, because it runs no service at all. Residency is whatever your infrastructure's residency
+  is (<a href="decision-log.html#d-034">D-034</a>).</p>
+
+  <h3 id="q-egress">So nothing leaves my host?</h3>
+  <p>That would be the comfortable answer and it is not the true one. <strong>Every attempt sends a
+  slice of your product record and your source code to your model provider</strong> — selected
+  automatically by traversing the graph, including files nobody reviewed before they were sent, and
+  the selection gets wider on a retry, because widening the context is what a retry does.</p>
+  <p>That is the honest description of what an agent system does, and GAOS's answer is to make it
+  visible and controllable rather than to phrase it away
+  (<a href="brd.html#req-l">BRD domain L</a>): a published inventory of exactly what can leave, a
+  data-handling profile you fill in for each provider and the interface displays, a redaction and
+  path-allowlist pass that runs <em>before</em> dispatch and refuses rather than reporting a leak
+  afterwards, and a no-egress mode for products that may only be routed to a locally hosted model.
+  Like most of this page, it is designed and not yet built.</p>
+
+  <h3 id="q-training">Will my code train somebody's model?</h3>
+  <p>GAOS cannot answer that for you, and any product that claims to is speaking for a company it
+  does not control. What it does instead is force the question to be answered before anything runs:
+  each configured provider carries a profile recording what that provider says about retention and
+  training, and when you last checked. Your agreement is with them directly — GAOS is not a party to
+  it.</p>
+
+  <h3 id="q-deletion">Can I delete data? The event stream is append-only.</h3>
+  <p>Both are true at once, and the design is deliberate. Heavy payloads — prompts, diffs, logs,
+  documents — are stored outside the record that references them. Deleting a tenant, a product or a
+  run destroys those payloads while the append-only events keep their references, so history stays
+  intact and unrewritten while the content is genuinely gone. A deleted artifact reads as
+  <em>deleted</em>, never as a broken replay, and the deletion produces a certificate stating what
+  went and what deliberately survived (<a href="brd.html#req-l">L-7, L-8</a>).</p>
+
+  <h2 id="support">What does support actually commit to?</h2>
+
+  <h3 id="q-sla">Is there an SLA?</h3>
+  <p>Not for uptime, and there never will be — an availability promise about software running on your
+  hardware would be a promise about a machine nobody here can see
+  (<a href="decision-log.html#d-031">D-031</a>). What is committed is <strong>response time</strong>:
+  how quickly a human replies, within stated business hours in one named timezone. Community support
+  makes no commitment at all and is free permanently.</p>
+
+  <h3 id="q-support-fix">If I hit a bug, do I need a subscription to get it fixed?</h3>
+  <p>No. Fixes go into the public repository for everybody. What a subscription buys is attention —
+  a private channel, a response within a stated window, someone doing your upgrade — never access to
+  correctness.</p>
+
+  <h2 id="project">The project itself</h2>
+
+  <h3 id="q-status">What actually works today?</h3>
+  <p>Mission Control (rendering a simulation, not a fleet), the documentation site, the landing page,
+  and both deployment tiers end to end. Not built: the ArcadeDB schema, the scheduler, the runner,
+  real reviews, authentication — the back-office login currently accepts any value and checks
+  nothing. The <a href="brd.html#current-state">designed-versus-built table</a> is maintained
+  honestly and is the thing to read before forming an opinion.</p>
+
+  <h3 id="q-contribute">Can I contribute or fork it?</h3>
+  <p>Yes to both, and the terms are written down. Forking needs nothing from anyone — Apache-2.0,
+  rename it, go. Contributing needs a <strong>DCO sign-off</strong>: one <code>Signed-off-by</code>
+  line per commit, which <code>git commit -s</code> adds, certifying you have the right to submit
+  the work. There is no CLA and no copyright assignment; your contribution stays yours.
+  <code>CONTRIBUTING.md</code> has the rest, including which changes will be refused — anything that
+  weakens a safety control so a paid component could restore it, most of all.</p>
+
+  <h3 id="q-why-open">If it is free, what stops it being abandoned?</h3>
+  <p>Nothing structural, and pretending otherwise would be dishonest — this is a single-maintainer
+  project and the revenue model rests on one person's available hours
+  (<a href="brd.html#risk-register">R-07</a>). What the licence and the self-hosting decision buy you
+  is the thing that actually matters in that scenario: the whole system is on your machine, the
+  source is yours to keep running, and nothing you rely on can be switched off remotely.</p>
+
+  <h3 id="q-more">Where do I read the reasoning behind any of this?</h3>
+  <p>Every answer above points at where it came from. The three registers are the
+  <a href="brd.html">BRD</a> for requirements, the <a href="decision-log.html">decision log</a> for
+  what was decided and why, and the <a href="open-questions.html">open questions</a> for what is
+  deliberately still undecided — including the five that these answers created.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+GAOS — a graph-native agent operating system
+Copyright 2026 GAOS contributors
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this software except in compliance with the License. A copy of the License is
+distributed with this repository as `LICENSE`, and is also available at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This product includes software developed by the GAOS project
+(https://github.com/ardihikaru/gaos).
+
+--------------------------------------------------------------------------------
+Trademarks
+--------------------------------------------------------------------------------
+
+The Apache License grants rights in the code. It grants no rights in the name.
+
+"GAOS" and the GAOS marks are not licensed under the Apache License and remain
+the property of the project owner. You may state, accurately, that your software
+is built on GAOS, is derived from GAOS, or is compatible with GAOS. You may not
+name a fork, a distribution, a hosted service, or a product "GAOS", nor use the
+name or marks in a way that suggests the project endorses, maintains, or is
+responsible for what you are distributing.
+
+If you fork, please rename. The code is yours to use; the name is how users tell
+your work apart from ours, which protects both of us.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+The Go modules in this repository (`dashboard/`, `pustaka/`) depend on the Go
+standard library only and vendor no third-party Go code — neither has a
+`go.sum`. See `README.md`.
+
+The documentation site vendors self-hosted web fonts and one JavaScript library,
+each under its own licence, in `pustaka/docs/assets/`:
+
+  * Atkinson Hyperlegible ....... SIL Open Font License 1.1
+  * Bricolage Grotesque ......... SIL Open Font License 1.1
+  * JetBrains Mono .............. SIL Open Font License 1.1
+  * Apache ECharts .............. Apache License 2.0
+
+Those licences are stated here from the upstream projects' own terms. The full
+licence texts are not yet vendored alongside the asset files, which they should
+be before a public release — retaining them is an obligation of redistribution,
+not a courtesy.
+
+Nothing in this repository transmits data to a third party at build or render
+time. Where GAOS sends data anywhere at run time — to a model provider, on the
+operator's own account — is documented in `pustaka/docs/product/brd.html`,
+domain L.
