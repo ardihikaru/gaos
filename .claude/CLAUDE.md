@@ -1,0 +1,85 @@
+# GAOS — project rules
+
+## Tests and automation are not done until the QA plan says so
+
+**When you create, change or delete a test or an automation, update
+`pustaka/docs/product/qa-test-plan.html` in the same change.** Not in a
+follow-up, not "later" — the same commit. A test that exists in code and not in
+the register is a test nobody knows to run, and this project has no CI to notice
+the difference: `D-025` makes the product owner the runner for every check, and
+that page is the only thing telling them what to run.
+
+### What triggers this
+
+Any change to:
+
+- `dashboard/*_test.go`, `pustaka/*_test.go` — Go unit tests
+- `deploy/check-stacks.sh`, `deploy/rebuild-restart.sh`, anything else in
+  `deploy/` that asserts or verifies
+- `pustaka` engine checks reachable through `go run . check ./docs`
+- any new script, hook, scheduled job or CI workflow that runs a check
+
+Adding a case, removing one, renaming what it covers, or changing what it
+asserts all count. Only pure refactors that leave the observable behaviour of
+every check identical are exempt.
+
+### What to update, exactly
+
+1. **The register** — `<tbody id="tc-index">` under `<h2 id="register">`. One
+   row per case, columns `ID · Automation · Kind · Scenario · Status`:
+
+   ```html
+   <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented</td></tr>
+   ```
+
+   IDs are sequential and never reused. **The highest in use is `TC-053`; the
+   next free number is `TC-054`.** If a case is retired, strike the row and say
+   why — do not delete it and do not renumber anything after it.
+
+2. **The scenario prose** — an `h3` under `<h2 id="implemented">` for anything
+   that runs today, or under `<h2 id="not-implemented">` for a forward spec. Two
+   house rules there, both load-bearing:
+   - Give positive *and* negative cases. The register is built around the pair,
+     and a check with no stated failure mode has not been thought through.
+   - **Quote the exact `ok` / `FAIL` string the script prints.** The page says
+     every message is quoted rather than paraphrased. Read the script and copy
+     it; do not reconstruct it from memory.
+
+3. **The four counts, which must agree.** Changing the number of cases means
+   changing all four or none. They are currently all "fifty-three", so
+   `grep -rn "fifty-three" pustaka/` finds every one:
+   - the lede in `pustaka/docs/product/qa-test-plan.html`
+   - the register intro on the same page ("All fifty-three cases…")
+   - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
+   - that entry's `register` section `text` in the same file
+
+4. **Release hygiene**, if the change is user-visible: add to
+   `pustaka/docs/changelog.html` and bump `product.semver` in
+   `pustaka/docs/assets/toc.js`. Those two are one change — the changelog page
+   says so itself.
+
+### Known gap, worth closing when you next touch it
+
+The register today covers `deploy/` and the three BRD acceptance tests. The Go
+unit tests — 33 in `dashboard/`, plus `pustaka/` — have **no `TC-` rows at all**.
+When you touch a Go test, add its case rather than reproducing the omission.
+
+### Before you call it done
+
+```bash
+cd pustaka && go run . check ./docs   # structure + registry consistency
+cd dashboard && go test ./...
+```
+
+`check` will catch a broken link or an unregistered page. It will **not** catch a
+count that drifted or a quoted message that is wrong — those are on you.
+
+## Related, and worth knowing before a large edit
+
+- `pustaka/ai/AUTHORING_SPEC.md` is the contract for every docs page. Do not
+  invent CSS classes; the component vocabulary is closed.
+- The BRD, the decision log and the open questions are registers, not prose.
+  Answering a question moves a row from one page to another and adds a `D-`
+  number — it never deletes the question.
+- The event catalog is closed (`BR-05`). A new event type lands in the data model
+  document, `dashboard/events.go` and the fold together, or not at all.
