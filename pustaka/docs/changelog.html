@@ -36,6 +36,25 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-3-0">v0.3.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Closes the first open question.
+      QA gets a real plan instead of an implied one, and the deploy tooling gets the positive and
+      negative test cases it never had written down.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><a href="product/qa-test-plan.html">QA test
+        plan</a></b> — fifty-three <code>TC-nnn</code> test cases, positive and negative: every
+        invariant category in <code>deploy/check-stacks.sh</code> and the full action surface of
+        <code>deploy/rebuild-restart.sh</code>, plus forward-specified Given/When/Then scenarios for
+        the three BRD acceptance tests nothing has ever executed.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-025">D-025</a></b>
+        — who runs the acceptance tests and how often, and what happens when one fails, now that no
+        CI exists and every internal stakeholder role is one person.</li>
+        <li><span class="chg fix">Fixed</span> <a href="product/open-questions.html#oq-13">OQ-13</a>
+        flips from <em>Open</em> to <em>Answered → D-025</em> — the first row on that page to move.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-2-0">v0.2.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Gives the design a business
       layer. Nothing executable changed — this release is the document that the code implementation

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>QA test plan — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="qa-test-plan">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>QA test plan</h1>
+  <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
+  tests and how often — and enumerates every test scenario that follows from it: fifty-three cases,
+  positive and negative, for the two automations that actually run today, plus the three business
+  acceptance tests <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever
+  executed.</p>
+
+  <div class="page-meta"
+       data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation"
+       data-hashtags="qa, testing, deploy, oq-13"
+       data-published="2026-08-08"
+       data-updated="2026-08-08"
+       data-version-from="0.3.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">How to read this register</p>
+    <p>Every row is a <code>TC-nnn</code>. <strong>Kind</strong> is <em>Positive</em> (the invariant
+    holds, or the action succeeds) or <em>Negative</em> (the invariant is violated, or the action is
+    refused) — both are listed for almost every scenario, because a check that never fails is
+    unverified, not passing. <strong>Status</strong> is <em>Implemented</em> (the automation exists
+    and this page describes its real, current behaviour, re-read from
+    <code>deploy/check-stacks.sh</code> and <code>deploy/rebuild-restart.sh</code> at the time this
+    page was written) or <em>Not implemented</em> (a forward specification for a test the design
+    commits to but nothing in the repository can run yet).</p>
+  </div>
+
+  <h2 id="cadence">Who runs these tests, and how often</h2>
+  <p>GAOS has no CI configuration anywhere in the repository — these automations only run when a
+  human or agent invokes them by hand. <a href="brd.html#stakeholders-internal">BRD §5.1</a> names
+  four internal roles — product owner, platform operator, fleet operator, record author — and notes
+  they are currently one person. That person is the runner for everything below, whether they invoke
+  <code>deploy/rebuild-restart.sh</code> directly or through the <code>gaos-deploy</code> subagent,
+  which exists precisely so the same deterministic script runs the same way every time instead of a
+  free-handed <code>docker compose</code> command drifting between invocations.</p>
+  <table class="tbl">
+    <thead><tr><th>Automation</th><th>Runner</th><th>Trigger / cadence</th><th>On failure</th></tr></thead>
+    <tbody>
+      <tr><td><code>check-stacks.sh</code></td><td>Product owner, via <code>rebuild-restart.sh</code> or standalone</td><td>Automatically, as the first step of every <code>deploy</code> and <code>restart</code> — both tiers. Never runs for <code>status</code></td><td>Refuses the action outright, exit 1, before Docker is touched. The operator fixes the offending compose or Traefik file and reruns</td></tr>
+      <tr><td><code>go test ./...</code> (dashboard, pustaka) + <code>pustaka check ./docs</code></td><td>Same</td><td>Automatically, before every <code>deploy</code> action only — <code>restart</code> has no test gate at all</td><td>Refuses the build, exit 1. The operator fixes the code or docs and reruns</td></tr>
+      <tr><td>Post-deploy verification (bind, healthz, routes, base-href, and with <code>--full-verify</code>: X-Forwarded-For, public HTTPS)</td><td>Same</td><td>Automatically, after every <code>deploy</code> and <code>restart</code></td><td>Each check reports independently; the run exits 1 on any failure, but nothing rolls back automatically today — the nonzero exit is the operator's signal to investigate</td></tr>
+      <tr><td><code>rebuild-restart.sh status</code></td><td>Same</td><td>On demand, whenever the operator wants a read of current state</td><td>No failure mode by design — see <a href="#tc-017">TC-017</a></td></tr>
+      <tr><td>Unsatisfiable-task test</td><td>Product owner, once domain E exists</td><td>Proposed: before every release</td><td>Per <a href="brd.html#to-be-exceptions">§7.5</a>: looping or failing silently means the guard-limit implementation is not finished — release is blocked</td></tr>
+      <tr><td>Fold test</td><td>Product owner, once domain H exists</td><td>Proposed: periodic (weekly) — the design itself calls this test "periodic"</td><td>Divergence is a release blocker, in the design's own words: "divergence proves the event model is incomplete"</td></tr>
+      <tr><td>Second-run test</td><td>Product owner</td><td>On demand; at minimum once, to seed the <a href="open-questions.html#oq-08">OQ-08</a> baseline that has never existed</td><td>A viability signal, not a gate: per <a href="brd.html#success-definition">§1.4</a>, no improvement means "the extraction step is decorative"</td></tr>
+    </tbody>
+  </table>
+  <p>This is the answer to OQ-13, logged as
+  <a href="decision-log.html#d-025">D-025</a>.</p>
+
+  <h2 id="register">The register</h2>
+  <p>All fifty-three cases in one filterable table. Filter by automation, kind, or any word in a
+  scenario.</p>
+  <div class="filterbox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+         stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input data-filter="#tc-index" data-empty="#tc-empty" type="search"
+           placeholder="Filter test cases… try &ldquo;healthz&rdquo;, &ldquo;dirty&rdquo;, &ldquo;negative&rdquo;" aria-label="Filter test cases">
+    <span class="count"></span>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Automation</th><th>Kind</th><th>Scenario</th><th>Status</th></tr></thead>
+    <tbody id="tc-index">
+      <tr data-tags="check-stacks network isolation tenancy positive"><td>TC-001</td><td>check-stacks.sh</td><td>Positive</td><td>Compose files as committed: neither tier names the other's infra network or database</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks network isolation tenancy negative"><td>TC-002</td><td>check-stacks.sh</td><td>Negative</td><td>Dev compose file edited to reference the prod infra network or database</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks tunnel bind publish positive"><td>TC-003</td><td>check-stacks.sh</td><td>Positive</td><td>Each tier publishes exactly one port, bound to the tunnel address only</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks tunnel bind publish negative"><td>TC-004</td><td>check-stacks.sh</td><td>Negative</td><td>A <code>ports:</code> mapping drops the tunnel-address prefix or a second mapping is added</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks infra-network exclusivity positive"><td>TC-005</td><td>check-stacks.sh</td><td>Positive</td><td>Exactly one service per tier joins the shared infra network</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks infra-network exclusivity negative"><td>TC-006</td><td>check-stacks.sh</td><td>Negative</td><td>A second service is joined to the shared infra network</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks project name subnet positive"><td>TC-007</td><td>check-stacks.sh</td><td>Positive</td><td>Distinct compose project names and subnets, no reuse of a neighbour's range</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks project name subnet negative"><td>TC-008</td><td>check-stacks.sh</td><td>Negative</td><td>Prod's subnet is set to a neighbouring product's range</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks cookie secure parity positive"><td>TC-009</td><td>check-stacks.sh</td><td>Positive</td><td>Cookie-secure flag and database name are identical between tiers</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks cookie secure parity negative"><td>TC-010</td><td>check-stacks.sh</td><td>Negative</td><td>Dev's Secure cookie flag is turned off "because it's dev"</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks docker socket proxy positive"><td>TC-011</td><td>check-stacks.sh</td><td>Positive</td><td>No compose file mounts the Docker socket into the proxy</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks docker socket proxy negative"><td>TC-012</td><td>check-stacks.sh</td><td>Negative</td><td>A Docker socket volume mount is added to a Traefik service</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks secrets committed positive"><td>TC-013</td><td>check-stacks.sh</td><td>Positive</td><td>No <code>.env</code> file (other than <code>.example</code>) is tracked, no baked-in password</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks secrets committed negative"><td>TC-014</td><td>check-stacks.sh</td><td>Negative</td><td>A real <code>deploy/stacks/*.env</code> file is committed to git</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks trailing-slash redirect routing positive"><td>TC-015</td><td>check-stacks.sh</td><td>Positive</td><td>The <code>/app</code> and <code>/docs</code> trailing-slash redirects exist with correct priority</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks trailing-slash redirect routing negative"><td>TC-016</td><td>check-stacks.sh</td><td>Negative</td><td>The <code>/docs</code> redirect rule is removed</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart status read-only positive"><td>TC-017</td><td>rebuild-restart.sh</td><td>Positive</td><td>The <code>status</code> action reports state, mutates nothing, always exits 0</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart cli usage validation negative"><td>TC-018</td><td>rebuild-restart.sh</td><td>Negative</td><td>Environment or action argument missing</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart cli service validation negative"><td>TC-019</td><td>rebuild-restart.sh</td><td>Negative</td><td>Unknown service name given</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart cli duplicate argument negative"><td>TC-020</td><td>rebuild-restart.sh</td><td>Negative</td><td>Environment or action given twice</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart preflight check-stacks gate positive"><td>TC-021</td><td>rebuild-restart.sh</td><td>Positive</td><td>Pre-flight <code>check-stacks.sh</code> passes, action proceeds</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart preflight check-stacks gate negative"><td>TC-022</td><td>rebuild-restart.sh</td><td>Negative</td><td>Pre-flight <code>check-stacks.sh</code> fails, action refused for both tiers</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart prod dirty tree gate negative"><td>TC-023</td><td>rebuild-restart.sh</td><td>Negative</td><td>Prod tree is dirty and <code>--allow-dirty</code> is not passed</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart prod dirty tree override positive"><td>TC-024</td><td>rebuild-restart.sh</td><td>Positive</td><td>Prod tree is dirty and <code>--allow-dirty</code> is passed</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart dev dirty tree exempt positive"><td>TC-025</td><td>rebuild-restart.sh</td><td>Positive</td><td>Dev tree is dirty — no dirty-tree check runs at all</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart test gate dashboard negative"><td>TC-026</td><td>rebuild-restart.sh</td><td>Negative</td><td>Dashboard <code>go test ./...</code> fails</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart test gate pustaka negative"><td>TC-027</td><td>rebuild-restart.sh</td><td>Negative</td><td>Pustaka <code>go test ./...</code> fails</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart test gate docs check negative"><td>TC-028</td><td>rebuild-restart.sh</td><td>Negative</td><td><code>pustaka check ./docs</code> fails</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart test gate positive"><td>TC-029</td><td>rebuild-restart.sh</td><td>Positive</td><td>All three test gates pass, build proceeds</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart build up positive"><td>TC-030</td><td>rebuild-restart.sh</td><td>Positive</td><td><code>docker compose build</code> and <code>up -d</code> both succeed</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart build failure negative"><td>TC-031</td><td>rebuild-restart.sh</td><td>Negative</td><td><code>docker compose build</code> fails</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart up failure negative"><td>TC-032</td><td>rebuild-restart.sh</td><td>Negative</td><td><code>docker compose up -d</code> fails</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart restart action positive"><td>TC-033</td><td>rebuild-restart.sh</td><td>Positive</td><td>The <code>restart</code> action succeeds, no build ever runs</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart restart failure negative"><td>TC-034</td><td>rebuild-restart.sh</td><td>Negative</td><td><code>docker compose restart</code> fails</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart single service scope positive"><td>TC-035</td><td>rebuild-restart.sh</td><td>Positive</td><td>A named service scopes build/up/restart to that container alone</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification bind address positive"><td>TC-036</td><td>rebuild-restart.sh</td><td>Positive</td><td>Bound to the tunnel address only</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification bind address negative"><td>TC-037</td><td>rebuild-restart.sh</td><td>Negative</td><td>Bound to an unexpected address</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification healthz positive"><td>TC-038</td><td>rebuild-restart.sh</td><td>Positive</td><td>Healthz through the tunnel reports <code>ok:true</code></td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification healthz negative"><td>TC-039</td><td>rebuild-restart.sh</td><td>Negative</td><td>Healthz does not report <code>ok:true</code></td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification routes status codes positive"><td>TC-040</td><td>rebuild-restart.sh</td><td>Positive</td><td>All four routes return the expected status code</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification routes status codes negative"><td>TC-041</td><td>rebuild-restart.sh</td><td>Negative</td><td>One route returns the wrong status code</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification base href positive"><td>TC-042</td><td>rebuild-restart.sh</td><td>Positive</td><td>The base href survives the mount-point strip</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart verification base href negative"><td>TC-043</td><td>rebuild-restart.sh</td><td>Negative</td><td>The base href is stripped, wrong, or absent</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart full-verify x-forwarded-for positive"><td>TC-044</td><td>rebuild-restart.sh</td><td>Positive</td><td>X-Forwarded-For is trusted through to the access log</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart full-verify x-forwarded-for negative"><td>TC-045</td><td>rebuild-restart.sh</td><td>Negative</td><td>X-Forwarded-For is not trusted</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart full-verify public https positive"><td>TC-046</td><td>rebuild-restart.sh</td><td>Positive</td><td>Public HTTPS healthz reports <code>ok:true</code></td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart full-verify public https negative"><td>TC-047</td><td>rebuild-restart.sh</td><td>Negative</td><td>Public HTTPS path is down</td><td>Implemented</td></tr>
+      <tr data-tags="acceptance test unsatisfiable task guard limits positive"><td>TC-048</td><td>Unsatisfiable task</td><td>Positive</td><td>Stops within guard limits, reason code recorded, human queue item created</td><td>Not implemented</td></tr>
+      <tr data-tags="acceptance test unsatisfiable task guard limits negative"><td>TC-049</td><td>Unsatisfiable task</td><td>Negative</td><td>Loops past guard limits, or stops without a reason code</td><td>Not implemented</td></tr>
+      <tr data-tags="acceptance test fold genesis snapshot replay positive"><td>TC-050</td><td>Fold test</td><td>Positive</td><td>Fold from genesis equals fold from nearest snapshot</td><td>Not implemented</td></tr>
+      <tr data-tags="acceptance test fold genesis snapshot replay negative"><td>TC-051</td><td>Fold test</td><td>Negative</td><td>The two folds diverge</td><td>Not implemented</td></tr>
+      <tr data-tags="acceptance test second run knowledge accumulation positive"><td>TC-052</td><td>Second run</td><td>Positive</td><td>Second run needs fewer retries and less intervention than the first</td><td>Not implemented</td></tr>
+      <tr data-tags="acceptance test second run knowledge accumulation negative"><td>TC-053</td><td>Second run</td><td>Negative</td><td>Second run needs the same or more retries/intervention</td><td>Not implemented</td></tr>
+    </tbody>
+  </table>
+  <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
+
+  <h2 id="implemented">Test scenarios — implemented automations</h2>
+  <p>Everything below runs today, in <code>deploy/check-stacks.sh</code> and
+  <code>deploy/rebuild-restart.sh</code>. Every expected message is quoted from the script that
+  produces it, not paraphrased.</p>
+
+  <h3 id="cs-tenancy">check-stacks.sh — tier network &amp; database isolation (TC-001, TC-002)</h3>
+  <p>The script's own header names this the expensive check: a dev stack pointed at the production
+  database starts cleanly, passes every smoke test, and is invisible at runtime. <strong>Positive
+  (TC-001):</strong> the compose files as committed — <code>compose.dev.yaml</code> joins
+  <code>master-compose-ai-dev-net</code> and points at
+  <code>http://arcadedb-master-dev:2480</code>; <code>compose.prod.yaml</code> joins
+  <code>master-compose-ai-net</code> and points at <code>http://arcadedb-master:2480</code>; neither
+  file names the other's network or database string — produces eight <code>ok</code> lines.
+  <strong>Negative (TC-002):</strong> edit either file to reference the other tier's network or
+  database string — the matching <code>hasnt</code> assertion prints <code>FAIL</code> with the exact
+  label (e.g. <code>dev does not point at the PROD database</code>), <code>fails</code> increments,
+  final exit code is 1.</p>
+
+  <h3 id="cs-bind">check-stacks.sh — tunnel-only publish binding (TC-003, TC-004)</h3>
+  <p>Without the <code>10.10.0.2</code> prefix a <code>ports:</code> mapping binds every interface the
+  host has, including the LAN — and nothing at runtime says so. <strong>Positive (TC-003):</strong>
+  dev publishes <code>"10.10.0.2:19301:80"</code>, prod publishes <code>"10.10.0.2:18301:80"</code>,
+  each file has exactly one <code>ports:</code> mapping. <strong>Negative (TC-004):</strong> drop the
+  address prefix (<code>"19301:80"</code>) or add a second mapping — <code>FAIL unexpected bind</code>
+  or <code>FAIL n ports: mappings, want 1</code>.</p>
+
+  <h3 id="cs-infra">check-stacks.sh — infra-network exclusivity (TC-005, TC-006)</h3>
+  <p>Least privilege as topology: only the dashboard has a reason to resolve a neighbouring product's
+  database, queue or cache. <strong>Positive (TC-005):</strong> exactly one
+  <code>networks: [internal, infra]</code> line per compose file. <strong>Negative (TC-006):</strong>
+  add that line to a second service (e.g. <code>traefik</code>) — <code>FAIL 2 services on the infra
+  network, want 1</code>.</p>
+
+  <h3 id="cs-identity">check-stacks.sh — distinct project identity (TC-007, TC-008)</h3>
+  <p><strong>Positive (TC-007):</strong> <code>name: gaos-dev</code> / <code>172.30.13.0/24</code> and
+  <code>name: gaos-prod</code> / <code>172.30.12.0/24</code>, neither reusing
+  <code>172.30.10.0/24</code> or <code>172.30.11.0/24</code> (the neighbouring product's range).
+  <strong>Negative (TC-008):</strong> set prod's subnet to <code>172.30.10.0/24</code> —
+  <code>FAIL prod does not reuse a neighbour's subnet</code>.</p>
+
+  <h3 id="cs-parity">check-stacks.sh — cross-tier parity (TC-009, TC-010)</h3>
+  <p>The Secure cookie flag is env-driven, never scheme-derived — both tiers sit behind real TLS at the
+  edge and see plain HTTP inside the tunnel, per <a href="decision-log.html#d-023">D-023</a>.
+  <strong>Positive (TC-009):</strong> both files carry <code>GAOS_COOKIE_SECURE: "1"</code> and
+  <code>GAOS_ARCADE_DB: "gaos"</code>. <strong>Negative (TC-010):</strong> turn dev's flag off "because
+  it's dev" — <code>FAIL dev keeps Secure cookies on</code> — exactly the bug D-023 exists to prevent.</p>
+
+  <h3 id="cs-docker">check-stacks.sh — no Docker socket on the proxy (TC-011, TC-012)</h3>
+  <p><strong>Positive (TC-011):</strong> no compose file mounts <code>/var/run/docker.sock</code>, and
+  <code>deploy/stacks/traefik.yml</code> uses the file provider, not <code>docker:</code>.
+  <strong>Negative (TC-012):</strong> mount the socket into a Traefik service — <code>FAIL dev traefik
+  has no Docker socket</code>.</p>
+
+  <h3 id="cs-secrets">check-stacks.sh — no committed secret (TC-013, TC-014)</h3>
+  <p><strong>Positive (TC-013):</strong> no <code>deploy/stacks/*.env</code> file other than
+  <code>*.example</code> is tracked by git, and neither compose file bakes a literal
+  <code>PASSWORD: "…"</code>. <strong>Negative (TC-014):</strong> <code>git add</code> a real
+  <code>docs.env</code> — <code>git ls-files --error-unmatch</code> succeeds, so the check prints
+  <code>FAIL deploy/stacks/docs.env is tracked by git</code>.</p>
+
+  <h3 id="cs-redirects">check-stacks.sh — trailing-slash redirects (TC-015, TC-016)</h3>
+  <p>Without these the <code>&lt;base href&gt;</code> resolves one level up and every asset 404s, while
+  the document itself still answers 200 — silent, browser-side, invisible to any status-code check.
+  <strong>Positive (TC-015):</strong> <code>deploy/traefik/dynamic.yml</code> defines the
+  <code>/app</code> and <code>/docs</code> redirect rules, and the landing catch-all has
+  <code>priority: 1</code>. <strong>Negative (TC-016):</strong> remove the <code>/docs$</code> rule —
+  <code>FAIL the /docs trailing-slash redirect is present</code>.</p>
+
+  <h3 id="rr-status">rebuild-restart.sh — the status action (TC-017)</h3>
+  <p><strong>Positive:</strong> <code>rebuild-restart.sh dev status</code> prints <code>docker compose
+  ps</code> plus one healthz probe over SSH through the tunnel, mutates nothing, and always exits 0 —
+  including when the SSH probe itself fails or times out, since <code>status</code> returns before the
+  pre-flight section runs at all and has no verification contract, only a report. There is no negative
+  case in the usual sense: a broken tunnel shows up as raw error text in the output, not a nonzero
+  exit.</p>
+
+  <h3 id="rr-cli">rebuild-restart.sh — argument validation (TC-018, TC-019, TC-020)</h3>
+  <p>All three are refused before any git, Docker or SSH call. <strong>TC-018:</strong>
+  <code>rebuild-restart.sh dev</code> (no action) or <code>rebuild-restart.sh deploy</code> (no
+  environment) prints <code>usage()</code> and exits 2. <strong>TC-019:</strong>
+  <code>rebuild-restart.sh dev deploy bogus-service</code> prints <code>unknown service 'bogus-service'
+  -- valid: traefik landing dashboard docs</code>, exits 2. <strong>TC-020:</strong>
+  <code>rebuild-restart.sh dev prod deploy</code> prints <code>environment given twice</code>, exits
+  2 — the same path catches an action given twice.</p>
+
+  <h3 id="rr-preflight">rebuild-restart.sh — the check-stacks.sh gate (TC-021, TC-022)</h3>
+  <p>Applies identically to <code>deploy</code> and <code>restart</code>, both tiers.
+  <strong>Positive (TC-021):</strong> <code>check-stacks.sh</code> exits 0 →
+  <code>ok "check-stacks.sh passed"</code>, the action proceeds. <strong>Negative (TC-022):</strong>
+  any TC-002/TC-004/etc. mutation is present → <code>bad "check-stacks.sh failed -- refusing to
+  $ACTION"</code>, exit 1, before Docker is touched — dev and prod are blocked equally.</p>
+
+  <h3 id="rr-dirty">rebuild-restart.sh — the prod dirty-tree gate (TC-023, TC-024, TC-025)</h3>
+  <p>Prod builds from the working tree directly — there is no separate worktree yet (see
+  <code>deploy/STACKS.md</code>, "Known gaps"). <strong>Negative (TC-023):</strong>
+  <code>git status --porcelain</code> is non-empty on a <code>prod</code> action without
+  <code>--allow-dirty</code> → refuses, prints the dirty file list, exit 1. <strong>Positive
+  (TC-024):</strong> same dirty tree with <code>--allow-dirty</code> → proceeds, echoing "working tree
+  is dirty -- proceeding, --allow-dirty was passed" and the file list. <strong>Positive, informational
+  (TC-025):</strong> <code>dev</code> with a dirty tree — the dirty check is wrapped in
+  <code>if [ "$ENVIRON" = prod ]</code>, so dev is structurally exempt; there is no violation to
+  demonstrate.</p>
+
+  <h3 id="rr-testgate">rebuild-restart.sh — the deploy test gate (TC-026, TC-027, TC-028, TC-029)</h3>
+  <p>Runs only inside <code>if [ "$ACTION" = deploy ]</code> — <code>restart</code> has no test gate
+  at all. Three checks run in order and stop at the first failure: <strong>TC-026:</strong> dashboard
+  <code>go test ./...</code> fails → <code>bad "dashboard tests failed"</code>, exit 1, pustaka's tests
+  never run. <strong>TC-027:</strong> pustaka <code>go test ./...</code> fails → <code>bad "pustaka
+  tests failed"</code>, exit 1. <strong>TC-028:</strong> <code>pustaka check ./docs</code> fails (a
+  broken internal link, a missing <code>page-meta</code> field, a stale registry entry) →
+  <code>bad "pustaka docs check failed"</code>, exit 1. <strong>TC-029, positive:</strong> all three
+  pass → proceeds to <code>docker compose build</code>.</p>
+
+  <h3 id="rr-build">rebuild-restart.sh — build and up (TC-030, TC-031, TC-032)</h3>
+  <p><strong>Positive (TC-030):</strong> <code>docker compose build $SERVICE</code> and
+  <code>up -d $SERVICE</code> both exit 0, the container list prints, verification begins.
+  <strong>Negative (TC-031):</strong> the build fails (a broken Dockerfile, a missing build context) →
+  <code>bad "build failed"</code>, exit 1, <code>up -d</code> never runs. <strong>Negative
+  (TC-032):</strong> <code>up -d</code> fails (e.g. a port collision with a stray container) →
+  <code>bad "up -d failed"</code>, exit 1.</p>
+
+  <h3 id="rr-restart">rebuild-restart.sh — the restart action (TC-033, TC-034)</h3>
+  <p><strong>Positive (TC-033):</strong> <code>docker compose restart $SERVICE</code> exits 0 — no
+  build step ever runs for this action — verification begins. <strong>Negative (TC-034):</strong>
+  restart fails (e.g. the named service isn't currently running) → <code>bad "restart failed"</code>,
+  exit 1.</p>
+
+  <h3 id="rr-scope">rebuild-restart.sh — single-service scope (TC-035)</h3>
+  <p><strong>Positive:</strong> <code>rebuild-restart.sh dev deploy dashboard</code> builds, ups, or
+  restarts only the <code>dashboard</code> service — <code>traefik</code>, <code>landing</code> and
+  <code>docs</code> are untouched, visible in the printed <code>dc ps</code> line as the only service
+  with a fresh timestamp.</p>
+
+  <h3 id="rr-bind">rebuild-restart.sh — verification: bind address (TC-036, TC-037)</h3>
+  <p><strong>Positive:</strong> <code>ss -ltn</code> shows the port bound to
+  <code>10.10.0.2:$PORT</code> only → <code>vok "bound to $TUNNEL:$PORT only"</code>.
+  <strong>Negative:</strong> a compose or Traefik regression drops the tunnel prefix, or the entrypoint
+  binds <code>0.0.0.0</code> → <code>vbad "unexpected bind: …"</code>.</p>
+
+  <h3 id="rr-healthz">rebuild-restart.sh — verification: healthz (TC-038, TC-039)</h3>
+  <p><strong>Positive:</strong> <code>curl</code> through the SSH tunnel with the right
+  <code>Host:</code> header returns a body containing <code>"ok":true</code> → <code>vok "healthz
+  ok:true"</code>. <strong>Negative:</strong> the dashboard is crash-looping or <code>Host:</code>
+  routing is misconfigured → <code>vbad "healthz did not report ok:true"</code>.</p>
+
+  <h3 id="rr-routes">rebuild-restart.sh — verification: route status codes (TC-040, TC-041)</h3>
+  <p><strong>Positive:</strong> <code>/</code> → 200, <code>/app</code> → 301, <code>/docs</code> →
+  301, <code>/app/</code> → 200 — all four <code>vok</code>. <strong>Negative:</strong> any one path
+  returns the wrong code (e.g. the <code>/app</code> redirect regressed to TC-016's failure mode) →
+  <code>vbad "$path -> $got, want $want"</code> for that path only; the other three still pass
+  independently.</p>
+
+  <h3 id="rr-basehref">rebuild-restart.sh — verification: base href survival (TC-042, TC-043)</h3>
+  <p><strong>Positive:</strong> <code>GET /app/</code> contains exactly <code>&lt;base
+  href="/app/"&gt;</code> → <code>vok</code>. <strong>Negative:</strong> the base href is stripped,
+  wrong, or absent — a template regression, or a downstream effect of TC-041's redirect failure — →
+  <code>vbad "base href: '…', want '&lt;base href=\"/app/\"&gt;'"</code>.</p>
+
+  <h3 id="rr-fullverify">rebuild-restart.sh — verification: --full-verify checks (TC-044, TC-045, TC-046, TC-047)</h3>
+  <p>Only run when <code>--full-verify</code> is passed. <strong>TC-044, positive:</strong> a request
+  carrying <code>X-Forwarded-For: 203.0.113.9</code> produces a Traefik access-log line for
+  <code>/api/healthz</code> whose <code>ClientHost</code> is <code>203.0.113.9</code> →
+  <code>vok</code>. <strong>TC-045, negative:</strong> Traefik's trusted-proxy list doesn't include the
+  tunnel hop, so the header is ignored and the log shows the tunnel's own address instead →
+  <code>vbad "ClientHost not 203.0.113.9: …"</code>. <strong>TC-046, positive:</strong>
+  <code>curl https://$HOST/api/healthz</code> from the public edge returns <code>"ok":true</code>
+  within 15 seconds → <code>vok</code>. <strong>TC-047, negative:</strong> the public path is down —
+  edge nginx misconfigured, an expired certificate, the WireGuard tunnel down — → curl times out or
+  returns a non-JSON body → <code>vbad "public healthz did not report ok:true"</code>.</p>
+
+  <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
+  <p>The three tests <a href="brd.html#evaluation-method">BRD §4.1</a> names as the only honest proof
+  the system works. Each is written here as a forward specification — Given / When / Then — so the
+  target exists in writing before the code that would satisfy it. None can run today: domains C
+  (planning), D (execution), E (review, scoring &amp; retry) and H (replay &amp; audit) are all
+  <strong>Designed</strong>, not <strong>Built</strong>, per <a href="brd.html#current-state">BRD
+  §2.1</a>.</p>
+
+  <h3 id="ni-unsatisfiable">The unsatisfiable task (TC-048, TC-049)</h3>
+  <p><strong>Given</strong> a task whose acceptance criterion contradicts a domain rule (the shape
+  <a href="brd.html#rules-invariants">BR-07</a> and <a href="brd.html#rules-scoring">BR-14</a>
+  describe), <strong>when</strong> it is dispatched through the scheduler and runner, <strong>then
+  (TC-048, positive)</strong> the system stops within the six guard limits
+  (<a href="brd.html#rules-scoring">BR-17</a>: 3 retries, 2 escalations, 2 identical failure
+  signatures, budget cap) and leaves a human-queue item carrying a recorded reason code
+  (<a href="brd.html#rules-scoring">BR-18</a>). <strong>TC-049, negative:</strong> if it instead loops
+  past the guard limits, or stops without a reason code, the test has failed — in the design's own
+  words, "looping or failing silently means the retry loop is not finished."
+  <strong>Blocked by:</strong> domains C, D, E — none built.</p>
+
+  <h3 id="ni-fold">The fold test (TC-050, TC-051)</h3>
+  <p><strong>Given</strong> an event stream from genesis, <strong>when</strong> it is periodically
+  folded (<a href="brd.html#req-h">H-1</a>) and compared against the fold from the nearest snapshot
+  (read-only, per <a href="brd.html#req-h">H-3</a>), <strong>then (TC-050, positive)</strong> the two
+  states are identical. <strong>TC-051, negative:</strong> if they diverge, per
+  <a href="brd.html#evaluation-method">§4.1</a> this is a release blocker, not a warning: "divergence
+  proves the event model is incomplete." <strong>Blocked by:</strong> domain H — no DDL has ever been
+  applied and no fold has ever run.</p>
+
+  <h3 id="ni-secondrun">The second run, a week apart (TC-052, TC-053)</h3>
+  <p><strong>Given</strong> the same objective run twice on the same product a week apart,
+  <strong>when</strong> the second run completes, <strong>then (TC-052, positive)</strong> it needs
+  fewer retries and less human intervention than the first
+  (<a href="brd.html#success-definition">§1.4</a>). <strong>TC-053, negative:</strong> if it needs the
+  same or more, then "the extraction step is decorative and everything above it is expensive
+  theatre" — a product-viability signal that should trigger review of domain G (memory &amp;
+  learning), not an automatic block. <strong>Blocked by:</strong> the entire control loop, domains
+  C–H, and by the fact that this run is also how <a href="open-questions.html#oq-08">OQ-08</a>'s
+  baseline gets set for the first time.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
