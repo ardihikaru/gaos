@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Implementation plan — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="implementation-plan">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Delivery</p>
+  <h1>Implementation plan</h1>
+  <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
+  committed, and broken into fourteen modules of work you can pick up one at a time.
+  One hundred and forty-one tasks: eleven done, fifteen standing on fixtures, one hundred and
+  fifteen not started.</p>
+
+  <div class="page-meta"
+       data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
+       data-hashtags="delivery, planning, roadmap, gap-analysis"
+       data-published="2026-08-09"
+       data-updated="2026-08-09"
+       data-version-from="0.6.0"
+       data-version-to=""></div>
+
+  <h2 id="how-to-read-this">How to read this</h2>
+  <p>The <a href="../product/brd.html">BRD</a> says what GAOS must do and marks each requirement
+  <em>Designed</em>, <em>Built</em>, <em>Decided</em> or <em>Open</em>. That is the right vocabulary
+  for a business document and the wrong one for a Monday morning: the statuses are spread across
+  twelve tables, a requirement can be one sentence or a whole subsystem, and nothing on the page
+  says which file the work lands in. This page is the other half — the same requirements, cut into
+  modules and sub-modules, each task small enough to finish and pointed at the code.</p>
+  <table class="tbl">
+    <thead><tr><th>Flag</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td>✅</td><td>Running in this repository today, and the row names the file. Nothing is
+      flagged done that cannot be pointed at.</td></tr>
+      <tr><td>🟡</td><td>Exists, but only over fixtures or the simulator. The shape is right and the
+      requirement is not met.</td></tr>
+      <tr><td>❌</td><td>Not started.</td></tr>
+    </tbody>
+  </table>
+  <p>The middle flag is not padding. The BRD itself marks <code>A-7</code>, <code>C-6</code>,
+  <code>F-5</code> and <code>H-5</code> as <em>Built (against fixtures)</em>, and
+  <code>dashboard/sim.go</code> implements the whole of Domain E's scoring policy without ever
+  calling a model. Forcing those into ✅ or ❌ would make this page lie in one direction or the
+  other.</p>
+  <div class="adm warn">
+    <p class="adm-title">What ✅ does not mean</p>
+    <p>Eleven tasks are done and ten of them are the operator surface. GAOS renders a floor, an
+    inspector, a timeline and a back office over an in-memory store seeded from fixtures; there is
+    no database, no scheduler, no runner and no model call anywhere in the repository. That
+    inversion is deliberate and logged as <a href="../product/decision-log.html#delivery-decisions">D-019</a>
+    — it is also why the remaining order matters.</p>
+  </div>
+
+  <h2 id="scoreboard">Scoreboard</h2>
+  <p>Fourteen modules, fifty-seven sub-modules. The last column is the first task in each module
+  that is not already done — the thing to pick up if you open that module today.</p>
+  <table class="tbl">
+    <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>Next</th></tr></thead>
+    <tbody>
+      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>1</td><td>1</td><td>16</td><td><a href="#register">T-001</a> &mdash; the DDL against a real ArcadeDB</td></tr>
+      <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>0</td><td>1</td><td>8</td><td><a href="#register">T-030</a> &mdash; the hundred-point rubric</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>1</td><td>19</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
+      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-098</a> &mdash; the reducer</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>6</td><td>0</td><td>3</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>0</td><td>1</td><td>5</td><td><a href="#register">T-135</a> &mdash; determinism, once the reducer exists</td></tr>
+      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>0</td><td>0</td><td>3</td><td><a href="#register">T-139</a> &mdash; the file three places cite and nobody wrote</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>11</b></td><td><b>15</b></td><td><b>115</b></td><td>&mdash;</td></tr>
+    </tbody>
+  </table>
+  <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
+  table and six guard limits instead — so M5's tasks are derived from those tables and from
+  <code>BR-13</code>…<code>BR-18</code> rather than from requirement IDs.</p>
+
+  <h2 id="sequencing">Sequencing</h2>
+  <p>The build order is not ours to invent: it is prescribed in ten steps by the architecture
+  document and logged as <a href="../product/decision-log.html#policy-decisions">D-018</a>, each step
+  testable before the next one exists. <a href="../product/decision-log.html#delivery-decisions">D-019</a>
+  already inverted it once by building step 9 first, knowingly, which is exactly why the remaining
+  steps must not be reordered again.</p>
+  <table class="tbl">
+    <thead><tr><th>#</th><th>Deliverable</th><th>Modules</th><th>Done when</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Graph schema + event store</td><td>M0</td><td>Every write emits an event; a fold reproduces current state exactly</td></tr>
+      <tr><td>2</td><td>Task state machine</td><td>M0.5</td><td>Illegal transitions are rejected at the boundary, not by convention</td></tr>
+      <tr><td>3</td><td>Product master + readiness scoring</td><td>M1, M2</td><td>The rubric runs on ingestion; below 45 the planner refuses with a list</td></tr>
+      <tr><td>4</td><td>Planner producing a static task graph</td><td>M3</td><td>One goal yields an acyclic DAG with roles and dependencies</td></tr>
+      <tr><td>5</td><td>Runner with one detached process</td><td>M4.1–M4.3</td><td>Kill the orchestrator mid-task; the work survives and is re-adopted</td></tr>
+      <tr><td>6</td><td>Review, scoring, retry policy</td><td>M5</td><td>The unsatisfiable-task test terminates with a reason code</td></tr>
+      <tr><td>7</td><td>Context assembly from the master record</td><td>M4.3, M4.5</td><td><code>GET /tasks/{id}/context</code> matches what the model actually received</td></tr>
+      <tr><td>8</td><td>Approval gates</td><td>M6</td><td>A gated task cannot merge, through the API or otherwise</td></tr>
+      <tr><td>9</td><td>Mission Control + replay</td><td>M8, M9</td><td>Fold-from-genesis matches fold-from-snapshot on a real workflow</td></tr>
+      <tr><td>10</td><td>Meetings, knowledge extraction, multi-repo</td><td>M7</td><td>The second workflow on a product plans faster than the first</td></tr>
+    </tbody>
+  </table>
+  <p>Three modules sit outside that spine and can be worked in parallel with any of it: M10 must
+  land before the first run in API mode, M11 before the first byte of source code leaves the
+  machine, and M12 is the proof layer that only becomes testable once M0 exists. M13 is small
+  and can go any time.</p>
+  <div class="adm note">
+    <p class="adm-title">Two hard prerequisites</p>
+    <p><a href="../product/brd.html#rules-commercial">BR-32</a> puts M11.2 before the first real
+    model call, not after it: a detection must refuse the dispatch rather than report the leak
+    afterwards. <a href="../product/brd.html#rules-commercial">BR-35</a> does the same for M10.3 —
+    a limit that only warns is not a limit.</p>
+  </div>
+
+  <h2 id="register">The register</h2>
+  <p>All one hundred and forty-one tasks in one filterable table. Filter by module number, by domain
+  (<code>domain-d</code>), by status (<code>todo</code>, <code>partial</code>, <code>done</code>), or
+  by any word in a task.</p>
+  <div class="filterbox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+         stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input data-filter="#ip-index" data-empty="#ip-empty" type="search"
+           placeholder="Filter tasks… try &ldquo;scheduler&rdquo;, &ldquo;budget&rdquo;, &ldquo;done&rdquo;" aria-label="Filter tasks">
+    <span class="count"></span>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Sub</th><th>Task</th><th>Requirement</th><th>Status</th></tr></thead>
+    <tbody id="ip-index">
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-001</td><td>M0.1</td><td>Apply the DDL to a scratch ArcadeDB on the target version and reconcile the dialect</td><td>D-006, OQ-17</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-002</td><td>M0.1</td><td>Declare the 25 vertex types and 3 document types with the hybrid schema</td><td>BR-25</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-003</td><td>M0.1</td><td>Declare the 32 edge types, one per relationship &mdash; no generic edge with a <code>type</code> property</td><td>BR-24, D-006</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-004</td><td>M0.1</td><td>Bucket-partition the high-volume types by <code>tenantId</code>, and index <code>tenantId</code> either way</td><td>J-3, BR-26</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-005</td><td>M0.1</td><td>Store prompt bodies, diffs and log blobs <code>EXTERNAL</code> or by reference, never inline on a traversed vertex</td><td>BR-25</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-006</td><td>M0.2</td><td>Write <code>dashboard/store_arcade.go</code> against the declared <code>Store</code> seam, leaving <code>store.go</code> unchanged</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-007</td><td>M0.2</td><td>Give <code>dashboard/arcade.go</code> a query path; today it only probes <code>/api/v1/ready</code></td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-008</td><td>M0.2</td><td>Keep <code>MemStore</code> as the test double and run both implementations against one interface suite</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-009</td><td>M0.3</td><td>Make <code>Event</code> append-only and never updated, with its own retention policy</td><td>BR-04, J-6</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-010</td><td>M0.3</td><td>Reference the business <code>id</code> in every event, never the physical RID</td><td>BR-03</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-012</td><td>M0.3</td><td>Prove fold-from-genesis equals fold-from-nearest-snapshot on a real workflow</td><td>H-1, BR-21</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-013</td><td>M0.3</td><td>Remove the 160-event ring in <code>store_mem.go</code>; the stream is the record, not a window</td><td>BR-04</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-014</td><td>M0.4</td><td>Emit the thirteen catalog names currently declared <code>// pass 2</code> and never written</td><td>BR-05, D-020</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-015</td><td>M0.4</td><td>Land the four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties in one change</td><td>BR-05</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.4"><td>T-016</td><td>M0.4</td><td>Keep the four UI-lifecycle names in their own block, outside the domain catalog</td><td>D-020</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.5"><td>T-017</td><td>M0.5</td><td>Build the task state machine so illegal transitions are rejected at the boundary, not by convention</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer partial fixtures m0.5"><td>T-018</td><td>M0.5</td><td>Every mutation returns the new state or a rejection reason &mdash; <code>Result</code> and <code>reject()</code> exist, the state machine behind them does not</td><td>BR-06</td><td>🟡</td></tr>
+      <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-019</td><td>M1.1</td><td>Own a product record per product, scoped to a tenant &mdash; <code>Master</code> exists, the tenant scope does not</td><td>A-1</td><td>🟡</td></tr>
+      <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-020</td><td>M1.1</td><td>Capture the brief as structured requirements rather than prose &mdash; <code>BRD</code> struct, in memory only</td><td>A-2</td><td>🟡</td></tr>
+      <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-021</td><td>M1.1</td><td>Capture stories in as / want / so form with acceptance criteria &mdash; <code>Story</code> plus its empty-story rejection</td><td>A-3</td><td>🟡</td></tr>
+      <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-022</td><td>M1.1</td><td>Accept behaviour diagrams and data models as artifacts &mdash; <code>Diagram</code> plus the <code>seq.go</code> renderer</td><td>A-4</td><td>🟡</td></tr>
+      <tr data-tags="domain-a product master record inject repository todo not-built m1.2"><td>T-023</td><td>M1.2</td><td>Index a linked repository into files and functions</td><td>A-5</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository todo not-built m1.2"><td>T-024</td><td>M1.2</td><td>Identify the entrypoint of an indexed repository</td><td>A-5</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository todo not-built m1.2"><td>T-025</td><td>M1.2</td><td>Make impact analysis from a diff a traversal over the indexed code</td><td>A-5</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository todo not-built m1.3"><td>T-026</td><td>M1.3</td><td>Make <code>Inject()</code> write vertices and edges &mdash; today it emits the event and reports a projection, and writes nothing</td><td>A-6</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository todo not-built m1.3"><td>T-027</td><td>M1.3</td><td>Rescore readiness inside the same injection operation</td><td>A-6</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository done built m1.4"><td>T-028</td><td>M1.4</td><td>Back-office surface for the whole record &mdash; <code>handlers_bo.go</code>, <code>templates/backoffice.html</code></td><td>A-7</td><td>✅</td></tr>
+      <tr data-tags="domain-a product master record inject repository todo not-built m1.4"><td>T-029</td><td>M1.4</td><td>Persist what the back office writes; a restart currently returns the fixtures</td><td>A-7</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.1"><td>T-030</td><td>M2.1</td><td>Implement the twelve-signal, hundred-point rubric &mdash; <code>model.go</code> is marked pass 2 and scores seven booleans</td><td>B-1</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.1"><td>T-031</td><td>M2.1</td><td>Score every record on ingestion and on a schedule</td><td>B-1</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-032</td><td>M2.2</td><td>Implement the four autonomy bands and their gate behaviour</td><td>B-2</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-033</td><td>M2.2</td><td>Refuse to plan below an effective 45 and return the list of what is missing</td><td>BR-07</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-034</td><td>M2.2</td><td>Make band gates mandatory: <em>Minimum</em> caps the model tier and forbids auto-merge</td><td>BR-08</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.3"><td>T-035</td><td>M2.3</td><td>Compute <code>effective = raw &minus; drift_penalty</code> with the penalty capped at 25</td><td>B-4, BR-09</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.3"><td>T-036</td><td>M2.3</td><td>Drive the penalty from months since review, boundary files changed since injection, and open contradictions</td><td>B-4</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.4"><td>T-037</td><td>M2.4</td><td>Emit <code>ReadinessDropped</code> on a downward band crossing and apply the stricter band immediately</td><td>B-5, BR-10</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift partial fixtures m2.5"><td>T-038</td><td>M2.5</td><td>Publish the rubric and the missing list to the author &mdash; the checklist renders, but from seven booleans</td><td>B-3</td><td>🟡</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.1"><td>T-039</td><td>M3.1</td><td>A workflow is one objective on one product with a scope &mdash; <code>WorkflowDraft</code> carries objective and scope</td><td>C-1</td><td>🟡</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.1"><td>T-040</td><td>M3.1</td><td>Set the gate policy per workflow at creation time</td><td>C-1, F-1</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.2"><td>T-041</td><td>M3.2</td><td>Expand an objective into an acyclic task graph &mdash; <code>PlanWorkflow</code> is pure but produces a fixed shape</td><td>C-2</td><td>🟡</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.2"><td>T-042</td><td>M3.2</td><td>Give planned tasks real dependencies, and reject a cycle</td><td>C-2</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.3"><td>T-043</td><td>M3.3</td><td>Reject a task that is not atomic: one concern, one workspace, at least one acceptance criterion</td><td>C-3, BR-11</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-044</td><td>M3.4</td><td>Select role and model capability first, then risk, then cost &mdash; never cost first</td><td>C-4, BR-12</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-045</td><td>M3.4</td><td>Model senior-role capacity across all products</td><td>C-5</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing done built m3.5"><td>T-046</td><td>M3.5</td><td>Operator wizard: objective, scope, plan preview &mdash; <code>handlers_cw.go</code></td><td>C-6</td><td>✅</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.5"><td>T-047</td><td>M3.5</td><td>Survive a restart mid-wizard; the draft round-trips through hidden form fields with no server session</td><td>C-6</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph</td><td>D-1</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer</td><td>D-1</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator</td><td>D-2</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run</td><td>D-3</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease</td><td>D-3</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running</td><td>D-4</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature</td><td>D-5, BR-22</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice</td><td>D-6, BR-23</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; the route exists and computes one live</td><td>D-6</td><td>🟡</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-057</td><td>M4.4</td><td>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess</td><td>D-7</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-058</td><td>M4.4</td><td>Build the API adapter, indistinguishable from the CLI one above the seam</td><td>D-7</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-059</td><td>M4.4</td><td>Select the adapter from one deployment-wide setting in the master configuration, never per task</td><td>D-12</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-060</td><td>M4.4</td><td>Record <code>TaskRun.invocation</code>, and let no component above the adapter branch on it</td><td>D-13, BR-33</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-061</td><td>M4.5</td><td>Materialise the frozen slice as a task packet of files in the leased workspace</td><td>D-8</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-062</td><td>M4.5</td><td>Require a handoff document at the declared path in the declared shape on every invocation</td><td>D-9, BR-30</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-063</td><td>M4.5</td><td>Fail the attempt with the signature <code>handoff-missing</code> when it is absent or unparseable</td><td>D-9, BR-30</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-064</td><td>M4.5</td><td>Store the handoff as an <code>Artifact</code> reachable only through <code>USES_CONTEXT</code></td><td>D-10</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.6"><td>T-065</td><td>M4.6</td><td>Carry a basis, <code>measured</code> or <code>estimated</code>, on every recorded cost</td><td>D-11, BR-31</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.6"><td>T-066</td><td>M4.6</td><td>Keep the distinction alive through every aggregation</td><td>D-11, BR-31</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.7"><td>T-067</td><td>M4.7</td><td>Delete <code>dashboard/sim.go</code> once the scheduler and runner are real, as the file itself instructs</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature partial fixtures m5.1"><td>T-068</td><td>M5.1</td><td>Score <code>0.45&middot;correctness + 0.20&middot;completeness + 0.15&middot;safety + 0.10&middot;quality + 0.10&middot;efficiency</code> &mdash; the weights are in <code>fixtures.go</code>, the inputs are invented by the simulator</td><td>BR-13</td><td>🟡</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.1"><td>T-069</td><td>M5.1</td><td>Derive correctness from real test runs, rule checks and a reviewer verdict against acceptance criteria</td><td>BR-13</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.2"><td>T-070</td><td>M5.2</td><td>Evaluate safety before anything else and stop below 60 regardless of the total</td><td>BR-14</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.2"><td>T-071</td><td>M5.2</td><td>Emit <code>SafetyVeto</code> and route the work to the human queue</td><td>BR-14</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature partial fixtures m5.3"><td>T-072</td><td>M5.3</td><td>Implement the five score-band actions &mdash; the shape exists in <code>sim.go</code>, driven by simulated scores</td><td>&mdash;</td><td>🟡</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.3"><td>T-073</td><td>M5.3</td><td>Spawn a real cleanup task at 70&ndash;84, and widen the context slice at 50&ndash;69</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.4"><td>T-074</td><td>M5.4</td><td>Hash the normalised error &mdash; failing test, error class, offending file &mdash; into a failure signature</td><td>BR-16</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.4"><td>T-075</td><td>M5.4</td><td>Route an identical signature twice to a design review rather than a tier escalation</td><td>BR-16</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature partial fixtures m5.5"><td>T-076</td><td>M5.5</td><td>Enforce <code>max_retry_count</code> of 3 &mdash; the only guard that runs today</td><td>BR-17</td><td>🟡</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.5"><td>T-077</td><td>M5.5</td><td>Enforce <code>max_escalation_count</code> 2, <code>same_failure_signature_limit</code> 2 and a capped exponential cooldown</td><td>BR-17</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.5"><td>T-078</td><td>M5.5</td><td>Trip <code>human_intervention_threshold</code> at two escalations or any safety veto</td><td>BR-17</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.5"><td>T-079</td><td>M5.5</td><td>Emit <code>GuardExhausted</code> when a guard ends the work</td><td>BR-17</td><td>❌</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.6"><td>T-080</td><td>M5.6</td><td>Record a reason code on every termination; a silent stop is a defect</td><td>BR-18</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.1"><td>T-081</td><td>M6.1</td><td>Set a gate policy per workflow at creation time</td><td>F-1</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.1"><td>T-082</td><td>M6.1</td><td>Always gate money arithmetic, authentication and schema changes, at every band including <em>Complete</em></td><td>F-3</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-083</td><td>M6.2</td><td>Make a gated task unmergeable through every path, the API included</td><td>F-2, BR-19</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-084</td><td>M6.2</td><td>Record approval and rejection as vertices with a decider, a timestamp and a reason</td><td>F-4</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-085</td><td>M6.2</td><td>Emit <code>ApprovalRejected</code></td><td>F-4</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge done built m6.3"><td>T-086</td><td>M6.3</td><td>Operator approve / retry / cancel on the inspector &mdash; <code>handlers_floor.go</code></td><td>F-5</td><td>✅</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-087</td><td>M6.4</td><td>Authenticate and authorise operators &mdash; the cookie is checked, the password never is</td><td>F-6, R-02</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-088</td><td>M6.4</td><td>Remove the demo credentials shipped as <code>value=</code> attributes in the login form</td><td>F-6</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-089</td><td>M6.4</td><td>Answer <a href="../product/open-questions.html#oq-11">OQ-11</a> before anything binds beyond localhost</td><td>F-6</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-090</td><td>M7.1</td><td>Write <code>Knowledge</code> back to the product on every completed workflow</td><td>G-1</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-091</td><td>M7.1</td><td>Carry decisions as ADRs into every later prompt, with supersession tracked</td><td>G-2</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-092</td><td>M7.1</td><td>Emit <code>DecisionSuperseded</code></td><td>G-2</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction partial fixtures m7.2"><td>T-093</td><td>M7.2</td><td>Make a multi-agent meeting a first-class record &mdash; the overlay renders a scripted fixture</td><td>G-3</td><td>🟡</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.2"><td>T-094</td><td>M7.2</td><td>Emit <code>ProposalRecorded</code> with a confidence</td><td>G-3</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-095</td><td>M7.3</td><td>Recall knowledge during planning by tag and reuse count, and emit <code>KnowledgeReused</code></td><td>G-4</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-096</td><td>M7.3</td><td>Detect contradictions: a decision conflicting with a requirement, a criterion no test maps to</td><td>G-5</td><td>❌</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-097</td><td>M8.1</td><td>Reconstruct state at any past moment as a fold from the nearest snapshot forward</td><td>H-1</td><td>❌</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-098</td><td>M8.1</td><td>Make the reducer pure, total and order-stable, skipping unknown event types rather than failing</td><td>H-2</td><td>❌</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-099</td><td>M8.2</td><td>Route replay through a read-only store handle &mdash; <code>replayAt</code> is exactly the flag this rule forbids</td><td>H-3, BR-20</td><td>❌</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-100</td><td>M8.2</td><td>Treat snapshots as an optimisation and never as a source of truth</td><td>BR-21</td><td>❌</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline partial fixtures m8.3"><td>T-101</td><td>M8.3</td><td>Support all four replay scopes: workflow, task, meeting, and a comparison between two runs</td><td>H-4</td><td>🟡</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline done built m8.4"><td>T-102</td><td>M8.4</td><td>Operator timeline with a replay scrub &mdash; <code>handlers_floor.go</code>, <code>templates/timeline.html</code></td><td>H-5</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-103</td><td>M9.1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>I-1</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-104</td><td>M9.1</td><td>The inspector: task, role, model, retries, escalations, cost, score breakdown, context slice</td><td>I-2</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-105</td><td>M9.1</td><td>The event timeline with scrub-to-replay and speed control</td><td>I-3</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-106</td><td>M9.1</td><td>The design-review overlay: agenda, participants, confidence, decision</td><td>I-4</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-107</td><td>M9.1</td><td>The back office: record, requirements, stories, diagrams, knowledge, agents, readiness</td><td>I-5</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.2"><td>T-108</td><td>M9.2</td><td>The UI invents no state the graph does not have &mdash; <code>static/app.js</code> renders no markup</td><td>I-6</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui todo not-built m9.3"><td>T-109</td><td>M9.3</td><td>Display the five blocking reasons for an idle desk, including <em>deferred &mdash; budget window</em></td><td>I-7</td><td>❌</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui todo not-built m9.3"><td>T-110</td><td>M9.3</td><td>Replace the 1400&nbsp;ms poll with the SSE broker the <code>emit()</code> seam was cut for</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui todo not-built m9.3"><td>T-111</td><td>M9.3</td><td>Fingerprint the embedded static assets</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.1"><td>T-112</td><td>M10.1</td><td>Make tenancy a database boundary first: one database per tenant as the default recommendation</td><td>J-1, BR-26</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.1"><td>T-113</td><td>M10.1</td><td>Enforce the tenant boundary at the API gateway, never only further down</td><td>J-2</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.1"><td>T-114</td><td>M10.1</td><td>Replace the hardcoded <code>loop-eng</code> tenant string with a real tenant record</td><td>J-1</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.2"><td>T-115</td><td>M10.2</td><td>Give <code>Tenant</code> its <code>plan</code>, <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code>, with <code>plan</code> naming a local quota profile</td><td>J-4</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.2"><td>T-116</td><td>M10.2</td><td>Account cost and tokens per run with the basis recorded, and leak neither across tenants</td><td>J-5</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.2"><td>T-117</td><td>M10.2</td><td>Apply retention: events full-fidelity 90 days then archived with the fold checkpoint, samples raw 14 days</td><td>J-6</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.2"><td>T-118</td><td>M10.2</td><td>Show usage per tenant and per workflow: spend against the cap, tokens by basis, concurrency</td><td>J-8</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.3"><td>T-119</td><td>M10.3</td><td>Implement the three budget zones: normal, throttled, exhausted</td><td>J-9, BR-35</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.3"><td>T-120</td><td>M10.3</td><td>Pace spend across the period: the ceiling in force is the fraction of the period elapsed</td><td>J-10</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.3"><td>T-121</td><td>M10.3</td><td>Defer a throttled task with a <code>deferredUntil</code>, keeping its place in the graph</td><td>J-11, BR-34</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.3"><td>T-122</td><td>M10.3</td><td>Charge deferral nothing: not a retry, not an escalation, not a failure signature</td><td>J-12, BR-34</td><td>❌</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.3"><td>T-123</td><td>M10.3</td><td>Refuse to dispatch at the hard cap, and never kill a run already in flight</td><td>J-13, BR-35</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.1"><td>T-124</td><td>M11.1</td><td>Ship the egress inventory as product documentation and keep it accurate as a release obligation</td><td>L-2</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.1"><td>T-125</td><td>M11.1</td><td>Give every configured provider a data-handling profile the operator fills in</td><td>L-3</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.2"><td>T-126</td><td>M11.2</td><td>Run a pre-dispatch egress pass on every context slice: secret detection, path allowlists, denials</td><td>L-4, BR-32</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.2"><td>T-127</td><td>M11.2</td><td>Emit <code>ContextRedacted</code> and a refused dispatch with its reason, both visible on the timeline</td><td>L-5</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.2"><td>T-128</td><td>M11.2</td><td>Support a no-egress mode at product level, for locally-hosted models only</td><td>L-6</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.3"><td>T-129</td><td>M11.3</td><td>Destroy the referent of every <code>EXTERNAL</code> payload and blob when a tenant, product or run is deleted</td><td>L-7</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.3"><td>T-130</td><td>M11.3</td><td>Produce a deletion certificate: what went, when, by whom, and what deliberately survived</td><td>L-8</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.4"><td>T-131</td><td>M11.4</td><td>Encrypt every hop the operator does not physically own, and document the at-rest posture</td><td>L-9</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.4"><td>T-132</td><td>M11.4</td><td>Ship a data-handling statement template the operator can complete for their own stakeholders</td><td>L-11</td><td>❌</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-133</td><td>M12.1</td><td>Auditability: <code>GET /tasks/{id}/context</code> matches what the model actually received</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-134</td><td>M12.1</td><td>Recoverability: killing the orchestrator mid-run loses nothing</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-135</td><td>M12.1</td><td>Determinism: the same events always fold to the same state, tested from genesis</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-136</td><td>M12.2</td><td>Isolation: a tenant sees nothing of another even when a query forgets to filter</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation partial fixtures m12.2"><td>T-137</td><td>M12.2</td><td>Explicability: every rejection tells the caller why &mdash; the shape holds, the states behind it are simulated</td><td>BR-06</td><td>🟡</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-138</td><td>M12.2</td><td>Termination: no loop runs forever and no stop is silent</td><td>BR-18</td><td>❌</td></tr>
+      <tr data-tags="hygiene deploy licence tag todo not-built m13.1"><td>T-139</td><td>M13.1</td><td>Add <code>test/stacks_test.go</code> or correct the three places that cite it &mdash; both compose files and <code>check-stacks.sh</code></td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="hygiene deploy licence tag todo not-built m13.1"><td>T-140</td><td>M13.1</td><td>Vendor the upstream licence texts for the fonts and the charting library beside the assets</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="hygiene deploy licence tag todo not-built m13.2"><td>T-141</td><td>M13.2</td><td>Build the tunnelled stacks from a tag rather than the working tree</td><td>&mdash;</td><td>❌</td></tr>
+    </tbody>
+  </table>
+  <div class="empty-state" id="ip-empty">No task matches that filter.</div>
+  <p>Task IDs are sequential and are not reused. A task that turns out to be wrong is struck with
+  its reason rather than deleted, the same rule the
+  <a href="../product/qa-test-plan.html#register">QA register</a> and the
+  <a href="../product/open-questions.html#index">open-questions register</a> follow.</p>
+
+  <h2 id="m0-foundations">M0 · Foundations — schema, event store, state machine</h2>
+  <p>Build-order steps 1 and 2, and the module every other module is waiting on. Eighteen tasks,
+  one done. Two invariants live here and nowhere else: state lives in the graph
+  (<code>BR-01</code>) and every change emits an event (<code>BR-02</code>). Neither holds today,
+  because there is no graph — <code>MemStore</code> keeps the whole system in RAM and a restart
+  returns the fixtures.</p>
+
+  <h3 id="sub-m0-1">M0.1 — Schema and DDL (T-001–T-005)</h3>
+  <p>The <a href="../architecture/graph.html">data model</a> already specifies 25 vertex types, 3
+  document types and 32 edge types with their indexes and retention. Nothing has been applied to a
+  real database, and the model document says itself to verify the dialect before relying on it —
+  the ArcadeDB target version is still <a href="../product/open-questions.html#oq-17">OQ-17</a>.
+  Three rules constrain the DDL rather than the code: one edge type per relationship with no
+  generic edge (<code>BR-24</code>), heavy payloads stored <code>EXTERNAL</code> so the scheduler
+  never traverses them (<code>BR-25</code>), and <code>tenantId</code> declared and indexed whatever
+  the tenancy strategy turns out to be (<code>BR-26</code>).</p>
+
+  <h3 id="sub-m0-2">M0.2 — The store seam (T-006–T-008)</h3>
+  <p><code>dashboard/store.go</code> was written to be the seam and says so: <em>store_arcade.go in
+  the next one speaks the ArcadeDB HTTP API and THIS FILE DOES NOT CHANGE</em>. That file does not
+  exist yet. <code>dashboard/arcade.go</code> is a reachability probe and nothing more — it calls
+  <code>/api/v1/ready</code> for <code>/healthz</code> and issues no queries. Keeping
+  <code>MemStore</code> afterwards is deliberate: it is the fast test double, and running both
+  implementations against one interface suite is what stops the seam from rotting.</p>
+
+  <h3 id="sub-m0-3">M0.3 — Event store and the fold (T-009–T-013)</h3>
+  <p>Today an <code>Event</code> carries a deep copy of the entire floor, and the stream is a ring
+  buffer capped at 160 entries with the replay cursor shifted when the window moves. That is a
+  screen recording, not an event store: it satisfies the UI and none of <code>H-1</code>,
+  <code>H-2</code>, <code>BR-04</code> or <code>BR-21</code>. The work is to make the stream
+  append-only and unbounded, reference business ids rather than physical RIDs
+  (<code>BR-03</code>), and replace the snapshot with a pure, total, order-stable reducer that
+  skips unknown event types instead of failing on them.</p>
+
+  <h3 id="sub-m0-4">M0.4 — Closing the catalog (T-014–T-016)</h3>
+  <p>The catalog is closed by <code>BR-05</code> and encoded as Go constants so a typo is a compile
+  error (<a href="../product/decision-log.html#delivery-decisions">D-020</a>). Thirteen of its names
+  are declared and marked <code>// pass 2</code> — <code>ReadinessDropped</code>,
+  <code>RunStarted</code>, <code>Heartbeat</code>, <code>RunExited</code>,
+  <code>TaskOrphaned</code>, <code>SafetyVeto</code>, <code>GuardExhausted</code>,
+  <code>ApprovalRejected</code> and five more — and no code path writes them. The four
+  UI-lifecycle names are correctly fenced into their own block already, which is the one task in
+  this sub-module that is done. Because the catalog is closed, the four new names the milestone
+  list is waiting on must land in the data model, <code>dashboard/events.go</code> and the fold
+  <em>together</em>, or not at all.</p>
+
+  <h3 id="sub-m0-5">M0.5 — The task state machine (T-017–T-018)</h3>
+  <p>Build-order step 2, and the reason <code>BR-06</code> is only half-satisfied.
+  <code>dashboard/store.go</code> already returns a <code>Result</code> or a rejection reason
+  through <code>reject()</code>, so no route answers a bare 200 — the shape is right. What is
+  missing is the machine behind it: transitions are enforced by the code path that happens to run,
+  not by a boundary that refuses an illegal one.</p>
+
+  <h2 id="m1-product-master">M1 · Product master &amp; knowledge ingestion</h2>
+  <p>Domain A, requirements <code>A-1</code>…<code>A-7</code>. Eleven tasks, one done and four
+  partial — the highest partial count of any module, because the back office is complete and
+  everything under it is memory. The record is the thing agents read instead of a prompt, so
+  nothing above this module means much until the record survives a restart.</p>
+
+  <h3 id="sub-m1-1">M1.1 — The record (T-019–T-022)</h3>
+  <p><code>dashboard/model.go</code> already carries the right shapes: <code>Master</code> with a
+  <code>BRD</code> of problem, goals, scope, out-of-scope, rules and metrics; <code>Story</code> in
+  as / want / so form with acceptance criteria; <code>Diagram</code> with a renderer in
+  <code>dashboard/seq.go</code>. Four requirements are therefore 🟡 rather than ❌ — the structure
+  is designed and demonstrated, and none of it is scoped to a tenant or written anywhere.</p>
+
+  <h3 id="sub-m1-2">M1.2 — Repository indexing (T-023–T-025)</h3>
+  <p><code>A-5</code> is untouched. Nothing indexes a linked repository into files and functions,
+  nothing identifies an entrypoint, and impact analysis from a diff — which the architecture
+  describes as a traversal — has no graph to traverse. This is the requirement that makes the
+  difference between an agent that reads a brief and an agent that reads the code the brief is
+  about.</p>
+
+  <h3 id="sub-m1-3">M1.3 — Injection (T-026–T-027)</h3>
+  <p><code>Inject()</code> is the sharpest gap in the repository and is honest about it in its own
+  comment: it emits the event, reports the projection, and the write itself <em>lands with
+  store_arcade.go</em>. The back office therefore reports a vertex and edge count that no database
+  ever received. <code>A-6</code> also requires the rescore to happen in the same operation, for
+  the reason the BRD gives: a record that is edited but not injected is a lie the planner will
+  believe.</p>
+
+  <h3 id="sub-m1-4">M1.4 — The surface (T-028–T-029)</h3>
+  <p><code>A-7</code> is done. <code>dashboard/handlers_bo.go</code> and
+  <code>templates/backoffice.html</code> give the record author product CRUD, the BRD pane,
+  stories, diagrams, knowledge, agents and the readiness checklist. The remaining task is the one
+  the module is named after: make what it writes survive.</p>
+
+  <h2 id="m2-readiness">M2 · Readiness gating</h2>
+  <p>Domain B, requirements <code>B-1</code>…<code>B-5</code>, plus <code>BR-07</code>…<code>BR-10</code>.
+  Nine tasks, none done. This is the module that turns <em>is the brief good enough?</em> into a
+  number, and it is build-order step 3.</p>
+
+  <h3 id="sub-m2-1">M2.1 — The rubric (T-030–T-031)</h3>
+  <p>The rubric is 100 points across twelve machine-checkable signals, specified in full in
+  <a href="../product/brd.html#req-b">§8.2</a> — problem statement 8, goals 8, domain rules 12, out
+  of scope 6, stories 10, criteria coverage 12, behaviour diagram 10, data model 8, repository
+  linked 8, decisions 8, success metrics 5, verification strategy 5. What ships is seven booleans,
+  and <code>dashboard/model.go</code> marks the real rubric as pass 2 in a comment. Scoring on a
+  schedule additionally needs a scheduler, which is M4.</p>
+
+  <h3 id="sub-m2-2">M2.2 — Bands and refusal (T-032–T-034)</h3>
+  <p>Four bands govern autonomy: <em>Insufficient</em> 0–44, <em>Minimum</em> 45–69,
+  <em>Working</em> 70–89, <em>Complete</em> 90–100. Two of them are business rules rather than
+  preferences — below 45 the planner refuses and returns the missing list (<code>BR-07</code>), and
+  band gates are mandatory rather than advisory, so <em>Minimum</em> caps the model at mid tier and
+  forbids auto-merge (<code>BR-08</code>). None of this exists; the planner plans whatever it is
+  given.</p>
+
+  <h3 id="sub-m2-3">M2.3 — Drift (T-035–T-036)</h3>
+  <p><code>effective = raw &minus; drift_penalty</code>, with the penalty capped at 25
+  (<code>BR-09</code>) and driven by three inputs: months since the last review, boundary files
+  changed since injection, and open contradictions. This is the answer to a record scored 92 six
+  months ago that describes a codebase which no longer exists.</p>
+
+  <h3 id="sub-m2-4">M2.4 — Band crossing (T-037)</h3>
+  <p>Crossing a boundary downward is an event, not a silent recalculation:
+  <code>ReadinessDropped</code> is emitted and the stricter band's gates apply immediately
+  (<code>B-5</code>, <code>BR-10</code>). The event name exists in the catalog and is never
+  written. Autonomy must be withdrawn as loudly as it was granted.</p>
+
+  <h3 id="sub-m2-5">M2.5 — Publication (T-038)</h3>
+  <p><code>B-3</code> is the one partial here: <code>/products/{id}/readiness</code> answers, and the
+  checklist renders in the back office, but from the seven-boolean stand-in rather than the rubric.
+  A refusal that does not say what is missing is a dead end, so the missing list is part of this
+  task and not a follow-up.</p>
+
+  <h2 id="m3-planning">M3 · Planning</h2>
+  <p>Domain C, requirements <code>C-1</code>…<code>C-6</code>. Nine tasks, one done and two partial.
+  Build-order step 4 — one goal must yield an acyclic DAG with roles and dependencies.</p>
+
+  <h3 id="sub-m3-1">M3.1 — Workflow shape (T-039–T-040)</h3>
+  <p><code>WorkflowDraft</code> carries an objective and a scope, so <code>C-1</code> is partly
+  there. The gate policy is not: the wizard never asks for one, which means every workflow created
+  today has no answer to the question M6 is built around.</p>
+
+  <h3 id="sub-m3-2">M3.2 — The task graph (T-041–T-042)</h3>
+  <p><code>PlanWorkflow</code> is already a pure function, which is the property that matters and
+  the one that is hardest to retrofit. What it produces is a fixed shape rather than an expansion of
+  the objective, with no real dependencies and no cycle check — so <code>C-2</code> is 🟡 on the
+  strength of its signature, not its output.</p>
+
+  <h3 id="sub-m3-3">M3.3 — Atomicity (T-043)</h3>
+  <p><code>BR-11</code> makes atomicity a rejection rather than a guideline: one concern, one
+  workspace, at least one acceptance criterion, or the task does not enter the graph. The BRD's
+  reason is worth keeping in view — no criterion means no verdict, and the reviewer will invent one
+  and it will drift.</p>
+
+  <h3 id="sub-m3-4">M3.4 — Routing (T-044–T-045)</h3>
+  <p><code>BR-12</code> fixes the order: capability is a hard filter, risk overrides cost, and cost
+  decides only between options that are already acceptable. Never cost first. <code>C-5</code> adds
+  the constraint that makes it non-trivial — senior roles such as architect and security have
+  explicit capacity across <em>all</em> products, not per workflow.</p>
+
+  <h3 id="sub-m3-5">M3.5 — The wizard (T-046–T-047)</h3>
+  <p><code>C-6</code> is done: <code>dashboard/handlers_cw.go</code> runs three steps with a plan
+  preview and moves coverage on creation. The draft round-trips through hidden form fields with no
+  server session, which is a defensible choice for a prototype and a data-loss bug once a workflow
+  is worth keeping.</p>
+
+  <h2 id="m4-execution">M4 · Execution</h2>
+  <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
+  count and by task count. Twenty tasks, none done, none partial. Everything here is currently
+  played by <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker that moves desks through states
+  and emits catalog events without ever calling a model.</p>
+
+  <h3 id="sub-m4-1">M4.1 — The scheduler (T-048–T-049)</h3>
+  <p><code>D-1</code> asks for something stronger than a working scheduler: a <em>pure function of
+  the graph</em>, such that two replicas computing it independently reach the same answer. That
+  property is the reason the orchestrator can hold no authoritative state, and it is far cheaper to
+  build in than to add later.</p>
+
+  <h3 id="sub-m4-2">M4.2 — Runner, lease and reconciliation (T-050–T-053)</h3>
+  <p>Work runs in detached processes that survive the orchestrator (<code>D-2</code>), each holding
+  an exclusive workspace lease with an expiry and a heartbeat (<code>D-3</code>). On boot, every
+  task claiming to be dispatched or running is reconciled against its lease and heartbeat and is
+  adopted, requeued or orphaned (<code>D-4</code>). This is build-order step 5 and its own
+  acceptance test: kill the orchestrator mid-task and the work survives.</p>
+
+  <h3 id="sub-m4-3">M4.3 — The attempt record (T-054–T-056)</h3>
+  <p><code>Task</code> and <code>TaskRun</code> are separate records so per-attempt evidence
+  survives a retry (<code>BR-22</code>), and the exact context slice sent to a model is frozen and
+  stored per attempt with <code>USES_CONTEXT</code> hanging off the slice rather than the task
+  (<code>BR-23</code>) — because the slice differs per attempt.
+  <code>GET /tasks/{id}/context</code> already exists and answers in HTML or JSON; it computes a
+  slice live instead of returning the frozen one, which is the difference between a demonstration
+  and an audit trail.</p>
+
+  <h3 id="sub-m4-4">M4.4 — The model gateway (T-057–T-060)</h3>
+  <p>Two interchangeable adapters, a provider's command-line tool spawned as a detached subprocess
+  and a direct HTTP call, selected by one deployment-wide setting in the master configuration
+  (<a href="../product/brd.html#mode-config">§7.6.1</a>, <code>D-12</code>). Never a per-task
+  choice. <code>BR-33</code> is the rule that keeps them interchangeable: the mode may be recorded
+  on the attempt as <code>TaskRun.invocation</code> and no component above the adapter may branch on
+  it.</p>
+
+  <h3 id="sub-m4-5">M4.5 — Packet and handoff (T-061–T-064)</h3>
+  <p>The frozen slice is materialised as a task packet of files in the leased workspace, and the
+  packet — not a prompt string — is what the adapter hands over (<code>D-8</code>). Every invocation
+  must produce a handoff document at a declared path in a declared shape; a missing or unparseable
+  one is a failed attempt with the signature <code>handoff-missing</code>, never a silent pass
+  (<code>D-9</code>, <code>BR-30</code>). The BRD is explicit that this is the load-bearing
+  assumption of the whole CLI approach, which is why the validator is a task and not a nicety.</p>
+
+  <h3 id="sub-m4-6">M4.6 — Cost basis (T-065–T-066)</h3>
+  <p><code>BR-31</code>: every cost figure carries its basis, <code>measured</code> or
+  <code>estimated</code>, and the distinction survives every aggregation. CLI mode usually reports
+  nothing, so a flat subscription produces estimates and an API call produces measurements — mixing
+  them silently would make every budget number meaningless, which is why M10 depends on this
+  sub-module.</p>
+
+  <h3 id="sub-m4-7">M4.7 — Retiring the simulator (T-067)</h3>
+  <p><code>dashboard/sim.go</code> ends with its own deletion instruction: <em>when the scheduler and
+  the runner are real, this file is deleted and nothing else changes</em>. That claim is worth
+  testing rather than trusting — every field the simulator mutates is meant to be a field the
+  Task/TaskRun/Review vertices carry.</p>
+
+  <h2 id="m5-review">M5 · Review, scoring &amp; retry</h2>
+  <p>Domain E, and the one domain with no requirement IDs — <a href="../product/brd.html#req-e">§8.5</a>
+  specifies it as a formula, a five-row score-band table and six guard limits. Thirteen tasks, three
+  partial. The BRD calls it the most dangerous loop in the system: every path through it must
+  terminate and every termination must record a reason code.</p>
+
+  <h3 id="sub-m5-1">M5.1 — The score (T-068–T-069)</h3>
+  <p><code>final = 0.45&middot;correctness + 0.20&middot;completeness + 0.15&middot;safety +
+  0.10&middot;quality + 0.10&middot;efficiency</code> (<code>BR-13</code>). The weights are already
+  in <code>dashboard/fixtures.go</code> and applied by <code>sim.go</code>, over invented inputs.
+  The real work is the first term: correctness from tests that actually ran, rule checks that
+  actually evaluated, and a reviewer verdict against the acceptance criteria.</p>
+
+  <h3 id="sub-m5-2">M5.2 — The safety veto (T-070–T-071)</h3>
+  <p><code>BR-14</code> makes safety a veto evaluated <em>before</em> anything else: below 60 the
+  work stops regardless of the total, emits <code>SafetyVeto</code> and goes to a human queue. The
+  event name is declared and never written.</p>
+
+  <h3 id="sub-m5-3">M5.3 — Score bands (T-072–T-073)</h3>
+  <p>85–100 accept; 70–84 accept and spawn a cleanup task; 50–69 iterate with a widened context
+  slice at the same tier; 30–49 escalate a tier and re-run; 0–29 stop and call a design review.
+  <code>sim.go review()</code> already implements this shape, which is why the sub-module is 🟡 —
+  what it lacks is a real cleanup task and a slice that actually widens.</p>
+
+  <h3 id="sub-m5-4">M5.4 — The failure signature (T-074–T-075)</h3>
+  <p>Hash the normalised error — failing test name, error class, offending file — and compare across
+  attempts. A changed signature means progress, so retry. An identical signature twice means the
+  approach is wrong, and escalating a tier would reproduce the same wrong answer more expensively,
+  so it routes to a design review instead (<code>BR-16</code>). This is what separates an
+  intelligent retry from a superstitious one.</p>
+
+  <h3 id="sub-m5-5">M5.5 — The six guards (T-076–T-079)</h3>
+  <p><code>BR-17</code> makes all six hard: 3 retries, 2 escalations, 2 identical signatures, a
+  capped exponential cooldown, per-workflow and per-tenant budget caps, and human intervention at
+  two escalations or any safety veto. Exactly one runs today — <code>store_mem.go</code> refuses a
+  fourth retry, and <code>TestRetryGuardExhausts</code> covers it. <code>GuardExhausted</code> is
+  declared and never emitted.</p>
+
+  <h3 id="sub-m5-6">M5.6 — Termination (T-080)</h3>
+  <p><code>BR-18</code>: every termination records a reason code, and a silent stop is a defect.
+  This is also the acceptance condition for the unsatisfiable-task test, which is registered in the
+  <a href="../product/qa-test-plan.html#not-implemented">QA plan</a> as a forward spec and blocked
+  on this module.</p>
+
+  <h2 id="m6-gates">M6 · Gates &amp; approvals</h2>
+  <p>Domain F, requirements <code>F-1</code>…<code>F-6</code>. Nine tasks, one done. Build-order
+  step 8, and the module that holds the only requirement in the whole BRD explicitly marked
+  <strong>Not built</strong> rather than <em>Designed</em>.</p>
+
+  <h3 id="sub-m6-1">M6.1 — Policy (T-081–T-082)</h3>
+  <p>A gate policy is set per workflow at creation time (<code>F-1</code>), and three categories are
+  gated at every readiness band including <em>Complete</em>: money arithmetic, authentication and
+  schema changes (<code>F-3</code>). The first of these is also M3.1's missing wizard step.</p>
+
+  <h3 id="sub-m6-2">M6.2 — Enforcement and record (T-083–T-085)</h3>
+  <p><code>BR-19</code> is absolute: a gated task cannot merge through any path, the API included —
+  not a UI check. Approval and rejection are recorded as vertices with a decider, a timestamp and a
+  reason (<code>F-4</code>), which is also where <code>ApprovalRejected</code> finally gets written;
+  <code>ApprovalGranted</code> and <code>ApprovalRequested</code> already are.</p>
+
+  <h3 id="sub-m6-3">M6.3 — Operator controls (T-086)</h3>
+  <p><code>F-5</code> is done. <code>dashboard/handlers_floor.go</code> serves approve, retry and
+  cancel from the inspector, each with a real guard behind it —
+  <code>TestApproveRequiresAGate</code> and <code>TestCancelReleasesTheDesk</code> cover the
+  rejections.</p>
+
+  <h3 id="sub-m6-4">M6.4 — Authentication (T-087–T-089)</h3>
+  <p><code>F-6</code> is the BRD's only <strong>Not built</strong>, cross-referenced to risk
+  <code>R-02</code> and <a href="../product/open-questions.html#oq-11">OQ-11</a>.
+  <code>dashboard/handlers_bo.go</code> states the position in a header comment: a cookie, no
+  password comparison, no session store, and every back-office route checks the cookie so there is
+  exactly one place to change. The login form ships working credentials as
+  <code>value=</code> attributes, which must go with it. The shape to lift is next door —
+  <code>pustaka</code>'s HMAC-signed cookie, credential fingerprint and per-IP throttle with
+  lockout, already covered by fifteen of its own tests.</p>
+
+  <h2 id="m7-memory">M7 · Memory &amp; learning</h2>
+  <p>Domain G, requirements <code>G-1</code>…<code>G-5</code>. Seven tasks, one partial. Build-order
+  step 10, last for a reason — and also the module the product's one success measurement depends on,
+  since <em>the second run needs fewer retries</em> is only true if extraction works.</p>
+
+  <h3 id="sub-m7-1">M7.1 — Writing back (T-090–T-092)</h3>
+  <p>Every completed workflow writes <code>Knowledge</code> back to the product — lessons, decisions,
+  failure patterns (<code>G-1</code>). Decisions are ADRs carried into every later prompt with
+  supersession tracked (<code>G-2</code>), which is what <code>DecisionSuperseded</code> is reserved
+  for. <code>KnowledgeExtracted</code> and <code>DecisionRecorded</code> are emitted today by the
+  simulator, from a script.</p>
+
+  <h3 id="sub-m7-2">M7.2 — Meetings (T-093–T-094)</h3>
+  <p><code>G-3</code> makes a multi-agent meeting a first-class record: agenda, participants,
+  proposals with confidence, and the decision it produced. The overlay renders all of that from
+  <code>meetingScript</code> in <code>dashboard/fixtures.go</code> — a scripted design review — so
+  the requirement is 🟡 on its surface and ❌ underneath. <code>ProposalRecorded</code> is
+  declared and never written.</p>
+
+  <h3 id="sub-m7-3">M7.3 — Recall and contradiction (T-095–T-096)</h3>
+  <p>Knowledge is recalled during planning by tag and reuse count (<code>G-4</code>), which is what
+  makes the second workflow plan faster than the first and what <code>KnowledgeReused</code>
+  records. <code>G-5</code> is the harder half: detecting a decision that conflicts with a
+  requirement, or an acceptance criterion no test maps to.</p>
+
+  <h2 id="m8-replay">M8 · Replay &amp; audit</h2>
+  <p>Domain H, requirements <code>H-1</code>…<code>H-5</code>. Six tasks, one done and one partial.
+  The operator-facing half is finished and the mechanism underneath it is not — replay today reads
+  stored snapshots, which is precisely what <code>BR-21</code> forbids as a source of truth.</p>
+
+  <h3 id="sub-m8-1">M8.1 — The fold (T-097–T-098)</h3>
+  <p>State at any past moment is a fold over the event stream from the nearest snapshot forward
+  (<code>H-1</code>), through a reducer that is pure, total and order-stable, skipping unknown event
+  types rather than failing on them (<code>H-2</code>). No reducer exists; M0.3 is where it is
+  built, and this is where it is proven — fold from genesis must match fold from snapshot on a real
+  workflow.</p>
+
+  <h3 id="sub-m8-2">M8.2 — Read-only by construction (T-099–T-100)</h3>
+  <p><code>BR-20</code> says replay is routed through a read-only store handle and <em>never a
+  flag</em>. <code>MemStore</code> has a <code>replayAt</code> field and checks it — the exact
+  construction the rule names, chosen deliberately for the prototype and due to be replaced. The
+  companion rule, <code>BR-21</code>, demotes snapshots to an optimisation.</p>
+
+  <h3 id="sub-m8-3">M8.3 — Scopes (T-101)</h3>
+  <p><code>H-4</code> asks for four replay scopes: workflow, task, meeting, and a comparison between
+  two runs of the same task on different models. <code>/replay/{workflow}</code> serves the first
+  and is the reason this is 🟡; the comparison scope is the one that needs <code>TaskRun</code>
+  from M4.3 to exist first.</p>
+
+  <h3 id="sub-m8-4">M8.4 — The timeline (T-102)</h3>
+  <p><code>H-5</code> is done: the operator timeline with a replay scrub and speed control, in
+  <code>dashboard/handlers_floor.go</code> and <code>templates/timeline.html</code>, with
+  <code>TestReplayFreezesTheFloor</code> and
+  <code>TestEventsAreCappedAndTheReplayCursorFollows</code> behind it.</p>
+
+  <h2 id="m9-operator-surface">M9 · Operator surface</h2>
+  <p>Domain I, requirements <code>I-1</code>…<code>I-7</code>. Nine tasks, six done — the only module
+  where that is true. Build-order step 9, built first, which the decision log records as a knowing
+  inversion. What remains is one requirement and two pieces of infrastructure the surface is
+  standing on.</p>
+
+  <h3 id="sub-m9-1">M9.1 — The five views (T-103–T-107)</h3>
+  <p><code>I-1</code>…<code>I-5</code> are all done and all covered:
+  the floor with occupancy per room, the inspector with retries, escalations, cost and the score
+  breakdown, the event timeline with scrub-to-replay, the design-review overlay, and the back
+  office. <code>TestEveryRouteAnswers</code> walks 33 route and status cases across them, and
+  <code>TestNoZgotmplZ</code> checks the style-attribute trap on seven surfaces.</p>
+
+  <h3 id="sub-m9-2">M9.2 — The prohibition (T-108)</h3>
+  <p><code>I-6</code> is architectural rather than a feature: the UI never invents state the graph
+  does not have. It holds today — <code>static/app.js</code> handles theme, sheets, wizard picks and
+  keyboard shortcuts and renders no markup at all — and it is listed as a task because it is the
+  one that is easiest to break while doing everything else.</p>
+
+  <h3 id="sub-m9-3">M9.3 — What the surface still owes (T-109–T-111)</h3>
+  <p><code>I-7</code> requires the five blocking reasons for an idle desk to be displayed
+  explicitly, including <em>deferred — budget window</em> with the time it resumes — which cannot
+  be shown before M10.3 produces it. Two infrastructure items sit here too:
+  <code>store_mem.go</code>'s <code>emit()</code> was cut as the SSE seam and the broker was never
+  built, so the floor polls every 1400&nbsp;ms; and the embedded static assets are unfingerprinted,
+  noted as pass 2 in <code>main.go</code>.</p>
+
+  <h2 id="m10-tenancy">M10 · Tenancy, capacity &amp; cost control</h2>
+  <p>Domain J, requirements <code>J-1</code>…<code>J-13</code>. Twelve tasks, none started. Tenancy
+  is a database boundary first and a property second, and the budget guard is the reason this module
+  blocks the first run in API mode.</p>
+
+  <h3 id="sub-m10-1">M10.1 — The boundary (T-112–T-114)</h3>
+  <p>One database per tenant is the default recommendation (<code>J-1</code>, <code>BR-26</code>),
+  enforced at the API gateway and never only further down (<code>J-2</code>). Today the tenant is a
+  cookie label and <code>store_mem.go</code> hardcodes the string <code>loop-eng</code> into the
+  stat strip. The strategy at scale is still <a href="../product/open-questions.html#oq-10">OQ-10</a>,
+  which constrains how far this can go, not whether it starts.</p>
+
+  <h3 id="sub-m10-2">M10.2 — Quota, accounting and retention (T-115–T-118)</h3>
+  <p><code>Tenant</code> carries <code>plan</code>, <code>maxConcurrentTasks</code> and
+  <code>budgetCapUsd</code>, where <code>plan</code> names a local quota profile and not a billing
+  tier — <a href="../product/decision-log.html#d-032">D-032</a> withdrew self-service billing
+  entirely, and <code>J-7</code> is struck in the BRD rather than deleted so the withdrawal stays
+  visible. Retention is per type (<code>J-6</code>): events full-fidelity for 90 days then archived
+  with the fold checkpoint kept, samples raw for 14 days.</p>
+
+  <h3 id="sub-m10-3">M10.3 — The budget guard (T-119–T-123)</h3>
+  <p>Three zones rather than one limit (<a href="../product/brd.html#budget-guard">§8.10.1</a>,
+  <a href="../product/decision-log.html#d-037">D-037</a>): normal, throttled where dispatch pauses
+  and work defers, and exhausted where dispatch is refused. Spend is paced across the period, so the
+  ceiling in force at any moment is the fraction of the period elapsed — a month's budget cannot be
+  spent in an afternoon. Two rules make deferral safe: a deferred task keeps its place in the graph
+  and consumes no retry, no escalation and no failure signature (<code>BR-34</code>), and reaching
+  the hard cap refuses to dispatch but never kills a run already in flight, because that forfeits
+  money already spent (<code>BR-35</code>).</p>
+
+  <h2 id="m11-data-protection">M11 · Data protection, egress &amp; residency</h2>
+  <p>Domain L, requirements <code>L-1</code>…<code>L-11</code>. Nine tasks, none started.
+  <code>L-1</code> and <code>L-10</code> are already answered as decisions
+  (<a href="../product/decision-log.html#d-034">D-034</a>) and need no code, so they are not tasks
+  here. Everything else is, and <code>BR-32</code> puts the core of it before the first real model
+  call.</p>
+
+  <h3 id="sub-m11-1">M11.1 — Inventory and provider profiles (T-124–T-125)</h3>
+  <p>The egress inventory in <a href="../product/brd.html#data-inventory">§8.12.1</a> ships as
+  product documentation and staying accurate is a release obligation, not a best effort
+  (<code>L-2</code>). Each configured provider carries a data-handling profile the operator fills
+  in: who the provider is, whether prompts are retained, and for how long (<code>L-3</code>).</p>
+
+  <h3 id="sub-m11-2">M11.2 — The pre-dispatch pass (T-126–T-128)</h3>
+  <p><code>BR-32</code> is unambiguous: nothing reaches a model provider without passing the egress
+  check first, and a detection <em>refuses the dispatch</em> rather than reporting the leak
+  afterwards. Secret and credential detection, path allowlists and denials. Redactions and refusals
+  are events — <code>ContextRedacted</code> and a refused dispatch with its reason — and appear on
+  the timeline (<code>L-5</code>). <code>L-6</code> adds a no-egress mode at product level for
+  locally-hosted models only.</p>
+
+  <h3 id="sub-m11-3">M11.3 — Deletion (T-129–T-130)</h3>
+  <p>Deleting a tenant, product or run destroys the referent of every <code>EXTERNAL</code> payload
+  and object-storage blob (<code>L-7</code>) and produces a certificate saying what was deleted,
+  when, by whom, and what deliberately survived (<code>L-8</code>) — the event stream being
+  append-only, something always does.</p>
+
+  <h3 id="sub-m11-4">M11.4 — Transport and statement (T-131–T-132)</h3>
+  <p>Encryption in transit for every hop the operator does not physically own, with a documented
+  at-rest posture (<code>L-9</code>), and a data-handling statement template the operator completes
+  and hands to their own stakeholders (<code>L-11</code>) — their regulator is not ours.</p>
+
+  <h2 id="m12-non-functional">M12 · Non-functional proofs</h2>
+  <p>The six properties of <a href="../product/brd.html#req-nfr">§8.13</a>, each stated with how it
+  is proven. Six tasks, one partial. This module is not built so much as demonstrated: every row
+  here is a test that cannot be written until the module it depends on exists.</p>
+
+  <h3 id="sub-m12-1">M12.1 — Depends on the event store (T-133–T-135)</h3>
+  <p>Auditability is proven when <code>GET /tasks/{id}/context</code> matches what the model actually
+  received — which needs M4.3's frozen slice. Recoverability is proven by killing the orchestrator
+  mid-run and losing nothing, which needs M4.2. Determinism is proven by folding from genesis, which
+  needs M0.3.</p>
+
+  <h3 id="sub-m12-2">M12.2 — Isolation, explicability, termination (T-136–T-138)</h3>
+  <p>Isolation means a tenant cannot see another tenant's data even if a query forgets to filter —
+  database-per-tenant first, <code>tenantId</code> as the second line. Explicability is the one
+  partial: every mutation already returns a new state or a rejection reason rather than a bare 200,
+  and <code>TestNoTemplateErrorEscapesAsSuccess</code> guards the rendering half of it, but the
+  states being explained are simulated. Termination means no loop runs forever and no stop is
+  silent, which is M5.5 and M5.6 seen from the outside.</p>
+
+  <h2 id="m13-hygiene">M13 · Repository hygiene</h2>
+  <p>Three small items found while mapping the BRD against the code. None of them belongs to a
+  domain, all of them are real, and all three are cheap enough to take on a day when nothing larger
+  fits.</p>
+
+  <h3 id="sub-m13-1">M13.1 — Two loose ends (T-139–T-140)</h3>
+  <p><code>deploy/stacks/compose.dev.yaml</code>, <code>compose.prod.yaml</code> and
+  <code>check-stacks.sh</code> all cite <code>test/stacks_test.go</code> as the thing that asserts
+  their invariants. That file does not exist; the assertions live in <code>check-stacks.sh</code>
+  itself, and are registered as <code>TC-001</code>…<code>TC-016</code> in the
+  <a href="../product/qa-test-plan.html#register">QA plan</a>. Either write the file or correct the
+  three references. The second item is a redistribution obligation already named in the BRD's
+  milestone list: vendor the upstream licence texts for the fonts and the charting library beside
+  the assets they cover.</p>
+
+  <h3 id="sub-m13-2">M13.2 — Deploy provenance (T-141)</h3>
+  <p><code>deploy/STACKS.md</code> lists it under its own known gaps: both stacks build from this
+  working tree, so production tracks whatever happens to be checked out rather than a tag. The
+  <code>--allow-dirty</code> refusal on prod narrows the blast radius and does not close it.</p>
+
+  <h2 id="whats-excluded">What this page deliberately leaves out</h2>
+  <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-9</code> are
+  business rulings, decided and logged as
+  <a href="../product/decision-log.html#commercial-decisions">D-026</a>…<a href="../product/decision-log.html#d-031">D-031</a>
+  and <a href="../product/decision-log.html#d-035">D-035</a>; they constrain what gets built without
+  themselves being buildable. The two that are still open are questions, not tasks:
+  <code>K-6</code>'s rate-card numbers wait on
+  <a href="../product/open-questions.html#oq-21">OQ-21</a>, and <code>K-10</code>'s submodule
+  boundary on <a href="../product/open-questions.html#oq-19">OQ-19</a>. The
+  <a href="../product/faq.html#commercial">FAQ</a> is where those live.</p>
+  <p>Two more omissions, both intentional. <code>J-7</code> — tenant self-service signup and billing
+  — is withdrawn by <a href="../product/decision-log.html#d-032">D-032</a> and struck rather than
+  deleted in the BRD, so it appears in neither the register nor M10.
+  <code>L-1</code> and <code>L-10</code> are answered by
+  <a href="../product/decision-log.html#d-034">D-034</a> as statements of posture — residency is the
+  operator's own machines, and support engagements get no standing access — and need documentation
+  rather than code, so M11 starts at <code>L-2</code>.</p>
+  <p>Finally, this page tracks work, not risk. The twelve-entry risk register and the nine
+  unvalidated assumptions stay in
+  <a href="../product/brd.html#risks-and-assumptions">BRD §11</a>, where <code>R-02</code> and
+  <code>R-10</code> can be argued about without a task ID implying someone has agreed to fix
+  them.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

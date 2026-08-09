@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-053`; the
-   next free number is `TC-054`.** If a case is retired, strike the row and say
+   IDs are sequential and never reused. **The highest in use is `TC-108`; the
+   next free number is `TC-109`.** If a case is retired, strike the row and say
    why — do not delete it and do not renumber anything after it.
 
 2. **The scenario prose** — an `h3` under `<h2 id="implemented">` for anything
@@ -43,32 +43,39 @@ every check identical are exempt.
      and a check with no stated failure mode has not been thought through.
    - **Quote the exact `ok` / `FAIL` string the script prints.** The page says
      every message is quoted rather than paraphrased. Read the script and copy
-     it; do not reconstruct it from memory.
+     it; do not reconstruct it from memory. For a Go test the equivalent is its
+     `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "fifty-three", so
-   `grep -rn "fifty-three" pustaka/` finds every one:
+   changing all four or none. They are currently all "one hundred and eight", so
+   `grep -rn "one hundred and eight" pustaka/` finds every one:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All fifty-three cases…")
+   - the register intro on the same page ("All one hundred and eight cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file
+
+   Do **not** change the "fifty-three" in `pustaka/docs/changelog.html` — that is
+   the v0.3.0 release note, and it records what was true at that release.
 
 4. **Release hygiene**, if the change is user-visible: add to
    `pustaka/docs/changelog.html` and bump `product.semver` in
    `pustaka/docs/assets/toc.js`. Those two are one change — the changelog page
    says so itself.
 
-### Known gap, worth closing when you next touch it
+### The register now covers everything, so keep it that way
 
-The register today covers `deploy/` and the three BRD acceptance tests. The Go
-unit tests — 33 in `dashboard/`, plus `pustaka/` — have **no `TC-` rows at all**.
-When you touch a Go test, add its case rather than reproducing the omission.
+`TC-001`…`TC-053` are `deploy/` and the three BRD acceptance tests.
+`TC-054`…`TC-086` are the 33 `dashboard/` unit tests and `TC-087`…`TC-108` the 22
+`pustaka/` ones — **one row per `func Test…`**, because that is the unit
+`go test -run` can select. Adding a test means adding its row and its `h3`; the
+gap that used to be here is closed and must not reopen.
 
 ### Before you call it done
 
 ```bash
 cd pustaka && go run . check ./docs   # structure + registry consistency
 cd dashboard && go test ./...
+cd ../pustaka && go test ./...
 ```
 
 `check` will catch a broken link or an unregistered page. It will **not** catch a
