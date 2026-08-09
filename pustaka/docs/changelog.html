@@ -36,6 +36,39 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-6-0">v0.6.0 <time datetime="2026-08-09">2026-08-09</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The BRD said what GAOS must
+      do; this release says what is left to write, and where. Every requirement is now mapped against
+      the committed code, and the QA register stops pretending the Go tests do not exist.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a <a href="delivery/implementation-plan.html">Delivery</a>
+        group, with the <a href="delivery/implementation-plan.html">implementation plan</a> in it</b> —
+        every business requirement in the <a href="product/brd.html">BRD</a> mapped against the code
+        that is actually committed, cut into fourteen modules and fifty-seven sub-modules. One
+        hundred and forty-one tasks in a filterable register, each flagged ✅ running today, 🟡
+        standing on fixtures, or ❌ not started, and each naming the file the work lands in. The
+        honest total: eleven done, and ten of those are the operator surface.</li>
+        <li><span class="chg add">Added</span> <b>the ten-step build order as a
+        <a href="delivery/implementation-plan.html#sequencing">sequencing table</a></b>, mapping
+        <a href="product/decision-log.html#policy-decisions">D-018</a>'s prescribed order onto the
+        modules — plus the two prerequisites that are business rules rather than preferences:
+        <a href="product/brd.html#rules-commercial">BR-32</a> puts the egress pass before the first
+        real model call, and <a href="product/brd.html#rules-commercial">BR-35</a> puts the budget
+        guard before the first run in API mode.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/qa-test-plan.html#register">TC-054
+        … TC-108</a></b> — the fifty-five Go unit tests that have run since v0.1.0 and were in the
+        register nowhere: thirty-three in <code>dashboard/</code> and twenty-two in
+        <code>pustaka/</code>, one row per <code>func Test…</code>, grouped into sixteen scenario
+        blocks that quote the exact assertion message each test fails with. Twenty-three positive,
+        thirty-two negative.</li>
+        <li><span class="chg change">Changed</span> The QA plan's four counts move from fifty-three
+        to one hundred and eight, and its <em>implemented</em> section now covers the two Go
+        packages alongside <code>check-stacks.sh</code> and <code>rebuild-restart.sh</code>. The
+        v0.3.0 note below still says fifty-three, because that is what was true then.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-5-0">v0.5.0 <time datetime="2026-08-08">2026-08-08</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS is licensed and can be
       published. Execution stops being CLI-or-API and becomes CLI-and-API behind one switch, and the
