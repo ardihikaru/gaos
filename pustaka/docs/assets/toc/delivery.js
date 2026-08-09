@@ -1,0 +1,56 @@
+/* ToC part — group "Delivery".
+   Loaded by assets/toc.js (parts list). Keep this file under 200 lines.
+   Entries MUST keep the key order: id, file, title, desc, tags, sections. */
+window.DOCS.nav.push({
+  group: "Delivery",
+  pages: [
+    {
+      id: "implementation-plan",
+      file: "delivery/implementation-plan.html",
+      title: "Implementation plan",
+      desc: "Every BRD requirement mapped against the code that is actually committed, cut into fourteen modules and fifty-seven sub-modules — one hundred and forty-one tasks, eleven done, fifteen standing on fixtures, one hundred and fifteen not started.",
+      tags: ["implementation", "roadmap", "tasks", "gap-analysis", "modules", "build-order", "brd", "delivery", "backlog"],
+      sections: [
+        { anchor: "how-to-read-this", title: "How to read this",
+          text: "Why the BRD's four statuses are the wrong vocabulary for a Monday morning, and what the three flags mean: done and pointable at a file, standing on fixtures or the simulator, and not started. Eleven tasks are done and ten of them are the operator surface." },
+        { anchor: "scoreboard", title: "Scoreboard",
+          text: "Fourteen modules and fifty-seven sub-modules with their done, partial and not-started counts, and the first open task in each — the thing to pick up if you open that module today." },
+        { anchor: "sequencing", title: "Sequencing",
+          text: "The ten prescribed build-order steps from D-018 mapped to modules, why D-019 already inverted them once and the rest must not be reordered, and the three modules that sit outside the spine — the budget guard before the first API run, the egress pass before the first byte leaves, and the proofs after the event store." },
+        { anchor: "register", title: "The register",
+          text: "All one hundred and forty-one tasks in one filterable table: id, sub-module, task, the requirement or business rule it satisfies, and status. Filter by module, by domain, by status, or by any word in a task." },
+        { anchor: "m0-foundations", title: "M0 — Foundations",
+          text: "Schema and DDL, the store_arcade.go seam that was declared and never written, an event store that is currently a 160-entry ring of full floor snapshots rather than a fold, the thirteen catalog names declared pass 2 and never emitted, and the task state machine." },
+        { anchor: "m1-product-master", title: "M1 — Product master & knowledge ingestion",
+          text: "Domain A. The record structs exist and nothing is written: Inject() emits the event, reports a projection and performs no write. Repository indexing is untouched; the back office is done." },
+        { anchor: "m2-readiness", title: "M2 — Readiness gating",
+          text: "Domain B. The twelve-signal hundred-point rubric against the seven booleans that ship today, the four autonomy bands and the refusal below 45, the drift penalty capped at 25, and ReadinessDropped." },
+        { anchor: "m3-planning", title: "M3 — Planning",
+          text: "Domain C. PlanWorkflow is pure but produces a fixed shape; the wizard is done and never asks for a gate policy. Atomicity as a rejection, and capability-then-risk-then-cost routing." },
+        { anchor: "m4-execution", title: "M4 — Execution",
+          text: "Domain D, the largest module. The scheduler as a pure function, detached runners with leases and heartbeats, TaskRun per attempt with the frozen context slice, the two interchangeable adapters, the task packet and the handoff-document validator, the cost basis, and deleting sim.go." },
+        { anchor: "m5-review", title: "M5 — Review, scoring & retry",
+          text: "Domain E, which has no requirement IDs. The weighted score whose weights already exist over simulated inputs, the safety veto, the five score bands, the failure signature, the six guards of which one runs, and a reason code on every termination." },
+        { anchor: "m6-gates", title: "M6 — Gates & approvals",
+          text: "Domain F. Gate policy per workflow, a gated task unmergeable through the API, approvals as vertices — and F-6, the BRD's only Not built: the back-office cookie is checked and the password never is." },
+        { anchor: "m7-memory", title: "M7 — Memory & learning",
+          text: "Domain G. Knowledge written back on completion, ADRs with supersession, meetings as records rather than a scripted overlay, recall by tag and reuse count, and contradiction detection." },
+        { anchor: "m8-replay", title: "M8 — Replay & audit",
+          text: "Domain H. The timeline is done and the mechanism under it is not: replay reads stored snapshots through a replayAt field — exactly the flag BR-20 forbids — and three of the four scopes do not exist." },
+        { anchor: "m9-operator-surface", title: "M9 — Operator surface",
+          text: "Domain I, the only module that is mostly done. The five views and the prohibition that the UI invents no state, plus what the surface still owes: the five blocking reasons, the SSE broker the emit() seam was cut for, and asset fingerprinting." },
+        { anchor: "m10-tenancy", title: "M10 — Tenancy, capacity & cost control",
+          text: "Domain J. Database-per-tenant and a gateway boundary against the hardcoded loop-eng string, quota profiles rather than billing tiers, per-type retention, and the three-zone budget guard with pacing and deferral." },
+        { anchor: "m11-data-protection", title: "M11 — Data protection, egress & residency",
+          text: "Domain L. The egress inventory as a release obligation, provider data-handling profiles, the pre-dispatch pass that must refuse rather than report, no-egress mode, deletion with a certificate, and the statement template." },
+        { anchor: "m12-non-functional", title: "M12 — Non-functional proofs",
+          text: "The six properties of §8.13 as tests that cannot be written until the module each depends on exists: auditability, recoverability, determinism, isolation, explicability and termination." },
+        { anchor: "m13-hygiene", title: "M13 — Repository hygiene",
+          text: "Three small real items: test/stacks_test.go is cited by both compose files and check-stacks.sh and does not exist, the upstream font and charting licences are not vendored, and both stacks build from the working tree rather than a tag." },
+        { anchor: "whats-excluded", title: "What this page deliberately leaves out",
+          text: "Domain K is business rulings rather than buildable work and lives in the FAQ and the decision log; J-7 is withdrawn by D-032; L-1 and L-10 are answered by D-034 as posture; and the risk register stays in BRD §11 so a risk is not mistaken for a commitment." }
+      ]
+    }
+    /* pustaka:insert — `pustaka new` adds entries above this marker */
+  ]
+});

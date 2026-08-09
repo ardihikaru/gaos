@@ -15,16 +15,16 @@
   <p class="eyebrow">Product</p>
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
-  tests and how often — and enumerates every test scenario that follows from it: fifty-three cases,
-  positive and negative, for the two automations that actually run today, plus the three business
-  acceptance tests <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever
-  executed.</p>
+  tests and how often — and enumerates every test scenario that follows from it:
+  one hundred and eight cases, positive and negative, across the two deploy automations and the two
+  Go test packages that actually run today, plus the three business acceptance tests
+  <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever executed.</p>
 
   <div class="page-meta"
-       data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation"
-       data-hashtags="qa, testing, deploy, oq-13"
+       data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
+       data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-08"
+       data-updated="2026-08-09"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -64,8 +64,9 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All fifty-three cases in one filterable table. Filter by automation, kind, or any word in a
-  scenario.</p>
+  <p>All one hundred and eight cases in one filterable table. Filter by automation, kind, or any
+  word in a scenario — <code>go test</code> narrows it to the unit tests,
+  <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -129,14 +130,70 @@
       <tr data-tags="acceptance test fold genesis snapshot replay negative"><td>TC-051</td><td>Fold test</td><td>Negative</td><td>The two folds diverge</td><td>Not implemented</td></tr>
       <tr data-tags="acceptance test second run knowledge accumulation positive"><td>TC-052</td><td>Second run</td><td>Positive</td><td>Second run needs fewer retries and less intervention than the first</td><td>Not implemented</td></tr>
       <tr data-tags="acceptance test second run knowledge accumulation negative"><td>TC-053</td><td>Second run</td><td>Negative</td><td>Second run needs the same or more retries/intervention</td><td>Not implemented</td></tr>
+      <tr data-tags="go test unit dashboard routes http status smoke positive"><td>TC-054</td><td>dashboard (go test)</td><td>Positive</td><td>Every documented route answers its expected status across 33 method/path cases, and an unknown product id is a 404 (<code>TestEveryRouteAnswers</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard template render silent failure negative"><td>TC-055</td><td>dashboard (go test)</td><td>Negative</td><td>A template that fails to execute must not leave a 200 and half a page on the wire (<code>TestNoTemplateErrorEscapesAsSuccess</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard template css style zgotmplz negative"><td>TC-056</td><td>dashboard (go test)</td><td>Negative</td><td>No surface carrying a computed style emits the literal <code>ZgotmplZ</code> (<code>TestNoZgotmplZ</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard proxy prefix base href forged header negative"><td>TC-057</td><td>dashboard (go test)</td><td>Negative</td><td>A forged or malformed <code>X-Forwarded-Prefix</code> is refused rather than sanitised into a plausible <code>&lt;base href&gt;</code> (<code>TestBaseHrefFollowsForwardedPrefix</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard healthz database unconfigured positive"><td>TC-058</td><td>dashboard (go test)</td><td>Positive</td><td>An unconfigured database keeps <code>/healthz</code> a 200 with <code>store: memory</code> (<code>TestHealthUnconfiguredIsHealthy</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard healthz database unreachable 503 negative"><td>TC-059</td><td>dashboard (go test)</td><td>Negative</td><td>A configured but unreachable ArcadeDB makes <code>/healthz</code> a 503 reporting <code>database: unreachable</code> (<code>TestHealthUnreachableDatabaseIs503</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth back office session 401 negative"><td>TC-060</td><td>dashboard (go test)</td><td>Negative</td><td>Every one of the nine back-office routes refuses an unauthenticated caller with a 401 (<code>TestBackOfficeRoutesRequireASession</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth login email validation 422 negative"><td>TC-061</td><td>dashboard (go test)</td><td>Negative</td><td>A login that is not an email address is a 422 and the message reaches the form (<code>TestLoginRejectsANonEmail</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth cookie tenant non-ascii round trip positive"><td>TC-062</td><td>dashboard (go test)</td><td>Positive</td><td>The tenant label survives a cookie round trip despite the middle dot net/http would drop silently (<code>TestTenantCookieSurvivesNonASCII</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard gate approve rejection negative"><td>TC-063</td><td>dashboard (go test)</td><td>Negative</td><td>Approving a desk that carries no gate is refused (<code>TestApproveRequiresAGate</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard retry guard max-retry-count exhausted negative"><td>TC-064</td><td>dashboard (go test)</td><td>Negative</td><td>Three retries succeed and the fourth is refused with a reason naming the guard (<code>TestRetryGuardExhausts</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard cancel desk idle release positive"><td>TC-065</td><td>dashboard (go test)</td><td>Positive</td><td>Cancelling a task returns the desk to idle with no agents assigned (<code>TestCancelReleasesTheDesk</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard snapshot aliasing clone replay negative"><td>TC-066</td><td>dashboard (go test)</td><td>Negative</td><td>A caller mutating a returned snapshot cannot change the live floor (<code>TestSnapshotsDoNotAliasTheLiveFloor</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard event cap replay cursor out of range negative"><td>TC-067</td><td>dashboard (go test)</td><td>Negative</td><td>The stream stays capped, replay to the oldest retained event works, and replaying past the end is a not-found rather than a silent clamp (<code>TestEventsAreCappedAndTheReplayCursorFollows</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard replay read-only frozen floor negative"><td>TC-068</td><td>dashboard (go test)</td><td>Negative</td><td>A ticking simulation does not advance a floor an operator is replaying (<code>TestReplayFreezesTheFloor</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard simulation tick events spend positive"><td>TC-069</td><td>dashboard (go test)</td><td>Positive</td><td>Forty ticks emit events and accumulate spend (<code>TestSimulationActuallyMoves</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard pause clock frozen negative"><td>TC-070</td><td>dashboard (go test)</td><td>Negative</td><td>A paused floor does not advance its clock over thirty ticks (<code>TestPausedFloorDoesNotTick</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard projection vertices coverage arithmetic positive"><td>TC-071</td><td>dashboard (go test)</td><td>Positive</td><td>A seeded record projects to the expected vertex count and reports 75% story coverage (<code>TestProjectionAndCoverage</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness thin record honesty negative"><td>TC-072</td><td>dashboard (go test)</td><td>Negative</td><td>A record with no stories and no diagrams does not report full readiness (<code>TestReadinessIsHonestAboutAnEmptyRecord</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard story validation empty role negative"><td>TC-073</td><td>dashboard (go test)</td><td>Negative</td><td>A story with no role is refused (<code>TestAddStoryRejectsAnEmptyOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard master clone deep aliasing negative"><td>TC-074</td><td>dashboard (go test)</td><td>Negative</td><td>A caller mutating a returned <code>Master</code> cannot change the store (<code>TestMasterCloneIsDeep</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner dag dependencies acyclic gate tier positive"><td>TC-075</td><td>dashboard (go test)</td><td>Positive</td><td>A plan has eight tasks starting planner then architect, every dependency points earlier in the plan, and the gated task is last, devops, on the top model tier (<code>TestPlanShapeAndDependencies</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner empty record stage template positive"><td>TC-076</td><td>dashboard (go test)</td><td>Positive</td><td>A record with no stories still produces the six-task stage template (<code>TestPlanWithoutStoriesStillProducesOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard workflow create coverage moves positive"><td>TC-077</td><td>dashboard (go test)</td><td>Positive</td><td>Planning a story that had no tasks raises the record's coverage (<code>TestCreateWorkflowMovesCoverage</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard workflow create objective required negative"><td>TC-078</td><td>dashboard (go test)</td><td>Negative</td><td>A workflow with no objective is refused (<code>TestCreateWorkflowNeedsAnObjective</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard wizard draft hidden fields round trip positive"><td>TC-079</td><td>dashboard (go test)</td><td>Positive</td><td>The wizard draft survives the hop to step 3 through hidden form fields (<code>TestWizardDraftRoundTrips</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard wizard step validation 422 toast negative"><td>TC-080</td><td>dashboard (go test)</td><td>Negative</td><td>Advancing without picking a product is a 422 and the refusal reaches the operator as a toast (<code>TestWizardRefusesToAdvanceWithoutAProduct</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard wizard back never validated positive"><td>TC-081</td><td>dashboard (go test)</td><td>Positive</td><td>Going back a step is never blocked by the field you went back to fix (<code>TestWizardBackIsNeverValidated</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard sequence renderer svg arrows positive"><td>TC-082</td><td>dashboard (go test)</td><td>Positive</td><td>A two-line sequence source renders participants, the message and a return arrow into SVG (<code>TestRenderSequence</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard sequence renderer fallback text negative"><td>TC-083</td><td>dashboard (go test)</td><td>Negative</td><td>A source with no arrow falls back to preformatted text instead of a broken diagram (<code>TestRenderSequenceFallsBackToText</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard sequence renderer escaping svg injection negative"><td>TC-084</td><td>dashboard (go test)</td><td>Negative</td><td>Markup in a sequence source cannot reach the hand-built SVG unescaped (<code>TestRenderSequenceEscapes</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard helper splitlines blanks trimmed positive"><td>TC-085</td><td>dashboard (go test)</td><td>Positive</td><td><code>splitLines</code> drops blank lines and trims surrounding space (<code>TestSplitLinesDropsBlanks</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard helper slug kebab case positive"><td>TC-086</td><td>dashboard (go test)</td><td>Positive</td><td><code>slug</code> lowercases, collapses runs of space and replaces a slash with a hyphen (<code>TestSlug</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka check page-meta metadata validation negative"><td>TC-087</td><td>pustaka (go test)</td><td>Negative</td><td>Four malformed <code>.page-meta</code> variants each fail <code>check</code>, and three valid ones pass (<code>TestCheckPageMetadata</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka check semver version bound wildcard negative"><td>TC-088</td><td>pustaka (go test)</td><td>Negative</td><td>A numeric component after a wildcard is rejected as a version bound (<code>TestVersionBound</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka identity product name route prefix positive"><td>TC-089</td><td>pustaka (go test)</td><td>Positive</td><td>The engine's own identity constants are unchanged: <code>pustaka</code> and <code>/__pustaka</code> (<code>TestPustakaIdentity</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth config env fail fast negative"><td>TC-090</td><td>pustaka (go test)</td><td>Negative</td><td>Every malformed auth environment variable fails fast at boot rather than picking a side (<code>TestLoadAuthConfig</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth session token tamper expiry rotation negative"><td>TC-091</td><td>pustaka (go test)</td><td>Negative</td><td>Seven malformed tokens, an expired one, another secret and a rotated password all fail to verify (<code>TestSessionToken</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth credentials constant comparison negative"><td>TC-092</td><td>pustaka (go test)</td><td>Negative</td><td>Five near-miss credential pairs are all refused (<code>TestAuthCreds</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth open redirect next parameter negative"><td>TC-093</td><td>pustaka (go test)</td><td>Negative</td><td>Eleven hostile <code>next</code> values — protocol-relative, absolute, javascript:, CRLF, NUL, oversized — all reduce to <code>/</code> (<code>TestSafeNext</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth allowlist gated assets traversal negative"><td>TC-094</td><td>pustaka (go test)</td><td>Negative</td><td>Twenty-nine gating cases: what redirects, what 401s, what stays public, and that neither traversal nor a template path rides the allowlist (<code>TestAuthMiddlewareMatrix</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth public home escape hatch positive"><td>TC-095</td><td>pustaka (go test)</td><td>Positive</td><td><code>PUSTAKA_AUTH_PUBLIC_HOME=1</code> reproduces the pre-gating allowlist exactly (<code>TestAuthPublicHomeMode</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth login page home link sentinel positive"><td>TC-096</td><td>pustaka (go test)</td><td>Positive</td><td>Gated mode hides the login page's back link, and both the shipped and embedded templates still carry the sentinel (<code>TestLoginPageHomeLink</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth info payload anonymous leak negative"><td>TC-097</td><td>pustaka (go test)</td><td>Negative</td><td>An anonymous caller of <code>/__pustaka/info</code> does not learn the record count (<code>TestAuthInfoPayload</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka auth disabled passthrough positive"><td>TC-098</td><td>pustaka (go test)</td><td>Positive</td><td>With auth off every page serves, the login route does not exist, and <code>/info</code> grows no auth key (<code>TestAuthDisabledPassthrough</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka login handlers form json origin logout positive"><td>TC-099</td><td>pustaka (go test)</td><td>Positive</td><td>Eleven login-handler behaviours: form and JSON success, hostile next, bad credentials, cross-site origin, logout and lockout (<code>TestLoginHandlers</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka throttle lockout per address expiry negative"><td>TC-100</td><td>pustaka (go test)</td><td>Negative</td><td>Three failures lock an address for a minute, the lock is per address, it expires, and reset clears it (<code>TestThrottleLockout</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka throttle sweep unbounded map negative"><td>TC-101</td><td>pustaka (go test)</td><td>Negative</td><td>The throttle map is swept rather than growing without bound (<code>TestThrottleSweep</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka login page escaping fallback template negative"><td>TC-102</td><td>pustaka (go test)</td><td>Negative</td><td>Every login-page placeholder is escaped, and a docs root with no <code>_login.html</code> falls back to the embedded page (<code>TestLoginPageFallbackAndEscaping</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka site metadata registry precedence positive"><td>TC-103</td><td>pustaka (go test)</td><td>Positive</td><td><code>site.name</code> wins over <code>product.name</code>, and a missing registry falls back to the engine's own identity (<code>TestSiteMeta</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka check underscore prefix invisible positive"><td>TC-104</td><td>pustaka (go test)</td><td>Positive</td><td>A deliberately invalid <code>_login.html</code> does not make <code>check</code> fail (<code>TestCheckIgnoresLoginPage</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka gzip ordering denial not framed negative"><td>TC-105</td><td>pustaka (go test)</td><td>Negative</td><td>A denial is not gzip-framed, while an allowed page still is (<code>TestAuthGzipOrdering</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka site prefix forged forwarded header negative"><td>TC-106</td><td>pustaka (go test)</td><td>Negative</td><td>Six malformed <code>X-Forwarded-Prefix</code> values are ignored and four valid ones honoured (<code>TestSitePrefix</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka trim site prefix segment boundary positive"><td>TC-107</td><td>pustaka (go test)</td><td>Positive</td><td><code>trimSitePrefix</code> strips only on a segment boundary and leaves an already site-relative path alone (<code>TestTrimSitePrefix</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka prefix strip login redirect docs positive"><td>TC-108</td><td>pustaka (go test)</td><td>Positive</td><td>Behind <code>/docs</code> every login redirect, asset base, form action and logout target carries the prefix exactly once (<code>TestAuthBehindPrefixStrip</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
 
   <h2 id="implemented">Test scenarios — implemented automations</h2>
-  <p>Everything below runs today, in <code>deploy/check-stacks.sh</code> and
-  <code>deploy/rebuild-restart.sh</code>. Every expected message is quoted from the script that
-  produces it, not paraphrased.</p>
+  <p>Everything below runs today, in <code>deploy/check-stacks.sh</code>,
+  <code>deploy/rebuild-restart.sh</code> and the two Go test packages,
+  <code>dashboard/</code> and <code>pustaka/</code>. Every expected message is quoted from the
+  script or the test that produces it, not paraphrased.</p>
 
   <h3 id="cs-tenancy">check-stacks.sh — tier network &amp; database isolation (TC-001, TC-002)</h3>
   <p>The script's own header names this the expensive check: a dev stack pointed at the production
@@ -302,6 +359,252 @@
   within 15 seconds → <code>vok</code>. <strong>TC-047, negative:</strong> the public path is down —
   edge nginx misconfigured, an expired certificate, the WireGuard tunnel down — → curl times out or
   returns a non-JSON body → <code>vbad "public healthz did not report ok:true"</code>.</p>
+
+  <p>The rest of this section is the two Go test packages. They differ from the shell automations in
+  one way worth stating: a shell check prints <code>ok</code> or <code>FAIL</code> and keeps going,
+  while a Go test fails with a message written for whoever has to fix it. Those messages are what is
+  quoted below — copied from <code>dashboard/main_test.go</code> and
+  <code>pustaka/main_test.go</code>, not reconstructed. One <code>TC-</code> per
+  <code>func Test…</code>, because that is the unit <code>go test -run</code> can actually
+  select; several of them are table-driven and carry both a positive and a negative half, and where
+  that happens both halves are described.</p>
+
+  <h3 id="go-routes">dashboard — routes and rendering (TC-054, TC-055, TC-056, TC-057)</h3>
+  <p>The file's own header explains why these exist: a dashboard has almost no assertions of its
+  own, so a wrong template renders a page that looks fine. <strong>Positive (TC-054):</strong>
+  <code>TestEveryRouteAnswers</code> walks 33 method/path cases with a back-office cookie — the
+  floor fragments, the documented surface, the back office, the wizard — and the negative half of the
+  same table asks for <code>GET /products/nope</code> and requires a 404; a mismatch prints
+  <code>%s %s = %d, want %d</code> followed by <code>body: %s</code>.
+  <strong>Negative (TC-055):</strong> four surfaces are fetched and the body must not contain
+  <code>template error</code> — <code>%s rendered a template error</code>.
+  <strong>Negative (TC-056):</strong> the style-attribute trap.
+  <code>html/template</code> refuses to interpolate a plain string into a <code>style=""</code>
+  context and substitutes the literal <code>ZgotmplZ</code>; the page still renders and has silently
+  lost every colour, width and role tint, so seven surfaces are checked and the failure is
+  <code>%s emitted ZgotmplZ -- a computed style lost its template.CSS type</code>.
+  <strong>Negative (TC-057):</strong> <code>X-Forwarded-Prefix</code> is attacker-controlled on an
+  unproxied request and its value lands in browser-visible output. Three valid values must produce
+  <code>&lt;base href="/app/"&gt;</code> or <code>&lt;base href="/"&gt;</code>; eight hostile ones —
+  <code>https://evil.example</code>, <code>//evil.example</code>, a bare <code>app</code>, a
+  backslash, a quote, a newline, and a 200-character path — must each be <em>refused</em> back to
+  <code>&lt;base href="/"&gt;</code> rather than sanitised into something plausible, or
+  <code>prefix %q: want %s</code>.</p>
+
+  <h3 id="go-health">dashboard — health (TC-058, TC-059)</h3>
+  <p><strong>Positive (TC-058):</strong> with no database configured, <code>/healthz</code> parses as
+  JSON, <code>ok</code> is true and <code>store</code> is <code>memory</code> — that is the local
+  stack, and the failure says so: <code>an unconfigured database must stay a 200: that is the local
+  stack</code>. <strong>Negative (TC-059):</strong> pointing <code>Arcade</code> at
+  <code>http://127.0.0.1:1</code> reproduces the failure the deploy check exists to catch — wrong
+  network name, wrong alias, wrong password — and must give a 503:
+  <code>status = %d, want 503</code>, then <code>database = %v, want unreachable</code>.</p>
+
+  <h3 id="go-auth-boundary">dashboard — the auth boundary (TC-060, TC-061, TC-062)</h3>
+  <p>The check behind this boundary is a placeholder (see
+  <a href="../delivery/implementation-plan.html#sub-m6-4">M6.4</a>); its <em>shape</em> is not, and
+  that is what these pin. <strong>Negative (TC-060):</strong> the test walks all nine guarded routes
+  rather than sampling them, because a route that quietly never had a check is exactly what it
+  exists to find — <code>%s %s = %d, want 401</code>. <strong>Negative (TC-061):</strong> a login
+  value that is not an email is a 422 carrying <code>Enter the email</code>, or
+  <code>status = %d, want 422</code> and <code>the error message did not reach the form</code>.
+  <strong>Positive (TC-062):</strong> the tenant label contains a middle dot, and
+  <code>net/http</code> drops invalid bytes from a cookie value silently, so an unescaped value is a
+  truncated header rather than an error; the cookie must round-trip to
+  <code>loop-eng · a@b.c</code>, or <code>no tenant cookie was set</code> / <code>round-trip =
+  %q</code>.</p>
+
+  <h3 id="go-floor">dashboard — floor mutations and their guards (TC-063, TC-064, TC-065)</h3>
+  <p><strong>Negative (TC-063):</strong> <code>approving a desk with no gate must be rejected</code>.
+  <strong>Negative (TC-064):</strong> architecture §06 sets <code>max_retry_count</code> at 3 per
+  task, and the guardrail belongs in the store rather than the UI because the UI is not the only
+  caller it will ever have — three retries succeed, then <code>the fourth retry must be
+  refused</code>, and the error text must contain <code>guard</code> or <code>the refusal must say
+  why: %v</code>. <strong>Positive (TC-065):</strong> cancelling releases the desk, or
+  <code>state=%s agents=%v, want idle with no agents</code>.</p>
+
+  <h3 id="go-store">dashboard — store isolation, the event cap and replay (TC-066…TC-070)</h3>
+  <p><strong>Negative (TC-066):</strong> a snapshot that shares its slices with the live floor is a
+  replay that keeps changing under the operator, so <code>Clone</code> is tested directly rather than
+  through a handler — <code>mutating a snapshot changed the store</code>.
+  <strong>Negative (TC-067):</strong> after twice <code>maxEvents</code> ticks the stream is still
+  capped (<code>%d events retained, cap is %d</code>), replay to the oldest retained event succeeds
+  (<code>replay to the oldest retained event: %v</code>), and replaying past the end must fail:
+  <code>replaying past the end must be a not-found, not a silent clamp</code>.
+  <strong>Negative (TC-068):</strong> twenty ticks while an operator is replaying must not move the
+  floor — <code>the floor advanced while an operator was replaying it</code>.
+  <strong>Positive (TC-069):</strong> forty ticks must produce events and spend, or
+  <code>40 ticks emitted no events</code> and <code>40 ticks cost nothing</code>.
+  <strong>Negative (TC-070):</strong> <code>a paused floor advanced its clock</code>.</p>
+
+  <h3 id="go-master">dashboard — the master record (TC-071…TC-074)</h3>
+  <p><strong>Positive (TC-071):</strong> the seeded record projects to
+  <code>1 + 7 + 4 + 10 + 2 + 2 + 2</code> vertices and three of its four stories carry a task, so
+  <code>coverage = %d, want 75</code>. <strong>Negative (TC-072):</strong> the complete record meets
+  all seven readiness items and the thin one must not — <code>p-1 is a complete record: %d of
+  7</code> and <code>p-5 has no stories and no diagrams; readiness must say so</code>.
+  <strong>Negative (TC-073):</strong> <code>a story with no role must be refused</code>.
+  <strong>Negative (TC-074):</strong> <code>mutating a returned Master changed the store</code>.</p>
+
+  <h3 id="go-planning">dashboard — planning and the wizard (TC-075…TC-081)</h3>
+  <p><strong>Positive (TC-075):</strong> a plan is eight tasks — planner, architect, backend and QA
+  twice, security, devops. It must start <code>planner</code> then <code>architect</code> (<code>a
+  plan always starts planner then architect</code>); every <code>DEPENDS_ON</code> must point at a
+  task earlier in the plan, which is the acyclicity invariant from the ArcadeDB model §11
+  (<code>%s depends on %s, which is not earlier in the plan</code>); and the last task must be the
+  gated devops one running the top tier (<code>the gated task is the last one, and it is
+  devops</code>, then <code>a gated task runs on the top tier, got %s</code> against
+  <code>claude-opus-5</code>). <strong>Positive (TC-076):</strong> a record with no stories still
+  follows the six-task stage template — <code>an empty record follows the stage template: %d
+  tasks</code>. <strong>Positive (TC-077):</strong> planning a story that had no tasks must raise
+  coverage: <code>US-04 had no tasks; planning it must raise coverage (%d -&gt; %d)</code>.
+  <strong>Negative (TC-078):</strong> <code>a workflow with no objective must be refused</code>.
+  <strong>Positive (TC-079):</strong> the wizard's draft round-trips through hidden form fields, and
+  if that breaks, step 3 silently plans against the wrong product — the body must still carry
+  <code>name="product" value="p-1"</code> and both story ids, or <code>the draft lost %s</code>.
+  <strong>Negative (TC-080):</strong> advancing without a product is <code>status = %d, want
+  422</code> and the body must carry <code>Pick the product</code>, or <code>the refusal must reach
+  the operator as a toast</code>. <strong>Positive (TC-081):</strong> going back must never be
+  blocked by the field you went back to fix — <code>going back was blocked: %d</code>.</p>
+
+  <h3 id="go-render">dashboard — the sequence renderer and the helpers (TC-082…TC-086)</h3>
+  <p><code>dashboard/seq.go</code> builds SVG by hand, so every value that reaches it must be escaped
+  by hand too — it is the one place in the codebase where <code>html/template</code> is not doing
+  that work. <strong>Positive (TC-082):</strong> a two-line source renders
+  <code>&lt;svg class="seq"</code>, both participants, the message text and
+  <code>class="arrow ret"</code> for the dashed return, or <code>missing %q in</code> plus the SVG.
+  <strong>Negative (TC-083):</strong> a source with no arrow falls back to
+  <code>&lt;pre&gt;</code> — <code>a source with no arrow is shown as text, got %q</code>.
+  <strong>Negative (TC-084):</strong> a source containing <code>&lt;script&gt;</code> in both the
+  participant and the message must not reach the output unescaped:
+  <code>unescaped markup reached the SVG:</code>. <strong>Positive (TC-085):</strong>
+  <code>splitLines</code> drops blanks and trims — <code>got %q</code>.
+  <strong>Positive (TC-086):</strong> <code>slug(%q) = %q, want %q</code>, over
+  <code>Route Planner</code>, a double-spaced string and <code>Ops/Warehouse</code>.</p>
+
+  <h3 id="pk-check">pustaka — the docs checker (TC-087, TC-088, TC-104)</h3>
+  <p>This is the checker every page on this site is validated by, including this one.
+  <strong>Negative (TC-087):</strong> seven sub-cases run <code>check</code> over a generated fixture
+  and compare the failure count — <code>check() = %d, want %d</code>. Three must pass: omitted
+  metadata, a bounded version range, an open one. Four must fail with exactly one problem:
+  <code>updated before published</code>, <code>bad hashtag</code> (<code>Not Valid</code>, which is
+  neither lowercase nor kebab-case), <code>reversed version</code>
+  (<code>1.0.0</code>&nbsp;→&nbsp;<code>0.9.x</code>) and <code>duplicate item</code>
+  (<code>guide, Guide</code>, caught case-insensitively).
+  <strong>Negative (TC-088):</strong> <code>0.6.0 must not be after 0.8.x</code>, and a numeric
+  component after a wildcard is rejected — <code>numeric component after wildcard must fail</code>.
+  <strong>Positive (TC-104):</strong> the whole auth design leans on
+  <em>underscore-prefixed files are invisible to the engine</em>, so a deliberately invalid
+  <code>_login.html</code> — no doctype, no <code>data-page</code>, no <code>main</code>, not
+  registered — must still leave <code>check() = %d, want 0 — _login.html must stay invisible to the
+  checker</code> at zero.</p>
+
+  <h3 id="pk-identity">pustaka — engine identity and site metadata (TC-089, TC-103)</h3>
+  <p><strong>Positive (TC-089):</strong> <code>productName = %q, want pustaka</code> and
+  <code>internalRoutePrefix = %q, want /__pustaka</code> — the two constants every route and every
+  authored page depends on. <strong>Positive (TC-103):</strong> one repository documents one product,
+  and the header must show the <em>site's</em> name rather than the product's:
+  <code>name = %q, want Fixture Docs (product.name must not win)</code>, then
+  <code>version = %q, want v9.9.9</code>; with no registry at all it falls back to the engine's own
+  identity.</p>
+
+  <h3 id="pk-auth-config">pustaka — configuration and session tokens (TC-090, TC-091, TC-092)</h3>
+  <p><strong>Negative (TC-090):</strong> every malformed environment must fail at boot rather than at
+  the first request. Unset is <code>unset PUSTAKA_AUTH = (%v, %v), want (nil, nil)</code>;
+  <code>PUSTAKA_AUTH=false must disable the feature</code>; a missing user or password gives
+  <code>enabled without %s must fail fast</code>; then <code>a malformed TTL must fail fast</code>,
+  <code>a negative TTL must fail fast</code>, <code>an unknown SECURE mode must fail fast</code> and
+  <code>an unknown PUBLIC_HOME value must fail fast, not pick a side</code>. The defaults are pinned
+  too: a generated secret is 32 bytes, the TTL is 12 hours, and <code>the docs home must be gated by
+  default</code>. <strong>Negative (TC-091):</strong> a fresh token verifies; an expired one must
+  not; seven malformed shapes — empty, no dot, tampered body, tampered signature, truncated
+  signature, oversized, trailing garbage — each give <code>%s must not verify</code>; and both
+  <code>a token signed with another secret must not verify</code> and <code>changing the password
+  must invalidate existing sessions</code>, which is what the credential fingerprint is for.
+  <strong>Negative (TC-092):</strong> the configured pair authenticates and five near misses —
+  wrong password, wrong user, both empty, a trailing space, an upper-cased user — give
+  <code>creds(%q, %q) must fail</code>.</p>
+
+  <h3 id="pk-redirect">pustaka — what is gated, and what a denial looks like (TC-093, TC-094, TC-097, TC-105)</h3>
+  <p><strong>Negative (TC-093):</strong> sixteen <code>next</code> values through
+  <code>safeNext(%q) = %q, want %q</code>. Same-site paths, queries and fragments survive;
+  <code>//evil.com</code>, <code>/\evil.com</code>, an absolute URL, <code>javascript:</code>, a
+  relative path, a CRLF header injection, an embedded NUL, the login and logout routes themselves,
+  and a 600-character path all reduce to <code>/</code>.
+  <strong>Negative (TC-094):</strong> twenty-nine cases decide what redirects, what 401s and what
+  stays public — <code>%s %s = %d, want %d</code>. The home and <code>index.html</code> are gated;
+  <code>site.js</code>, <code>toc.js</code>, the ToC parts and the vendored chart library are 401 to
+  an XHR; the stylesheets, webfonts and the <code>sw.js</code> killswitch stay public; a POST is
+  never redirected; <code>curl</code> gets JSON where a browser gets a 302; and neither
+  <code>/assets/fonts/../../guide/x.html</code> nor <code>/assets/../guide/x.html</code> may ride the
+  allowlist. Every denial also asserts <code>a denial must not be cacheable, got %q</code>.
+  <strong>Negative (TC-097):</strong> an anonymous call to <code>/__pustaka/info</code> must not leak
+  the size of the site — <code>an anonymous caller must not learn the record count</code> — while an
+  authenticated one gets the full payload.
+  <strong>Negative (TC-105):</strong> ordering matters, because a gzip wrapper placed outside the
+  auth middleware frames the redirect itself: <code>a denial must not be gzip-framed, got %q</code>,
+  and <code>an allowed page should still be compressed, got %q</code>.</p>
+
+  <h3 id="pk-modes">pustaka — public-home mode and auth off (TC-095, TC-096, TC-098)</h3>
+  <p><strong>Positive (TC-095):</strong> <code>PUSTAKA_AUTH_PUBLIC_HOME=1</code> is the escape hatch
+  and must reproduce the allowlist exactly as it was before the home was gated — the home and all of
+  <code>assets/</code> answer 200, a guarded page and <code>_login.html</code> still 302, logout goes
+  somewhere the visitor can actually see (<code>logout Location = %q, want %q</code>), and
+  <code>the back link should be visible in public-home mode: %q</code>.
+  <strong>Positive (TC-096):</strong> in the default gated mode the same link must be hidden —
+  <code>gated mode must hide the back link, got %q</code> — and both the shipped
+  <code>docs/_login.html</code> and the embedded fallback must still carry the sentinel, or
+  <code>%s no longer carries {{HOME_HIDDEN}}</code> and <code>renderLogin</code> silently stops
+  hiding anything. <strong>Positive (TC-098):</strong> with auth off nothing changes for the reader —
+  <code>with auth off, %s = %d, want 200</code> — the login route does not exist at all
+  (<code>with auth off the login route must not exist, got %d</code>), and
+  <code>with auth off /info must not grow an auth key</code>.</p>
+
+  <h3 id="pk-login">pustaka — the login handlers (TC-099, TC-102)</h3>
+  <p><strong>Positive (TC-099):</strong> eleven sub-cases. The page renders with no
+  <code>{{</code> left behind (<code>placeholders were left unsubstituted</code>) and
+  <code>the login page must not be cached</code>; a signed-in visitor is forwarded instead of shown
+  the form; form and JSON logins both succeed and the cookie carries
+  <code>Path=/</code>, <code>HttpOnly</code>, <code>SameSite=Lax</code> and <code>Max-Age=</code>, or
+  <code>Set-Cookie %q is missing %q</code>; a hostile <code>next</code> is reduced to <code>/</code>;
+  bad credentials are a 401 carrying <code>Incorrect username or password</code>, and
+  <code>a failed login must not set a session cookie</code>; the JSON form reports
+  <code>attemptsLeft</code>; a cross-site <code>Origin</code> is a 403 while a same-site one is
+  accepted; <code>GET</code> on logout is a 405 and <code>logout must expire the cookie, got %q</code>;
+  and past the attempt limit the answer is 429 with <code>a lockout must tell the client how long to
+  wait</code>. <strong>Negative (TC-102):</strong> a docs root with no <code>_login.html</code> must
+  fall back to the embedded page, the on-disk one wins when present, and every placeholder is
+  escaped — <code>the error message must be HTML-escaped</code>, <code>next must not break out of its
+  attribute</code>, and <code>the retry countdown should reach the page</code>.</p>
+
+  <h3 id="pk-throttle">pustaka — the login throttle (TC-100, TC-101)</h3>
+  <p><strong>Negative (TC-100):</strong> with a stubbed clock, three failures walk the counter down —
+  <code>first failure left %d, want 2</code>, then <code>second failure left %d, want 1</code>, then
+  <code>third failure = (%d, %v), want (0, 1m)</code>. After that <code>a locked address must not be
+  allowed</code>, <code>the lockout must be per address</code>, sixty-one seconds later <code>the
+  lockout must expire</code>, and <code>reset must clear the record</code>.
+  <strong>Negative (TC-101):</strong> the throttle map is the one piece of per-IP state the server
+  holds, so it is swept rather than left to grow: after a sweep interval of failures and ten
+  minutes, <code>sweep left %d entries, want 1 — the map must not grow without bound</code>.</p>
+
+  <h3 id="pk-prefix">pustaka — behind a prefix strip (TC-106, TC-107, TC-108)</h3>
+  <p>The docs sit behind a <code>/docs</code> strip, and every URL the server hands back has to carry
+  that prefix or it lands on the landing page, which is a different service entirely.
+  <strong>Negative (TC-106):</strong> ten header values through <code>sitePrefix(%q) = %q, want
+  %q</code> — <code>/docs</code> and <code>/a/b</code> are honoured, while a protocol-relative value,
+  a missing leading slash, a folded backslash, a CRLF injection and a 180-character path are all
+  ignored. <strong>Positive (TC-107):</strong> <code>trimSitePrefix(%q, %q) = %q, want %q</code>
+  strips only on a segment boundary, so <code>/docsy/x.html</code> is left alone and an already
+  site-relative path is not stripped twice. <strong>Positive (TC-108):</strong> six behaviours behind
+  the strip: a guarded page bounces to <code>/docs/__pustaka/auth/login?next=%2Fguide%2Fx.html</code>
+  (<code>Location = %q, want the prefixed login URL with a site-relative next</code>); the login
+  page's own <code>href="/docs/assets/site.css"</code> and form action are prefixed
+  (<code>login page is missing %s</code>); a <code>next</code> that already carries the prefix is not
+  doubled (<code>the prefix was applied twice to next</code>); the gated home
+  (<code>home Location = %q, want the prefixed login URL</code>) and logout
+  (<code>logout Location = %q, want the prefixed login page</code>) are prefixed too; and with no
+  proxy in front, nothing changes — <code>unproxied Location = %q, want the unprefixed login
+  URL</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p>The three tests <a href="brd.html#evaluation-method">BRD §4.1</a> names as the only honest proof
