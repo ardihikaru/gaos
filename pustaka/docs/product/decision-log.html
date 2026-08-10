@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Thirty-seven entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Thirty-eight entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, or git history — and a destination for every question the open register
   resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-08-08"
+       data-updated="2026-08-10"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -220,7 +220,8 @@
   <h2 id="commercial-decisions">Commercial model</h2>
   <p>Six decisions taken together on 2026-08-08, answering the first block of the open register.
   They are one decision in six parts: GAOS is given away, and what is sold is the work of making it
-  run and the optional parts nobody needs in order to run it.</p>
+  run and the optional parts nobody needs in order to run it. A seventh, D-038, followed two days
+  later and named the first of those optional parts.</p>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
     <tbody>
@@ -299,6 +300,31 @@
         everyone.</td>
         <td>Product owner ruling; derived from D-026;
         <a href="brd.html#risk-register">BRD §11.2 R-09</a></td>
+      </tr>
+      <tr id="d-038">
+        <td>D-038</td><td>2026-08-10</td>
+        <td>Answers <a href="open-questions.html#oq-19">OQ-19</a>. <strong>The first private
+        commercial submodule is a generation pack, and the boundary rule is manual-free,
+        generation-paid.</strong> The core always accepts, stores, renders and scores
+        manually-authored versions of every artifact in the product master record — the narrative
+        brief, behaviour diagrams and data models (A-4 stays in the core and the readiness rubric is
+        unchanged), user stories, acceptance criteria, test cases and test scenarios. What the
+        submodule sells is the work of producing them: generating diagrams from the narrative
+        record, deriving one diagram from another, and AI generation of user stories, acceptance
+        criteria, test cases and test scenarios. For every item the sentence BR-27 demands is the
+        same sentence: without the submodule, you author it yourself. This overrides §16's
+        recommendation of the compliance and evidence pack, because a generation pack monetizes
+        convenience rather than compliance, and because it holds the boundary by construction — the
+        paid half is defined as automation of something the free half must keep doing manually, so
+        the drift <a href="brd.html#risk-register">R-10</a> warns about has nowhere to go. The
+        compliance and identity packs stay in the matrix as candidates for later submodules. Two
+        constraints carry over unchanged: generation calls run on the operator's own provider
+        account (BR-29), and a generation dispatch passes the pre-dispatch egress check like any
+        other (BR-32). The price is the existing rate-card line — 1,200/year per install, 300/year
+        for a single named researcher or an individual, free for accredited non-commercial academic
+        use — proposed pending <a href="open-questions.html#oq-21">OQ-21</a>.</td>
+        <td>Product owner ruling; <a href="brd.html#business-decision-matrix">BRD §16</a>;
+        <a href="brd.html#rules-commercial">BR-27, BR-28</a></td>
       </tr>
     </tbody>
   </table>
@@ -436,7 +462,7 @@
   <div class="adm warn">
     <p class="adm-title">What is not in this log</p>
     <p>The commercial <em>shape</em> is decided; several of its parameters are not. The rate-card
-    numbers, which capabilities go into a private submodule, how a CLI's token usage is estimated
+    numbers, how a CLI's token usage is estimated
     when it reports none, and which provider CLIs are supported are all live questions — as are the
     authentication approach, the tenancy strategy at scale, and the ArcadeDB target version. They
     are on the <a href="open-questions.html">open questions</a> page, and each one lands here the

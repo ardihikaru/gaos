@@ -23,7 +23,7 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-08-08"
+       data-updated="2026-08-10"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -264,7 +264,7 @@
       <tr><td>Service customer</td><td>A self-hosting operator who also buys installation, a support subscription, or a commercial submodule</td><td>A subset of the above, not a different kind of user. Rate card proposed in <a href="#req-k">§8.11</a>, numbers pending <a href="open-questions.html#oq-21">OQ-21</a></td></tr>
       <tr><td>Tenant administrator</td><td>Manages a tenant's quota profile, budget cap and concurrency limit inside one deployment</td><td>Operator-mediated in the back office, never self-service — <a href="decision-log.html#d-032">D-032</a>. Requirement J-7 withdrawn accordingly</td></tr>
       <tr><td>Contributor</td><td>Forks the repository, files issues, submits changes</td><td>Real once the repository is public. The licence and contribution policy that govern this relationship are <a href="open-questions.html#oq-20">OQ-20</a> — the one part of D-026 with no answer yet</td></tr>
-      <tr><td>Auditor / reviewer of record</td><td>Consumes the replay and the <code>USES_CONTEXT</code> trail to answer "why does this code exist?"</td><td><strong>Not a first-class user</strong> — <a href="decision-log.html#d-028">D-028</a>. The capability stays as an internal explainability and reproducibility feature; the external-auditor package is a candidate submodule, <a href="open-questions.html#oq-19">OQ-19</a></td></tr>
+      <tr><td>Auditor / reviewer of record</td><td>Consumes the replay and the <code>USES_CONTEXT</code> trail to answer "why does this code exist?"</td><td><strong>Not a first-class user</strong> — <a href="decision-log.html#d-028">D-028</a>. The capability stays as an internal explainability and reproducibility feature; the external-auditor package stays a candidate for a later submodule — <a href="decision-log.html#d-038">D-038</a> chose the generation pack first</td></tr>
     </tbody>
   </table>
   <div class="adm note">
@@ -931,8 +931,8 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <h3 id="req-k">8.11 Domain K — Commercial</h3>
   <p>In version 0.1 this domain was an agenda: eight rows saying what had to be decided. On
   2026-08-08 it was decided. The requirements below are what the answers oblige the project to do,
-  and the three rows still marked Open are parameters inside a settled shape rather than the shape
-  itself.</p>
+  and the one row still awaiting confirmation — the rate card — is a parameter inside a settled
+  shape rather than the shape itself.</p>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
@@ -945,7 +945,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>K-7</td><td>The operator always pays the model provider. GAOS never resells tokens, never holds a third party's provider credential, and is never in the billing path</td><td>Removes cost of goods, billing infrastructure, and the possibility of a customer exhausting GAOS's money, in one decision</td><td><strong>Decided</strong> — <a href="decision-log.html#d-030">D-030</a></td></tr>
       <tr><td>K-8</td><td>Support commits to <strong>response times, never uptime</strong>, within stated business hours in one named timezone. Community support is free and public. No paid tier ever gates a bug fix</td><td>GAOS runs on nobody's machines after K-1, so an availability commitment would be a promise about somebody else's hardware</td><td><strong>Decided</strong> — <a href="decision-log.html#d-031">D-031</a></td></tr>
       <tr><td>K-9</td><td>The core repository ships <strong>Apache-2.0</strong> (<code>LICENSE</code>), a DCO-based contribution policy (<code>CONTRIBUTING.md</code>), and a trademark statement reserving the name while the code stays free (<code>NOTICE</code>)</td><td>"Open source" without a licence file is legally nothing, and contributions cannot be accepted into a repository whose terms are unstated</td><td><strong>Decided and shipped</strong> — <a href="decision-log.html#d-035">D-035</a></td></tr>
-      <tr><td>K-10</td><td>The boundary between the open core and any private submodule is published and stable: what each submodule adds, what it costs, and what the core does without it</td><td>An open-core boundary that moves is how these projects lose their communities. Deciding it once, in writing, is cheaper than defending it repeatedly</td><td><strong>Open</strong> — <a href="open-questions.html#oq-19">OQ-19</a></td></tr>
+      <tr><td>K-10</td><td>The boundary between the open core and any private submodule is published and stable: what each submodule adds, what it costs, and what the core does without it</td><td>An open-core boundary that moves is how these projects lose their communities. Deciding it once, in writing, is cheaper than defending it repeatedly</td><td><strong>Decided</strong> — <a href="decision-log.html#d-038">D-038</a>: manual-free, generation-paid, and the first submodule is the generation pack</td></tr>
     </tbody>
   </table>
 
@@ -1230,7 +1230,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>R-07</td><td>The commercial model is decided but untested: no installation has been sold, no support subscription exists, and no submodule has been built or scoped</td><td>The revenue model rests on one person's availability, and a services business scales by hours rather than by copies</td><td>Open by nature rather than by omission. Deliberately cheap to test — O-7 needs one paid install and one renewal, neither of which requires GAOS to run a service</td></tr>
       <tr><td>R-08</td><td>Single model-provider dependency; the role map names Anthropic models exclusively, and <a href="decision-log.html#d-033">D-033</a> now couples execution to that provider's command-line tool as well as its models</td><td>Pricing, availability and policy changes pass straight through to every operator's ability to run anything</td><td>Partly mitigated by design: the model gateway exists as a layer whose stated prohibition is leaking provider shapes upward. No second adapter exists — <a href="open-questions.html#oq-09">OQ-09</a>, <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
       <tr><td>R-09</td><td>No high availability: one ArcadeDB node, one edge machine, one private VM</td><td>A restore that loses minutes loses events</td><td>Accepted, and <em>no longer commercially blocking</em> after <a href="decision-log.html#d-031">D-031</a>: GAOS commits to response times rather than uptime, so availability is each operator's own capacity decision. The data model's second recovery path is the event stream itself. <a href="open-questions.html#oq-16">OQ-16</a> is narrowed to the project's own two tiers</td></tr>
-      <tr><td>R-10</td><td>Open-core boundary erosion: a capability needed by everyone drifts into a paid submodule, or a submodule quietly becomes required</td><td>The failure mode that ends open-core projects. It destroys the trust that is the entire acquisition strategy in K-3</td><td>Guarded structurally: <a href="#rules-commercial">BR-27</a> and <a href="#rules-commercial">BR-28</a> make the boundary a rule with a published scope (<a href="open-questions.html#oq-19">OQ-19</a>), not a judgment call made release by release</td></tr>
+      <tr><td>R-10</td><td>Open-core boundary erosion: a capability needed by everyone drifts into a paid submodule, or a submodule quietly becomes required</td><td>The failure mode that ends open-core projects. It destroys the trust that is the entire acquisition strategy in K-3</td><td>Guarded structurally: <a href="#rules-commercial">BR-27</a> and <a href="#rules-commercial">BR-28</a> make the boundary a rule with a published scope (<a href="decision-log.html#d-038">D-038</a>: the paid half is automation of what the free half must keep doing manually), not a judgment call made release by release</td></tr>
       <tr><td>R-11</td><td>Egress of source code to a model provider is automatic, continuous, and widens on every retry</td><td>The one way GAOS can harm a user badly without any component failing: correct behaviour, unreviewed content, irreversible send</td><td>Open. Domain L is the mitigation and none of it is built. L-4's pre-dispatch check is the load-bearing part — the safety score in domain E is post-hoc and cannot recall a sent slice</td></tr>
       <tr><td>R-12</td><td>Driving an interactive provider CLI from a scheduler may sit outside the terms of the subscription it runs under, and CLI interfaces are neither versioned nor documented for programmatic use</td><td>An operator could have their provider account restricted by using GAOS as designed, and a tool update could break execution with no notice and no deprecation window</td><td>Open, and not solvable in code — but no longer a single point of failure. <a href="decision-log.html#d-036">D-036</a> makes the API adapter a first-class supported mode rather than a hypothetical exit, so an operator who cannot or should not drive a CLI has a switch rather than a fork (<a href="#mode-config">§7.6.1</a>). Remaining mitigations: the operator confirms their own provider terms at configuration time, and supported CLIs are pinned with a boot smoke test that refuses to start on drift (<a href="open-questions.html#oq-23">OQ-23</a>)</td></tr>
     </tbody>
@@ -1287,14 +1287,15 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="decision-log">14. Decision log</h2>
-  <p>Thirty-four decisions are made and traceable — the thesis itself, the stateless orchestrator,
+  <p>Thirty-eight decisions are made and traceable — the thesis itself, the stateless orchestrator,
   business ids in events, one edge type per relationship, the <code>Task</code>/<code>TaskRun</code>
   split, database-per-tenant, the readiness floor of 45, capability-first routing, correctness
   weighted at 0.45, safety as a veto, the build order, the deployment shape, and since 2026-08-08 the
   commercial model, the target customer, the pricing basis, the support model, the CLI-first
-  execution path and the data-handling position. They are maintained as their own page so that
-  answering an open question has an obvious destination.</p>
-  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-034)</a></strong></p>
+  execution path, the data-handling position, the licence, the budget guard and the submodule
+  boundary. They are maintained as their own page so that answering an open question has an obvious
+  destination.</p>
+  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-038)</a></strong></p>
 
   <h2 id="business-milestones">15. Business milestones</h2>
   <p>Real dates only, taken from git history.</p>
@@ -1352,12 +1353,13 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>(B) Gates always on until a tenant opts out</td><td>Safer first impression and a gentler onboarding; weakens the incentive that makes the readiness rubric work at all</td></tr>
       <tr><td rowspan="2">Mission Control's role (<a href="open-questions.html#oq-15">OQ-15</a>)</td><td>(A) The product surface tenants buy</td><td>It is the most finished thing in the repository. Raises the bar on auth, per-tenant theming and accessibility</td></tr>
       <tr><td>(B) An internal operations console</td><td>Keeps the surface cheap and lets the API be the product. Discards the strongest existing demo asset</td></tr>
-      <tr><td rowspan="6">What goes into the first private submodule (<a href="open-questions.html#oq-19">OQ-19</a>)</td><td>(A) Compliance &amp; evidence pack — tamper-evident event chain, evidence-bundle export, retention beyond 90 days, read-only outside credentials</td><td><strong>Recommended first.</strong> It is exactly what <a href="decision-log.html#d-028">D-028</a> just took out of the core, a small company asks for it and a researcher never does, and nothing in it is a safety control, so <a href="#rules-commercial">BR-28</a> is untouched. Costs: a real cryptographic design, and retention obligations that interact with <a href="#req-l">L-7</a></td></tr>
+      <tr><td rowspan="7">What goes into the first private submodule — <strong>decided</strong>, <a href="decision-log.html#d-038">D-038</a></td><td>(A) Compliance &amp; evidence pack — tamper-evident event chain, evidence-bundle export, retention beyond 90 days, read-only outside credentials</td><td><strong>Was the recommendation; passed over by <a href="decision-log.html#d-038">D-038</a> and kept as the leading candidate for a later pack.</strong> It is exactly what <a href="decision-log.html#d-028">D-028</a> just took out of the core, a small company asks for it and a researcher never does, and nothing in it is a safety control, so <a href="#rules-commercial">BR-28</a> is untouched. Costs: a real cryptographic design, and retention obligations that interact with <a href="#req-l">L-7</a></td></tr>
       <tr><td>(B) Identity pack — OIDC/SAML, per-tenant roles, API tokens, login audit</td><td><strong>Recommended second.</strong> Clean split: the core ships local accounts good enough for one operator, and the pack is what a company with an identity provider needs. Risk: authentication is close enough to a safety control that the core's local accounts must be genuinely sufficient, not crippled — this row is the one most likely to erode <a href="#rules-commercial">BR-27</a></td></tr>
       <tr><td>(C) Scale pack — multi-node scheduling and leader election, replication and HA runbooks, cross-tenant analytics</td><td>Honest fit for the boundary, wrong fit for the timing: it sells to an operator who has outgrown a single node, and none exist. Also the most expensive to build and the hardest to support remotely</td></tr>
       <tr><td>(D) Provider pack — extra model adapters, a maintained price table, cost forecasting</td><td>Tempting because it is cheap to build, and the worst choice on principle: it puts cost visibility behind a paywall while the operator is the one paying (<a href="decision-log.html#d-030">D-030</a>), which is <a href="#rules-commercial">BR-28</a>'s spirit if not its letter. A maintained price table as a subscription is defensible; a budget forecast that only paying users can see is not</td></tr>
       <tr><td>(E) Connector pack — issue trackers, forges, notification routing</td><td>Low risk, low differentiation, endless maintenance surface. Better as sponsored custom development at the day rate than as a licensed product</td></tr>
       <tr><td>(F) Nothing — services only, no submodule at all</td><td>The simplest business and the honest default until one customer asks twice for the same thing. Keeps the whole repository trustworthy with zero boundary to defend; caps revenue at the owner's available hours (<a href="#risk-register">R-07</a>)</td></tr>
+      <tr><td><strong>(G) Generation pack — chosen</strong>, under the rule <em>manual-free, generation-paid</em>: diagrams generated from the narrative record, diagrams derived from other diagrams, and AI-generated user stories, acceptance criteria, test cases and test scenarios</td><td>The core keeps accepting, rendering and scoring the manually-authored version of every artifact, so each item passes <a href="#rules-commercial">BR-27</a>'s sentence — without the pack, you author it yourself. It monetizes convenience rather than compliance, and it holds the <a href="#risk-register">R-10</a> boundary by construction: the paid half is automation of what the free half must keep doing manually. Costs: generation calls run on the operator's own account (<a href="#rules-commercial">BR-29</a>) and every generation dispatch passes the pre-dispatch egress check (<a href="#rules-commercial">BR-32</a>)</td></tr>
     </tbody>
   </table>
 
@@ -1427,10 +1429,10 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
 
   <h2 id="open-questions">Consolidated open questions</h2>
   <p>Every open item in this document is indexed on its own page as <code>OQ-01…OQ-23</code> —
-  eleven commercial, three product, six technical, three operational. Nine are answered, including
-  the whole of the first commercial block; the five newest exist <em>because</em> those answers were
-  given, which is what answering a question in this register is supposed to do. Each remaining one
-  carries the options available and the reason it cannot be answered from evidence.</p>
+  eleven commercial, three product, six technical, three operational. Twelve are answered, including
+  the whole commercial block except the rate card; the newest questions exist <em>because</em> those
+  answers were given, which is what answering a question in this register is supposed to do. Each
+  remaining one carries the options available and the reason it cannot be answered from evidence.</p>
   <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-23)</a></strong></p>
 
 </main>
