@@ -15,15 +15,15 @@
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
   <p class="lede">Twenty-three decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Eleven are
-  answered — the entire commercial block, the licence, and the budget guard. Five of the twelve
-  still open exist <em>because</em> those answers were given.</p>
+  the options actually available, the trade-off each one carries, and what it blocks. Twelve are
+  answered — the entire commercial block, the licence, the budget guard, and now the submodule
+  boundary. Three of the eleven still open exist <em>because</em> those answers were given.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-08-08"
+       data-updated="2026-08-10"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -76,7 +76,7 @@
       <tr data-tags="commercial provider byok reseller model cost answered"><td><a href="#oq-06">OQ-06</a></td><td>Commercial</td><td>Who pays the model provider — GAOS resells, or the operator brings its own?</td><td>K-7, budget-cap semantics</td><td>Answered → <a href="decision-log.html#d-030">D-030</a></td></tr>
       <tr data-tags="commercial sla support uptime response-time answered"><td><a href="#oq-07">OQ-07</a></td><td>Commercial</td><td>What service level and support model is being offered?</td><td>K-8, HA requirement</td><td>Answered → <a href="decision-log.html#d-031">D-031</a></td></tr>
       <tr data-tags="commercial residency privacy data-handling egress deletion answered"><td><a href="#oq-14">OQ-14</a></td><td>Commercial</td><td>What are the data residency and tenant data-handling commitments?</td><td>Domain L, provider choice</td><td>Answered → <a href="decision-log.html#d-034">D-034</a></td></tr>
-      <tr data-tags="commercial submodule open-core boundary paid add-on new"><td><a href="#oq-19">OQ-19</a></td><td>Commercial</td><td>Which capabilities go into a private commercial submodule, and which never can?</td><td>K-10, R-10</td><td>Open</td></tr>
+      <tr data-tags="commercial submodule open-core boundary paid add-on generation diagrams new answered"><td><a href="#oq-19">OQ-19</a></td><td>Commercial</td><td>Which capabilities go into a private commercial submodule, and which never can?</td><td>K-10, R-10</td><td>Answered → <a href="decision-log.html#d-038">D-038</a></td></tr>
       <tr data-tags="commercial licence apache agpl contribution cla dco trademark answered"><td><a href="#oq-20">OQ-20</a></td><td>Commercial</td><td>What licence does the core ship under, and what is the contribution and trademark policy?</td><td>K-9 — blocked publishing the repository at all</td><td>Answered → <a href="decision-log.html#d-035">D-035</a></td></tr>
       <tr data-tags="commercial rate-card price confirm invoicing currency tax new"><td><a href="#oq-21">OQ-21</a></td><td>Commercial</td><td>Are the proposed rate-card numbers right, and how is any of it actually invoiced?</td><td>K-6</td><td>Open</td></tr>
       <tr data-tags="product success metrics targets baseline kpi"><td><a href="#oq-08">OQ-08</a></td><td>Product</td><td>What measurable success targets apply, and when can they be set?</td><td>§1.4, §4</td><td>Open</td></tr>
@@ -98,7 +98,8 @@
   <h2 id="oq-commercial">Commercial</h2>
   <p>Eleven questions. The first eight were answered together on 2026-08-08 and are kept here in
   full, because a register that deletes what it resolves teaches nothing. The last three are new,
-  and each one is a direct consequence of an answer above it.</p>
+  each one a direct consequence of an answer above it — and two of those are now answered too,
+  leaving the rate card as the only commercial question still open.</p>
 
   <h3 id="oq-01">OQ-01 · What is GAOS commercially?</h3>
   <p><strong>Why it was open:</strong> the schema declares tenants, plans and budget caps, and the
@@ -245,24 +246,37 @@
   standing access to any customer system.</p>
 
   <h3 id="oq-19">OQ-19 · What goes into a private submodule, and what never can?</h3>
-  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-026">D-026</a> says private
-  submodules exist and says nothing about what is in them. This is the question that decides whether
-  the open core stays trustworthy: the failure mode that ends open-core projects is a boundary that
-  moves, and it moves one reasonable-looking release at a time
+  <p><strong>Why it was open:</strong> <a href="decision-log.html#d-026">D-026</a> said private
+  submodules exist and said nothing about what was in them. This was the question that decided
+  whether the open core stays trustworthy: the failure mode that ends open-core projects is a
+  boundary that moves, and it moves one reasonable-looking release at a time
   (<a href="brd.html#risk-register">R-10</a>).</p>
-  <p>Six candidates, with the recommendation and the reasoning, are laid out in
+  <p>Six candidates, with the recommendation and the reasoning, were laid out in
   <a href="brd.html#business-decision-matrix">BRD §16</a>. In brief: the <strong>compliance and
-  evidence pack</strong> is the strongest first choice, because <a href="#oq-03">OQ-03</a> just
+  evidence pack</strong> was the strongest first choice, because <a href="#oq-03">OQ-03</a> had just
   removed exactly that cluster from the core, a small company asks for it and a researcher never
-  does, and none of it is a safety control. An <strong>identity pack</strong> is the natural second,
+  does, and none of it is a safety control. An <strong>identity pack</strong> was the natural second,
   with the caveat that the core's local accounts must stay genuinely sufficient rather than
-  deliberately weak. A <strong>provider pack</strong> that puts cost visibility behind a paywall is
+  deliberately weak. A <strong>provider pack</strong> that puts cost visibility behind a paywall was
   the option to reject on principle, since the operator is the one paying. And <strong>none of the
-  above</strong> is a legitimate answer: services-only is the simplest business and the honest
+  above</strong> was a legitimate answer: services-only is the simplest business and the honest
   default until a customer asks twice for the same missing thing.</p>
-  <p>What the answer must contain, whichever it is: the list, the price, and — for each item — the
-  sentence describing what the core does without it. Two rules already constrain it,
+  <p>What the answer had to contain, whichever it was: the list, the price, and — for each item —
+  the sentence describing what the core does without it. Two rules already constrained it,
   <a href="brd.html#rules-commercial">BR-27</a> and <a href="brd.html#rules-commercial">BR-28</a>.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-038">D-038</a>: <strong>a generation
+  pack, under the rule manual-free, generation-paid</strong> — a seventh candidate rather than any
+  of the six listed. The core keeps accepting, storing, rendering and scoring manually-authored
+  versions of every artifact in the product master record — the narrative brief, behaviour diagrams
+  and data models, user stories, acceptance criteria, test cases and test scenarios — and the
+  submodule sells the work of producing them: diagrams generated from the narrative record, diagrams
+  derived from other diagrams, and AI-generated stories, criteria, test cases and scenarios. Every
+  item passes the sentence this page demanded: without the submodule, you author it yourself, and
+  the product scores it the same either way. That construction is why it beat the compliance pack
+  for first place — the paid half is automation of something the free half must keep doing manually,
+  so the boundary <a href="brd.html#risk-register">R-10</a> worries about cannot drift. The
+  compliance and identity packs stay on the candidate list for later. The price is the rate card's
+  existing submodule line, still proposed pending <a href="#oq-21">OQ-21</a>.</p>
 
   <h3 id="oq-20">OQ-20 · Licence, contribution policy and trademark</h3>
   <p><strong>Why it was open:</strong> there was no <code>LICENSE</code> file in the repository.
@@ -507,7 +521,7 @@
     <p class="adm-title">Nothing here is rhetorical</p>
     <p>Every question on this page exists because answering it changes what gets built. None of them
     is a placeholder, and none can be resolved by reading the repository more carefully — that has
-    already been done, and the absence is the finding. The eleven that are answered stayed on the
+    already been done, and the absence is the finding. The twelve that are answered stayed on the
     page for the same reason: the options that were rejected are the part that gets forgotten
     first.</p>
   </div>
