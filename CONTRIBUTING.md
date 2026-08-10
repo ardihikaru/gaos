@@ -40,9 +40,12 @@ The rule that governs the boundary is not a preference, it is a requirement:
 > — BRD `BR-27`
 
 So: anything the system needs in order to work belongs here. Optional capability
-that a self-hoster can live without may live in a separate paid component, and
-what those are is still being decided in the open — see `OQ-19` on the open
-questions page.
+that a self-hoster can live without may live in a separate paid component. The
+boundary was decided in the open as `D-038` (see the decision log): the free
+core always accepts, renders and scores manually-authored artifacts — diagrams,
+user stories, acceptance criteria, test cases, test scenarios — and what a paid
+component may sell is the *generation* of those artifacts, never the ability to
+have them.
 
 Two things are settled and worth stating so nobody wastes work on a change that
 will be refused:

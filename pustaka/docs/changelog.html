@@ -36,6 +36,34 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-7-0">v0.7.0 <time datetime="2026-08-10">2026-08-10</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The open-core boundary stops
+      being a question. The first commercial submodule is named, and the rule that keeps the free
+      version honest is written down: manual is free, generation is paid.</p>
+      <ul>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-038">D-038</a></b> — answers
+        <a href="product/open-questions.html#oq-19">OQ-19</a>. The first private commercial
+        submodule is a <b>generation pack</b>: diagrams generated from the narrative record,
+        diagrams derived from other diagrams, and AI-generated user stories, acceptance criteria,
+        test cases and test scenarios. The core keeps accepting, rendering and scoring the
+        manually-authored version of every one of those artifacts, so
+        <a href="product/brd.html#rules-commercial">BR-27</a>'s sentence holds for each item:
+        without the pack, you author it yourself. The compliance and identity packs stay in
+        <a href="product/brd.html#business-decision-matrix">BRD §16</a> as candidates for later.</li>
+        <li><span class="chg change">Changed</span> <b>K-10 is decided</b> — the
+        <a href="product/brd.html#req-k">BRD's commercial domain</a> now has one open parameter
+        left, the rate card (<a href="product/open-questions.html#oq-21">OQ-21</a>). The §16 matrix
+        records the chosen option beside the six it was weighed against, R-10's mitigation points at
+        the published scope, and the <a href="product/faq.html#commercial">FAQ</a> names what the
+        submodule licence actually buys.</li>
+        <li><span class="chg change">Changed</span> <code>CONTRIBUTING.md</code>'s "what belongs in
+        this repository" section states the decided boundary instead of pointing at an open
+        question.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-6-0">v0.6.0 <time datetime="2026-08-09">2026-08-09</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The BRD said what GAOS must
       do; this release says what is left to write, and where. Every requirement is now mapped against

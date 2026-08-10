@@ -22,7 +22,7 @@
        data-tags="faq, commercial, pricing, licensing, self-hosting, support, data-handling"
        data-hashtags="faq, product, pricing, open-source"
        data-published="2026-08-08"
-       data-updated="2026-08-08"
+       data-updated="2026-08-10"
        data-version-from="0.4.0"
        data-version-to=""></div>
 
@@ -94,16 +94,16 @@
 
   <h3 id="q-big-company">What if I am a large enterprise?</h3>
   <p>Nothing stops you, and nothing is aimed at you. There is no SSO, no external-auditor tooling, no
-  certification, no procurement process and no uptime commitment — some of that is deferred
-  (<a href="open-questions.html#oq-19">OQ-19</a>) and some of it, like hosting, is refused on
-  purpose. If your evaluation depends on any of those, GAOS is the wrong product this year.</p>
+  certification, no procurement process and no uptime commitment — some of that is deferred to later
+  submodules (<a href="decision-log.html#d-038">D-038</a>) and some of it, like hosting, is refused
+  on purpose. If your evaluation depends on any of those, GAOS is the wrong product this year.</p>
 
   <h2 id="commercial">What is commercial, then?</h2>
   <p>Three things, none of which is the software you just cloned.</p>
   <table class="tbl">
     <thead><tr><th>What</th><th>What it is</th><th>What it is not</th></tr></thead>
     <tbody>
-      <tr><td><strong>Private submodules</strong></td><td>Optional add-on capability in separate private repositories, licensed per install. Which capabilities is not decided yet — <a href="open-questions.html#oq-19">OQ-19</a> — but the leading candidates are a compliance and evidence pack, and an identity pack for organisations with an existing identity provider</td><td>Not a requirement. Not a paywall around anything the core needs. Not a way to make the free version worse</td></tr>
+      <tr><td><strong>Private submodules</strong></td><td>Optional add-on capability in separate private repositories, licensed per install. The first is a <strong>generation pack</strong> (<a href="decision-log.html#d-038">D-038</a>): it generates diagrams from the narrative record, derives one diagram from another, and drafts user stories, acceptance criteria, test cases and test scenarios with AI. The core accepts, renders and scores all of those when you author them yourself — the pack automates the authoring, never the capability. A compliance and evidence pack and an identity pack remain candidates for later</td><td>Not a requirement. Not a paywall around anything the core needs. Not a way to make the free version worse</td></tr>
       <tr><td><strong>Installation and setup</strong></td><td>Somebody who knows the system stands it up on your infrastructure, wires a model tool, sets the quotas and the budget caps, proves a restore, and hands over a runbook written against your hostnames</td><td>Not a subscription, and not a prerequisite. Everything in it is documented and you can do it yourself</td></tr>
       <tr><td><strong>Support and custom work</strong></td><td>A private channel with a first-response commitment, upgrade help, and a day rate for anything bespoke — connectors, an extra adapter, a migration</td><td>Not a way to get bug fixes other people do not get. Fixes land in the public repository for everyone</td></tr>
     </tbody>
