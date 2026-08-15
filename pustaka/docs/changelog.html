@@ -36,6 +36,81 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-8-0">v0.8.0 <time datetime="2026-08-15">2026-08-15</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Six open questions answered
+      in one block. What success means, what Mission Control is for, whether there is one model
+      provider or several, how tenants are separated, which database version, and what the cost
+      estimator does when it cannot price a model.</p>
+      <ul>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-039">D-039</a></b> — answers
+        <a href="product/open-questions.html#oq-08">OQ-08</a>. <b>Success is conformance, not a
+        business number.</b> GAOS is done when it builds and runs without issue and passes every
+        acceptance criterion and every scenario in the
+        <a href="product/qa-test-plan.html">QA test plan</a> — positive and negative alike, all one
+        hundred and eight cases — plus the three
+        <a href="product/brd.html#evaluation-method">§4.1</a> acceptance tests. Numeric outcome
+        targets stay unset until the second-run measurement has actually been performed once, because
+        a percentage invented against no baseline measures whoever chose it.</li>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-040">D-040</a></b> — answers
+        <a href="product/open-questions.html#oq-15">OQ-15</a>. Mission Control is <b>both</b>: one
+        role-gated surface for operators and internal operations, never a fork. The answer takes the
+        bill the question attached to it — authentication, per-tenant scoping and accessibility
+        become <b>preconditions</b> on further work here, which promotes
+        <a href="product/open-questions.html#oq-11">OQ-11</a> from open question to blocking
+        dependency. Recorded as <a href="product/brd.html#req-i">I-8</a>.</li>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-041">D-041</a></b> — answers
+        <a href="product/open-questions.html#oq-09">OQ-09</a>. <b>Multi-provider behind the model
+        gateway, with CLI mode the MVP's focus.</b> Anthropic is the first adapter rather than the
+        only one; the providers that ship first are those whose command-line tool clears
+        <a href="product/open-questions.html#oq-23">OQ-23</a>'s contract, and API mode remains
+        available for one whose CLI cannot be driven.</li>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-042">D-042</a></b> — answers
+        <a href="product/open-questions.html#oq-10">OQ-10</a>. <b>All three tenancy strategies stay
+        reachable behind one repository interface</b>, and which one a deployment uses becomes
+        configuration. Database per tenant remains the default; <code>tenantId</code> stays declared
+        and indexed under every strategy. This narrows
+        <a href="product/decision-log.html#d-011">D-011</a> rather than reversing it, and pays for
+        the interface up front instead of picking late.</li>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-043">D-043</a></b> — answers
+        <a href="product/open-questions.html#oq-17">OQ-17</a>. The target is <b>ArcadeDB 26.7.2</b>,
+        the version already running, which clears the v26.5.1 floor <code>EXTERNAL</code> properties
+        need. The DDL runs against a scratch database on that version before build-order step 1
+        writes anything, verifying <a href="product/brd.html#req-l">L-7</a>'s independent payload
+        deletion in the same pass.</li>
+        <li><span class="chg add">Added</span>
+        <b><a href="product/decision-log.html#d-044">D-044</a></b> — answers the first half of
+        <a href="product/open-questions.html#oq-22">OQ-22</a>. Token usage is <b>estimated locally
+        and priced from a configured table</b>, and a model the table does not know produces
+        <b>no cost rather than a zero</b>. Zero is the dangerous answer, because it is a figure the
+        budget guard will let through. Where the price table lives and who maintains it is still
+        open, so the question is narrowed rather than closed.</li>
+        <li><span class="chg add">Added</span> Two business rules.
+        <a href="product/brd.html#rules-commercial">BR-36</a> — the escalation ladder is defined in
+        normalised tiers, never vendor model names, because
+        <a href="product/brd.html#rules-scoring">BR-15</a>'s "one tier above" has no cross-vendor
+        meaning otherwise. <a href="product/brd.html#rules-commercial">BR-37</a> — a cost that cannot
+        be priced is reported as unavailable, never as zero.</li>
+        <li><span class="chg change">Changed</span> <b>The BRD moves to baseline 0.4.</b> §1.4's
+        "no measurable business targets exist" warning becomes a decided statement,
+        <a href="product/brd.html#rules-data">BR-26</a> is amended to a configurable tenancy
+        boundary, <a href="product/brd.html#req-i">I-8</a> and a rewritten
+        <a href="product/brd.html#req-j">J-1</a> land, ArcadeDB is pinned in §5.3 and §10.3, R-03 and
+        R-08 get mitigations that are decided rather than proposed, and three rows of the
+        <a href="product/brd.html#business-decision-matrix">§16 matrix</a> flip to decided with their
+        rejected options kept intact.</li>
+        <li><span class="chg change">Changed</span> The
+        <a href="product/qa-test-plan.html">QA test plan</a> is now the project's definition of
+        success rather than only its test register. No case was added, changed or removed — the count
+        stands at one hundred and eight.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-7-0">v0.7.0 <time datetime="2026-08-10">2026-08-10</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The open-core boundary stops
       being a question. The first commercial submodule is named, and the rule that keeps the free

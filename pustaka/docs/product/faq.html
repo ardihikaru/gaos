@@ -22,7 +22,7 @@
        data-tags="faq, commercial, pricing, licensing, self-hosting, support, data-handling"
        data-hashtags="faq, product, pricing, open-source"
        data-published="2026-08-08"
-       data-updated="2026-08-10"
+       data-updated="2026-08-15"
        data-version-from="0.4.0"
        data-version-to=""></div>
 
@@ -183,7 +183,10 @@
   A subscription is a <em>flat fee with imprecise accounting</em>: a busy month costs the same as a
   quiet one, and a runaway loop wastes time rather than money — but most tools report no token usage,
   so GAOS has to estimate, and it labels every figure <code>measured</code> or <code>estimated</code>
-  rather than mixing them (<a href="open-questions.html#oq-22">OQ-22</a>). An API key is
+  rather than mixing them. The estimate is a local token count priced from a configured table, and
+  if your model is not in that table GAOS reports <em>no cost</em> rather than a guess — never a zero
+  (<a href="decision-log.html#d-044">D-044</a>). Who maintains that table is still
+  <a href="open-questions.html#oq-22">OQ-22</a>. An API key is
   <em>metered with exact accounting</em>: every cost is precise and every retry is a real charge, so
   the budget guard below stops being a convenience and becomes the thing standing between a retry
   loop and a bill.</p>
