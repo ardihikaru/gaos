@@ -23,17 +23,17 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-08-10"
+       data-updated="2026-08-15"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
   <table class="tbl">
     <tbody>
       <tr><td><strong>Document</strong></td><td>BRD-GAOS-001</td></tr>
-      <tr><td><strong>Version</strong></td><td>0.3</td></tr>
+      <tr><td><strong>Version</strong></td><td>0.4</td></tr>
       <tr><td><strong>Baseline date</strong></td><td>2026-08-08</td></tr>
       <tr><td><strong>Classification</strong></td><td>Public — the core repository is Apache-2.0 (<a href="#req-k">§8.11 K-9</a>, <code>LICENSE</code>)</td></tr>
-      <tr><td><strong>Status</strong></td><td><strong>Commercial model decided</strong> — open core, self-hosted, with private submodules and paid services (<a href="decision-log.html#d-026">D-026</a>). Domain K is now requirements rather than an agenda; the remaining open items are parameters, not the shape</td></tr>
+      <tr><td><strong>Status</strong></td><td><strong>Commercial model and technical policy decided</strong> — open core, self-hosted, with private submodules and paid services (<a href="decision-log.html#d-026">D-026</a>); success defined as conformance (<a href="decision-log.html#d-039">D-039</a>), Mission Control one role-gated surface (<a href="decision-log.html#d-040">D-040</a>), multi-provider with a CLI-first MVP (<a href="decision-log.html#d-041">D-041</a>), tenancy configurable behind one repository interface (<a href="decision-log.html#d-042">D-042</a>) and ArcadeDB pinned at 26.7.2 (<a href="decision-log.html#d-043">D-043</a>). Six open items remain and all six are parameters, not the shape: the rate card, the autonomy default, the authentication approach, the price table's owner, the supported CLI list, and high availability</td></tr>
       <tr><td><strong>Reviewer</strong></td><td>Product owner (solo project — no review board exists)</td></tr>
       <tr><td><strong>Role</strong></td><td>Living business source of truth for GAOS; the input to code implementation</td></tr>
       <tr><td><strong>Next stage</strong></td><td>Product-owner assessment of the remaining <a href="open-questions.html">open questions</a>, one at a time, until each is resolved into a <a href="decision-log.html">logged decision</a></td></tr>
@@ -43,6 +43,7 @@
   <table class="tbl">
     <thead><tr><th>Version</th><th>Date</th><th>Change</th><th>Author</th></tr></thead>
     <tbody>
+      <tr><td>0.4</td><td>2026-08-15</td><td>Six open questions answered in one block (<a href="decision-log.html#d-039">D-039</a>…<a href="decision-log.html#d-044">D-044</a>): success is conformance to the QA register rather than an invented number, closing the §1.4 gap that had been open since the first baseline; Mission Control is one role-gated surface for both audiences, adding <a href="#req-i">I-8</a> and making authentication a blocking dependency; the model gateway is multi-provider with a CLI-first MVP; tenancy becomes configurable behind one repository interface, amending <a href="#rules-data">BR-26</a> and narrowing <a href="decision-log.html#d-011">D-011</a>; ArcadeDB is pinned at 26.7.2 with the DDL validated before build-order step 1; and cost estimation refuses rather than guesses when a model is unpriced. Two business rules, one domain-I requirement; three §16 matrix rows move from open to decided</td><td>Claude (agent), at the product owner's request</td></tr>
       <tr><td>0.3</td><td>2026-08-08</td><td>Apache-2.0 shipped with a DCO contribution policy and a trademark statement, closing K-9 (<a href="decision-log.html#d-035">D-035</a>); the execution path becomes two interchangeable adapters selected by one master configuration, CLI first (<a href="decision-log.html#d-036">D-036</a>, <a href="#to-be-cli">§7.6</a>); the budget guard specified in full — three zones, pacing, deferral and six tenant properties (<a href="decision-log.html#d-037">D-037</a>, <a href="#budget-guard">§8.10.1</a>). Three business rules, five domain-J requirements, two domain-D requirements; the blocking-reason count goes from four to five</td><td>Claude (agent), at the product owner's request</td></tr>
       <tr><td>0.2</td><td>2026-08-08</td><td>The commercial block answered. Domain K rewritten from an agenda into ten requirements behind <a href="decision-log.html#d-026">D-026</a>…<a href="decision-log.html#d-031">D-031</a>; <a href="#to-be-cli">§7.6</a> added for the CLI-first MVP execution model and its handoff contract (<a href="decision-log.html#d-033">D-033</a>); domain L added for data protection, egress and residency (<a href="decision-log.html#d-034">D-034</a>); six business rules, three risks and one requirement domain added; requirement J-7 withdrawn</td><td>Claude (agent), at the product owner's request</td></tr>
       <tr><td>0.1</td><td>2026-08-08</td><td>Initial baseline. The three documents in <code>artifacts/v1/</code> — system architecture, ArcadeDB data model, Mission Control prototype — restated as business requirements across eleven domains, with a business rule register, a risk register, a scope boundary, and every commercial parameter split out as a numbered open question</td><td>Claude (agent), at the product owner's request</td></tr>
@@ -119,12 +120,22 @@
   needs fewer retries and less human intervention, knowledge is accumulating and the loop closes.
   If it does not, the extraction step is decorative and everything above it is expensive
   theatre.</blockquote>
-  <div class="adm warn">
-    <p class="adm-title">Open — no measurable business targets exist</p>
-    <p>A standard BRD requires numeric success criteria. GAOS has no operational baseline from
-    which to set one: no users, no tenants, no run has ever executed against a real model, and the
-    measurement above has never been performed. Setting numbers here would be fabrication. See
-    <a href="open-questions.html#oq-08">OQ-08</a>.</p>
+  <div class="adm note">
+    <p class="adm-title">Decided — success is conformance, and the targets are binary</p>
+    <p><a href="decision-log.html#d-039">D-039</a> answers
+    <a href="open-questions.html#oq-08">OQ-08</a>. GAOS succeeds when the system as developed builds
+    and runs without issue and passes <strong>every acceptance criterion and every scenario in the
+    <a href="qa-test-plan.html">QA test plan</a> — positive and negative alike, every case in the
+    register</strong> — together with the three acceptance tests in
+    <a href="#evaluation-method">§4.1</a>. That is the target in full, and it is pass/fail on
+    purpose.</p>
+    <p><strong>Numeric outcome targets remain deliberately unset.</strong> The reason has not
+    changed: there is no operational baseline — no users, no tenants, no run has ever executed
+    against a real model, and the measurement above has never been performed — so a percentage
+    written here would measure whoever chose it. Numbers become settable once the second-run
+    measurement has been performed at least once against a real model, which after
+    <a href="decision-log.html#d-026">D-026</a> depends on an operator volunteering it.
+    <a href="decision-log.html#d-025">D-025</a> names who runs the checks meanwhile.</p>
   </div>
 
   <h2 id="business-background">2. Business background</h2>
@@ -219,6 +230,14 @@
   <p>Seven of these eight are deliberately binary rather than numeric. That is not evasion: each is
   an acceptance test the design already specifies, and each either passes or does not. They are
   worth more than an invented percentage.</p>
+  <p><a href="decision-log.html#d-039">D-039</a> makes that stance the answer rather than a
+  placeholder. <strong>Success is conformance</strong>: these eight objectives, the three tests in
+  <a href="#evaluation-method">§4.1</a>, and every positive and negative scenario in the
+  <a href="qa-test-plan.html">QA test plan</a> — every case in the register — pass, or the
+  system is not done. The register is where the criteria are enumerated case by case, which is what
+  makes a binary target measurable rather than vague. Numeric outcome targets remain unset for the
+  reason <a href="#success-definition">§1.4</a> gives, and become settable only after the second-run
+  measurement in O-4 has actually been performed.</p>
 
   <h3 id="evaluation-method">4.1 Evaluation method</h3>
   <p>The design specifies three acceptance tests that double as the evaluation method, and they are
@@ -280,8 +299,8 @@
   <table class="tbl">
     <thead><tr><th>Party</th><th>Role</th><th>Exposure</th></tr></thead>
     <tbody>
-      <tr><td>Model provider — Anthropic today</td><td>Named throughout the prototype's role map. Reached through its <strong>command-line tool</strong> rather than its HTTP API in the MVP (<a href="#to-be-cli">§7.6</a>, <a href="decision-log.html#d-033">D-033</a>)</td><td>Single-provider dependency (<a href="#risk-register">R-08</a>); no credential configured, no call ever made. The relationship is now between the <em>operator</em> and the provider, not GAOS and the provider (<a href="decision-log.html#d-030">D-030</a>) — which removes the resale exposure and adds a terms-of-use one (<a href="#risk-register">R-12</a>). Multi-provider strategy is <a href="open-questions.html#oq-09">OQ-09</a>; which CLIs are supported is <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
-      <tr><td>ArcadeDB</td><td>The graph, document, event and time-series store — the one component the whole model assumes</td><td>Version-coupled: <code>EXTERNAL</code> properties need v26.5.1 or later, and the document warns that constraint and index syntax moves between releases</td></tr>
+      <tr><td>Model providers — Anthropic first, not only</td><td>Anthropic is named throughout the prototype's role map and is the <strong>first adapter</strong>, with the gateway multi-provider by decision (<a href="decision-log.html#d-041">D-041</a>). Reached through a <strong>command-line tool</strong> rather than an HTTP API in the MVP (<a href="#to-be-cli">§7.6</a>, <a href="decision-log.html#d-033">D-033</a>)</td><td>Concentration remains until a second adapter exists (<a href="#risk-register">R-08</a>); no credential configured, no call ever made. The relationship is between the <em>operator</em> and the provider, not GAOS and the provider (<a href="decision-log.html#d-030">D-030</a>) — which removes the resale exposure and adds a terms-of-use one (<a href="#risk-register">R-12</a>). Which CLIs clear the adapter contract, and therefore which providers ship first, is <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
+      <tr><td>ArcadeDB — pinned at 26.7.2</td><td>The graph, document, event and time-series store — the one component the whole model assumes. The target version is fixed at <strong>26.7.2</strong>, the release already running (<a href="decision-log.html#d-043">D-043</a>)</td><td>Version-coupled: <code>EXTERNAL</code> properties need v26.5.1 or later, which 26.7.2 clears, and the document warns that constraint and index syntax moves between releases — so the pin is load-bearing and an upgrade re-runs the DDL validation</td></tr>
       <tr><td>Hosting: <code>clino</code> + private VM</td><td>Public nginx edge (TLS, certbot) and the WireGuard-reached VM that runs every container</td><td>Shared with other products; GAOS holds product slot <strong>03</strong> and tunnel ports <code>18301</code> / <code>19301</code></td></tr>
     </tbody>
   </table>
@@ -556,7 +575,7 @@ providers:
 
 accounting:
   price_table:   config/prices.yaml   <span class="c"># estimation input when reports_usage is false</span>
-  on_unknown_model: refuse            <span class="c"># refuse | estimate-zero — never guess silently</span>
+  on_unknown_model: refuse            <span class="c"># the only permitted value — BR-37. Never zero, never a guess.</span>
 
 egress:                               <span class="c"># domain L applies in BOTH modes, identically</span>
   redact:        [secrets, credentials, env-files]
@@ -571,6 +590,15 @@ egress:                               <span class="c"># domain L applies in BOTH
   (<a href="#rules-commercial">BR-29</a>). And <strong>the egress block is not per-mode</strong>: the
   pre-dispatch check in <a href="#req-l">L-4</a> runs identically whether a subprocess or an HTTP
   request is about to carry the slice out.</p>
+  <p>Two of those blocks are shaped by decisions taken after this file was first written, and
+  neither needs it rewritten. <code>providers</code> is a map with one entry rather than a single
+  provider because <a href="decision-log.html#d-041">D-041</a> makes the gateway multi-provider —
+  a second vendor is a new entry, and its <code>tiers</code> line is where it maps into the gateway's
+  normalised low/mid/top vocabulary rather than exposing its own model names
+  (<a href="#rules-commercial">BR-36</a>). <code>on_unknown_model: refuse</code> is now the only
+  permitted value: <a href="decision-log.html#d-044">D-044</a> and
+  <a href="#rules-commercial">BR-37</a> forbid reporting an unpriceable model as zero, because a
+  zero is a figure the budget guard will let through.</p>
 
   <h3 id="mode-tradeoffs">7.6.2 CLI or API — what each actually costs</h3>
   <p>This is a cost decision before it is a technical one, and the two halves point in opposite
@@ -581,7 +609,7 @@ egress:                               <span class="c"># domain L applies in BOTH
     <thead><tr><th>Dimension</th><th>CLI mode</th><th>API mode</th></tr></thead>
     <tbody>
       <tr><td><strong>What it costs the operator</strong></td><td>A flat subscription. A busy month and a quiet month cost the same, and a runaway loop wastes time rather than money</td><td>Per token, uncapped by the provider. A runaway loop is a bill</td></tr>
-      <tr><td><strong>Cost accounting</strong></td><td>Usually <code>estimated</code> — most tools report nothing. The budget cap is enforced against a derived figure (<a href="open-questions.html#oq-22">OQ-22</a>)</td><td><code>measured</code>, exact, per call. The efficiency dimension of the score becomes trustworthy rather than indicative</td></tr>
+      <tr><td><strong>Cost accounting</strong></td><td>Usually <code>estimated</code> — most tools report nothing, so the count is local and the price comes from a table, and the budget cap is enforced against that derived figure (<a href="decision-log.html#d-044">D-044</a>). An unpriceable model reports no cost rather than zero (<a href="#rules-commercial">BR-37</a>); where the table lives and who maintains it is still <a href="open-questions.html#oq-22">OQ-22</a></td><td><code>measured</code>, exact, per call. The efficiency dimension of the score becomes trustworthy rather than indicative</td></tr>
       <tr><td><strong>How much the budget guard matters</strong></td><td>A pacing instrument. Exceeding it costs throughput, not money</td><td><strong>Load-bearing.</strong> It is the only thing between a retry loop and an unbounded charge — see <a href="#budget-guard">§8.10.1</a></td></tr>
       <tr><td><strong>Credential handling</strong></td><td>Nothing to hold. The tool carries its own session</td><td>A key exists on the host, in the operator's environment. GAOS reads it and never stores, forwards or logs it</td></tr>
       <tr><td><strong>Interface stability</strong></td><td>Poor. Flags, defaults and output formats move between releases with no deprecation window — hence the version pin and the boot smoke test</td><td>Good. Versioned, documented, and designed to be called by a program</td></tr>
@@ -611,7 +639,7 @@ egress:                               <span class="c"># domain L applies in BOTH
   <table class="tbl">
     <thead><tr><th>What an API gives that a CLI does not</th><th>Consequence</th><th>Mitigation, and the requirement it protects</th></tr></thead>
     <tbody>
-      <tr><td>Exact token counts and cost per call</td><td>Budget caps and the efficiency score lose their input</td><td>Every cost carries <code>costBasis</code>: <code>measured</code> when the tool reported it, <code>estimated</code> when derived from a local token count and a configured price table. Measured and estimated figures are never summed without saying so — <a href="decision-log.html#d-032">D-032</a>, and the estimator itself is <a href="open-questions.html#oq-22">OQ-22</a>. Protects J-5, BR-17</td></tr>
+      <tr><td>Exact token counts and cost per call</td><td>Budget caps and the efficiency score lose their input</td><td>Every cost carries <code>costBasis</code>: <code>measured</code> when the tool reported it, <code>estimated</code> when derived from a local token count and a configured price table. Measured and estimated figures are never summed without saying so — <a href="decision-log.html#d-032">D-032</a>. The estimator refuses rather than guessing when the model is not in the table, and the run then reports no cost rather than zero — <a href="decision-log.html#d-044">D-044</a>, <a href="#rules-commercial">BR-37</a>. Protects J-5, BR-17</td></tr>
       <tr><td>A structured response body</td><td>Nothing to parse; the "answer" is a mutated directory</td><td>The mandatory handoff document above. Missing or unparseable is a failed attempt with the signature <code>handoff-missing</code>, which makes it visible to the retry loop instead of silently passing. Protects C-3, E-scoring</td></tr>
       <tr><td>A stable, versioned interface</td><td>Flag names, output format and defaults move between tool releases without notice</td><td>The supported CLI list is pinned per release with a smoke test per tool, and the adapter is the only place allowed to know a tool's flags — <a href="open-questions.html#oq-23">OQ-23</a>. Protects the model gateway's prohibition on leaking provider shapes upward</td></tr>
       <tr><td>Per-request concurrency and rate-limit semantics</td><td><code>maxConcurrentTasks</code> can exceed what one CLI session tolerates</td><td>Concurrency is enforced per provider adapter as well as per tenant, and the lower of the two wins. Protects J-4</td></tr>
@@ -721,7 +749,7 @@ egress:                               <span class="c"># domain L applies in BOTH
       <tr><td>D-8</td><td>The frozen slice is materialised as a <em>task packet</em> of files in the leased workspace, and the packet is what is stored as the attempt's evidence</td><td>D-6 must remain true when there is no request body to record</td><td>Designed</td></tr>
       <tr><td>D-9</td><td>Every invocation must produce a <em>handoff document</em> at a declared path in the declared shape; a missing or unparseable one is a failed attempt with the signature <code>handoff-missing</code></td><td>This is the only path by which one agent's reasoning reaches the next. Treating its absence as success would let a chain silently degrade into agents editing files at each other</td><td>Designed</td></tr>
       <tr><td>D-10</td><td>The handoff document is stored as an <code>Artifact</code> and reaches the next agent only through <code>USES_CONTEXT</code> on that agent's slice</td><td>Keeps the document as transport and the graph as the record — a document passed outside the graph is a state change that never happened (BR-02)</td><td>Designed</td></tr>
-      <tr><td>D-11</td><td>Every recorded cost carries a basis — <code>measured</code> or <code>estimated</code> — and the two are never aggregated without the distinction surviving</td><td>A CLI may report no usage at all; a budget cap computed from silent guesses is not a cap. See <a href="open-questions.html#oq-22">OQ-22</a></td><td>Designed</td></tr>
+      <tr><td>D-11</td><td>Every recorded cost carries a basis — <code>measured</code> or <code>estimated</code> — and the two are never aggregated without the distinction surviving</td><td>A CLI may report no usage at all; a budget cap computed from silent guesses is not a cap. How the estimate is produced, and what happens when it cannot be, is <a href="decision-log.html#d-044">D-044</a></td><td>Designed</td></tr>
       <tr><td>D-12</td><td>The execution mode is one deployment-wide setting in a single configuration file (<a href="#mode-config">§7.6.1</a>), never a per-task choice, and <code>auto</code> falls back between adapters only by emitting an event that says it did</td><td>Two attempts at the same task must stay comparable, or the model-comparison replay scope in H-4 compares the tool rather than the model</td><td>Designed</td></tr>
       <tr><td>D-13</td><td>Each attempt records which adapter ran, as <code>TaskRun.invocation</code>. No component above the adapter may branch on it</td><td>The mode has to be visible in the evidence and invisible in the logic — recording it is what lets the prohibition in <a href="#rules-commercial">BR-33</a> be checked rather than trusted</td><td>Designed</td></tr>
     </tbody>
@@ -832,6 +860,7 @@ efficiency    tokens, latency, retries consumed</pre>
       <tr><td>I-5</td><td>The back office: product master, requirements, stories, diagrams, knowledge, agents, readiness checklist, graph projection, story coverage</td><td>Where the record author works</td><td>Built</td></tr>
       <tr><td>I-6</td><td>The UI never invents state the graph does not have</td><td>A projection that guesses is worse than a blank</td><td>Designed (architectural prohibition)</td></tr>
       <tr><td>I-7</td><td>The five blocking reasons for an idle desk are displayed explicitly, including "deferred — budget window" with the time it resumes</td><td><a href="#to-be-autonomy">§7.4</a> — an unexplained idle floor reads as a broken product, and a budget pause that looks like a hang is the version of that failure an operator will report as a bug</td><td>Designed</td></tr>
+      <tr><td>I-8</td><td><strong>Mission Control is one surface for both audiences — the operator's view and the internal operations view are the same pages with different capabilities granted, separated by role and never by codebase.</strong> Three things are preconditions on any further work here rather than later additions: real authentication, per-tenant scoping so a role sees one tenant's records and not the store, and accessibility. The provider data-handling profile and the egress inventory are displayed here (<a href="#req-l">L-3</a>)</td><td><a href="decision-log.html#d-040">D-040</a>. A second console would fork the only finished thing in the repository, and the fork would drift. Choosing both audiences means the surface is now something external operators sit in front of, which is what turns the three preconditions from aspirations into blockers — <a href="open-questions.html#oq-11">OQ-11</a> becomes a blocking dependency rather than an open question</td><td>Designed — none of the three preconditions is started</td></tr>
     </tbody>
   </table>
 
@@ -839,7 +868,7 @@ efficiency    tokens, latency, retries consumed</pre>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>J-1</td><td>Tenancy is a database boundary first and a property second: one database per tenant is the default recommendation, and <code>tenantId</code> is declared and indexed on every vertex regardless</td><td>A boundary that can be forgotten in a <code>WHERE</code> clause makes one missing filter a data breach rather than a bug</td><td>Designed</td></tr>
+      <tr><td>J-1</td><td><strong>Tenancy is a configurable boundary behind one repository interface.</strong> Database-per-tenant, a shared database with <code>tenantId</code> everywhere, and the hybrid of the two are each an implementation of the same interface; which one a deployment uses is configuration, and <strong>nothing above the repository layer may know which is in use</strong>. Database per tenant remains the recommended default and the shape the DDL is written for, and <code>tenantId</code> is declared and indexed on every vertex under every strategy</td><td>A boundary that can be forgotten in a <code>WHERE</code> clause makes one missing filter a data breach rather than a bug — and after <a href="decision-log.html#d-026">D-026</a> the deployments that need each strategy are all real: a lone researcher's compartments, a small company's client work, and neither is the other. <a href="decision-log.html#d-042">D-042</a> pays for the interface up front rather than picking late, which the data model warns is the expensive outcome</td><td>Designed — the interface does not exist yet, and a strategy that has never been run is a claim rather than a capability</td></tr>
       <tr><td>J-2</td><td>The tenant boundary is enforced at the API gateway and never only further down</td><td>Defence in depth is the difference between a bug and an incident</td><td>Designed</td></tr>
       <tr><td>J-3</td><td>High-volume types are bucket-partitioned by <code>tenantId</code></td><td>One tenant's write burst must not contend with another's; a per-tenant export becomes a bucket-local scan</td><td>Designed</td></tr>
       <tr><td>J-4</td><td><code>Tenant</code> carries <code>plan</code>, <code>maxConcurrentTasks</code> and <code>budgetCapUsd</code>. <code>plan</code> names a <strong>local quota profile, not a billing tier</strong>: <code>solo</code>, <code>standard</code> (the DDL's existing defaults — 8 concurrent, 500 USD) and <code>unmetered</code>, which warns instead of capping and must be chosen deliberately</td><td>Concurrency and spend are the two things a tenant can exhaust, and after <a href="decision-log.html#d-030">D-030</a> the money at stake is the operator's own — <a href="decision-log.html#d-032">D-032</a></td><td>Designed</td></tr>
@@ -1076,7 +1105,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="business-rules">9. Business rules</h2>
-  <p>Thirty-five rules, each one traceable to an artifact section, to committed code, or to a logged
+  <p>Thirty-seven rules, each one traceable to an artifact section, to committed code, or to a logged
   decision. These are the statements a reviewer — human or agent — can score an implementation
   against. They are the reason domain rules are worth 12 points in the readiness rubric.</p>
 
@@ -1130,7 +1159,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-23</td><td><code>USES_CONTEXT</code> hangs off <code>ContextSlice</code>, not <code>Task</code>, because the slice differs per attempt.</td></tr>
       <tr><td>BR-24</td><td>One edge type per relationship. No generic edge with a <code>type</code> property — traversal by edge type is index-free adjacency; filtering a generic edge is a scan of every neighbour.</td></tr>
       <tr><td>BR-25</td><td>Heavy payloads — prompt bodies, diffs, log blobs — are stored <code>EXTERNAL</code> or by reference to object storage, never inline on a vertex the scheduler traverses.</td></tr>
-      <tr><td>BR-26</td><td>Tenancy is a database boundary first and a property second. <code>tenantId</code> is declared and indexed either way.</td></tr>
+      <tr><td>BR-26</td><td>Tenancy is a <strong>configurable</strong> boundary behind one repository interface, and nothing above that layer may know which strategy is in use. Database per tenant is the default; <code>tenantId</code> is declared and indexed under every strategy. <em>(<a href="decision-log.html#d-011">D-011</a>, amended by <a href="decision-log.html#d-042">D-042</a>)</em></td></tr>
     </tbody>
   </table>
 
@@ -1147,6 +1176,8 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-33</td><td>The execution mode may be recorded and never branched on. Every component above the adapter behaves identically whether a subprocess or an HTTP request produced the result. <em>(D-13, <a href="decision-log.html#d-036">D-036</a>)</em></td></tr>
       <tr><td>BR-34</td><td>Deferral is not failure. A task deferred for budget consumes no retry, no escalation and no failure signature, and keeps its place in the graph. <em>(J-12, <a href="decision-log.html#d-037">D-037</a>)</em></td></tr>
       <tr><td>BR-35</td><td>A limit that only warns is not a limit. The budget guard refuses to dispatch at the cap — and never kills a run already in flight, because that forfeits money already spent. <em>(J-9, J-13, <a href="decision-log.html#d-037">D-037</a>)</em></td></tr>
+      <tr><td>BR-36</td><td>The escalation ladder is defined in the gateway's own normalised tiers, never in vendor model names. Every provider maps into those tiers, because "one model tier above" (<a href="#rules-scoring">BR-15</a>) has no meaning across vendors otherwise. <em>(D-7, <a href="decision-log.html#d-041">D-041</a>)</em></td></tr>
+      <tr><td>BR-37</td><td>A cost that cannot be priced is reported as <strong>unavailable, never as zero</strong>. The estimator refuses an unknown model rather than guessing at it, and the refusal is visible to the operator — because after <a href="decision-log.html#d-037">D-037</a> a zero is a figure the budget guard will let through. <em>(D-11, <a href="decision-log.html#d-044">D-044</a>)</em></td></tr>
     </tbody>
   </table>
 
@@ -1186,8 +1217,8 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <table class="tbl">
     <thead><tr><th>Constraint</th><th>Source</th></tr></thead>
     <tbody>
-      <tr><td>ArcadeDB is assumed, not abstracted. The model uses hybrid schema, bucket partitioning, <code>EXTERNAL</code> properties and index-free adjacency — none of which port cleanly.</td><td>Data model §01, §13</td></tr>
-      <tr><td><code>EXTERNAL</code> properties require ArcadeDB v26.5.1 or later; the DDL must be run against the target version in a scratch database first.</td><td>Data model §05, §13</td></tr>
+      <tr><td>ArcadeDB is assumed, not abstracted. The model uses hybrid schema, bucket partitioning, <code>EXTERNAL</code> properties and index-free adjacency — none of which port cleanly. The one seam that <em>is</em> abstracted is tenancy: <a href="decision-log.html#d-042">D-042</a> puts the three strategies behind a repository interface, which is a choice within ArcadeDB rather than a portability layer over it.</td><td>Data model §01, §13; <a href="decision-log.html#d-042">D-042</a></td></tr>
+      <tr><td><strong>The target version is ArcadeDB 26.7.2</strong>, pinned rather than floating (<a href="decision-log.html#d-043">D-043</a>). It clears the v26.5.1 floor that <code>EXTERNAL</code> properties require. The DDL must be run against it in a scratch database before build-order step 1 writes anything, and an upgrade re-runs that validation.</td><td>Data model §05, §13; <a href="decision-log.html#d-043">D-043</a></td></tr>
       <tr><td>One public edge machine with 1 vCPU and 957 MiB, running nginx and certbot and no Docker. Every container runs on the private VM.</td><td><code>deploy/edge/README.md</code></td></tr>
       <tr><td>GAOS shares the private VM with other products. It owns product slot 03 and one tunnel port per tier; nothing but the edge is ever publicly bound.</td><td><code>deploy/STACKS.md</code></td></tr>
       <tr><td>The dashboard is stdlib-only Go with no <code>go.sum</code>; the docs site makes no third-party requests. Both are deliberate and constrain what may be added.</td><td><code>README.md</code>, docs authoring spec</td></tr>
@@ -1223,12 +1254,12 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
     <tbody>
       <tr><td>R-01</td><td>Everything past the operator surface is unbuilt — scheduler, runner, review engine, schema</td><td>The product cannot do the thing it is for</td><td>Accepted and stated openly in the README; the build order exists</td></tr>
       <tr><td>R-02</td><td>No authentication. The back-office login sets a cookie and checks nothing</td><td>Any tenant boundary is currently fictional</td><td>Open, and <em>downgraded</em> by <a href="decision-log.html#d-026">D-026</a>: it no longer blocks domain K, because the boundary now separates colleagues in one deployment rather than paying strangers. It still blocks publishing anything that binds beyond localhost — see <a href="open-questions.html#oq-11">OQ-11</a></td></tr>
-      <tr><td>R-03</td><td>No DDL has ever been applied, and the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td>Open. Mitigation is the document's own advice: apply to a scratch database on the target version first — <a href="open-questions.html#oq-17">OQ-17</a></td></tr>
+      <tr><td>R-03</td><td>No DDL has ever been applied, and the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td>Open, with the mitigation now scheduled rather than proposed: apply the DDL to a scratch database on <strong>26.7.2</strong> before build-order step 1 writes anything, verifying the <code>EXTERNAL</code> deletion behaviour <a href="#req-l">L-7</a> depends on in the same pass — <a href="decision-log.html#d-043">D-043</a>. The risk closes when that run happens, not when the version was chosen</td></tr>
       <tr><td>R-04</td><td>Record rot — the record is filled once and never updated while the codebase moves</td><td>Silent degradation; the planner produces defensible-looking plans from a stale brief</td><td>Designed against: the drift penalty and <code>ReadinessDropped</code>. Untested</td></tr>
       <tr><td>R-05</td><td>Runaway model spend. <code>budget_cap</code> is specified per workflow and per tenant, and implemented nowhere. <a href="decision-log.html#d-030">D-030</a> moves the exposure onto the operator, and <a href="decision-log.html#d-033">D-033</a> makes the figures partly estimated</td><td>Direct, unbounded financial loss the moment a real credential is configured — the user's money now, not the project's</td><td>Open, <em>reframed</em> and now <em>designed</em>. It stopped being a financial risk to GAOS and became a duty-of-care risk to its users, which is worse, because the people exposed did not make the decision. <a href="decision-log.html#d-037">D-037</a> specifies the guard in full — three zones, pacing, deferral, six properties (<a href="#budget-guard">§8.10.1</a>) — and none of it is built. In API mode it is the only thing between a retry loop and an unbounded charge; in CLI mode it costs throughput rather than money</td></tr>
       <tr><td>R-06</td><td>The core bet is unproven — knowledge accumulation reducing retries has never been measured</td><td>If false, GAOS is an expensive scheduler and domain G is decorative</td><td>Open. The measurement is defined; running it is a milestone, not a task. <a href="decision-log.html#d-026">D-026</a> makes it harder to observe, since runs now happen on other people's machines — mitigated only if operators choose to report</td></tr>
       <tr><td>R-07</td><td>The commercial model is decided but untested: no installation has been sold, no support subscription exists, and no submodule has been built or scoped</td><td>The revenue model rests on one person's availability, and a services business scales by hours rather than by copies</td><td>Open by nature rather than by omission. Deliberately cheap to test — O-7 needs one paid install and one renewal, neither of which requires GAOS to run a service</td></tr>
-      <tr><td>R-08</td><td>Single model-provider dependency; the role map names Anthropic models exclusively, and <a href="decision-log.html#d-033">D-033</a> now couples execution to that provider's command-line tool as well as its models</td><td>Pricing, availability and policy changes pass straight through to every operator's ability to run anything</td><td>Partly mitigated by design: the model gateway exists as a layer whose stated prohibition is leaking provider shapes upward. No second adapter exists — <a href="open-questions.html#oq-09">OQ-09</a>, <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
+      <tr><td>R-08</td><td>Single model-provider concentration; the role map names Anthropic models exclusively, and <a href="decision-log.html#d-033">D-033</a> couples execution to that provider's command-line tool as well as its models</td><td>Pricing, availability and policy changes pass straight through to every operator's ability to run anything</td><td>Mitigation decided, not yet built: <a href="decision-log.html#d-041">D-041</a> makes the gateway multi-provider and <a href="#rules-commercial">BR-36</a> forces the escalation ladder into normalised tiers so a second vendor can map into it. <strong>The risk does not fall until a second adapter exists</strong>, and none does — which providers ship first is <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
       <tr><td>R-09</td><td>No high availability: one ArcadeDB node, one edge machine, one private VM</td><td>A restore that loses minutes loses events</td><td>Accepted, and <em>no longer commercially blocking</em> after <a href="decision-log.html#d-031">D-031</a>: GAOS commits to response times rather than uptime, so availability is each operator's own capacity decision. The data model's second recovery path is the event stream itself. <a href="open-questions.html#oq-16">OQ-16</a> is narrowed to the project's own two tiers</td></tr>
       <tr><td>R-10</td><td>Open-core boundary erosion: a capability needed by everyone drifts into a paid submodule, or a submodule quietly becomes required</td><td>The failure mode that ends open-core projects. It destroys the trust that is the entire acquisition strategy in K-3</td><td>Guarded structurally: <a href="#rules-commercial">BR-27</a> and <a href="#rules-commercial">BR-28</a> make the boundary a rule with a published scope (<a href="decision-log.html#d-038">D-038</a>: the paid half is automation of what the free half must keep doing manually), not a judgment call made release by release</td></tr>
       <tr><td>R-11</td><td>Egress of source code to a model provider is automatic, continuous, and widens on every retry</td><td>The one way GAOS can harm a user badly without any component failing: correct behaviour, unreviewed content, irreversible send</td><td>Open. Domain L is the mitigation and none of it is built. L-4's pre-dispatch check is the load-bearing part — the safety score in domain E is post-hoc and cannot recall a sent slice</td></tr>
@@ -1287,15 +1318,17 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="decision-log">14. Decision log</h2>
-  <p>Thirty-eight decisions are made and traceable — the thesis itself, the stateless orchestrator,
+  <p>Forty-four decisions are made and traceable — the thesis itself, the stateless orchestrator,
   business ids in events, one edge type per relationship, the <code>Task</code>/<code>TaskRun</code>
-  split, database-per-tenant, the readiness floor of 45, capability-first routing, correctness
-  weighted at 0.45, safety as a veto, the build order, the deployment shape, and since 2026-08-08 the
-  commercial model, the target customer, the pricing basis, the support model, the CLI-first
-  execution path, the data-handling position, the licence, the budget guard and the submodule
-  boundary. They are maintained as their own page so that answering an open question has an obvious
-  destination.</p>
-  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-038)</a></strong></p>
+  split, database-per-tenant as the default, the readiness floor of 45, capability-first routing,
+  correctness weighted at 0.45, safety as a veto, the build order, the deployment shape, and since
+  2026-08-08 the commercial model, the target customer, the pricing basis, the support model, the
+  CLI-first execution path, the data-handling position, the licence, the budget guard and the
+  submodule boundary. Six more landed on 2026-08-15: what success means, what Mission Control is
+  for, multi-provider behind the gateway, tenancy as a configurable boundary, the ArcadeDB target
+  version, and what the estimator does when it cannot price a model. They are maintained as their
+  own page so that answering an open question has an obvious destination.</p>
+  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-044)</a></strong></p>
 
   <h2 id="business-milestones">15. Business milestones</h2>
   <p>Real dates only, taken from git history.</p>
@@ -1334,9 +1367,9 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <h2 id="business-decision-matrix">16. Business decision matrix</h2>
   <p>Design choices with the options actually available and their trade-offs. These are decisions,
   not questions of fact; the full question register lives on the
-  <a href="open-questions.html">open questions</a> page. The first row is now decided and is kept
-  here with its rejected options intact, because the reasons a path was not taken are the part that
-  gets forgotten.</p>
+  <a href="open-questions.html">open questions</a> page. Five of the six rows are now decided and
+  every one is kept here with its rejected options intact, because the reasons a path was not taken
+  are the part that gets forgotten. The autonomy default is the one still open.</p>
   <table class="tbl">
     <thead><tr><th>Decision</th><th>Option</th><th>Trade-off</th></tr></thead>
     <tbody>
@@ -1344,15 +1377,17 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>(B) Self-hosted licence</td><td>Rejected as the whole answer, kept as a part: private submodules are licensed this way, but the core is not</td></tr>
       <tr><td><strong>(C) Open source, self-hosted — chosen</strong>, with private submodules and paid services instead of a paid hosted tier</td><td>Distribution and credibility for an unproven thesis; nothing to host, so nothing to promise uptime on. Slowest path to revenue, and the design artifacts become public</td></tr>
       <tr><td>(D) Internal platform only</td><td>Rejected. Everything already true, no commercial work at all, and no path to the outside evidence the core bet needs</td></tr>
-      <tr><td rowspan="3">Tenancy strategy at scale (<a href="open-questions.html#oq-10">OQ-10</a>)</td><td>(A) Database per tenant</td><td>The data model's default. Hard isolation, per-tenant backup, noisy-neighbour containment. Costs a connection pool per tenant, N migrations, and a separate pipeline for any cross-tenant analytics</td></tr>
+      <tr><td rowspan="4">Tenancy strategy at scale — <strong>decided</strong>, <a href="decision-log.html#d-042">D-042</a></td><td>(A) Database per tenant</td><td>The data model's default, and it stays the recommended one. Hard isolation, per-tenant backup, noisy-neighbour containment. Costs a connection pool per tenant, N migrations, and a separate pipeline for any cross-tenant analytics</td></tr>
       <tr><td>(B) Shared database, <code>tenantId</code> everywhere</td><td>Many small tenants, one migration, easy reporting. Every query must filter forever, and one missing <code>WHERE</code> is a data breach rather than a bug</td></tr>
       <tr><td>(C) Hybrid — large tenants isolated, small ones pooled</td><td>Two code paths in the repository layer. Only worth it at scale, and there is no scale yet</td></tr>
-      <tr><td rowspan="2">Model provider strategy (<a href="open-questions.html#oq-09">OQ-09</a>)</td><td>(A) Anthropic only</td><td>One adapter, one bill, one set of tier semantics matching the existing role map. Full exposure to one vendor's pricing and availability</td></tr>
-      <tr><td>(B) Multi-provider behind the gateway</td><td>The gateway layer already exists for this reason. Costs a normalised tier abstraction and per-provider cost accounting, and makes the escalation ladder harder to define</td></tr>
+      <tr><td><strong>(D) All three behind one repository interface — chosen</strong>, with the strategy selected per deployment</td><td>None of A, B or C is rejected; the choice moves from architecture to configuration, and nothing above the repository layer may know which is in use. Buys the option to serve a researcher's compartments and a small company's client work from the same codebase. <strong>Costs the interface up front</strong> — which is precisely what <a href="open-questions.html#oq-10">OQ-10</a> warned that picking late would cost — and the abstraction is only honest while each path has actually been run</td></tr>
+      <tr><td rowspan="2">Model provider strategy — <strong>decided</strong>, <a href="decision-log.html#d-041">D-041</a></td><td>(A) Anthropic only</td><td>Rejected as the strategy, kept as the starting point: Anthropic is the first adapter. One adapter, one bill and one set of tier semantics matching the existing role map would have been simpler, at the price of full exposure to one vendor's pricing and availability</td></tr>
+      <tr><td><strong>(B) Multi-provider behind the gateway — chosen</strong>, with CLI mode the MVP's focus</td><td>The gateway layer already exists for this reason. The costs are accepted rather than avoided: a normalised tier abstraction — now <a href="#rules-commercial">BR-36</a>, because <a href="#rules-scoring">BR-15</a>'s "one tier above" is meaningless across vendors otherwise — and per-provider cost accounting. Which providers ship first follows from <a href="open-questions.html#oq-23">OQ-23</a>'s adapter contract, and <a href="decision-log.html#d-036">D-036</a> keeps API mode available for a vendor whose CLI cannot be driven</td></tr>
       <tr><td rowspan="2">Autonomy default (<a href="open-questions.html#oq-12">OQ-12</a>)</td><td>(A) Band-driven, as designed</td><td>Autonomy is earned by record completeness. Coherent, but a team with a thin brief experiences the product as a wall</td></tr>
       <tr><td>(B) Gates always on until a tenant opts out</td><td>Safer first impression and a gentler onboarding; weakens the incentive that makes the readiness rubric work at all</td></tr>
-      <tr><td rowspan="2">Mission Control's role (<a href="open-questions.html#oq-15">OQ-15</a>)</td><td>(A) The product surface tenants buy</td><td>It is the most finished thing in the repository. Raises the bar on auth, per-tenant theming and accessibility</td></tr>
+      <tr><td rowspan="3">Mission Control's role — <strong>decided</strong>, <a href="decision-log.html#d-040">D-040</a></td><td>(A) The product surface tenants buy</td><td>It is the most finished thing in the repository. Raises the bar on auth, per-tenant theming and accessibility. After <a href="decision-log.html#d-026">D-026</a> nobody buys a surface at all, which removed the commercial half of this option's argument</td></tr>
       <tr><td>(B) An internal operations console</td><td>Keeps the surface cheap and lets the API be the product. Discards the strongest existing demo asset</td></tr>
+      <tr><td><strong>(C) Both — one role-gated surface, chosen</strong></td><td>One codebase, two audiences, separated by permission rather than by build; an internal capability an operator does not get is a grant, never a fork. Takes (A)'s bill in full and <strong>accepts it as preconditions rather than aspirations</strong>: authentication (<a href="open-questions.html#oq-11">OQ-11</a>, now a blocking dependency), per-tenant scoping and accessibility come before the next feature added here. The build order is not overridden — the loops beneath still get built first. Recorded as <a href="#req-i">I-8</a>; Domain L's <a href="#req-l">L-3</a> lands here by elimination</td></tr>
       <tr><td rowspan="7">What goes into the first private submodule — <strong>decided</strong>, <a href="decision-log.html#d-038">D-038</a></td><td>(A) Compliance &amp; evidence pack — tamper-evident event chain, evidence-bundle export, retention beyond 90 days, read-only outside credentials</td><td><strong>Was the recommendation; passed over by <a href="decision-log.html#d-038">D-038</a> and kept as the leading candidate for a later pack.</strong> It is exactly what <a href="decision-log.html#d-028">D-028</a> just took out of the core, a small company asks for it and a researcher never does, and nothing in it is a safety control, so <a href="#rules-commercial">BR-28</a> is untouched. Costs: a real cryptographic design, and retention obligations that interact with <a href="#req-l">L-7</a></td></tr>
       <tr><td>(B) Identity pack — OIDC/SAML, per-tenant roles, API tokens, login audit</td><td><strong>Recommended second.</strong> Clean split: the core ships local accounts good enough for one operator, and the pack is what a company with an identity provider needs. Risk: authentication is close enough to a safety control that the core's local accounts must be genuinely sufficient, not crippled — this row is the one most likely to erode <a href="#rules-commercial">BR-27</a></td></tr>
       <tr><td>(C) Scale pack — multi-node scheduling and leader election, replication and HA runbooks, cross-tenant analytics</td><td>Honest fit for the boundary, wrong fit for the timing: it sells to an operator who has outgrown a single node, and none exist. Also the most expensive to build and the hardest to support remotely</td></tr>
@@ -1429,10 +1464,11 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
 
   <h2 id="open-questions">Consolidated open questions</h2>
   <p>Every open item in this document is indexed on its own page as <code>OQ-01…OQ-23</code> —
-  eleven commercial, three product, six technical, three operational. Twelve are answered, including
-  the whole commercial block except the rate card; the newest questions exist <em>because</em> those
-  answers were given, which is what answering a question in this register is supposed to do. Each
-  remaining one carries the options available and the reason it cannot be answered from evidence.</p>
+  eleven commercial, three product, six technical, three operational. Seventeen are answered,
+  including the whole commercial block except the rate card and, since 2026-08-15, the whole product
+  block except the autonomy default; the newest questions exist <em>because</em> those answers were
+  given, which is what answering a question in this register is supposed to do. Each remaining one
+  carries the options available and the reason it cannot be answered from evidence.</p>
   <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-23)</a></strong></p>
 
 </main>

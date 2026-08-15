@@ -23,7 +23,7 @@
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-10"
+       data-updated="2026-08-15"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -292,7 +292,9 @@
   <p>The <a href="../architecture/graph.html">data model</a> already specifies 25 vertex types, 3
   document types and 32 edge types with their indexes and retention. Nothing has been applied to a
   real database, and the model document says itself to verify the dialect before relying on it —
-  the ArcadeDB target version is still <a href="../product/open-questions.html#oq-17">OQ-17</a>.
+  the target is now <strong>ArcadeDB 26.7.2</strong>, pinned by
+  <a href="../product/decision-log.html#d-043">D-043</a>, and the DDL runs against a scratch database
+  on that version before this milestone writes anything.
   Three rules constrain the DDL rather than the code: one edge type per relationship with no
   generic edge (<code>BR-24</code>), heavy payloads stored <code>EXTERNAL</code> so the scheduler
   never traverses them (<code>BR-25</code>), and <code>tenantId</code> declared and indexed whatever
@@ -664,8 +666,11 @@
   <p>One database per tenant is the default recommendation (<code>J-1</code>, <code>BR-26</code>),
   enforced at the API gateway and never only further down (<code>J-2</code>). Today the tenant is a
   cookie label and <code>store_mem.go</code> hardcodes the string <code>loop-eng</code> into the
-  stat strip. The strategy at scale is still <a href="../product/open-questions.html#oq-10">OQ-10</a>,
-  which constrains how far this can go, not whether it starts.</p>
+  stat strip. <a href="../product/decision-log.html#d-042">D-042</a> settles the strategy at scale by
+  refusing to pick one: all three sit behind a repository interface and the choice becomes
+  deployment configuration, so what this milestone owes is <strong>the interface, not a
+  strategy</strong> — with database-per-tenant as the default it implements first, and nothing above
+  the repository layer knowing which is in use.</p>
 
   <h3 id="sub-m10-2">M10.2 — Quota, accounting and retention (T-115–T-118)</h3>
   <p><code>Tenant</code> carries <code>plan</code>, <code>maxConcurrentTasks</code> and

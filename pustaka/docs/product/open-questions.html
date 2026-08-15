@@ -15,15 +15,16 @@
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
   <p class="lede">Twenty-three decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Twelve are
-  answered — the entire commercial block, the licence, the budget guard, and now the submodule
-  boundary. Three of the eleven still open exist <em>because</em> those answers were given.</p>
+  the options actually available, the trade-off each one carries, and what it blocks. Seventeen are
+  answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
+  and now what success means, what Mission Control is, the provider strategy, tenancy and the
+  database version. Three of the six still open exist <em>because</em> those answers were given.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-08-10"
+       data-updated="2026-08-15"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -79,14 +80,14 @@
       <tr data-tags="commercial submodule open-core boundary paid add-on generation diagrams new answered"><td><a href="#oq-19">OQ-19</a></td><td>Commercial</td><td>Which capabilities go into a private commercial submodule, and which never can?</td><td>K-10, R-10</td><td>Answered → <a href="decision-log.html#d-038">D-038</a></td></tr>
       <tr data-tags="commercial licence apache agpl contribution cla dco trademark answered"><td><a href="#oq-20">OQ-20</a></td><td>Commercial</td><td>What licence does the core ship under, and what is the contribution and trademark policy?</td><td>K-9 — blocked publishing the repository at all</td><td>Answered → <a href="decision-log.html#d-035">D-035</a></td></tr>
       <tr data-tags="commercial rate-card price confirm invoicing currency tax new"><td><a href="#oq-21">OQ-21</a></td><td>Commercial</td><td>Are the proposed rate-card numbers right, and how is any of it actually invoiced?</td><td>K-6</td><td>Open</td></tr>
-      <tr data-tags="product success metrics targets baseline kpi"><td><a href="#oq-08">OQ-08</a></td><td>Product</td><td>What measurable success targets apply, and when can they be set?</td><td>§1.4, §4</td><td>Open</td></tr>
+      <tr data-tags="product success metrics targets baseline kpi conformance acceptance qa answered"><td><a href="#oq-08">OQ-08</a></td><td>Product</td><td>What measurable success targets apply, and when can they be set?</td><td>§1.4, §4</td><td>Answered → <a href="decision-log.html#d-039">D-039</a></td></tr>
       <tr data-tags="product autonomy gates onboarding readiness band default"><td><a href="#oq-12">OQ-12</a></td><td>Product</td><td>Is autonomy band-driven by default, or gated until an operator opts out?</td><td>§16, B-2, F-1</td><td>Open</td></tr>
-      <tr data-tags="product mission-control surface ui console"><td><a href="#oq-15">OQ-15</a></td><td>Product</td><td>Is Mission Control the product surface, or an internal operations console?</td><td>§16, domain I roadmap</td><td>Open</td></tr>
-      <tr data-tags="technical provider anthropic multi-provider gateway adapter"><td><a href="#oq-09">OQ-09</a></td><td>Technical</td><td>Anthropic only, or multi-provider behind the model gateway?</td><td>R-08, escalation ladder</td><td>Open</td></tr>
-      <tr data-tags="technical tenancy database isolation shared hybrid"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Open</td></tr>
+      <tr data-tags="product mission-control surface ui console both role-gated answered"><td><a href="#oq-15">OQ-15</a></td><td>Product</td><td>Is Mission Control the product surface, or an internal operations console?</td><td>§16, domain I roadmap</td><td>Answered → <a href="decision-log.html#d-040">D-040</a></td></tr>
+      <tr data-tags="technical provider anthropic multi-provider gateway adapter cli mvp tiers answered"><td><a href="#oq-09">OQ-09</a></td><td>Technical</td><td>Anthropic only, or multi-provider behind the model gateway?</td><td>R-08, escalation ladder</td><td>Answered → <a href="decision-log.html#d-041">D-041</a></td></tr>
+      <tr data-tags="technical tenancy database isolation shared hybrid repository interface configurable answered"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Answered → <a href="decision-log.html#d-042">D-042</a></td></tr>
       <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a></td></tr>
-      <tr data-tags="technical arcadedb version ddl dialect external"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Open</td></tr>
-      <tr data-tags="technical cost estimation tokens price-table basis cli new"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open</td></tr>
+      <tr data-tags="technical arcadedb version ddl dialect external pin 26.7.2 answered"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Answered → <a href="decision-log.html#d-043">D-043</a></td></tr>
+      <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a></td></tr>
       <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Open — narrowed by <a href="decision-log.html#d-036">D-036</a></td></tr>
       <tr data-tags="operations cadence review evaluation acceptance tests answered"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
       <tr data-tags="operations ha availability replication backup single-node narrowed"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required, and for whom?</td><td>R-09</td><td>Open — narrowed by <a href="decision-log.html#d-031">D-031</a></td></tr>
@@ -333,13 +334,26 @@
   <h2 id="oq-product">Product &amp; scope</h2>
 
   <h3 id="oq-08">OQ-08 · What measurable success targets apply?</h3>
-  <p><strong>Why it is open:</strong> a standard BRD requires numeric criteria. GAOS has no baseline
-  — no users, no tenants, no run against a real model, and the one defined measurement has never
-  been performed. The realistic sequencing is: run the second-run measurement once, then set targets
-  against what it produces. Confirming that sequencing <em>is</em> the answer to this question.</p>
-  <p><a href="decision-log.html#d-026">D-026</a> makes it harder, not easier: runs now happen on
+  <p><strong>Why it was open:</strong> a standard BRD requires numeric criteria. GAOS had no
+  baseline — no users, no tenants, no run against a real model, and the one defined measurement had
+  never been performed. The realistic sequencing was: run the second-run measurement once, then set
+  targets against what it produces. Confirming that sequencing <em>was</em> one available answer to
+  this question.</p>
+  <p><a href="decision-log.html#d-026">D-026</a> made it harder, not easier: runs now happen on
   other people's machines, so the measurement depends on operators choosing to report it. Whether to
-  ask them, and how, is part of this question now.</p>
+  ask them, and how, was part of this question too.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-039">D-039</a>: <strong>success is
+  conformance, not a business number.</strong> The target is that the system as developed builds and
+  runs without issue and passes every acceptance criterion and every scenario in the
+  <a href="qa-test-plan.html">QA test plan</a> — positive and negative alike, every case in the
+  register — plus the three <a href="brd.html#evaluation-method">§4.1</a> acceptance tests. It is
+  a pass/fail target on purpose. Numeric outcome targets stay unset, because the sequencing above is
+  still true and a percentage invented against no baseline measures whoever chose it rather than the
+  product. What the answer adds to that sequencing is a decision rather than a wait: the register
+  already enumerates what "working" means, case by case, so there is a real target today and it is
+  not the absence of one. Numbers become settable after the second-run measurement has been
+  performed once against a real model, which after D-026 arrives when an operator volunteers it.
+  <a href="decision-log.html#d-025">D-025</a> names who runs the checks in the meantime.</p>
 
   <h3 id="oq-12">OQ-12 · Band-driven autonomy, or gates on by default?</h3>
   <p><strong>Why it is open:</strong> the design makes autonomy a function of record completeness —
@@ -352,34 +366,57 @@
   it is the product's thesis — but it now needs to explain itself unusually well.</p>
 
   <h3 id="oq-15">OQ-15 · What is Mission Control for?</h3>
-  <p><strong>Why it is open:</strong> it is the most finished thing in the repository — ported,
-  tested, deployed — and the build order says it should have been ninth. If it is the surface
-  operators use, it needs authentication, per-tenant scoping and accessibility work before anything
-  else is added to it. If it is an internal console and the API is the product, it can stay as it is
-  while the loops beneath it get built, which is what the build order implies.</p>
-  <p>Since <a href="decision-log.html#d-026">D-026</a> nobody buys a surface at all, which removes
-  the commercial argument from both sides and leaves the build-order argument standing alone. Domain
-  L adds one concrete requirement to whichever answer wins: the provider data-handling profile and
+  <p><strong>Why it was open:</strong> it is the most finished thing in the repository — ported,
+  tested, deployed — and the build order says it should have been ninth. If it was the surface
+  operators use, it needed authentication, per-tenant scoping and accessibility work before anything
+  else was added to it. If it was an internal console and the API the product, it could stay as it
+  was while the loops beneath it got built, which is what the build order implies.</p>
+  <p>Since <a href="decision-log.html#d-026">D-026</a> nobody buys a surface at all, which removed
+  the commercial argument from both sides and left the build-order argument standing alone. Domain
+  L added one concrete requirement to whichever answer won: the provider data-handling profile and
   the egress inventory have to be visible somewhere, and Mission Control is the only somewhere that
   exists.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-040">D-040</a>: <strong>both — one
+  surface, two audiences, separated by role rather than by codebase.</strong> There is no second
+  console and no fork; an internal capability an operator does not get is a permission, never a
+  build. The answer costs what the question said it would cost, and the cost is accepted rather than
+  deferred: authentication (<a href="#oq-11">OQ-11</a>), per-tenant scoping and accessibility become
+  <strong>preconditions on further Mission Control work</strong>. The build order is not overridden
+  — the loops beneath still get built first — but the next feature added to this surface comes after
+  those three rather than before them. Domain L's requirement lands here by elimination, which is
+  what <a href="brd.html#req-l">L-3</a> already assumed. Recorded as
+  <a href="brd.html#req-i">I-8</a>.</p>
 
   <h2 id="oq-technical">Technical policy</h2>
 
   <h3 id="oq-09">OQ-09 · One model provider, or several?</h3>
-  <p><strong>Why it is open:</strong> the model gateway exists as a layer whose stated prohibition is
-  leaking provider-specific shapes upward — the design anticipated multiple providers. Only one is
-  named anywhere, and no second adapter exists. Multi-provider costs a normalised tier abstraction
-  and per-provider cost accounting, and makes the escalation ladder harder to define, because "one
-  tier above" needs a meaning that spans vendors.</p>
+  <p><strong>Why it was open:</strong> the model gateway exists as a layer whose stated prohibition
+  is leaking provider-specific shapes upward — the design anticipated multiple providers. Only one
+  was named anywhere, and no second adapter existed. Multi-provider costs a normalised tier
+  abstraction and per-provider cost accounting, and makes the escalation ladder harder to define,
+  because "one tier above" needs a meaning that spans vendors.</p>
   <p><a href="decision-log.html#d-033">D-033</a> raised the stakes — execution became coupled to a
   provider's <em>tool</em> as well as its models, concentrating two dependencies in one vendor
-  instead of one. <a href="decision-log.html#d-036">D-036</a> takes one of them back: with the API
-  a supported mode, a provider whose CLI cannot be driven is still reachable. The question itself is
-  untouched, and <a href="#oq-23">OQ-23</a> is the same question asked at the level of the adapter
-  contract.</p>
+  instead of one. <a href="decision-log.html#d-036">D-036</a> took one of them back: with the API
+  a supported mode, a provider whose CLI cannot be driven is still reachable.
+  <a href="#oq-23">OQ-23</a> is the same question asked at the level of the adapter contract, and it
+  is still open.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-041">D-041</a>:
+  <strong>multi-provider behind the gateway, with CLI mode the MVP's focus.</strong> Anthropic is
+  the first adapter rather than the only one, and the gateway's prohibition stops being a design
+  intention and gets something to constrain. The two halves are separate and both binding — the
+  architecture is plural from the start, and the MVP effort goes into the CLI adapter, so the first
+  providers to ship are those whose command-line tool clears
+  <a href="#oq-23">OQ-23</a>'s five-point contract. D-036 is what keeps that focus from being a
+  narrowing: a provider whose CLI cannot be driven is reachable through API mode, so multi-provider
+  is not quietly conditional on every vendor shipping a scriptable tool. The costs named above are
+  accepted rather than argued away, and the escalation ladder is the part that would otherwise
+  break: <a href="brd.html#rules-scoring">BR-15</a>'s "one model tier above" is meaningless across
+  vendors unless tiers are defined in the gateway's own vocabulary, which is now
+  <a href="brd.html#rules-commercial">BR-36</a>.</p>
 
   <h3 id="oq-10">OQ-10 · Tenancy strategy at scale</h3>
-  <p><strong>Why it is open:</strong> the data model presents all three strategies with their costs
+  <p><strong>Why it was open:</strong> the data model presents all three strategies with their costs
   and recommends database-per-tenant as the default, but explicitly says to pick one and be strict.
   Picking late is the expensive outcome — the repository layer is written differently for each.</p>
   <table class="tbl">
@@ -390,12 +427,26 @@
       <tr><td>Hybrid</td><td>Large tenants isolated, small ones pooled</td><td>Two code paths in the repository layer; only worth it at scale, and there is no scale yet</td></tr>
     </tbody>
   </table>
-  <p><a href="decision-log.html#d-026">D-026</a> changes the weighting without deciding it. A typical
+  <p><a href="decision-log.html#d-026">D-026</a> changed the weighting without deciding it. A typical
   deployment now has one operator and a handful of tenants that are project compartments, not
-  strangers — which makes the per-database cost look heavy and the shared-database risk look
-  tolerable. The counter-argument survives: the operator who most needs GAOS to be defensible is a
+  strangers — which made the per-database cost look heavy and the shared-database risk look
+  tolerable. The counter-argument survived: the operator who most needs GAOS to be defensible is a
   small company with client work in separate compartments, and for them the missing
   <code>WHERE</code> is still a breach.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-042">D-042</a>: <strong>all three stay
+  reachable behind one repository interface</strong>, and which one a deployment uses becomes
+  configuration rather than an architectural commitment. Each row of the table above is an
+  implementation of the same interface, and nothing above the repository layer may know which is in
+  use — that prohibition is the whole decision, because without it the abstraction is a naming
+  convention. This <em>narrows</em> <a href="decision-log.html#d-011">D-011</a> rather than reversing
+  it: database-per-tenant remains the recommended default and the shape the DDL is written for, and
+  <code>tenantId</code> stays declared and indexed on every vertex under every strategy, because
+  that is what makes a misrouted restore detectable wherever the boundary sits.
+  <a href="brd.html#rules-data">BR-26</a> is amended to say <em>configurable</em> boundary rather
+  than database boundary <em>first</em>. The cost this question named is not avoided, it is paid:
+  the answer does not pick, it buys the interface up front in exchange for the option to pick later.
+  That trade is only honest while the interface is real, so a strategy that has never been run is a
+  claim rather than a capability.</p>
 
   <h3 id="oq-11">OQ-11 · Authentication approach</h3>
   <p><strong>Why it is open:</strong> there is none. The back-office login sets a cookie and checks
@@ -410,17 +461,35 @@
   identity-provider integration as candidate (B) in <a href="#oq-19">OQ-19</a> — subject to the
   constraint recorded there, that the core's own accounts must be sufficient rather than
   deliberately weak.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-040">D-040</a>.</strong> Mission Control is now
+  a surface external operators are expected to sit in front of, which promotes this from an open
+  question to a <strong>blocking dependency</strong>: authentication, per-tenant scoping and
+  accessibility are preconditions on further Mission Control work rather than items with no date.
+  The shape is still unanswered and the localhost rule above is unchanged. What changed is the
+  consequence of leaving it unanswered — it now stops a named piece of work rather than a
+  hypothetical one.</p>
 
   <h3 id="oq-17">OQ-17 · Which ArcadeDB version, validated when?</h3>
-  <p><strong>Why it is open:</strong> no DDL has ever been applied. The data model warns in its own
+  <p><strong>Why it was open:</strong> no DDL has ever been applied. The data model warns in its own
   words that constraint syntax and index options move between releases, and that
   <code>EXTERNAL</code> properties require v26.5.1 or later. Pinning a target version and running the
   schema against a scratch database is cheap now and expensive after the first migration exists — it
   is build-order step 1's real precondition.</p>
-  <p>Domain L adds a requirement to it: <a href="brd.html#req-l">L-7</a>'s deletion story depends on
+  <p>Domain L added a requirement to it: <a href="brd.html#req-l">L-7</a>'s deletion story depends on
   an <code>EXTERNAL</code> payload being destroyable independently of the record that references it.
   That behaviour needs verifying on the target version at the same time as everything else, because
   a deletion promise resting on an unverified storage behaviour is not a promise.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-043">D-043</a>: <strong>the target is
+  ArcadeDB 26.7.2</strong> — the version already running on the infrastructure the dashboard points
+  at, so the target is an observation rather than a forecast, and it clears the v26.5.1 floor by
+  more than a year of releases. The <em>when</em> is the half that was actually in question and it
+  is answered too: the DDL is applied to a scratch database on 26.7.2 <strong>before build-order
+  step 1 writes anything</strong>, which is the data model's own advice taken at the only moment it
+  is still cheap. Two things are verified in that same pass rather than a later one — that the
+  constraint and index syntax runs as written, and that an <code>EXTERNAL</code> payload can be
+  destroyed independently of the record referencing it, which is what
+  <a href="brd.html#req-l">L-7</a> rests on. The version is pinned rather than floating: an upgrade
+  is a schema event that re-runs the validation.</p>
 
   <h3 id="oq-22">OQ-22 · Cost accounting when the CLI reports nothing</h3>
   <p><strong>Why it is open:</strong> <a href="decision-log.html#d-033">D-033</a> put a subprocess
@@ -433,12 +502,21 @@
   <table class="tbl">
     <thead><tr><th>Sub-question</th><th>What depends on it</th></tr></thead>
     <tbody>
-      <tr><td>Which tokenizer counts the packet and the output, given the provider's own may not be available offline?</td><td>How far the estimate can drift before the cap is meaningless. An estimator that is systematically low is worse than no cap, because it looks like one</td></tr>
-      <tr><td>Where does the price table live, who updates it, and what happens when a model is priced that the table does not know?</td><td>Whether a stale table silently under-reports. The safe default is to refuse to estimate an unknown model rather than to guess — which then needs an operator-visible failure mode</td></tr>
+      <tr><td><s>Which tokenizer counts the packet and the output, given the provider's own may not be available offline?</s> <strong>Answered</strong> by <a href="decision-log.html#d-044">D-044</a>: counted locally, priced from a configured table, labelled <code>estimated</code></td><td>How far the estimate can drift before the cap is meaningless. An estimator that is systematically low is worse than no cap, because it looks like one — and D-044 does not remove that drift, it only stops the estimator from inventing a figure it cannot support</td></tr>
+      <tr><td><s>What happens when a model is priced that the table does not know?</s> <strong>Answered</strong> by <a href="decision-log.html#d-044">D-044</a>: the estimator refuses, and the run reports cost as unavailable rather than as zero. <strong>Still open:</strong> where the price table lives and who updates it</td><td>Whether a stale table silently under-reports. The safe default was to refuse rather than guess, which is what was chosen — and the operator-visible failure mode it needs is now <a href="brd.html#rules-commercial">BR-37</a></td></tr>
       <tr><td><s>Does the cap block on estimates, or only on measured spend?</s> <strong>Answered</strong> by <a href="decision-log.html#d-037">D-037</a>: estimates count at full weight</td><td>What remains is the consequence — since an estimate can stop work that had budget left, the estimator's drift is now a correctness property of the guard, not a reporting nicety</td></tr>
       <tr><td>Is a maintained price table part of the core or a subscription?</td><td><a href="#oq-19">OQ-19</a> option (D), and <a href="brd.html#rules-commercial">BR-28</a> constrains the answer</td></tr>
     </tbody>
   </table>
+  <p><strong>Narrowed by <a href="decision-log.html#d-044">D-044</a>.</strong> Two of the four rows
+  above are now answered: the count is local and priced from a configured table, and an unpriceable
+  model produces <em>no cost</em> rather than a guessed one — never a zero, because zero is the
+  answer the budget guard will happily let through. What is left is the row this question was named
+  after and the one it cannot settle alone: <strong>where the price table lives, who updates it, and
+  whether a maintained one is core or licensed.</strong> That is entangled with
+  <a href="brd.html#business-decision-matrix">BRD §16</a> option (D) and constrained by
+  <a href="brd.html#rules-commercial">BR-28</a>, so it stays here until the submodule question is
+  extended or the owner rules on it. This question is not answered; it is smaller.</p>
 
   <h3 id="oq-23">OQ-23 · Which provider CLIs, and what must each guarantee?</h3>
   <p><strong>Why it is open:</strong> <a href="decision-log.html#d-033">D-033</a> says "the
@@ -460,6 +538,12 @@
   configuration rather than a hypothetical exit, so the answer to "this CLI cannot be driven safely"
   is a setting rather than a fork. What remains genuinely open is the list, and the version pinning
   and boot smoke test that keep a passing tool from silently stopping being one.</p>
+  <p><strong>Narrowed further by <a href="decision-log.html#d-041">D-041</a>.</strong> With
+  multi-provider decided and CLI mode the MVP's focus, the five-point contract above stops being a
+  description of one tool and becomes <strong>the gate that decides which providers ship first</strong>
+  — a vendor is in the MVP if its command-line tool clears it and reachable through API mode if it
+  does not. That raises the priority of the cheap experiment named above rather than changing its
+  shape: the list is now on the critical path, not beside it.</p>
 
   <h2 id="oq-operations">Operations</h2>
 
@@ -521,7 +605,7 @@
     <p class="adm-title">Nothing here is rhetorical</p>
     <p>Every question on this page exists because answering it changes what gets built. None of them
     is a placeholder, and none can be resolved by reading the repository more carefully — that has
-    already been done, and the absence is the finding. The twelve that are answered stayed on the
+    already been done, and the absence is the finding. The seventeen that are answered stayed on the
     page for the same reason: the options that were rejected are the part that gets forgotten
     first.</p>
   </div>

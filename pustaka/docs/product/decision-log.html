@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Thirty-eight entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Forty-four entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, or git history — and a destination for every question the open register
   resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-08-10"
+       data-updated="2026-08-15"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -115,6 +115,47 @@
         <td>D-012</td><td>2026-08-02</td>
         <td>Retention differs by type: events at full fidelity for 90 days then archived with the fold checkpoint retained, samples raw for 14 days then downsampled, run logs by reference only, and everything else indefinitely — because the audit trail is the product.</td>
         <td><code>gaos-arcadedb-model.html</code> §13</td>
+      </tr>
+      <tr id="d-042">
+        <td>D-042</td><td>2026-08-15</td>
+        <td>Answers <a href="open-questions.html#oq-10">OQ-10</a>. <strong>All three tenancy
+        strategies stay reachable behind one repository interface</strong>, and which one a
+        deployment uses becomes configuration rather than an architectural commitment. Database per
+        tenant, a shared database with <code>tenantId</code> everywhere, and the hybrid of the two
+        are each an implementation of the same interface; nothing above the repository layer may know
+        which is in use. This <em>narrows <a href="#d-011">D-011</a> rather than reversing it</em>:
+        one database per tenant remains the recommended default and the shape the DDL is written
+        for, and <code>tenantId</code> stays declared and indexed on every vertex under every
+        strategy, because that is what makes a misrouted restore detectable regardless of where the
+        boundary sits. <a href="brd.html#rules-data">BR-26</a> is amended to say
+        <em>configurable</em> boundary rather than database boundary <em>first</em>. The cost is
+        stated plainly and accepted: <a href="open-questions.html#oq-10">OQ-10</a> warned that the
+        repository layer is written differently for each strategy and that picking late is the
+        expensive outcome — this decision does not pick, it pays for the interface up front and buys
+        the option to pick later. It is only honest if the interface is real, so a strategy that has
+        never been run is a claim, not a capability.</td>
+        <td>Product owner ruling; <a href="brd.html#req-j">BRD §8.10 J-1</a>;
+        <a href="brd.html#rules-data">BR-26</a>; <code>gaos-arcadedb-model.html</code> §01
+        principle 6, §13</td>
+      </tr>
+      <tr id="d-043">
+        <td>D-043</td><td>2026-08-15</td>
+        <td>Answers <a href="open-questions.html#oq-17">OQ-17</a>. <strong>The target is ArcadeDB
+        26.7.2</strong> — the version already running, so the target is an observation rather than a
+        forecast. It clears the floor the data model names: <code>EXTERNAL</code> properties require
+        v26.5.1 or later, and 26.7.2 is later. The DDL is applied to a scratch database on that
+        version <strong>before build-order step 1 writes anything</strong>, which is the document's
+        own advice and the cheapest moment to take it — the same schema run after the first
+        migration exists costs a migration to undo. Two things are verified in that same pass, not a
+        later one: that the constraint and index syntax in the model runs as written on 26.7.2, and
+        that an <code>EXTERNAL</code> payload can be destroyed independently of the record that
+        references it, because <a href="brd.html#req-l">L-7</a>'s deletion story rests on that
+        behaviour and a deletion promise resting on unverified storage behaviour is not a promise.
+        The version is pinned, not floating: an upgrade is a schema event that re-runs the
+        validation.</td>
+        <td>Product owner ruling; observed image <code>arcadedata/arcadedb:26.7.2</code> on
+        <code>arcadedb-master</code>; <a href="brd.html#scope-constraints">BRD §10.3</a>;
+        <a href="brd.html#req-l">L-7</a>; <code>gaos-arcadedb-model.html</code> §13</td>
       </tr>
     </tbody>
   </table>
@@ -213,6 +254,62 @@
         result is a viability signal that triggers a review, not an automatic gate.</td>
         <td><code>product/qa-test-plan.html</code>; <code>deploy/check-stacks.sh</code>;
         <code>deploy/rebuild-restart.sh</code></td>
+      </tr>
+      <tr id="d-039">
+        <td>D-039</td><td>2026-08-15</td>
+        <td>Answers <a href="open-questions.html#oq-08">OQ-08</a>. <strong>Success is conformance,
+        not a business number.</strong> GAOS is a success when the system as developed builds and
+        runs without issue and passes every acceptance criterion and every scenario in the
+        <a href="qa-test-plan.html">QA test plan</a> — <strong>positive and negative alike</strong>,
+        every case in the register — together with the three
+        <a href="brd.html#evaluation-method">§4.1</a> acceptance tests. That is the whole target, and
+        it is deliberately a pass/fail one. <strong>Numeric outcome targets are not set, and setting
+        them now would be fabrication</strong>: <a href="brd.html#success-definition">§1.4</a> has
+        said from the first baseline that GAOS has no users, no tenants and no run against a real
+        model, and inventing a percentage against no baseline produces a number that measures the
+        person who chose it. This ratifies rather than replaces
+        <a href="brd.html#business-objectives">§4</a>'s seven deliberately binary objectives — a
+        binary acceptance test <em>is</em> the measurable criterion, and the register is where the
+        criteria are enumerated. Numbers become settable after the second-run measurement has been
+        performed at least once against a real model, and no sooner; <a href="#d-026">D-026</a> puts
+        that run on somebody else's machine, so it arrives when an operator volunteers it. Until
+        then the honest statement is the one already in the document: the target is that every check
+        passes, and <a href="#d-025">D-025</a> names who runs them.</td>
+        <td>Product owner ruling; <a href="qa-test-plan.html">QA test plan register</a>;
+        <a href="brd.html#success-definition">BRD §1.4</a>;
+        <a href="brd.html#business-objectives">§4</a>, <a href="brd.html#evaluation-method">§4.1</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="surface-decisions">Operator surface</h2>
+  <p>One decision, and it is the one that turns Mission Control from the thing that happens to exist
+  into the thing the product is judged by. It costs more than it settles: the obligations it accepts
+  were the argument against the answer it gives.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-040">
+        <td>D-040</td><td>2026-08-15</td>
+        <td>Answers <a href="open-questions.html#oq-15">OQ-15</a>. <strong>Mission Control is both —
+        one surface, two audiences, separated by role rather than by codebase.</strong> There is no
+        second console and no fork: the operator's view and the internal operations view are the
+        same pages with different capabilities granted, and anything an internal view can do that an
+        operator view cannot is a permission, never a build. Choosing both means accepting the bar
+        the question attached to the first half, so these are now <strong>preconditions on further
+        Mission Control work rather than someday items</strong>: real authentication
+        (<a href="open-questions.html#oq-11">OQ-11</a>, which this decision promotes from open
+        question to blocking dependency), per-tenant scoping so that a role sees one tenant's records
+        and not the store, and accessibility work on a surface that external users are now expected
+        to sit in front of. The build order is not overridden — the loops beneath still get built
+        first — but the next feature added to Mission Control comes after those three, not before
+        them. Domain L's obligation lands here by elimination: the provider data-handling profile and
+        the egress inventory have to be visible somewhere, <a href="brd.html#req-l">L-3</a> already
+        assumes this surface, and there is no other somewhere. Recorded as
+        <a href="brd.html#req-i">I-8</a>.</td>
+        <td>Product owner ruling; <a href="brd.html#req-i">BRD §8.9 I-8</a>;
+        <a href="brd.html#req-l">L-3</a>;
+        <a href="brd.html#business-decision-matrix">BRD §16</a></td>
       </tr>
     </tbody>
   </table>
@@ -456,22 +553,80 @@
         <code>gaos-arcadedb-model.html</code> §05 <code>Tenant</code> DDL;
         <code>gaos-architecture.html</code> §06 guardrails</td>
       </tr>
+      <tr id="d-041">
+        <td>D-041</td><td>2026-08-15</td>
+        <td>Answers <a href="open-questions.html#oq-09">OQ-09</a>. <strong>Multi-provider behind the
+        model gateway</strong>, and <strong>CLI mode is the MVP's focus</strong>. Anthropic is the
+        first adapter rather than the only one; the gateway's existing prohibition on leaking
+        provider-specific shapes upward stops being a design intention and becomes a constraint with
+        something to constrain. The two halves of the answer are separate and both binding: the
+        <em>architecture</em> is plural from the start, and the <em>MVP effort</em> goes into the CLI
+        adapter that <a href="#d-033">D-033</a> chose, so the first providers to ship are the ones
+        whose command-line tool clears the five-point contract in
+        <a href="open-questions.html#oq-23">OQ-23</a>. <a href="#d-036">D-036</a> is what makes that
+        focus safe rather than narrowing: a provider whose CLI cannot be driven is reachable through
+        API mode, so "multi-provider" is not quietly conditional on every vendor shipping a
+        scriptable tool. The costs the question named are accepted rather than argued away — a
+        normalised tier abstraction, and cost accounting that works per provider
+        (<a href="#d-044">D-044</a>). The escalation ladder is the part that actually breaks
+        otherwise: <a href="brd.html#rules-scoring">BR-15</a> retries "one model tier above", which
+        is meaningless across vendors unless tiers are defined in the gateway's own vocabulary and
+        each provider maps into it. That is now a rule,
+        <a href="brd.html#rules-commercial">BR-36</a>. <code>config/model.yaml</code> in
+        <a href="brd.html#mode-config">§7.6.1</a> already has the right shape — a
+        <code>providers</code> map with one entry — and gains entries rather than a rewrite.</td>
+        <td>Product owner instruction; <a href="brd.html#mode-config">BRD §7.6.1</a>;
+        <a href="brd.html#rules-commercial">BR-36</a>;
+        <a href="brd.html#risk-register">R-08</a>; <code>gaos-architecture.html</code> §02 model
+        gateway</td>
+      </tr>
+      <tr id="d-044">
+        <td>D-044</td><td>2026-08-15</td>
+        <td>Answers the first half of <a href="open-questions.html#oq-22">OQ-22</a>.
+        <strong>Token usage is estimated locally and priced from a configured table, and a cost that
+        cannot be priced is reported as unavailable rather than as a number.</strong> When the CLI
+        reports nothing, the packet and the output are counted locally and multiplied by the table,
+        and the figure carries <code>costBasis: estimated</code> exactly as
+        <a href="#d-032">D-032</a> and <a href="brd.html#rules-commercial">BR-31</a> already require.
+        When the model is absent from the price table, or the packet cannot be counted, <strong>the
+        estimator refuses</strong>: the run records no cost and an operator-visible unavailable
+        state, never a zero and never a guess. Zero is the dangerous answer, because zero is a
+        number the guard will happily let through. This matters more after
+        <a href="#d-037">D-037</a> than it would have before it — estimates enforce the budget guard
+        at full weight, so an unpriceable model means the guard has nothing to enforce against, and
+        that condition has to be loud rather than silent. Recorded as
+        <a href="brd.html#rules-commercial">BR-37</a>. <strong>What this does not settle</strong>:
+        where the price table lives, who updates it, and whether a maintained table is part of the
+        core or a licensed submodule — that is option (D) in
+        <a href="brd.html#business-decision-matrix">BRD §16</a>, constrained by
+        <a href="brd.html#rules-commercial">BR-28</a>, and it keeps
+        <a href="open-questions.html#oq-22">OQ-22</a> open.</td>
+        <td>Product owner ruling; <a href="brd.html#rules-commercial">BR-31, BR-37</a>;
+        <a href="brd.html#mode-tradeoffs">BRD §7.6.2</a>;
+        <a href="brd.html#budget-guard">§8.10.1</a></td>
+      </tr>
     </tbody>
   </table>
 
   <div class="adm warn">
     <p class="adm-title">What is not in this log</p>
     <p>The commercial <em>shape</em> is decided; several of its parameters are not. The rate-card
-    numbers, how a CLI's token usage is estimated
-    when it reports none, and which provider CLIs are supported are all live questions — as are the
-    authentication approach, the tenancy strategy at scale, and the ArcadeDB target version. They
-    are on the <a href="open-questions.html">open questions</a> page, and each one lands here the
-    day it is answered.</p>
-    <p>One thing here is decided and not yet true in code. <a href="#d-037">D-037</a> needs four new
-    event names, a new task state and two <code>TaskRun</code> properties, and
+    numbers, where the model price table lives and who maintains it, and which provider CLIs are
+    supported are all live questions — as are the authentication approach, now a blocking dependency
+    rather than a deferred one (<a href="#d-040">D-040</a>), and whether autonomy is band-driven by
+    default. They are on the <a href="open-questions.html">open questions</a> page, and each one
+    lands here the day it is answered.</p>
+    <p>Several things here are decided and not yet true in code. <a href="#d-037">D-037</a> needs
+    four new event names, a new task state and two <code>TaskRun</code> properties, and
     <a href="#d-003">D-003</a> with <a href="brd.html#rules-invariants">BR-05</a> means those land in
-    the data model document, <code>dashboard/events.go</code> and the fold together or not at all. A
-    decision recorded here is a commitment about what gets built, never a claim that it was.</p>
+    the data model document, <code>dashboard/events.go</code> and the fold together or not at all.
+    <a href="#d-042">D-042</a> promises a repository interface that has never been written, and a
+    tenancy strategy that has never been run is a claim rather than a capability;
+    <a href="#d-043">D-043</a> pins a version whose DDL has still never been applied;
+    <a href="#d-041">D-041</a> names one adapter and no second one exists; and
+    <a href="#d-040">D-040</a>'s three preconditions — authentication, per-tenant scoping,
+    accessibility — are none of them started. A decision recorded here is a commitment about what
+    gets built, never a claim that it was.</p>
   </div>
 
 </main>

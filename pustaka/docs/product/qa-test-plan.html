@@ -18,13 +18,16 @@
   tests and how often — and enumerates every test scenario that follows from it:
   one hundred and eight cases, positive and negative, across the two deploy automations and the two
   Go test packages that actually run today, plus the three business acceptance tests
-  <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever executed.</p>
+  <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever executed.
+  Since <a href="decision-log.html#d-039">D-039</a> this register is also the project's definition of
+  success: GAOS is done when every case here passes, positive and negative alike, and no numeric
+  outcome target stands beside it.</p>
 
   <div class="page-meta"
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-09"
+       data-updated="2026-08-15"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -57,7 +60,7 @@
       <tr><td><code>rebuild-restart.sh status</code></td><td>Same</td><td>On demand, whenever the operator wants a read of current state</td><td>No failure mode by design — see <a href="#rr-status">TC-017</a></td></tr>
       <tr><td>Unsatisfiable-task test</td><td>Product owner, once domain E exists</td><td>Proposed: before every release</td><td>Per <a href="brd.html#to-be-exceptions">§7.5</a>: looping or failing silently means the guard-limit implementation is not finished — release is blocked</td></tr>
       <tr><td>Fold test</td><td>Product owner, once domain H exists</td><td>Proposed: periodic (weekly) — the design itself calls this test "periodic"</td><td>Divergence is a release blocker, in the design's own words: "divergence proves the event model is incomplete"</td></tr>
-      <tr><td>Second-run test</td><td>Product owner</td><td>On demand; at minimum once, to seed the <a href="open-questions.html#oq-08">OQ-08</a> baseline that has never existed</td><td>A viability signal, not a gate: per <a href="brd.html#success-definition">§1.4</a>, no improvement means "the extraction step is decorative"</td></tr>
+      <tr><td>Second-run test</td><td>Product owner</td><td>On demand; at minimum once, to seed the numeric baseline that has never existed — <a href="decision-log.html#d-039">D-039</a> leaves outcome targets unset until this run happens</td><td>A viability signal, not a gate: per <a href="brd.html#success-definition">§1.4</a>, no improvement means "the extraction step is decorative"</td></tr>
     </tbody>
   </table>
   <p>This is the answer to OQ-13, logged as
@@ -643,8 +646,8 @@
   same or more, then "the extraction step is decorative and everything above it is expensive
   theatre" — a product-viability signal that should trigger review of domain G (memory &amp;
   learning), not an automatic block. <strong>Blocked by:</strong> the entire control loop, domains
-  C–H, and by the fact that this run is also how <a href="open-questions.html#oq-08">OQ-08</a>'s
-  baseline gets set for the first time.</p>
+  C–H, and by the fact that this run is also how the numeric baseline gets set for the first time —
+  the one thing <a href="decision-log.html#d-039">D-039</a> defers until it exists.</p>
 
 </main>
 </div>

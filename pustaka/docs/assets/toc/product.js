@@ -33,17 +33,17 @@ window.DOCS.nav.push({
       id: "brd",
       file: "product/brd.html",
       title: "BRD — Business requirements",
-      desc: "GAOS's business source of truth: the three design artifacts restated as business requirements across twelve domains, with 35 business rules, a twelve-entry risk register, a scope boundary, the dual CLI/API execution model, the budget guard, and a commercial model that is now decided rather than deferred.",
+      desc: "GAOS's business source of truth: the three design artifacts restated as business requirements across twelve domains, with 37 business rules, a twelve-entry risk register, a scope boundary, the dual CLI/API execution model, the budget guard, and a commercial model and technical policy that are now decided rather than deferred.",
       tags: ["brd", "business-requirements", "objectives", "stakeholders", "scope", "business-rules", "risks", "tenancy", "commercial", "open-core", "pricing", "data-protection"],
       sections: [
         { anchor: "executive-summary", title: "1. Executive summary",
-          text: "Vision, business summary, background, and the one success measurement the design supplies: run the same objective twice a week apart and see whether the second run needs fewer retries. Numeric targets are explicitly open." },
+          text: "Vision, business summary, background, and the one success measurement the design supplies: run the same objective twice a week apart and see whether the second run needs fewer retries. Success is now defined as conformance to the QA register; numeric targets stay unset until that measurement is performed." },
         { anchor: "business-background", title: "2. Business background",
           text: "The designed-versus-built table from the README as the honest spine of the document, the five operational challenges, and the auditability gap GAOS aims at." },
         { anchor: "problem-statement", title: "3. Problem statement",
           text: "Six problems the design documents name explicitly: unaddressable prompt state, orchestrators that lose memory, briefs too thin to work from, record rot, unbounded retry loops, and unauditable model reasoning." },
         { anchor: "business-objectives", title: "4. Business objectives & success metrics",
-          text: "Eight objectives mapped to the problem each answers, seven of them deliberately binary acceptance tests rather than invented percentages, plus the three evaluation tests the design already specifies." },
+          text: "Eight objectives mapped to the problem each answers, seven of them deliberately binary acceptance tests rather than invented percentages, plus the three evaluation tests the design already specifies — and D-039 making that stance the answer rather than a placeholder." },
         { anchor: "stakeholders", title: "5. Stakeholders",
           text: "Four internal roles the system distinguishes, five external ones led by the self-hosting operator, the difference between an operator and a tenant, and three third parties: the model provider, ArcadeDB, and the edge-plus-VM hosting pair." },
         { anchor: "as-is-process", title: "6. Current business process (as-is)",
@@ -53,7 +53,7 @@ window.DOCS.nav.push({
         { anchor: "business-requirements", title: "8. Business requirements",
           text: "Twelve domains A–L: product master, readiness gating, planning, execution, review and retry, gates, memory, replay, the operator surface, tenancy and cost control including the three-zone budget guard, commercial — now decided, with the proposed rate card — and data protection, egress and residency." },
         { anchor: "business-rules", title: "9. Business rules",
-          text: "BR-01 to BR-35 across core invariants, readiness and planning, scoring and gates, data and replay, and the commercial, execution and data-handling rules — the open-core boundary, what may never be sold, the execution mode that may be recorded but never branched on, and why deferral is not failure." },
+          text: "BR-01 to BR-37 across core invariants, readiness and planning, scoring and gates, data and replay, and the commercial, execution and data-handling rules — the open-core boundary, what may never be sold, tenancy as a configurable boundary, normalised model tiers, and why an unpriceable cost is never reported as zero." },
         { anchor: "scope", title: "10. Scope",
           text: "What is in scope, a boundary diagram showing what GAOS never owns — the tenant's repository, the merge, the model provider, the host — and ten constraints including the ArcadeDB version coupling, the open-core seam, Apache-2.0 as a one-way door, and the two adapters that must stay indistinguishable." },
         { anchor: "risks-and-assumptions", title: "11. Risks & assumptions",
@@ -63,11 +63,11 @@ window.DOCS.nav.push({
         { anchor: "references", title: "13. References",
           text: "Section-precise pointers into the three artifacts, the dashboard files that hold the seam and the closed event catalog, the deployment runbooks, the architecture and infrastructure pages, and the FAQ." },
         { anchor: "decision-log", title: "14. Decision log",
-          text: "Pointer to the thirty-eight logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
+          text: "Pointer to the forty-four logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
         { anchor: "business-milestones", title: "15. Business milestones",
           text: "Eight real dated milestones from git history, ending with the repository becoming licensed, and the next twelve — led by landing the new event names and task state together, then the first adapter and the budget guard." },
         { anchor: "business-decision-matrix", title: "16. Business decision matrix",
-          text: "Six design choices with their options and trade-offs: the decided commercial model with its rejected alternatives intact, tenancy at scale, model provider, autonomy default, what Mission Control is for, and the first private submodule — decided as the generation pack, with the passed-over candidates kept." },
+          text: "Six design choices with their options and trade-offs, five of them now decided with every rejected alternative intact: the commercial model, tenancy behind one repository interface, multi-provider behind the gateway, Mission Control as one role-gated surface, the generation pack as the first submodule — and the autonomy default, still open." },
         { anchor: "appendix-glossary", title: "Appendix A — Glossary",
           text: "Product master record, readiness band, drift penalty, atomic task, context slice, failure signature, safety veto, workspace lease, fold, gate, tenant, product slot, operator, open core, task packet, handoff document, cost basis, execution mode, pacing, deferral, egress." },
         { anchor: "appendix-abbreviations", title: "Appendix B — Abbreviations",
@@ -75,14 +75,14 @@ window.DOCS.nav.push({
         { anchor: "appendix-document-notes", title: "Appendix C — Document notes",
           text: "Which reference template the structure came from, what was dropped and why, and the two structural departures: the decision log and the open questions are separate pages." },
         { anchor: "open-questions", title: "Consolidated open questions",
-          text: "Pointer to the twenty-three-question register: eleven commercial, three product, six technical, three operational, twelve of them answered." }
+          text: "Pointer to the twenty-three-question register: eleven commercial, three product, six technical, three operational, seventeen of them answered." }
       ]
     },
     {
       id: "open-questions",
       file: "product/open-questions.html",
       title: "Open questions",
-      desc: "Twenty-three decisions the BRD refuses to invent — twelve now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard and the submodule boundary — each with the options available, the trade-off each carries, and what it blocks.",
+      desc: "Twenty-three decisions the BRD refuses to invent — seventeen now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, and what success means — each with the options available, the trade-off each carries, and what it blocks.",
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
@@ -90,9 +90,9 @@ window.DOCS.nav.push({
         { anchor: "oq-commercial", title: "Commercial",
           text: "OQ-01 to OQ-07 and OQ-14, all answered on 2026-08-08 — open core, the target customer, the auditor persona, quota profiles, pricing basis, who pays the provider, support, and data handling — plus OQ-20 answered as Apache-2.0, OQ-19 answered as the generation pack, and the one still open: OQ-21 the rate card." },
         { anchor: "oq-product", title: "Product & scope",
-          text: "OQ-08 measurable success targets, OQ-12 band-driven autonomy versus gates on by default, and OQ-15 whether Mission Control is the product surface or an internal console." },
+          text: "OQ-08 answered — success is conformance to the QA register, with numeric targets deferred; OQ-15 answered — Mission Control is both, one role-gated surface, which makes authentication a blocking dependency; and OQ-12, band-driven autonomy versus gates on by default, still open." },
         { anchor: "oq-technical", title: "Technical policy",
-          text: "OQ-09 one model provider or several, OQ-10 tenancy strategy at scale, OQ-11 authentication now narrowed to what must exist before anything binds beyond localhost, OQ-17 the ArcadeDB target version, OQ-22 cost estimation when a CLI reports nothing — now the input the budget guard enforces against — and OQ-23 which CLIs are supported." },
+          text: "OQ-09 answered as multi-provider with a CLI-first MVP, OQ-10 as all three tenancy strategies behind one repository interface, OQ-17 as ArcadeDB 26.7.2 validated before build-order step 1 — and still open: OQ-11 authentication, now a blocking dependency; OQ-22, narrowed to who maintains the price table; and OQ-23 which CLIs are supported." },
         { anchor: "oq-operations", title: "Operations",
           text: "OQ-13 who runs the three acceptance tests and how often, OQ-16 high availability now that GAOS hosts nothing, and OQ-18 answered — the budget cap becomes three zones with pacing and deferral." }
       ]
@@ -101,7 +101,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Thirty-eight decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, or git history — and the destination for every open question that gets answered.",
+      desc: "Forty-four decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -109,13 +109,15 @@ window.DOCS.nav.push({
         { anchor: "thesis-decisions", title: "Thesis and architecture",
           text: "D-001 to D-005: the graph is the primitive, the orchestrator holds nothing, every change emits an event, events reference business ids, and six layers each with an explicit prohibition." },
         { anchor: "data-decisions", title: "Data model",
-          text: "D-006 to D-012: one edge type per relationship, Task and TaskRun separate, USES_CONTEXT on the slice, hybrid schema, external payloads, tenancy as a database boundary, and per-type retention." },
+          text: "D-006 to D-012, plus D-042 and D-043: one edge type per relationship, Task and TaskRun separate, USES_CONTEXT on the slice, hybrid schema, external payloads, per-type retention — and tenancy as a configurable boundary behind one repository interface, on ArcadeDB pinned at 26.7.2." },
         { anchor: "policy-decisions", title: "Control-loop policy",
           text: "D-013 to D-018: the readiness floor of 45, decay rather than persistence, capability-first routing, correctness weighted 0.45, safety as a veto, and the ten-step build order." },
         { anchor: "delivery-decisions", title: "Delivery and deployment",
           text: "D-019 to D-024: v0.1.0 ships the surface only and says so, the closed event catalog in Go, product slot 03 and its ports, TLS on the edge, the cookie rule behind the tunnel, and the vendored docs engine." },
         { anchor: "qa-decisions", title: "Quality assurance",
-          text: "D-025: answers OQ-13. Who runs the acceptance tests and how often, given no CI exists and one person holds every internal stakeholder role — and what happens when one fails." },
+          text: "D-025: answers OQ-13. Who runs the acceptance tests and how often, given no CI exists and one person holds every internal stakeholder role — and what happens when one fails. D-039: answers OQ-08. Success is passing every case in that register, positive and negative, rather than a numeric target invented against no baseline." },
+        { anchor: "surface-decisions", title: "Operator surface",
+          text: "D-040: answers OQ-15. Mission Control is both the operator surface and the internal console — one codebase, separated by role — which makes authentication, per-tenant scoping and accessibility preconditions rather than someday items." },
         { anchor: "commercial-decisions", title: "Commercial model",
           text: "D-026 to D-031 and D-038: open core with private submodules and paid services, the target customer, the auditor deferred, service-and-licence pricing, the operator always pays the model provider, support that commits to response times rather than uptime — and the first submodule, a generation pack under manual-free, generation-paid." },
         { anchor: "execution-decisions", title: "Execution and data handling",
@@ -123,7 +125,7 @@ window.DOCS.nav.push({
         { anchor: "licence-decisions", title: "Licence",
           text: "D-035: Apache-2.0 with a DCO sign-off and a reserved name — why permissive beats copyleft for this buyer, why a CLA would be paperwork for an unused power, and the fact that it cannot be undone." },
         { anchor: "execution-mode-decisions", title: "Execution mode and spend control",
-          text: "D-036 extends D-033 to two interchangeable adapters behind one master switch, and D-037 turns the budget cap into three zones with pacing and deferral so work waits for budget instead of failing for lack of it." }
+          text: "D-036 extends D-033 to two interchangeable adapters behind one master switch, D-037 turns the budget cap into three zones with pacing and deferral, D-041 makes the gateway multi-provider with CLI mode the MVP's focus, and D-044 has the cost estimator refuse rather than guess — no cost beats a zero the guard would let through." }
       ]
     },
     {
