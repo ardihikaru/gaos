@@ -253,7 +253,9 @@
       <tr><td><code>artifacts/v1/gaos-mission-control.html</code></td><td>The UI prototype the dashboard was ported from</td></tr>
       <tr><td><code>dashboard/</code></td><td>Mission Control — Go, stdlib only, HTMX</td></tr>
       <tr><td><code>dashboard/events.go</code></td><td>The closed event catalog, as typed constants</td></tr>
-      <tr><td><code>dashboard/store.go</code></td><td>The seam an ArcadeDB implementation drops into</td></tr>
+      <tr><td><code>dashboard/store.go</code></td><td>The seam both stores implement &mdash; unchanged since it was written</td></tr>
+      <tr><td><code>dashboard/store_arcade.go</code></td><td>The ArcadeDB store: reads and writes the graph</td></tr>
+      <tr><td><code>dashboard/arcade.go</code></td><td>The ArcadeDB client &mdash; ready probe, query, command, transaction</td></tr>
     </tbody>
   </table>
 

@@ -59,11 +59,11 @@ docker compose -f deploy/stacks/compose.dev.yaml up -d    # dev first, always
 | | state |
 |---|---|
 | System architecture, control loops, scoring, readiness rubric | **designed** — `artifacts/v1/gaos-architecture.html` |
-| Graph schema: 25 vertex types, 32 edge types, event store | **designed** — `artifacts/v1/gaos-arcadedb-model.html` |
-| Mission Control UI | **built** — ported from the prototype to Go + HTMX, 33 tests |
+| Graph schema: 25 vertex types, 32 edge types, event store | **built** — `dashboard/schema/`, applied to dev and prod, reconciled against ArcadeDB 26.7.2 |
+| Mission Control UI | **built** — ported from the prototype to Go + HTMX, 51 tests |
 | dev + prod stacks, edge config, health probe | **built** — verified end to end over the tunnel |
 | Docs site and landing page | **built** |
-| ArcadeDB schema applied, graph queries | **not built** — `dashboard/store.go` is the seam |
+| ArcadeDB schema applied, graph queries | **built** — `dashboard/store_arcade.go` against the `store.go` seam; one conformance suite covers both stores |
 | Scheduler, runner, real reviews | **not built** — `dashboard/sim.go` stands in |
 | Authentication | **not built** — the back-office login sets a cookie and checks nothing |
 

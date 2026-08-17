@@ -81,6 +81,12 @@ has   $DEV  'GAOS_COOKIE_SECURE: "1"'        "dev keeps Secure cookies on"
 has   $PROD 'GAOS_COOKIE_SECURE: "1"'        "prod keeps Secure cookies on"
 has   $DEV  'GAOS_ARCADE_DB: "gaos"'         "dev uses the gaos database"
 has   $PROD 'GAOS_ARCADE_DB: "gaos"'         "prod uses the gaos database"
+# Both tiers run the graph store. A tier that silently fell back to the
+# in-memory fixtures would serve a floor, answer /healthz with ok:true and lose
+# every write on restart -- which is precisely the failure BR-01 is about, and
+# it is invisible from outside without this check.
+has   $DEV  'GAOS_STORE: "arcadedb"'         "dev runs the arcadedb store"
+has   $PROD 'GAOS_STORE: "arcadedb"'         "prod runs the arcadedb store"
 
 echo
 echo "== the proxy never holds the Docker socket =="

@@ -16,8 +16,8 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  one hundred and twelve cases, positive and negative, across the two deploy automations and the two
-  Go test packages that actually run today, plus the three business acceptance tests
+  one hundred and thirty cases, positive and negative, across the three deploy automations and the
+  two Go test packages that actually run today, plus the three business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever executed.
   Since <a href="decision-log.html#d-039">D-039</a> this register is also the project's definition of
   success: GAOS is done when every case here passes, positive and negative alike, and no numeric
@@ -58,6 +58,8 @@
       <tr><td><code>go test ./...</code> (dashboard, pustaka) + <code>pustaka check ./docs</code></td><td>Same</td><td>Automatically, before every <code>deploy</code> action only — <code>restart</code> has no test gate at all</td><td>Refuses the build, exit 1. The operator fixes the code or docs and reruns</td></tr>
       <tr><td>Post-deploy verification (bind, healthz, routes, base-href, and with <code>--full-verify</code>: X-Forwarded-For, public HTTPS)</td><td>Same</td><td>Automatically, after every <code>deploy</code> and <code>restart</code></td><td>Each check reports independently; the run exits 1 on any failure, but nothing rolls back automatically today — the nonzero exit is the operator's signal to investigate</td></tr>
       <tr><td><code>rebuild-restart.sh status</code></td><td>Same</td><td>On demand, whenever the operator wants a read of current state</td><td>No failure mode by design — see <a href="#rr-status">TC-017</a></td></tr>
+      <tr><td><code>deploy/schema/scratch.sh</code> + <code>go test -run Conformance</code></td><td>Product owner, on demand</td><td>Never automatically: the ArcadeDB half of the store conformance suite <em>skips</em> without <code>GAOS_ARCADE_TEST_URL</code>, so the deploy gate stays green on a machine with no database. Run it by hand when the store or the schema changes</td><td>Nothing is deployed, because nothing was &mdash; the throwaway container is <code>--rm</code> with no volume. The operator reads the failure and reruns</td></tr>
+      <tr><td><code>deploy/schema/apply.sh</code></td><td>Product owner, on demand</td><td>Only for a scratch database from a workstation. Dev and prod get the schema from the dashboard binary's embedded copy on every boot, which is idempotent</td><td>Exit 1 with the offending statement and the server's own <code>detail</code>. A partial apply is safe to rerun</td></tr>
       <tr><td>Unsatisfiable-task test</td><td>Product owner, once domain E exists</td><td>Proposed: before every release</td><td>Per <a href="brd.html#to-be-exceptions">§7.5</a>: looping or failing silently means the guard-limit implementation is not finished — release is blocked</td></tr>
       <tr><td>Fold test</td><td>Product owner, once domain H exists</td><td>Proposed: periodic (weekly) — the design itself calls this test "periodic"</td><td>Divergence is a release blocker, in the design's own words: "divergence proves the event model is incomplete"</td></tr>
       <tr><td>Second-run test</td><td>Product owner</td><td>On demand; at minimum once, to seed the numeric baseline that has never existed — <a href="decision-log.html#d-039">D-039</a> leaves outcome targets unset until this run happens</td><td>A viability signal, not a gate: per <a href="brd.html#success-definition">§1.4</a>, no improvement means "the extraction step is decorative"</td></tr>
@@ -67,7 +69,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and twelve cases in one filterable table. Filter by automation, kind, or any
+  <p>All one hundred and thirty cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -192,15 +194,33 @@
       <tr data-tags="go test unit dashboard schema edge uniqueness index d-045 negative"><td>TC-110</td><td>dashboard (go test)</td><td>Negative</td><td>An edge type with no <code>UNIQUE</code> index on its endpoints, or a revived <code>CREATE EDGE TYPE … UNIQUE</code>, is refused (<code>TestEveryEdgeTypeCarriesItsUniquenessIndex</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema idempotence if not exists apply negative"><td>TC-111</td><td>dashboard (go test)</td><td>Negative</td><td>A type declaration without <code>IF NOT EXISTS</code> is refused, because it breaks the re-application <code>apply.sh</code> promises (<code>TestEverySchemaDeclarationIsIdempotent</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema files numbered order positive"><td>TC-112</td><td>dashboard (go test)</td><td>Positive</td><td>All ten numbered schema files are present, so the filename order <code>apply.sh</code> relies on has no gap (<code>TestSchemaDirectoryHasEveryNumberedFile</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb query path envelope parameters positive"><td>TC-113</td><td>dashboard (go test)</td><td>Positive</td><td>A read goes to <code>/api/v1/query</code>, decodes the <code>result</code> envelope, and sends its parameters as parameters rather than interpolating them into the statement (<code>TestArcadeQueryDecodesTheResultEnvelope</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb command write endpoint positive"><td>TC-114</td><td>dashboard (go test)</td><td>Positive</td><td>A write goes to <code>/api/v1/command</code>, not the read-only query endpoint (<code>TestArcadeCommandUsesTheWriteEndpoint</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb error detail negative"><td>TC-115</td><td>dashboard (go test)</td><td>Negative</td><td>A failed statement surfaces the server's <code>detail</code> field, since every SQL error on this server is an HTTP 500 and the status names no cause (<code>TestArcadeErrorCarriesTheServerDetail</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb idempotence already exists negative"><td>TC-116</td><td>dashboard (go test)</td><td>Negative</td><td>An &ldquo;already exists&rdquo; re-declaration is classified as a skip and a genuine error is not, which is what makes the schema re-application verifiable (<code>TestArcadeAlreadyExistsIsNotAFailure</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb unconfigured sentinel negative"><td>TC-117</td><td>dashboard (go test)</td><td>Negative</td><td>An unconfigured store refuses every statement with <code>ErrUnconfigured</code>, while the health probe still answers &ldquo;unconfigured&rdquo; rather than an outage (<code>TestArcadeUnconfiguredRefusesToQuery</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb transaction session header positive"><td>TC-118</td><td>dashboard (go test)</td><td>Positive</td><td>Every statement inside a transaction carries the <code>arcadedb-session-id</code> header, and a rollback after a successful commit is a no-op (<code>TestArcadeTransactionCarriesTheSessionHeader</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb transaction missing session negative"><td>TC-119</td><td>dashboard (go test)</td><td>Negative</td><td>A begin that returns no session id is an error, rather than a transaction whose statements silently run outside it (<code>TestArcadeBeginWithoutASessionHeaderIsAnError</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb context deadline timeout negative"><td>TC-120</td><td>dashboard (go test)</td><td>Negative</td><td>A query against a database that never answers gives up on the caller's context deadline (<code>TestArcadeQueryHonoursTheContextDeadline</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema embed drift go-embed positive"><td>TC-121</td><td>dashboard (go test)</td><td>Positive</td><td>The schema embedded in the binary matches <code>dashboard/schema/</code> file for file and byte for byte (<code>TestEmbeddedSchemaMatchesTheDirectory</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema statement split apply.sh parity positive"><td>TC-122</td><td>dashboard (go test)</td><td>Positive</td><td>The Go statement splitter strips comments, folds multi-line declarations and splits on the terminator exactly as <code>apply.sh</code> does (<code>TestSplitStatementsMatchesTheShellApplier</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema statement split empty comment negative"><td>TC-123</td><td>dashboard (go test)</td><td>Negative</td><td>No statement survives the split empty or still carrying a comment marker, and the total does not collapse (<code>TestEverySchemaStatementSurvivesTheSplit</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All thirty-two contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same thirty-two cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store arcadedb restart rebuild br-01 positive"><td>TC-126</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant rebuilds the floor, the events and the master record from the graph, so the in-memory projection is a cache rather than a source of truth (<code>TestArcadeStoreRebuildsTheFloorFromTheGraph</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks store arcadedb graph tier parity positive"><td>TC-127</td><td>check-stacks.sh</td><td>Positive</td><td>Both tiers declare <code>GAOS_STORE: &quot;arcadedb&quot;</code>, so neither is quietly serving fixtures</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks store arcadedb graph tier parity negative"><td>TC-128</td><td>check-stacks.sh</td><td>Negative</td><td>A tier's <code>GAOS_STORE</code> setting is removed or changed away from <code>arcadedb</code></td><td>Implemented</td></tr>
+      <tr data-tags="scratch schema throwaway arcadedb conformance harness positive"><td>TC-129</td><td>scratch.sh</td><td>Positive</td><td><code>up</code> starts the pinned ArcadeDB, waits for the ready probe, applies the DDL clean and prints the environment the conformance suite needs</td><td>Implemented</td></tr>
+      <tr data-tags="scratch schema throwaway arcadedb harness missing container negative"><td>TC-130</td><td>scratch.sh</td><td>Negative</td><td><code>status</code> or <code>env</code> with no container running, an unknown action, or a port already bound</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
 
   <h2 id="implemented">Test scenarios — implemented automations</h2>
   <p>Everything below runs today, in <code>deploy/check-stacks.sh</code>,
-  <code>deploy/rebuild-restart.sh</code> and the two Go test packages,
-  <code>dashboard/</code> and <code>pustaka/</code>. Every expected message is quoted from the
-  script or the test that produces it, not paraphrased.</p>
+  <code>deploy/rebuild-restart.sh</code>, <code>deploy/schema/scratch.sh</code> and the two Go test
+  packages, <code>dashboard/</code> and <code>pustaka/</code>. Every expected message is quoted from
+  the script or the test that produces it, not paraphrased.</p>
 
   <h3 id="cs-tenancy">check-stacks.sh — tier network &amp; database isolation (TC-001, TC-002)</h3>
   <p>The script's own header names this the expensive check: a dev stack pointed at the production
@@ -518,6 +538,117 @@
   vacuously over an empty directory —
   <code>no schema file numbered %s; apply.sh runs them in filename order and a gap means a
   dependency was skipped</code>.</p>
+
+  <h3 id="go-arcade">dashboard — the ArcadeDB query path and the embedded schema (TC-113…TC-123)</h3>
+  <p><code>T-007</code> gave <code>dashboard/arcade.go</code> a query path; before it, the only thing
+  in this repository that could speak SQL to ArcadeDB was <code>deploy/schema/apply.sh</code>, in
+  shell. These eleven cases run against an <code>httptest</code> server that speaks the same
+  envelope, so they need no database; the live version of the same assertions is
+  <code>TC-125</code>.
+  <strong>Positive (TC-113):</strong> a read must reach the read-only endpoint, or
+  <code>a read went to %q, want /api/v1/query/gaos -- the command endpoint would accept a write from
+  a path that is meant to be read-only</code>; and the values must travel as parameters rather than
+  be pasted into the statement, since a product goal containing an apostrophe would otherwise be a
+  syntax error and rather worse than that — <code>the parameter was interpolated into the statement
+  text</code>.
+  <strong>Positive (TC-114):</strong> the write path is the other endpoint —
+  <code>a write went to %q, want /api/v1/command/gaos</code>.
+  <strong>Negative (TC-115):</strong> every SQL failure on this server is an HTTP 500, so the status
+  says only that something went wrong and the body says what:
+  <code>the message reads %q; it must carry the detail rather than "Error on transaction commit",
+  which names no cause</code>.
+  <strong>Negative (TC-116):</strong> <code>IF NOT EXISTS</code> is on every schema statement, but
+  ArcadeDB still reports some re-declarations as errors, and treating those as failures would make
+  the idempotence this project relies on unverifiable —
+  <code>AlreadyExists() is %v for %s, want %v</code>.
+  <strong>Negative (TC-117):</strong> an unset <code>GAOS_ARCADE_URL</code> is the local stack and a
+  valid state, so a statement must refuse rather than dial nothing
+  (<code>Query on an unconfigured store returned %v, want ErrUnconfigured</code>) while the probe
+  keeps answering as before — <code>Probe reported (%q, %v), want ("unconfigured", nil)</code>.
+  <strong>Positive (TC-118):</strong> an event write allocates a sequence number, writes the event
+  and writes the state together, so a statement that lost the session would leave a state change
+  that emitted no event: <code>a statement inside the transaction carried no arcadedb-session-id; it
+  ran outside the transaction it was meant to be in</code>.
+  <strong>Negative (TC-119):</strong> the same failure at the other end —
+  <code>Begin accepted a response with no session id; every statement after it would silently run
+  outside the transaction</code>.
+  <strong>Negative (TC-120):</strong> <code>store.go</code> put a context on every method for this
+  reason — <code>the query took %s to give up; store.go put a context on every method so a slow
+  database cannot hold a request open</code>.
+  <strong>Positive (TC-121):</strong> the deployed dashboard runs on distroless with no shell, so it
+  applies the DDL from a <code>//go:embed</code> copy rather than from the script. A pattern that
+  stopped matching a file would leave the binary applying a schema one file short and reporting
+  success: <code>the binary embeds %d schema files and %s holds %d: %v vs %v -- the //go:embed
+  pattern and the directory have drifted apart</code>, and byte-level drift is caught by
+  <code>%s differs between the embedded copy and the file on disk</code>.
+  <strong>Positive (TC-122):</strong> two readers of the same DDL must agree on what a statement is,
+  or the script and the binary would disagree about whether a schema had been applied —
+  <code>split into %d statements, want %d: %q</code>.
+  <strong>Negative (TC-123):</strong> the negative half over the real files, since a statement that
+  came out empty or still carrying a comment marker is one the database cannot parse —
+  <code>%s: a statement still carries a comment marker: %s</code>,
+  <code>%s: an empty statement survived the split</code>, and
+  <code>the embedded schema split into %d statements; the DDL is a few hundred and a number this low
+  means a file stopped being read</code>.</p>
+
+  <h3 id="go-store-seam">dashboard — one conformance suite, both stores (TC-124…TC-126)</h3>
+  <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
+  implementations to run against one interface suite, and the implementation plan gives the reason:
+  <em>running both implementations against one interface suite is what stops the seam from
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds thirty-two cases, each taking
+  a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
+  stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
+  tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
+  the simulation, which is one store's private business.
+  <strong>Positive (TC-124) and (TC-125):</strong> the same table runs twice. Both stores start from
+  the same fixtures, so a case that passes against one and fails against the other is a real
+  disagreement rather than a difference in seed data. Every rejection is compared against its exact
+  wording — <code>rejection reads %q, want %q</code> — and against the shape §09 requires:
+  <code>got %v, want an ErrRejected -- §09 says a mutation that will not happen says why, in a form
+  the handler can turn into a toast</code>. The ArcadeDB half skips rather than fails when no
+  database is configured, because <code>go test ./...</code> has always run anywhere in this
+  repository and <code>rebuild-restart.sh</code> gates every deploy on it:
+  <code>GAOS_ARCADE_TEST_URL is unset; run deploy/schema/scratch.sh up for the ArcadeDB half</code>.
+  Each case gets its own tenant inside one database, which is also a standing check on the tenant
+  scoping — a case that leaked would see another case's desks.
+  <strong>Positive (TC-126):</strong> the case that cannot be written against the interface, because
+  &ldquo;restart the process&rdquo; is not something a <code>Store</code> exposes. It is also the one
+  that decides whether the in-memory projection is a cache or a lie, since <code>BR-01</code> allows
+  anything cached in memory that is reconstructible:
+  <code>reopened floor has %d desks, the graph was written with %d -- the projection is holding state
+  the database never received</code>, and
+  <code>reopened store has %d events, wrote %d -- BR-02 says a state change that emitted no event
+  never happened, and half of these did not</code>.</p>
+
+  <h3 id="cs-store">check-stacks.sh — both tiers run the graph store (TC-127, TC-128)</h3>
+  <p>Since <code>M0.2</code>, dev and prod both set <code>GAOS_STORE: "arcadedb"</code>. This is the
+  one invariant on the list that is invisible from outside: a tier that fell back to the in-memory
+  fixtures would still serve a floor, still answer <code>/healthz</code> with <code>ok:true</code>,
+  and lose every write on restart — which is precisely what <code>BR-01</code> is about.
+  <strong>Positive (TC-127):</strong> the compose files as committed —
+  <code>dev runs the arcadedb store</code> and <code>prod runs the arcadedb store</code>.
+  <strong>Negative (TC-128):</strong> the setting is removed from a tier, or changed to anything
+  else, and the same two lines print with <code>FAIL</code> instead. The binary itself is the second
+  line of defence and refuses to start rather than falling back, which is the failure this check
+  exists to catch before a deploy rather than during one.</p>
+
+  <h3 id="sc-scratch">scratch.sh — the throwaway database for the conformance suite (TC-129, TC-130)</h3>
+  <p>The ArcadeDB half of the store suite needs a reachable database, and
+  <code>deploy/schema/scratch.sh</code> is the one command that produces one. It is deliberately
+  throwaway — <code>--rm</code>, no volume, a port of its own — because nothing in
+  <code>dashboard/schema/</code> should ever be pointed first at an instance anyone depends on.
+  <strong>Positive (TC-129):</strong> <code>up</code> reports
+  <code>started arcadedata/arcadedb:26.7.2 as gaos-scratch-db on http://localhost:2481</code>, waits
+  for the probe (<code>ready probe answers</code>), applies the DDL and echoes
+  <code>apply.sh</code>'s own last line, then prints the two <code>export</code> lines the suite
+  reads. Measured on 2026-08-17: <strong>321 applied, 0 already present, 0 failed</strong> on a fresh
+  database, and <strong>0 failed</strong> on a second run.
+  <strong>Negative (TC-130):</strong> <code>status</code> or <code>env</code> against nothing prints
+  <code>gaos-scratch-db is not running</code> and exits 1; a port already in use gives
+  <code>could not start arcadedata/arcadedb:26.7.2 on port 2481</code> with the remedy
+  (<code>is something already bound to 2481? set GAOS_SCRATCH_PORT to move it</code>); a probe that
+  never answers gives <code>http://localhost:2481/api/v1/ready never answered 204</code>; and an
+  unknown action prints the usage and exits 2.</p>
 
   <h3 id="pk-check">pustaka — the docs checker (TC-087, TC-088, TC-104)</h3>
   <p>This is the checker every page on this site is validated by, including this one.

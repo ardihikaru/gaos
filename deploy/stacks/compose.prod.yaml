@@ -71,6 +71,13 @@ services:
       GAOS_ADDR: ":8080"
       GAOS_ARCADE_URL: "http://arcadedb-master:2480"
       GAOS_ARCADE_DB: "gaos"
+      # The graph store, not the fixtures. The binary applies the schema from
+      # its embedded copy on boot -- idempotent, so a restart is a no-op -- and
+      # REFUSES TO START if the database is unreachable. That is deliberate: a
+      # dashboard asked for the graph store which quietly served fixtures would
+      # look completely healthy while losing every write.
+      GAOS_STORE: "arcadedb"
+      GAOS_ARCADE_TENANT: "loop-eng"
       # "1" IN BOTH TIERS, and this is not a copy-paste slip: the browser
       # reaches both over real TLS at the edge, so the session cookie must keep
       # its Secure flag. The flag is env-driven, never scheme-derived, because

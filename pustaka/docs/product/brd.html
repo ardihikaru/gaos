@@ -148,11 +148,11 @@
     <thead><tr><th>Capability</th><th>State</th><th>Where</th></tr></thead>
     <tbody>
       <tr><td>System architecture, control loops, scoring, readiness rubric</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-architecture.html</code></td></tr>
-      <tr><td>Graph schema: 25 vertex types, 3 document types, 32 edge types, event store</td><td><strong>Built (DDL applied to a scratch database)</strong></td><td><code>dashboard/schema/</code> — extracted from <code>artifacts/v1/gaos-arcadedb-model.html</code> and reconciled against ArcadeDB 26.7.2; see <code>schema/RECONCILIATION.md</code></td></tr>
-      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 37 tests, stdlib only</td></tr>
+      <tr><td>Graph schema: 25 vertex types, 3 document types, 32 edge types, event store</td><td><strong>Built (applied to dev and prod)</strong></td><td><code>dashboard/schema/</code> — extracted from <code>artifacts/v1/gaos-arcadedb-model.html</code> and reconciled against ArcadeDB 26.7.2; see <code>schema/RECONCILIATION.md</code></td></tr>
+      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 51 tests, stdlib only</td></tr>
       <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
       <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
-      <tr><td>ArcadeDB schema applied to dev or prod, graph queries</td><td><strong>Not built</strong></td><td><code>dashboard/store.go</code> is the seam</td></tr>
+      <tr><td>ArcadeDB schema applied to dev and prod, graph queries</td><td><strong>Built</strong></td><td><code>dashboard/store_arcade.go</code> against the <code>store.go</code> seam; <code>dashboard/arcade.go</code> carries the query path; one conformance suite covers both stores</td></tr>
       <tr><td>Scheduler, runner, real reviews</td><td><strong>Not built</strong></td><td><code>dashboard/sim.go</code> stands in</td></tr>
       <tr><td>Authentication</td><td><strong>Not built</strong></td><td>the back-office login sets a cookie and checks nothing</td></tr>
     </tbody>
@@ -180,8 +180,9 @@
     failed, one of them because of an error in the data model rather than a difference between
     versions (<a href="decision-log.html#d-045">D-045</a>,
     <a href="decision-log.html#d-046">D-046</a>). The schema now exists as ten runnable files under
-    <code>dashboard/schema/</code>. <em>Neither dev nor prod has it</em>, and no code reads or
-    writes a graph — <code>store_arcade.go</code> is still unwritten.</li>
+    <code>dashboard/schema/</code>, and since 2026-08-17 both tiers carry it and
+    <code>store_arcade.go</code> reads and writes it. A third amendment came out of that first
+    write (<a href="decision-log.html#d-047">D-047</a>).</li>
     <li><strong>Authentication is absent, not partial.</strong> The back office is reachable and its
     login checks nothing — acceptable for a prototype, disqualifying for a tenant boundary.</li>
     <li><strong>Single-node infrastructure.</strong> One public edge machine (<code>clino</code>,
@@ -324,9 +325,12 @@
     <li><strong>The back office accepts a login and checks nothing.</strong> Any value opens it. It
     then shows product records, a readiness checklist, a graph projection count and story coverage
     — computed from fixtures in <code>dashboard/fixtures.go</code>.</li>
-    <li><strong>Events are emitted into an in-memory store.</strong> <code>dashboard/store_mem.go</code>
-    holds them; <code>dashboard/store.go</code> is the interface that ArcadeDB will implement.
-    <code>dashboard/arcade.go</code> reaches the database only for the health probe.</li>
+    <li><strong>Events are written to the graph, and the stream is still a window.</strong>
+    <code>dashboard/store_arcade.go</code> appends every event as an <code>Event</code> document
+    before its mutation commits, and rebuilds the floor from ArcadeDB on boot;
+    <code>dashboard/store_mem.go</code> remains the in-memory double the conformance suite runs the
+    same cases against. The retained window is still 160 entries, which is what
+    <code>BR-04</code> is still waiting on.</li>
     <li><strong>The stacks serve four paths from one origin</strong> — <code>/</code> landing,
     <code>/app/</code> Mission Control, <code>/docs/</code> this site, <code>/api/</code> the health
     endpoint — behind a per-product Traefik on the private VM, fronted by nginx on
@@ -1261,7 +1265,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
     <tbody>
       <tr><td>R-01</td><td>Everything past the operator surface is unbuilt — scheduler, runner, review engine, schema</td><td>The product cannot do the thing it is for</td><td>Accepted and stated openly in the README; the build order exists</td></tr>
       <tr><td>R-02</td><td>No authentication. The back-office login sets a cookie and checks nothing</td><td>Any tenant boundary is currently fictional</td><td>Open, and <em>downgraded</em> by <a href="decision-log.html#d-026">D-026</a>: it no longer blocks domain K, because the boundary now separates colleagues in one deployment rather than paying strangers. It still blocks publishing anything that binds beyond localhost — see <a href="open-questions.html#oq-11">OQ-11</a></td></tr>
-      <tr><td>R-03</td><td><s>No DDL has ever been applied</s> — the DDL now applies, but the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td><strong>Largely discharged, not closed.</strong> The scratch run happened on 2026-08-16 against <strong>26.7.2</strong> (<a href="decision-log.html#d-043">D-043</a>): 314 statements, clean and idempotent. It found what it was meant to find — 53 statements failed first time, yielding <a href="decision-log.html#d-045">D-045</a> (dialect: edge uniqueness is an index, not a keyword) and <a href="decision-log.html#d-046">D-046</a> (an error in the model: partitioning by <code>tenantId</code> would have permitted one Task per tenant). <strong>What remains open is the second half of the mitigation</strong>: <code>EXTERNAL</code> was verified to <em>apply</em>, but the deletion behaviour <a href="#req-l">L-7</a> depends on — an <code>EXTERNAL</code> payload being destroyable independently of the record referencing it — has not been tested. Until it is, a deletion promise still rests on an unverified storage behaviour</td></tr>
+      <tr><td>R-03</td><td><s>No DDL has ever been applied</s> — the DDL now applies, but the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td><strong>Largely discharged, not closed.</strong> The scratch run happened on 2026-08-16 against <strong>26.7.2</strong> (<a href="decision-log.html#d-043">D-043</a>): 314 statements, clean and idempotent. It found what it was meant to find — 53 statements failed first time, yielding <a href="decision-log.html#d-045">D-045</a> (dialect: edge uniqueness is an index, not a keyword) and <a href="decision-log.html#d-046">D-046</a> (an error in the model: partitioning by <code>tenantId</code> would have permitted one Task per tenant). A third followed on 2026-08-17, found by writing rather than by reading: <a href="decision-log.html#d-047">D-047</a>, an identity index on every type the store addresses by business id, taking the DDL to 321 statements. <strong>What remains open is the second half of the mitigation</strong>: <code>EXTERNAL</code> was verified to <em>apply</em>, but the deletion behaviour <a href="#req-l">L-7</a> depends on — an <code>EXTERNAL</code> payload being destroyable independently of the record referencing it — has not been tested. Until it is, a deletion promise still rests on an unverified storage behaviour</td></tr>
       <tr><td>R-04</td><td>Record rot — the record is filled once and never updated while the codebase moves</td><td>Silent degradation; the planner produces defensible-looking plans from a stale brief</td><td>Designed against: the drift penalty and <code>ReadinessDropped</code>. Untested</td></tr>
       <tr><td>R-05</td><td>Runaway model spend. <code>budget_cap</code> is specified per workflow and per tenant, and implemented nowhere. <a href="decision-log.html#d-030">D-030</a> moves the exposure onto the operator, and <a href="decision-log.html#d-033">D-033</a> makes the figures partly estimated</td><td>Direct, unbounded financial loss the moment a real credential is configured — the user's money now, not the project's</td><td>Open, <em>reframed</em> and now <em>designed</em>. It stopped being a financial risk to GAOS and became a duty-of-care risk to its users, which is worse, because the people exposed did not make the decision. <a href="decision-log.html#d-037">D-037</a> specifies the guard in full — three zones, pacing, deferral, six properties (<a href="#budget-guard">§8.10.1</a>) — and none of it is built. In API mode it is the only thing between a retry loop and an unbounded charge; in CLI mode it costs throughput rather than money</td></tr>
       <tr><td>R-06</td><td>The core bet is unproven — knowledge accumulation reducing retries has never been measured</td><td>If false, GAOS is an expensive scheduler and domain G is decorative</td><td>Open. The measurement is defined; running it is a milestone, not a task. <a href="decision-log.html#d-026">D-026</a> makes it harder to observe, since runs now happen on other people's machines — mitigated only if operators choose to report</td></tr>
@@ -1316,7 +1320,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td><a href="../architecture/system.html">Architecture — the system</a></td><td>The same design as a docs page, with the repository mapping</td></tr>
       <tr><td><a href="../architecture/graph.html">Architecture — the graph</a></td><td>The schema as a docs page, including what is not built yet</td></tr>
       <tr><td><code>dashboard/events.go</code></td><td>The closed event catalog as Go constants, with "pass 2" names marked</td></tr>
-      <tr><td><code>dashboard/store.go</code>, <code>store_mem.go</code>, <code>sim.go</code></td><td>The seam where ArcadeDB lands, and the simulation standing in for the runner</td></tr>
+      <tr><td><code>dashboard/store.go</code>, <code>store_mem.go</code>, <code>store_arcade.go</code>, <code>sim.go</code></td><td>The seam, its two implementations, and the simulation standing in for the runner</td></tr>
       <tr><td><code>README.md</code></td><td>The designed-versus-built table and the deployment facts</td></tr>
       <tr><td><code>deploy/STACKS.md</code>, <code>deploy/edge/README.md</code></td><td>Topology, tunnel ports, TLS termination, the constraints in <a href="#scope-constraints">§10.3</a></td></tr>
       <tr><td><a href="../infra/overview.html">Infrastructure — overview</a>, <a href="../infra/environments.html">environments</a>, <a href="../infra/neighbours.html">neighbours</a></td><td>How the two tiers run and how GAOS shares the VM</td></tr>

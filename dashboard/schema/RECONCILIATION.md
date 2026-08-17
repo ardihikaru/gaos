@@ -8,14 +8,16 @@ version and for the dialect to be reconciled. This is that reconciliation.
 - **Source of truth:** `artifacts/v1/gaos-arcadedb-model.html` §05–§10, from
   which the ten `.sql` files in this directory were extracted. Seven are
   verbatim and say so in their header; `08-edges.sql`, `09-indexes.sql` and
-  `10-storage.sql` carry the two reconciliations below and say that instead.
-- **Applied by:** `deploy/schema/apply.sh` from a workstation, and — once
-  `T-007` lands — by the dashboard binary from an embedded copy, which is why
-  the SQL lives inside the `dashboard` module rather than beside the script.
-- **Date measured:** 2026-08-16.
-- **Result:** 314 statements apply clean, and re-applying is a no-op. **Two**
+  `10-storage.sql` carry the reconciliations below and say that instead.
+- **Applied by:** `deploy/schema/apply.sh` from a workstation, and — since
+  `T-007` landed — by the dashboard binary from an embedded copy
+  (`dashboard/schema_embed.go`), which is why the SQL lives inside the
+  `dashboard` module rather than beside the script.
+- **Date measured:** 2026-08-16; deviation 3 added 2026-08-17.
+- **Result:** 321 statements apply clean, and re-applying is a no-op. **Three**
   deviations from the committed model document were required to get there: one
-  is dialect, and **one is a design error in the model.**
+  is dialect, **one is a design error in the model**, and one is an
+  incompleteness found later, when `T-006` first wrote to the graph.
 
 The model document warns in its own words that the ArcadeDB SQL dialect moves
 between releases and that the schema should be run against the target version
@@ -138,6 +140,40 @@ the correction where they would otherwise copy the mistake.
 
 ---
 
+## Deviation 3 — an identity index on seven types, but every type is addressed by id
+
+**Severity:** incompleteness in the committed model. **Statements affected:** 7
+added. **Found on 2026-08-17, writing `store_arcade.go` (`T-006`).**
+
+The model gives `(tenantId, id) UNIQUE` to seven vertex types: `Product`,
+`Workflow`, `Task`, `TaskRun`, `Agent`, `Issue`, `Knowledge`. The other eighteen
+have none.
+
+That is fine until something writes them. `BR-03` says every reference is a
+business `id` and never a RID, so a write is keyed by `(tenantId, id)` — and
+26.7.2 refuses a keyed write against a type with no index for it:
+
+```
+Upsert must involve an index to retrieve the records. Check the where
+condition is using the index for the upsert
+```
+
+Every `UPSERT` in `store_arcade.go` failed this way on the first run, against
+`Tenant`, `Room`, `Requirement`, `AcceptanceCriterion`, `Artifact`, `Decision`
+and `Repository`.
+
+**Applied:** those seven indexes are appended to `09-indexes.sql` under their own
+heading. The remaining eleven types are deliberately left without one — nothing
+writes them yet, and the model is explicit that an index belongs where a lookup
+is actually hot rather than everywhere one might eventually be. The next task
+that writes one of them adds its index in the same change.
+
+**Ruled `D-047`, 2026-08-17.** Additive, no semantics change: it makes explicit
+a uniqueness the model already assumed by addressing records by business id.
+The DDL now applies **321** statements rather than 314.
+
+---
+
 ## Everything else applied as written
 
 `09-indexes.sql`'s `BY ITEM`, `FULL_TEXT` and composite forms all applied
@@ -159,7 +195,18 @@ commented, as the model leaves it.
 - **`EXTERNAL` applied cleanly** on `ContextSlice.rendered`, `Prompt.template`
   and `Artifact.body`, so `BR-25` is available as specified.
 - **Idempotence holds.** Second run: 0 failures, 194 statements reported as
-  already present.
+  already present. Re-measured on 2026-08-17 after `D-047`: still 0 failures.
+- **`ifnull(createdAt, sysdate())` is how an UPSERT keeps an audit stamp still.**
+  `createdAt` is mandatory on `GaosVertex`, an UPSERT cannot branch on whether it
+  inserted, and setting it in a follow-up `UPDATE` fails — the mandatory-property
+  check runs at commit and the record is already invalid by then.
+- **`retry` is a reserved word.** `UPDATE Workflow SET retry = :p` is a syntax
+  error on 26.7.2. `store_arcade.go` writes `retryCount` and `escalationCount`,
+  which is also the vocabulary `Task` already declares.
+- **There is no `CREATE EDGE … IF NOT EXISTS`,** and inside a transaction the
+  endpoint-index violation is raised at COMMIT rather than at the statement — so
+  catching `DuplicatedKeyException` per statement never fires. Edge writes check
+  for the edge first, by traversal.
 
 ---
 
@@ -171,7 +218,7 @@ docker run -d --rm --name gaos-scratch-db -p 2480:2480 \
   arcadedata/arcadedb:26.7.2
 
 GAOS_ARCADE_USER=root GAOS_ARCADE_PASSWORD=scratchpw \
-  ./deploy/schema/apply.sh scratch      # 314 applied, 0 failed
+  ./deploy/schema/apply.sh scratch      # 321 applied, 0 failed
 GAOS_ARCADE_USER=root GAOS_ARCADE_PASSWORD=scratchpw \
   ./deploy/schema/apply.sh scratch      # 0 failed, idempotent
 

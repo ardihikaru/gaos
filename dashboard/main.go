@@ -60,20 +60,55 @@ type server struct {
 	arc   *Arcade
 }
 
+// selectStore picks the implementation. GAOS_STORE=arcadedb is opt-in and
+// explicit: the presence of a database URL is not consent to store anything in
+// it, because /healthz has been probing a configured-but-unused ArcadeDB since
+// this dashboard was first deployed.
+//
+// It FAILS THE BOOT rather than falling back. A dashboard asked for the graph
+// store that quietly served fixtures instead would look completely healthy
+// while losing every write, which is the exact failure mode the comment at the
+// top of arcade.go was written about.
+func selectStore(ctx context.Context, arc *Arcade, seed uint64) (Store, error) {
+	if envOr("GAOS_STORE", "memory") != "arcadedb" {
+		return NewMemStore(seed), nil
+	}
+	if !arc.Configured() {
+		return nil, fmt.Errorf("GAOS_STORE=arcadedb but GAOS_ARCADE_URL is unset")
+	}
+	st, err := NewArcadeStore(ctx, arc, seed)
+	if err != nil {
+		return nil, fmt.Errorf("arcadedb store: %w", err)
+	}
+	return st, nil
+}
+
 func serve(addr string, dev, sim bool, seed uint64, root string) error {
 	rend, err := NewRenderer(dev, root)
 	if err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}
 
-	store := NewMemStore(seed)
-	srv := &server{store: store, rend: rend, arc: ArcadeFromEnv()}
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	arc := ArcadeFromEnv()
+	store, err := selectStore(ctx, arc, seed)
+	if err != nil {
+		return err
+	}
+	srv := &server{store: store, rend: rend, arc: arc}
+
+	// The simulation belongs to MemStore and is not on the Store interface, so
+	// it is asked for rather than assumed. ArcadeStore holds real state and has
+	// nothing to simulate -- a floor that moved on its own would be writing
+	// events nobody asked for, into a stream BR-04 says is the record.
 	if sim {
-		go store.RunSim(ctx)
+		if r, ok := store.(interface{ RunSim(context.Context) }); ok {
+			go r.RunSim(ctx)
+		} else {
+			sim = false
+		}
 	}
 
 	h := gzipMiddleware(srv.routes())

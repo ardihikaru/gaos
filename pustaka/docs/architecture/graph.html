@@ -244,18 +244,22 @@ LIMIT 20</pre>
 
   <h2 id="not-yet">What is not built yet</h2>
 
-  <p><strong>Neither dev nor prod carries this schema.</strong> The dashboard still reads an
-  in-memory store seeded from fixtures and probes ArcadeDB only for reachability —
-  <code>dashboard/store.go</code> declares the interface an ArcadeDB implementation drops into,
-  that implementation is still unwritten, and <code>dashboard/events.go</code> already encodes the
-  closed event catalog as typed constants so that the vocabulary cannot drift in the meantime.</p>
+  <p><strong>Both tiers now carry this schema, and the dashboard reads and writes it.</strong>
+  <code>dashboard/store_arcade.go</code> landed on 2026-08-17 as the implementation
+  <code>dashboard/store.go</code> declared the interface for, and the binary applies the DDL itself
+  from an embedded copy on every boot — idempotent, so a restart is a no-op. What is <em>not</em>
+  built is the half above it: no scheduler, no runner, no model call, and the floor that renders over
+  the graph is still moved by a simulation rather than by work. The event stream is also still a
+  bounded window rather than the append-only record <code>BR-04</code> asks for, which is the next
+  sub-module.</p>
 
   <p><strong>The DDL itself is no longer only a document.</strong> On 2026-08-16 it was extracted
   into ten runnable files under <code>dashboard/schema/</code> and applied to a scratch ArcadeDB
   <strong>26.7.2</strong>, the version <a href="../product/decision-log.html#d-043">D-043</a> pins:
-  314 statements, applied clean, and idempotent on a second run. That first run is where the value
+  321 statements, applied clean, and idempotent on a second run. That first run is where the value
   was — <strong>53 statements failed</strong>, and reconciling them produced two amendments to the
-  data model. <a href="../product/decision-log.html#d-045">D-045</a> is a dialect difference: edge
+  data model, with a third following on 2026-08-17 when the store first wrote to the graph
+  (<a href="../product/decision-log.html#d-047">D-047</a>). <a href="../product/decision-log.html#d-045">D-045</a> is a dialect difference: edge
   uniqueness is a unique index on <code>(`@out`, `@in`)</code>, not a <code>UNIQUE</code> keyword on
   the type, which this version rejects outright.
   <a href="../product/decision-log.html#d-046">D-046</a> is not a dialect difference but an error in
