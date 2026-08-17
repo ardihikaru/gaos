@@ -1329,7 +1329,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="decision-log">14. Decision log</h2>
-  <p>Forty-six decisions are made and traceable — the thesis itself, the stateless orchestrator,
+  <p>Forty-eight decisions are made and traceable — the thesis itself, the stateless orchestrator,
   business ids in events, one edge type per relationship, the <code>Task</code>/<code>TaskRun</code>
   split, database-per-tenant as the default, the readiness floor of 45, capability-first routing,
   correctness weighted at 0.45, safety as a veto, the build order, the deployment shape, and since
@@ -1360,15 +1360,15 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
     <p class="adm-title">Next milestones — open, pending the owner's roadmap</p>
     <ul>
       <li><s>Licence and contribution policy chosen and committed</s> — done, <a href="decision-log.html#d-035">D-035</a>. Remaining: vendor the upstream licence texts for the fonts and charting library beside the assets, which redistribution requires</li>
-      <li>Apply the DDL to a scratch ArcadeDB on the target version and reconcile the dialect</li>
-      <li>Graph schema plus event store, with a fold that reproduces current state exactly (build order step 1)</li>
-      <li>Task state machine rejecting illegal transitions at the boundary (step 2)</li>
+      <li><s>Apply the DDL to a scratch ArcadeDB on the target version and reconcile the dialect</s> — done 2026-08-16, <a href="decision-log.html#d-045">D-045</a> and <a href="decision-log.html#d-046">D-046</a>, with <a href="decision-log.html#d-047">D-047</a> following the next day</li>
+      <li><s>Graph schema plus event store, with a fold that reproduces current state exactly (build order step 1)</s> — done 2026-08-17. The stream is append-only and unbounded, the reducer is pure, total and order-stable, and <a href="qa-test-plan.html#im-fold">the fold test</a> — the first of §4.1's three ever to run — compares fold-from-genesis against fold-from-nearest-snapshot on a real workflow</li>
+      <li><s>Task state machine rejecting illegal transitions at the boundary (step 2)</s> — done 2026-08-17, <code>dashboard/state.go</code>; every write to a desk's state goes through it and an illegal move returns a reason rather than a bare failure</li>
       <li>Readiness scoring running on ingestion, with the planner refusing below 45 (step 3)</li>
-      <li>The four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties landed together in the data model, <code>dashboard/events.go</code> and the fold — before anything depends on them</li>
+      <li><s>The four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties landed together in the data model, <code>dashboard/events.go</code> and the fold — before anything depends on them</s> — done 2026-08-17, in one change as required. <code>TaskResumed</code> turned out to be the fourth name and already existed, so three were new</li>
       <li>The first CLI adapter, the task packet and the handoff-document validator (<a href="#to-be-cli">§7.6</a>)</li>
       <li>The budget guard: three zones, pacing and deferral, before the first run in API mode (<a href="#budget-guard">§8.10.1</a>)</li>
       <li>First real model call, behind a budget cap that actually exists and a pre-dispatch egress check that actually runs</li>
-      <li>The unsatisfiable-task test passing</li>
+      <li>The unsatisfiable-task test passing — the second of §4.1's three acceptance tests, still blocked on domains C, D and E</li>
       <li>The second-run measurement performed for the first time</li>
       <li>Authentication, before anything binds beyond localhost</li>
       <li>First paid installation completed — the whole of O-7's first half</li>

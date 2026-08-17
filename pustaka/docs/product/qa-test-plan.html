@@ -16,9 +16,10 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  one hundred and thirty cases, positive and negative, across the three deploy automations and the
-  two Go test packages that actually run today, plus the three business acceptance tests
-  <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever executed.
+  one hundred and forty-eight cases, positive and negative, across the three deploy automations and the
+  two Go test packages that actually run today, plus the two business acceptance tests
+  <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
+  the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
   Since <a href="decision-log.html#d-039">D-039</a> this register is also the project's definition of
   success: GAOS is done when every case here passes, positive and negative alike, and no numeric
   outcome target stands beside it.</p>
@@ -69,7 +70,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and thirty cases in one filterable table. Filter by automation, kind, or any
+  <p>All one hundred and forty-eight cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -131,8 +132,8 @@
       <tr data-tags="rebuild-restart full-verify public https negative"><td>TC-047</td><td>rebuild-restart.sh</td><td>Negative</td><td>Public HTTPS path is down</td><td>Implemented</td></tr>
       <tr data-tags="acceptance test unsatisfiable task guard limits positive"><td>TC-048</td><td>Unsatisfiable task</td><td>Positive</td><td>Stops within guard limits, reason code recorded, human queue item created</td><td>Not implemented</td></tr>
       <tr data-tags="acceptance test unsatisfiable task guard limits negative"><td>TC-049</td><td>Unsatisfiable task</td><td>Negative</td><td>Loops past guard limits, or stops without a reason code</td><td>Not implemented</td></tr>
-      <tr data-tags="acceptance test fold genesis snapshot replay positive"><td>TC-050</td><td>Fold test</td><td>Positive</td><td>Fold from genesis equals fold from nearest snapshot</td><td>Not implemented</td></tr>
-      <tr data-tags="acceptance test fold genesis snapshot replay negative"><td>TC-051</td><td>Fold test</td><td>Negative</td><td>The two folds diverge</td><td>Not implemented</td></tr>
+      <tr data-tags="acceptance test fold genesis snapshot replay positive"><td>TC-050</td><td>dashboard (go test)</td><td>Positive</td><td>Fold from genesis equals fold from nearest snapshot, at every rung of the ladder and at moments between them (<code>TestFoldFromGenesisEqualsFoldFromNearestSnapshot</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="acceptance test fold genesis snapshot replay negative"><td>TC-051</td><td>dashboard (go test)</td><td>Negative</td><td>An event dropped from the stream must change the folded floor &mdash; a comparison that cannot fail proves nothing about the two floors it was given (<code>TestFoldIsTheNegativeCaseToo</code>)</td><td>Implemented</td></tr>
       <tr data-tags="acceptance test second run knowledge accumulation positive"><td>TC-052</td><td>Second run</td><td>Positive</td><td>Second run needs fewer retries and less intervention than the first</td><td>Not implemented</td></tr>
       <tr data-tags="acceptance test second run knowledge accumulation negative"><td>TC-053</td><td>Second run</td><td>Negative</td><td>Second run needs the same or more retries/intervention</td><td>Not implemented</td></tr>
       <tr data-tags="go test unit dashboard routes http status smoke positive"><td>TC-054</td><td>dashboard (go test)</td><td>Positive</td><td>Every documented route answers its expected status across 33 method/path cases, and an unknown product id is a 404 (<code>TestEveryRouteAnswers</code>)</td><td>Implemented</td></tr>
@@ -148,7 +149,7 @@
       <tr data-tags="go test unit dashboard retry guard max-retry-count exhausted negative"><td>TC-064</td><td>dashboard (go test)</td><td>Negative</td><td>Three retries succeed and the fourth is refused with a reason naming the guard (<code>TestRetryGuardExhausts</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard cancel desk idle release positive"><td>TC-065</td><td>dashboard (go test)</td><td>Positive</td><td>Cancelling a task returns the desk to idle with no agents assigned (<code>TestCancelReleasesTheDesk</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard snapshot aliasing clone replay negative"><td>TC-066</td><td>dashboard (go test)</td><td>Negative</td><td>A caller mutating a returned snapshot cannot change the live floor (<code>TestSnapshotsDoNotAliasTheLiveFloor</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard event cap replay cursor out of range negative"><td>TC-067</td><td>dashboard (go test)</td><td>Negative</td><td>The stream stays capped, replay to the oldest retained event works, and replaying past the end is a not-found rather than a silent clamp (<code>TestEventsAreCappedAndTheReplayCursorFollows</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard event stream unbounded genesis gap append-only br-04 negative"><td>TC-067</td><td>dashboard (go test)</td><td>Negative</td><td>Nothing is dropped from the front of the stream and no sequence number is skipped: genesis is still <code>FloorOpened</code> at seq 1 after four hundred ticks, genesis is still reachable, and replaying past the end is a not-found rather than a silent clamp (<code>TestTheEventStreamIsUnboundedAndKeepsGenesis</code>) &mdash; <em>this case asserted the opposite until v0.11.0, when <code>T-013</code> removed the 160-entry ring <code>BR-04</code> forbids</em></td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard replay read-only frozen floor negative"><td>TC-068</td><td>dashboard (go test)</td><td>Negative</td><td>A ticking simulation does not advance a floor an operator is replaying (<code>TestReplayFreezesTheFloor</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard simulation tick events spend positive"><td>TC-069</td><td>dashboard (go test)</td><td>Positive</td><td>Forty ticks emit events and accumulate spend (<code>TestSimulationActuallyMoves</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard pause clock frozen negative"><td>TC-070</td><td>dashboard (go test)</td><td>Negative</td><td>A paused floor does not advance its clock over thirty ticks (<code>TestPausedFloorDoesNotTick</code>)</td><td>Implemented</td></tr>
@@ -212,6 +213,24 @@
       <tr data-tags="check-stacks store arcadedb graph tier parity negative"><td>TC-128</td><td>check-stacks.sh</td><td>Negative</td><td>A tier's <code>GAOS_STORE</code> setting is removed or changed away from <code>arcadedb</code></td><td>Implemented</td></tr>
       <tr data-tags="scratch schema throwaway arcadedb conformance harness positive"><td>TC-129</td><td>scratch.sh</td><td>Positive</td><td><code>up</code> starts the pinned ArcadeDB, waits for the ready probe, applies the DDL clean and prints the environment the conformance suite needs</td><td>Implemented</td></tr>
       <tr data-tags="scratch schema throwaway arcadedb harness missing container negative"><td>TC-130</td><td>scratch.sh</td><td>Negative</td><td><code>status</code> or <code>env</code> with no container running, an unknown action, or a port already bound</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard fold reducer determinism live floor br-02 positive"><td>TC-131</td><td>dashboard (go test)</td><td>Positive</td><td>A fold from genesis reproduces the live floor field for field &mdash; state, gate, score, counters, stage, task and agents &mdash; on a workflow driven three hundred events deep (<code>TestFoldFromGenesisMatchesTheLiveFloor</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard snapshot optimisation br-21 discard negative"><td>TC-132</td><td>dashboard (go test)</td><td>Negative</td><td>Discarding every snapshot must not change the folded floor; if it does, the ladder has become the source of truth and the event stream has stopped being it (<code>TestFoldNeedsNoSnapshotAtAll</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reducer total unknown event type h-2 negative"><td>TC-133</td><td>dashboard (go test)</td><td>Negative</td><td>An event type this build has never heard of, interleaved through the whole stream, leaves the folded floor unchanged rather than failing the fold (<code>TestReducerSkipsUnknownEventTypes</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reducer pure aliasing positive"><td>TC-134</td><td>dashboard (go test)</td><td>Positive</td><td>Folding the same stream twice gives the same answer, and the folded floor does not alias the base state it was folded from (<code>TestReducerIsPure</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reducer order stable ts seq positive"><td>TC-135</td><td>dashboard (go test)</td><td>Positive</td><td>The same events shuffled into a different order fold to the same floor, because ties are broken by <code>(ts, seq)</code> (<code>TestFoldIsOrderStable</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard replay every moment unbounded t-013 positive"><td>TC-136</td><td>dashboard (go test)</td><td>Positive</td><td>Every event in the stream is a moment replay can reach, genesis included, and <code>-1</code> returns to live (<code>TestReplayReachesEveryMomentInTheStream</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard fold arcadedb round trip payload delta persistence positive"><td>TC-137</td><td>dashboard (go test)</td><td>Positive</td><td>Event deltas survive the graph: a store reopened on the same tenant reloads payloads that are not empty, and the reloaded stream folds to the floor the graph itself reports (<code>TestFoldSurvivesTheGraphRoundTrip</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard state machine transitions declared positive"><td>TC-138</td><td>dashboard (go test)</td><td>Positive</td><td>Every transition the table declares is taken, and a state may always go to itself (<code>TestStateMachineAllowsTheDeclaredTransitions</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard state machine illegal transition refused negative"><td>TC-139</td><td>dashboard (go test)</td><td>Negative</td><td>Sixteen named illegal moves are refused &mdash; idle to review, review to blocked, deferred to blocked and the rest &mdash; as are moves in and out of a state nobody declared (<code>TestStateMachineRefusesIllegalTransitions</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard state machine reject reason br-06 negative"><td>TC-140</td><td>dashboard (go test)</td><td>Negative</td><td>An illegal transition comes back as an <code>ErrRejected</code> naming both states and leaves the desk where it was; an undeclared target says the name is unknown instead (<code>TestSetStateRejectsWithAReason</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard state machine reachable declared fold positive"><td>TC-141</td><td>dashboard (go test)</td><td>Positive</td><td>Every state a live desk reaches, and every state the reducer can produce, is a state the transition table declares (<code>TestEveryReachableDeskStateIsDeclared</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard mutation rejection reason br-06 negative"><td>TC-142</td><td>dashboard (go test)</td><td>Negative</td><td>A retry or a cancel on an idle desk is refused with a sentence rather than a bare failure (<code>TestMutationsRefusedByTheMachineExplainThemselves</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard event catalog closed br-05 d-020 positive"><td>TC-143</td><td>dashboard (go test)</td><td>Positive</td><td>Every event a full run writes is in the model document's closed catalog or in the fenced UI-lifecycle block, checked against a list written out independently of <code>events.go</code> (<code>TestEveryEmittedEventIsInTheClosedCatalog</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard event catalog unemitted owed pass-two negative"><td>TC-144</td><td>dashboard (go test)</td><td>Negative</td><td>The twelve declared-but-unwritten names are exactly the ones owed to M3.2, M4.2, M5.2, M5.5, M7.3 and M10.3 &mdash; a name that starts being emitted, or a new one nothing writes and nothing explains, fails (<code>TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness band crossing br-10 negative"><td>TC-145</td><td>dashboard (go test)</td><td>Negative</td><td>A readiness score that falls across a band boundary emits <code>ReadinessDropped</code>; one that rises across the same boundary does not (<code>TestReadinessDroppedFiresOnlyOnADownwardBandCrossing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema deferred taskrun invocation costbasis d-037 t-015 positive"><td>TC-146</td><td>dashboard (go test)</td><td>Positive</td><td><code>Task.status</code> permits <code>DEFERRED</code> and <code>TaskRun</code> declares <code>invocation</code> and <code>costBasis</code> with their vocabularies &mdash; asserted in one test because D-037 forbids landing them piecemeal (<code>TestTheDeferredStateAndItsCompanionsLandedTogether</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart deploy test gate go toolchain docker fallback positive"><td>TC-147</td><td>rebuild-restart.sh</td><td>Positive</td><td>The <code>deploy</code> test gate runs whether or not the machine has a Go toolchain: natively when <code>go</code> is on <code>PATH</code>, otherwise in the pinned <code>golang:1.24-alpine</code> container</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart deploy test gate no go no docker refuse negative"><td>TC-148</td><td>rebuild-restart.sh</td><td>Negative</td><td>Neither Go nor Docker is available, so the gate cannot run and the deploy stops rather than building untested code</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -329,6 +348,24 @@
   broken internal link, a missing <code>page-meta</code> field, a stale registry entry) →
   <code>bad "pustaka docs check failed"</code>, exit 1. <strong>TC-029, positive:</strong> all three
   pass → proceeds to <code>docker compose build</code>.</p>
+
+  <h3 id="rr-gotoolchain">rebuild-restart.sh — the test gate runs with or without a local Go (TC-147, TC-148)</h3>
+  <p>The VM these stacks run on has Docker and no Go toolchain — not on <code>PATH</code>, not under
+  a login shell, not in <code>/usr/local/go</code>. The gate above has no bypass flag, so until
+  v0.11.0 the documented deploy path could not complete on the machine it deploys to, and the
+  workaround was to run <code>docker compose</code> by hand: the one thing
+  <code>.claude/agents/gaos-deploy.md</code> tells the subagent never to do. A gap in the tooling
+  that forces the rule to be broken is a gap in the tooling.
+  <strong>Positive (TC-147):</strong> the script now picks an arm before the gate and says which,
+  <code>go toolchain: local go1.24.x</code> or <code>go toolchain: docker golang:1.24-alpine</code>,
+  and all three checks run identically either way — the container arm mounts the repo at
+  <code>/src</code> and keeps <code>GOCACHE</code> inside itself, so no build cache lands in the
+  working tree. The image is <code>GAOS_GO_IMAGE</code>, pinned by default.
+  <strong>Negative (TC-148):</strong> a machine with neither Go nor Docker stops the deploy rather
+  than skipping the gate — <code>no go toolchain and no docker -- the test gate cannot run</code>,
+  followed by <code>install Go, or install Docker so the gate can run in $GO_IMAGE</code>, exit 1. A
+  gate that silently skips itself is worse than one that cannot run, because the output still reads
+  as though the tests were part of the deploy.</p>
 
   <h3 id="rr-build">rebuild-restart.sh — build and up (TC-030, TC-031, TC-032)</h3>
   <p><strong>Positive (TC-030):</strong> <code>docker compose build $SERVICE</code> and
@@ -450,13 +487,19 @@
   why: %v</code>. <strong>Positive (TC-065):</strong> cancelling releases the desk, or
   <code>state=%s agents=%v, want idle with no agents</code>.</p>
 
-  <h3 id="go-store">dashboard — store isolation, the event cap and replay (TC-066…TC-070)</h3>
+  <h3 id="go-store">dashboard — store isolation, the unbounded stream and replay (TC-066…TC-070)</h3>
   <p><strong>Negative (TC-066):</strong> a snapshot that shares its slices with the live floor is a
   replay that keeps changing under the operator, so <code>Clone</code> is tested directly rather than
   through a handler — <code>mutating a snapshot changed the store</code>.
-  <strong>Negative (TC-067):</strong> after twice <code>maxEvents</code> ticks the stream is still
-  capped (<code>%d events retained, cap is %d</code>), replay to the oldest retained event succeeds
-  (<code>replay to the oldest retained event: %v</code>), and replaying past the end must fail:
+  <strong>Negative (TC-067):</strong> this case asserted the opposite until v0.11.0. It required the
+  stream to stay capped at a hundred and sixty entries, which is what
+  <a href="brd.html#rules-data">BR-04</a> says an append-only record must not be, and
+  <code>T-013</code> removed the ring. It now requires that nothing is ever dropped: after four
+  hundred ticks the oldest event is still genesis
+  (<code>oldest event is %s, want FloorOpened -- the front of the stream was dropped</code>) at
+  sequence one (<code>oldest event has seq %d, want 1</code>), with no hole anywhere behind it
+  (<code>gap in the stream: seq %d follows %d</code>). Genesis is still reachable
+  (<code>replay to genesis: %v</code>) and replaying past the end must still fail:
   <code>replaying past the end must be a not-found, not a silent clamp</code>.
   <strong>Negative (TC-068):</strong> twenty ticks while an operator is replaying must not move the
   floor — <code>the floor advanced while an operator was replaying it</code>.
@@ -620,6 +663,133 @@
   <code>reopened store has %d events, wrote %d -- BR-02 says a state change that emitted no event
   never happened, and half of these did not</code>.</p>
 
+  <h3 id="im-fold">dashboard — the fold test (TC-050, TC-051, TC-131, TC-132)</h3>
+  <p>This is the acceptance test <a href="brd.html#evaluation-method">BRD §4.1</a> has been waiting
+  on since the BRD was written, and it ran for the first time on 2026-08-17. It was a forward
+  specification on this page until then, under <em>not yet implemented</em>; the specification has
+  not changed, only its section.
+  <a href="../architecture/system.html#build-order">Architecture §08</a> states the target exactly —
+  <code>state(t) = fold(reduce, events.filter(e =&gt; e.ts &lt;= t), snapshot_before(t) ?? empty)</code>
+  — and gives the reason snapshots cannot be the source: <em>if the UI can only replay from stored
+  snapshots, then any moment between two snapshots is unreachable and any bug in snapshot writing is
+  invisible</em>.</p>
+  <p><strong>Positive (TC-050):</strong> the run is driven past two rungs of the snapshot
+  ladder, then fold-from-genesis and fold-from-nearest-snapshot are compared at every rung
+  <em>and at moments between them</em> — between is where a broken ladder hides, because a snapshot
+  only ever asked for its own sequence is never asked to be folded forward from. A disagreement is a
+  release blocker, not a warning:
+  <code>at seq %d, fold-from-genesis and fold-from-nearest-snapshot produced different floors;
+  divergence proves the event model is incomplete</code>. The run first proves the ladder exists at
+  all, so the test cannot pass by comparing a fold from genesis against a fold from genesis:
+  <code>%d events produced %d snapshot rungs; the ladder is not being built</code>.
+  <strong>Positive (TC-131):</strong> the fold is then held against the live floor, field by field,
+  for everything an event is responsible for — <code>desk %s folded to state %q, live is %q</code>,
+  <code>desk %s folded to gate=%v, live is %v</code>, <code>desk %s folded to retry=%d esc=%d, live
+  is retry=%d esc=%d</code>, and the same for score, stage, task and agents. This is the case that
+  decides whether <a href="brd.html#rules-invariants">BR-02</a> actually holds: a state change that
+  emitted no event is one the fold cannot know about, and the two floors part company.
+  <strong>Negative (TC-051):</strong> the comparison has to be capable of failing, or passing
+  it means nothing. The last event that moved a desk is deleted from the stream and the fold must
+  notice — <code>dropping the %s at seq %d did not change the folded floor; the comparison cannot
+  fail, so passing it means nothing</code>. The <em>last</em> rather than the first, deliberately:
+  events carry absolute values, so an early one is usually overwritten by a later one on the same
+  desk and dropping it correctly changes nothing.
+  <strong>Negative (TC-132):</strong> the entire ladder is then thrown away and the identical floor
+  demanded, which is <a href="brd.html#rules-data">BR-21</a> stated as a test —
+  <code>discarding every snapshot changed the folded floor; the snapshots have become the source of
+  truth and the event stream has stopped being it</code>.</p>
+
+  <h3 id="go-reducer">dashboard — the reducer is pure, total and order-stable (TC-133…TC-137)</h3>
+  <p>Three properties, each named in <a href="../architecture/system.html#build-order">§08</a> and
+  each tested rather than asserted in a comment.
+  <strong>Negative (TC-133) — total:</strong> events carrying a type this build has never heard of
+  are interleaved through the whole stream, with payloads designed to do damage if anyone read them,
+  and the folded floor must be unchanged: <code>an unknown event type changed the folded floor;
+  reduce must skip what it does not recognise, not guess at it</code>. The scenario is not
+  hypothetical — the catalog is closed but not frozen, <a href="decision-log.html#d-037">D-037</a>
+  added three names to it in this very release, and a rolling upgrade means one build reading
+  another's stream.
+  <strong>Positive (TC-134) — pure:</strong> folding the same stream twice gives the same answer
+  (<code>folding the same stream twice gave two answers</code>) and the result does not alias the
+  state it was folded from (<code>the fold handed back a floor aliasing its own base state</code>).
+  <strong>Positive (TC-135) — order-stable:</strong> the same events shuffled into a different order
+  fold to the same floor, because ties are broken by <code>(ts, seq)</code> —
+  <code>the same events in a different order folded to a different floor; §08 requires ties broken by
+  (ts, seq) so a replay is the same replay every time</code>.
+  <strong>Positive (TC-136):</strong> every event in the stream is a moment replay can reach, genesis
+  included, which the 160-entry ring made impossible: <code>replay to seq %d (%s): %v</code>.
+  <strong>Positive (TC-137):</strong> the deltas have to survive the database, not just the process
+  that wrote them. A store is written through, reopened on the same tenant, and the reloaded stream
+  folded — <code>every event came back from the graph with an empty payload; the reducer deltas are
+  not being persisted and a replay would fold to a blank floor</code>, then
+  <code>desk %s: the graph says %q, the reloaded stream folds to %q</code>. Skips with the rest of
+  the ArcadeDB half when no database is configured.</p>
+
+  <h3 id="go-state-machine">dashboard — the task state machine (TC-138…TC-142)</h3>
+  <p>Build-order step 2, and the half of <a href="brd.html#rules-invariants">BR-06</a> that was
+  missing: <code>Result</code> and <code>reject()</code> gave the shape, but transitions were
+  enforced by whichever code path happened to run rather than by a boundary that refuses an illegal
+  one. <code>dashboard/state.go</code> is that boundary and every write to <code>Desk.State</code>
+  goes through it.
+  <strong>Positive (TC-138):</strong> every move the table declares is taken, and a state may always
+  go to itself — <code>the table declares %s -&gt; %s and canTransition refuses it</code>, and
+  <code>%s -&gt; %s refused; a mutation that leaves the state alone is still a mutation, and every
+  call site would need its own exception</code>. A machine that refuses legal work is as broken as
+  one that permits illegal work, and it is the failure a transition table gets wrong most often.
+  <strong>Negative (TC-139):</strong> sixteen named illegal moves, each with the reason it is illegal
+  written beside it — idle to review (<em>an empty desk has produced nothing to review</em>), review
+  to blocked (<em>review is not waiting on a dependency, it is waiting on a verdict</em>), deferred to
+  blocked (<em><a href="brd.html#rules-commercial">BR-34</a>: a deferral is not a failure and not a
+  blocker</em>) and the rest — all reported as <code>%s -&gt; %s is permitted; %s</code>. Moves in and
+  out of a state nobody declared are refused too.
+  <strong>Negative (TC-140):</strong> the refusal has to explain itself and has to not happen. An
+  illegal transition returns an <code>ErrRejected</code> reading <code>A task cannot go from idle to
+  completed.</code> and leaves the desk where it was (<code>a refused transition still moved the desk
+  to %q</code>); an undeclared target says the name is unknown instead
+  (<code>"nonsense" is not a task state.</code>), because those two need different messages or the
+  first person to hit one goes looking in the wrong place.
+  <strong>Positive (TC-141):</strong> every state a live desk reaches and every state the reducer can
+  produce is one the table declares — <code>desk %s is in state %q, which the transition table does
+  not declare</code> and <code>the fold put desk %s in state %q, which is not a declared state</code>.
+  A desk in an undeclared state would be stuck, and the reason would read like a typo.
+  <strong>Negative (TC-142):</strong> end to end through the seam, a retry or a cancel on an idle desk
+  is refused with a sentence — <code>%s on an idle desk returned %v, want ErrRejected</code> and
+  <code>%s refused without saying why</code>.</p>
+
+  <h3 id="go-catalog">dashboard — the closed event catalog (TC-143, TC-144, TC-145, TC-146)</h3>
+  <p><a href="brd.html#rules-invariants">BR-05</a> closes the catalog: a new event type is a schema
+  change to the fold, not a free addition.
+  <strong>Positive (TC-143):</strong> a full run — the simulator, plus the operator-driven mutations
+  it never reaches by itself — is checked against the model document's list, written out in the test
+  file <em>independently of</em> <code>dashboard/events.go</code>. Deriving it from the constants
+  would make the test agree with the code by construction, which is the one thing it must not do:
+  <code>event seq %d was written as %q, which is in neither the model document's catalog nor the
+  UI-lifecycle block</code>. The run must be broad enough to mean something —
+  <code>only %d distinct event types were emitted; the run is not exercising enough of the catalog
+  for this to mean anything</code>.
+  <strong>Negative (TC-144):</strong> the declared-but-unwritten names are pinned to the modules that
+  owe them — the runner (M4.2), the review engine (M5.2), the six guards (M5.5), the planner's task
+  graph (M3.2), recall (M7.3) and the budget guard (M10.3). A name that starts being emitted fails
+  (<code>%s is being emitted, but this list still says it is owed to %s -- if the module landed, take
+  it out of the list</code>) and so does a declared name with no reason beside it
+  (<code>%s is in the catalog, is not emitted, and is not listed as owed to a later module; a
+  declared name nothing writes needs a reason next to it</code>). Emitting a
+  <code>Heartbeat</code> nobody sent, or a <code>RunExited</code> from a process that never started,
+  would be inventing evidence in the one place that must not.
+  <strong>Negative (TC-145):</strong> <a href="brd.html#rules-readiness">BR-10</a> makes a downward
+  band crossing an event rather than a silent recalculation. A record is filled in, injected, gutted
+  and re-injected, and the drop must be announced —
+  <code>readiness fell from %s (%d) to %s (%d) and no ReadinessDropped was emitted; BR-10 calls that
+  a silent recalculation</code>. Driving it back up must not produce one:
+  <code>readiness went back up and ReadinessDropped was emitted anyway</code>.
+  <strong>Positive (TC-146):</strong> <a href="decision-log.html#d-037">D-037</a> adds three event
+  names, one task state and two <code>TaskRun</code> properties, and the BRD is explicit that none of
+  it should be done piecemeal. So they are asserted in one test rather than five, because five would
+  let four pass while one was missing: <code>Task.status permits %q, which has no DEFERRED --
+  model.go declares StateDeferred and state.go declares its transitions, so a task that reaches it
+  could not be written down</code>, and <code>%s is not declared with a regexp; D-037 lands it with
+  its vocabulary or not at all</code>.</p>
+
   <h3 id="cs-store">check-stacks.sh — both tiers run the graph store (TC-127, TC-128)</h3>
   <p>Since <code>M0.2</code>, dev and prod both set <code>GAOS_STORE: "arcadedb"</code>. This is the
   one invariant on the list that is invisible from outside: a tier that fell back to the in-memory
@@ -641,8 +811,9 @@
   <code>started arcadedata/arcadedb:26.7.2 as gaos-scratch-db on http://localhost:2481</code>, waits
   for the probe (<code>ready probe answers</code>), applies the DDL and echoes
   <code>apply.sh</code>'s own last line, then prints the two <code>export</code> lines the suite
-  reads. Measured on 2026-08-17: <strong>321 applied, 0 already present, 0 failed</strong> on a fresh
-  database, and <strong>0 failed</strong> on a second run.
+  reads. Measured on 2026-08-17, after <a href="decision-log.html#d-037">D-037</a> took the DDL to
+  323 statements: <strong>323 applied, 0 already present, 0 failed</strong> on a fresh database, and
+  <strong>0 failed</strong> on a second run.
   <strong>Negative (TC-130):</strong> <code>status</code> or <code>env</code> against nothing prints
   <code>gaos-scratch-db is not running</code> and exits 1; a port already in use gives
   <code>could not start arcadedata/arcadedb:26.7.2 on port 2481</code> with the remedy
@@ -775,12 +946,16 @@
   URL</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
-  <p>The three tests <a href="brd.html#evaluation-method">BRD §4.1</a> names as the only honest proof
-  the system works. Each is written here as a forward specification — Given / When / Then — so the
-  target exists in writing before the code that would satisfy it. None can run today: domains C
-  (planning), D (execution), E (review, scoring &amp; retry) and H (replay &amp; audit) are all
-  <strong>Designed</strong>, not <strong>Built</strong>, per <a href="brd.html#current-state">BRD
-  §2.1</a>.</p>
+  <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
+  system works. Two are still forward specifications — Given / When / Then, so the target exists in
+  writing before the code that would satisfy it — and neither can run today: domains C (planning), D
+  (execution) and E (review, scoring &amp; retry) are all <strong>Designed</strong>, not
+  <strong>Built</strong>, per <a href="brd.html#current-state">BRD §2.1</a>.</p>
+
+  <p>The third has moved. <a href="#im-fold">The fold test</a> ran for the first time on 2026-08-17
+  and now lives with the implemented scenarios, which is what closing
+  <a href="../delivery/implementation-plan.html#m0-foundations">M0.3</a> and
+  <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
 
   <h3 id="ni-unsatisfiable">The unsatisfiable task (TC-048, TC-049)</h3>
   <p><strong>Given</strong> a task whose acceptance criterion contradicts a domain rule (the shape
@@ -793,15 +968,6 @@
   past the guard limits, or stops without a reason code, the test has failed — in the design's own
   words, "looping or failing silently means the retry loop is not finished."
   <strong>Blocked by:</strong> domains C, D, E — none built.</p>
-
-  <h3 id="ni-fold">The fold test (TC-050, TC-051)</h3>
-  <p><strong>Given</strong> an event stream from genesis, <strong>when</strong> it is periodically
-  folded (<a href="brd.html#req-h">H-1</a>) and compared against the fold from the nearest snapshot
-  (read-only, per <a href="brd.html#req-h">H-3</a>), <strong>then (TC-050, positive)</strong> the two
-  states are identical. <strong>TC-051, negative:</strong> if they diverge, per
-  <a href="brd.html#evaluation-method">§4.1</a> this is a release blocker, not a warning: "divergence
-  proves the event model is incomplete." <strong>Blocked by:</strong> domain H — no DDL has ever been
-  applied and no fold has ever run.</p>
 
   <h3 id="ni-secondrun">The second run, a week apart (TC-052, TC-053)</h3>
   <p><strong>Given</strong> the same objective run twice on the same product a week apart,

@@ -249,14 +249,25 @@ LIMIT 20</pre>
   <code>dashboard/store.go</code> declared the interface for, and the binary applies the DDL itself
   from an embedded copy on every boot — idempotent, so a restart is a no-op. What is <em>not</em>
   built is the half above it: no scheduler, no runner, no model call, and the floor that renders over
-  the graph is still moved by a simulation rather than by work. The event stream is also still a
-  bounded window rather than the append-only record <code>BR-04</code> asks for, which is the next
-  sub-module.</p>
+  the graph is still moved by a simulation rather than by work.</p>
+
+  <p><strong>The event stream is no longer a window over its own tail.</strong> Until v0.11.0 it was
+  a ring buffer of a hundred and sixty entries, with each entry carrying a photograph of the whole
+  floor and the replay cursor shifted whenever the window moved — everything older than the window
+  was unreachable, which is the opposite of what <code>BR-04</code> asks an append-only record to
+  be. It is now the whole record, unbounded, and an event carries the delta a reducer folds rather
+  than a floor. Replay is a fold from the nearest snapshot forward, snapshots are an optimisation
+  the fold is tested without, and the read-only handle replaced the flag the architecture document
+  named as the thing that will eventually be forgotten. The fold test —
+  <a href="../product/qa-test-plan.html#im-fold">TC-050 and TC-051</a>, one of the three acceptance
+  tests <code>BRD §4.1</code> names — ran for the first time on 2026-08-17.</p>
 
   <p><strong>The DDL itself is no longer only a document.</strong> On 2026-08-16 it was extracted
   into ten runnable files under <code>dashboard/schema/</code> and applied to a scratch ArcadeDB
   <strong>26.7.2</strong>, the version <a href="../product/decision-log.html#d-043">D-043</a> pins:
-  321 statements, applied clean, and idempotent on a second run. That first run is where the value
+  321 statements at the time, applied clean and idempotent on a second run — 323 today, since
+  <a href="../product/decision-log.html#d-037">D-037</a>'s <code>deferred</code> task state brought
+  two <code>TaskRun</code> properties with it. That first run is where the value
   was — <strong>53 statements failed</strong>, and reconciling them produced two amendments to the
   data model, with a third following on 2026-08-17 when the store first wrote to the graph
   (<a href="../product/decision-log.html#d-047">D-047</a>). <a href="../product/decision-log.html#d-045">D-045</a> is a dialect difference: edge
