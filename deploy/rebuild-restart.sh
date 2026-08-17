@@ -113,14 +113,57 @@ if [ "$ENVIRON" = prod ]; then
   fi
 fi
 
+# run_go runs a go command in a module directory, with or without a local Go.
+#
+# The VM these stacks live on has Docker and no Go toolchain, anywhere -- not on
+# PATH, not under a login shell, not in /usr/local/go. That made the test gate
+# below unpassable there and it has no bypass flag, so the documented deploy path
+# could not complete on the machine it deploys to, and the workaround was to run
+# docker compose by hand -- exactly the thing .claude/agents/gaos-deploy.md tells
+# the subagent never to do. A gap in the tooling that forces the rule to be
+# broken is a gap in the tooling.
+#
+# So: native go when there is one, the pinned golang image when there is not.
+# GOCACHE is inside the container because /src is a bind mount of the repo and a
+# build cache does not belong in it. GOFLAGS carries through so a caller can pass
+# -count=1 without knowing which arm ran.
+#
+# If neither exists this fails loudly and the deploy stops. A gate that skips
+# itself when it cannot run is worse than one that cannot run, because the output
+# still says the tests were part of the deploy.
+GO_IMAGE="${GAOS_GO_IMAGE:-golang:1.24-alpine}"
+
+if command -v go >/dev/null 2>&1; then
+  GO_MODE="local $(go env GOVERSION 2>/dev/null || echo go)"
+  run_go() { ( cd "$1" && shift && go "$@" ); }
+elif command -v docker >/dev/null 2>&1; then
+  GO_MODE="docker $GO_IMAGE"
+  run_go() {
+    local mod="$1"; shift
+    docker run --rm \
+      -v "$PWD":/src -w "/src/$mod" \
+      -e GOCACHE=/tmp/gocache -e GOFLAGS="${GOFLAGS:-}" \
+      "$GO_IMAGE" go "$@"
+  }
+else
+  GO_MODE=""
+  run_go() { return 127; }
+fi
+
 if [ "$ACTION" = deploy ]; then
   echo
   echo "== tests =="
-  ( cd dashboard && go test ./... ) || { bad "dashboard tests failed"; exit 1; }
+  if [ -z "$GO_MODE" ]; then
+    bad "no go toolchain and no docker -- the test gate cannot run"
+    info "install Go, or install Docker so the gate can run in $GO_IMAGE"
+    exit 1
+  fi
+  ok "go toolchain: $GO_MODE"
+  run_go dashboard test ./... || { bad "dashboard tests failed"; exit 1; }
   ok "dashboard tests passed"
-  ( cd pustaka && go test ./... ) || { bad "pustaka tests failed"; exit 1; }
+  run_go pustaka test ./... || { bad "pustaka tests failed"; exit 1; }
   ok "pustaka tests passed"
-  ( cd pustaka && go run . check ./docs ) || { bad "pustaka docs check failed"; exit 1; }
+  run_go pustaka run . check ./docs || { bad "pustaka docs check failed"; exit 1; }
   ok "pustaka docs check passed"
 fi
 
