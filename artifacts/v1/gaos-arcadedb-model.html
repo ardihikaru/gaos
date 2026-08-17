@@ -553,7 +553,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <span class="k">CREATE VERTEX TYPE</span> <span class="t">Task</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex <span class="k">BUCKETS</span> 8;
 <span class="k">CREATE PROPERTY</span> Task.title            <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
 <span class="k">CREATE PROPERTY</span> Task.status           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'PENDING'</span>,
-                 regexp <span class="s">'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DONE|FAILED|CANCELED'</span>);
+                 regexp <span class="s">'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED'</span>);
 <span class="k">CREATE PROPERTY</span> Task.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
                  regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops'</span>);
 <span class="k">CREATE PROPERTY</span> Task.riskClass        <span class="s">STRING</span>  (default <span class="s">'normal'</span>,
@@ -584,6 +584,10 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <span class="k">CREATE PROPERTY</span> TaskRun.costUsd          <span class="s">FLOAT</span> (min 0);
 <span class="k">CREATE PROPERTY</span> TaskRun.failureSignature <span class="s">STRING</span>;
 <span class="k">CREATE PROPERTY</span> TaskRun.logRef           <span class="s">STRING</span>;   <span class="c">-- object storage key</span>
+<span class="k">CREATE PROPERTY</span> TaskRun.invocation       <span class="s">STRING</span> (notnull <span class="k">true</span>, default <span class="s">'cli'</span>,
+                 regexp <span class="s">'cli|api'</span>);                <span class="c">-- D-13/D-036: recorded, never branched on</span>
+<span class="k">CREATE PROPERTY</span> TaskRun.costBasis        <span class="s">STRING</span> (notnull <span class="k">true</span>, default <span class="s">'estimated'</span>,
+                 regexp <span class="s">'measured|estimated|unavailable'</span>);  <span class="c">-- BR-31/BR-37</span>
 
 <span class="k">CREATE VERTEX TYPE</span> <span class="t">Prompt</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
 <span class="k">CREATE PROPERTY</span> Prompt.name     <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
@@ -761,8 +765,21 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
       <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
       <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
       <tr><td class="mono">memory</td><td class="mono">KnowledgeExtracted · KnowledgeReused · DecisionSuperseded</td></tr>
+      <tr><td class="mono">budget</td><td class="mono">BudgetThresholdReached · BudgetCapReached · TaskDeferred</td></tr>
     </tbody>
   </table>
+
+  <div class="warn">
+    <b>Amended by D-037 — the budget group is new, and so is <code>Task.status = 'DEFERRED'</code>.</b>
+    The three-zone budget guard needs names for what it does: <code>BudgetThresholdReached</code>
+    and <code>TaskDeferred</code> when the throttled zone opens, <code>BudgetCapReached</code>
+    when the cap is hit, and <code>TaskResumed</code> — which the execution group already had —
+    when the window moves on and deferred work requeues. The catalog being closed is exactly
+    why they are written here rather than added quietly at the call site: a new event type is a
+    schema change to the fold, so the name, the <code>DEFERRED</code> task status above and the
+    reducer case in <code>dashboard/fold.go</code> landed in one change on 2026-08-17. The guard
+    that emits them is M10.3 and does not exist yet; the vocabulary it will need does.
+  </div>
 </section>
 
 <!-- ============================================================ -->

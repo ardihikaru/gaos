@@ -7,9 +7,9 @@ package main
 // mapping back to vertex types is in artifacts/v1/gaos-arcadedb-model.html §14.
 //
 // Nothing in this file has a pointer field except Meeting. Deep-copying a Desk
-// is what makes replay possible (see MemStore.emit), and every pointer in a
-// value that gets snapshotted is an aliasing bug waiting for a concurrent
-// writer.
+// is what keeps a read from aliasing the live floor (see fold.go and
+// MemStore.floor), and every pointer in a value that crosses the store's lock
+// is an aliasing bug waiting for a concurrent writer.
 
 // ---------- reference data ----------
 
@@ -49,6 +49,14 @@ type Product struct {
 
 // Desk states. Each one is a distinct CSS selector in app.css (data-state), so
 // adding a state means adding a rule; there is no default styling.
+//
+// deferred is the state D-037 adds: a task the budget guard would not dispatch,
+// which keeps its place in the graph and starts again when the window moves.
+// BR-34 is the reason it is a state of its own rather than "blocked" -- a
+// deferral is not a failure, consumes no retry and no failure signature, and a
+// desk showing "blocked" would say the opposite. The guard that produces it is
+// M10.3; the state and its transitions land first, because state.go must be
+// able to refuse an illegal move into it before anything can make one.
 const (
 	StateActive    = "active"
 	StateReview    = "review"
@@ -56,6 +64,7 @@ const (
 	StateCompleted = "completed"
 	StateIdle      = "idle"
 	StateMeeting   = "meeting"
+	StateDeferred  = "deferred"
 )
 
 type LogLine struct {
@@ -149,26 +158,86 @@ func cloneDesks(in []Desk) []Desk {
 
 // ---------- the event stream ----------
 
-// Event carries a full snapshot of the floor at the moment it was written.
+// Event is one thing that happened, and the delta it left behind.
 //
-// That is expensive and it is on purpose for this pass: replay is
-// `state(t) = fold(reduce, events)` in the architecture document, and a fold
-// needs either a pure reducer over every event type or a snapshot to read
-// straight back. Snapshots are the honest version of "we have not written the
-// reducer yet" -- the alternative is a reducer that silently disagrees with the
-// simulation and produces a replay nobody can trust.
+// It used to carry a deep copy of the entire floor. That was the honest version
+// of "we have not written the reducer yet", and it is gone: replay is
+// `state(t) = fold(reduce, events)` in architecture §08, and fold.go now has
+// the reducer that makes it true. What an event carries instead is Payload --
+// the values the reducer needs for THIS event type and nothing else. The state
+// transition itself belongs to the reducer, not to whoever wrote the event.
 //
-// Capped at maxEvents, same as the prototype. When the ArcadeDB store lands the
-// snapshot moves to the Snapshot document type (one per 500 events) and this
-// field becomes a scope id.
+// Seq is the per-tenant monotonic counter and the fold's tie-breaker: two
+// events in the same clock tick must still fold in a deterministic order, which
+// is what "order-stable" means in §08.
+//
+// DeskID is a business id, never a physical RID -- BR-03. A restore into
+// different buckets renumbers every RID, and a history keyed by one would be
+// unreadable afterwards.
 type Event struct {
-	Seq      int
-	Type     EventType
-	DeskID   string
-	Text     string
-	Kind     string
-	T        int
-	Snapshot []Desk
+	Seq     int
+	Type    EventType
+	DeskID  string
+	Text    string
+	Kind    string
+	T       int
+	Payload EventPayload
+}
+
+// EventPayload is the delta. Every field is read by the reducer cases for a
+// named handful of event types and ignored by all the others -- fold.go is the
+// only file that may read one, and reduce() is the only function that decides
+// what a given type does with it.
+//
+// Absolute values, not increments. `Retry: 2` rather than "add one", because a
+// fold that replays an increment twice is wrong in a way that is very hard to
+// see, and an absolute value folded twice is simply idempotent.
+type EventPayload struct {
+	// Desk fields. Which of these a reducer case reads is fixed per event type.
+	Task       string
+	Goal       string
+	WorkflowID string
+	Agents     []string
+	StageIdx   int
+	TaskSeq    int
+	Progress   float64
+	Score      int
+	Parts      []ScorePart
+	Retry      int
+	Esc        int
+	Cost       float64 // the desk's running total after this event, not a delta
+	Meeting    *Meeting
+
+	// Logs are the inspector lines written since the previous event on this
+	// desk. They travel with the event so a replayed desk shows the log it
+	// actually had, rather than the log it has now.
+	Logs []LogLine
+
+	// Genesis is set by FloorOpened and by nothing else. It is the seeded floor
+	// -- the `?? empty` half of §08's `snapshot_before(t) ?? empty` -- and it is
+	// what lets a fold from an empty state reproduce a floor that was never
+	// itself the product of an event.
+	Genesis []Desk
+}
+
+// Clone deep-copies a payload. Same argument as Desk.Clone: a payload handed to
+// a caller shares its slices with the stream otherwise, and the stream is
+// supposed to be immutable.
+func (p EventPayload) Clone() EventPayload {
+	c := p
+	c.Agents = append([]string(nil), p.Agents...)
+	c.Parts = append([]ScorePart(nil), p.Parts...)
+	c.Logs = append([]LogLine(nil), p.Logs...)
+	if p.Meeting != nil {
+		m := *p.Meeting
+		m.Participants = append([]string(nil), p.Meeting.Participants...)
+		m.Log = append([]MeetingLine(nil), p.Meeting.Log...)
+		c.Meeting = &m
+	}
+	if p.Genesis != nil {
+		c.Genesis = cloneDesks(p.Genesis)
+	}
+	return c
 }
 
 // ---------- the product master ----------
@@ -321,6 +390,44 @@ func (m Master) Readiness() []ReadinessItem {
 	}
 }
 
+// ReadinessScore is the checklist expressed as a number, and it is honest about
+// being the prototype's version rather than the rubric's.
+//
+// Architecture §07 specifies a hundred-point rubric with weighted sections;
+// building it is M2.1 and it is not this change. What exists today is the
+// seven-item boolean list above, so the score is the share of it that passes.
+// The BANDS, though, are the real ones -- 0-44 insufficient, 45-69 minimum,
+// 70-89 working, 90-100 complete -- because the band is what ReadinessDropped
+// reports crossing, and inventing a second set of boundaries here would mean
+// the event and the document disagreed about what "dropped" meant.
+func (m Master) ReadinessScore() int {
+	items := m.Readiness()
+	if len(items) == 0 {
+		return 0
+	}
+	ok := 0
+	for _, it := range items {
+		if it.OK {
+			ok++
+		}
+	}
+	return ok * 100 / len(items)
+}
+
+// ReadinessBand names the band a score falls in. §07's four.
+func ReadinessBand(score int) string {
+	switch {
+	case score >= 90:
+		return "complete"
+	case score >= 70:
+		return "working"
+	case score >= 45:
+		return "minimum"
+	default:
+		return "insufficient"
+	}
+}
+
 // ---------- aggregates the chrome reads ----------
 
 // Stats is everything the topbar, the bell and the timeline counter need. It is
@@ -339,7 +446,7 @@ type Stats struct {
 	DeskCount  int
 	Clock      int
 	Replay     bool
-	ReplayAt   int
+	ReplayAt   int // an event Seq, not an index into any slice
 	SimRunning bool
 	Paused     bool
 	Speed      int
