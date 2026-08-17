@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-108`; the
-   next free number is `TC-109`.** If a case is retired, strike the row and say
+   IDs are sequential and never reused. **The highest in use is `TC-112`; the
+   next free number is `TC-113`.** If a case is retired, strike the row and say
    why — do not delete it and do not renumber anything after it.
 
 2. **The scenario prose** — an `h3` under `<h2 id="implemented">` for anything
@@ -65,9 +65,10 @@ every check identical are exempt.
 ### The register now covers everything, so keep it that way
 
 `TC-001`…`TC-053` are `deploy/` and the three BRD acceptance tests.
-`TC-054`…`TC-086` are the 33 `dashboard/` unit tests and `TC-087`…`TC-108` the 22
-`pustaka/` ones — **one row per `func Test…`**, because that is the unit
-`go test -run` can select. Adding a test means adding its row and its `h3`; the
+`TC-054`…`TC-086` are 33 of the `dashboard/` unit tests, `TC-087`…`TC-108` the 22
+`pustaka/` ones, and `TC-109`…`TC-112` the four schema guards in
+`dashboard/schema_test.go` — **one row per `func Test…`**, because that is the
+unit `go test -run` can select. Adding a test means adding its row and its `h3`; the
 gap that used to be here is closed and must not reopen.
 
 ### Before you call it done

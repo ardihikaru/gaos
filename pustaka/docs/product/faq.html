@@ -22,7 +22,7 @@
        data-tags="faq, commercial, pricing, licensing, self-hosting, support, data-handling"
        data-hashtags="faq, product, pricing, open-source"
        data-published="2026-08-08"
-       data-updated="2026-08-15"
+       data-updated="2026-08-16"
        data-version-from="0.4.0"
        data-version-to=""></div>
 
@@ -273,9 +273,11 @@
 
   <h3 id="q-status">What actually works today?</h3>
   <p>Mission Control (rendering a simulation, not a fleet), the documentation site, the landing page,
-  and both deployment tiers end to end. Not built: the ArcadeDB schema, the scheduler, the runner,
-  real reviews, authentication — the back-office login currently accepts any value and checks
-  nothing. The <a href="brd.html#current-state">designed-versus-built table</a> is maintained
+  and both deployment tiers end to end. The ArcadeDB schema now runs too, in the narrow sense that
+  matters least and had to come first: the DDL applies cleanly to a scratch database on the pinned
+  version, but neither dev nor prod carries it and no code reads or writes a graph. Not built: the
+  scheduler, the runner, real reviews, authentication — the back-office login currently accepts any
+  value and checks nothing. The <a href="brd.html#current-state">designed-versus-built table</a> is maintained
   honestly and is the thing to read before forming an opinion.</p>
 
   <h3 id="q-contribute">Can I contribute or fork it?</h3>

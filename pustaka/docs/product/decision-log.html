@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Forty-four entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Forty-six entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, or git history — and a destination for every question the open register
   resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-08-15"
+       data-updated="2026-08-16"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -604,6 +604,57 @@
         <td>Product owner ruling; <a href="brd.html#rules-commercial">BR-31, BR-37</a>;
         <a href="brd.html#mode-tradeoffs">BRD §7.6.2</a>;
         <a href="brd.html#budget-guard">§8.10.1</a></td>
+      </tr>
+      <tr id="d-045">
+        <td>D-045</td><td>2026-08-16</td>
+        <td>Reconciling the DDL against the version <a href="#d-043">D-043</a> pins.
+        <strong>Edge uniqueness is carried by a unique index on the two endpoints, not by a
+        <code>UNIQUE</code> keyword on the edge type.</strong> ArcadeDB 26.7.2 rejects
+        <code>CREATE EDGE TYPE … EXTENDS GaosEdge UNIQUE</code> outright — measured, not
+        predicted — and it takes all 32 edge types down with it, plus the 18
+        <code>CREATE PROPERTY</code> statements naming a type that was therefore never created.
+        That is 50 of the 53 statements that failed the first time the schema met a database.
+        The constraint itself is fully supported: <code>CREATE INDEX ON OWNS (`@out`, `@in`)
+        UNIQUE</code> gives exactly the "at most one edge per ordered pair" the edge catalog's
+        <em>unique</em> column has always meant. So nothing about the model changes except how
+        it is spelled, which is the cheapest kind of amendment and the reason this is a
+        <code>D-</code> row rather than an open question. The model document is amended in place
+        at §04 and §09; the applied form is <code>dashboard/schema/08-edges.sql</code> with the 32
+        indexes at the foot of <code>09-indexes.sql</code>.</td>
+        <td>Measured against <code>arcadedata/arcadedb:26.7.2</code> on 2026-08-16;
+        <code>dashboard/schema/RECONCILIATION.md</code> deviation 1;
+        <code>gaos-arcadedb-model.html</code> §04, §09;
+        <a href="../delivery/implementation-plan.html#m0-foundations">T-003</a></td>
+      </tr>
+      <tr id="d-046">
+        <td>D-046</td><td>2026-08-16</td>
+        <td><strong>Bucket-partitioning the high-volume types by <code>tenantId</code> is
+        withdrawn.</strong> It cannot mean what the data model wants it to mean. ArcadeDB's
+        <code>partitioned(p)</code> strategy requires a <code>UNIQUE</code> index on exactly
+        <code>(p)</code>, so <code>partitioned('tenantId')</code> requires
+        <code>tenantId</code> to be unique — which permits <strong>one Task per
+        tenant</strong>. That was measured rather than argued: with the index in place, a
+        second <code>Task</code> for tenant <code>loop-eng</code> fails with
+        <code>DuplicatedKeyException</code>. The strategy exists to partition by a primary key,
+        and <code>tenantId</code> is the discriminator every record of a tenant shares — the
+        opposite of one. The data model quotes the constraint immediately above the block that
+        violates it.
+        <strong>Nothing is lost.</strong> <a href="brd.html#rules-data">BR-26</a> asks for
+        <code>tenantId</code> declared and indexed whatever the tenancy strategy turns out to
+        be, and §10 already does that. Isolation rests where
+        <a href="#d-042">D-042</a> puts it — database-per-tenant as the default recommendation,
+        with <code>tenantId</code> as the second line rather than the first — which is also
+        what <a href="../delivery/implementation-plan.html#m12-non-functional">T-136</a>
+        actually depends on. Per-tenant physical partitioning inside a shared type solves a
+        problem the deployment default does not have.
+        <strong>This is the one deviation in the whole schema that is an error in the committed
+        model rather than a dialect difference</strong>, which is why it is logged as a decision
+        and amended in place at §13 rather than quietly dropped.</td>
+        <td>Measured against <code>arcadedata/arcadedb:26.7.2</code> on 2026-08-16;
+        <code>dashboard/schema/RECONCILIATION.md</code> deviation 2;
+        <code>gaos-arcadedb-model.html</code> §13;
+        <a href="#d-042">D-042</a>; <a href="brd.html#rules-data">BR-26</a>;
+        <a href="../delivery/implementation-plan.html#m0-foundations">T-004</a></td>
       </tr>
     </tbody>
   </table>

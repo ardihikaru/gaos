@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  one hundred and eight cases, positive and negative, across the two deploy automations and the two
+  one hundred and twelve cases, positive and negative, across the two deploy automations and the two
   Go test packages that actually run today, plus the three business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies but nothing has ever executed.
   Since <a href="decision-log.html#d-039">D-039</a> this register is also the project's definition of
@@ -27,7 +27,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-15"
+       data-updated="2026-08-16"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -67,7 +67,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and eight cases in one filterable table. Filter by automation, kind, or any
+  <p>All one hundred and twelve cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -188,6 +188,10 @@
       <tr data-tags="go test unit pustaka site prefix forged forwarded header negative"><td>TC-106</td><td>pustaka (go test)</td><td>Negative</td><td>Six malformed <code>X-Forwarded-Prefix</code> values are ignored and four valid ones honoured (<code>TestSitePrefix</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit pustaka trim site prefix segment boundary positive"><td>TC-107</td><td>pustaka (go test)</td><td>Positive</td><td><code>trimSitePrefix</code> strips only on a segment boundary and leaves an already site-relative path alone (<code>TestTrimSitePrefix</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit pustaka prefix strip login redirect docs positive"><td>TC-108</td><td>pustaka (go test)</td><td>Positive</td><td>Behind <code>/docs</code> every login redirect, asset base, form action and logout target carries the prefix exactly once (<code>TestAuthBehindPrefixStrip</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema ddl arcadedb type counts vertex edge document positive"><td>TC-109</td><td>dashboard (go test)</td><td>Positive</td><td>The DDL under <code>dashboard/schema/</code> declares the 25 vertex, 3 document and 32 edge types the model document counts in its own lede, each exactly once (<code>TestSchemaDeclaresTheDocumentedTypeCounts</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema edge uniqueness index d-045 negative"><td>TC-110</td><td>dashboard (go test)</td><td>Negative</td><td>An edge type with no <code>UNIQUE</code> index on its endpoints, or a revived <code>CREATE EDGE TYPE … UNIQUE</code>, is refused (<code>TestEveryEdgeTypeCarriesItsUniquenessIndex</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema idempotence if not exists apply negative"><td>TC-111</td><td>dashboard (go test)</td><td>Negative</td><td>A type declaration without <code>IF NOT EXISTS</code> is refused, because it breaks the re-application <code>apply.sh</code> promises (<code>TestEverySchemaDeclarationIsIdempotent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema files numbered order positive"><td>TC-112</td><td>dashboard (go test)</td><td>Positive</td><td>All ten numbered schema files are present, so the filename order <code>apply.sh</code> relies on has no gap (<code>TestSchemaDirectoryHasEveryNumberedFile</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -484,6 +488,36 @@
   <code>splitLines</code> drops blanks and trims — <code>got %q</code>.
   <strong>Positive (TC-086):</strong> <code>slug(%q) = %q, want %q</code>, over
   <code>Route Planner</code>, a double-spaced string and <code>Ops/Warehouse</code>.</p>
+
+  <h3 id="go-schema">dashboard — the graph schema and its two reconciliations (TC-109…TC-112)</h3>
+  <p>The DDL in <code>dashboard/schema/</code> is extracted from the data model document and
+  reconciled against ArcadeDB 26.7.2; <code>schema/RECONCILIATION.md</code> records both deviations
+  and how to reproduce the measurement. These four cases need no database — they guard the text,
+  because the live failures they stand in for are slow and quiet.
+  <strong>Positive (TC-109):</strong> the counts the model document states about itself must hold,
+  or <code>%s types: got %d, want %d (the model document's own count) -- %v</code>; the two
+  supertypes are excluded and their absence is fatal on its own
+  (<code>supertype %s is not declared; every concrete type EXTENDS it</code>), and a repeated
+  declaration fails with <code>type %s is declared more than once</code>.
+  <strong>Negative (TC-110):</strong> <code>D-045</code> replaced the <code>UNIQUE</code> keyword —
+  which 26.7.2 rejects outright — with a unique index on the endpoints, and that substitution is the
+  one most likely to rot silently, since duplicate edges do not raise, they accumulate:
+  <code>%d edge types have no UNIQUE index on (`@out`, `@in`), so duplicate edges between the same
+  pair will accumulate silently: %v -- see schema/RECONCILIATION.md deviation 1</code>. The keyword
+  coming back is caught separately —
+  <code>%s: `CREATE EDGE TYPE ... UNIQUE` is not valid on ArcadeDB 26.7.2 and fails the whole
+  file: %s</code>.
+  <strong>Negative (TC-111):</strong> <code>deploy/schema/apply.sh</code> promises a second run is a
+  no-op, which is what makes it safe to point at dev or prod, and that promise rests entirely on the
+  clause: <code>%s: declaration without IF NOT EXISTS breaks re-application: %s</code>.
+  <code>10-storage.sql</code> is asserted to be <code>ALTER</code>-only for the same reason, since an
+  <code>ALTER</code> has no such clause to carry —
+  <code>10-storage.sql declares %d types; it is meant to be ALTER-only, and an ALTER carries no IF
+  NOT EXISTS to protect it</code>.
+  <strong>Positive (TC-112):</strong> a guard on the other three, which would otherwise pass
+  vacuously over an empty directory —
+  <code>no schema file numbered %s; apply.sh runs them in filename order and a gap means a
+  dependency was skipped</code>.</p>
 
   <h3 id="pk-check">pustaka — the docs checker (TC-087, TC-088, TC-104)</h3>
   <p>This is the checker every page on this site is validated by, including this one.

@@ -61,7 +61,7 @@ window.DOCS.nav.push({
         { anchor: "connection", title: "Connecting to it here",
           text: "Two instances reached by container DNS on a shared network, and the readiness probe that answers 204 rather than 200." },
         { anchor: "not-yet", title: "What is not built yet",
-          text: "No DDL has been applied. The dashboard reads fixtures behind an interface, and the event catalog is already encoded as typed constants so the vocabulary cannot drift." }
+          text: "The DDL applies clean to a scratch ArcadeDB 26.7.2 and produced two amendments to the model, but neither dev nor prod carries the schema. The dashboard still reads fixtures behind an interface, and the event catalog is already encoded as typed constants so the vocabulary cannot drift." }
       ]
     }
     /* pustaka:insert — `pustaka new` adds entries above this marker */

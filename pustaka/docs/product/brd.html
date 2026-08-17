@@ -23,7 +23,7 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-08-15"
+       data-updated="2026-08-16"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -148,11 +148,11 @@
     <thead><tr><th>Capability</th><th>State</th><th>Where</th></tr></thead>
     <tbody>
       <tr><td>System architecture, control loops, scoring, readiness rubric</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-architecture.html</code></td></tr>
-      <tr><td>Graph schema: 25 vertex types, 3 document types, 32 edge types, event store</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-arcadedb-model.html</code></td></tr>
-      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 33 tests, stdlib only</td></tr>
+      <tr><td>Graph schema: 25 vertex types, 3 document types, 32 edge types, event store</td><td><strong>Built (DDL applied to a scratch database)</strong></td><td><code>dashboard/schema/</code> — extracted from <code>artifacts/v1/gaos-arcadedb-model.html</code> and reconciled against ArcadeDB 26.7.2; see <code>schema/RECONCILIATION.md</code></td></tr>
+      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 37 tests, stdlib only</td></tr>
       <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
       <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
-      <tr><td>ArcadeDB schema applied, graph queries</td><td><strong>Not built</strong></td><td><code>dashboard/store.go</code> is the seam</td></tr>
+      <tr><td>ArcadeDB schema applied to dev or prod, graph queries</td><td><strong>Not built</strong></td><td><code>dashboard/store.go</code> is the seam</td></tr>
       <tr><td>Scheduler, runner, real reviews</td><td><strong>Not built</strong></td><td><code>dashboard/sim.go</code> stands in</td></tr>
       <tr><td>Authentication</td><td><strong>Not built</strong></td><td>the back-office login sets a cookie and checks nothing</td></tr>
     </tbody>
@@ -172,9 +172,16 @@
     <li><strong>No model has ever been called.</strong> The role-to-model map in the prototype names
     <code>claude-opus-5</code>, <code>claude-sonnet-5</code> and <code>claude-haiku-4.5</code>, but
     no model gateway is built and no run has ever produced a real token.</li>
-    <li><strong>No DDL has ever been applied.</strong> The data model document warns in its own
-    words that the ArcadeDB SQL dialect moves between releases and that the schema should be run
-    against the target version in a scratch database first. That has not happened.</li>
+    <li><strong>The DDL has been applied to a scratch database, and to nothing else.</strong>
+    The data model document warned in its own words that the ArcadeDB SQL dialect moves between
+    releases and that the schema should be run against the target version in a scratch database
+    first. That happened on 2026-08-16, against the 26.7.2 that
+    <a href="decision-log.html#d-043">D-043</a> pins, and it was worth doing: 53 of 314 statements
+    failed, one of them because of an error in the data model rather than a difference between
+    versions (<a href="decision-log.html#d-045">D-045</a>,
+    <a href="decision-log.html#d-046">D-046</a>). The schema now exists as ten runnable files under
+    <code>dashboard/schema/</code>. <em>Neither dev nor prod has it</em>, and no code reads or
+    writes a graph — <code>store_arcade.go</code> is still unwritten.</li>
     <li><strong>Authentication is absent, not partial.</strong> The back office is reachable and its
     login checks nothing — acceptable for a prototype, disqualifying for a tenant boundary.</li>
     <li><strong>Single-node infrastructure.</strong> One public edge machine (<code>clino</code>,
@@ -849,7 +856,7 @@ efficiency    tokens, latency, retries consumed</pre>
   <h3 id="req-i">8.9 Domain I — Operator surface (Mission Control)</h3>
   <p>The only domain that is substantially built. Ported from
   <code>artifacts/v1/gaos-mission-control.html</code> to Go and HTMX, server-rendered, stdlib only,
-  no <code>go.sum</code>, 33 tests.</p>
+  no <code>go.sum</code>, 37 tests.</p>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
@@ -1254,7 +1261,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
     <tbody>
       <tr><td>R-01</td><td>Everything past the operator surface is unbuilt — scheduler, runner, review engine, schema</td><td>The product cannot do the thing it is for</td><td>Accepted and stated openly in the README; the build order exists</td></tr>
       <tr><td>R-02</td><td>No authentication. The back-office login sets a cookie and checks nothing</td><td>Any tenant boundary is currently fictional</td><td>Open, and <em>downgraded</em> by <a href="decision-log.html#d-026">D-026</a>: it no longer blocks domain K, because the boundary now separates colleagues in one deployment rather than paying strangers. It still blocks publishing anything that binds beyond localhost — see <a href="open-questions.html#oq-11">OQ-11</a></td></tr>
-      <tr><td>R-03</td><td>No DDL has ever been applied, and the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td>Open, with the mitigation now scheduled rather than proposed: apply the DDL to a scratch database on <strong>26.7.2</strong> before build-order step 1 writes anything, verifying the <code>EXTERNAL</code> deletion behaviour <a href="#req-l">L-7</a> depends on in the same pass — <a href="decision-log.html#d-043">D-043</a>. The risk closes when that run happens, not when the version was chosen</td></tr>
+      <tr><td>R-03</td><td><s>No DDL has ever been applied</s> — the DDL now applies, but the dialect moves between ArcadeDB releases</td><td>The schema may not run as written; discovered late, it invalidates index and constraint assumptions</td><td><strong>Largely discharged, not closed.</strong> The scratch run happened on 2026-08-16 against <strong>26.7.2</strong> (<a href="decision-log.html#d-043">D-043</a>): 314 statements, clean and idempotent. It found what it was meant to find — 53 statements failed first time, yielding <a href="decision-log.html#d-045">D-045</a> (dialect: edge uniqueness is an index, not a keyword) and <a href="decision-log.html#d-046">D-046</a> (an error in the model: partitioning by <code>tenantId</code> would have permitted one Task per tenant). <strong>What remains open is the second half of the mitigation</strong>: <code>EXTERNAL</code> was verified to <em>apply</em>, but the deletion behaviour <a href="#req-l">L-7</a> depends on — an <code>EXTERNAL</code> payload being destroyable independently of the record referencing it — has not been tested. Until it is, a deletion promise still rests on an unverified storage behaviour</td></tr>
       <tr><td>R-04</td><td>Record rot — the record is filled once and never updated while the codebase moves</td><td>Silent degradation; the planner produces defensible-looking plans from a stale brief</td><td>Designed against: the drift penalty and <code>ReadinessDropped</code>. Untested</td></tr>
       <tr><td>R-05</td><td>Runaway model spend. <code>budget_cap</code> is specified per workflow and per tenant, and implemented nowhere. <a href="decision-log.html#d-030">D-030</a> moves the exposure onto the operator, and <a href="decision-log.html#d-033">D-033</a> makes the figures partly estimated</td><td>Direct, unbounded financial loss the moment a real credential is configured — the user's money now, not the project's</td><td>Open, <em>reframed</em> and now <em>designed</em>. It stopped being a financial risk to GAOS and became a duty-of-care risk to its users, which is worse, because the people exposed did not make the decision. <a href="decision-log.html#d-037">D-037</a> specifies the guard in full — three zones, pacing, deferral, six properties (<a href="#budget-guard">§8.10.1</a>) — and none of it is built. In API mode it is the only thing between a retry loop and an unbounded charge; in CLI mode it costs throughput rather than money</td></tr>
       <tr><td>R-06</td><td>The core bet is unproven — knowledge accumulation reducing retries has never been measured</td><td>If false, GAOS is an expensive scheduler and domain G is decorative</td><td>Open. The measurement is defined; running it is a milestone, not a task. <a href="decision-log.html#d-026">D-026</a> makes it harder to observe, since runs now happen on other people's machines — mitigated only if operators choose to report</td></tr>
@@ -1318,7 +1325,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="decision-log">14. Decision log</h2>
-  <p>Forty-four decisions are made and traceable — the thesis itself, the stateless orchestrator,
+  <p>Forty-six decisions are made and traceable — the thesis itself, the stateless orchestrator,
   business ids in events, one edge type per relationship, the <code>Task</code>/<code>TaskRun</code>
   split, database-per-tenant as the default, the readiness floor of 45, capability-first routing,
   correctness weighted at 0.45, safety as a veto, the build order, the deployment shape, and since
