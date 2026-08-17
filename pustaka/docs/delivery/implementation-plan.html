@@ -67,7 +67,7 @@
   <table class="tbl">
     <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>Next</th></tr></thead>
     <tbody>
-      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>9</td><td>1</td><td>8</td><td><a href="#register">T-009</a> &mdash; the append-only event store and the fold</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the nine names still owed to the runner and the review engine</td></tr>
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>0</td><td>1</td><td>8</td><td><a href="#register">T-030</a> &mdash; the hundred-point rubric</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
@@ -75,13 +75,13 @@
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-098</a> &mdash; the reducer</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>5</td><td>1</td><td>0</td><td><a href="#register">T-101</a> &mdash; the three replay scopes below the floor</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>6</td><td>0</td><td>3</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
       <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
-      <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>0</td><td>1</td><td>5</td><td><a href="#register">T-135</a> &mdash; determinism, once the reducer exists</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>0</td><td>0</td><td>3</td><td><a href="#register">T-139</a> &mdash; the file three places cite and nobody wrote</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>19</b></td><td><b>15</b></td><td><b>107</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>32</b></td><td><b>15</b></td><td><b>94</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -143,16 +143,16 @@
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-006</td><td>M0.2</td><td>Write <code>dashboard/store_arcade.go</code> against the declared <code>Store</code> seam, leaving <code>store.go</code> unchanged &mdash; all twenty-four methods, and <code>store.go</code> is byte-for-byte unchanged</td><td>BR-01, BR-02, D-019</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-007</td><td>M0.2</td><td>Give <code>dashboard/arcade.go</code> a query path &mdash; parameterised query, command and transaction, stdlib only; plus <code>dashboard/schema_embed.go</code>, so the distroless binary applies its own DDL on boot</td><td>D-043, D-047</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-008</td><td>M0.2</td><td>Keep <code>MemStore</code> as the test double and run both implementations against one interface suite &mdash; <code>dashboard/store_conformance_test.go</code>, thirty-two cases, both stores</td><td>D-039</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-009</td><td>M0.3</td><td>Make <code>Event</code> append-only and never updated, with its own retention policy</td><td>BR-04, J-6</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-010</td><td>M0.3</td><td>Reference the business <code>id</code> in every event, never the physical RID</td><td>BR-03</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-012</td><td>M0.3</td><td>Prove fold-from-genesis equals fold-from-nearest-snapshot on a real workflow</td><td>H-1, BR-21</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-013</td><td>M0.3</td><td>Remove the 160-event ring in <code>store_mem.go</code>; the stream is the record, not a window</td><td>BR-04</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-014</td><td>M0.4</td><td>Emit the thirteen catalog names currently declared <code>// pass 2</code> and never written</td><td>BR-05, D-020</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-015</td><td>M0.4</td><td>Land the four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties in one change</td><td>BR-05</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-009</td><td>M0.3</td><td>Make <code>Event</code> append-only and never updated, with its own retention policy</td><td>BR-04, J-6</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-010</td><td>M0.3</td><td>Reference the business <code>id</code> in every event, never the physical RID</td><td>BR-03</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-012</td><td>M0.3</td><td>Prove fold-from-genesis equals fold-from-nearest-snapshot on a real workflow</td><td>H-1, BR-21</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-013</td><td>M0.3</td><td>Remove the 160-event ring in <code>store_mem.go</code>; the stream is the record, not a window</td><td>BR-04</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-014</td><td>M0.4</td><td>Emit the thirteen catalog names currently declared <code>// pass 2</code> and never written</td><td>BR-05, D-020</td><td>🟡</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-015</td><td>M0.4</td><td>Land the four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties in one change</td><td>BR-05</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.4"><td>T-016</td><td>M0.4</td><td>Keep the four UI-lifecycle names in their own block, outside the domain catalog</td><td>D-020</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.5"><td>T-017</td><td>M0.5</td><td>Build the task state machine so illegal transitions are rejected at the boundary, not by convention</td><td>&mdash;</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer partial fixtures m0.5"><td>T-018</td><td>M0.5</td><td>Every mutation returns the new state or a rejection reason &mdash; <code>Result</code> and <code>reject()</code> exist, the state machine behind them does not</td><td>BR-06</td><td>🟡</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.5"><td>T-017</td><td>M0.5</td><td>Build the task state machine so illegal transitions are rejected at the boundary, not by convention</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer partial fixtures m0.5"><td>T-018</td><td>M0.5</td><td>Every mutation returns the new state or a rejection reason &mdash; <code>Result</code> and <code>reject()</code> exist, the state machine behind them does not</td><td>BR-06</td><td>✅</td></tr>
       <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-019</td><td>M1.1</td><td>Own a product record per product, scoped to a tenant &mdash; <code>Master</code> exists, the tenant scope does not</td><td>A-1</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-020</td><td>M1.1</td><td>Capture the brief as structured requirements rather than prose &mdash; <code>BRD</code> struct, in memory only</td><td>A-2</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-021</td><td>M1.1</td><td>Capture stories in as / want / so form with acceptance criteria &mdash; <code>Story</code> plus its empty-story rejection</td><td>A-3</td><td>🟡</td></tr>
@@ -231,10 +231,10 @@
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.2"><td>T-094</td><td>M7.2</td><td>Emit <code>ProposalRecorded</code> with a confidence</td><td>G-3</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-095</td><td>M7.3</td><td>Recall knowledge during planning by tag and reuse count, and emit <code>KnowledgeReused</code></td><td>G-4</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-096</td><td>M7.3</td><td>Detect contradictions: a decision conflicting with a requirement, a criterion no test maps to</td><td>G-5</td><td>❌</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-097</td><td>M8.1</td><td>Reconstruct state at any past moment as a fold from the nearest snapshot forward</td><td>H-1</td><td>❌</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-098</td><td>M8.1</td><td>Make the reducer pure, total and order-stable, skipping unknown event types rather than failing</td><td>H-2</td><td>❌</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-099</td><td>M8.2</td><td>Route replay through a read-only store handle &mdash; <code>replayAt</code> is exactly the flag this rule forbids</td><td>H-3, BR-20</td><td>❌</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-100</td><td>M8.2</td><td>Treat snapshots as an optimisation and never as a source of truth</td><td>BR-21</td><td>❌</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-097</td><td>M8.1</td><td>Reconstruct state at any past moment as a fold from the nearest snapshot forward</td><td>H-1</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-098</td><td>M8.1</td><td>Make the reducer pure, total and order-stable, skipping unknown event types rather than failing</td><td>H-2</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-099</td><td>M8.2</td><td>Route replay through a read-only store handle &mdash; <code>replayAt</code> is exactly the flag this rule forbids</td><td>H-3, BR-20</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-100</td><td>M8.2</td><td>Treat snapshots as an optimisation and never as a source of truth</td><td>BR-21</td><td>✅</td></tr>
       <tr data-tags="domain-h replay audit fold timeline partial fixtures m8.3"><td>T-101</td><td>M8.3</td><td>Support all four replay scopes: workflow, task, meeting, and a comparison between two runs</td><td>H-4</td><td>🟡</td></tr>
       <tr data-tags="domain-h replay audit fold timeline done built m8.4"><td>T-102</td><td>M8.4</td><td>Operator timeline with a replay scrub &mdash; <code>handlers_floor.go</code>, <code>templates/timeline.html</code></td><td>H-5</td><td>✅</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-103</td><td>M9.1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>I-1</td><td>✅</td></tr>
@@ -269,7 +269,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.4"><td>T-132</td><td>M11.4</td><td>Ship a data-handling statement template the operator can complete for their own stakeholders</td><td>L-11</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-133</td><td>M12.1</td><td>Auditability: <code>GET /tasks/{id}/context</code> matches what the model actually received</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-134</td><td>M12.1</td><td>Recoverability: killing the orchestrator mid-run loses nothing</td><td>&mdash;</td><td>❌</td></tr>
-      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-135</td><td>M12.1</td><td>Determinism: the same events always fold to the same state, tested from genesis</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-135</td><td>M12.1</td><td>Determinism: the same events always fold to the same state, tested from genesis</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-136</td><td>M12.2</td><td>Isolation: a tenant sees nothing of another even when a query forgets to filter</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation partial fixtures m12.2"><td>T-137</td><td>M12.2</td><td>Explicability: every rejection tells the caller why &mdash; the shape holds, the states behind it are simulated</td><td>BR-06</td><td>🟡</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-138</td><td>M12.2</td><td>Termination: no loop runs forever and no stop is silent</td><td>BR-18</td><td>❌</td></tr>
@@ -285,20 +285,21 @@
   <a href="../product/open-questions.html#index">open-questions register</a> follow.</p>
 
   <h2 id="m0-foundations">M0 · Foundations — schema, event store, state machine</h2>
-  <p>Build-order steps 1 and 2, and the module every other module is waiting on. Eighteen tasks,
-  nine done. Two invariants live here and nowhere else: state lives in the graph
-  (<code>BR-01</code>) and every change emits an event (<code>BR-02</code>). Since
-  <code>M0.2</code> closed both hold — the graph is authoritative, every mutation writes an event
-  before it commits, and a restart rebuilds the floor from ArcadeDB rather than from the fixtures.
-  What they do not yet hold <em>well</em> is <code>M0.3</code>'s business: the stream is still a
-  bounded window and an event still carries a whole floor rather than being folded back by a
-  reducer.</p>
+  <p>Build-order steps 1 and 2, and the module every other module was waiting on. Eighteen tasks,
+  seventeen done, and the one that is not is not blocked on this module. Two invariants live here
+  and nowhere else: state lives in the graph (<code>BR-01</code>) and every change emits an event
+  (<code>BR-02</code>). Since <code>M0.2</code> closed both hold — the graph is authoritative, every
+  mutation writes an event before it commits, and a restart rebuilds the floor from ArcadeDB rather
+  than from the fixtures. Since <code>M0.3</code> they hold <em>well</em>: the stream is the whole
+  record rather than a window over its tail, an event carries the delta a reducer folds rather than
+  a photograph of the floor, and <code>M0.5</code> means a transition nobody declared is refused at
+  the boundary instead of being prevented by nothing having tried it yet.</p>
 
   <h3 id="sub-m0-1">M0.1 — Schema and DDL (T-001–T-005)</h3>
   <p><strong>Done, on 2026-08-16.</strong> The <a href="../architecture/graph.html">data model</a>
   specifies 25 vertex types, 3 document types and 32 edge types with their indexes and retention,
   and all of it now lives as ten runnable files under <code>dashboard/schema/</code>, applied by
-  the idempotent <code>deploy/schema/apply.sh</code> — 321 statements today, run against
+  the idempotent <code>deploy/schema/apply.sh</code> — 323 statements today, run against
   <strong>ArcadeDB 26.7.2</strong>, the version pinned by
   <a href="../product/decision-log.html#d-043">D-043</a>. Until this ran, the schema was a document
   rather than a database, which is what <code>R-03</code> was about.</p>
@@ -351,32 +352,87 @@
   on its own would be writing events nobody asked for.</p>
 
   <h3 id="sub-m0-3">M0.3 — Event store and the fold (T-009–T-013)</h3>
-  <p>Today an <code>Event</code> carries a deep copy of the entire floor, and the stream is a ring
-  buffer capped at 160 entries with the replay cursor shifted when the window moves. That is a
-  screen recording, not an event store: it satisfies the UI and none of <code>H-1</code>,
-  <code>H-2</code>, <code>BR-04</code> or <code>BR-21</code>. The work is to make the stream
-  append-only and unbounded, reference business ids rather than physical RIDs
-  (<code>BR-03</code>), and replace the snapshot with a pure, total, order-stable reducer that
-  skips unknown event types instead of failing on them.</p>
+  <p><strong>Done, on 2026-08-17.</strong> An <code>Event</code> used to carry a deep copy of the
+  entire floor, and the stream was a ring buffer capped at 160 entries with the replay cursor
+  shifted whenever the window moved. That is a screen recording, not an event store: it satisfied
+  the UI and none of <code>H-1</code>, <code>H-2</code>, <code>BR-04</code> or
+  <code>BR-21</code>.</p>
+  <p>The ring is gone and nothing replaces it. The stream is append-only and unbounded, and the
+  retention <a href="../product/decision-log.html#data-decisions">D-012</a> asks for is by age,
+  enforced where the events live, rather than by discarding the beginning of history in memory. The
+  replay cursor is an event <code>seq</code> rather than an offset into a slice — which is what made
+  the shifting necessary in the first place, and what made the oldest moments unreachable.
+  <code>dashboard/fold.go</code> holds the reducer: one case per event type that moves the floor, a
+  default that changes nothing, and no clock, no random and no I/O anywhere in it. Events carry a
+  typed delta instead of a photograph, in absolute values rather than increments, because a fold
+  that replays an increment twice is wrong in a way that is very hard to see.
+  <code>FloorOpened</code> is the single exception and carries the seeded floor, because the
+  fixtures are a state no event produced — that is §08's <code>?? empty</code> made concrete.</p>
+  <p><code>BR-03</code> turned out to be a guard rather than a change: <code>writeEvent</code>
+  already stored the business id and never the RID. So <code>T-010</code> is a test that would
+  notice if that stopped being true, run against both stores.</p>
+  <div class="adm note">
+    <p class="adm-title">Writing the reducer found a real disagreement, which is the point of writing it</p>
+    <p>Two code paths emitted <code>RetryRequested</code> and only one of them cleared the score:
+    the operator's retry in <code>store_mem.go</code> did, the review loop's retry in
+    <code>sim.go</code> did not. Nothing had ever noticed, because nothing had ever had to say what
+    the event <em>meant</em> in one place. A reducer case cannot honour both readings, so the
+    question had to be answered — the verdict belongs to the attempt that earned it, and a retry is
+    a new attempt — and <code>sim.go</code> now clears it too. That is what the architecture
+    document means when it says building replay forces the event model to be honest.</p>
+  </div>
 
   <h3 id="sub-m0-4">M0.4 — Closing the catalog (T-014–T-016)</h3>
-  <p>The catalog is closed by <code>BR-05</code> and encoded as Go constants so a typo is a compile
-  error (<a href="../product/decision-log.html#delivery-decisions">D-020</a>). Thirteen of its names
-  are declared and marked <code>// pass 2</code> — <code>ReadinessDropped</code>,
-  <code>RunStarted</code>, <code>Heartbeat</code>, <code>RunExited</code>,
-  <code>TaskOrphaned</code>, <code>SafetyVeto</code>, <code>GuardExhausted</code>,
-  <code>ApprovalRejected</code> and five more — and no code path writes them. The four
-  UI-lifecycle names are correctly fenced into their own block already, which is the one task in
-  this sub-module that is done. Because the catalog is closed, the four new names the milestone
-  list is waiting on must land in the data model, <code>dashboard/events.go</code> and the fold
-  <em>together</em>, or not at all.</p>
+  <p><strong>T-015 and T-016 done, T-014 partly.</strong> The catalog is closed by
+  <code>BR-05</code> and encoded as Go constants so a typo is a compile error
+  (<a href="../product/decision-log.html#delivery-decisions">D-020</a>).</p>
+  <p><code>T-015</code> landed whole, which is the only way it could land.
+  <a href="../product/decision-log.html#d-037">D-037</a>'s three new names —
+  <code>BudgetThresholdReached</code>, <code>BudgetCapReached</code> and <code>TaskDeferred</code>;
+  <code>TaskResumed</code>, the fourth it names, already existed — went into the model document's
+  §08 catalog, <code>dashboard/events.go</code> and <code>dashboard/fold.go</code> in one change,
+  together with the <code>deferred</code> task state, its transitions in
+  <code>dashboard/state.go</code>, <code>DEFERRED</code> in <code>Task.status</code>'s vocabulary
+  and the two <code>TaskRun</code> properties <code>BR-31</code> and <code>BR-33</code> need.
+  <a href="../product/qa-test-plan.html#go-catalog">TC-148</a> asserts all of it in a single test
+  rather than five, because five would let four pass while one was missing. The guard that will
+  emit them is <code>M10.3</code>; the vocabulary it will need exists now, so nothing has to reopen
+  a closed list later.</p>
+  <p><code>T-014</code> is <strong>partial, and stays partial on purpose.</strong> Five of the
+  fourteen declared-and-unwritten names now have a real code path and a reducer case:
+  <code>ReadinessEvaluated</code> and <code>ReadinessDropped</code> on injection, where the record
+  is rescored and a downward band crossing is announced rather than recalculated silently
+  (<code>BR-10</code>); <code>ApprovalRejected</code> and <code>WorkflowCanceled</code> when an
+  operator answers a merge gate with no, which is a different fact from nobody having answered it;
+  and <code>ProposalRecorded</code>, because a meeting that recorded a decision nobody proposed is
+  not a meeting anybody can audit.</p>
+  <p>The remaining nine are not written, and writing them would be worse than leaving them.
+  <code>RunStarted</code>, <code>Heartbeat</code>, <code>RunExited</code> and
+  <code>TaskOrphaned</code> belong to the runner and the lease (<code>M4.2</code>);
+  <code>SafetyVeto</code> and <code>GuardExhausted</code> to the review engine and the six guards
+  (<code>M5.2</code>, <code>M5.5</code>); <code>DependencyRewired</code> to the planner's task graph
+  (<code>M3.2</code>); <code>KnowledgeReused</code> and <code>DecisionSuperseded</code> to recall
+  and contradiction detection (<code>M7.3</code>). Emitting a <code>Heartbeat</code> nobody sent, or
+  a <code>RunExited</code> from a process that never started, would put invented evidence in the one
+  record the whole audit story rests on.
+  <a href="../product/qa-test-plan.html#go-catalog">TC-146</a> pins the list to those modules, so
+  the next person to close one of them has to come back here and say so.</p>
 
   <h3 id="sub-m0-5">M0.5 — The task state machine (T-017–T-018)</h3>
-  <p>Build-order step 2, and the reason <code>BR-06</code> is only half-satisfied.
-  <code>dashboard/store.go</code> already returns a <code>Result</code> or a rejection reason
-  through <code>reject()</code>, so no route answers a bare 200 — the shape is right. What is
-  missing is the machine behind it: transitions are enforced by the code path that happens to run,
-  not by a boundary that refuses an illegal one.</p>
+  <p><strong>Done, on 2026-08-17.</strong> Build-order step 2, and the reason <code>BR-06</code> was
+  only half-satisfied. <code>dashboard/store.go</code> already returned a <code>Result</code> or a
+  rejection reason through <code>reject()</code>, so no route answered a bare 200 — the shape was
+  right. What was missing was the machine behind it: transitions were enforced by the code path that
+  happened to run, not by a boundary that refuses an illegal one.</p>
+  <p><code>dashboard/state.go</code> is that boundary. One table, seven states — the six the floor
+  always had, plus <code>deferred</code> from <code>M0.4</code> — and every write to
+  <code>Desk.State</code> in <code>store_mem.go</code> and <code>sim.go</code> goes through
+  <code>setState</code>. An illegal move comes back as an <code>ErrRejected</code> naming both
+  states and leaves the desk where it was; a state nobody declared gets a different message, because
+  a typo and an illegal transition need different messages or the first person to hit one goes
+  looking in the wrong place. Sixteen named illegal moves are tested, each with the reason it is
+  illegal written beside it, and a companion case requires every state a live desk or a folded one
+  reaches to be a state the table declares.</p>
 
   <h2 id="m1-product-master">M1 · Product master &amp; knowledge ingestion</h2>
   <p>Domain A, requirements <code>A-1</code>…<code>A-7</code>. Eleven tasks, one done and four
@@ -647,34 +703,56 @@
   requirement, or an acceptance criterion no test maps to.</p>
 
   <h2 id="m8-replay">M8 · Replay &amp; audit</h2>
-  <p>Domain H, requirements <code>H-1</code>…<code>H-5</code>. Six tasks, one done and one partial.
-  The operator-facing half is finished and the mechanism underneath it is not — replay today reads
-  stored snapshots, which is precisely what <code>BR-21</code> forbids as a source of truth.</p>
+  <p>Domain H, requirements <code>H-1</code>…<code>H-5</code>. Six tasks, five done and one partial.
+  The mechanism underneath the operator-facing half landed with <code>M0.3</code>: replay folds the
+  event stream rather than reading back a stored floor, which is what <code>BR-21</code> has always
+  required and what the prototype's snapshots were standing in for.</p>
 
   <h3 id="sub-m8-1">M8.1 — The fold (T-097–T-098)</h3>
-  <p>State at any past moment is a fold over the event stream from the nearest snapshot forward
-  (<code>H-1</code>), through a reducer that is pure, total and order-stable, skipping unknown event
-  types rather than failing on them (<code>H-2</code>). No reducer exists; M0.3 is where it is
-  built, and this is where it is proven — fold from genesis must match fold from snapshot on a real
-  workflow.</p>
+  <p><strong>Done, on 2026-08-17.</strong> State at any past moment is a fold over the event stream
+  from the nearest snapshot forward (<code>H-1</code>), through a reducer that is pure, total and
+  order-stable, skipping unknown event types rather than failing on them (<code>H-2</code>). The
+  reducer is <code>dashboard/fold.go</code>, built in <code>M0.3</code> and proven here: this is
+  where <a href="../product/qa-test-plan.html#im-fold">the fold test</a> lives, which is one of the
+  three acceptance tests <code>BRD §4.1</code> names and the first of them ever to run.</p>
+  <p>Fold-from-genesis and fold-from-nearest-snapshot are compared at every rung of the snapshot
+  ladder <em>and at moments between the rungs</em>, because between is where a broken ladder hides:
+  a snapshot only ever asked for its own sequence is never asked to be folded forward from. Each of
+  the three reducer properties has its own case — an invented event type interleaved through the
+  whole stream must leave the floor unchanged, the same stream shuffled must fold to the same floor,
+  and folding twice must give one answer.</p>
 
   <h3 id="sub-m8-2">M8.2 — Read-only by construction (T-099–T-100)</h3>
-  <p><code>BR-20</code> says replay is routed through a read-only store handle and <em>never a
-  flag</em>. <code>MemStore</code> has a <code>replayAt</code> field and checks it — the exact
-  construction the rule names, chosen deliberately for the prototype and due to be replaced. The
-  companion rule, <code>BR-21</code>, demotes snapshots to an optimisation.</p>
+  <p><strong>Done, on 2026-08-17.</strong> <code>BR-20</code> says replay is routed through a
+  read-only store handle and <em>never a flag</em>, and the architecture document gives the reason
+  in the same breath: a flag will eventually be forgotten and will overwrite live state with a
+  historical one. <code>MemStore</code> had exactly that flag.</p>
+  <p><code>readOnly</code> in <code>dashboard/store.go</code> is the handle. It wraps a
+  <code>Store</code> and refuses every mutation with one sentence, passing reads — including
+  <code>Replay</code> and <code>Focus</code>, since moving the cursor and following it are what
+  looking at the past consists of — straight through. Handlers reach for it through
+  <code>server.mut()</code>, which picks the narrowed handle whenever the floor is parked in the
+  past, so a mutating route added later is protected by calling what its neighbours call rather than
+  by remembering a rule. This is the one change <code>dashboard/store.go</code> has taken since it
+  was written to say <em>this file does not change</em>; a read-only handle is a thing the seam has
+  to be able to express.</p>
+  <p><code>T-100</code> demotes snapshots to an optimisation, and the test says so by deleting all
+  of them and demanding the identical floor. If that test ever needs the ladder to pass, the ladder
+  has become the record and the event stream has stopped being it.</p>
 
   <h3 id="sub-m8-3">M8.3 — Scopes (T-101)</h3>
   <p><code>H-4</code> asks for four replay scopes: workflow, task, meeting, and a comparison between
   two runs of the same task on different models. <code>/replay/{workflow}</code> serves the first
   and is the reason this is 🟡; the comparison scope is the one that needs <code>TaskRun</code>
-  from M4.3 to exist first.</p>
+  from M4.3 to exist first. This is now the only unfinished task in the module.</p>
 
   <h3 id="sub-m8-4">M8.4 — The timeline (T-102)</h3>
   <p><code>H-5</code> is done: the operator timeline with a replay scrub and speed control, in
   <code>dashboard/handlers_floor.go</code> and <code>templates/timeline.html</code>, with
   <code>TestReplayFreezesTheFloor</code> and
-  <code>TestEventsAreCappedAndTheReplayCursorFollows</code> behind it.</p>
+  <code>TestTheEventStreamIsUnboundedAndKeepsGenesis</code> behind it. A pill addresses its moment
+  by event <code>seq</code> rather than by position, so a link stays pointed at the moment the
+  operator clicked however much the stream grows behind it.</p>
 
   <h2 id="m9-operator-surface">M9 · Operator surface</h2>
   <p>Domain I, requirements <code>I-1</code>…<code>I-7</code>. Nine tasks, six done — the only module
@@ -770,14 +848,18 @@
 
   <h2 id="m12-non-functional">M12 · Non-functional proofs</h2>
   <p>The six properties of <a href="../product/brd.html#req-nfr">§8.13</a>, each stated with how it
-  is proven. Six tasks, one partial. This module is not built so much as demonstrated: every row
-  here is a test that cannot be written until the module it depends on exists.</p>
+  is proven. Six tasks, one done and one partial. This module is not built so much as demonstrated:
+  every row here is a test that cannot be written until the module it depends on exists, which is
+  why the first of them landed the same day <code>M0.3</code> did.</p>
 
   <h3 id="sub-m12-1">M12.1 — Depends on the event store (T-133–T-135)</h3>
-  <p>Auditability is proven when <code>GET /tasks/{id}/context</code> matches what the model actually
-  received — which needs M4.3's frozen slice. Recoverability is proven by killing the orchestrator
-  mid-run and losing nothing, which needs M4.2. Determinism is proven by folding from genesis, which
-  needs M0.3.</p>
+  <p><strong>Determinism is done, on 2026-08-17.</strong> It is proven by folding from genesis and
+  requiring the same state every time, and the reducer <code>M0.3</code> was waiting on now exists:
+  the same stream folds to one answer, an unknown event type does not change it, and the order the
+  events arrive in does not either. Auditability is proven when
+  <code>GET /tasks/{id}/context</code> matches what the model actually received — which needs M4.3's
+  frozen slice. Recoverability is proven by killing the orchestrator mid-run and losing nothing,
+  which needs M4.2.</p>
 
   <h3 id="sub-m12-2">M12.2 — Isolation, explicability, termination (T-136–T-138)</h3>
   <p>Isolation means a tenant cannot see another tenant's data even if a query forgets to filter —

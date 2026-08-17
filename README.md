@@ -60,20 +60,25 @@ docker compose -f deploy/stacks/compose.dev.yaml up -d    # dev first, always
 |---|---|
 | System architecture, control loops, scoring, readiness rubric | **designed** — `artifacts/v1/gaos-architecture.html` |
 | Graph schema: 25 vertex types, 32 edge types, event store | **built** — `dashboard/schema/`, applied to dev and prod, reconciled against ArcadeDB 26.7.2 |
-| Mission Control UI | **built** — ported from the prototype to Go + HTMX, 51 tests |
+| Mission Control UI | **built** — ported from the prototype to Go + HTMX |
 | dev + prod stacks, edge config, health probe | **built** — verified end to end over the tunnel |
 | Docs site and landing page | **built** |
 | ArcadeDB schema applied, graph queries | **built** — `dashboard/store_arcade.go` against the `store.go` seam; one conformance suite covers both stores |
+| Append-only event store, the fold, replay | **built** — `dashboard/fold.go`; the stream is unbounded, the reducer is pure/total/order-stable, replay folds from the nearest snapshot through a read-only handle |
+| Task state machine | **built** — `dashboard/state.go`; illegal transitions are refused at the boundary |
 | Scheduler, runner, real reviews | **not built** — `dashboard/sim.go` stands in |
 | Authentication | **not built** — the back-office login sets a cookie and checks nothing |
 
-The event catalog in `dashboard/events.go` is already the closed list from the
-model document, so the vocabulary cannot drift while the rest is written.
+The event catalog in `dashboard/events.go` is the closed list from the model
+document, so the vocabulary cannot drift while the rest is written. Twelve of its
+names are declared and not yet emitted; they belong to the runner, the review
+engine, the planner's task graph and the budget guard, and a test pins the list
+to those modules so the gap cannot quietly grow or shrink.
 
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 33 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 69 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ```

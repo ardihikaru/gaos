@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Forty-six entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Forty-eight entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, or git history — and a destination for every question the open register
   resolves.</p>
 
@@ -683,6 +683,33 @@
         <code>dashboard/schema/09-indexes.sql</code>;
         <a href="brd.html#rules-invariants">BR-03</a>; <a href="#d-045">D-045</a>;
         <a href="../delivery/implementation-plan.html#sub-m0-2">T-006</a></td>
+      </tr>
+      <tr id="d-048">
+        <td>D-048</td><td>2026-08-17</td>
+        <td><strong>An event carries the reducer's delta, not a snapshot of the floor — and the
+        genesis event is the one exception, on purpose.</strong> The prototype put a deep copy of
+        every desk into every event, which made replay work without a reducer and made
+        <a href="brd.html#rules-data">BR-21</a> impossible: if the stored floor <em>is</em> the
+        answer, no moment between two of them is reachable and a bug in writing them is invisible.
+        The reducer in <code>dashboard/fold.go</code> replaces it, and each event now carries only
+        the values that reducer's case for that type needs, in <strong>absolute values rather than
+        increments</strong> — a fold that replays an increment twice is wrong in a way that is very
+        hard to see, and an absolute value folded twice is simply idempotent.
+        <strong>The exception:</strong> <code>FloorOpened</code> carries the whole seeded floor,
+        because the fixtures are a state no event produced.
+        <a href="../architecture/system.html#build-order">§08</a>'s formula allows for exactly this —
+        <code>snapshot_before(t) ?? empty</code> — and making genesis the carrier means
+        <code>fold(empty, events)</code> is total rather than nearly total.
+        <strong>The consequence worth stating:</strong> because state is now defined only at event
+        boundaries, anything that changes without emitting is invisible to a replay. That is
+        <a href="brd.html#rules-invariants">BR-02</a> made enforceable rather than aspirational, and
+        it is already biting: the simulator accrues progress and cost on ticks that emit nothing,
+        which is <code>M4</code>'s to fix when a runner replaces it.</td>
+        <td><a href="brd.html#rules-data">BR-04</a>; <a href="brd.html#rules-data">BR-21</a>;
+        <a href="brd.html#req-h">H-1</a>, <a href="brd.html#req-h">H-2</a>;
+        <code>dashboard/fold.go</code>;
+        <a href="qa-test-plan.html#im-fold">TC-050</a>, <a href="qa-test-plan.html#im-fold">TC-051</a>;
+        <a href="../delivery/implementation-plan.html#sub-m0-3">T-011</a></td>
       </tr>
     </tbody>
   </table>

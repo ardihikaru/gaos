@@ -36,6 +36,98 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-11-0">v0.11.0 <time datetime="2026-08-17">2026-08-17</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The event stream stops being a
+      screen recording. It is append-only, unbounded and folded back by a pure reducer, which closes
+      build-order steps 1 and 2 — and lets the first of the three acceptance tests
+      <a href="product/brd.html#evaluation-method">BRD §4.1</a> names actually run.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><code>dashboard/fold.go</code></b> — the reducer.
+        Pure, total and order-stable, exactly as
+        <a href="architecture/system.html#build-order">architecture §08</a> specifies: no clock and
+        no random anywhere in it, an unknown event type skipped rather than fatal, and ties broken by
+        <code>(ts, seq)</code> so a replay is the same replay every time. <code>Event</code> carries
+        a typed delta instead of a deep copy of the whole floor. Closes
+        <a href="delivery/implementation-plan.html#sub-m0-3">T-011</a> and
+        <a href="delivery/implementation-plan.html#sub-m8-1">T-098</a>.</li>
+        <li><span class="chg remove">Removed</span> <b>the 160-entry ring buffer.</b> The stream is
+        the record, not a window over its tail
+        (<a href="product/brd.html#rules-data">BR-04</a>), so nothing is dropped from the front and
+        the replay cursor no longer has to be shifted when a window moves. The cursor is an event
+        <code>seq</code> rather than an offset into a slice, which is what made the shifting
+        necessary and what made the oldest moments unreachable. Closes
+        <a href="delivery/implementation-plan.html#sub-m0-3">T-009</a>,
+        <a href="delivery/implementation-plan.html#sub-m0-3">T-010</a> and
+        <a href="delivery/implementation-plan.html#sub-m0-3">T-013</a>.</li>
+        <li><span class="chg add">Added</span> <b>the fold acceptance test</b> —
+        <a href="product/qa-test-plan.html#im-fold">TC-050 and TC-051</a> move from
+        <em>not implemented</em> to <em>implemented</em>, the first of BRD §4.1's three ever to run.
+        Fold-from-genesis is compared against fold-from-nearest-snapshot at every rung of the
+        snapshot ladder and at moments between the rungs, and a companion case throws the whole
+        ladder away and demands the identical floor, which is
+        <a href="product/brd.html#rules-data">BR-21</a> stated as a test. Closes
+        <a href="delivery/implementation-plan.html#sub-m8-1">T-097</a>,
+        <a href="delivery/implementation-plan.html#sub-m8-2">T-100</a> and
+        <a href="delivery/implementation-plan.html#sub-m12-1">T-135</a>.</li>
+        <li><span class="chg add">Added</span> <b><code>readOnly</code>, the replay handle.</b>
+        <a href="product/brd.html#rules-data">BR-20</a> asks for replay to be routed through a
+        read-only store handle and never a flag, because a flag will eventually be forgotten and will
+        overwrite live state with a historical one. <code>MemStore</code> had exactly that flag.
+        Mutating handlers now reach for <code>server.mut()</code>, which hands back the narrowed
+        handle whenever the floor is parked in the past. This is the one change
+        <code>dashboard/store.go</code> has taken since it was written to say <em>this file does not
+        change</em>. Closes <a href="delivery/implementation-plan.html#sub-m8-2">T-099</a>.</li>
+        <li><span class="chg add">Added</span> <b><code>dashboard/state.go</code>, the task state
+        machine.</b> Build-order step 2. One table, seven states, and every write to a desk's state
+        goes through it: an illegal move comes back as a rejection naming both states rather than
+        being prevented by nothing having tried it yet. Closes
+        <a href="delivery/implementation-plan.html#sub-m0-5">T-017</a> and
+        <a href="delivery/implementation-plan.html#sub-m0-5">T-018</a>, and finishes
+        <a href="product/brd.html#rules-invariants">BR-06</a>.</li>
+        <li><span class="chg add">Added</span> <b>the vocabulary
+        <a href="product/decision-log.html#d-037">D-037</a> called for</b>, in one change because
+        <a href="product/brd.html#rules-invariants">BR-05</a> makes a new event type a schema change
+        to the fold: <code>BudgetThresholdReached</code>, <code>BudgetCapReached</code> and
+        <code>TaskDeferred</code> in the model document's catalog, <code>dashboard/events.go</code>
+        and the reducer; the <code>deferred</code> task state and its transitions;
+        <code>DEFERRED</code> in <code>Task.status</code>; and <code>TaskRun.invocation</code> and
+        <code>TaskRun.costBasis</code>. The DDL now applies <b>323</b> statements rather than 321,
+        measured clean and idempotent on a fresh <code>26.7.2</code>. The guard that emits them is
+        M10.3 and does not exist; the vocabulary it will need does, so nothing has to reopen a closed
+        list later. Closes <a href="delivery/implementation-plan.html#sub-m0-4">T-015</a>.</li>
+        <li><span class="chg change">Changed</span> <b>five of the <code>// pass 2</code> event names
+        are now written</b> — <code>ReadinessEvaluated</code> and <code>ReadinessDropped</code> on
+        injection, <code>ApprovalRejected</code> and <code>WorkflowCanceled</code> when an operator
+        answers a merge gate with no, and <code>ProposalRecorded</code> in the review. The other nine
+        stay declared and unwritten on purpose: they belong to the runner, the review engine, the
+        planner's task graph and recall, and a <code>Heartbeat</code> nobody sent would be invented
+        evidence in the one record the audit story rests on.
+        <a href="delivery/implementation-plan.html#sub-m0-4">T-014</a> stays partial, with the nine
+        named.</li>
+        <li><span class="chg fix">Fixed</span> <b>two code paths meant different things by
+        <code>RetryRequested</code>.</b> The operator's retry cleared the score; the review loop's
+        retry did not. Nothing had noticed, because nothing had ever had to say what the event meant
+        in one place. Writing the reducer forced the question and <code>sim.go</code> now clears it
+        too — the verdict belongs to the attempt that earned it.</li>
+        <li><span class="chg change">Changed</span> <b><code>deploy/rebuild-restart.sh</code> can run
+        its test gate without a local Go toolchain.</b> The VM these stacks run on has Docker and no
+        Go, so the documented deploy path could not complete on the machine it deploys to and the
+        workaround was to run <code>docker compose</code> by hand — the one thing the deploy subagent
+        is told never to do. The gate now falls back to the pinned <code>golang:1.24-alpine</code>
+        image, and stops the deploy outright when neither is available rather than skipping
+        itself.</li>
+        <li><span class="chg change">Changed</span> The <a href="product/qa-test-plan.html">QA test
+        plan</a> register goes from one hundred and thirty cases to one hundred and forty-eight:
+        <code>TC-131</code>…<code>TC-146</code> cover the fold, the reducer's three properties, the
+        state machine, the closed catalog and the <code>deferred</code> vocabulary, and
+        <code>TC-147</code>/<code>TC-148</code> cover the deploy gate's toolchain fallback.
+        <code>TC-050</code> and <code>TC-051</code> flip to <em>implemented</em>, and
+        <code>TC-067</code> now asserts the opposite of what it used to, because the cap it guarded
+        is gone.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-10-0">v0.10.0 <time datetime="2026-08-17">2026-08-17</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The seam
       <code>dashboard/store.go</code> declared a pass ago is implemented, and <code>store.go</code>
