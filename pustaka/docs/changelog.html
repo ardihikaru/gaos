@@ -36,6 +36,50 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-10-0">v0.10.0 <time datetime="2026-08-17">2026-08-17</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The seam
+      <code>dashboard/store.go</code> declared a pass ago is implemented, and <code>store.go</code>
+      did not change to allow it. Dev and prod stop serving fixtures: a restart now rebuilds the
+      floor from the graph.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><code>dashboard/store_arcade.go</code></b> — the
+        ArcadeDB implementation of the <code>Store</code> seam, all twenty-four methods. The graph is
+        authoritative and every mutation writes its events before it commits
+        (<a href="product/brd.html#rules-invariants">BR-01</a>,
+        <a href="product/brd.html#rules-invariants">BR-02</a>); reads are served from an in-memory
+        projection rebuilt from the graph on boot, which is the cache <code>BR-01</code> explicitly
+        allows. Closes <a href="delivery/implementation-plan.html#sub-m0-2">T-006</a>.</li>
+        <li><span class="chg add">Added</span> <b>a query path in <code>dashboard/arcade.go</code></b>
+        — parameterised query, command and transaction against the ArcadeDB HTTP API, stdlib only,
+        plus <code>dashboard/schema_embed.go</code> so the distroless binary applies its own DDL on
+        boot instead of needing a shell. Closes
+        <a href="delivery/implementation-plan.html#sub-m0-2">T-007</a>.</li>
+        <li><span class="chg add">Added</span> <b>one conformance suite for both stores</b> —
+        <code>dashboard/store_conformance_test.go</code>, thirty-two cases that take a
+        <code>Store</code> and nothing else, run against <code>MemStore</code> and against a live
+        ArcadeDB. Plus <code>deploy/schema/scratch.sh</code>, which is the one command that produces
+        the throwaway database the second half needs. Closes
+        <a href="delivery/implementation-plan.html#sub-m0-2">T-008</a>.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-047">D-047</a></b>
+        — the data model gave an identity index to seven of its twenty-five vertex types, and 26.7.2
+        refuses a write keyed by business id against a type without one. Seven more were added; the
+        DDL now applies <b>321</b> statements rather than 314, still idempotent. Found by writing to
+        the graph rather than by reading the model, which is the same way
+        <a href="product/decision-log.html#d-046">D-046</a> was found.</li>
+        <li><span class="chg change">Changed</span> <b>dev and prod run the graph store.</b> Both
+        compose files set <code>GAOS_STORE: "arcadedb"</code>, and the binary refuses to start rather
+        than falling back to fixtures — a dashboard that quietly served them would look completely
+        healthy while losing every write. <code>deploy/check-stacks.sh</code> gained a check per tier
+        so a silent revert cannot ship.</li>
+        <li><span class="chg change">Changed</span> The <a href="product/qa-test-plan.html">QA test
+        plan</a> register goes from one hundred and twelve cases to one hundred and thirty:
+        <code>TC-113</code>…<code>TC-130</code> cover the query path, the embedded schema, the
+        conformance suite for both stores, the restart that proves the projection is reconstructible,
+        and the two new deploy checks.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-9-0">v0.9.0 <time datetime="2026-08-16">2026-08-16</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The graph schema stops being
       a document and becomes a database. Ten runnable DDL files, applied against the pinned ArcadeDB

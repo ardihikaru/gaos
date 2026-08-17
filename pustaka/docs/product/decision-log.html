@@ -656,6 +656,34 @@
         <a href="#d-042">D-042</a>; <a href="brd.html#rules-data">BR-26</a>;
         <a href="../delivery/implementation-plan.html#m0-foundations">T-004</a></td>
       </tr>
+      <tr id="d-047">
+        <td>D-047</td><td>2026-08-17</td>
+        <td><strong>Every vertex type the code writes by business id carries a
+        <code>(tenantId, id) UNIQUE</code> index; seven were added.</strong> The data model gave
+        one to seven of the twenty-five vertex types — <code>Product</code>,
+        <code>Workflow</code>, <code>Task</code>, <code>TaskRun</code>, <code>Agent</code>,
+        <code>Issue</code>, <code>Knowledge</code>. That is invisible until something writes the
+        others. <a href="brd.html#rules-invariants">BR-03</a> says every reference is a business
+        <code>id</code> and never a physical RID, so a write is keyed by
+        <code>(tenantId, id)</code> — and 26.7.2 refuses one against a type with no index for it:
+        <em>Upsert must involve an index to retrieve the records.</em> Every write in
+        <code>store_arcade.go</code> failed this way on its first run.
+        <strong>Applied:</strong> indexes on <code>Tenant</code>, <code>Room</code>,
+        <code>Requirement</code>, <code>AcceptanceCriterion</code>, <code>Artifact</code>,
+        <code>Decision</code> and <code>Repository</code> — the seven the store writes today. The
+        remaining eleven are deliberately left without one: the model is explicit that an index
+        belongs where a lookup is actually hot rather than everywhere one might eventually be, and
+        the next task to write one of those types adds its index in the same change. The DDL now
+        applies <strong>321</strong> statements rather than 314, and re-applying is still a no-op.
+        <strong>This one is an incompleteness rather than an error</strong> — it makes explicit a
+        uniqueness the model already assumed the moment it decided to address records by business
+        id — which is why it is additive and changes no semantics.</td>
+        <td>Measured against <code>arcadedata/arcadedb:26.7.2</code> on 2026-08-17;
+        <code>dashboard/schema/RECONCILIATION.md</code> deviation 3;
+        <code>dashboard/schema/09-indexes.sql</code>;
+        <a href="brd.html#rules-invariants">BR-03</a>; <a href="#d-045">D-045</a>;
+        <a href="../delivery/implementation-plan.html#sub-m0-2">T-006</a></td>
+      </tr>
     </tbody>
   </table>
 
@@ -671,9 +699,9 @@
     four new event names, a new task state and two <code>TaskRun</code> properties, and
     <a href="#d-003">D-003</a> with <a href="brd.html#rules-invariants">BR-05</a> means those land in
     the data model document, <code>dashboard/events.go</code> and the fold together or not at all.
-    <a href="#d-042">D-042</a> promises a repository interface that has never been written, and a
-    tenancy strategy that has never been run is a claim rather than a capability;
-    <a href="#d-043">D-043</a> pins a version whose DDL has still never been applied;
+    <a href="#d-042">D-042</a> promises a repository interface behind which all three tenancy
+    strategies stay reachable: the interface now exists and one strategy runs, but the other two have
+    never been run and a strategy that has never been run is a claim rather than a capability;
     <a href="#d-041">D-041</a> names one adapter and no second one exists; and
     <a href="#d-040">D-040</a>'s three preconditions — authentication, per-tenant scoping,
     accessibility — are none of them started. A decision recorded here is a commitment about what

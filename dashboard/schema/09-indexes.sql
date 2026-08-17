@@ -22,6 +22,27 @@ CREATE INDEX IF NOT EXISTS ON Agent       (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON Issue       (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON Knowledge   (tenantId, id) UNIQUE;
 
+-- AMENDED BY D-047 (2026-08-17). The model gave an identity index to seven of
+-- the twenty-five vertex types. The other eighteen are still addressed by
+-- business id -- BR-03 says every reference is a business id, never a RID --
+-- and on 26.7.2 a write keyed that way is refused outright:
+--
+--   Upsert must involve an index to retrieve the records. Check the where
+--   condition is using the index for the upsert
+--
+-- These seven are the types store_arcade.go writes by id today. The remaining
+-- eleven are left unindexed deliberately, because nothing writes them yet and
+-- the model is explicit that an index is declared where a lookup is actually
+-- hot rather than everywhere it might one day be. See RECONCILIATION.md,
+-- deviation 3.
+CREATE INDEX IF NOT EXISTS ON Tenant              (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON Room                (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON Requirement         (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON AcceptanceCriterion (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON Artifact            (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON Decision            (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON Repository          (tenantId, id) UNIQUE;
+
 -- THE scheduler index. Runs every tick, on every tenant, forever.
 -- Order matters: equality columns first, then the ordering column.
 CREATE INDEX IF NOT EXISTS ON Task (tenantId, status, priority) NOTUNIQUE;

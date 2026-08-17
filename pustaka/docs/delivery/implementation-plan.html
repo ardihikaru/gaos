@@ -16,8 +16,8 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: sixteen done, fifteen standing on fixtures, one hundred and
-  ten not started.</p>
+  One hundred and forty-one tasks: nineteen done, fifteen standing on fixtures, one hundred and
+  seven not started.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
@@ -51,11 +51,12 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Sixteen tasks are done. Ten of them are the operator surface and five are the schema, which
-    now exists as applied DDL rather than as a document — but nothing yet reads or writes it. GAOS
-    still renders a floor, an inspector, a timeline and a back office over an in-memory store seeded
-    from fixtures; there is still no scheduler, no runner and no model call anywhere in the
-    repository. That inversion is deliberate and logged as
+    <p>Nineteen tasks are done. Ten of them are the operator surface, five are the schema, and
+    three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
+    so a restart no longer returns the fixtures. What is still missing is the whole of execution:
+    there is no scheduler, no runner and no model call anywhere in the repository, and the floor
+    that renders above the graph is still moved by a simulation rather than by work. That inversion
+    is deliberate and logged as
     <a href="../product/decision-log.html#delivery-decisions">D-019</a>
     — it is also why the remaining order matters.</p>
   </div>
@@ -66,7 +67,7 @@
   <table class="tbl">
     <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>Next</th></tr></thead>
     <tbody>
-      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>6</td><td>1</td><td>11</td><td><a href="#register">T-006</a> &mdash; <code>store_arcade.go</code> against the declared seam</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>9</td><td>1</td><td>8</td><td><a href="#register">T-009</a> &mdash; the append-only event store and the fold</td></tr>
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>0</td><td>1</td><td>8</td><td><a href="#register">T-030</a> &mdash; the hundred-point rubric</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
@@ -80,7 +81,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>0</td><td>1</td><td>5</td><td><a href="#register">T-135</a> &mdash; determinism, once the reducer exists</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>0</td><td>0</td><td>3</td><td><a href="#register">T-139</a> &mdash; the file three places cite and nobody wrote</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>16</b></td><td><b>15</b></td><td><b>110</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>19</b></td><td><b>15</b></td><td><b>107</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -139,9 +140,9 @@
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-003</td><td>M0.1</td><td>Declare the 32 edge types, one per relationship &mdash; no generic edge with a <code>type</code> property; uniqueness carried by an index on the endpoints, not a keyword</td><td>BR-24, D-006, D-045</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-004</td><td>M0.1</td><td><s>Bucket-partition the high-volume types by <code>tenantId</code></s> &mdash; withdrawn by D-046, the strategy needs a unique <code>tenantId</code> and that permits one Task per tenant; <code>tenantId</code> is indexed either way, which is what BR-26 asks for</td><td>J-3, BR-26, D-046</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-005</td><td>M0.1</td><td>Store prompt bodies, diffs and log blobs <code>EXTERNAL</code> or by reference, never inline on a traversed vertex</td><td>BR-25</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-006</td><td>M0.2</td><td>Write <code>dashboard/store_arcade.go</code> against the declared <code>Store</code> seam, leaving <code>store.go</code> unchanged</td><td>&mdash;</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-007</td><td>M0.2</td><td>Give <code>dashboard/arcade.go</code> a query path; today it only probes <code>/api/v1/ready</code></td><td>&mdash;</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-008</td><td>M0.2</td><td>Keep <code>MemStore</code> as the test double and run both implementations against one interface suite</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-006</td><td>M0.2</td><td>Write <code>dashboard/store_arcade.go</code> against the declared <code>Store</code> seam, leaving <code>store.go</code> unchanged &mdash; all twenty-four methods, and <code>store.go</code> is byte-for-byte unchanged</td><td>BR-01, BR-02, D-019</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-007</td><td>M0.2</td><td>Give <code>dashboard/arcade.go</code> a query path &mdash; parameterised query, command and transaction, stdlib only; plus <code>dashboard/schema_embed.go</code>, so the distroless binary applies its own DDL on boot</td><td>D-043, D-047</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-008</td><td>M0.2</td><td>Keep <code>MemStore</code> as the test double and run both implementations against one interface suite &mdash; <code>dashboard/store_conformance_test.go</code>, thirty-two cases, both stores</td><td>D-039</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-009</td><td>M0.3</td><td>Make <code>Event</code> append-only and never updated, with its own retention policy</td><td>BR-04, J-6</td><td>❌</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-010</td><td>M0.3</td><td>Reference the business <code>id</code> in every event, never the physical RID</td><td>BR-03</td><td>❌</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>❌</td></tr>
@@ -285,16 +286,19 @@
 
   <h2 id="m0-foundations">M0 · Foundations — schema, event store, state machine</h2>
   <p>Build-order steps 1 and 2, and the module every other module is waiting on. Eighteen tasks,
-  six done. Two invariants live here and nowhere else: state lives in the graph
-  (<code>BR-01</code>) and every change emits an event (<code>BR-02</code>). Neither holds today,
-  because there is no graph — <code>MemStore</code> keeps the whole system in RAM and a restart
-  returns the fixtures.</p>
+  nine done. Two invariants live here and nowhere else: state lives in the graph
+  (<code>BR-01</code>) and every change emits an event (<code>BR-02</code>). Since
+  <code>M0.2</code> closed both hold — the graph is authoritative, every mutation writes an event
+  before it commits, and a restart rebuilds the floor from ArcadeDB rather than from the fixtures.
+  What they do not yet hold <em>well</em> is <code>M0.3</code>'s business: the stream is still a
+  bounded window and an event still carries a whole floor rather than being folded back by a
+  reducer.</p>
 
   <h3 id="sub-m0-1">M0.1 — Schema and DDL (T-001–T-005)</h3>
   <p><strong>Done, on 2026-08-16.</strong> The <a href="../architecture/graph.html">data model</a>
   specifies 25 vertex types, 3 document types and 32 edge types with their indexes and retention,
   and all of it now lives as ten runnable files under <code>dashboard/schema/</code>, applied by
-  the idempotent <code>deploy/schema/apply.sh</code> — 314 statements, run against
+  the idempotent <code>deploy/schema/apply.sh</code> — 321 statements today, run against
   <strong>ArcadeDB 26.7.2</strong>, the version pinned by
   <a href="../product/decision-log.html#d-043">D-043</a>. Until this ran, the schema was a document
   rather than a database, which is what <code>R-03</code> was about.</p>
@@ -316,12 +320,35 @@
   the tenancy strategy turns out to be (<code>BR-26</code>).</p>
 
   <h3 id="sub-m0-2">M0.2 — The store seam (T-006–T-008)</h3>
-  <p><code>dashboard/store.go</code> was written to be the seam and says so: <em>store_arcade.go in
-  the next one speaks the ArcadeDB HTTP API and THIS FILE DOES NOT CHANGE</em>. That file does not
-  exist yet. <code>dashboard/arcade.go</code> is a reachability probe and nothing more — it calls
-  <code>/api/v1/ready</code> for <code>/healthz</code> and issues no queries. Keeping
-  <code>MemStore</code> afterwards is deliberate: it is the fast test double, and running both
-  implementations against one interface suite is what stops the seam from rotting.</p>
+  <p><strong>Done, on 2026-08-17.</strong> <code>dashboard/store.go</code> was written to be the
+  seam and said so: <em>store_arcade.go in the next one speaks the ArcadeDB HTTP API and THIS FILE
+  DOES NOT CHANGE</em>. It did not change. <code>dashboard/store_arcade.go</code> implements all
+  twenty-four methods against it, <code>dashboard/arcade.go</code> gained the query path it never
+  had — parameterised query, command and transaction, stdlib only, because
+  <code>dashboard/go.mod</code> still has no dependencies — and
+  <code>dashboard/store_conformance_test.go</code> runs thirty-two cases against both
+  implementations, which is what the task asked for and what stops the seam from rotting.</p>
+  <p>This is where <code>BR-01</code> and <code>BR-02</code> start holding. Be precise about how far:
+  the graph is authoritative and every mutation writes an event before it commits, but reads are
+  served from an in-memory projection rebuilt from the graph on boot. <code>BR-01</code> permits
+  exactly that — <em>anything cached in memory must be reconstructible</em> — and
+  <code>TC-126</code> is the case that keeps it honest, reopening a store on the same tenant and
+  demanding the floor, the events and the master record come back. The measured version:
+  a product created through the back office, the process killed, a fresh process on the same
+  database still serving it.</p>
+  <p>Three things were found by writing it rather than by reading the model, all recorded in
+  <code>dashboard/schema/RECONCILIATION.md</code>. <a href="../product/decision-log.html#d-047">D-047</a>
+  is the substantive one: the model gave an identity index to seven of the twenty-five vertex types,
+  and 26.7.2 refuses a write keyed by business id against a type without one — so seven more were
+  added and the DDL now applies 321 statements rather than 314. The other two are dialect:
+  <code>retry</code> is a reserved word, and an <code>UPSERT</code> cannot set a
+  <code>createdAt</code> that must not move without <code>ifnull</code>.</p>
+  <p>Two things this deliberately did not do. The event stream is still the 160-entry window
+  <code>Events()</code> has always returned, because <code>Replay(eventIdx)</code> addresses that
+  slice and both stores must agree on what it is — unbounding it is <code>T-013</code>. And the
+  floor still moves by simulation rather than by work, which is <code>M4</code>. The simulation runs
+  only under <code>MemStore</code>: <code>ArcadeStore</code> holds real state and a floor that moved
+  on its own would be writing events nobody asked for.</p>
 
   <h3 id="sub-m0-3">M0.3 — Event store and the fold (T-009–T-013)</h3>
   <p>Today an <code>Event</code> carries a deep copy of the entire floor, and the stream is a ring
@@ -372,12 +399,16 @@
   about.</p>
 
   <h3 id="sub-m1-3">M1.3 — Injection (T-026–T-027)</h3>
-  <p><code>Inject()</code> is the sharpest gap in the repository and is honest about it in its own
-  comment: it emits the event, reports the projection, and the write itself <em>lands with
-  store_arcade.go</em>. The back office therefore reports a vertex and edge count that no database
-  ever received. <code>A-6</code> also requires the rescore to happen in the same operation, for
-  the reason the BRD gives: a record that is edited but not injected is a lie the planner will
-  believe.</p>
+  <p><code>Inject()</code> said the write itself would <em>land with store_arcade.go</em>, and
+  under <code>ArcadeStore</code> it now does: the master record becomes the
+  <code>Requirement</code>, <code>Issue</code>, <code>AcceptanceCriterion</code>,
+  <code>Artifact</code> and <code>Decision</code> vertices §14 maps it to, which is what
+  <em>&ldquo;It becomes an Issue vertex on the next injection&rdquo;</em> has been promising the
+  operator from the back office all along. <code>T-026</code> is not closed, because the reported
+  count still comes from <code>Master.Project()</code> rather than from the write, and under
+  <code>MemStore</code> nothing is written at all. <code>A-6</code> also requires the rescore to
+  happen in the same operation, for the reason the BRD gives: a record that is edited but not
+  injected is a lie the planner will believe.</p>
 
   <h3 id="sub-m1-4">M1.4 — The surface (T-028–T-029)</h3>
   <p><code>A-7</code> is done. <code>dashboard/handlers_bo.go</code> and
