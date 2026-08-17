@@ -72,7 +72,7 @@ func (s *server) handleWorkflowCreate(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	res, err := s.store.CreateWorkflow(r.Context(), d, plan)
+	res, err := s.mut(r).CreateWorkflow(r.Context(), d, plan)
 	if err != nil {
 		s.fail(w, r, err)
 		return

@@ -312,7 +312,7 @@ func (s *server) handleProductCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = r.ParseForm()
-	res, err := s.store.CreateProduct(r.Context(), ProductDraft{
+	res, err := s.mut(r).CreateProduct(r.Context(), ProductDraft{
 		Name: r.FormValue("name"), Owner: r.FormValue("owner"),
 		Repo: r.FormValue("repo"), Goal: r.FormValue("goal"),
 	})
@@ -329,7 +329,7 @@ func (s *server) handleBRDSave(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.ParseForm()
 	id := r.PathValue("id")
-	res, err := s.store.UpdateBRD(r.Context(), id, BRD{
+	res, err := s.mut(r).UpdateBRD(r.Context(), id, BRD{
 		Problem:    strings.TrimSpace(r.FormValue("problem")),
 		Goals:      splitLines(r.FormValue("goals")),
 		Rules:      splitLines(r.FormValue("rules")),
@@ -350,7 +350,7 @@ func (s *server) handleAddStory(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.ParseForm()
 	id := r.PathValue("id")
-	res, err := s.store.AddStory(r.Context(), id, Story{
+	res, err := s.mut(r).AddStory(r.Context(), id, Story{
 		Pri:  r.FormValue("pri"),
 		Role: strings.TrimSpace(r.FormValue("role")),
 		Want: strings.TrimSpace(r.FormValue("want")),
@@ -370,7 +370,7 @@ func (s *server) handleAddDiagram(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.ParseForm()
 	id := r.PathValue("id")
-	res, err := s.store.AddDiagram(r.Context(), id, Diagram{
+	res, err := s.mut(r).AddDiagram(r.Context(), id, Diagram{
 		Kind:  r.FormValue("kind"),
 		Title: strings.TrimSpace(r.FormValue("title")),
 		Src:   strings.TrimSpace(r.FormValue("src")),
@@ -389,7 +389,7 @@ func (s *server) handleAddDecision(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	id := r.PathValue("id")
 	conf := float64(atoiDefault(r.FormValue("confidence"), 80))
-	res, err := s.store.AddDecision(r.Context(), id, Decision{
+	res, err := s.mut(r).AddDecision(r.Context(), id, Decision{
 		ID:         strings.TrimSpace(r.FormValue("ref")),
 		Title:      strings.TrimSpace(r.FormValue("title")),
 		Confidence: conf / 100,
@@ -406,7 +406,7 @@ func (s *server) handleInject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	res, err := s.store.Inject(r.Context(), id)
+	res, err := s.mut(r).Inject(r.Context(), id)
 	if err != nil {
 		s.fail(w, r, err)
 		return

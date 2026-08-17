@@ -393,8 +393,10 @@ func NewInspectorView(d Desk, idx int, ctx []string) *InspectorView {
 
 // ---------- timeline ----------
 
+// EventView is one timeline pill. Seq, not an index: it is what the replay link
+// carries, and it names the same moment however long the stream grows.
 type EventView struct {
-	Idx     int
+	Seq     int
 	Type    string
 	Kind    string
 	Text    string
@@ -402,12 +404,12 @@ type EventView struct {
 	Current bool
 }
 
-func NewEventView(e Event, idx int, current bool) EventView {
+func NewEventView(e Event, seq int, current bool) EventView {
 	kind := e.Kind
 	if kind == KindInfo {
 		kind = ""
 	}
-	return EventView{Idx: idx, Type: string(e.Type), Kind: kind, Text: e.Text, Time: mmss(e.T), Current: current}
+	return EventView{Seq: seq, Type: string(e.Type), Kind: kind, Text: e.Text, Time: mmss(e.T), Current: current}
 }
 
 func mmss(s int) string { return fmt.Sprintf("%02d:%02d", s/60, s%60) }

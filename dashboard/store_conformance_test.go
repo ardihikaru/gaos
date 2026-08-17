@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -56,7 +58,10 @@ var storeContract = []storeCase{
 	{"InjectReportsTheProjectionItPromised", caseInject},
 	{"EveryMutationEmitsAtLeastOneEvent", caseMutationEmits},
 	{"EventSequenceIsStrictlyIncreasing", caseEventSeq},
-	{"EventsCarryNoSnapshotToTheCaller", caseEventsNoSnapshot},
+	{"EventsCarryNoPayloadToTheCaller", caseEventsNoPayload},
+	{"EventsNeverReferenceARID", caseEventsNeverReferenceARID},
+	{"ReplayFoldsTheSameFloorTwice", caseReplayFoldsTheSameFloorTwice},
+	{"ReadOnlyHandleRefusesEveryMutation", caseReadOnlyHandleRefusesEveryMutation},
 	{"ApproveWithoutAGateIsRejected", caseApproveNoGate},
 	{"CancelReleasesTheDeskAndCancellingTwiceIsRejected", caseCancel},
 	{"SpeedOutsideTheAllowedSetIsRejected", caseSpeed},
@@ -152,6 +157,78 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	}
 	if len(m.Stories) == 0 {
 		t.Error("the story added before the reopen is gone from the master record")
+	}
+}
+
+// TestFoldSurvivesTheGraphRoundTrip is the other case the interface cannot
+// express, and the one that decides whether the event deltas are really being
+// persisted or merely held in the projection that wrote them.
+//
+// A payload that never reaches the database looks perfect until the process
+// restarts, at which point every event folds to nothing and the replay is a
+// blank floor. So: write through one store, reopen on the same tenant, and
+// require the reloaded stream to fold to the floor the graph itself reports.
+func TestFoldSurvivesTheGraphRoundTrip(t *testing.T) {
+	arc := arcadeTestTarget(t)
+	ctx := context.Background()
+	tenant := "conf-foldtrip"
+
+	first := newArcadeTestStore(t, arc, tenant)
+	if _, err := first.CreateProduct(ctx, ProductDraft{Name: "Fold Trip", Owner: "ardi"}); err != nil {
+		t.Fatalf("create product: %v", err)
+	}
+	f, _ := first.Snapshot(ctx)
+	for i, d := range f.Desks {
+		if d.ApprovalRequired {
+			if _, err := first.ApproveTask(ctx, i); err != nil {
+				t.Fatalf("approve desk %d: %v", i, err)
+			}
+		}
+	}
+	if _, err := first.CancelTask(ctx, 0); err != nil {
+		t.Fatalf("cancel desk 0: %v", err)
+	}
+
+	second, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
+	if err != nil {
+		t.Fatalf("reopen the store on the same tenant: %v", err)
+	}
+
+	evs := second.proj.rawEvents()
+	if len(evs) == 0 {
+		t.Fatal("the reopened store has no events at all")
+	}
+	empty := EventPayload{}
+	carried := 0
+	for _, e := range evs {
+		if !reflect.DeepEqual(e.Payload, empty) {
+			carried++
+		}
+	}
+	if carried == 0 {
+		t.Fatal("every event came back from the graph with an empty payload; the " +
+			"reducer deltas are not being persisted and a replay would fold to a blank floor")
+	}
+
+	last := evs[len(evs)-1].Seq
+	folded := fold(emptyFloor(), evs, last)
+	live, err := second.Snapshot(ctx)
+	if err != nil {
+		t.Fatalf("snapshot after reopen: %v", err)
+	}
+	if len(folded.Desks) != len(live.Desks) {
+		t.Fatalf("the reloaded stream folds to %d desks, the graph reports %d",
+			len(folded.Desks), len(live.Desks))
+	}
+	for i, d := range live.Desks {
+		if folded.Desks[i].State != d.State {
+			t.Errorf("desk %s: the graph says %q, the reloaded stream folds to %q",
+				d.ID, d.State, folded.Desks[i].State)
+		}
+		if folded.Desks[i].ApprovalRequired != d.ApprovalRequired {
+			t.Errorf("desk %s: the graph says gate=%v, the reloaded stream folds to %v",
+				d.ID, d.ApprovalRequired, folded.Desks[i].ApprovalRequired)
+		}
 	}
 }
 
@@ -460,17 +537,118 @@ func caseEventSeq(t *testing.T, s Store) {
 	}
 }
 
-func caseEventsNoSnapshot(t *testing.T, s Store) {
+func caseEventsNoPayload(t *testing.T, s Store) {
 	evs, err := s.Events(context.Background())
 	if err != nil {
 		t.Fatalf("Events: %v", err)
 	}
+	empty := EventPayload{}
 	for i, e := range evs {
-		if e.Snapshot != nil {
-			t.Fatalf("event %d carries a floor snapshot to the caller; the timeline "+
-				"renders four fields and copying a floor per pill is the cost that "+
-				"only shows up under load", i)
+		if !reflect.DeepEqual(e.Payload, empty) {
+			t.Fatalf("event %d carries its reducer delta to the caller; the timeline "+
+				"renders four fields, and a payload that escapes the store is a handle "+
+				"onto the stream's own slices", i)
 		}
+	}
+}
+
+// T-010 and BR-03: an event names the business id, never the physical RID. A
+// restore into different buckets renumbers every RID in the database, and a
+// history keyed by one would be unreadable the moment it mattered most.
+func caseEventsNeverReferenceARID(t *testing.T, s Store) {
+	evs, err := s.Events(context.Background())
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	rid := regexp.MustCompile(`^#\d+:\d+$`)
+	for i, e := range evs {
+		if rid.MatchString(e.DeskID) {
+			t.Fatalf("event %d (%s) references RID %q instead of a business id",
+				i, e.Type, e.DeskID)
+		}
+		if e.DeskID == "" {
+			t.Fatalf("event %d (%s) references nothing at all", i, e.Type)
+		}
+	}
+}
+
+// The fold acceptance test, run through the seam so both stores answer it.
+// BRD §4.1, TC-050: fold from genesis equals fold from the nearest snapshot.
+//
+// Replay is the only way to ask a Store for a folded floor, so this drives it:
+// scrub to an event, read the floor, and require it to be the same floor
+// whichever route the implementation took to build it. The store-specific half
+// -- throwing the snapshot ladder away entirely -- is TestFoldNeedsNoSnapshotAtAll,
+// which needs access MemStore has and the interface deliberately does not.
+func caseReplayFoldsTheSameFloorTwice(t *testing.T, s Store) {
+	ctx := context.Background()
+	evs, err := s.Events(ctx)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	if len(evs) == 0 {
+		t.Skip("no events to fold")
+	}
+	target := evs[len(evs)-1].Seq
+
+	first, err := s.Replay(ctx, target)
+	if err != nil {
+		t.Fatalf("Replay to seq %d: %v", target, err)
+	}
+	if _, err := s.Replay(ctx, -1); err != nil {
+		t.Fatalf("back to live: %v", err)
+	}
+	second, err := s.Replay(ctx, target)
+	if err != nil {
+		t.Fatalf("Replay to seq %d again: %v", target, err)
+	}
+	if !reflect.DeepEqual(first.Floor.Desks, second.Floor.Desks) {
+		t.Fatalf("folding to seq %d twice produced two different floors; "+
+			"a fold that is not deterministic is not an audit trail", target)
+	}
+	if _, err := s.Replay(ctx, -1); err != nil {
+		t.Fatalf("back to live: %v", err)
+	}
+}
+
+// BR-20 and T-099: the handle a replaying caller holds cannot write.
+func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
+	ctx := context.Background()
+	ro := readOnly{s}
+
+	for name, call := range map[string]func() (Result, error){
+		"ApproveTask":        func() (Result, error) { return ro.ApproveTask(ctx, 0) },
+		"RetryTask":          func() (Result, error) { return ro.RetryTask(ctx, 0) },
+		"CancelTask":         func() (Result, error) { return ro.CancelTask(ctx, 0) },
+		"CallReview":         func() (Result, error) { return ro.CallReview(ctx, 0) },
+		"CloseMeeting":       func() (Result, error) { return ro.CloseMeeting(ctx) },
+		"SetPaused":          func() (Result, error) { return ro.SetPaused(ctx, true) },
+		"SetSpeed":           func() (Result, error) { return ro.SetSpeed(ctx, 2) },
+		"ClearNotifications": func() (Result, error) { return ro.ClearNotifications(ctx) },
+		"CreateProduct":      func() (Result, error) { return ro.CreateProduct(ctx, ProductDraft{Name: "X"}) },
+		"UpdateBRD":          func() (Result, error) { return ro.UpdateBRD(ctx, "p-1", BRD{}) },
+		"AddStory":           func() (Result, error) { return ro.AddStory(ctx, "p-1", Story{Role: "a", Want: "b"}) },
+		"AddDiagram":         func() (Result, error) { return ro.AddDiagram(ctx, "p-1", Diagram{Title: "t", Src: "s"}) },
+		"AddDecision":        func() (Result, error) { return ro.AddDecision(ctx, "p-1", Decision{Title: "t"}) },
+		"Inject":             func() (Result, error) { return ro.Inject(ctx, "p-1") },
+		"CreateWorkflow":     func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
+	} {
+		if _, err := call(); !errors.Is(err, ErrRejected) {
+			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+
+				"handle that cannot write, not a flag somebody remembers to check", name, err)
+		}
+	}
+
+	// Reads still work. A handle that refused those would not be read-only, it
+	// would be closed, and the operator could not look at the past at all.
+	if _, err := ro.Snapshot(ctx); err != nil {
+		t.Errorf("readOnly.Snapshot: %v", err)
+	}
+	if _, err := ro.Events(ctx); err != nil {
+		t.Errorf("readOnly.Events: %v", err)
+	}
+	if _, err := ro.Replay(ctx, -1); err != nil {
+		t.Errorf("readOnly.Replay back to live: %v", err)
 	}
 }
 
@@ -564,15 +742,16 @@ func caseReplay(t *testing.T, s Store) {
 	if len(evs) == 0 {
 		t.Skip("no events to replay to")
 	}
-	r, err := s.Replay(ctx, 0)
+	genesis := evs[0].Seq
+	r, err := s.Replay(ctx, genesis)
 	if err != nil {
-		t.Fatalf("Replay(0): %v", err)
+		t.Fatalf("Replay(%d): %v", genesis, err)
 	}
 	if !r.Floor.Stats.Replay {
-		t.Error("Replay(0) did not report a floor in replay")
+		t.Errorf("Replay(%d) did not report a floor in replay", genesis)
 	}
-	if r.Floor.Stats.ReplayAt != 0 {
-		t.Errorf("Replay(0) parked the cursor at %d", r.Floor.Stats.ReplayAt)
+	if r.Floor.Stats.ReplayAt != genesis {
+		t.Errorf("Replay(%d) parked the cursor at %d", genesis, r.Floor.Stats.ReplayAt)
 	}
 	r, err = s.Replay(ctx, -1)
 	if err != nil {
@@ -586,8 +765,18 @@ func caseReplay(t *testing.T, s Store) {
 func caseReplayPastEnd(t *testing.T, s Store) {
 	ctx := context.Background()
 	evs, _ := s.Events(ctx)
-	if _, err := s.Replay(ctx, len(evs)+10); !errors.Is(err, ErrNotFound) {
+	last := 0
+	if n := len(evs); n > 0 {
+		last = evs[n-1].Seq
+	}
+	if _, err := s.Replay(ctx, last+10); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Replay past the end of the stream returned %v, want ErrNotFound", err)
+	}
+	// Seq is 1-based, so 0 is a seq no event will ever carry. It has to be a
+	// not-found rather than a silent clamp to genesis: an operator who lands
+	// there by mistake must be told, not quietly shown a different moment.
+	if _, err := s.Replay(ctx, 0); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Replay(0) returned %v, want ErrNotFound -- no event carries seq 0", err)
 	}
 }
 
