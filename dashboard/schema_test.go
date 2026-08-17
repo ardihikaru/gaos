@@ -268,3 +268,58 @@ func TestSchemaDirectoryHasEveryNumberedFile(t *testing.T) {
 		}
 	}
 }
+
+// TestTheDeferredStateAndItsCompanionsLandedTogether is T-015 held to its own
+// terms. D-037 adds three event names, one task state and two TaskRun
+// properties, and the BRD is explicit that "none of it should be done
+// piecemeal": the catalog is closed, so a name without the state it describes,
+// or a state the DDL will refuse to store, is worse than neither.
+//
+// So this asserts the whole set in one test on purpose. Splitting it into five
+// would let four pass while one was missing, which is precisely the partial
+// landing the requirement forbids.
+func TestTheDeferredStateAndItsCompanionsLandedTogether(t *testing.T) {
+	sql := schemaSQL(t)["04-execution.sql"]
+	if sql == "" {
+		t.Fatal("04-execution.sql is empty or missing")
+	}
+
+	// The task state. DEFERRED has to be inside Task.status's vocabulary, or
+	// the scheduler that produces it writes a row the database refuses --
+	// RECONCILIATION.md measured that regexp as a real boundary.
+	status := regexp.MustCompile(`Task\.status[^;]*regexp '([^']+)'`).FindStringSubmatch(sql)
+	if status == nil {
+		t.Fatal("Task.status declares no regexp; its vocabulary is unconstrained")
+	}
+	found := false
+	for _, v := range strings.Split(status[1], "|") {
+		if v == "DEFERRED" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Task.status permits %q, which has no DEFERRED -- model.go declares "+
+			"StateDeferred and state.go declares its transitions, so a task that "+
+			"reaches it could not be written down", status[1])
+	}
+
+	// The two properties. invocation is D-13 and BR-33: the mode is recorded so
+	// the prohibition on branching can be checked rather than trusted. costBasis
+	// is BR-31 and BR-37: a cost figure without its basis is a number nobody can
+	// audit, and an unpriceable one is reported unavailable, never zero.
+	for _, want := range []struct{ prop, vocab string }{
+		{"TaskRun.invocation", "cli|api"},
+		{"TaskRun.costBasis", "measured|estimated|unavailable"},
+	} {
+		re := regexp.MustCompile(regexp.QuoteMeta(want.prop) + `[^;]*regexp '([^']+)'`)
+		m := re.FindStringSubmatch(sql)
+		if m == nil {
+			t.Errorf("%s is not declared with a regexp; D-037 lands it with its vocabulary "+
+				"or not at all", want.prop)
+			continue
+		}
+		if m[1] != want.vocab {
+			t.Errorf("%s permits %q, want %q", want.prop, m[1], want.vocab)
+		}
+	}
+}

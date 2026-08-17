@@ -13,11 +13,14 @@ version and for the dialect to be reconciled. This is that reconciliation.
   `T-007` landed — by the dashboard binary from an embedded copy
   (`dashboard/schema_embed.go`), which is why the SQL lives inside the
   `dashboard` module rather than beside the script.
-- **Date measured:** 2026-08-16; deviation 3 added 2026-08-17.
-- **Result:** 321 statements apply clean, and re-applying is a no-op. **Three**
+- **Date measured:** 2026-08-16; deviation 3 added 2026-08-17; re-measured the
+  same day after `D-037` (see "Additions" below).
+- **Result:** 323 statements apply clean, and re-applying is a no-op. **Three**
   deviations from the committed model document were required to get there: one
   is dialect, **one is a design error in the model**, and one is an
-  incompleteness found later, when `T-006` first wrote to the graph.
+  incompleteness found later, when `T-006` first wrote to the graph. The count
+  was 321 when those three were ruled; the two statements since are additions
+  rather than reconciliations, and needed no deviation at all.
 
 The model document warns in its own words that the ArcadeDB SQL dialect moves
 between releases and that the schema should be run against the target version
@@ -171,6 +174,39 @@ that writes one of them adds its index in the same change.
 **Ruled `D-047`, 2026-08-17.** Additive, no semantics change: it makes explicit
 a uniqueness the model already assumed by addressing records by business id.
 The DDL now applies **321** statements rather than 314.
+
+---
+
+## Additions — `D-037`, 2026-08-17
+
+Not a reconciliation. `T-015` landed the three event names, the `deferred` task
+state and the two `TaskRun` properties `D-037` calls for, all in one change
+because `BR-05` makes a new event type a schema change to the fold rather than a
+free addition. Two of those are DDL:
+
+```sql
+CREATE PROPERTY TaskRun.invocation       STRING (notnull true, default 'cli',
+                 regexp 'cli|api');
+CREATE PROPERTY TaskRun.costBasis        STRING (notnull true, default 'estimated',
+                 regexp 'measured|estimated|unavailable');
+```
+
+and one is a widened vocabulary on an existing property — `Task.status` gains
+`DEFERRED`, between `BLOCKED` and `DONE`.
+
+**Measured 2026-08-17 on a fresh `26.7.2` scratch database:**
+
+```
+./deploy/schema/scratch.sh up            # 323 applied, 0 already present, 0 failed
+./deploy/schema/apply.sh scratch --url … # 0 failed on a second run
+```
+
+Nothing was rejected and no deviation was required, which is worth recording
+precisely because it is the boring outcome: widening a `regexp` constraint and
+adding two constrained `STRING` properties are the two shapes this dialect has
+been reliable about, and the run was done anyway rather than assumed. The model
+document carries the same two changes at §05 and §08, with a note beside the
+catalog explaining why they had to land together.
 
 ---
 

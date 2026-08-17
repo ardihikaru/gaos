@@ -25,7 +25,7 @@ CREATE PROPERTY Workflow.spentUsd   FLOAT (default 0.0, min 0);
 CREATE VERTEX TYPE Task IF NOT EXISTS EXTENDS GaosVertex BUCKETS 8;
 CREATE PROPERTY Task.title            STRING  (mandatory true, notnull true);
 CREATE PROPERTY Task.status           STRING  (mandatory true, notnull true, default 'PENDING',
-                 regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DONE|FAILED|CANCELED');
+                 regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED');
 CREATE PROPERTY Task.role             STRING  (mandatory true, notnull true,
                  regexp 'planner|architect|backend|frontend|qa|security|devops');
 CREATE PROPERTY Task.riskClass        STRING  (default 'normal',
@@ -56,6 +56,10 @@ CREATE PROPERTY TaskRun.tokensOut        LONG  (min 0);
 CREATE PROPERTY TaskRun.costUsd          FLOAT (min 0);
 CREATE PROPERTY TaskRun.failureSignature STRING;
 CREATE PROPERTY TaskRun.logRef           STRING;   -- object storage key
+CREATE PROPERTY TaskRun.invocation       STRING (notnull true, default 'cli',
+                 regexp 'cli|api');                -- D-13/D-036: recorded, never branched on
+CREATE PROPERTY TaskRun.costBasis        STRING (notnull true, default 'estimated',
+                 regexp 'measured|estimated|unavailable');  -- BR-31/BR-37
 
 CREATE VERTEX TYPE Prompt IF NOT EXISTS EXTENDS GaosVertex;
 CREATE PROPERTY Prompt.name     STRING  (mandatory true, notnull true);
