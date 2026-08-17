@@ -28,7 +28,7 @@
 <span class="ev {{.Kind}}" aria-current="{{.Current}}">
   <label>{{.Type}}</label><i></i><span class="tm">{{.Time}}</span>
   <button title="{{.Text}}" aria-label="Replay {{.Type}} at {{.Time}}"
-          hx-get="replay/floor?t={{.Idx}}" hx-target="#sink" hx-swap="innerHTML"></button>
+          hx-get="replay/floor?t={{.Seq}}" hx-target="#sink" hx-swap="innerHTML"></button>
 </span>
 {{end}}
 

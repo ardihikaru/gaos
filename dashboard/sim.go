@@ -70,7 +70,7 @@ func (s *MemStore) Tick() {
 	// Paused means paused, and a replaying operator must not have the past
 	// rewritten under them. Both checks are here rather than in the caller so
 	// that Tick() is always safe to call.
-	if s.paused || s.replayAt != liveMode {
+	if s.paused || s.replayAtSeq != liveMode {
 		return
 	}
 	s.clock++
@@ -103,20 +103,20 @@ func (s *MemStore) tickDesk(d *Desk) {
 		// the work instead of over-seating it.
 		if s.rng.Float64() < .12 && s.occupancy("backend") < 4 {
 			d.Agents = []string{"a-4"}
-			d.State = StateActive
+			s.mustSetState(d, StateActive)
 			d.Progress = 2
 			d.Task = s.pickTask(*d)
 			s.log(d, "workspace ws-5 leased · branch feat/reconcile", "t")
-			s.emit(TaskDispatched, d.ID, d.Name+": "+d.Task, KindInfo)
+			s.emit(TaskDispatched, d.ID, d.Name+": "+d.Task, KindInfo, deskPayload(*d))
 		}
 		return
 
 	case StateBlocked:
 		if s.rng.Float64() < .22 {
-			d.State = StateActive
+			s.mustSetState(d, StateActive)
 			d.BlockReason = ""
 			s.log(d, "blocker cleared, resuming", "g")
-			s.emit(TaskResumed, d.ID, "Dependency resolved", KindInfo)
+			s.emit(TaskResumed, d.ID, "Dependency resolved", KindInfo, deskPayload(*d))
 		}
 		return
 
@@ -124,12 +124,12 @@ func (s *MemStore) tickDesk(d *Desk) {
 		if s.rng.Float64() < .18 {
 			d.StageIdx = 0
 			d.Progress = 3
-			d.State = StateActive
+			s.mustSetState(d, StateActive)
 			d.Scored, d.Score, d.ScoreParts = false, 0, nil
 			d.Retry = 0
 			d.TaskSeq++
 			d.Task = s.pickTask(*d)
-			s.emit(WorkflowCreated, d.ID, "Next objective planned for "+d.Name, KindInfo)
+			s.emit(WorkflowCreated, d.ID, "Next objective planned for "+d.Name, KindInfo, deskPayload(*d))
 		}
 		return
 	}
@@ -157,10 +157,10 @@ func (s *MemStore) tickDesk(d *Desk) {
 	}
 
 	if d.State == StateActive && d.Progress < 90 && s.rng.Float64() < .035 {
-		d.State = StateBlocked
+		s.mustSetState(d, StateBlocked)
 		d.BlockReason = "Waiting on " + taskIDOf(*d) + "-dep · migration must land first"
 		s.log(d, "blocked: dependency not satisfied", "y")
-		s.emit(TaskBlocked, d.ID, d.BlockReason, KindWarn)
+		s.emit(TaskBlocked, d.ID, d.BlockReason, KindWarn, deskPayload(*d))
 		return
 	}
 
@@ -169,10 +169,10 @@ func (s *MemStore) tickDesk(d *Desk) {
 	}
 
 	if d.State == StateActive {
-		d.State = StateReview
+		s.mustSetState(d, StateReview)
 		d.Progress = 100
 		s.log(d, "runner exited 0 · handing off to review", "t")
-		s.emit(TaskCompleted, d.ID, d.Task, KindDone)
+		s.emit(TaskCompleted, d.ID, d.Task, KindDone, deskPayload(*d))
 		return
 	}
 
@@ -212,7 +212,7 @@ func (s *MemStore) review(d *Desk) {
 	if sc < 70 {
 		kind = KindWarn
 	}
-	s.emit(ReviewCompleted, d.ID, fmt.Sprintf("Score %d", sc), kind)
+	s.emit(ReviewCompleted, d.ID, fmt.Sprintf("Score %d", sc), kind, deskPayload(*d))
 
 	if sc < 50 || (d.Retry >= 2 && sc < 70) {
 		reason := "Low score on " + taskIDOf(*d)
@@ -224,10 +224,17 @@ func (s *MemStore) review(d *Desk) {
 	}
 	if sc < 70 {
 		d.Retry++
-		d.State = StateActive
+		s.mustSetState(d, StateActive)
 		d.Progress = 12
 		d.Task = "Fix: " + lowerFirst(d.Task)
-		s.emit(RetryRequested, d.ID, fmt.Sprintf("Retry %d with richer context", d.Retry), KindWarn)
+		// The verdict belongs to the attempt that earned it, and this is a new
+		// attempt. MemStore.RetryTask has always cleared the score on the
+		// operator's retry; this path did not, so the same event name meant two
+		// different things depending on who asked for it. The fold is what found
+		// it -- one reducer case cannot honour both readings, and having to write
+		// the case is what made the disagreement visible.
+		d.Scored, d.Score, d.ScoreParts = false, 0, nil
+		s.emit(RetryRequested, d.ID, fmt.Sprintf("Retry %d with richer context", d.Retry), KindWarn, deskPayload(*d))
 		return
 	}
 	// The gate policy: work that reaches the review stage holds for a human
@@ -235,7 +242,7 @@ func (s *MemStore) review(d *Desk) {
 	if stageOf(*d) == "review" && !d.ApprovalRequired && s.rng.Float64() < .7 {
 		d.ApprovalRequired = true
 		s.log(d, "approval gate: merge held for a human", "y")
-		s.emit(ApprovalRequested, d.ID, "Merge held on "+taskIDOf(*d), KindWarn)
+		s.emit(ApprovalRequested, d.ID, "Merge held on "+taskIDOf(*d), KindWarn, deskPayload(*d))
 		return
 	}
 	s.advance(d)

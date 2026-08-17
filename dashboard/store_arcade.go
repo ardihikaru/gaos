@@ -289,10 +289,20 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 			return err
 		}
 	}
-	if len(r.NewEvents) > 0 {
-		last := r.NewEvents[len(r.NewEvents)-1]
-		if err := s.writeSnapshot(ctx, tx, last.Seq, r.Floor.Desks); err != nil {
-			return err
+	// A snapshot every snapshotEvery events, not one per event.
+	//
+	// The rung is keyed to the LAST event in the batch rather than to whichever
+	// event happened to be the 500th, because r.Floor is the floor after the
+	// whole mutation and uptoSeq has to name the event it actually reflects. A
+	// rung landing at 502 instead of 500 costs nothing -- uptoSeq is explicit,
+	// so the fold knows precisely what is already in there -- whereas a rung
+	// claiming 500 and holding 502 would be a snapshot that lies.
+	if n := len(r.NewEvents); n > 0 {
+		last := r.NewEvents[n-1]
+		if last.Seq/snapshotEvery > (r.NewEvents[0].Seq-1)/snapshotEvery {
+			if err := s.writeSnapshot(ctx, tx, last.Seq, s.proj.foldAt(last.Seq)); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit(ctx)
@@ -306,7 +316,10 @@ func (s *ArcadeStore) persistAll(ctx context.Context) error {
 	}
 	products, _ := s.proj.Products(ctx)
 	masters, _ := s.proj.Masters(ctx)
-	events, _ := s.proj.Events(ctx)
+	// rawEvents, not Events: the seam strips payloads on the way out and the
+	// payloads are the half a fold needs. Writing the stripped version would
+	// store a stream that replays to a blank floor.
+	events := s.proj.rawEvents()
 
 	tx, err := s.arc.Begin(ctx)
 	if err != nil {
@@ -356,11 +369,9 @@ func (s *ArcadeStore) persistAll(ctx context.Context) error {
 			return err
 		}
 	}
-	if n := len(events); n > 0 {
-		if err := s.writeSnapshot(ctx, tx, events[n-1].Seq, f.Desks); err != nil {
-			return err
-		}
-	}
+	// No snapshot rung here. The seeded world is one FloorOpened event, and a
+	// rung after the first event would save nothing -- the ladder starts paying
+	// for itself at snapshotEvery, and persist writes the rungs from there on.
 	return tx.Commit(ctx)
 }
 
@@ -498,35 +509,68 @@ func (s *ArcadeStore) writeDesk(ctx context.Context, tx *ArcadeTx, d Desk) error
 	return s.edge(ctx, tx, "HAS_TASK", "Workflow", d.WorkflowID, "Task", taskID)
 }
 
+// eventPayloadWire is Event.payload as it sits in the database: the three
+// presentation fields the timeline reads, plus the reducer's delta under its own
+// key.
+//
+// Nested rather than flattened so the two never collide. `text` and `kind` are
+// how a pill is drawn; `delta` is what fold.go folds. A future field on one has
+// no way to shadow a field on the other.
+type eventPayloadWire struct {
+	Text  string       `json:"text"`
+	Kind  string       `json:"kind"`
+	Clock int          `json:"clock"`
+	Delta EventPayload `json:"delta"`
+}
+
 // writeEvent appends one event. Never updated -- BR-04 -- so this is an INSERT
 // rather than an upsert, and the (tenantId, seq) UNIQUE index in
 // 09-indexes.sql is what turns a double write into an error instead of a
 // silently duplicated moment in the timeline.
 //
 // entityId is the business id, never the RID: BR-03, because a restore into
-// different buckets would break every RID the history had recorded.
+// different buckets would break every RID the history had recorded. That is
+// T-010, and TestEventsNeverReferenceARID is what keeps it true rather than
+// merely intended.
+//
+// The payload carries the reducer's delta now, not a floor snapshot. Written as
+// a document rather than a JSON string -- see jsonMap -- so the delta stays
+// queryable on the way back out.
 func (s *ArcadeStore) writeEvent(ctx context.Context, tx *ArcadeTx, e Event) error {
+	p, err := jsonMap(eventPayloadWire{Text: e.Text, Kind: e.Kind, Clock: e.T, Delta: e.Payload})
+	if err != nil {
+		return err
+	}
 	return tx.Command(ctx,
 		`INSERT INTO Event SET id = :id, tenantId = :t, seq = :seq, type = :ty,
 		 entityId = :eid, entityType = 'Workflow', actor = 'operator',
 		 ts = sysdate(), payload = :p`,
 		map[string]any{
 			"id": fmt.Sprintf("%s-ev-%d", s.tenant, e.Seq), "t": s.tenant,
-			"seq": e.Seq, "ty": string(e.Type), "eid": e.DeskID,
-			"p": map[string]any{"text": e.Text, "kind": e.Kind, "clock": e.T},
+			"seq": e.Seq, "ty": string(e.Type), "eid": e.DeskID, "p": p,
 		}, nil)
 }
 
-// writeSnapshot stores the floor the event left behind.
+// writeSnapshot stores a folded floor as a starting point for a later replay.
 //
-// model.go said this is where the per-event floor copy goes when the ArcadeDB
-// store lands: "the snapshot moves to the Snapshot document type (one per 500
-// events) and this field becomes a scope id." The type is used correctly here;
-// the thinning to one-per-500 is T-011's, because it needs the reducer that
-// makes the intermediate snapshots reconstructible, and inventing a gap before
-// that exists would make replay wrong rather than cheap.
-func (s *ArcadeStore) writeSnapshot(ctx context.Context, tx *ArcadeTx, upto int, desks []Desk) error {
-	state, err := jsonList(desks)
+// One per snapshotEvery events, which is the thinning model.go promised "when
+// the ArcadeDB store lands": it needed the reducer first, because a gap between
+// snapshots is only crossable if something can fold across it, and inventing the
+// gap before the reducer existed would have made replay wrong rather than cheap.
+// The reducer exists now, so the gap is safe and the per-event floor copy is
+// gone.
+//
+// BR-21 and T-100: this is an optimisation. uptoSeq says exactly which events
+// are already folded into it, so a corrupt snapshot can always be discarded in
+// favour of a fold from genesis, and the tests prove the answer is the same
+// either way.
+// It takes a FloorState rather than a []Desk on purpose: a rung has to hold
+// everything the reducer would have produced at that seq, clock and open meeting
+// included. A rung missing the clock folds forward to a floor whose event times
+// are wrong, and it would agree with a fold from genesis on every field anyone
+// happened to look at first.
+func (s *ArcadeStore) writeSnapshot(ctx context.Context, tx *ArcadeTx, upto int, st FloorState) error {
+	desks, err := jsonList(st.Desks)
 	if err != nil {
 		return err
 	}
@@ -535,7 +579,9 @@ func (s *ArcadeStore) writeSnapshot(ctx context.Context, tx *ArcadeTx, upto int,
 		 scopeId = :t, uptoSeq = :u, ts = sysdate(), state = :s`,
 		map[string]any{
 			"id": fmt.Sprintf("%s-snap-%d", s.tenant, upto), "t": s.tenant,
-			"u": upto, "s": map[string]any{"desks": state},
+			"u": upto, "s": map[string]any{
+				"desks": desks, "clock": st.Clock, "meetingIdx": st.MeetingIdx,
+			},
 		}, nil)
 }
 
@@ -764,7 +810,8 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	m := &MemStore{replayAt: liveMode, meetingIdx: -1, speed: 1}
+	m := &MemStore{replayAtSeq: liveMode, meetingIdx: -1, speed: 1,
+		pending: map[string][]LogLine{}}
 	for _, r := range prows {
 		m.products = append(m.products, Product{ID: r.ID, Name: r.Name, Repo: r.Repo, Goal: r.Goal})
 		mr := Master{ID: r.ID, Code: r.Code, Owner: r.Owner, Priority: r.Priority,
@@ -842,31 +889,30 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		m.desks = append(m.desks, d)
 	}
 
-	// Only the retained window is loaded. The graph holds the whole stream --
-	// that is the point of writing it there -- but Replay(eventIdx) addresses
-	// the slice Events() returned, and both stores must agree on what that
-	// slice is. Unbounding it is T-013.
+	// The whole stream, oldest first. There used to be a LIMIT here matching the
+	// in-memory ring, with a comment saying unbounding it was T-013; that is
+	// this change. The record is the record -- Replay now addresses an event Seq
+	// rather than an offset into a window, so there is no window left for the
+	// two stores to have to agree about.
 	var erows []struct {
-		Seq     int    `json:"seq"`
-		Type    string `json:"type"`
-		Entity  string `json:"entityId"`
-		Payload struct {
-			Text  string `json:"text"`
-			Kind  string `json:"kind"`
-			Clock int    `json:"clock"`
-		} `json:"payload"`
+		Seq     int             `json:"seq"`
+		Type    string          `json:"type"`
+		Entity  string          `json:"entityId"`
+		Payload json.RawMessage `json:"payload"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT seq, type, entityId, payload FROM Event
-		 WHERE tenantId = :t ORDER BY seq DESC LIMIT :n`,
-		map[string]any{"t": s.tenant, "n": maxEvents}, &erows); err != nil {
+		 WHERE tenantId = :t ORDER BY seq`,
+		map[string]any{"t": s.tenant}, &erows); err != nil {
 		return false, err
 	}
-	for i := len(erows) - 1; i >= 0; i-- {
-		r := erows[i]
+	for _, r := range erows {
+		var pw eventPayloadWire
+		if err := decodeInto(r.Payload, &pw); err != nil {
+			return false, err
+		}
 		e := Event{Seq: r.Seq, Type: EventType(r.Type), DeskID: r.Entity,
-			Text: r.Payload.Text, Kind: r.Payload.Kind, T: r.Payload.Clock,
-			Snapshot: cloneDesks(m.desks)}
+			Text: pw.Text, Kind: pw.Kind, T: pw.Clock, Payload: pw.Delta}
 		if e.Kind == KindWarn || e.Kind == KindFail || e.Type == ApprovalRequested {
 			m.notifs++
 		}
@@ -874,9 +920,42 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		if r.Seq > m.seq {
 			m.seq = r.Seq
 		}
-		if r.Payload.Clock > m.clock {
-			m.clock = r.Payload.Clock
+		if pw.Clock > m.clock {
+			m.clock = pw.Clock
 		}
+	}
+
+	// The snapshot ladder, read back so a scrub on a long-lived database does
+	// not fold the whole stream every time. Ordered by uptoSeq because foldTo
+	// walks the rungs forward and stops at the first one past the cursor.
+	//
+	// If this query returned nothing -- an empty Snapshot type, a wiped one,
+	// rungs from a build that wrote them differently -- replay still works and
+	// still gives the same answer. That is not a happy accident, it is BR-21,
+	// and TestFoldNeedsNoSnapshotAtAll is the test that would notice the day it
+	// stopped being true.
+	var srows []struct {
+		UptoSeq int `json:"uptoSeq"`
+		State   struct {
+			Desks      []Desk `json:"desks"`
+			Clock      int    `json:"clock"`
+			MeetingIdx int    `json:"meetingIdx"`
+		} `json:"state"`
+	}
+	if err := s.arc.Query(ctx,
+		`SELECT uptoSeq, state FROM Snapshot
+		 WHERE tenantId = :t AND scope = 'floor' ORDER BY uptoSeq`,
+		map[string]any{"t": s.tenant}, &srows); err != nil {
+		return false, err
+	}
+	for _, r := range srows {
+		m.snaps = append(m.snaps, floorSnapshot{
+			UptoSeq: r.UptoSeq,
+			State: FloorState{
+				Desks: r.State.Desks, Clock: r.State.Clock,
+				MeetingIdx: r.State.MeetingIdx,
+			},
+		})
 	}
 
 	s.proj = m

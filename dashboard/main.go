@@ -60,6 +60,28 @@ type server struct {
 	arc   *Arcade
 }
 
+// mut is the handle a mutating handler must use. While the floor is parked in
+// the past it is a readOnly, and a readOnly refuses.
+//
+// This is T-099 at the point of use. Architecture §08 asks for replay to be
+// routed through a read-only handle "rather than a flag someone can forget to
+// check"; the way to make that true is for the handle a handler reaches for to
+// be a different handle, chosen once, here. A new mutating route added next year
+// gets the protection by calling s.mut() like its neighbours, and gets no
+// protection at all by calling s.store -- which is why every one of them calls
+// this and reads do not.
+//
+// It costs one Snapshot read per mutation. That read was already happening in
+// every one of these handlers' render path, and correctness that depends on
+// nobody forgetting is not correctness.
+func (s *server) mut(r *http.Request) Store {
+	f, err := s.store.Snapshot(r.Context())
+	if err != nil || !f.Stats.Replay {
+		return s.store
+	}
+	return readOnly{s.store}
+}
+
 // selectStore picks the implementation. GAOS_STORE=arcadedb is opt-in and
 // explicit: the presence of a database URL is not consent to store anything in
 // it, because /healthz has been probing a configured-but-unused ArcadeDB since
@@ -280,9 +302,13 @@ func (s *server) newView(r *http.Request) (*View, Floor) {
 		v.Insp = NewInspectorView(f.Desks[f.FocusIdx], f.FocusIdx, ctx)
 	}
 
+	// Addressed by Seq, not by position. The stream is unbounded now (BR-04), so
+	// a pill's position is a function of how much has happened since -- and a
+	// timeline whose links renumber themselves under the operator is a timeline
+	// that sends them to the wrong moment.
 	evs, _ := s.store.Events(r.Context())
-	for i, e := range evs {
-		v.Events = append(v.Events, NewEventView(e, i, f.Stats.Replay && f.Stats.ReplayAt == i))
+	for _, e := range evs {
+		v.Events = append(v.Events, NewEventView(e, e.Seq, f.Stats.Replay && f.Stats.ReplayAt == e.Seq))
 	}
 	return v, f
 }

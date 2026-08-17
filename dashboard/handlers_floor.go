@@ -110,7 +110,7 @@ func (s *server) handleGoLive(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handlePause(w http.ResponseWriter, r *http.Request) {
 	f, _ := s.store.Snapshot(r.Context())
-	res, err := s.store.SetPaused(r.Context(), !f.Stats.Paused)
+	res, err := s.mut(r).SetPaused(r.Context(), !f.Stats.Paused)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -119,7 +119,7 @@ func (s *server) handlePause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleSpeed(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.SetSpeed(r.Context(), atoiDefault(r.PathValue("n"), 1))
+	res, err := s.mut(r).SetSpeed(r.Context(), atoiDefault(r.PathValue("n"), 1))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -130,7 +130,7 @@ func (s *server) handleSpeed(w http.ResponseWriter, r *http.Request) {
 // handleBell clears the notification count and jumps to whatever wanted
 // attention -- the bell is not a list, it is a pointer.
 func (s *server) handleBell(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.ClearNotifications(r.Context())
+	res, err := s.mut(r).ClearNotifications(r.Context())
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -153,7 +153,7 @@ func deskIdx(r *http.Request) int {
 }
 
 func (s *server) handleApprove(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.ApproveTask(r.Context(), deskIdx(r))
+	res, err := s.mut(r).ApproveTask(r.Context(), deskIdx(r))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -162,7 +162,7 @@ func (s *server) handleApprove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleRetry(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.RetryTask(r.Context(), deskIdx(r))
+	res, err := s.mut(r).RetryTask(r.Context(), deskIdx(r))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -171,7 +171,7 @@ func (s *server) handleRetry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleCancel(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.CancelTask(r.Context(), deskIdx(r))
+	res, err := s.mut(r).CancelTask(r.Context(), deskIdx(r))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -200,7 +200,7 @@ func (s *server) handleTaskContext(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleCallReview(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.CallReview(r.Context(), atoiDefault(r.PathValue("idx"), 0))
+	res, err := s.mut(r).CallReview(r.Context(), atoiDefault(r.PathValue("idx"), 0))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -209,7 +209,7 @@ func (s *server) handleCallReview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleCloseMeeting(w http.ResponseWriter, r *http.Request) {
-	res, err := s.store.CloseMeeting(r.Context())
+	res, err := s.mut(r).CloseMeeting(r.Context())
 	if err != nil {
 		s.fail(w, r, err)
 		return

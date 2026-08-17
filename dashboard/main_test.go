@@ -75,7 +75,9 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/ui/meeting", 200},
 		{"GET", "/ui/timeline", 200},
 		{"GET", "/events", 200},
-		{"GET", "/replay/floor?t=0", 200},
+		// Seq 1 is FloorOpened, which every store has from boot. Not 0: the
+		// cursor is an event Seq now and Seq starts at 1.
+		{"GET", "/replay/floor?t=1", 200},
 		{"POST", "/ui/live", 200},
 		{"POST", "/ui/pause", 200},
 		{"POST", "/ui/speed/2", 200},
@@ -327,20 +329,42 @@ func TestSnapshotsDoNotAliasTheLiveFloor(t *testing.T) {
 	}
 }
 
-func TestEventsAreCappedAndTheReplayCursorFollows(t *testing.T) {
+// The stream is the record, not a window. This test used to assert the opposite
+// -- that events were capped at 160 and the replay cursor was shifted when the
+// window moved -- which is what BR-04 says a stream must not be, and what T-013
+// removed. The genesis event surviving a long run is the whole assertion: it is
+// the one event that can never be re-derived, so if anything is ever dropped
+// from the front again, this is where it shows up.
+func TestTheEventStreamIsUnboundedAndKeepsGenesis(t *testing.T) {
 	_, st := newTestServer(t)
 	ctx := context.Background()
-	for i := 0; i < maxEvents*2; i++ {
+
+	before, _ := st.Events(ctx)
+	for i := 0; i < 400; i++ {
 		st.Tick()
 	}
 	evs, _ := st.Events(ctx)
-	if len(evs) > maxEvents {
-		t.Fatalf("%d events retained, cap is %d", len(evs), maxEvents)
+
+	if len(evs) <= len(before) {
+		t.Fatalf("400 ticks produced no events: %d then %d", len(before), len(evs))
 	}
-	if _, err := st.Replay(ctx, 0); err != nil {
-		t.Fatalf("replay to the oldest retained event: %v", err)
+	if evs[0].Type != FloorOpened {
+		t.Fatalf("oldest event is %s, want FloorOpened -- the front of the stream was dropped", evs[0].Type)
 	}
-	if _, err := st.Replay(ctx, len(evs)+50); err == nil {
+	if evs[0].Seq != 1 {
+		t.Fatalf("oldest event has seq %d, want 1", evs[0].Seq)
+	}
+	for i := 1; i < len(evs); i++ {
+		if evs[i].Seq != evs[i-1].Seq+1 {
+			t.Fatalf("gap in the stream: seq %d follows %d", evs[i].Seq, evs[i-1].Seq)
+		}
+	}
+
+	// Genesis is still reachable, which is the point of not dropping it.
+	if _, err := st.Replay(ctx, evs[0].Seq); err != nil {
+		t.Fatalf("replay to genesis: %v", err)
+	}
+	if _, err := st.Replay(ctx, evs[len(evs)-1].Seq+50); err == nil {
 		t.Error("replaying past the end must be a not-found, not a silent clamp")
 	}
 }

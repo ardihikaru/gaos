@@ -8,11 +8,20 @@ import (
 	"sync"
 )
 
-// maxEvents caps the stream, same as the prototype. The cap is the reason
-// replay is bounded: scrub past the oldest retained event and there is nothing
-// to fold back to. When the Event document type lands this becomes a retention
-// policy (90 days full fidelity) rather than a ring buffer.
-const maxEvents = 160
+// maxDeskLogs is how many inspector lines a desk keeps. This one is a display
+// window and says so: the log is a tail, the stream is the record. fold.go
+// applies the same trim, because the reducer has to agree with the writer about
+// what a desk contains.
+const maxDeskLogs = 40
+
+// snapshotEvery is the snapshot ladder. Every nth event, the folded floor is
+// stored so a replay can start near where it is going instead of at genesis.
+//
+// BR-21: this is an optimisation and never a source of truth. The proof is
+// TestFoldNeedsNoSnapshotAtAll, which throws the whole ladder away and demands
+// the identical floor -- if that test ever needs the ladder to pass, the ladder
+// has become the record and the event stream has stopped being it.
+const snapshotEvery = 500
 
 // liveMode is the sentinel for "not replaying". -1 rather than a *int because
 // this field is read on every render and a nil check per read is noise.
@@ -37,15 +46,35 @@ type MemStore struct {
 	desks    []Desk
 	products []Product
 	masters  []Master
-	events   []Event
-	seq      int
+
+	// events is the record. Append-only and unbounded -- BR-04. There used to be
+	// a 160-entry ring here with the replay cursor shifted whenever the window
+	// moved, which made the oldest history unreachable and the cursor a lie. The
+	// retention policy that eventually bounds this is by age (90 days full
+	// fidelity, D-012), enforced where the events actually live, not by throwing
+	// away the beginning of the stream in memory.
+	events []Event
+	seq    int
+
+	// snaps is the ladder: folded floors at roughly every snapshotEvery-th
+	// event, purely so a scrub does not fold from genesis every time. Never read
+	// as an answer -- see snapshotEvery.
+	snaps []floorSnapshot
+
+	// pending holds log lines written since the last emit, per desk id. emit
+	// drains them into the event it is writing, so the fold can reproduce the
+	// inspector log rather than approximating it.
+	pending map[string][]LogLine
 
 	spend  float64
 	notifs int
 
-	focusIdx   int
-	replayAt   int
-	meetingIdx int
+	focusIdx int
+	// replayAtSeq is an event Seq, not an index into events. That distinction is
+	// the whole of T-013's tail: an index into a slice that could be trimmed had
+	// to be shifted whenever the window moved, and a Seq never moves.
+	replayAtSeq int
+	meetingIdx  int
 
 	paused bool
 	speed  int
@@ -57,10 +86,11 @@ type MemStore struct {
 // test that cannot reproduce a sequence cannot assert on one.
 func NewMemStore(seed uint64) *MemStore {
 	s := &MemStore{
-		rng:        rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15)),
-		replayAt:   liveMode,
-		meetingIdx: -1,
-		speed:      1,
+		rng:         rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15)),
+		replayAtSeq: liveMode,
+		meetingIdx:  -1,
+		speed:       1,
+		pending:     map[string][]LogLine{},
 	}
 
 	s.products = append([]Product(nil), seedProducts...)
@@ -83,16 +113,23 @@ func NewMemStore(seed uint64) *MemStore {
 		s.desks = append(s.desks, d)
 	}
 
-	// The boot sequence from the prototype: one FloorOpened event, then a
-	// runner line on every seated desk, so the inspector is not empty on the
-	// first paint.
-	s.emit(FloorOpened, s.desks[0].ID,
-		fmt.Sprintf("Mission Control attached to %d workflows", len(s.desks)), KindInfo)
+	// The boot sequence from the prototype: a runner line on every seated desk
+	// so the inspector is not empty on the first paint, then one FloorOpened
+	// event carrying the whole seeded floor.
+	//
+	// The order is reversed from the prototype's and that is the point.
+	// FloorOpened is genesis -- §08's `?? empty` -- and it is the only event
+	// that carries a floor rather than a delta, because the fixtures are a state
+	// no event produced. Writing it last means it carries the boot log lines
+	// too, so fold(emptyFloor(), events) reproduces this floor exactly.
 	for i := range s.desks {
 		if s.desks[i].State != StateIdle {
 			s.log(&s.desks[i], fmt.Sprintf("runner attached · pid %d", 11000+s.rng.IntN(900)), "t")
 		}
 	}
+	s.emit(FloorOpened, s.desks[0].ID,
+		fmt.Sprintf("Mission Control attached to %d workflows", len(s.desks)), KindInfo,
+		EventPayload{Genesis: cloneDesks(s.desks)})
 	return s
 }
 
@@ -127,45 +164,122 @@ func stageOf(d Desk) string {
 	return stages[d.StageIdx]
 }
 
+// log writes an inspector line and remembers it for the next event.
+//
+// The desk gets it immediately, because the live inspector reads the desk. The
+// pending buffer gets it too, so the next emit on this desk can carry it into
+// the stream -- otherwise a replayed desk would show the log it has now instead
+// of the log it had then, which is the sort of small dishonesty that makes an
+// audit trail worthless.
 func (s *MemStore) log(d *Desk, line, cls string) {
 	if cls == "" {
 		cls = "t"
 	}
-	d.Logs = append(d.Logs, LogLine{Line: line, Cls: cls, T: s.clock})
-	if len(d.Logs) > 40 {
-		d.Logs = d.Logs[len(d.Logs)-40:]
+	l := LogLine{Line: line, Cls: cls, T: s.clock}
+	d.Logs = append(d.Logs, l)
+	if len(d.Logs) > maxDeskLogs {
+		d.Logs = d.Logs[len(d.Logs)-maxDeskLogs:]
 	}
+
+	// The buffer is trimmed to the same window the desk keeps, and for the same
+	// reason plus one. The reason: a desk shows forty lines, so carrying more
+	// than forty into an event is carrying something nobody can read. The extra
+	// one: a desk that logs busily between events would otherwise hand every
+	// subsequent event a longer list than the last, which turns a linear stream
+	// into a quadratic one -- and it does so silently, because nothing about the
+	// output looks wrong.
+	p := append(s.pending[d.ID], l)
+	if len(p) > maxDeskLogs {
+		p = p[len(p)-maxDeskLogs:]
+	}
+	s.pending[d.ID] = p
 }
 
-// emit writes an event AND the full floor snapshot it describes.
+// emit appends one event to the record.
 //
-// This is the SSE seam. When the broker lands in pass 2 it publishes from
-// exactly here, and nothing else changes: handlers already render from the
-// events this returns rather than re-reading the store.
-func (s *MemStore) emit(t EventType, deskID, text, kind string) Event {
+// It used to attach a deep copy of the entire floor. Now it attaches p, the
+// delta fold.go's reducer needs for this event type, and the log lines written
+// since the last event on this desk. What the event MEANS is the reducer's
+// business; what happened is this function's.
+//
+// This is the SSE seam. When the broker lands it publishes from exactly here,
+// and nothing else changes: handlers already render from the events this returns
+// rather than re-reading the store.
+func (s *MemStore) emit(t EventType, deskID, text, kind string, p EventPayload) Event {
 	s.seq++
-	e := Event{
-		Seq: s.seq, Type: t, DeskID: deskID, Text: text, Kind: kind,
-		T: s.clock, Snapshot: cloneDesks(s.desks),
+
+	if t == FloorOpened {
+		// Genesis carries the floor, log lines and all. Anything buffered before
+		// it is already inside that floor, and letting it ride along as well
+		// would append every boot line twice on the first fold.
+		clear(s.pending)
+	} else if lines := s.pending[deskID]; len(lines) > 0 {
+		p.Logs = append(p.Logs, lines...)
+		delete(s.pending, deskID)
 	}
+
+	// Clone once, here, rather than at twenty-odd call sites. A payload that
+	// shares a slice or a *Meeting with the live floor is an event that changes
+	// after it was written, which BR-04 says cannot happen and which would be
+	// invisible until a replay showed the wrong past.
+	e := Event{Seq: s.seq, Type: t, DeskID: deskID, Text: text, Kind: kind, T: s.clock, Payload: p.Clone()}
 	if kind == KindWarn || kind == KindFail || t == ApprovalRequested {
 		s.notifs++
 	}
 	s.events = append(s.events, e)
-	if len(s.events) > maxEvents {
-		drop := len(s.events) - maxEvents
-		s.events = s.events[drop:]
-		// The replay cursor is an index into this slice. Shifting the window
-		// without shifting the cursor silently moves the operator to a
-		// different moment than the one they clicked.
-		if s.replayAt != liveMode {
-			s.replayAt -= drop
-			if s.replayAt < 0 {
-				s.replayAt = 0
-			}
-		}
+
+	// The ladder, not the record. See snapshotEvery.
+	if e.Seq%snapshotEvery == 0 {
+		s.snaps = append(s.snaps, floorSnapshot{UptoSeq: e.Seq, State: s.foldTo(e.Seq)})
 	}
 	return e
+}
+
+// floorSnapshot is one rung. UptoSeq says exactly which events are already
+// folded into State -- the same contract the Snapshot document type declares in
+// 07-events.sql, and the reason a rung can be discarded without ambiguity.
+type floorSnapshot struct {
+	UptoSeq int
+	State   FloorState
+}
+
+// deskPayload fills the fields every desk-shaped event carries. Each emit call
+// then overrides or ignores whichever ones its reducer case actually reads --
+// keeping this in one place is what stops the writer and fold.go from drifting
+// apart field by field.
+func deskPayload(d Desk) EventPayload {
+	return EventPayload{
+		Task: d.Task, Goal: d.Goal, WorkflowID: d.WorkflowID,
+		Agents:   append([]string(nil), d.Agents...),
+		StageIdx: d.StageIdx, TaskSeq: d.TaskSeq,
+		Progress: d.Progress, Score: d.Score,
+		Parts: append([]ScorePart(nil), d.ScoreParts...),
+		Retry: d.Retry, Esc: d.Esc, Cost: d.Cost,
+	}
+}
+
+// foldTo folds the stream up to seq, starting from the nearest snapshot at or
+// before it. T-097. Assumes the lock is held.
+//
+// The snapshot only ever decides where the fold STARTS. Hand it emptyFloor()
+// instead and the answer is required to be identical, which is what T-100 says
+// and what the fold acceptance test measures.
+func (s *MemStore) foldTo(seq int) FloorState {
+	base := emptyFloor()
+	from := 0
+	for _, snap := range s.snaps {
+		if snap.UptoSeq > seq {
+			break
+		}
+		base = snap.State
+		// Everything at or below the rung is already inside it. Advance past
+		// those rather than folding them a second time -- the reducer is
+		// idempotent on absolute values, but doing the work twice is still work.
+		for from < len(s.events) && s.events[from].Seq <= snap.UptoSeq {
+			from++
+		}
+	}
+	return fold(base, s.events[from:], seq)
 }
 
 // occupancy folds SEATED_IN: how many agents are in a room right now.
@@ -245,22 +359,30 @@ func (s *MemStore) stats() Stats {
 		Attention: attention, Notifs: s.notifs,
 		EventCount: len(s.events), DeskCount: len(s.desks),
 		Clock:    s.clock,
-		Replay:   s.replayAt != liveMode,
-		ReplayAt: s.replayAt,
+		Replay:   s.replayAtSeq != liveMode,
+		ReplayAt: s.replayAtSeq,
 		Paused:   s.paused, Speed: s.speed, SimRunning: s.simOn,
 	}
 }
 
+// view is the desks a read should see: the live slice, or the folded floor if
+// the cursor is parked in the past. Assumes the lock is held.
+//
+// This is where replay stopped being a stored recording. It folds -- from the
+// nearest snapshot forward, per architecture §08 -- so any moment in the stream
+// is reachable, including moments no snapshot was ever written for.
+func (s *MemStore) view() []Desk {
+	if s.replayAtSeq == liveMode {
+		return s.desks
+	}
+	return s.foldTo(s.replayAtSeq).Desks
+}
+
 // floor is one consistent read. Which desks you see depends on the replay
-// cursor: live reads the live slice, replay reads the snapshot frozen into the
-// event. The rail and the topbar always describe LIVE state -- a replayed floor
+// cursor. The rail and the topbar always describe LIVE state -- a replayed floor
 // with a replayed room meter would look like the present and be the past.
 func (s *MemStore) floor() Floor {
-	view := s.desks
-	if s.replayAt != liveMode && s.replayAt < len(s.events) {
-		view = s.events[s.replayAt].Snapshot
-	}
-	f := Floor{Desks: cloneDesks(view), Stats: s.stats(), FocusIdx: s.focusIdx}
+	f := Floor{Desks: cloneDesks(s.view()), Stats: s.stats(), FocusIdx: s.focusIdx}
 	for _, r := range rooms {
 		occ := s.occupancy(r.ID)
 		f.Rooms = append(f.Rooms, RoomState{Room: r, Occupancy: occ, Full: occ >= r.Capacity})
@@ -296,10 +418,7 @@ func (s *MemStore) Snapshot(ctx context.Context) (Floor, error) {
 func (s *MemStore) Desk(ctx context.Context, idx int) (Desk, int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	view := s.desks
-	if s.replayAt != liveMode && s.replayAt < len(s.events) {
-		view = s.events[s.replayAt].Snapshot
-	}
+	view := s.view()
 	if idx < 0 || idx >= len(view) {
 		return Desk{}, 0, ErrNotFound
 	}
@@ -336,18 +455,48 @@ func (s *MemStore) Masters(ctx context.Context) ([]Master, error) {
 	return out, nil
 }
 
+// Events returns the whole record, oldest first. Not a window: BR-04, and the
+// reason Replay can reach any moment rather than the last 160.
+//
+// Payloads are stripped on the way out. The timeline renders type, kind, text
+// and time and nothing else, so a caller that only draws pills has no use for
+// the deltas -- and a payload that escaped this method would be a handle onto
+// the stream's own slices. Replay folds inside the store, where the real
+// payloads are, which is also what keeps the folded floor unreachable from a
+// caller holding events.
 func (s *MemStore) Events(ctx context.Context) ([]Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	// Snapshots are deliberately not copied out: the timeline renders only
-	// type, kind, text and time, and copying 160 floors per poll is the kind of
-	// cost that only shows up under load.
 	out := make([]Event, len(s.events))
 	for i, e := range s.events {
-		e.Snapshot = nil
+		e.Payload = EventPayload{}
 		out[i] = e
 	}
 	return out, nil
+}
+
+// foldAt is foldTo, taking the lock. ArcadeStore calls it while writing a
+// snapshot rung, which happens outside any read the projection is already
+// serving.
+func (s *MemStore) foldAt(seq int) FloorState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.foldTo(seq)
+}
+
+// rawEvents is Events without the stripping: the stream with its payloads
+// intact. Not on the Store interface and not meant to be -- ArcadeStore needs it
+// because it persists the deltas, and a caller outside this package has no
+// business holding one.
+func (s *MemStore) rawEvents() []Event {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]Event, len(s.events))
+	for i, e := range s.events {
+		e.Payload = e.Payload.Clone()
+		out[i] = e
+	}
+	return out
 }
 
 // ContextSlice is the exact set of graph nodes that would be rendered into the
@@ -420,18 +569,25 @@ func (s *MemStore) Focus(ctx context.Context, idx int) (Result, error) {
 	return s.result(""), nil
 }
 
-func (s *MemStore) Replay(ctx context.Context, eventIdx int) (Result, error) {
+func (s *MemStore) Replay(ctx context.Context, eventSeq int) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if eventIdx < 0 {
-		s.replayAt = liveMode
+	if eventSeq < 0 {
+		s.replayAtSeq = liveMode
 		return s.result(""), nil
 	}
-	if eventIdx >= len(s.events) {
+	at := -1
+	for i, e := range s.events {
+		if e.Seq == eventSeq {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
 		return Result{}, ErrNotFound
 	}
-	s.replayAt = eventIdx
-	if hit := s.deskIdxByID(s.events[eventIdx].DeskID); hit >= 0 {
+	s.replayAtSeq = eventSeq
+	if hit := s.deskIdxByID(s.events[at].DeskID); hit >= 0 {
 		s.focusIdx = hit
 	}
 	return s.result(""), nil
@@ -481,7 +637,7 @@ func (s *MemStore) ApproveTask(ctx context.Context, idx int) (Result, error) {
 	}
 	d.ApprovalRequired = false
 	s.log(d, "approval granted by operator", "g")
-	e := s.emit(ApprovalGranted, d.ID, "Merge gate released on "+taskIDOf(*d), KindDone)
+	e := s.emit(ApprovalGranted, d.ID, "Merge gate released on "+taskIDOf(*d), KindDone, deskPayload(*d))
 	ev := []Event{e}
 	ev = append(ev, s.advance(d)...)
 	return s.result("Approved. The gate is released.", ev...), nil
@@ -503,12 +659,14 @@ func (s *MemStore) RetryTask(ctx context.Context, idx int) (Result, error) {
 	if d.Retry >= 3 {
 		return Result{}, reject("Retry guard exhausted (3). This needs a design review, not another attempt.")
 	}
+	if err := s.setState(d, StateActive); err != nil {
+		return Result{}, err
+	}
 	d.Retry++
-	d.State = StateActive
 	d.Progress = 6
 	d.Scored, d.Score, d.ScoreParts = false, 0, nil
 	s.log(d, "manual retry · context widened by one hop", "y")
-	e := s.emit(RetryRequested, d.ID, "Operator retry on "+taskIDOf(*d), KindWarn)
+	e := s.emit(RetryRequested, d.ID, "Operator retry on "+taskIDOf(*d), KindWarn, deskPayload(*d))
 	return s.result("Retrying with a wider context slice.", e), nil
 }
 
@@ -522,13 +680,33 @@ func (s *MemStore) CancelTask(ctx context.Context, idx int) (Result, error) {
 	if d.State == StateIdle {
 		return Result{}, reject("This desk is already idle.")
 	}
-	d.State = StateIdle
+
+	// Cancelling a desk that was holding a merge gate is a rejected approval,
+	// and the catalog has a name for that. Emitting it here rather than folding
+	// it into TaskCanceled is what lets an auditor tell "nobody ever answered
+	// the gate" from "somebody answered it with no" -- which is exactly the
+	// question an approval record exists to settle (BR-19).
+	var ev []Event
+	gated := d.ApprovalRequired
+	task := taskIDOf(*d)
+
+	s.mustSetState(d, StateIdle)
 	d.Agents = nil
 	d.Progress = 0
 	d.ApprovalRequired = false
 	s.log(d, "task canceled · workspace released", "r")
-	e := s.emit(TaskCanceled, d.ID, "Operator canceled "+taskIDOf(*d), KindFail)
-	return s.result("Task canceled. The workspace lease is released.", e), nil
+
+	if gated {
+		ev = append(ev, s.emit(ApprovalRejected, d.ID, "Merge gate refused on "+task, KindFail, deskPayload(*d)))
+	}
+	ev = append(ev, s.emit(TaskCanceled, d.ID, "Operator canceled "+task, KindFail, deskPayload(*d)))
+	if d.StageIdx >= len(stages)-1 {
+		// The last stage was the workflow. Cancelling it cancels the workflow,
+		// which is a different fact from cancelling one task inside a running
+		// one, and D-020's closed catalog already has the name for it.
+		ev = append(ev, s.emit(WorkflowCanceled, d.ID, "Workflow "+d.WorkflowID+" canceled", KindFail, deskPayload(*d)))
+	}
+	return s.result("Task canceled. The workspace lease is released.", ev...), nil
 }
 
 func (s *MemStore) CallReview(ctx context.Context, idx int) (Result, error) {
@@ -540,7 +718,7 @@ func (s *MemStore) CallReview(ctx context.Context, idx int) (Result, error) {
 	if s.meetingIdx >= 0 {
 		return Result{}, reject("A review is already in session.")
 	}
-	if s.replayAt != liveMode {
+	if s.replayAtSeq != liveMode {
 		return Result{}, reject("The floor is in replay. Return to live first.")
 	}
 	d := &s.desks[idx]
@@ -573,10 +751,12 @@ func (s *MemStore) startMeeting(idx int, reason string) []Event {
 			participants = append(participants, id)
 		}
 	}
-	d.State = StateMeeting
+	s.mustSetState(d, StateMeeting)
 	d.Meeting = &Meeting{Reason: reason, Participants: participants, Conf: 38}
 	s.meetingIdx = idx
-	return []Event{s.emit(MeetingStarted, d.ID, reason, KindMeet)}
+	p := deskPayload(*d)
+	p.Meeting = d.Meeting
+	return []Event{s.emit(MeetingStarted, d.ID, reason, KindMeet, p)}
 }
 
 // closeMeeting applies the decision: an ADR is written, the model is escalated
@@ -590,8 +770,18 @@ func (s *MemStore) closeMeeting() []Event {
 	}
 	d := &s.desks[idx]
 	var ev []Event
-	ev = append(ev, s.emit(DecisionRecorded, d.ID, "ADR-014 accepted · 2 action items created", KindKnow))
-	d.State = StateActive
+
+	// The room's own record, before the decision is applied: the proposal that
+	// was on the table and then the decision taken on it. ProposalRecorded and
+	// DecisionRecorded are two different facts and the catalog names them
+	// separately -- a meeting that recorded a decision nobody proposed is not a
+	// meeting anybody can audit.
+	meet := deskPayload(*d)
+	meet.Meeting = d.Meeting
+	ev = append(ev, s.emit(ProposalRecorded, d.ID, "Proposal on the table · move rounding into the pricing service", KindMeet, meet))
+	ev = append(ev, s.emit(DecisionRecorded, d.ID, "ADR-014 accepted · 2 action items created", KindKnow, meet))
+
+	s.mustSetState(d, StateActive)
 	d.Esc++
 	d.Retry = 0
 	d.Progress = 8
@@ -599,8 +789,8 @@ func (s *MemStore) closeMeeting() []Event {
 	d.Task = "Apply ADR-014: move rounding into the pricing service"
 	d.Meeting = nil
 	s.log(d, "meeting decision applied · model upgraded to claude-opus-5", "p")
-	ev = append(ev, s.emit(ModelEscalated, d.ID, "Retry running on a stronger model after the review", KindKnow))
-	ev = append(ev, s.emit(MeetingClosed, d.ID, "Design review closed", KindMeet))
+	ev = append(ev, s.emit(ModelEscalated, d.ID, "Retry running on a stronger model after the review", KindKnow, deskPayload(*d)))
+	ev = append(ev, s.emit(MeetingClosed, d.ID, "Design review closed", KindMeet, deskPayload(*d)))
 	return ev
 }
 
@@ -610,17 +800,17 @@ func (s *MemStore) closeMeeting() []Event {
 func (s *MemStore) advance(d *Desk) []Event {
 	d.TaskSeq++
 	if d.StageIdx >= len(stages)-1 {
-		d.State = StateCompleted
+		s.mustSetState(d, StateCompleted)
 		d.Progress = 100
 		s.log(d, "knowledge node written · linked to task, files, ADR", "p")
 		return []Event{
-			s.emit(KnowledgeExtracted, d.ID, "Lesson stored for "+d.Name, KindKnow),
-			s.emit(WorkflowCompleted, d.ID, d.Name+" shipped", KindDone),
+			s.emit(KnowledgeExtracted, d.ID, "Lesson stored for "+d.Name, KindKnow, deskPayload(*d)),
+			s.emit(WorkflowCompleted, d.ID, d.Name+" shipped", KindDone, deskPayload(*d)),
 		}
 	}
 	d.StageIdx++
 	d.Progress = 4
-	d.State = StateActive
+	s.mustSetState(d, StateActive)
 	d.Scored, d.Score, d.ScoreParts = false, 0, nil
 	d.Retry = 0
 	d.Task = s.pickTask(*d)
@@ -636,7 +826,7 @@ func (s *MemStore) advance(d *Desk) []Event {
 		d.Agents = []string{cand[s.rng.IntN(len(cand))]}
 	}
 	s.log(d, "stage → "+stageOf(*d)+" · agent reseated", "t")
-	return []Event{s.emit(TaskDispatched, d.ID, stageOf(*d)+": "+d.Task, KindInfo)}
+	return []Event{s.emit(TaskDispatched, d.ID, stageOf(*d)+": "+d.Task, KindInfo, deskPayload(*d))}
 }
 
 // ---------- product master ----------
@@ -666,7 +856,7 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 		ID: id, Code: strings.ToUpper(firstN(name, 2)), Owner: owner,
 		Priority: "medium", Stage: "draft", Repos: []string{repo},
 	})
-	e := s.emit(ProductCreated, id, name+" record created", KindInfo)
+	e := s.emit(ProductCreated, id, name+" record created", KindInfo, EventPayload{})
 	r := s.result("Product record created. Fill the requirements before planning work.", e)
 	m := s.masterPtr(id).Clone()
 	r.Master = &m
@@ -681,7 +871,7 @@ func (s *MemStore) UpdateBRD(ctx context.Context, id string, b BRD) (Result, err
 		return Result{}, ErrNotFound
 	}
 	m.BRD = b
-	e := s.emit(RecordUpdated, id, s.productName(id)+": requirements updated", KindInfo)
+	e := s.emit(RecordUpdated, id, s.productName(id)+": requirements updated", KindInfo, EventPayload{})
 	r := s.result("Requirements saved.", e)
 	c := m.Clone()
 	r.Master = &c
@@ -707,7 +897,7 @@ func (s *MemStore) AddStory(ctx context.Context, id string, st Story) (Result, e
 	st.ID = fmt.Sprintf("US-%02d", len(m.Stories)+1)
 	st.Tasks = 0
 	m.Stories = append(m.Stories, st)
-	e := s.emit(RecordUpdated, id, s.productName(id)+": "+st.ID+" added", KindInfo)
+	e := s.emit(RecordUpdated, id, s.productName(id)+": "+st.ID+" added", KindInfo, EventPayload{})
 	r := s.result("Story added. It becomes an Issue vertex on the next injection.", e)
 	c := m.Clone()
 	r.Master = &c
@@ -729,7 +919,7 @@ func (s *MemStore) AddDiagram(ctx context.Context, id string, g Diagram) (Result
 	}
 	g.ID = fmt.Sprintf("DG-%02d", len(m.Diagrams)+1)
 	m.Diagrams = append(m.Diagrams, g)
-	e := s.emit(RecordUpdated, id, s.productName(id)+": "+g.ID+" added", KindInfo)
+	e := s.emit(RecordUpdated, id, s.productName(id)+": "+g.ID+" added", KindInfo, EventPayload{})
 	r := s.result("Diagram added.", e)
 	c := m.Clone()
 	r.Master = &c
@@ -753,7 +943,7 @@ func (s *MemStore) AddDecision(ctx context.Context, id string, a Decision) (Resu
 		a.Confidence = 0.8
 	}
 	m.Decisions = append(m.Decisions, a)
-	e := s.emit(RecordUpdated, id, s.productName(id)+": "+a.ID+" recorded", KindKnow)
+	e := s.emit(RecordUpdated, id, s.productName(id)+": "+a.ID+" recorded", KindKnow, EventPayload{})
 	r := s.result("Decision recorded.", e)
 	c := m.Clone()
 	r.Master = &c
@@ -773,14 +963,53 @@ func (s *MemStore) Inject(ctx context.Context, id string) (Result, error) {
 	}
 	pr := m.Project()
 	text := fmt.Sprintf("%s: %d vertices, %d edges written", s.productName(id), pr.Vertices, pr.Edges)
-	e := s.emit(KnowledgeInjected, id, text, KindKnow)
+	ev := []Event{s.emit(KnowledgeInjected, id, text, KindKnow, EventPayload{})}
 	if idx := s.deskIdxByID(id); idx >= 0 {
 		s.log(&s.desks[idx], fmt.Sprintf("master record injected · %d vertices, %d edges", pr.Vertices, pr.Edges), "p")
 	}
-	r := s.result(fmt.Sprintf("Injected %d vertices and %d edges into the graph.", pr.Vertices, pr.Edges), e)
+	ev = append(ev, s.evaluateReadiness(id, *m)...)
+
+	r := s.result(fmt.Sprintf("Injected %d vertices and %d edges into the graph.", pr.Vertices, pr.Edges), ev...)
 	c := m.Clone()
 	r.Master = &c
 	return r, nil
+}
+
+// evaluateReadiness scores the record and says so, and says so twice when the
+// score has fallen into a stricter band. Assumes the lock is held.
+//
+// BR-10: "downward band crossing emits ReadinessDropped and the stricter band
+// applies immediately." The applying is M2.4; the reporting is here, because a
+// band crossing that is never announced is a silent recalculation, which is the
+// thing the requirement exists to forbid.
+//
+// The previous score is read back out of the event stream rather than kept in a
+// field. That is not cleverness for its own sake -- a field would be state the
+// orchestrator owns, which BR-01 says it may not, and it would be lost on the
+// restart that ArcadeStore rebuilds from the graph. The stream survives both.
+func (s *MemStore) evaluateReadiness(id string, m Master) []Event {
+	score := m.ReadinessScore()
+	band := ReadinessBand(score)
+
+	prev, had := -1, false
+	for i := len(s.events) - 1; i >= 0; i-- {
+		if s.events[i].Type == ReadinessEvaluate && s.events[i].DeskID == id {
+			prev, had = s.events[i].Payload.Score, true
+			break
+		}
+	}
+
+	ev := []Event{s.emit(ReadinessEvaluate, id,
+		fmt.Sprintf("%s: readiness %d · %s", s.productName(id), score, band),
+		KindKnow, EventPayload{Score: score})}
+
+	if had && ReadinessBand(prev) != band && score < prev {
+		ev = append(ev, s.emit(ReadinessDropped, id,
+			fmt.Sprintf("%s: readiness fell from %s to %s (%d → %d)",
+				s.productName(id), ReadinessBand(prev), band, prev, score),
+			KindWarn, EventPayload{Score: score}))
+	}
+	return ev
 }
 
 // ---------- planning ----------
@@ -871,7 +1100,9 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	wf := fmt.Sprintf("wf-%d", len(s.desks)+1)
 	dk.WorkflowID = wf
 	dk.TaskSeq = 0
-	dk.State = StateActive
+	if err := s.setState(dk, StateActive); err != nil {
+		return Result{}, err
+	}
 	dk.StageIdx = 0
 	dk.Progress = 2
 	dk.Scored, dk.Score, dk.ScoreParts = false, 0, nil
@@ -886,11 +1117,11 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	s.log(dk, fmt.Sprintf("planner read the master record · %d stories, %d rules", len(m.Stories), len(m.BRD.Rules)), "p")
 	s.log(dk, "workspace "+strings.Replace(wf, "wf", "ws", 1)+" leased", "t")
 	ev := []Event{
-		s.emit(WorkflowCreated, dk.ID, d.Goal, KindInfo),
-		s.emit(TaskPlanned, dk.ID, fmt.Sprintf("%d tasks planned from the product master", len(plan)), KindKnow),
+		s.emit(WorkflowCreated, dk.ID, d.Goal, KindInfo, deskPayload(*dk)),
+		s.emit(TaskPlanned, dk.ID, fmt.Sprintf("%d tasks planned from the product master", len(plan)), KindKnow, deskPayload(*dk)),
 	}
 	s.focusIdx = idx
-	s.replayAt = liveMode
+	s.replayAtSeq = liveMode
 	return s.result("Workflow created. The desk is live on the floor.", ev...), nil
 }
 

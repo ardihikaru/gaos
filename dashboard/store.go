@@ -5,11 +5,16 @@ import (
 	"errors"
 )
 
-// Store is the entire surface the handlers use. MemStore is the only
-// implementation in this pass; store_arcade.go in the next one speaks the
-// ArcadeDB HTTP API and THIS FILE DOES NOT CHANGE. That is the whole point of
-// having it -- the seam is declared before it is needed, while the shape is
-// still cheap to get right.
+// Store is the entire surface the handlers use. Two implementations: MemStore
+// in store_mem.go and ArcadeStore in store_arcade.go, run against one
+// conformance suite so the seam cannot rot.
+//
+// This file was written to say "THIS FILE DOES NOT CHANGE", and it did not --
+// the whole ArcadeDB store landed against it untouched, which was the point of
+// declaring the seam before it was needed. It changes here, once, for T-099:
+// architecture §08 requires replay to go through a read-only handle rather than
+// a flag, and a read-only handle is a thing the seam has to be able to express.
+// readOnly below is that handle.
 //
 // Two rules the ArcadeDB implementation will need, and which are why the
 // signatures look the way they do:
@@ -43,10 +48,14 @@ type Store interface {
 	// Focus moves the inspector without changing any domain state.
 	Focus(ctx context.Context, idx int) (Result, error)
 
-	// Replay folds the floor back to the state at an event. Passing -1 returns
-	// to live. Architecture §08: replay must go through a read-only handle, so
-	// this returns a Floor and never mutates anything a live read can see.
-	Replay(ctx context.Context, eventIdx int) (Result, error)
+	// Replay folds the floor back to the state at an event. The argument is an
+	// event Seq; passing -1 returns to live.
+	//
+	// A Seq rather than an offset into Events() because the stream is unbounded
+	// and append-only (BR-04) -- an offset names a different moment as soon as
+	// anything is prepended to the caller's view of the slice, and the pill the
+	// operator clicked has to stay the pill they get.
+	Replay(ctx context.Context, eventSeq int) (Result, error)
 
 	// ---- floor mutations ----
 	ApproveTask(ctx context.Context, idx int) (Result, error)
@@ -105,4 +114,74 @@ type rejection struct{ reason string }
 func (r *rejection) Error() string { return r.reason }
 func (r *rejection) Is(target error) bool {
 	return target == ErrRejected
+}
+
+// ---------- the read-only handle ----------
+
+// readOnly wraps a Store and refuses every mutation on it. T-099, and BR-20.
+//
+// Architecture §08 is unusually specific about why this exists rather than a
+// boolean: "route replay through a read-only store handle rather than a flag
+// someone can forget to check -- a flag will eventually be forgotten and will
+// overwrite live state with a historical one."
+//
+// So this is not a check, it is a type. A handler holding a readOnly cannot
+// approve a task by forgetting anything, because the method it would call is not
+// the store's. Reads pass straight through, including Replay itself: moving the
+// cursor is how you look at a different moment, and looking is what this handle
+// is for. Focus passes through for the same reason -- the inspector follows the
+// scrub, and neither writes an event.
+//
+// The wrapped store is still the live one. readOnly narrows what a caller can
+// do with it; it does not copy or freeze anything, which is what makes it cheap
+// enough to hand out per request.
+type readOnly struct{ Store }
+
+// replayRefusal is the one sentence every refused mutation gives back. Written
+// once so the reason an operator sees is the same wherever they hit it.
+const replayRefusal = "The floor is in replay. Return to live before changing anything."
+
+func (readOnly) ApproveTask(context.Context, int) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) RetryTask(context.Context, int) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) CancelTask(context.Context, int) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) CallReview(context.Context, int) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) CloseMeeting(context.Context) (Result, error) { return Result{}, reject(replayRefusal) }
+func (readOnly) SetPaused(context.Context, bool) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetSpeed(context.Context, int) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+
+func (readOnly) ClearNotifications(context.Context) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) CreateProduct(context.Context, ProductDraft) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) UpdateBRD(context.Context, string, BRD) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) AddStory(context.Context, string, Story) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) AddDiagram(context.Context, string, Diagram) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) AddDecision(context.Context, string, Decision) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) Inject(context.Context, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) CreateWorkflow(context.Context, WorkflowDraft, []PlanTask) (Result, error) {
+	return Result{}, reject(replayRefusal)
 }
