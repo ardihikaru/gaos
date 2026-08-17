@@ -250,6 +250,15 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 
   <div class="warn">
     <b>Version check before you run this.</b> The DDL below follows the ArcadeDB SQL dialect as documented at the time of writing. Constraint syntax and index options do move between releases, so run the schema against your target version in a scratch database first and adjust rather than assuming.
+    <br><br>
+    <b>Done, on 2026-08-16, against ArcadeDB 26.7.2</b> — the version pinned by
+    <code>D-043</code>. It was worth doing: 53 of 314 statements failed on the first run.
+    Two amendments came out of it, marked in place at §09 and §13 and ruled as
+    <code>D-045</code> and <code>D-046</code>. The runnable, reconciled schema now lives at
+    <code>dashboard/schema/</code> — ten files, applied by <code>deploy/schema/apply.sh</code> — and
+    <code>dashboard/schema/RECONCILIATION.md</code> records every deviation, with the commands to
+    reproduce the measurement. This page stays the source of truth; that directory is what
+    actually runs.
   </div>
 </section>
 
@@ -356,7 +365,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <!-- ============================================================ -->
 <section id="edges">
   <h2><span class="num">04</span> Edge catalog</h2>
-  <p class="lede">Cardinality is enforced where ArcadeDB can do it and by the repository layer where it cannot. The <b>unique</b> column marks edge types declared <code>UNIQUE</code>, which allows at most one edge per ordered pair.</p>
+  <p class="lede">Cardinality is enforced where ArcadeDB can do it and by the repository layer where it cannot. The <b>unique</b> column marks edge types that allow at most one edge per ordered pair — carried by a unique index on <code>(`@out`, `@in`)</code> rather than by a keyword on the type, per <code>D-045</code> and the amendment at §09.</p>
 
   <table>
     <thead><tr><th class="mono">Edge</th><th class="mono">From → To</th><th>Cardinality</th><th>Properties</th><th>Unique</th></tr></thead>
@@ -759,7 +768,21 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <!-- ============================================================ -->
 <section id="ddl-edges">
   <h2><span class="num">09</span> DDL · edge types</h2>
-  <p class="lede">Declared <code>UNIQUE</code> where at most one edge should exist per ordered pair, which turns a class of duplication bugs into a constraint violation at write time.</p>
+  <p class="lede">Unique where at most one edge should exist per ordered pair, which turns a class of duplication bugs into a constraint violation at write time.</p>
+
+  <div class="warn">
+    <b>Amended by D-045 — the <code>UNIQUE</code> modifier below does not exist.</b>
+    Measured against ArcadeDB 26.7.2 on 2026-08-16: <code>CREATE EDGE TYPE … EXTENDS GaosEdge UNIQUE</code>
+    is rejected with <code>extraneous input 'UNIQUE'</code>, taking all 32 edge types with it
+    and, through them, the 18 <code>CREATE PROPERTY</code> statements that name a type which
+    was therefore never created. The <em>constraint</em> is supported; only this spelling of it
+    is not. It is expressed as a unique index over the two endpoints instead —
+    <code>CREATE INDEX IF NOT EXISTS ON OWNS (`@out`, `@in`) UNIQUE;</code> — and those 32
+    indexes now live at the foot of <code>09-indexes.sql</code>. The block below is left as
+    first written so the amendment is legible; the applied form is
+    <code>dashboard/schema/08-edges.sql</code>, and the full reconciliation is
+    <code>dashboard/schema/RECONCILIATION.md</code>.
+  </div>
 
   <div class="code" data-sql>
     <div class="bar"><b>08-edges.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
@@ -1091,13 +1114,39 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
   <h3>Buckets and partitioning</h3>
   <p><cite index="9-1">A type is stored in buckets, the number can be set with the BUCKETS option at creation time, and multiple buckets are recommended when working with multiple cores to improve insert concurrency.</cite> The high-volume types above declare 8 or 16 buckets for that reason. <cite index="9-1">A partitioned bucket selection strategy is recommended when you have a unique id, and is set with ALTER TYPE.</cite></p>
 
+  <div class="warn">
+    <b>Amended by D-046 — the three <code>partitioned('tenantId')</code> lines are withdrawn.</b>
+    This is the one deviation in the whole schema that is an error in this document rather than
+    a dialect difference, and the citation directly above is where it shows: a partitioned
+    bucket strategy is recommended <em>when you have a unique id</em>, and
+    <code>tenantId</code> is the opposite of one — it is the discriminator every record of a
+    tenant shares. ArcadeDB 26.7.2 requires a <code>UNIQUE</code> index on exactly
+    <code>(tenantId)</code> before it will accept the strategy, and that index means
+    <strong>one Task per tenant</strong>. Measured on 2026-08-16, not reasoned about: with the
+    index in place, a second <code>Task</code> for tenant <code>loop-eng</code> fails with
+    <code>DuplicatedKeyException</code>.
+    <br><br>
+    Nothing is lost that the model does not already provide elsewhere.
+    <code>BR-26</code> asks for <code>tenantId</code> declared and indexed whatever the tenancy
+    strategy turns out to be, and §10 does that — <code>Task (tenantId, id)</code>,
+    <code>TaskRun (tenantId, id)</code> and <code>Event (tenantId, seq)</code> unique, plus
+    <code>Task (tenantId, status, priority)</code>. Isolation rests where
+    <code>D-042</code> puts it: database-per-tenant as the default, with
+    <code>tenantId</code> as the second line rather than the first.
+  </div>
+
   <div class="code" data-sql>
     <div class="bar"><b>10-storage.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
     <pre><span class="c">-- Route records to buckets by tenant so one tenant's write burst does not
--- contend with another's, and so a per-tenant export is a bucket-local scan.</span>
-<span class="k">ALTER TYPE</span> Task    BucketSelectionStrategy `partitioned('tenantId')`;
-<span class="k">ALTER TYPE</span> TaskRun BucketSelectionStrategy `partitioned('tenantId')`;
-<span class="k">ALTER TYPE</span> Event   BucketSelectionStrategy `partitioned('tenantId')`;
+-- contend with another's, and so a per-tenant export is a bucket-local scan.
+--
+-- WITHDRAWN by D-046: `partitioned(p)` needs a UNIQUE index on exactly (p),
+-- and a unique index on tenantId permits one Task per tenant. See the note
+-- above this block, and dashboard/schema/RECONCILIATION.md deviation 2.
+--
+-- ALTER TYPE Task    BucketSelectionStrategy `partitioned('tenantId')`;
+-- ALTER TYPE TaskRun BucketSelectionStrategy `partitioned('tenantId')`;
+-- ALTER TYPE Event   BucketSelectionStrategy `partitioned('tenantId')`;</span>
 
 <span class="c">-- Heavy, rarely projected payloads move out of the topology page.
 -- Available from v26.5.1; check your version before relying on it.</span>

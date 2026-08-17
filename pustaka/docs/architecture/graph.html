@@ -22,7 +22,7 @@
        data-tags="database, schema, graph, arcadedb, events"
        data-hashtags="arcadedb, graph, schema, events"
        data-published="2026-08-07"
-       data-updated="2026-08-07"
+       data-updated="2026-08-16"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -244,15 +244,29 @@ LIMIT 20</pre>
 
   <h2 id="not-yet">What is not built yet</h2>
 
-  <p><strong>None of this schema exists in the databases.</strong> No DDL has been applied. The
-  dashboard reads an in-memory store seeded from fixtures and probes ArcadeDB only for
-  reachability — <code>dashboard/store.go</code> declares the interface an ArcadeDB implementation
-  drops into, and <code>dashboard/events.go</code> already encodes the closed event catalog as
-  typed constants so that the vocabulary cannot drift in the meantime.</p>
+  <p><strong>Neither dev nor prod carries this schema.</strong> The dashboard still reads an
+  in-memory store seeded from fixtures and probes ArcadeDB only for reachability —
+  <code>dashboard/store.go</code> declares the interface an ArcadeDB implementation drops into,
+  that implementation is still unwritten, and <code>dashboard/events.go</code> already encodes the
+  closed event catalog as typed constants so that the vocabulary cannot drift in the meantime.</p>
+
+  <p><strong>The DDL itself is no longer only a document.</strong> On 2026-08-16 it was extracted
+  into ten runnable files under <code>dashboard/schema/</code> and applied to a scratch ArcadeDB
+  <strong>26.7.2</strong>, the version <a href="../product/decision-log.html#d-043">D-043</a> pins:
+  314 statements, applied clean, and idempotent on a second run. That first run is where the value
+  was — <strong>53 statements failed</strong>, and reconciling them produced two amendments to the
+  data model. <a href="../product/decision-log.html#d-045">D-045</a> is a dialect difference: edge
+  uniqueness is a unique index on <code>(`@out`, `@in`)</code>, not a <code>UNIQUE</code> keyword on
+  the type, which this version rejects outright.
+  <a href="../product/decision-log.html#d-046">D-046</a> is not a dialect difference but an error in
+  the model: <code>partitioned('tenantId')</code> requires <code>tenantId</code> to be unique, which
+  would have permitted <em>one Task per tenant</em>, so it is withdrawn.</p>
 
   <p>The complete DDL, the query cookbook and the full property lists are in
-  <code>artifacts/v1/gaos-arcadedb-model.html</code>, which also ships a downloadable
-  <code>gaos-schema.sql</code>.</p>
+  <code>artifacts/v1/gaos-arcadedb-model.html</code>, amended in place at §04, §09 and §13 with a
+  callout on each. The runnable, reconciled copy is <code>dashboard/schema/</code>, applied by
+  <code>deploy/schema/apply.sh</code>, and <code>dashboard/schema/RECONCILIATION.md</code> records
+  every deviation with the commands to reproduce the measurement.</p>
 
 </main>
 </div>

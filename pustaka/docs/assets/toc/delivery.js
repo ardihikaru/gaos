@@ -8,7 +8,7 @@ window.DOCS.nav.push({
       id: "implementation-plan",
       file: "delivery/implementation-plan.html",
       title: "Implementation plan",
-      desc: "Every BRD requirement mapped against the code that is actually committed, cut into fourteen modules and fifty-seven sub-modules — one hundred and forty-one tasks, eleven done, fifteen standing on fixtures, one hundred and fifteen not started.",
+      desc: "Every BRD requirement mapped against the code that is actually committed, cut into fourteen modules and fifty-seven sub-modules — one hundred and forty-one tasks, sixteen done, fifteen standing on fixtures, one hundred and ten not started.",
       tags: ["implementation", "roadmap", "tasks", "gap-analysis", "modules", "build-order", "brd", "delivery", "backlog"],
       sections: [
         { anchor: "how-to-read-this", title: "How to read this",

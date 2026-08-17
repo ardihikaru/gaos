@@ -36,6 +36,56 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-9-0">v0.9.0 <time datetime="2026-08-16">2026-08-16</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The graph schema stops being
+      a document and becomes a database. Ten runnable DDL files, applied against the pinned ArcadeDB
+      version for the first time — which is how two errors in the committed data model were
+      found.</p>
+      <ul>
+        <li><span class="chg add">Added</span>
+        <b><code>dashboard/schema/</code></b> — the DDL from
+        <code>artifacts/v1/gaos-arcadedb-model.html</code> extracted into ten numbered
+        <code>.sql</code> files, and <b><code>deploy/schema/apply.sh</code></b> to apply them.
+        <b>314 statements, applied clean against ArcadeDB 26.7.2</b> — the version
+        <a href="product/decision-log.html#d-043">D-043</a> pins — and idempotent, so a second run
+        is a no-op. Until this ran, the schema existed only inside an HTML page and no DDL had ever
+        met a database, which is what risk <code>R-03</code> was about. Closes
+        <a href="delivery/implementation-plan.html#m0-foundations">T-001…T-005</a>.</li>
+        <li><span class="chg fix">Fixed</span>
+        <b><a href="product/decision-log.html#d-045">D-045</a></b> — <b>edge uniqueness is an index,
+        not a keyword.</b> ArcadeDB 26.7.2 rejects <code>CREATE EDGE TYPE … UNIQUE</code> outright,
+        which failed all 32 edge types and, through them, the 18 property declarations naming a type
+        that was therefore never created — 50 of the 53 statements that failed on the first run. The
+        constraint is supported; only that spelling is not. It is now a unique index on
+        <code>(`@out`, `@in`)</code>, verified to refuse a duplicate edge between the same pair.</li>
+        <li><span class="chg remove">Removed</span>
+        <b><a href="product/decision-log.html#d-046">D-046</a></b> — <b>bucket-partitioning by
+        <code>tenantId</code> is withdrawn.</b> This one was an error in the data model rather than a
+        dialect difference: <code>partitioned(p)</code> requires a unique index on exactly
+        <code>(p)</code>, so partitioning by <code>tenantId</code> requires <code>tenantId</code> to
+        be unique — which permits <b>one Task per tenant</b>. Measured, not argued: a second
+        <code>Task</code> for the same tenant failed with <code>DuplicatedKeyException</code>.
+        <code>tenantId</code> stays indexed, so <a href="product/brd.html#rules-data">BR-26</a> is
+        still met, and isolation rests where <a href="product/decision-log.html#d-042">D-042</a> puts
+        it — database-per-tenant.</li>
+        <li><span class="chg change">Changed</span>
+        <b><code>artifacts/v1/gaos-arcadedb-model.html</code></b> amended in place at §04, §09 and
+        §13, each with a visible callout naming the decision that changed it. The block that was
+        wrong is left as first written with the correction above it, so a reader meets the amendment
+        where they would otherwise copy the mistake. The document's own version-check warning — which
+        told us to do exactly this — now records that it was done, and that it was worth doing.</li>
+        <li><span class="chg add">Added</span>
+        Four schema guards in <code>dashboard/schema_test.go</code>, registered as
+        <a href="product/qa-test-plan.html#go-schema">TC-109…TC-112</a>: the documented type counts,
+        every edge type carrying its uniqueness index, every declaration carrying
+        <code>IF NOT EXISTS</code>, and no gap in the numbered files. They need no database — they
+        guard the reconciliations, which would otherwise rot silently, since duplicate edges do not
+        raise, they accumulate. The register goes from one hundred and eight cases to one hundred
+        and twelve.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-8-0">v0.8.0 <time datetime="2026-08-15">2026-08-15</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Six open questions answered
       in one block. What success means, what Mission Control is for, whether there is one model

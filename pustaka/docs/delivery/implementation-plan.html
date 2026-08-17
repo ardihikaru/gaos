@@ -16,14 +16,14 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: eleven done, fifteen standing on fixtures, one hundred and
-  fifteen not started.</p>
+  One hundred and forty-one tasks: sixteen done, fifteen standing on fixtures, one hundred and
+  ten not started.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-15"
+       data-updated="2026-08-16"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -51,10 +51,12 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Eleven tasks are done and ten of them are the operator surface. GAOS renders a floor, an
-    inspector, a timeline and a back office over an in-memory store seeded from fixtures; there is
-    no database, no scheduler, no runner and no model call anywhere in the repository. That
-    inversion is deliberate and logged as <a href="../product/decision-log.html#delivery-decisions">D-019</a>
+    <p>Sixteen tasks are done. Ten of them are the operator surface and five are the schema, which
+    now exists as applied DDL rather than as a document — but nothing yet reads or writes it. GAOS
+    still renders a floor, an inspector, a timeline and a back office over an in-memory store seeded
+    from fixtures; there is still no scheduler, no runner and no model call anywhere in the
+    repository. That inversion is deliberate and logged as
+    <a href="../product/decision-log.html#delivery-decisions">D-019</a>
     — it is also why the remaining order matters.</p>
   </div>
 
@@ -64,7 +66,7 @@
   <table class="tbl">
     <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>Next</th></tr></thead>
     <tbody>
-      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>1</td><td>1</td><td>16</td><td><a href="#register">T-001</a> &mdash; the DDL against a real ArcadeDB</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>6</td><td>1</td><td>11</td><td><a href="#register">T-006</a> &mdash; <code>store_arcade.go</code> against the declared seam</td></tr>
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>0</td><td>1</td><td>8</td><td><a href="#register">T-030</a> &mdash; the hundred-point rubric</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
@@ -78,7 +80,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>0</td><td>1</td><td>5</td><td><a href="#register">T-135</a> &mdash; determinism, once the reducer exists</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>0</td><td>0</td><td>3</td><td><a href="#register">T-139</a> &mdash; the file three places cite and nobody wrote</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>11</b></td><td><b>15</b></td><td><b>115</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>16</b></td><td><b>15</b></td><td><b>110</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -132,11 +134,11 @@
   <table class="tbl">
     <thead><tr><th>ID</th><th>Sub</th><th>Task</th><th>Requirement</th><th>Status</th></tr></thead>
     <tbody id="ip-index">
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-001</td><td>M0.1</td><td>Apply the DDL to a scratch ArcadeDB on the target version and reconcile the dialect</td><td>D-006, OQ-17</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-002</td><td>M0.1</td><td>Declare the 25 vertex types and 3 document types with the hybrid schema</td><td>BR-25</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-003</td><td>M0.1</td><td>Declare the 32 edge types, one per relationship &mdash; no generic edge with a <code>type</code> property</td><td>BR-24, D-006</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-004</td><td>M0.1</td><td>Bucket-partition the high-volume types by <code>tenantId</code>, and index <code>tenantId</code> either way</td><td>J-3, BR-26</td><td>❌</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.1"><td>T-005</td><td>M0.1</td><td>Store prompt bodies, diffs and log blobs <code>EXTERNAL</code> or by reference, never inline on a traversed vertex</td><td>BR-25</td><td>❌</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-001</td><td>M0.1</td><td>Apply the DDL to a scratch ArcadeDB on the target version and reconcile the dialect &mdash; <code>dashboard/schema/</code>, 314 statements, two deviations found and logged</td><td>D-006, D-043, D-045, D-046</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-002</td><td>M0.1</td><td>Declare the 25 vertex types and 3 document types with the hybrid schema</td><td>BR-25</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-003</td><td>M0.1</td><td>Declare the 32 edge types, one per relationship &mdash; no generic edge with a <code>type</code> property; uniqueness carried by an index on the endpoints, not a keyword</td><td>BR-24, D-006, D-045</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-004</td><td>M0.1</td><td><s>Bucket-partition the high-volume types by <code>tenantId</code></s> &mdash; withdrawn by D-046, the strategy needs a unique <code>tenantId</code> and that permits one Task per tenant; <code>tenantId</code> is indexed either way, which is what BR-26 asks for</td><td>J-3, BR-26, D-046</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.1"><td>T-005</td><td>M0.1</td><td>Store prompt bodies, diffs and log blobs <code>EXTERNAL</code> or by reference, never inline on a traversed vertex</td><td>BR-25</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-006</td><td>M0.2</td><td>Write <code>dashboard/store_arcade.go</code> against the declared <code>Store</code> seam, leaving <code>store.go</code> unchanged</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-007</td><td>M0.2</td><td>Give <code>dashboard/arcade.go</code> a query path; today it only probes <code>/api/v1/ready</code></td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.2"><td>T-008</td><td>M0.2</td><td>Keep <code>MemStore</code> as the test double and run both implementations against one interface suite</td><td>&mdash;</td><td>❌</td></tr>
@@ -283,18 +285,31 @@
 
   <h2 id="m0-foundations">M0 · Foundations — schema, event store, state machine</h2>
   <p>Build-order steps 1 and 2, and the module every other module is waiting on. Eighteen tasks,
-  one done. Two invariants live here and nowhere else: state lives in the graph
+  six done. Two invariants live here and nowhere else: state lives in the graph
   (<code>BR-01</code>) and every change emits an event (<code>BR-02</code>). Neither holds today,
   because there is no graph — <code>MemStore</code> keeps the whole system in RAM and a restart
   returns the fixtures.</p>
 
   <h3 id="sub-m0-1">M0.1 — Schema and DDL (T-001–T-005)</h3>
-  <p>The <a href="../architecture/graph.html">data model</a> already specifies 25 vertex types, 3
-  document types and 32 edge types with their indexes and retention. Nothing has been applied to a
-  real database, and the model document says itself to verify the dialect before relying on it —
-  the target is now <strong>ArcadeDB 26.7.2</strong>, pinned by
-  <a href="../product/decision-log.html#d-043">D-043</a>, and the DDL runs against a scratch database
-  on that version before this milestone writes anything.
+  <p><strong>Done, on 2026-08-16.</strong> The <a href="../architecture/graph.html">data model</a>
+  specifies 25 vertex types, 3 document types and 32 edge types with their indexes and retention,
+  and all of it now lives as ten runnable files under <code>dashboard/schema/</code>, applied by
+  the idempotent <code>deploy/schema/apply.sh</code> — 314 statements, run against
+  <strong>ArcadeDB 26.7.2</strong>, the version pinned by
+  <a href="../product/decision-log.html#d-043">D-043</a>. Until this ran, the schema was a document
+  rather than a database, which is what <code>R-03</code> was about.</p>
+  <p>The model document told itself to verify the dialect before relying on it, and it was right to:
+  <strong>53 of the 314 statements failed the first time</strong>. Two amendments came out of that,
+  both logged and both marked in place on the model document.
+  <a href="../product/decision-log.html#d-045">D-045</a> is dialect — <code>UNIQUE</code> is not a
+  <code>CREATE EDGE TYPE</code> modifier on this version, and edge uniqueness is carried by an index
+  on <code>(`@out`, `@in`)</code> instead. <a href="../product/decision-log.html#d-046">D-046</a> is
+  not: <code>partitioned(&#39;tenantId&#39;)</code> requires a unique <code>tenantId</code>, which
+  permits one Task per tenant, so it is withdrawn. That one is an error in the committed model
+  rather than a difference between versions, and it is the reason this task was worth doing before
+  anything was built on top of it. <code>dashboard/schema/RECONCILIATION.md</code> records both, with
+  the commands to reproduce the measurement.</p>
+  <p>
   Three rules constrain the DDL rather than the code: one edge type per relationship with no
   generic edge (<code>BR-24</code>), heavy payloads stored <code>EXTERNAL</code> so the scheduler
   never traverses them (<code>BR-25</code>), and <code>tenantId</code> declared and indexed whatever
