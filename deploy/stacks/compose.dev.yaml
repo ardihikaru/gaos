@@ -14,7 +14,7 @@
 # THE DEV DATABASE IS A DIFFERENT ARCADEDB INSTANCE, on a different shared
 # network. A dev stack wired to the prod database starts cleanly, passes every
 # smoke test and is invisible at runtime -- which is exactly why
-# test/stacks_test.go asserts that these two files never name each other's
+# deploy/check-stacks.sh asserts that these two files never name each other's
 # network or database host.
 #
 #   docker compose -f deploy/stacks/compose.dev.yaml build
