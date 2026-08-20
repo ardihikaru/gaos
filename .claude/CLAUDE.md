@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-148`; the
-   next free number is `TC-149`.** If a case is retired, strike the row and say
+   IDs are sequential and never reused. **The highest in use is `TC-149`; the
+   next free number is `TC-150`.** If a case is retired, strike the row and say
    why — do not delete it and do not renumber anything after it.
 
 2. **The scenario prose** — an `h3` under `<h2 id="implemented">` for anything
@@ -47,11 +47,12 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "one hundred and forty-eight", so
-   `grep -rn "one hundred and forty-eight" pustaka/` finds every one — plus the
-   v0.11.0 changelog note, which is a release record and stays as written:
+   changing all four or none. They are currently all "one hundred and forty-nine", so
+   `grep -rn "one hundred and forty-nine" pustaka/` finds every one. The v0.11.0
+   changelog note still says "one hundred and forty-eight"; it is a release
+   record and stays as written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All one hundred and thirty cases…")
+   - the register intro on the same page ("All one hundred and forty-nine cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file
 
@@ -77,10 +78,11 @@ schema guards in `dashboard/schema_test.go`, `TC-113`…`TC-126` the fourteen in
 `TC-127`…`TC-130` the `check-stacks.sh` store checks plus
 `deploy/schema/scratch.sh`, `TC-131`…`TC-146` the fold, the reducer, the state
 machine and the closed catalog in `dashboard/fold_test.go`,
-`dashboard/state_test.go` and `dashboard/events_test.go`, and `TC-147`/`TC-148`
-the deploy gate's Go-toolchain fallback — **one row per `func Test…`**, because
-that is the unit `go test -run` can select. The register currently covers 91 Go
-tests: 69 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding its row
+`dashboard/state_test.go` and `dashboard/events_test.go`, `TC-147`/`TC-148`
+the deploy gate's Go-toolchain fallback, and `TC-149` the projection regression
+in `dashboard/main_test.go` — **one row per `func Test…`**, because
+that is the unit `go test -run` can select. The register currently covers 92 Go
+tests: 70 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding its row
 and its `h3`; the gap that used to be here is closed and must not reopen.
 
 The store conformance suite is one `func Test…` per implementation over a shared

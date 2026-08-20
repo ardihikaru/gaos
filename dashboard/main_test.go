@@ -280,6 +280,38 @@ func TestApproveRequiresAGate(t *testing.T) {
 	}
 }
 
+// A projection is what ArcadeStore.load() builds when it rebuilds the floor
+// from the graph: a MemStore with no fixtures in it. It is NOT a MemStore with
+// no fields, and the difference used to be a segfault.
+//
+// load() wrote its own struct literal and left rng nil, because nothing in the
+// load path reads it. advance() does, through pickTask, and advance() is
+// reachable from ApproveTask -- so restarting a dashboard against a populated
+// database and releasing one merge gate killed the process. The conformance
+// suite missed it because every store it builds goes through NewMemStore, which
+// sets rng.
+//
+// This test builds the store the way load() does and drives the path that
+// panicked. It is the reason newProjection exists.
+func TestTheProjectionSurvivesAnApprovalWithNoFixturesBehindIt(t *testing.T) {
+	s := newProjection()
+	s.desks = []Desk{{
+		ID: "wf-1", Name: "Rebuilt", WorkflowID: "wf-1",
+		State: StateActive, StageIdx: 0, ApprovalRequired: true,
+	}}
+
+	res, err := s.ApproveTask(context.Background(), 0)
+	if err != nil {
+		t.Fatalf("approving a gate on a rebuilt floor: %v", err)
+	}
+	if len(res.NewEvents) == 0 {
+		t.Fatal("releasing a merge gate must emit at least ApprovalGranted")
+	}
+	if s.desks[0].Task == "" {
+		t.Fatal("advance must have seated a task; a nil rng used to panic here instead")
+	}
+}
+
 // Architecture §06: max_retry_count is 3 per task. The guardrail belongs in the
 // store, not the UI, because the UI is not the only caller it will ever have.
 func TestRetryGuardExhausts(t *testing.T) {

@@ -78,7 +78,7 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 69 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 70 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ```
