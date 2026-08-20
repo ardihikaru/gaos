@@ -9,7 +9,7 @@
 # compose.dev.yaml is deliberately the same shape, differing ONLY in: the port,
 # the hostname, the compose project name, the internal subnet, the infra network
 # and the ArcadeDB host. A difference outside that list is a bug rather than a
-# decision, and test/stacks_test.go asserts the ones that matter.
+# decision, and deploy/check-stacks.sh asserts the ones that matter.
 #
 #   docker compose -f deploy/stacks/compose.prod.yaml build
 #   docker compose -f deploy/stacks/compose.prod.yaml up -d

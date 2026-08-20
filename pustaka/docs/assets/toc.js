@@ -15,11 +15,11 @@ window.DOCS = {
   site: {
     name: "GAOS",
     tagline: "A graph-native agent operating system",
-    version: "v0.10.0"
+    version: "v0.12.0"
   },
   product: {
     name: "GAOS",
-    semver: "0.11.0",
+    semver: "0.12.0",
     repo: "https://github.com/ardihikaru/gaos"
   },
   parts: [

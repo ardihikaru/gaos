@@ -36,6 +36,57 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-12-0">v0.12.0 <time datetime="2026-08-19">2026-08-19</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Four numbers and two file
+      references that had stopped being true. Nothing in the code moved; what moved is the set of
+      pages that describe it, which on a project with no CI is the only thing telling the product
+      owner what is real.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>the implementation plan's own arithmetic.</b> The
+        lede still read <em>nineteen done, fifteen standing on fixtures, one hundred and seven not
+        started</em> while the scoreboard directly beneath it totalled 32 / 15 / 94. Counting the
+        register's rows settles it: one hundred and forty-one rows, thirty-two ✅, fifteen 🟡,
+        ninety-four ❌, no gaps and no duplicates. The lede and the <em>What ✅ does not mean</em>
+        admonition now say so, and the admonition accounts for all thirty-two rather than the
+        eighteen its old breakdown added up to.</li>
+        <li><span class="chg fix">Fixed</span> <b><code>T-014</code>'s count.</b> The row asked for
+        <em>the thirteen catalog names currently declared <code>// pass 2</code> and never
+        written</em>. There are twelve, which is what
+        <code>TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules</code> pins and what
+        <a href="product/qa-test-plan.html#go-catalog">TC-144</a> already said. The module prose was
+        right all along — nine names owed to <code>M3.2</code>, <code>M4.2</code>, <code>M5.2</code>,
+        <code>M5.5</code> and <code>M7.3</code>, plus the three
+        <a href="product/decision-log.html#d-037">D-037</a> added for the budget guard.</li>
+        <li><span class="chg fix">Fixed</span> <b>two citations of a file that never existed.</b>
+        <code>deploy/stacks/compose.dev.yaml</code> and <code>compose.prod.yaml</code> both credited
+        <code>test/stacks_test.go</code> with asserting that the two tiers never name each other's
+        network or database host. There is no such file; the assertions live in
+        <code>deploy/check-stacks.sh</code> and are registered as
+        <a href="product/qa-test-plan.html#register">TC-001</a>…<code>TC-016</code>. Both comments
+        now name the script that actually runs. Closes
+        <a href="delivery/implementation-plan.html#sub-m13-1">T-139</a> — by correcting the
+        references rather than writing the file, because the coverage already exists and a second
+        place to keep in sync buys nothing.</li>
+        <li><span class="chg fix">Fixed</span> <b><code>site.version</code>, which had stopped
+        tracking the product.</b> It read <code>v0.10.0</code> against a
+        <code>product.semver</code> of <code>0.11.0</code> and a changelog whose top release was
+        v0.11.0 — missed in that bump. Both now read the same number, which is what the comment
+        directly above them has always claimed.</li>
+        <li><span class="chg fix">Fixed</span> <b>a segfault on the ArcadeDB path.</b>
+        <code>ArcadeStore.load()</code> rebuilt the floor into a <code>MemStore</code> it wrote as a
+        struct literal, leaving <code>rng</code> nil because nothing in the load path reads it.
+        <code>advance()</code> reads it, through <code>pickTask</code>, and <code>ApproveTask</code>
+        calls <code>advance()</code> — so a dashboard restarted against a populated database died
+        the first time an operator released a merge gate. Sixty-nine tests missed it because every
+        store the conformance suite builds goes through <code>NewMemStore</code>, which sets
+        <code>rng</code>. There is now one construction path, <code>newProjection()</code>, and
+        <a href="product/qa-test-plan.html#go-floor">TC-149</a> drives the approval on a floor
+        rebuilt the way <code>load()</code> rebuilds it. A projection is a store with no fixtures in
+        it, not a store with no fields.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-11-0">v0.11.0 <time datetime="2026-08-17">2026-08-17</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The event stream stops being a
       screen recording. It is append-only, unbounded and folded back by a pure reducer, which closes

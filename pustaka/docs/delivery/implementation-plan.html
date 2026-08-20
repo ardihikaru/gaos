@@ -16,14 +16,14 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: nineteen done, fifteen standing on fixtures, one hundred and
-  seven not started.</p>
+  One hundred and forty-one tasks: thirty-three done, fifteen standing on fixtures, ninety-three
+  not started.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-16"
+       data-updated="2026-08-19"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -51,9 +51,12 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Nineteen tasks are done. Ten of them are the operator surface, five are the schema, and
+    <p>Thirty-three tasks are done. Ten of them are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
-    so a restart no longer returns the fixtures. What is still missing is the whole of execution:
+    so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
+    five the event store and its reducer, four replay, two the closed catalog, two the state
+    machine, one the determinism proof, and one a corrected file reference in <code>M13</code>.
+    What is still missing is the whole of execution:
     there is no scheduler, no runner and no model call anywhere in the repository, and the floor
     that renders above the graph is still moved by a simulation rather than by work. That inversion
     is deliberate and logged as
@@ -80,8 +83,8 @@
       <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
-      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>0</td><td>0</td><td>3</td><td><a href="#register">T-139</a> &mdash; the file three places cite and nobody wrote</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>32</b></td><td><b>15</b></td><td><b>94</b></td><td>&mdash;</td></tr>
+      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>1</td><td>0</td><td>2</td><td><a href="#register">T-140</a> &mdash; the licence texts nobody vendored</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>33</b></td><td><b>15</b></td><td><b>93</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -148,7 +151,7 @@
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-012</td><td>M0.3</td><td>Prove fold-from-genesis equals fold-from-nearest-snapshot on a real workflow</td><td>H-1, BR-21</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-013</td><td>M0.3</td><td>Remove the 160-event ring in <code>store_mem.go</code>; the stream is the record, not a window</td><td>BR-04</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-014</td><td>M0.4</td><td>Emit the thirteen catalog names currently declared <code>// pass 2</code> and never written</td><td>BR-05, D-020</td><td>🟡</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-014</td><td>M0.4</td><td>Emit the twelve catalog names currently declared <code>// pass 2</code> and never written</td><td>BR-05, D-020</td><td>🟡</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-015</td><td>M0.4</td><td>Land the four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties in one change</td><td>BR-05</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.4"><td>T-016</td><td>M0.4</td><td>Keep the four UI-lifecycle names in their own block, outside the domain catalog</td><td>D-020</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.5"><td>T-017</td><td>M0.5</td><td>Build the task state machine so illegal transitions are rejected at the boundary, not by convention</td><td>&mdash;</td><td>✅</td></tr>
@@ -273,7 +276,7 @@
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-136</td><td>M12.2</td><td>Isolation: a tenant sees nothing of another even when a query forgets to filter</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation partial fixtures m12.2"><td>T-137</td><td>M12.2</td><td>Explicability: every rejection tells the caller why &mdash; the shape holds, the states behind it are simulated</td><td>BR-06</td><td>🟡</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-138</td><td>M12.2</td><td>Termination: no loop runs forever and no stop is silent</td><td>BR-18</td><td>❌</td></tr>
-      <tr data-tags="hygiene deploy licence tag todo not-built m13.1"><td>T-139</td><td>M13.1</td><td>Add <code>test/stacks_test.go</code> or correct the three places that cite it &mdash; both compose files and <code>check-stacks.sh</code></td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="hygiene deploy licence tag done m13.1"><td>T-139</td><td>M13.1</td><td>Correct the citations of <code>test/stacks_test.go</code> &mdash; both compose files now name <code>deploy/check-stacks.sh</code>, which is where the assertions actually live</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="hygiene deploy licence tag todo not-built m13.1"><td>T-140</td><td>M13.1</td><td>Vendor the upstream licence texts for the fonts and the charting library beside the assets</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="hygiene deploy licence tag todo not-built m13.2"><td>T-141</td><td>M13.2</td><td>Build the tunnelled stacks from a tag rather than the working tree</td><td>&mdash;</td><td>❌</td></tr>
     </tbody>
@@ -875,12 +878,16 @@
   fits.</p>
 
   <h3 id="sub-m13-1">M13.1 — Two loose ends (T-139–T-140)</h3>
-  <p><code>deploy/stacks/compose.dev.yaml</code>, <code>compose.prod.yaml</code> and
-  <code>check-stacks.sh</code> all cite <code>test/stacks_test.go</code> as the thing that asserts
-  their invariants. That file does not exist; the assertions live in <code>check-stacks.sh</code>
-  itself, and are registered as <code>TC-001</code>…<code>TC-016</code> in the
-  <a href="../product/qa-test-plan.html#register">QA plan</a>. Either write the file or correct the
-  three references. The second item is a redistribution obligation already named in the BRD's
+  <p><code>T-139</code> is closed. <code>deploy/stacks/compose.dev.yaml</code> and
+  <code>compose.prod.yaml</code> both cited <code>test/stacks_test.go</code> as the thing that
+  asserts their invariants — two references, not the three first recorded here, because
+  <code>check-stacks.sh</code> never cited it. That file does not exist and never did; the
+  assertions live in <code>check-stacks.sh</code> itself and are registered as
+  <code>TC-001</code>…<code>TC-016</code> in the
+  <a href="../product/qa-test-plan.html#register">QA plan</a>. The references were corrected rather
+  than the file written: the coverage already exists, and a Go test that shelled out to the same
+  script would be a second place to keep in sync for no assertion nobody already runs.
+  The second item is a redistribution obligation already named in the BRD's
   milestone list: vendor the upstream licence texts for the fonts and the charting library beside
   the assets they cover.</p>
 
