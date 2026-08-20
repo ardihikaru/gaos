@@ -84,14 +84,37 @@ type MemStore struct {
 // NewMemStore builds a store from the fixtures. The seed is a parameter so the
 // tests can pin the simulation: every branch in sim.go is a probability, and a
 // test that cannot reproduce a sequence cannot assert on one.
-func NewMemStore(seed uint64) *MemStore {
-	s := &MemStore{
-		rng:         rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15)),
+// newProjection builds an empty MemStore with every field a method on it may
+// reach already set, and no fixtures in it.
+//
+// ArcadeStore.load() used to write this literal itself, and left rng nil
+// because nothing in the load path touches it. Nothing in the LOAD path does --
+// but advance() does, through pickTask, and advance() is reachable from
+// ApproveTask. So a dashboard restarted against a populated graph would segfault
+// the first time an operator released a merge gate, and no test caught it
+// because the conformance suite seeds through NewMemStore, which does set rng.
+//
+// One construction path is the fix. A projection is a MemStore with no seed
+// data, not a MemStore with no fields.
+func newProjection() *MemStore {
+	return &MemStore{
+		// Fixed seed: a projection's randomness only ever picks a display task
+		// title and reseats an agent, and a deterministic pick is easier to
+		// replay than an arbitrary one.
+		rng:         rand.New(rand.NewPCG(projectionSeed, projectionSeed^0x9E3779B97F4A7C15)),
 		replayAtSeq: liveMode,
 		meetingIdx:  -1,
 		speed:       1,
 		pending:     map[string][]LogLine{},
 	}
+}
+
+// projectionSeed is arbitrary and fixed. See newProjection.
+const projectionSeed uint64 = 20260819
+
+func NewMemStore(seed uint64) *MemStore {
+	s := newProjection()
+	s.rng = rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15))
 
 	s.products = append([]Product(nil), seedProducts...)
 	for _, m := range seedMasters {

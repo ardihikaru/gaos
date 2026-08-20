@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  one hundred and forty-eight cases, positive and negative, across the three deploy automations and the
+  one hundred and forty-nine cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -28,7 +28,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-16"
+       data-updated="2026-08-19"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -70,7 +70,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and forty-eight cases in one filterable table. Filter by automation, kind, or any
+  <p>All one hundred and forty-nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -231,6 +231,7 @@
       <tr data-tags="go test unit dashboard schema deferred taskrun invocation costbasis d-037 t-015 positive"><td>TC-146</td><td>dashboard (go test)</td><td>Positive</td><td><code>Task.status</code> permits <code>DEFERRED</code> and <code>TaskRun</code> declares <code>invocation</code> and <code>costBasis</code> with their vocabularies &mdash; asserted in one test because D-037 forbids landing them piecemeal (<code>TestTheDeferredStateAndItsCompanionsLandedTogether</code>)</td><td>Implemented</td></tr>
       <tr data-tags="rebuild-restart deploy test gate go toolchain docker fallback positive"><td>TC-147</td><td>rebuild-restart.sh</td><td>Positive</td><td>The <code>deploy</code> test gate runs whether or not the machine has a Go toolchain: natively when <code>go</code> is on <code>PATH</code>, otherwise in the pinned <code>golang:1.24-alpine</code> container</td><td>Implemented</td></tr>
       <tr data-tags="rebuild-restart deploy test gate no go no docker refuse negative"><td>TC-148</td><td>rebuild-restart.sh</td><td>Negative</td><td>Neither Go nor Docker is available, so the gate cannot run and the deploy stops rather than building untested code</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard projection arcadedb restart approve rng regression positive"><td>TC-149</td><td>dashboard (go test)</td><td>Positive</td><td>A floor rebuilt from the graph survives a merge-gate approval &mdash; the projection <code>ArcadeStore.load()</code> builds carries every field a method on it may reach, so <code>advance()</code> seats a task instead of dereferencing a nil <code>rng</code> (<code>TestTheProjectionSurvivesAnApprovalWithNoFixturesBehindIt</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -478,14 +479,26 @@
   <code>loop-eng · a@b.c</code>, or <code>no tenant cookie was set</code> / <code>round-trip =
   %q</code>.</p>
 
-  <h3 id="go-floor">dashboard — floor mutations and their guards (TC-063, TC-064, TC-065)</h3>
+  <h3 id="go-floor">dashboard — floor mutations and their guards (TC-063, TC-064, TC-065, TC-149)</h3>
   <p><strong>Negative (TC-063):</strong> <code>approving a desk with no gate must be rejected</code>.
   <strong>Negative (TC-064):</strong> architecture §06 sets <code>max_retry_count</code> at 3 per
   task, and the guardrail belongs in the store rather than the UI because the UI is not the only
   caller it will ever have — three retries succeed, then <code>the fourth retry must be
   refused</code>, and the error text must contain <code>guard</code> or <code>the refusal must say
   why: %v</code>. <strong>Positive (TC-065):</strong> cancelling releases the desk, or
-  <code>state=%s agents=%v, want idle with no agents</code>.</p>
+  <code>state=%s agents=%v, want idle with no agents</code>.
+  <strong>Positive (TC-149):</strong> the same approval, but on a floor rebuilt from the graph
+  rather than seeded from fixtures. <code>ArcadeStore.load()</code> wrote its own
+  <code>MemStore</code> literal and left <code>rng</code> nil, because nothing in the load path
+  reads it — but <code>advance()</code> does, through <code>pickTask</code>, and
+  <code>ApproveTask</code> calls <code>advance()</code>. So a dashboard restarted against a
+  populated database segfaulted the first time an operator released a merge gate, and every store
+  the conformance suite builds goes through <code>NewMemStore</code>, which sets <code>rng</code>,
+  so nothing caught it. The case builds the store the way <code>load()</code> does and drives that
+  path: <code>approving a gate on a rebuilt floor: %v</code>, then <code>releasing a merge gate must
+  emit at least ApprovalGranted</code>, then <code>advance must have seated a task; a nil rng used
+  to panic here instead</code>. The fix is one construction path — <code>newProjection()</code> —
+  because a projection is a store with no fixtures in it, not a store with no fields.</p>
 
   <h3 id="go-store">dashboard — store isolation, the unbounded stream and replay (TC-066…TC-070)</h3>
   <p><strong>Negative (TC-066):</strong> a snapshot that shares its slices with the live floor is a

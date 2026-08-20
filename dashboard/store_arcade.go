@@ -810,8 +810,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	m := &MemStore{replayAtSeq: liveMode, meetingIdx: -1, speed: 1,
-		pending: map[string][]LogLine{}}
+	m := newProjection()
 	for _, r := range prows {
 		m.products = append(m.products, Product{ID: r.ID, Name: r.Name, Repo: r.Repo, Goal: r.Goal})
 		mr := Master{ID: r.ID, Code: r.Code, Owner: r.Owner, Priority: r.Priority,
