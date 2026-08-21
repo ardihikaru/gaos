@@ -23,7 +23,7 @@ distinction, and post-deploy verification (healthz, route codes, the
 `<base href>` check).
 
 ```
-deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--allow-dirty] [--full-verify]
+deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--tag <ref> | --from-tree] [--allow-dirty] [--full-verify]
 ```
 
 - `deploy` = rebuild + restart (build then `up -d`). `restart` = restart the
@@ -31,18 +31,25 @@ deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--allow-
   `status` is read-only.
 - `service`, if given, is one of `traefik`, `landing`, `dashboard`, `docs` --
   scopes the action to just that container instead of the whole stack.
+- **`--tag <ref>` is required for prod.** It builds from a detached worktree at
+  that ref instead of the working tree. Dev needs no tag and builds from the
+  checkout, which is the point of dev.
 - Use `--full-verify` when the caller wants the heavier public-HTTPS and
   X-Forwarded-For trust-list checks too; otherwise the default (tunnel-local
   healthz + routes + base-href) is enough for routine deploys.
 
 ## Judgment calls
 
-- **Dirty prod tree.** The script blocks a `prod` deploy/restart when
-  `git status` isn't clean (prod has no separate worktree yet -- it builds
-  from whatever is checked out, same as dev). If it exits with that message,
-  stop and report the dirty files verbatim. Do **not** re-run with
-  `--allow-dirty` yourself -- that decision belongs to whoever is driving the
-  conversation that invoked you.
+- **Prod without a tag.** The script refuses a `prod` deploy/restart that was
+  given neither `--tag` nor `--from-tree`, and lists the available tags. Stop
+  and report that list. Do **not** pick a tag yourself and do **not** pass
+  `--from-tree` -- which ref goes to production is the single most consequential
+  choice in this workflow and it belongs to whoever invoked you. If no tag
+  exists at all, say so; the answer is to cut one, not to bypass the check.
+- **Dirty prod tree.** On the `--from-tree` path only, the script blocks when
+  `git status` isn't clean. Stop and report the dirty files verbatim. Do **not**
+  re-run with `--allow-dirty` yourself -- same reasoning as above. The `--tag`
+  path cannot hit this: a detached worktree at a ref is clean by construction.
 - **check-stacks.sh failure.** If the pre-flight invariant check fails, stop
   and report exactly what failed. Don't try to patch the compose files
   yourself -- that's a design decision, not a deploy action.

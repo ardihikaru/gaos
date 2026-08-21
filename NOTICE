@@ -42,10 +42,25 @@ each under its own licence, in `pustaka/docs/assets/`:
   * JetBrains Mono .............. SIL Open Font License 1.1
   * Apache ECharts .............. Apache License 2.0
 
-Those licences are stated here from the upstream projects' own terms. The full
-licence texts are not yet vendored alongside the asset files, which they should
-be before a public release — retaining them is an obligation of redistribution,
-not a courtesy.
+ECharts embeds BSD 3-Clause code from d3 in four of its own source files, and
+carries the TypeScript runtime helpers under their Microsoft permission grant.
+
+The full licence text of each sits beside the files it covers — retaining them
+is an obligation of redistribution, not a courtesy:
+
+  * pustaka/docs/assets/fonts/LICENSE-atkinson-hyperlegible.txt
+  * pustaka/docs/assets/fonts/LICENSE-bricolage-grotesque.txt
+  * pustaka/docs/assets/fonts/LICENSE-jetbrains-mono.txt
+  * pustaka/docs/assets/vendor/LICENSE-echarts.txt
+  * pustaka/docs/assets/vendor/NOTICE-echarts.txt   (Apache 2.0 section 4(d))
+  * pustaka/docs/assets/vendor/LICENSE-d3.txt
+
+Each was fetched from its upstream project rather than reconstructed; the two
+`README.md` files in those directories record the version, the source and the
+digest, so what is vendored can be shown to be what was published. The Microsoft
+grant is complete inside `echarts.min.js` itself, which is why the bundle is
+vendored verbatim and never re-minified. `deploy/check-stacks.sh` asserts that
+nothing here ships without its licence.
 
 Nothing in this repository transmits data to a third party at build or render
 time. Where GAOS sends data anywhere at run time — to a model provider, on the

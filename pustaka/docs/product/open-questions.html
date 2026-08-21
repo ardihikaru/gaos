@@ -24,7 +24,7 @@
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-08-15"
+       data-updated="2026-08-20"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -311,11 +311,15 @@
       <tr><td>Business Source License</td><td>Blocks commercial hosting for a term, then converts to an open licence</td><td>Not open source, and would be read as such. The credibility argument that motivated open-sourcing is exactly what this forfeits</td></tr>
     </tbody>
   </table>
-  <p><strong>One obligation is not yet discharged.</strong> Apache-2.0 redistribution requires
-  keeping the licence texts of what you bundle, and the vendored web fonts and charting library in
-  <code>pustaka/docs/assets/</code> are named in <code>NOTICE</code> but their full licence texts are
-  not stored beside them. That is a small, mechanical gap and it should close before a public
-  release.</p>
+  <p><strong>The one outstanding obligation is discharged.</strong> Apache-2.0 redistribution
+  requires keeping the licence texts of what you bundle. The vendored web fonts and charting library
+  in <code>pustaka/docs/assets/</code> were named in <code>NOTICE</code> without their full texts
+  stored beside them; since 2026-08-20 each text sits in the directory it covers, fetched from
+  upstream rather than reconstructed, along with ECharts' <code>NOTICE</code> — which
+  <a href="https://www.apache.org/licenses/LICENSE-2.0#redistribution">section 4(d)</a> requires
+  separately — and the BSD 3-Clause text for the d3 code ECharts embeds and its own licence points
+  at. <code>deploy/check-stacks.sh</code> asserts the pairing before every deploy, so the gap cannot
+  reopen by omission. See <a href="../delivery/implementation-plan.html#sub-m13-1">T-140</a>.</p>
 
   <h3 id="oq-21">OQ-21 · Confirm the rate card, and decide how it is invoiced</h3>
   <p><strong>Why it is open:</strong> the numbers in <a href="brd.html#rate-card">BRD §8.11.1</a>

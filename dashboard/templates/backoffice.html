@@ -207,12 +207,19 @@
 
 {{define "readiness-block"}}
 <div class="block" id="readinessBlock">
-  <h4>Planner readiness</h4>
+  <h4>Planner readiness <span class="sp"><b class="rd-score {{.Band}}">{{.Score}}</b> <span class="rd-band">{{.Band}}</span></span></h4>
   <div class="readiness">
     {{range .Readiness}}
-    <div><span class="tick {{if .OK}}ok{{else}}no{{end}}">{{if .OK}}✓{{else}}!{{end}}</span>{{.Label}}</div>
+    <div title="{{if .OK}}{{.Points}} points earned{{else}}{{.Missing}}{{end}}"><span class="tick {{if .OK}}ok{{else}}no{{end}}">{{if .OK}}✓{{else}}!{{end}}</span>{{.Label}}<span class="sp rd-pts">{{.Points}}</span></div>
     {{end}}
   </div>
+  {{if not .CanPlan}}
+  <div class="rd-refuse">
+    <b>The planner will refuse this record.</b> Below 45 there is no plan, only a
+    list — add these and it will plan:
+    <ul class="lines">{{range .Readiness}}{{if not .OK}}<li>{{.Missing}}</li>{{end}}{{end}}</ul>
+  </div>
+  {{end}}
 </div>
 {{end}}
 

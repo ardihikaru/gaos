@@ -147,11 +147,48 @@ pass — so the sequence is short:
 cd /home/ardi/devel/projects/gaos
 ./deploy/check-stacks.sh                    # the invariants a running stack hides
 
-S=deploy/stacks/compose.dev.yaml            # then repeat with compose.prod.yaml
+S=deploy/stacks/compose.dev.yaml            # dev only -- prod goes through --tag
 docker compose -f $S build
 docker compose -f $S up -d
 docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'
 ```
+
+In practice use `deploy/rebuild-restart.sh`, which wraps all of the above plus
+the test gate and the post-deploy verification. Prod additionally needs a tag —
+see the next section.
+
+## Building from a tag
+
+**Prod builds from a tag, not from this checkout.** `rebuild-restart.sh --tag
+<ref>` checks the ref out into a detached worktree under `.worktrees/` and
+re-runs itself inside it, so the invariant check, the test gate and
+`docker compose build` all read the tagged tree. What ran in production is then
+a ref you can name a month later, rather than whatever happened to be saved.
+
+```bash
+git tag -a v0.13.0 -m "…"                                  # tag first
+./deploy/rebuild-restart.sh prod deploy --tag v0.13.0
+```
+
+Without `--tag`, a prod `deploy` or `restart` refuses and lists the tags it
+could use. `--from-tree` is the deliberate escape hatch and keeps the old
+behaviour, dirty-tree refusal included.
+
+Three things worth knowing:
+
+- **The env files are symlinked in, not copied.** They are secrets, created by
+  hand and never committed, so a fresh worktree has none and compose would stop
+  at *env file not found*. Linking keeps one copy on this disk, so rotating a
+  password cannot leave a stale duplicate in a worktree nobody removed.
+- **Worktrees are reused, not deleted.** A second deploy of the same tag skips
+  straight to pre-flight. `git worktree list` shows them; `git worktree remove
+  .worktrees/<tag>` takes one back.
+- **The inner run is the tag's own copy of the script**, which is why `--tag` is
+  not forwarded to it. That is deliberate: it means `--tag` can build a ref
+  older than the flag itself.
+
+Dev is unchanged — it builds from the working tree unless you ask otherwise,
+because dev is where a change is looked at before it is worth tagging.
 
 ## Verify
 
@@ -215,8 +252,8 @@ shows `10.10.0.1`, the header was discarded and the trust list is wrong.
 - **The floor is simulated.** `dashboard/sim.go` is a goroutine standing in for
   the scheduler and the runner. It emits only names from the closed catalog in
   `events.go`, so replacing it changes no consumer.
-- **Both stacks build from this working tree**, so dev and prod run
-  byte-identical code and prod tracks whatever is checked out. For a real
-  release, run the prod stack from a `git worktree` at a tag.
+- **Dev builds from this working tree.** That is deliberate — dev is where you
+  look at a change before it is worth tagging. Prod no longer does; see
+  *Building from a tag* above.
 - The local `compose.yaml` defaults to host port **8083**, because 8080 is
   already held on this box. Override with `GAOS_EDGE_PORT`.

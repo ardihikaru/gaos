@@ -491,7 +491,13 @@ type ProductDetail struct {
 	CovStyle   template.CSS
 	WithTasks  int
 	Readiness  []ReadinessItem
-	Diagrams   []DiagramView
+	// The rubric's number, its band, and whether it clears BR-07's floor. The
+	// checklist has always shown which signals pass; without these it could not
+	// show what that adds up to, which is the half B-3 actually asks for.
+	Score    int
+	Band     string
+	CanPlan  bool
+	Diagrams []DiagramView
 }
 
 type DiagramView struct {

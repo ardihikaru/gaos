@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  one hundred and forty-nine cases, positive and negative, across the three deploy automations and the
+  one hundred and sixty cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -28,7 +28,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-19"
+       data-updated="2026-08-20"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -40,8 +40,10 @@
     unverified, not passing. <strong>Status</strong> is <em>Implemented</em> (the automation exists
     and this page describes its real, current behaviour, re-read from
     <code>deploy/check-stacks.sh</code> and <code>deploy/rebuild-restart.sh</code> at the time this
-    page was written) or <em>Not implemented</em> (a forward specification for a test the design
-    commits to but nothing in the repository can run yet).</p>
+    page was written), <em>Not implemented</em> (a forward specification for a test the design
+    commits to but nothing in the repository can run yet), or <em>Retired</em> (a case whose premise
+    a later rule overturned — struck, never deleted and never renumbered, with the reason and the
+    replacement on the row, because an ID that silently disappears is an ID somebody will reuse).</p>
   </div>
 
   <h2 id="cadence">Who runs these tests, and how often</h2>
@@ -70,7 +72,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and forty-nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All one hundred and sixty cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -154,11 +156,11 @@
       <tr data-tags="go test unit dashboard simulation tick events spend positive"><td>TC-069</td><td>dashboard (go test)</td><td>Positive</td><td>Forty ticks emit events and accumulate spend (<code>TestSimulationActuallyMoves</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard pause clock frozen negative"><td>TC-070</td><td>dashboard (go test)</td><td>Negative</td><td>A paused floor does not advance its clock over thirty ticks (<code>TestPausedFloorDoesNotTick</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard projection vertices coverage arithmetic positive"><td>TC-071</td><td>dashboard (go test)</td><td>Positive</td><td>A seeded record projects to the expected vertex count and reports 75% story coverage (<code>TestProjectionAndCoverage</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard readiness thin record honesty negative"><td>TC-072</td><td>dashboard (go test)</td><td>Negative</td><td>A record with no stories and no diagrams does not report full readiness (<code>TestReadinessIsHonestAboutAnEmptyRecord</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness thin record honesty rubric negative"><td>TC-072</td><td>dashboard (go test)</td><td>Negative</td><td>A record with no stories and no diagrams does not report full readiness, and scores below the planning floor (<code>TestReadinessIsHonestAboutAnEmptyRecord</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard story validation empty role negative"><td>TC-073</td><td>dashboard (go test)</td><td>Negative</td><td>A story with no role is refused (<code>TestAddStoryRejectsAnEmptyOne</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard master clone deep aliasing negative"><td>TC-074</td><td>dashboard (go test)</td><td>Negative</td><td>A caller mutating a returned <code>Master</code> cannot change the store (<code>TestMasterCloneIsDeep</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard planner dag dependencies acyclic gate tier positive"><td>TC-075</td><td>dashboard (go test)</td><td>Positive</td><td>A plan has eight tasks starting planner then architect, every dependency points earlier in the plan, and the gated task is last, devops, on the top model tier (<code>TestPlanShapeAndDependencies</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard planner empty record stage template positive"><td>TC-076</td><td>dashboard (go test)</td><td>Positive</td><td>A record with no stories still produces the six-task stage template (<code>TestPlanWithoutStoriesStillProducesOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner empty record stage template retired struck positive"><td>TC-076</td><td>dashboard (go test)</td><td>Positive</td><td><s>A record with no stories still produces the six-task stage template (<code>TestPlanWithoutStoriesStillProducesOne</code>)</s> &mdash; retired 2026-08-20. It pinned the <em>absence</em> of <a href="brd.html#rules-invariants">BR-07</a>: planning an empty record is exactly what the rule forbids. The refusal is <a href="#register">TC-160</a></td><td>Retired</td></tr>
       <tr data-tags="go test unit dashboard workflow create coverage moves positive"><td>TC-077</td><td>dashboard (go test)</td><td>Positive</td><td>Planning a story that had no tasks raises the record's coverage (<code>TestCreateWorkflowMovesCoverage</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard workflow create objective required negative"><td>TC-078</td><td>dashboard (go test)</td><td>Negative</td><td>A workflow with no objective is refused (<code>TestCreateWorkflowNeedsAnObjective</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard wizard draft hidden fields round trip positive"><td>TC-079</td><td>dashboard (go test)</td><td>Positive</td><td>The wizard draft survives the hop to step 3 through hidden form fields (<code>TestWizardDraftRoundTrips</code>)</td><td>Implemented</td></tr>
@@ -232,6 +234,17 @@
       <tr data-tags="rebuild-restart deploy test gate go toolchain docker fallback positive"><td>TC-147</td><td>rebuild-restart.sh</td><td>Positive</td><td>The <code>deploy</code> test gate runs whether or not the machine has a Go toolchain: natively when <code>go</code> is on <code>PATH</code>, otherwise in the pinned <code>golang:1.24-alpine</code> container</td><td>Implemented</td></tr>
       <tr data-tags="rebuild-restart deploy test gate no go no docker refuse negative"><td>TC-148</td><td>rebuild-restart.sh</td><td>Negative</td><td>Neither Go nor Docker is available, so the gate cannot run and the deploy stops rather than building untested code</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard projection arcadedb restart approve rng regression positive"><td>TC-149</td><td>dashboard (go test)</td><td>Positive</td><td>A floor rebuilt from the graph survives a merge-gate approval &mdash; the projection <code>ArcadeStore.load()</code> builds carries every field a method on it may reach, so <code>advance()</code> seats a task instead of dereferencing a nil <code>rng</code> (<code>TestTheProjectionSurvivesAnApprovalWithNoFixturesBehindIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks licence notice vendored assets fonts echarts redistribution positive"><td>TC-150</td><td>check-stacks.sh</td><td>Positive</td><td>Every vendored asset ships the licence text it is redistributed under &mdash; each font family, ECharts, its <code>NOTICE</code> and the d3 subcomponent it embeds</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks licence notice missing vendored assets refuse negative"><td>TC-151</td><td>check-stacks.sh</td><td>Negative</td><td>An asset is present and its licence text is not, so the pre-flight fails and the deploy stops rather than shipping an image that strips a licence</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart deploy provenance tag worktree prod positive"><td>TC-152</td><td>rebuild-restart.sh</td><td>Positive</td><td><code>--tag &lt;ref&gt;</code> checks the ref out into a detached worktree and re-runs the script inside it, so the invariant check, the test gate and the build all read the tagged tree</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart deploy provenance prod no tag refuse negative"><td>TC-153</td><td>rebuild-restart.sh</td><td>Negative</td><td>A prod action given neither <code>--tag</code> nor <code>--from-tree</code> is refused, so production cannot track whatever happens to be checked out</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart deploy provenance unknown ref refuse negative"><td>TC-154</td><td>rebuild-restart.sh</td><td>Negative</td><td><code>--tag</code> naming a ref that does not exist is refused before any worktree is created, so a typo leaves nothing behind</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart deploy provenance from-tree escape hatch dirty positive"><td>TC-155</td><td>rebuild-restart.sh</td><td>Positive</td><td><code>--from-tree</code> restores the working-tree build deliberately, and the dirty-tree refusal still guards it</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness rubric weights hundred points br-07 positive"><td>TC-156</td><td>dashboard (go test)</td><td>Positive</td><td>The rubric is twelve signals whose weights sum to one hundred, and every signal carries a missing-list line (<code>TestTheRubricWeightsSumToOneHundred</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness complete record ninety-five band positive"><td>TC-157</td><td>dashboard (go test)</td><td>Positive</td><td>A record carrying every signal it can express scores 95 in band <em>complete</em>, the twelfth being deferred rather than dropped (<code>TestACompleteRecordScoresNinetyFive</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness empty record zero missing list negative"><td>TC-158</td><td>dashboard (go test)</td><td>Negative</td><td>An empty record scores zero in band <em>insufficient</em> and names all twelve signals as missing (<code>TestAnEmptyRecordScoresZeroAndNamesEverySignal</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard readiness criteria coverage all or nothing vacuous negative"><td>TC-159</td><td>dashboard (go test)</td><td>Negative</td><td>One thin <em>must</em> story forfeits the whole twelve-point coverage signal, and a record with no stories cannot earn it by vacuous truth (<code>TestCriteriaCoverageIsAllOrNothingAcrossMustStories</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner refuse floor br-07 missing list negative"><td>TC-160</td><td>dashboard (go test)</td><td>Negative</td><td>Below an effective 45 the planner returns no plan and a list of what is missing, and the same record filled in still plans (<code>TestThePlannerRefusesBelowTheFloorAndSaysWhatIsMissing</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -349,6 +362,53 @@
   broken internal link, a missing <code>page-meta</code> field, a stale registry entry) →
   <code>bad "pustaka docs check failed"</code>, exit 1. <strong>TC-029, positive:</strong> all three
   pass → proceeds to <code>docker compose build</code>.</p>
+
+  <h3 id="cs-licences">check-stacks.sh — no vendored asset ships without its licence (TC-150, TC-151)</h3>
+  <p>Apache-2.0 redistribution means keeping the licence text of what you bundle, and
+  <code>deploy/Dockerfile.pustaka</code> copies <code>docs/</code> wholesale into the published
+  image. So a font added without its OFL text ships in every image built afterwards, and nothing
+  anywhere says so — the failure is a legal one with no runtime symptom at all. This is the only
+  place that would notice.
+  <strong>Positive (TC-150):</strong> one check per font family rather than per weight, because the
+  licence covers the family — <code>atkinson-hyperlegible has its licence text</code>,
+  <code>bricolage-grotesque has its licence text</code>, <code>jetbrains-mono has its licence
+  text</code> — then the charting library and what travels with it:
+  <code>echarts has its licence text</code>, <code>echarts has its NOTICE</code> (Apache 2.0
+  section 4(d) requires the <code>NOTICE</code> separately from the licence), and
+  <code>the d3 subcomponent has its licence text</code>, because ECharts embeds BSD 3-Clause d3
+  code and its own <code>LICENSE</code> points at a text it does not itself contain.
+  <strong>Negative (TC-151):</strong> a family whose text is missing or empty fails with
+  <code>&lt;family&gt; has no LICENSE-&lt;family&gt;.txt</code>; the library's three fail with
+  <code>echarts has no LICENSE-echarts.txt</code>, <code>echarts has no NOTICE-echarts.txt</code>
+  and <code>echarts cites LICENSE-d3 and none is vendored</code>. Any of them makes the script exit
+  1, which stops the deploy at pre-flight.</p>
+
+  <h3 id="rr-provenance">rebuild-restart.sh — prod builds from a tag (TC-152…TC-155)</h3>
+  <p>Until v0.13.0 both tiers built from the working tree, so production tracked whatever happened
+  to be checked out. The <code>--allow-dirty</code> refusal narrowed that and did not close it: a
+  clean tree is not a <em>named</em> tree, and "what is running in prod?" had no answer a month
+  later. <code>--tag &lt;ref&gt;</code> checks the ref out into a detached worktree under
+  <code>.worktrees/</code> and re-runs the script inside it, so the invariant check, the test gate
+  and <code>docker compose build</code> all read the tagged tree. It works without any path
+  rewriting because both compose files address their build contexts relatively.
+  <strong>Positive (TC-152):</strong> <code>worktree at v0.12.0 (b4b43bf) -&gt; .worktrees/v0.12.0</code>
+  — or <code>worktree already at v0.12.0 (b4b43bf)</code> when one is being reused — then
+  <code>env files linked from the working tree (they are not in any commit)</code>, because the
+  tier's credentials are created by hand and never committed, so a fresh worktree has none and
+  compose would stop at <em>env file not found</em>; then <code>re-running inside the worktree</code>
+  and, from the second invocation, <code>inside the worktree at v0.12.0 (b4b43bf)</code>. The
+  <code>--tag</code> flag is deliberately <strong>not</strong> forwarded to that second invocation:
+  the script it runs is the tag's own copy of this file, which may predate the flag entirely, and
+  dropping it is what lets <code>--tag</code> build a ref older than the feature.
+  <strong>Negative (TC-153):</strong> a prod action with neither flag is refused —
+  <code>prod builds from a tag -- refusing to deploy from the working tree</code>, followed by the
+  available tags. <strong>Negative (TC-154):</strong> an unknown ref is resolved before anything is
+  created, so <code>no such ref: v9.9.9</code> and <code>nothing was created. `git tag` lists what
+  is available.</code> leave no half-made directory behind. <strong>Positive (TC-155):</strong>
+  <code>--from-tree</code> is the deliberate escape hatch — <code>building from the working tree
+  (b4b43bf)</code> — and the dirty refusal still guards it with <code>working tree is dirty --
+  refusing to touch prod</code>. Passing both flags is a usage error: <code>--tag and --from-tree
+  contradict each other</code>. Dev is unchanged and needs no tag, which is the point of dev.</p>
 
   <h3 id="rr-gotoolchain">rebuild-restart.sh — the test gate runs with or without a local Go (TC-147, TC-148)</h3>
   <p>The VM these stacks run on has Docker and no Go toolchain — not on <code>PATH</code>, not under
@@ -500,6 +560,47 @@
   to panic here instead</code>. The fix is one construction path — <code>newProjection()</code> —
   because a projection is a store with no fixtures in it, not a store with no fields.</p>
 
+  <h3 id="go-readiness">dashboard — the readiness rubric and the planning floor (TC-156…TC-160)</h3>
+  <p><a href="brd.html#req-b">BRD §8.2</a> specifies the rubric as twelve machine-checkable signals
+  worth 100 points, and <a href="brd.html#rules-invariants">BR-07</a> makes 45 a refusal line rather
+  than a label. Until v0.13.0 <code>dashboard/model.go</code> scored seven booleans and marked itself
+  as the stand-in, and the planner planned whatever it was given. Both failures are quiet ones: a
+  rubric whose weights no longer sum to 100 still returns a plausible number and still sorts records,
+  and a planner that plans an empty brief returns a plan that is confidently wrong.
+  <strong>Positive (TC-156):</strong> the weights are the document's, not ours —
+  <code>the rubric has %d signals, want 12</code> and <code>the twelve weights sum to %d, want
+  100</code> — and every signal must carry the line the author is shown when it fails, or
+  <code>signal %q carries no missing-list line</code>.
+  <strong>Positive (TC-157):</strong> the honest ceiling is 95, not 100. Eleven signals can be earned
+  today; §8.2's <em>verification strategy</em> asks how correctness is proven and the in-memory record
+  has nowhere to record the answer, so the signal is listed, scores zero and says why rather than
+  being dropped — <code>a complete record scores %d, want 95</code>, <code>95 is band %q, want
+  complete</code>, <code>a complete record is missing %d signals, want 1</code>, and
+  <code>the one deferred signal should be verification strategy, got %q</code>. A rubric that quietly
+  removes the signal it cannot measure is how a bar moves without anyone voting on it.
+  <strong>Negative (TC-158):</strong> the other end — <code>an empty record scores %d, want 0</code>,
+  <code>0 is band %q, want insufficient</code>, <code>an empty record is missing %d signals, want all
+  12</code>.
+  <strong>Negative (TC-159):</strong> criteria coverage is the signal most likely to be softened into
+  partial credit, so it is pinned all-or-nothing. One <em>must</em> story with a single criterion
+  forfeits all twelve points — <code>one must story with a single criterion must forfeit the whole
+  signal</code> and <code>losing coverage costs the full 12 points: scored %d, want 83</code> — and a
+  record with no stories at all must not collect them by vacuous truth, which is the quiet way an
+  empty brief scores well: <code>a record with no stories must not earn coverage by vacuous
+  truth</code>.
+  <strong>Negative (TC-160):</strong> BR-07 itself. The draft record <code>p-5</code> scores 35, and
+  planning it must fail rather than produce the stage template — <code>planned %d tasks for a record
+  scoring %d; BR-07 refuses below %d</code>, with <code>a refused plan must be nil, not a half-built
+  one</code>. The refusal must satisfy <code>ErrRejected</code>, so every handler that already turns a
+  rejection into a toast keeps working (<code>a refusal is a rejection, not a failure: %v</code>), and
+  it must carry the list, because a refusal that does not say what is missing is a dead end
+  (<code>the refusal must carry the missing list, got %T</code>, <code>a refusal that does not say
+  what is missing is a dead end</code>, <code>the refusal reports %d/%s, the record scores
+  %d/%s</code>). Finally a floor that never lets anything through is a wall, so the filled record
+  still plans: <code>p-1 scores %d and must still plan: %v</code>. The rule lives in
+  <code>MemStore.PlanWorkflow</code>, which is also what <code>ArcadeStore</code> plans through, so
+  there is one implementation and the two stores cannot disagree about it.</p>
+
   <h3 id="go-store">dashboard — store isolation, the unbounded stream and replay (TC-066…TC-070)</h3>
   <p><strong>Negative (TC-066):</strong> a snapshot that shares its slices with the live floor is a
   replay that keeps changing under the operator, so <code>Clone</code> is tested directly rather than
@@ -523,9 +624,11 @@
   <h3 id="go-master">dashboard — the master record (TC-071…TC-074)</h3>
   <p><strong>Positive (TC-071):</strong> the seeded record projects to
   <code>1 + 7 + 4 + 10 + 2 + 2 + 2</code> vertices and three of its four stories carry a task, so
-  <code>coverage = %d, want 75</code>. <strong>Negative (TC-072):</strong> the complete record meets
-  all seven readiness items and the thin one must not — <code>p-1 is a complete record: %d of
-  7</code> and <code>p-5 has no stories and no diagrams; readiness must say so</code>.
+  <code>coverage = %d, want 75</code>. <strong>Negative (TC-072):</strong> the complete record earns
+  every signal it can express and the thin one must not — <code>p-1 is a complete record: %d of 12
+  signals, want 11</code>, <code>p-1 scores %d, want 95</code>, <code>p-5 has no stories and no
+  diagrams; readiness must say so</code>, and <code>p-5 scores %d, which clears the planning floor
+  of %d</code>.
   <strong>Negative (TC-073):</strong> <code>a story with no role must be refused</code>.
   <strong>Negative (TC-074):</strong> <code>mutating a returned Master changed the store</code>.</p>
 
@@ -537,9 +640,12 @@
   (<code>%s depends on %s, which is not earlier in the plan</code>); and the last task must be the
   gated devops one running the top tier (<code>the gated task is the last one, and it is
   devops</code>, then <code>a gated task runs on the top tier, got %s</code> against
-  <code>claude-opus-5</code>). <strong>Positive (TC-076):</strong> a record with no stories still
-  follows the six-task stage template — <code>an empty record follows the stage template: %d
-  tasks</code>. <strong>Positive (TC-077):</strong> planning a story that had no tasks must raise
+  <code>claude-opus-5</code>). <strong><s>Positive (TC-076)</s>:</strong> <s>a record with no
+  stories still follows the six-task stage template</s> — <strong>retired 2026-08-20.</strong> That
+  case asserted the absence of <a href="brd.html#rules-invariants">BR-07</a>: a record scoring below
+  45 is precisely what the planner must now refuse, so the behaviour it pinned was the gap, not a
+  feature. Its replacement is <a href="#go-readiness">TC-160</a>, and the row is struck rather than
+  renumbered. <strong>Positive (TC-077):</strong> planning a story that had no tasks must raise
   coverage: <code>US-04 had no tasks; planning it must raise coverage (%d -&gt; %d)</code>.
   <strong>Negative (TC-078):</strong> <code>a workflow with no objective must be refused</code>.
   <strong>Positive (TC-079):</strong> the wizard's draft round-trips through hidden form fields, and

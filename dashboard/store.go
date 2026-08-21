@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 // Store is the entire surface the handlers use. Two implementations: MemStore
@@ -115,6 +116,25 @@ func (r *rejection) Error() string { return r.reason }
 func (r *rejection) Is(target error) bool {
 	return target == ErrRejected
 }
+
+// NotReadyError is BR-07's refusal: the planner declines a record below
+// PlanFloor and hands back what is missing. It satisfies ErrRejected, so every
+// handler that already turns a rejection into a toast keeps working unchanged --
+// but it carries the list too, because a refusal that does not say what is
+// missing is a dead end (B-3), and the caller should not have to re-score the
+// record to find out.
+type NotReadyError struct {
+	ProductID string
+	Score     int
+	Band      string
+	Missing   []string
+}
+
+func (e *NotReadyError) Error() string {
+	return fmt.Sprintf("readiness %d (%s) is below the planning floor of %d — %d signal(s) missing",
+		e.Score, e.Band, PlanFloor, len(e.Missing))
+}
+func (e *NotReadyError) Is(target error) bool { return target == ErrRejected }
 
 // ---------- the read-only handle ----------
 

@@ -1048,6 +1048,18 @@ func (s *MemStore) PlanWorkflow(ctx context.Context, d WorkflowDraft) ([]PlanTas
 	if m == nil {
 		return nil, ErrNotFound
 	}
+	// BR-07. Below the floor there is no plan, only a list. Refusing here rather
+	// than in the handler is what makes the rule hold for every caller: the
+	// wizard, the API and ArcadeStore, which reaches this same method through
+	// the projection and so cannot drift from it.
+	if score := m.ReadinessScore(); score < PlanFloor {
+		return nil, &NotReadyError{
+			ProductID: m.ID,
+			Score:     score,
+			Band:      ReadinessBand(score),
+			Missing:   m.ReadinessMissing(),
+		}
+	}
 	picked := map[string]bool{}
 	for _, id := range d.Stories {
 		picked[id] = true

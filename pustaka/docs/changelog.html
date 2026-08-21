@@ -36,6 +36,74 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-13-0">v0.13.0 <time datetime="2026-08-20">2026-08-20</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Two obligations discharged and
+      one rule given teeth. <a href="delivery/implementation-plan.html#m13-hygiene">M13</a> is
+      complete, and build-order step 3 opens: the readiness rubric is real and the planner now
+      refuses a brief that is not good enough, which is the first business rule in this repository
+      that can say no to its own operator.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the twelve-signal, hundred-point readiness
+        rubric.</b> <code>dashboard/model.go</code> scored seven booleans and marked itself as the
+        stand-in; it now implements <a href="product/brd.html#req-b">§8.2</a> in full, weighted and
+        earned whole or not at all — partial credit is how a subjective bar gets argued back in.
+        <b>Eleven of the twelve are earnable today, so the ceiling is 95.</b> <em>Verification
+        strategy</em> asks how correctness is proven, the graph schema has somewhere to put that
+        answer and the in-memory record does not, so the signal is listed, scores zero and says why
+        rather than being dropped. It returns when M1 widens the record. Closes
+        <a href="delivery/implementation-plan.html#sub-m2-1">T-030</a>.</li>
+        <li><span class="chg add">Added</span> <b>the planning floor —
+        <a href="product/brd.html#rules-invariants">BR-07</a>.</b> Below an effective 45 the planner
+        returns no plan and the list of what is missing instead. The rule lives in
+        <code>MemStore.PlanWorkflow</code>, which is also what <code>ArcadeStore</code> plans
+        through, so there is one implementation and the two stores cannot disagree about it. The
+        seeded records now span the bands honestly — 95, 87, 79, 69, and a draft at 35 that is
+        refused — so the demo floor shows the rule working rather than hiding it. Closes
+        <a href="delivery/implementation-plan.html#sub-m2-2">T-033</a> and
+        <a href="delivery/implementation-plan.html#sub-m2-5">T-038</a>.</li>
+        <li><span class="chg remove">Removed</span> <b><code>TestPlanWithoutStoriesStillProducesOne</code>,
+        and its <code>TC-076</code> struck rather than renumbered.</b> It asserted that a record with
+        no stories still produced the six-task stage template — which is precisely what BR-07
+        forbids. The behaviour it pinned was the absence of the rule, not a feature of it.</li>
+        <li><span class="chg add">Added</span> <b>the upstream licence texts, beside the assets they
+        cover.</b> <code>NOTICE</code> named the vendored fonts and charting library and admitted
+        their full texts were not stored with them — "an obligation of redistribution, not a
+        courtesy". Now vendored: three SIL OFL 1.1 texts in <code>assets/fonts/</code>, and ECharts'
+        Apache text, its <code>NOTICE</code> (section 4(d) requires it separately) and the BSD
+        3-Clause text for the d3 code it embeds in <code>assets/vendor/</code>. Every one was fetched
+        from upstream rather than reconstructed, and a <code>README.md</code> in each directory
+        records the version, the source and the digest — the ten woff2 files are byte-identical to
+        <code>@fontsource/*@5.3.0</code> and the bundle to <code>echarts@6.1.0</code>. Closes
+        <a href="delivery/implementation-plan.html#sub-m13-1">T-140</a>.</li>
+        <li><span class="chg add">Added</span> <b>a licence check to
+        <code>deploy/check-stacks.sh</code>.</b> <code>Dockerfile.pustaka</code> copies
+        <code>docs/</code> wholesale, so a font added without its OFL text ships in every image built
+        afterwards and nothing anywhere says so — a legal failure with no runtime symptom. Six new
+        assertions make it a pre-flight failure instead
+        (<a href="product/qa-test-plan.html#cs-licences">TC-150, TC-151</a>).</li>
+        <li><span class="chg add">Added</span> <b><code>--tag</code>: prod builds from a tag, not from
+        the working tree.</b> <code>deploy/STACKS.md</code> listed this under its own known gaps —
+        production tracked whatever happened to be checked out, and the
+        <code>--allow-dirty</code> refusal narrowed that without closing it, because a clean tree is
+        not a <em>named</em> tree. <code>rebuild-restart.sh --tag &lt;ref&gt;</code> now checks the
+        ref out into a detached worktree and re-runs itself inside it, so the invariant check, the
+        test gate and the build all read the tagged tree; prod refuses without it and
+        <code>--from-tree</code> is the deliberate escape hatch. The tier's env files are symlinked
+        in, because they are secrets that exist in no commit; and <code>--tag</code> is not forwarded
+        to the inner run, whose script is the tag's own copy of the file — which is what lets
+        <code>--tag</code> build a ref older than the feature itself. Closes
+        <a href="delivery/implementation-plan.html#sub-m13-2">T-141</a>
+        (<a href="product/qa-test-plan.html#rr-provenance">TC-152…TC-155</a>).</li>
+        <li><span class="chg fix">Fixed</span> <b><code>T-037</code>'s status.</b> It read ❌ while
+        <code>ReadinessDropped</code> has been emitted on a downward band crossing all along, with
+        <code>TC-145</code> covering it. It is 🟡: the emission is real, and "apply the stricter band
+        immediately" waits on the gates of <code>T-032</code>/<code>T-034</code>. The register now
+        reads thirty-eight done, fifteen on fixtures, eighty-eight not started — recounted from the
+        rows rather than adjusted by hand.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-12-0">v0.12.0 <time datetime="2026-08-19">2026-08-19</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Four numbers and two file
       references that had stopped being true. Nothing in the code moved; what moved is the set of

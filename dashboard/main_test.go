@@ -492,11 +492,21 @@ func TestReadinessIsHonestAboutAnEmptyRecord(t *testing.T) {
 		}
 		return n
 	}
-	if met(full.Readiness()) != 7 {
-		t.Errorf("p-1 is a complete record: %d of 7", met(full.Readiness()))
+	// p-1 carries every signal the record can express. The twelfth, verification
+	// strategy, has nowhere to live until M1 widens the record, so 11 is the
+	// ceiling and the score that goes with it is 95 -- still "complete".
+	if got := met(full.Readiness()); got != 11 {
+		t.Errorf("p-1 is a complete record: %d of 12 signals, want 11", got)
+	}
+	if got := full.ReadinessScore(); got != 95 {
+		t.Errorf("p-1 scores %d, want 95", got)
 	}
 	if met(thin.Readiness()) >= 7 {
 		t.Error("p-5 has no stories and no diagrams; readiness must say so")
+	}
+	// And saying so means BR-07 will refuse it, which is the point of scoring.
+	if got := thin.ReadinessScore(); got >= PlanFloor {
+		t.Errorf("p-5 scores %d, which clears the planning floor of %d", got, PlanFloor)
 	}
 }
 
@@ -556,16 +566,12 @@ func TestPlanShapeAndDependencies(t *testing.T) {
 	}
 }
 
-func TestPlanWithoutStoriesStillProducesOne(t *testing.T) {
-	_, st := newTestServer(t)
-	plan, err := st.PlanWorkflow(context.Background(), WorkflowDraft{ProductID: "p-5"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(plan) != 6 {
-		t.Errorf("an empty record follows the stage template: %d tasks", len(plan))
-	}
-}
+// TestPlanWithoutStoriesStillProducesOne is gone, and its old TC-076 is struck
+// rather than renumbered. It asserted that a record with no stories still got
+// the six-task stage template -- which is precisely what BR-07 forbids. The
+// behaviour it pinned was the absence of the rule, not a feature of it. The
+// refusal is covered by TestThePlannerRefusesBelowTheFloorAndSaysWhatIsMissing
+// in readiness_test.go.
 
 func TestCreateWorkflowMovesCoverage(t *testing.T) {
 	_, st := newTestServer(t)
