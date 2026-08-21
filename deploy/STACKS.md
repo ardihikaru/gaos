@@ -242,10 +242,12 @@ shows `10.10.0.1`, the header was discarded and the trust list is wrong.
 
 ## Known gaps
 
-- **No schema, no graph queries.** The dashboard reads an in-memory store seeded
-  from the prototype's fixtures. `store.go` declares the seam; `store_arcade.go`
-  is pass 2, along with a bootstrap profile that applies the DDL from
-  `artifacts/v1/gaos-arcadedb-model.html`.
+- **Graph queries are opt-in, not the default.** The DDL is applied to dev and
+  prod and `store_arcade.go` implements the `store.go` seam against it — one
+  conformance suite covers both stores. But `selectStore` still defaults to
+  `memory`, seeded from the prototype's fixtures; ArcadeDB is reached only with
+  `GAOS_STORE=arcadedb`, and a bad connection fails the boot rather than falling
+  back.
 - **The back-office login checks nothing.** It sets a cookie, exactly as the
   prototype did. Real auth is pustaka's HMAC-signed cookie, credential
   fingerprint and per-IP throttle, lifted from `pustaka/main.go`.

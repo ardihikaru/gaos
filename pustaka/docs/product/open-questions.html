@@ -15,10 +15,11 @@
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
   <p class="lede">Twenty-three decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Seventeen are
+  the options actually available, the trade-off each one carries, and what it blocks. Eighteen are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
-  and now what success means, what Mission Control is, the provider strategy, tenancy and the
-  database version. Three of the six still open exist <em>because</em> those answers were given.</p>
+  and now what success means, what Mission Control is, the provider strategy, tenancy, the
+  database version, and which CLI ships first. Three of the five still open exist <em>because</em>
+  those answers were given.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
@@ -46,7 +47,8 @@
     (<a href="decision-log.html#d-026">D-026</a>…<a href="decision-log.html#d-034">D-034</a>). Three
     questions that were <em>blocked</em> by that unknown are now merely open, and are marked
     <em>narrowed</em> below: <a href="#oq-11">OQ-11</a> authentication,
-    <a href="#oq-16">OQ-16</a> high availability, and <a href="#oq-23">OQ-23</a> the supported CLIs.
+    <a href="#oq-16">OQ-16</a> high availability, and <a href="#oq-23">OQ-23</a> the supported CLIs —
+    the last of which has since been answered outright (<a href="decision-log.html#d-049">D-049</a>).
     Nothing about their difficulty changed; what changed is whose problem each one is.</p>
     <p>Later the same day the owner closed two more. <a href="#oq-20">OQ-20</a>: the repository is
     <strong>Apache-2.0</strong> with a DCO sign-off and a reserved name, so it can be published
@@ -87,8 +89,8 @@
       <tr data-tags="technical tenancy database isolation shared hybrid repository interface configurable answered"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Answered → <a href="decision-log.html#d-042">D-042</a></td></tr>
       <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a></td></tr>
       <tr data-tags="technical arcadedb version ddl dialect external pin 26.7.2 answered"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Answered → <a href="decision-log.html#d-043">D-043</a></td></tr>
-      <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a></td></tr>
-      <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Open — narrowed by <a href="decision-log.html#d-036">D-036</a></td></tr>
+      <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a>, <a href="decision-log.html#d-051">D-051</a></td></tr>
+      <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Answered → <a href="decision-log.html#d-049">D-049</a>, <a href="decision-log.html#d-050">D-050</a></td></tr>
       <tr data-tags="operations cadence review evaluation acceptance tests answered"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
       <tr data-tags="operations ha availability replication backup single-node narrowed"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required, and for whom?</td><td>R-09</td><td>Open — narrowed by <a href="decision-log.html#d-031">D-031</a></td></tr>
       <tr data-tags="operations budget cap spend guard defer pacing answered"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Answered → <a href="decision-log.html#d-037">D-037</a></td></tr>
@@ -521,6 +523,19 @@
   <a href="brd.html#business-decision-matrix">BRD §16</a> option (D) and constrained by
   <a href="brd.html#rules-commercial">BR-28</a>, so it stays here until the submodule question is
   extended or the owner rules on it. This question is not answered; it is smaller.</p>
+  <p><strong>Narrowed further by <a href="decision-log.html#d-051">D-051</a>, which undercut its
+  premise.</strong> The question assumes the CLI reports nothing. Measured on 2026-08-21, Claude Code
+  reports both: <code>total_cost_usd</code> and a per-model <code>modelUsage</code> breakdown with
+  input, output and cache tokens. So for the first supported adapter there is <em>no estimate to
+  produce</em> — <code>costBasis</code> is <code>measured</code>, the tokenizer row above is moot,
+  and the budget guard is enforced against the tool's own figure. One caveat belongs with that,
+  because it is easy to overclaim: measured under a subscription, <code>total_cost_usd</code> is the
+  API-equivalent price of the work rather than marginal spend, which is why the guard stays a pacing
+  instrument in CLI mode. <strong>The question
+  survives anyway, and is now better posed:</strong> a price table is still needed for API mode and
+  for any future adapter that reports nothing, so the row it was named after — who maintains that
+  table, and whether a maintained one is core or licensed — is untouched. What changed is its
+  urgency: it is no longer on the MVP's critical path, because the MVP's adapter does not need it.</p>
 
   <h3 id="oq-23">OQ-23 · Which provider CLIs, and what must each guarantee?</h3>
   <p><strong>Why it is open:</strong> <a href="decision-log.html#d-033">D-033</a> says "the
@@ -548,6 +563,23 @@
   — a vendor is in the MVP if its command-line tool clears it and reachable through API mode if it
   does not. That raises the priority of the cheap experiment named above rather than changing its
   shape: the list is now on the critical path, not beside it.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-049">D-049</a> and
+  <a href="decision-log.html#d-050">D-050</a>: the cheap experiment was run on 2026-08-21 against
+  <code>@anthropic-ai/claude-code@2.1.238</code>, and it is the first supported adapter. It clears
+  four of the five points cleanly. <strong>It does not clear the third</strong> — and that is the
+  finding worth having had before an adapter was written rather than after. Crashes and completed
+  runs are distinguishable; <em>refusals are not</em>. A task the model could not do exits 0 exactly
+  as one it did, so a fifth point had to become policy rather than a property of the tool: the
+  adapter reads the outcome from the mandatory handoff document and never from the exit code
+  (<a href="decision-log.html#d-050">D-050</a>). The contract itself survives the contact unchanged,
+  which is the useful result — it was written strictly enough that a real tool failed it in a
+  specific, fixable place instead of passing vacuously.</p>
+  <p><strong>What it opened:</strong> nothing new on this page, but two standing obligations. The
+  version pin is inert without the boot smoke test, which lands with
+  <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a>; and the list is still one entry
+  long, so <a href="brd.html#risk-register">R-08</a> does not fall and
+  <a href="brd.html#risk-register">R-12</a> is untouched — neither is a question this repository can
+  close by measurement.</p>
 
   <h2 id="oq-operations">Operations</h2>
 
