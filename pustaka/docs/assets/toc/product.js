@@ -63,7 +63,7 @@ window.DOCS.nav.push({
         { anchor: "references", title: "13. References",
           text: "Section-precise pointers into the three artifacts, the dashboard files that hold the seam and the closed event catalog, the deployment runbooks, the architecture and infrastructure pages, and the FAQ." },
         { anchor: "decision-log", title: "14. Decision log",
-          text: "Pointer to the forty-eight logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
+          text: "Pointer to the fifty-one logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
         { anchor: "business-milestones", title: "15. Business milestones",
           text: "Eight real dated milestones from git history, ending with the repository becoming licensed, and the next twelve — led by landing the new event names and task state together, then the first adapter and the budget guard." },
         { anchor: "business-decision-matrix", title: "16. Business decision matrix",
@@ -82,7 +82,7 @@ window.DOCS.nav.push({
       id: "open-questions",
       file: "product/open-questions.html",
       title: "Open questions",
-      desc: "Twenty-three decisions the BRD refuses to invent — seventeen now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, and what success means — each with the options available, the trade-off each carries, and what it blocks.",
+      desc: "Twenty-three decisions the BRD refuses to invent — eighteen now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
@@ -92,7 +92,7 @@ window.DOCS.nav.push({
         { anchor: "oq-product", title: "Product & scope",
           text: "OQ-08 answered — success is conformance to the QA register, with numeric targets deferred; OQ-15 answered — Mission Control is both, one role-gated surface, which makes authentication a blocking dependency; and OQ-12, band-driven autonomy versus gates on by default, still open." },
         { anchor: "oq-technical", title: "Technical policy",
-          text: "OQ-09 answered as multi-provider with a CLI-first MVP, OQ-10 as all three tenancy strategies behind one repository interface, OQ-17 as ArcadeDB 26.7.2 validated before build-order step 1 — and still open: OQ-11 authentication, now a blocking dependency; OQ-22, narrowed to who maintains the price table; and OQ-23 which CLIs are supported." },
+          text: "OQ-09 answered as multi-provider with a CLI-first MVP, OQ-10 as all three tenancy strategies behind one repository interface, OQ-17 as ArcadeDB 26.7.2 validated before build-order step 1, OQ-23 as Claude Code measured against the five-point contract and pinned — and still open: OQ-11 authentication, now a blocking dependency, and OQ-22, narrowed to who maintains the price table now that the first adapter reports its own cost." },
         { anchor: "oq-operations", title: "Operations",
           text: "OQ-13 who runs the three acceptance tests and how often, OQ-16 high availability now that GAOS hosts nothing, and OQ-18 answered — the budget cap becomes three zones with pacing and deferral." }
       ]
@@ -101,7 +101,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Forty-eight decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, or git history — and the destination for every open question that gets answered.",
+      desc: "Fifty-one decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -125,7 +125,7 @@ window.DOCS.nav.push({
         { anchor: "licence-decisions", title: "Licence",
           text: "D-035: Apache-2.0 with a DCO sign-off and a reserved name — why permissive beats copyleft for this buyer, why a CLA would be paperwork for an unused power, and the fact that it cannot be undone." },
         { anchor: "execution-mode-decisions", title: "Execution mode and spend control",
-          text: "D-036 extends D-033 to two interchangeable adapters behind one master switch, D-037 turns the budget cap into three zones with pacing and deferral, D-041 makes the gateway multi-provider with CLI mode the MVP's focus, and D-044 has the cost estimator refuse rather than guess — no cost beats a zero the guard would let through." }
+          text: "D-036 extends D-033 to two interchangeable adapters behind one master switch, D-037 turns the budget cap into three zones with pacing and deferral, D-041 makes the gateway multi-provider with CLI mode the MVP's focus, and D-044 has the cost estimator refuse rather than guess — no cost beats a zero the guard would let through. D-049 to D-051 answer OQ-23 by measurement: Claude Code is the first supported adapter, the exit code may never decide a task's outcome, and cost is read from the tool where it reports one." }
       ]
     },
     {

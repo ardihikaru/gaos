@@ -15,9 +15,9 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Forty-eight entries, each traceable to an artifact section, a committed file, a
-  product-owner ruling, or git history — and a destination for every question the open register
-  resolves.</p>
+  proves it was made. Fifty-one entries, each traceable to an artifact section, a committed file, a
+  product-owner ruling, a measurement, or git history — and a destination for every question the open
+  register resolves.</p>
 
   <div class="page-meta"
        data-tags="decisions, adr, product, governance, rationale"
@@ -711,16 +711,109 @@
         <a href="qa-test-plan.html#im-fold">TC-050</a>, <a href="qa-test-plan.html#im-fold">TC-051</a>;
         <a href="../delivery/implementation-plan.html#sub-m0-3">T-011</a></td>
       </tr>
+      <tr id="d-049">
+        <td>D-049</td><td>2026-08-21</td>
+        <td><strong>Claude Code is the first supported CLI adapter, pinned at
+        <code>@anthropic-ai/claude-code@2.1.238</code>.</strong>
+        <a href="open-questions.html#oq-23">OQ-23</a> set a five-point contract and said the
+        experiment that tests a tool against it <em>"should precede the first adapter being written,
+        not follow it"</em>. It was run on 2026-08-21, and the tool clears four points cleanly: it
+        runs non-interactively from a working directory (<code>-p</code>), takes its instruction from
+        a file on stdin, leaves structured output on disk (<code>--output-format json</code>), and
+        pins to an npm version whose <code>--version</code> is stable and machine-readable.
+        <strong>Point three it does not clear, and the way it fails is the useful part</strong> — see
+        <a href="#d-050">D-050</a>. <strong>What this does not settle:</strong> one adapter is not
+        multi-provider. <a href="brd.html#risks">R-08</a> does not fall until a second one exists,
+        and <a href="brd.html#risks">R-12</a> — whether driving the tool from a scheduler sits inside
+        the subscription it runs under — is not a question this repository can answer.
+        <strong>The obligation this creates:</strong> the pin is worthless without the boot smoke
+        test <a href="brd.html#req-cli">§7.6.3</a> already promises, and that lands with
+        <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a> rather than before it.</td>
+        <td>Measured against <code>@anthropic-ai/claude-code@2.1.238</code> on 2026-08-21;
+        answers <a href="open-questions.html#oq-23">OQ-23</a>; extends <a href="#d-036">D-036</a>,
+        <a href="#d-041">D-041</a>; <a href="brd.html#req-cli">§7.6.3</a>;
+        <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a></td>
+      </tr>
+      <tr id="d-050">
+        <td>D-050</td><td>2026-08-21</td>
+        <td><strong>The adapter never infers a task's outcome from the process exit code. The handoff
+        document is the only authority on what happened.</strong> The measurement behind
+        <a href="#d-049">D-049</a> found that Claude Code separates a crash from a completed run but
+        <em>not a refusal from a success</em>: an unknown flag, an unknown model, a failed
+        authentication and an exhausted budget all exit 1 with a distinguishing
+        <code>terminal_reason</code>, while <strong>a task the model could not do exits 0 with
+        <code>terminal_reason: completed</code></strong> — byte-identical, at the process level, to
+        one it did. Reading success from that is the exact failure
+        <a href="brd.html#req-cli">§7.6.3</a> already names as fatal to two-mode
+        interchangeability: <em>a reviewer that special-cases a CLI exit code</em>.
+        <strong>So the rule is inverted:</strong> the exit code may only classify <em>crash versus
+        ran</em>; everything about the work itself is read from the mandatory handoff document, and
+        a missing or unparseable one is a failed attempt with the signature
+        <code>handoff-missing</code> (<a href="brd.html#rules-execution">BR-30</a>). This is not new
+        policy — it is <a href="../delivery/implementation-plan.html#sub-m4-5">T-062</a>/<a
+        href="../delivery/implementation-plan.html#sub-m4-5">T-063</a> promoted from a convenience to
+        the thing correctness rests on. <strong>What makes it cheap:</strong> the tool takes a
+        <code>--json-schema</code> and honours it, so the declared shape is enforced by the adapter's
+        own invocation rather than by parsing prose afterwards. Tested with a handoff schema, the
+        model reported <code>"status": "blocked"</code> and <code>"met": false</code> against an
+        acceptance criterion it could not satisfy — the refusal the exit code had hidden.</td>
+        <td>Measured against <code>@anthropic-ai/claude-code@2.1.238</code> on 2026-08-21;
+        <a href="brd.html#rules-execution">BR-30</a>; <a href="brd.html#req-cli">§7.6.3</a>;
+        <a href="brd.html#req-d">D-9</a>;
+        <a href="../delivery/implementation-plan.html#sub-m4-5">T-062</a>,
+        <a href="../delivery/implementation-plan.html#sub-m4-5">T-063</a></td>
+      </tr>
+      <tr id="d-051">
+        <td>D-051</td><td>2026-08-21</td>
+        <td><strong>Cost and tokens are read from the adapter's own report wherever it makes one;
+        <code>estimated</code> is the fallback, not the CLI default.</strong>
+        <a href="brd.html#req-cli">§7.6.2</a> assumed CLI mode would usually be
+        <code>estimated</code>, on the ground that <em>most tools report nothing</em>. Claude Code
+        reports: its JSON result carries <code>total_cost_usd</code> and a <code>modelUsage</code>
+        breakdown per model with input, output and both cache-token counts.
+        <strong>The consequence:</strong> a <code>TaskRun</code> under this adapter carries
+        <code>costBasis: measured</code> from the first run, so the budget guard and the efficiency
+        score are fed a figure the tool itself produced rather than one GAOS derived from a price
+        table. <strong>What that figure is, stated precisely, because it is easy to overclaim:</strong>
+        the measurement was taken under a subscription (OAuth, no API key), and
+        <code>total_cost_usd</code> is then the <em>API-equivalent</em> price of the work, not money
+        the operator marginally spent — under a flat fee the marginal cost of one more run is
+        approximately nothing. That does not make the number useless; it makes it exactly what
+        <a href="brd.html#req-cli">§7.6.2</a> already said the guard is in CLI mode — <em>a pacing
+        instrument: exceeding it costs throughput, not money</em>. It becomes real spend only in API
+        mode, where the same field is what the operator is billed.
+        <strong>What this does not do:</strong> it narrows
+        <a href="open-questions.html#oq-22">OQ-22</a> without closing it — a price table is still
+        needed for API mode and for any adapter that reports nothing, and
+        <a href="#d-044">D-044</a>'s rule stands that an unpriceable model is refused rather than
+        reported as zero (<a href="brd.html#rules-commercial">BR-37</a>). The two-basis distinction
+        in <a href="brd.html#rules-commercial">BR-31</a> becomes more load-bearing, not less: with
+        adapters on both sides of it, an aggregation that mixes the bases silently is now a real
+        defect rather than a hypothetical one. <strong>One measurement worth recording:</strong> a
+        default invocation inherited the host's project configuration and roughly 24k cache-read
+        tokens, so a trivial prompt cost $0.13. An adapter that does not isolate context is not
+        merely wasteful — it makes the frozen slice of
+        <a href="../delivery/implementation-plan.html#sub-m4-3">T-055</a> a lie, because what the
+        model received is not what GAOS recorded.</td>
+        <td>Measured against <code>@anthropic-ai/claude-code@2.1.238</code> on 2026-08-21;
+        narrows <a href="open-questions.html#oq-22">OQ-22</a>; extends <a href="#d-044">D-044</a>;
+        <a href="brd.html#rules-commercial">BR-31</a>, <a href="brd.html#rules-commercial">BR-37</a>;
+        <a href="brd.html#req-cli">§7.6.2</a>;
+        <a href="../delivery/implementation-plan.html#sub-m4-6">T-065</a>,
+        <a href="../delivery/implementation-plan.html#sub-m4-3">T-055</a></td>
+      </tr>
     </tbody>
   </table>
 
   <div class="adm warn">
     <p class="adm-title">What is not in this log</p>
     <p>The commercial <em>shape</em> is decided; several of its parameters are not. The rate-card
-    numbers, where the model price table lives and who maintains it, and which provider CLIs are
-    supported are all live questions — as are the authentication approach, now a blocking dependency
-    rather than a deferred one (<a href="#d-040">D-040</a>), and whether autonomy is band-driven by
-    default. They are on the <a href="open-questions.html">open questions</a> page, and each one
+    numbers and where the model price table lives and who maintains it are still live questions — as
+    are the authentication approach, now a blocking dependency rather than a deferred one
+    (<a href="#d-040">D-040</a>), high availability, and whether autonomy is band-driven by default.
+    <em>Which provider CLIs are supported</em> left this list on 2026-08-21: one of them is answered
+    (<a href="#d-049">D-049</a>) and the rest of the list is a measurement per tool rather than a
+    decision. They are on the <a href="open-questions.html">open questions</a> page, and each one
     lands here the day it is answered.</p>
     <p>Several things here are decided and not yet true in code. <a href="#d-037">D-037</a> needs
     four new event names, a new task state and two <code>TaskRun</code> properties, and
@@ -731,8 +824,14 @@
     never been run and a strategy that has never been run is a claim rather than a capability;
     <a href="#d-041">D-041</a> names one adapter and no second one exists; and
     <a href="#d-040">D-040</a>'s three preconditions — authentication, per-tenant scoping,
-    accessibility — are none of them started. A decision recorded here is a commitment about what
-    gets built, never a claim that it was.</p>
+    accessibility — are none of them started. The three entries of 2026-08-21 are the newest members
+    of this list and the clearest case for it: <a href="#d-049">D-049</a>,
+    <a href="#d-050">D-050</a> and <a href="#d-051">D-051</a> record what a provider's tool was
+    measured to do, and <strong>no adapter calls it yet</strong> — there is still no scheduler, no
+    runner and no model call anywhere in the repository. They constrain
+    <a href="../delivery/implementation-plan.html#m4-execution">M4</a> when it is written; they do
+    not advance it. A decision recorded here is a commitment about what gets built, never a claim
+    that it was.</p>
   </div>
 
 </main>

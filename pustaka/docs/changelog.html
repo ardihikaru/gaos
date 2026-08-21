@@ -36,6 +36,95 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-14-0">v0.14.0 <time datetime="2026-08-21">2026-08-21</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The cheap experiment
+      <a href="product/open-questions.html#oq-23">OQ-23</a> asked for — <em>"it should precede the
+      first adapter being written, not follow it"</em> — was finally run. A provider's command-line
+      tool was measured against the five-point contract instead of being reasoned about, and it
+      failed one point in a way no amount of reading the documentation would have shown. Three
+      decisions and one answered question came out of an afternoon that wrote no product code.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-049">D-049</a>
+        — Claude Code is the first supported CLI adapter</b>, pinned at
+        <code>@anthropic-ai/claude-code@2.1.238</code>. It clears four of the five points cleanly:
+        non-interactive from a working directory, instruction from a file, structured output on
+        disk, and a stable machine-readable version. Answers
+        <a href="product/open-questions.html#oq-23">OQ-23</a>, which had been open since 2026-08-08.
+        <b>One adapter is not multi-provider</b>: <a href="product/brd.html#risks">R-08</a> does not
+        fall until a second exists, and <a href="product/brd.html#risks">R-12</a> — whether a
+        scheduler may drive the tool under its subscription — is not answerable from here.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-050">D-050</a>
+        — the exit code may never decide a task's outcome.</b> The point the tool failed: it
+        separates a crash from a completed run, but <b>not a refusal from a success</b>. An unknown
+        flag, an unknown model, a failed login and an exhausted budget each exit 1 with a
+        distinguishing <code>terminal_reason</code>; a task the model simply could not do exits
+        <b>0</b> with <code>terminal_reason: completed</code>, indistinguishable from one it did.
+        <a href="product/brd.html#req-cli">§7.6.3</a> had already named <em>a reviewer that
+        special-cases a CLI exit code</em> as fatal to two-mode interchangeability, so the mandatory
+        handoff document is promoted from a convenience to the thing correctness rests on — and
+        <code>--json-schema</code> makes enforcing its shape nearly free.
+        <a href="delivery/implementation-plan.html#sub-m4-5">T-062</a>/<a
+        href="delivery/implementation-plan.html#sub-m4-5">T-063</a> gain a reason rather than a
+        status.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-051">D-051</a>
+        — cost is read from the tool wherever it reports one.</b>
+        <a href="product/open-questions.html#oq-22">OQ-22</a> assumed CLI mode reports nothing;
+        Claude Code returns <code>total_cost_usd</code> and a per-model token breakdown, so
+        <code>costBasis</code> is <code>measured</code> from the first run. <b>Stated carefully,
+        because it is easy to overclaim:</b> under a subscription that figure is the API-equivalent
+        price, not marginal spend — which is exactly why
+        <a href="product/brd.html#req-cli">§7.6.2</a> calls the guard a pacing instrument in CLI mode
+        and load-bearing in API mode.</li>
+        <li><span class="chg fix">Fixed</span> <b>the BRD's and the FAQ's cost-accounting rows.</b>
+        Both said CLI mode is <em>usually estimated</em> because <em>most tools report nothing</em>.
+        True in general, false for the adapter that ships first, so both now split the case by tool
+        and carry the subscription caveat. <a href="product/open-questions.html#oq-22">OQ-22</a>
+        stays open and better posed: a price table is still needed for API mode and for any silent
+        adapter, but it is no longer on the MVP's critical path.</li>
+        <li><span class="chg change">Changed</span> <b>the registers' arithmetic.</b> Eighteen of
+        twenty-three questions answered, five open; fifty-one decisions. Carried through the lede,
+        the register intros, both ToC descriptions and the front page together.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-13-1">v0.13.1 <time datetime="2026-08-21">2026-08-21</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Six numbers on the front page
+      and one known gap in <code>deploy/STACKS.md</code> that had stopped being true. Nothing in the
+      code moved. The pattern is worth naming: <code>assets/toc/product.js</code> was kept current
+      while <code>index.html</code> repeated the counts it had at v0.2.0, and
+      <code>go run . check ./docs</code> cannot see the difference — it checks structure and links,
+      not arithmetic.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>the front page's four register counts.</b> The BRD
+        card read <em>eleven domains, 26 rules</em> against twelve domains and
+        <a href="product/brd.html#rules">37 <code>BR-</code> rules</a>; open questions read
+        <em>Eighteen</em> against <a href="product/open-questions.html#register">twenty-three</a>,
+        seventeen of them now answered; the decision log read <em>Twenty-four</em> against
+        <a href="product/decision-log.html">forty-eight</a>. Each is now what the ToC part file has
+        said all along, so the two agree rather than merely coexisting.</li>
+        <li><span class="chg fix">Fixed</span> <b>the front page's claim that the schema is not
+        applied.</b> It has been applied to dev and prod since 2026-08-17 —
+        <a href="architecture/graph.html">323 statements clean</a>, three reconciled deviations
+        recorded in <code>dashboard/schema/RECONCILIATION.md</code>. The line contradicted
+        <a href="product/brd.html#current-state">§2.1</a>, the graph page and this changelog.</li>
+        <li><span class="chg fix">Fixed</span> <b>two counters in the metrics strip.</b> Dashboard
+        tests read <em>33</em> and are 74 — 96 across both modules with <code>pustaka</code>'s
+        twenty-two — and the closed event catalog read <em>27</em> and is 34 domain names, the 38
+        <code>EventType</code> constants in <code>dashboard/events.go</code> less the four kept
+        separate as UI lifecycle. <em>Zero dependencies, no go.sum</em> and the sixty graph types
+        were checked and left alone.</li>
+        <li><span class="chg fix">Fixed</span> <b><code>deploy/STACKS.md</code>'s first known
+        gap.</b> It said there was no schema and that <code>store_arcade.go</code> was pass 2; that
+        file is 1063 lines and passes the same conformance suite as <code>MemStore</code>. The gap
+        moved rather than closing, so the bullet now says what is actually true —
+        <code>selectStore</code> still defaults to <code>memory</code> and ArcadeDB is reached only
+        with <code>GAOS_STORE=arcadedb</code>. The other three gaps on that list were re-read and
+        stand.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-13-0">v0.13.0 <time datetime="2026-08-20">2026-08-20</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Two obligations discharged and
       one rule given teeth. <a href="delivery/implementation-plan.html#m13-hygiene">M13</a> is

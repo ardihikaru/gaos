@@ -620,7 +620,7 @@ egress:                               <span class="c"># domain L applies in BOTH
     <thead><tr><th>Dimension</th><th>CLI mode</th><th>API mode</th></tr></thead>
     <tbody>
       <tr><td><strong>What it costs the operator</strong></td><td>A flat subscription. A busy month and a quiet month cost the same, and a runaway loop wastes time rather than money</td><td>Per token, uncapped by the provider. A runaway loop is a bill</td></tr>
-      <tr><td><strong>Cost accounting</strong></td><td>Usually <code>estimated</code> — most tools report nothing, so the count is local and the price comes from a table, and the budget cap is enforced against that derived figure (<a href="decision-log.html#d-044">D-044</a>). An unpriceable model reports no cost rather than zero (<a href="#rules-commercial">BR-37</a>); where the table lives and who maintains it is still <a href="open-questions.html#oq-22">OQ-22</a></td><td><code>measured</code>, exact, per call. The efficiency dimension of the score becomes trustworthy rather than indicative</td></tr>
+      <tr><td><strong>Cost accounting</strong></td><td><code>measured</code> when the tool reports it, <code>estimated</code> when it does not. The first supported adapter reports (<a href="decision-log.html#d-051">D-051</a>): Claude Code returns <code>total_cost_usd</code> and per-model token counts, so the cap is enforced against the tool's own figure rather than a derived one — though under a subscription that figure is the API-equivalent price, not marginal spend, which is precisely why the guard is a pacing instrument here and load-bearing in the column to the right. Where a tool is silent the count is local and priced from a table (<a href="decision-log.html#d-044">D-044</a>), and an unpriceable model reports no cost rather than zero (<a href="#rules-commercial">BR-37</a>); where that table lives and who maintains it is still <a href="open-questions.html#oq-22">OQ-22</a></td><td><code>measured</code>, exact, per call. The efficiency dimension of the score becomes trustworthy rather than indicative</td></tr>
       <tr><td><strong>How much the budget guard matters</strong></td><td>A pacing instrument. Exceeding it costs throughput, not money</td><td><strong>Load-bearing.</strong> It is the only thing between a retry loop and an unbounded charge — see <a href="#budget-guard">§8.10.1</a></td></tr>
       <tr><td><strong>Credential handling</strong></td><td>Nothing to hold. The tool carries its own session</td><td>A key exists on the host, in the operator's environment. GAOS reads it and never stores, forwards or logs it</td></tr>
       <tr><td><strong>Interface stability</strong></td><td>Poor. Flags, defaults and output formats move between releases with no deprecation window — hence the version pin and the boot smoke test</td><td>Good. Versioned, documented, and designed to be called by a program</td></tr>
@@ -1329,7 +1329,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="decision-log">14. Decision log</h2>
-  <p>Forty-eight decisions are made and traceable — the thesis itself, the stateless orchestrator,
+  <p>Fifty-one decisions are made and traceable — the thesis itself, the stateless orchestrator,
   business ids in events, one edge type per relationship, the <code>Task</code>/<code>TaskRun</code>
   split, database-per-tenant as the default, the readiness floor of 45, capability-first routing,
   correctness weighted at 0.45, safety as a veto, the build order, the deployment shape, and since
@@ -1337,9 +1337,12 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   CLI-first execution path, the data-handling position, the licence, the budget guard and the
   submodule boundary. Six more landed on 2026-08-15: what success means, what Mission Control is
   for, multi-provider behind the gateway, tenancy as a configurable boundary, the ArcadeDB target
-  version, and what the estimator does when it cannot price a model. They are maintained as their
-  own page so that answering an open question has an obvious destination.</p>
-  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-044)</a></strong></p>
+  version, and what the estimator does when it cannot price a model. Three more landed on
+  2026-08-21, and they are the first in this log settled by measurement rather than by ruling: which
+  provider CLI ships first, that a task's outcome is never read from a process exit code, and that
+  cost is taken from the tool wherever it reports one. They are maintained as their own page so that
+  answering an open question has an obvious destination.</p>
+  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-051)</a></strong></p>
 
   <h2 id="business-milestones">15. Business milestones</h2>
   <p>Real dates only, taken from git history.</p>
@@ -1475,11 +1478,13 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
 
   <h2 id="open-questions">Consolidated open questions</h2>
   <p>Every open item in this document is indexed on its own page as <code>OQ-01…OQ-23</code> —
-  eleven commercial, three product, six technical, three operational. Seventeen are answered,
+  eleven commercial, three product, six technical, three operational. Eighteen are answered,
   including the whole commercial block except the rate card and, since 2026-08-15, the whole product
   block except the autonomy default; the newest questions exist <em>because</em> those answers were
-  given, which is what answering a question in this register is supposed to do. Each remaining one
-  carries the options available and the reason it cannot be answered from evidence.</p>
+  given, which is what answering a question in this register is supposed to do. The eighteenth,
+  <a href="open-questions.html#oq-23">OQ-23</a>, was settled on 2026-08-21 by running the tool
+  against the contract rather than by ruling on it. Each remaining one carries the options available
+  and the reason it cannot be answered from evidence.</p>
   <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-23)</a></strong></p>
 
 </main>

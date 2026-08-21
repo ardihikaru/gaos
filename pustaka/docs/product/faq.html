@@ -180,11 +180,14 @@
   agent, and it becomes part of the graph like everything else. The flow, the configuration file and
   the full comparison are <a href="brd.html#to-be-cli">BRD §7.6</a>.</p>
   <p><strong>Which should you pick?</strong> It is a cost question more than a technical one.
-  A subscription is a <em>flat fee with imprecise accounting</em>: a busy month costs the same as a
-  quiet one, and a runaway loop wastes time rather than money — but most tools report no token usage,
-  so GAOS has to estimate, and it labels every figure <code>measured</code> or <code>estimated</code>
-  rather than mixing them. The estimate is a local token count priced from a configured table, and
-  if your model is not in that table GAOS reports <em>no cost</em> rather than a guess — never a zero
+  A subscription is a <em>flat fee</em>: a busy month costs the same as a quiet one, and a runaway
+  loop wastes time rather than money. Accounting depends on the tool. The first supported adapter,
+  Claude Code, reports its own token and cost figures, so those runs are labelled
+  <code>measured</code> (<a href="decision-log.html#d-051">D-051</a>) — with the caveat that under a
+  subscription the figure is what the work <em>would</em> have cost through the API, not what you
+  marginally paid. Where a tool reports nothing GAOS estimates instead: a local token count priced
+  from a configured table, labelled <code>estimated</code>, and never mixed with the other kind. If
+  your model is not in that table GAOS reports <em>no cost</em> rather than a guess — never a zero
   (<a href="decision-log.html#d-044">D-044</a>). Who maintains that table is still
   <a href="open-questions.html#oq-22">OQ-22</a>. An API key is
   <em>metered with exact accounting</em>: every cost is precise and every retry is a real charge, so
