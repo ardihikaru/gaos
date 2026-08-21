@@ -118,10 +118,25 @@ func drive(t *testing.T, s *MemStore) {
 	ctx := t.Context()
 
 	id := "p-2"
-	if _, err := s.UpdateBRD(ctx, id, BRD{Problem: strings.Repeat("a problem worth stating. ", 3)}); err != nil {
+	// Filled in properly, not just a problem statement. The record has to land in
+	// a band comfortably above the one the emptying below drops it to, or there is
+	// no downward crossing and BR-10's ReadinessDropped never fires -- which is one
+	// of the names this whole helper exists to provoke.
+	if _, err := s.UpdateBRD(ctx, id, BRD{
+		Problem:    strings.Repeat("a problem worth stating. ", 3),
+		Goals:      []string{"Fold the stream back into the floor"},
+		Rules:      []string{"Append only", "The reducer is pure", "Order is stable"},
+		OutOfScope: []string{"Compaction"},
+		Metrics:    []string{"Fold-from-genesis matches fold-from-snapshot"},
+	}); err != nil {
 		t.Fatalf("UpdateBRD: %v", err)
 	}
-	if _, err := s.AddStory(ctx, id, Story{Role: "operator", Want: "an audit trail", AC: []string{"it folds"}}); err != nil {
+	// Two criteria, not one. AddStory defaults a new story to "must", and BR-07's
+	// rubric forfeits the whole criteria-coverage signal when any must story is
+	// thinner than that -- which would drop this record below the planning floor
+	// and refuse the plan several lines down.
+	if _, err := s.AddStory(ctx, id, Story{Role: "operator", Want: "an audit trail",
+		AC: []string{"it folds", "the fold matches a replay from genesis"}}); err != nil {
 		t.Fatalf("AddStory: %v", err)
 	}
 	if _, err := s.AddDiagram(ctx, id, Diagram{Title: "Fold", Src: "a -> b"}); err != nil {
@@ -137,16 +152,10 @@ func drive(t *testing.T, s *MemStore) {
 		t.Fatalf("CreateProduct: %v", err)
 	}
 
-	// A readiness band crossing: the record above was filled in, so emptying it
-	// and re-injecting drops it a band. BR-10's ReadinessDropped.
-	if _, err := s.UpdateBRD(ctx, id, BRD{}); err != nil {
-		t.Fatalf("UpdateBRD (emptied): %v", err)
-	}
-	if _, err := s.Inject(ctx, id); err != nil {
-		t.Fatalf("Inject after emptying: %v", err)
-	}
-
-	// A planned workflow: TaskPlanned rides with WorkflowCreated.
+	// A planned workflow: TaskPlanned rides with WorkflowCreated. This has to
+	// happen BEFORE the record is emptied below -- BR-07 refuses to plan under 45,
+	// so a plan asked for after the emptying would get a refusal and this helper
+	// would never reach the events it exists to provoke.
 	plan, err := s.PlanWorkflow(ctx, WorkflowDraft{ProductID: id, Goal: "Prove the catalog is exercised"})
 	if err != nil {
 		t.Fatalf("PlanWorkflow: %v", err)
@@ -155,6 +164,15 @@ func drive(t *testing.T, s *MemStore) {
 		ProductID: id, Goal: "Prove the catalog is exercised",
 	}, plan); err != nil {
 		t.Fatalf("CreateWorkflow: %v", err)
+	}
+
+	// A readiness band crossing: the record above was filled in, so emptying it
+	// and re-injecting drops it a band. BR-10's ReadinessDropped.
+	if _, err := s.UpdateBRD(ctx, id, BRD{}); err != nil {
+		t.Fatalf("UpdateBRD (emptied): %v", err)
+	}
+	if _, err := s.Inject(ctx, id); err != nil {
+		t.Fatalf("Inject after emptying: %v", err)
 	}
 
 	// A review, and its scripted decision.

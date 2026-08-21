@@ -857,6 +857,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 }
 .readiness .tick.ok{border-color:var(--done);color:var(--done)}
 .readiness .tick.no{border-color:var(--block);color:var(--block)}
+/* The rubric's number, its band and the weight of each signal. The score is
+   what B-3 publishes; the per-signal weight is why a record sits where it does. */
+.rd-score{font-family:var(--font-mono);font-size:13px;font-weight:600}
+.rd-score.complete,.rd-score.working{color:var(--done)}
+.rd-score.minimum{color:var(--ink-2)}
+.rd-score.insufficient{color:var(--block)}
+.rd-band{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.readiness .rd-pts{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)}
+.rd-refuse{margin-top:10px;padding:9px 10px;background:var(--panel-2);border-left:2px solid var(--block);font-size:12px;line-height:1.6;color:var(--ink-2)}
+.rd-refuse b{color:var(--block);font-weight:600}
+.rd-refuse .lines{margin:6px 0 0}
 
 /* ---------------- modal ---------------- */
 .modal-back{

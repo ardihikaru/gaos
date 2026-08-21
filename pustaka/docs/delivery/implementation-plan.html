@@ -16,14 +16,14 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: thirty-three done, fifteen standing on fixtures, ninety-three
+  One hundred and forty-one tasks: thirty-eight done, fifteen standing on fixtures, eighty-eight
   not started.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-19"
+       data-updated="2026-08-20"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -51,11 +51,12 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Thirty-three tasks are done. Ten of them are the operator surface, five are the schema, and
+    <p>Thirty-eight tasks are done. Ten of them are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
-    machine, one the determinism proof, and one a corrected file reference in <code>M13</code>.
+    machine, one the determinism proof, three the readiness rubric and the floor it feeds
+    (<code>M2</code>, 2026-08-20), and three the whole of <code>M13</code>, which is now complete.
     What is still missing is the whole of execution:
     there is no scheduler, no runner and no model call anywhere in the repository, and the floor
     that renders above the graph is still moved by a simulation rather than by work. That inversion
@@ -72,7 +73,7 @@
     <tbody>
       <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the nine names still owed to the runner and the review engine</td></tr>
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
-      <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>0</td><td>1</td><td>8</td><td><a href="#register">T-030</a> &mdash; the hundred-point rubric</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>1</td><td>19</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
@@ -83,8 +84,8 @@
       <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
-      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>1</td><td>0</td><td>2</td><td><a href="#register">T-140</a> &mdash; the licence texts nobody vendored</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>33</b></td><td><b>15</b></td><td><b>93</b></td><td>&mdash;</td></tr>
+      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>38</b></td><td><b>15</b></td><td><b>88</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -114,8 +115,8 @@
   </table>
   <p>Three modules sit outside that spine and can be worked in parallel with any of it: M10 must
   land before the first run in API mode, M11 before the first byte of source code leaves the
-  machine, and M12 is the proof layer that only becomes testable once M0 exists. M13 is small
-  and can go any time.</p>
+  machine, and M12 is the proof layer that only becomes testable once M0 exists. M13 was small and
+  went on 2026-08-20; it is complete.</p>
   <div class="adm note">
     <p class="adm-title">Two hard prerequisites</p>
     <p><a href="../product/brd.html#rules-commercial">BR-32</a> puts M11.2 before the first real
@@ -167,15 +168,15 @@
       <tr data-tags="domain-a product master record inject repository todo not-built m1.3"><td>T-027</td><td>M1.3</td><td>Rescore readiness inside the same injection operation</td><td>A-6</td><td>❌</td></tr>
       <tr data-tags="domain-a product master record inject repository done built m1.4"><td>T-028</td><td>M1.4</td><td>Back-office surface for the whole record &mdash; <code>handlers_bo.go</code>, <code>templates/backoffice.html</code></td><td>A-7</td><td>✅</td></tr>
       <tr data-tags="domain-a product master record inject repository todo not-built m1.4"><td>T-029</td><td>M1.4</td><td>Persist what the back office writes; a restart currently returns the fixtures</td><td>A-7</td><td>❌</td></tr>
-      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.1"><td>T-030</td><td>M2.1</td><td>Implement the twelve-signal, hundred-point rubric &mdash; <code>model.go</code> is marked pass 2 and scores seven booleans</td><td>B-1</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift done m2.1"><td>T-030</td><td>M2.1</td><td>Implement the twelve-signal, hundred-point rubric &mdash; done 2026-08-20; eleven signals are earnable, <em>verification strategy</em> scores 0 until the record can carry it (M1), so the ceiling is 95</td><td>B-1</td><td>✅</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.1"><td>T-031</td><td>M2.1</td><td>Score every record on ingestion and on a schedule</td><td>B-1</td><td>❌</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-032</td><td>M2.2</td><td>Implement the four autonomy bands and their gate behaviour</td><td>B-2</td><td>❌</td></tr>
-      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-033</td><td>M2.2</td><td>Refuse to plan below an effective 45 and return the list of what is missing</td><td>BR-07</td><td>❌</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift done m2.2"><td>T-033</td><td>M2.2</td><td>Refuse to plan below an effective 45 and return the list of what is missing &mdash; done 2026-08-20, in <code>MemStore.PlanWorkflow</code>, which is also what <code>ArcadeStore</code> plans through</td><td>BR-07</td><td>✅</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-034</td><td>M2.2</td><td>Make band gates mandatory: <em>Minimum</em> caps the model tier and forbids auto-merge</td><td>BR-08</td><td>❌</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.3"><td>T-035</td><td>M2.3</td><td>Compute <code>effective = raw &minus; drift_penalty</code> with the penalty capped at 25</td><td>B-4, BR-09</td><td>❌</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.3"><td>T-036</td><td>M2.3</td><td>Drive the penalty from months since review, boundary files changed since injection, and open contradictions</td><td>B-4</td><td>❌</td></tr>
-      <tr data-tags="domain-b readiness rubric band drift todo not-built m2.4"><td>T-037</td><td>M2.4</td><td>Emit <code>ReadinessDropped</code> on a downward band crossing and apply the stricter band immediately</td><td>B-5, BR-10</td><td>❌</td></tr>
-      <tr data-tags="domain-b readiness rubric band drift partial fixtures m2.5"><td>T-038</td><td>M2.5</td><td>Publish the rubric and the missing list to the author &mdash; the checklist renders, but from seven booleans</td><td>B-3</td><td>🟡</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift partial fixtures m2.4"><td>T-037</td><td>M2.4</td><td>Emit <code>ReadinessDropped</code> on a downward band crossing and apply the stricter band immediately &mdash; the emission is real and tested (<a href="../product/qa-test-plan.html#go-catalog">TC-145</a>); the only band consequence that applies today is <code>BR-07</code>'s refusal, because the gates of <code>T-032</code>/<code>T-034</code> are not built</td><td>B-5, BR-10</td><td>🟡</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift done m2.5"><td>T-038</td><td>M2.5</td><td>Publish the rubric and the missing list to the author &mdash; done 2026-08-20; the checklist carries the score, the band and per-signal weights, and <code>GET /products/{id}/readiness</code> answers the missing list too</td><td>B-3</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.1"><td>T-039</td><td>M3.1</td><td>A workflow is one objective on one product with a scope &mdash; <code>WorkflowDraft</code> carries objective and scope</td><td>C-1</td><td>🟡</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.1"><td>T-040</td><td>M3.1</td><td>Set the gate policy per workflow at creation time</td><td>C-1, F-1</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.2"><td>T-041</td><td>M3.2</td><td>Expand an objective into an acyclic task graph &mdash; <code>PlanWorkflow</code> is pure but produces a fixed shape</td><td>C-2</td><td>🟡</td></tr>
@@ -277,8 +278,8 @@
       <tr data-tags="nfr non-functional auditability determinism isolation partial fixtures m12.2"><td>T-137</td><td>M12.2</td><td>Explicability: every rejection tells the caller why &mdash; the shape holds, the states behind it are simulated</td><td>BR-06</td><td>🟡</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-138</td><td>M12.2</td><td>Termination: no loop runs forever and no stop is silent</td><td>BR-18</td><td>❌</td></tr>
       <tr data-tags="hygiene deploy licence tag done m13.1"><td>T-139</td><td>M13.1</td><td>Correct the citations of <code>test/stacks_test.go</code> &mdash; both compose files now name <code>deploy/check-stacks.sh</code>, which is where the assertions actually live</td><td>&mdash;</td><td>✅</td></tr>
-      <tr data-tags="hygiene deploy licence tag todo not-built m13.1"><td>T-140</td><td>M13.1</td><td>Vendor the upstream licence texts for the fonts and the charting library beside the assets</td><td>&mdash;</td><td>❌</td></tr>
-      <tr data-tags="hygiene deploy licence tag todo not-built m13.2"><td>T-141</td><td>M13.2</td><td>Build the tunnelled stacks from a tag rather than the working tree</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="hygiene deploy licence tag done m13.1"><td>T-140</td><td>M13.1</td><td>Vendor the upstream licence texts for the fonts and the charting library beside the assets &mdash; done 2026-08-20, fetched from upstream and asserted by <code>check-stacks.sh</code></td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="hygiene deploy licence tag done m13.2"><td>T-141</td><td>M13.2</td><td>Build the tunnelled stacks from a tag rather than the working tree &mdash; done 2026-08-20; <code>--tag &lt;ref&gt;</code> builds in a detached worktree and prod refuses without it</td><td>&mdash;</td><td>✅</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -477,24 +478,39 @@
 
   <h2 id="m2-readiness">M2 · Readiness gating</h2>
   <p>Domain B, requirements <code>B-1</code>…<code>B-5</code>, plus <code>BR-07</code>…<code>BR-10</code>.
-  Nine tasks, none done. This is the module that turns <em>is the brief good enough?</em> into a
-  number, and it is build-order step 3.</p>
+  Nine tasks, three done on 2026-08-20. This is the module that turns <em>is the brief good
+  enough?</em> into a number, and it is build-order step 3. The rubric and the refusal are the half
+  that does not need a scheduler; what is left in this module does.</p>
 
   <h3 id="sub-m2-1">M2.1 — The rubric (T-030–T-031)</h3>
   <p>The rubric is 100 points across twelve machine-checkable signals, specified in full in
   <a href="../product/brd.html#req-b">§8.2</a> — problem statement 8, goals 8, domain rules 12, out
   of scope 6, stories 10, criteria coverage 12, behaviour diagram 10, data model 8, repository
-  linked 8, decisions 8, success metrics 5, verification strategy 5. What ships is seven booleans,
-  and <code>dashboard/model.go</code> marks the real rubric as pass 2 in a comment. Scoring on a
-  schedule additionally needs a scheduler, which is M4.</p>
+  linked 8, decisions 8, success metrics 5, verification strategy 5. <code>T-030</code> landed all
+  twelve in <code>dashboard/model.go</code> on 2026-08-20, weighted, earned whole or not at all —
+  partial credit is how a subjective bar gets argued back in.</p>
+  <p><strong>Eleven of the twelve can be earned today, so the ceiling is 95.</strong>
+  <em>Verification strategy</em> asks how correctness is proven; the graph schema has somewhere to
+  put that answer (<code>AcceptanceCriterion.verifiedBy</code>) and the in-memory record does not,
+  so the signal is listed, scores zero and says why. It returns when M1 widens the record, not when
+  someone decides the rubric is inconvenient — a rubric that quietly drops the signal it cannot
+  measure is how the bar moves without anyone voting on it. Two other signals are checked in the
+  half the record can express: <em>repository linked</em> can see that a repo is named but not that
+  it is indexed, which is <code>M1.2</code>; and §8.2's "phrased as an outcome not a task" for goals
+  is not machine-checkable and is not checked. <code>T-031</code>, scoring on a schedule,
+  additionally needs a scheduler, which is M4.</p>
 
   <h3 id="sub-m2-2">M2.2 — Bands and refusal (T-032–T-034)</h3>
   <p>Four bands govern autonomy: <em>Insufficient</em> 0–44, <em>Minimum</em> 45–69,
   <em>Working</em> 70–89, <em>Complete</em> 90–100. Two of them are business rules rather than
   preferences — below 45 the planner refuses and returns the missing list (<code>BR-07</code>), and
   band gates are mandatory rather than advisory, so <em>Minimum</em> caps the model at mid tier and
-  forbids auto-merge (<code>BR-08</code>). None of this exists; the planner plans whatever it is
-  given.</p>
+  forbids auto-merge (<code>BR-08</code>). <code>T-033</code> is done: below 45 the planner returns
+  no plan and the missing list instead, in <code>MemStore.PlanWorkflow</code> — which is also what
+  <code>ArcadeStore</code> plans through, so there is one implementation of the rule and the two
+  stores cannot disagree about it. The bands themselves are still labels: <code>T-032</code> and
+  <code>T-034</code> cap the model tier and forbid auto-merge, and both need a runner and a gate
+  engine that do not exist yet.</p>
 
   <h3 id="sub-m2-3">M2.3 — Drift (T-035–T-036)</h3>
   <p><code>effective = raw &minus; drift_penalty</code>, with the penalty capped at 25
@@ -509,10 +525,12 @@
   written. Autonomy must be withdrawn as loudly as it was granted.</p>
 
   <h3 id="sub-m2-5">M2.5 — Publication (T-038)</h3>
-  <p><code>B-3</code> is the one partial here: <code>/products/{id}/readiness</code> answers, and the
-  checklist renders in the back office, but from the seven-boolean stand-in rather than the rubric.
-  A refusal that does not say what is missing is a dead end, so the missing list is part of this
-  task and not a follow-up.</p>
+  <p>Done 2026-08-20. <code>/products/{id}/readiness</code> now answers with the score, the band,
+  the floor and the missing list beside the twelve signals, and the back-office checklist shows each
+  signal's weight and, below the floor, exactly what to add. A refusal that does not say what is
+  missing is a dead end, which is why the missing list is carried on the rubric item itself rather
+  than derived afterwards: the only thing that knows why a signal failed is the check that failed
+  it.</p>
 
   <h2 id="m3-planning">M3 · Planning</h2>
   <p>Domain C, requirements <code>C-1</code>…<code>C-6</code>. Nine tasks, one done and two partial.
@@ -873,9 +891,9 @@
   silent, which is M5.5 and M5.6 seen from the outside.</p>
 
   <h2 id="m13-hygiene">M13 · Repository hygiene</h2>
-  <p>Three small items found while mapping the BRD against the code. None of them belongs to a
-  domain, all of them are real, and all three are cheap enough to take on a day when nothing larger
-  fits.</p>
+  <p>Three small items found while mapping the BRD against the code. None of them belonged to a
+  domain, all of them were real, and all three are now closed — <code>T-139</code> on 2026-08-19,
+  <code>T-140</code> and <code>T-141</code> on 2026-08-20. This module is complete.</p>
 
   <h3 id="sub-m13-1">M13.1 — Two loose ends (T-139–T-140)</h3>
   <p><code>T-139</code> is closed. <code>deploy/stacks/compose.dev.yaml</code> and
@@ -887,14 +905,33 @@
   <a href="../product/qa-test-plan.html#register">QA plan</a>. The references were corrected rather
   than the file written: the coverage already exists, and a Go test that shelled out to the same
   script would be a second place to keep in sync for no assertion nobody already runs.
-  The second item is a redistribution obligation already named in the BRD's
+  The second item was a redistribution obligation already named in the BRD's
   milestone list: vendor the upstream licence texts for the fonts and the charting library beside
-  the assets they cover.</p>
+  the assets they cover. <code>T-140</code> closed it on 2026-08-20. The three OFL texts sit in
+  <code>pustaka/docs/assets/fonts/</code>, and ECharts' Apache text, its <code>NOTICE</code>
+  (section 4(d) requires it separately from the licence) and the BSD 3-Clause text for the d3 code
+  it embeds sit in <code>assets/vendor/</code> — each fetched from upstream rather than
+  reconstructed, and each recorded with its version and digest in a <code>README.md</code> beside
+  it. The obligation was never going to announce itself at runtime, so
+  <code>check-stacks.sh</code> now asserts the pairing before every deploy:
+  <a href="../product/qa-test-plan.html#cs-licences">TC-150 and TC-151</a>.</p>
 
   <h3 id="sub-m13-2">M13.2 — Deploy provenance (T-141)</h3>
-  <p><code>deploy/STACKS.md</code> lists it under its own known gaps: both stacks build from this
-  working tree, so production tracks whatever happens to be checked out rather than a tag. The
-  <code>--allow-dirty</code> refusal on prod narrows the blast radius and does not close it.</p>
+  <p><code>deploy/STACKS.md</code> listed it under its own known gaps: both stacks built from this
+  working tree, so production tracked whatever happened to be checked out rather than a tag. The
+  <code>--allow-dirty</code> refusal narrowed the blast radius and did not close it — a clean tree
+  is not a <em>named</em> tree, and <em>what is running in prod?</em> had no answer a month
+  later.</p>
+  <p>Closed 2026-08-20. <code>rebuild-restart.sh --tag &lt;ref&gt;</code> checks the ref out into a
+  detached worktree and re-runs itself inside it, so the invariant check, the test gate and
+  <code>docker compose build</code> all read the tagged tree; prod refuses without it, and
+  <code>--from-tree</code> is the deliberate escape hatch. It needs no path rewriting because both
+  compose files address their build contexts relatively. Two details earned their comments: the
+  tier's env files are symlinked into the worktree, because they are secrets that exist in no commit
+  and compose would otherwise stop at <em>env file not found</em>; and <code>--tag</code> is not
+  forwarded to the inner run, whose script is the tag's own copy of this file and may predate the
+  flag — which is exactly what lets <code>--tag</code> build a ref older than the feature itself.
+  <a href="../product/qa-test-plan.html#rr-provenance">TC-152…TC-155</a>.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

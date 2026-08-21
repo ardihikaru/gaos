@@ -6,13 +6,19 @@
 # encodes and .claude/agents/gaos-deploy.md for who calls it.
 #
 #   deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] \
-#       [--allow-dirty] [--full-verify]
+#       [--tag <ref> | --from-tree] [--allow-dirty] [--full-verify]
 #
 #   deploy   build [service] then up -d [service] -- rebuild + restart
 #   restart  restart [service], no build at all -- restart-only
 #   status   docker compose ps + one healthz probe, no mutation
 #
 # service, if given, is one of: traefik landing dashboard docs
+#
+# PROD BUILDS FROM A TAG. --tag <ref> checks that ref out into a detached
+# worktree and re-runs this script inside it, so every downstream step -- the
+# invariant check, the test gate, docker compose build -- reads the tagged tree
+# and not whatever happens to be edited right now. prod refuses without it;
+# --from-tree is the deliberate escape hatch. dev is unchanged by default.
 set -u
 
 cd "$(dirname "$0")/.." || exit 1
@@ -23,33 +29,53 @@ FULL_VERIFY=0
 ENVIRON=""
 ACTION=""
 SERVICE=""
+TAG=""
+FROM_TREE=0
+WANT_TAG=0
+# The arguments to hand the inner invocation, which is everything EXCEPT the
+# provenance flags. It must not be told --tag: the tree it runs in is already
+# the tagged one, and the script it runs is that tag's copy of this file, which
+# may predate these flags entirely. Dropping them is what lets --tag build a ref
+# older than the feature itself.
+FORWARD=()
+# Set by the outer invocation before it re-execs. Its presence means "you are
+# already inside the worktree" and is what stops this recursing forever.
+INSIDE="${GAOS_DEPLOY_FROM_WORKTREE:-}"
 
 ok()   { printf '  \033[32mok\033[0m   %s\n' "$1"; }
 bad()  { printf '  \033[31mFAIL\033[0m %s\n' "$1"; }
 info() { printf '  %s\n' "$1"; }
 
 usage() {
-  echo "usage: deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--allow-dirty] [--full-verify]"
+  echo "usage: deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--tag <ref> | --from-tree] [--allow-dirty] [--full-verify]"
   echo "  service, if given, is one of: $SERVICES"
+  echo "  --tag <ref>   build from a detached worktree at <ref> -- required for prod"
+  echo "  --from-tree   build from the working tree instead (prod: deliberate, and says so)"
   exit 2
 }
 
 for arg in "$@"; do
+  if [ "$WANT_TAG" -eq 1 ]; then TAG="$arg"; WANT_TAG=0; continue; fi
   case "$arg" in
-    --allow-dirty) ALLOW_DIRTY=1 ;;
-    --full-verify) FULL_VERIFY=1 ;;
+    --tag) WANT_TAG=1 ;;
+    --tag=*) TAG="${arg#--tag=}" ;;
+    --from-tree) FROM_TREE=1 ;;
+    --allow-dirty) ALLOW_DIRTY=1; FORWARD+=("$arg") ;;
+    --full-verify) FULL_VERIFY=1; FORWARD+=("$arg") ;;
     dev|prod)
       [ -n "$ENVIRON" ] && { echo "environment given twice"; usage; }
-      ENVIRON="$arg" ;;
+      ENVIRON="$arg"; FORWARD+=("$arg") ;;
     deploy|restart|status)
       [ -n "$ACTION" ] && { echo "action given twice"; usage; }
-      ACTION="$arg" ;;
+      ACTION="$arg"; FORWARD+=("$arg") ;;
     *)
       [ -n "$SERVICE" ] && { echo "unexpected extra argument: $arg"; usage; }
-      SERVICE="$arg" ;;
+      SERVICE="$arg"; FORWARD+=("$arg") ;;
   esac
 done
 
+[ "$WANT_TAG" -eq 1 ] && { echo "--tag needs a ref"; usage; }
+[ -n "$TAG" ] && [ "$FROM_TREE" -eq 1 ] && { echo "--tag and --from-tree contradict each other"; usage; }
 [ -n "$ENVIRON" ] && [ -n "$ACTION" ] || usage
 
 if [ -n "$SERVICE" ]; then
@@ -83,6 +109,74 @@ if [ "$ACTION" = status ]; then
   exit 0
 fi
 
+# ---- provenance: decide WHICH TREE the rest of this script reads ----
+#
+# Everything below -- check-stacks.sh, the test gate, docker compose build -- is
+# relative to $PWD, and both compose files address their build contexts
+# relatively (context: ../../dashboard). So checking a ref out into a worktree
+# and re-running this script from inside it is the whole mechanism: no path
+# rewriting, no second code path, and the tier that gets built is the tier that
+# was verified.
+#
+# Runs only on the outer invocation. `status` never reaches here -- it returned
+# above, because reading a running stack has nothing to do with which source
+# built it.
+if [ -z "$INSIDE" ]; then
+  echo "== provenance =="
+  if [ -n "$TAG" ]; then
+    # Resolve BEFORE creating anything. A typo should cost nothing, and
+    # `worktree add` on a bad ref leaves a half-made directory behind.
+    SHA="$(git rev-parse --verify --quiet "$TAG^{commit}")" || SHA=""
+    if [ -z "$SHA" ]; then
+      bad "no such ref: $TAG"
+      info "nothing was created. \`git tag\` lists what is available."
+      exit 1
+    fi
+    WT=".worktrees/$(printf '%s' "$TAG" | tr '/ ' '--')"
+    if [ -d "$WT" ] && [ "$(git -C "$WT" rev-parse HEAD 2>/dev/null)" = "$SHA" ]; then
+      ok "worktree already at $TAG ($(git rev-parse --short "$SHA"))"
+    else
+      [ -e "$WT" ] && git worktree remove --force "$WT" >/dev/null 2>&1
+      git worktree prune
+      git worktree add --detach "$WT" "$SHA" >/dev/null 2>&1 || {
+        bad "could not create a worktree at $TAG"
+        exit 1
+      }
+      ok "worktree at $TAG ($(git rev-parse --short "$SHA")) -> $WT"
+    fi
+
+    # The tier's env files are secrets: chmod 600, created by hand, never
+    # committed -- so they are absent from a fresh worktree and compose would
+    # stop at "env file not found". Symlinked rather than copied, so a secret
+    # exists once on this disk and a rotation cannot leave a stale duplicate
+    # behind in a worktree nobody removed.
+    for e in deploy/stacks/*.env; do
+      [ -e "$e" ] || continue
+      case "$e" in *.example) continue;; esac
+      ln -sfn "$PWD/$e" "$WT/$e"
+    done
+    ok "env files linked from the working tree (they are not in any commit)"
+
+    ok "re-running inside the worktree"
+    echo
+    GAOS_DEPLOY_FROM_WORKTREE="$TAG" exec "$PWD/$WT/deploy/rebuild-restart.sh" "${FORWARD[@]}"
+  elif [ "$ENVIRON" = prod ] && [ "$FROM_TREE" -eq 0 ]; then
+    bad "prod builds from a tag -- refusing to $ACTION from the working tree"
+    echo
+    echo "  Pass --tag <ref> so what runs in production is a ref you can name"
+    echo "  later, or --from-tree if building the checkout is deliberate."
+    echo "  Available: $(git tag | tr '\n' ' ')"
+    exit 1
+  else
+    ok "building from the working tree ($(git rev-parse --short HEAD))"
+  fi
+  echo
+else
+  echo "== provenance =="
+  ok "inside the worktree at $INSIDE ($(git rev-parse --short HEAD))"
+  echo
+fi
+
 # ---- pre-flight, deploy and restart alike ----
 echo "== pre-flight =="
 ./deploy/check-stacks.sh
@@ -93,7 +187,9 @@ if [ "$CHECK_RC" -ne 0 ]; then
 fi
 ok "check-stacks.sh passed"
 
-if [ "$ENVIRON" = prod ]; then
+# Only on the working-tree path. A detached worktree at a ref is clean by
+# construction, so this check has nothing left to say once --tag was used.
+if [ "$ENVIRON" = prod ] && [ -z "$INSIDE" ]; then
   DIRTY="$(git status --porcelain)"
   if [ -n "$DIRTY" ]; then
     if [ "$ALLOW_DIRTY" -eq 1 ]; then
@@ -103,8 +199,8 @@ if [ "$ENVIRON" = prod ]; then
       bad "working tree is dirty -- refusing to touch prod"
       printf '%s\n' "$DIRTY" | sed 's/^/    /'
       echo
-      echo "  prod builds from this same working tree (no separate worktree yet --"
-      echo "  see deploy/STACKS.md, 'Known gaps'). Commit or stash first, or pass"
+      echo "  --from-tree builds this checkout as it stands. Commit or stash"
+      echo "  first, pass --tag <ref> to build a named ref instead, or pass"
       echo "  --allow-dirty if this is intentional."
       exit 1
     fi

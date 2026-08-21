@@ -51,7 +51,8 @@ there have already cost somebody an outage on that box.
 
 ```bash
 ./deploy/check-stacks.sh                                  # invariants a running stack hides
-docker compose -f deploy/stacks/compose.dev.yaml up -d    # dev first, always
+./deploy/rebuild-restart.sh dev  deploy                   # dev first, always
+./deploy/rebuild-restart.sh prod deploy --tag v0.13.0     # prod builds from a tag, never the checkout
 ```
 
 ## What is designed, and what is built

@@ -109,6 +109,33 @@ hasnt $DEV  'PASSWORD: "'                    "dev bakes no password into compose
 hasnt $PROD 'PASSWORD: "'                    "prod bakes no password into compose"
 
 echo
+echo "== every vendored asset ships its licence =="
+# Apache-2.0 redistribution means keeping the licence text of what you bundle.
+# Dockerfile.pustaka copies docs/ wholesale, so a font added without its OFL text
+# ships in every image built afterwards and nothing anywhere says so. This is the
+# only place that would notice.
+ASSETS=pustaka/docs/assets
+# One check per family, not per weight: the licence covers the family, and ten
+# woff2 files would otherwise print the same three lines three times over.
+SEEN_FAMILIES=""
+for f in "$ASSETS"/fonts/*.woff2; do
+  [ -e "$f" ] || continue
+  fam="$(basename "$f")"; fam="${fam%%-latin-*}"
+  case " $SEEN_FAMILIES " in *" $fam "*) continue;; esac
+  SEEN_FAMILIES="$SEEN_FAMILIES $fam"
+  [ -s "$ASSETS/fonts/LICENSE-$fam.txt" ] && ok "$fam has its licence text" \
+                                          || bad "$fam has no LICENSE-$fam.txt"
+done
+[ -s "$ASSETS/vendor/LICENSE-echarts.txt" ] && ok "echarts has its licence text" \
+                                            || bad "echarts has no LICENSE-echarts.txt"
+# Apache 2.0 section 4(d): the NOTICE travels with the work, not just the licence.
+[ -s "$ASSETS/vendor/NOTICE-echarts.txt" ] && ok "echarts has its NOTICE" \
+                                           || bad "echarts has no NOTICE-echarts.txt"
+# ECharts embeds d3 and its own LICENSE points at a text it does not contain.
+[ -s "$ASSETS/vendor/LICENSE-d3.txt" ] && ok "the d3 subcomponent has its licence text" \
+                                       || bad "echarts cites LICENSE-d3 and none is vendored"
+
+echo
 echo "== the trailing-slash redirects exist =="
 # Without these the <base href> resolves one level up and every asset 404s,
 # while the document itself still answers 200. Silent, browser-side, invisible

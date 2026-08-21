@@ -279,6 +279,8 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			Tab:   tab, Master: m, Projection: m.Project(),
 			Coverage: m.Coverage(), CovStyle: pctStyle("width", float64(m.Coverage())),
 			WithTasks: m.StoriesWithTasks(), Readiness: m.Readiness(),
+			Score: m.ReadinessScore(), Band: ReadinessBand(m.ReadinessScore()),
+			CanPlan: m.ReadinessScore() >= PlanFloor,
 		}
 		for _, g := range m.Diagrams {
 			dv := DiagramView{Diagram: g}
@@ -430,8 +432,19 @@ func (s *server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 				met++
 			}
 		}
+		// score/band/missing are B-3's half of the rubric and BR-07's half of the
+		// refusal, answered by the same endpoint: whoever is about to be refused a
+		// plan can ask here first and get the list rather than the rejection.
+		score := m.ReadinessScore()
+		missing := m.ReadinessMissing()
+		if missing == nil {
+			missing = []string{}
+		}
 		jsonOut(w, map[string]any{
 			"product": m.ID, "met": met, "of": len(items),
+			"score": score, "band": ReadinessBand(score),
+			"planFloor": PlanFloor, "canPlan": score >= PlanFloor,
+			"missing":  missing,
 			"coverage": m.Coverage(), "items": items,
 		})
 		return

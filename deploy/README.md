@@ -73,6 +73,10 @@ cd dashboard && go test ./... && cd ..
 cd pustaka   && go test ./... && go run . check ./docs && cd ..
 ```
 
+`rebuild-restart.sh` runs all four as a gate, so this is the manual form of
+what a deploy already does. **Prod additionally builds from a tag** — pass
+`--tag <ref>` and it works in a detached worktree; `STACKS.md` has the details.
+
 `check-stacks.sh` exists because the two failures that matter most here are
 invisible at runtime: a dev stack wired to the production database, and a Traefik
 published on every interface instead of the tunnel. Both start cleanly. Both pass

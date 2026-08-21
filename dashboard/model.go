@@ -363,55 +363,135 @@ func (m Master) StoriesWithTasks() int {
 	return n
 }
 
-// ReadinessItem is one line of the planner-readiness checklist. The full
-// 100-point rubric from the architecture document §07 is pass 2; this is the
-// prototype's seven-item boolean version, which is what the UI draws.
-type ReadinessItem struct {
-	OK    bool
-	Label string
-}
-
-func (m Master) Readiness() []ReadinessItem {
-	everyStoryHasAC := len(m.Stories) > 0
-	for _, s := range m.Stories {
-		if len(s.AC) == 0 {
-			everyStoryHasAC = false
-			break
-		}
-	}
-	return []ReadinessItem{
-		{len(m.BRD.Problem) > 40, "Problem statement"},
-		{len(m.BRD.Goals) > 0, "Goals"},
-		{len(m.BRD.Rules) > 0, "Domain rules"},
-		{len(m.Stories) > 0, "At least one story"},
-		{everyStoryHasAC, "Every story has criteria"},
-		{len(m.Diagrams) > 0, "A diagram to reason from"},
-		{len(m.Repos) > 0, "Repository linked"},
-	}
-}
-
-// ReadinessScore is the checklist expressed as a number, and it is honest about
-// being the prototype's version rather than the rubric's.
+// PlanFloor is BR-07's refusal line. Below an effective 45 the planner declines
+// to plan and returns what is missing instead. It is the lower edge of the
+// "minimum" band, and the two must stay the same number: a planner that refused
+// at a different score than the band names would mean the rule and the label
+// disagreed about the same record.
 //
-// Architecture §07 specifies a hundred-point rubric with weighted sections;
-// building it is M2.1 and it is not this change. What exists today is the
-// seven-item boolean list above, so the score is the share of it that passes.
-// The BANDS, though, are the real ones -- 0-44 insufficient, 45-69 minimum,
-// 70-89 working, 90-100 complete -- because the band is what ReadinessDropped
-// reports crossing, and inventing a second set of boundaries here would mean
-// the event and the document disagreed about what "dropped" meant.
-func (m Master) ReadinessScore() int {
-	items := m.Readiness()
-	if len(items) == 0 {
-		return 0
-	}
-	ok := 0
-	for _, it := range items {
-		if it.OK {
-			ok++
+// BR-09 defines effective = raw - drift_penalty. The penalty is M2.3 and is not
+// built -- it needs months since last review, boundary files changed since
+// injection, and open contradictions, and the last two need M1.2 and M7. Until
+// then the penalty is zero for every record, so effective IS raw and this
+// compares against ReadinessScore directly. When drift lands, this comparison is
+// the line that has to start subtracting; it is not a second floor to add.
+const PlanFloor = 45
+
+// ReadinessItem is one signal of the twelve-signal, hundred-point rubric that
+// BRD §8.2 specifies. Points are earned whole or not at all -- a half-written
+// domain-rule list is not six points of domain rules, it is a record the
+// reviewer cannot score against, and partial credit is exactly how a subjective
+// bar gets argued back in.
+//
+// Missing is B-3's missing list, carried on the item rather than derived later:
+// "a refusal that does not say what is missing is a dead end", and the only
+// place that knows why a signal failed is the check that failed it.
+type ReadinessItem struct {
+	OK      bool
+	Points  int
+	Label   string
+	Missing string
+}
+
+// Readiness scores the record against BRD §8.2. The twelve weights sum to 100
+// and are the document's, not ours.
+//
+// ONE SIGNAL CANNOT PASS YET, and this is deliberate rather than a bug. §8.2's
+// "Verification strategy" asks how correctness is proven -- tests, replay,
+// manual check. The graph schema has somewhere to put that answer
+// (AcceptanceCriterion.verifiedBy, schema/02-master.sql) and the in-memory
+// record does not: Story.AC is a []string of sentences. So the signal is listed,
+// scores 0, and says why. The practical ceiling today is 95, which is still
+// "complete", and the five points return when M1 widens the record rather than
+// when someone decides the rubric is inconvenient. A rubric that quietly drops
+// the signal it cannot measure is how the bar moves without anyone voting on it.
+//
+// Two more conditions are checked in the half the record can express:
+// "Repository linked" reads §8.2's "repo indexed; entrypoint identified" and can
+// only see that a repo is named, because indexing is M1.2 and nothing writes
+// Repository.indexedAt yet. "Stories exist" checks as/want/so form, which is
+// mechanical; §8.2's "phrased as an outcome not a task" for Goals is not, and is
+// not checked.
+func (m Master) Readiness() []ReadinessItem {
+	must, covered, wellFormed := 0, 0, 0
+	for _, s := range m.Stories {
+		if s.Role != "" && s.Want != "" && s.So != "" {
+			wellFormed++
+		}
+		if s.Pri == "must" {
+			must++
+			if len(s.AC) >= 2 {
+				covered++
+			}
 		}
 	}
-	return ok * 100 / len(items)
+	hasDiagram := func(kinds ...string) bool {
+		for _, d := range m.Diagrams {
+			for _, k := range kinds {
+				if d.Kind == k {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	return []ReadinessItem{
+		{len(m.BRD.Problem) >= 40, 8, "Problem statement",
+			"Describe the symptom in at least a sentence — under 40 characters is a title, not a problem."},
+		{len(m.BRD.Goals) > 0, 8, "Goals",
+			"Record at least one goal, phrased as an outcome rather than a task."},
+		{len(m.BRD.Rules) >= 3, 12, "Domain rules",
+			"Record at least 3 rules a reviewer can score work against."},
+		{len(m.BRD.OutOfScope) > 0, 6, "Out of scope",
+			"Name at least one explicit exclusion, so the planner knows where to stop."},
+		{wellFormed > 0, 10, "Stories exist",
+			"Add at least one story in as / want / so form."},
+		// Vacuous truth would hand 12 points to a record with no stories at all,
+		// which is the opposite of what this signal is for.
+		{must > 0 && covered == must, 12, "Criteria coverage",
+			"Give every must story at least 2 acceptance criteria."},
+		{hasDiagram("sequence", "flow"), 10, "Behaviour diagram",
+			"Add a sequence or flow diagram showing the call order."},
+		{hasDiagram("erd"), 8, "Data model",
+			"Add an ERD recording the entities and their cardinality."},
+		{len(m.Repos) > 0, 8, "Repository linked",
+			"Link the repository this work lands in."},
+		{len(m.Decisions) > 0, 8, "Decisions",
+			"Carry at least one ADR, so the prompt inherits a decision instead of re-litigating it."},
+		{len(m.BRD.Metrics) > 0, 5, "Success metrics",
+			"Record at least one measurable outcome."},
+		{false, 5, "Verification strategy",
+			"Not yet recordable: the record has no field for how correctness is proven (M1)."},
+	}
+}
+
+// ReadinessScore sums the points of the signals that pass. The BANDS are §07's
+// -- 0-44 insufficient, 45-69 minimum, 70-89 working, 90-100 complete -- and the
+// band is what ReadinessDropped reports crossing, so a second set of boundaries
+// anywhere would mean the event and the document disagreed about what "dropped"
+// meant.
+func (m Master) ReadinessScore() int {
+	score := 0
+	for _, it := range m.Readiness() {
+		if it.OK {
+			score += it.Points
+		}
+	}
+	return score
+}
+
+// ReadinessMissing is the list B-3 publishes and BR-07 returns with a refusal:
+// one line per signal not earned, in rubric order, heaviest gaps first only
+// insofar as the rubric already orders them.
+func (m Master) ReadinessMissing() []string {
+	var out []string
+	for _, it := range m.Readiness() {
+		if !it.OK {
+			out = append(out, it.Missing)
+		}
+	}
+	return out
 }
 
 // ReadinessBand names the band a score falls in. §07's four.
