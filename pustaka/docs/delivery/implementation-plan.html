@@ -16,14 +16,14 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: thirty-eight done, fifteen standing on fixtures, eighty-eight
+  One hundred and forty-one tasks: forty done, sixteen standing on fixtures, eighty-five
   not started.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-20"
+       data-updated="2026-08-22"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -51,7 +51,7 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Thirty-eight tasks are done. Ten of them are the operator surface, five are the schema, and
+    <p>Forty tasks are done. Ten of them are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -75,17 +75,17 @@
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>1</td><td>19</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>2</td><td>18</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
       <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>5</td><td>1</td><td>0</td><td><a href="#register">T-101</a> &mdash; the three replay scopes below the floor</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>6</td><td>0</td><td>3</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
       <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
-      <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>0</td><td>0</td><td>9</td><td><a href="#register">T-126</a> &mdash; the pre-dispatch egress pass</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>38</b></td><td><b>15</b></td><td><b>88</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>40</b></td><td><b>16</b></td><td><b>85</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -195,7 +195,7 @@
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature</td><td>D-5, BR-22</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice</td><td>D-6, BR-23</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; the route exists and computes one live</td><td>D-6</td><td>🟡</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-057</td><td>M4.4</td><td>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess</td><td>D-7</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.4"><td>T-057</td><td>M4.4</td><td>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess &mdash; <code>dashboard/adapter_cli.go</code>, with the boot smoke test <a href="../product/decision-log.html#d-049">D-049</a> owed, the handoff parser <a href="../product/decision-log.html#d-050">D-050</a> requires and cost read per <a href="../product/decision-log.html#d-051">D-051</a>. Exercised against a stand-in tool in <code>testdata/fakecli</code>; no scheduler calls it and no real provider has been invoked</td><td>D-7</td><td>🟡</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-058</td><td>M4.4</td><td>Build the API adapter, indistinguishable from the CLI one above the seam</td><td>D-7</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-059</td><td>M4.4</td><td>Select the adapter from one deployment-wide setting in the master configuration, never per task</td><td>D-12</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-060</td><td>M4.4</td><td>Record <code>TaskRun.invocation</code>, and let no component above the adapter branch on it</td><td>D-13, BR-33</td><td>❌</td></tr>
@@ -264,8 +264,8 @@
       <tr data-tags="domain-j tenancy tenant budget cost quota deferral todo not-built m10.3"><td>T-123</td><td>M10.3</td><td>Refuse to dispatch at the hard cap, and never kill a run already in flight</td><td>J-13, BR-35</td><td>❌</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.1"><td>T-124</td><td>M11.1</td><td>Ship the egress inventory as product documentation and keep it accurate as a release obligation</td><td>L-2</td><td>❌</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.1"><td>T-125</td><td>M11.1</td><td>Give every configured provider a data-handling profile the operator fills in</td><td>L-3</td><td>❌</td></tr>
-      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.2"><td>T-126</td><td>M11.2</td><td>Run a pre-dispatch egress pass on every context slice: secret detection, path allowlists, denials</td><td>L-4, BR-32</td><td>❌</td></tr>
-      <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.2"><td>T-127</td><td>M11.2</td><td>Emit <code>ContextRedacted</code> and a refused dispatch with its reason, both visible on the timeline</td><td>L-5</td><td>❌</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy done built m11.2"><td>T-126</td><td>M11.2</td><td>Run a pre-dispatch egress pass on every context slice: secret detection, path allowlists, denials &mdash; <code>dashboard/egress.go</code>, a pure function of the packet and the policy; ten detectors, allow and deny lists, two size limits and no-egress mode, fifteen cases at <a href="../product/qa-test-plan.html#go-egress">TC-161…TC-175</a></td><td>L-4, BR-32</td><td>✅</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy done built m11.2"><td>T-127</td><td>M11.2</td><td>Emit <code>ContextRedacted</code> and a refused dispatch with its reason, both visible on the timeline &mdash; the refusal is named <code>DispatchRefused</code> (<a href="../product/decision-log.html#d-052">D-052</a>), both are written by <code>MemStore.DispatchTask</code>, and seven cases at <a href="../product/qa-test-plan.html#go-dispatch">TC-194…TC-200</a> cover the pair</td><td>L-5</td><td>✅</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.2"><td>T-128</td><td>M11.2</td><td>Support a no-egress mode at product level, for locally-hosted models only</td><td>L-6</td><td>❌</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.3"><td>T-129</td><td>M11.3</td><td>Destroy the referent of every <code>EXTERNAL</code> payload and blob when a tenant, product or run is deleted</td><td>L-7</td><td>❌</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.3"><td>T-130</td><td>M11.3</td><td>Produce a deletion certificate: what went, when, by whom, and what deliberately survived</td><td>L-8</td><td>❌</td></tr>
@@ -594,6 +594,21 @@
   and an audit trail.</p>
 
   <h3 id="sub-m4-4">M4.4 — The model gateway (T-057–T-060)</h3>
+  <p><strong>Partly built, on 2026-08-22.</strong> <code>T-057</code> is 🟡 rather than ✅ and the
+  distinction is the honest one: <code>dashboard/adapter_cli.go</code> exists, spawns a pinned tool
+  in its own process group with the workspace as its working directory, refuses the boot when the
+  version drifts, and reads its outcome from the handoff document — but <em>no scheduler calls it and
+  no real provider has ever been invoked</em>. It is exercised against a stand-in tool in
+  <code>dashboard/testdata/fakecli</code>, which exists to reproduce one measured behaviour:
+  <a href="../product/decision-log.html#d-050">D-050</a>'s finding that a task the model could not do
+  exits <strong>0</strong>, byte-identical to one it did. The three obligations
+  <a href="../product/decision-log.html#d-049">D-049</a>,
+  <a href="../product/decision-log.html#d-050">D-050</a> and
+  <a href="../product/decision-log.html#d-051">D-051</a> created are discharged: the boot smoke test
+  runs, the exit code classifies only crash-versus-ran, and cost comes from the tool's own report as
+  <code>measured</code>. What is missing is everything M4.2 owns — a lease, a heartbeat, and a
+  scheduler to decide when. <code>T-058</code>, <code>T-059</code> and <code>T-060</code> are
+  untouched.</p>
   <p>Two interchangeable adapters, a provider's command-line tool spawned as a detached subprocess
   and a direct HTTP call, selected by one deployment-wide setting in the master configuration
   (<a href="../product/brd.html#mode-config">§7.6.1</a>, <code>D-12</code>). Never a per-task
@@ -836,7 +851,7 @@
   money already spent (<code>BR-35</code>).</p>
 
   <h2 id="m11-data-protection">M11 · Data protection, egress &amp; residency</h2>
-  <p>Domain L, requirements <code>L-1</code>…<code>L-11</code>. Nine tasks, none started.
+  <p>Domain L, requirements <code>L-1</code>…<code>L-11</code>. Nine tasks, two done.
   <code>L-1</code> and <code>L-10</code> are already answered as decisions
   (<a href="../product/decision-log.html#d-034">D-034</a>) and need no code, so they are not tasks
   here. Everything else is, and <code>BR-32</code> puts the core of it before the first real model
@@ -849,6 +864,30 @@
   in: who the provider is, whether prompts are retained, and for how long (<code>L-3</code>).</p>
 
   <h3 id="sub-m11-2">M11.2 — The pre-dispatch pass (T-126–T-128)</h3>
+  <p><strong>Done, on 2026-08-22 — <code>T-126</code> and <code>T-127</code>.</strong>
+  <code>dashboard/egress.go</code> is a pure function of the packet and the policy: ten detectors
+  across secrets, credentials and credential-bearing filenames, path allow and deny lists, a
+  per-file and a whole-slice byte limit, and <code>L-6</code>'s no-egress check. It runs on every
+  dispatch, and the gate is <em>a type rather than a call order</em> — an adapter's
+  <code>Dispatch</code> takes a <code>Cleared</code>, and the pass is the only thing that returns
+  one, so skipping it does not compile. The honest limit is written down beside it: this is one Go
+  package, so the type stops a caller forgetting rather than a caller deciding, and the deliberate
+  version is caught by a test that walks the package's syntax tree.
+  <strong>One line is worth reading twice:</strong> a finding records the file and the byte offset
+  and <em>never the matched text</em>. The refusal becomes an append-only event rendered into a
+  browser, so a payload carrying the credential would write it permanently into the record whose
+  purpose is to prove it never left.
+  <code>T-128</code>'s product-level no-egress mode is still ❌ — the mechanism exists as a policy
+  field, but nothing lets an operator set it per product.</p>
+  <p>Landing this needed one thing nobody had planned for: a <em>caller</em>. The events
+  <code>L-5</code> requires cannot be emitted by <code>sim.go</code>, because
+  <code>dashboard/events.go</code> calls that inventing evidence. So a thin operator-triggered
+  <code>POST /tasks/{id}/dispatch</code> landed with it, with a Dispatch button in the inspector —
+  no scheduler, no lease, no heartbeat. It also forced a correction to the state machine: BR-32 makes
+  <code>idle&nbsp;&rarr;&nbsp;blocked</code> legal, which
+  <code>dashboard/state_test.go</code> had asserted was impossible with the reason <em>"nothing is
+  running, so nothing can be blocked"</em>. A refused dispatch is exactly that counter-example, and
+  the row was inverted rather than deleted.</p>
   <p><code>BR-32</code> is unambiguous: nothing reaches a model provider without passing the egress
   check first, and a detection <em>refuses the dispatch</em> rather than reporting the leak
   afterwards. Secret and credential detection, path allowlists and denials. Redactions and refusals

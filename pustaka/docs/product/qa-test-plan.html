@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  one hundred and sixty cases, positive and negative, across the three deploy automations and the
+  two hundred cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -28,7 +28,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-20"
+       data-updated="2026-08-22"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -72,7 +72,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and sixty cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -223,7 +223,7 @@
       <tr data-tags="go test unit dashboard replay every moment unbounded t-013 positive"><td>TC-136</td><td>dashboard (go test)</td><td>Positive</td><td>Every event in the stream is a moment replay can reach, genesis included, and <code>-1</code> returns to live (<code>TestReplayReachesEveryMomentInTheStream</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard fold arcadedb round trip payload delta persistence positive"><td>TC-137</td><td>dashboard (go test)</td><td>Positive</td><td>Event deltas survive the graph: a store reopened on the same tenant reloads payloads that are not empty, and the reloaded stream folds to the floor the graph itself reports (<code>TestFoldSurvivesTheGraphRoundTrip</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard state machine transitions declared positive"><td>TC-138</td><td>dashboard (go test)</td><td>Positive</td><td>Every transition the table declares is taken, and a state may always go to itself (<code>TestStateMachineAllowsTheDeclaredTransitions</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard state machine illegal transition refused negative"><td>TC-139</td><td>dashboard (go test)</td><td>Negative</td><td>Sixteen named illegal moves are refused &mdash; idle to review, review to blocked, deferred to blocked and the rest &mdash; as are moves in and out of a state nobody declared (<code>TestStateMachineRefusesIllegalTransitions</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard state machine illegal transition refused negative"><td>TC-139</td><td>dashboard (go test)</td><td>Negative</td><td>Fifteen named illegal moves are refused &mdash; idle to review, review to blocked, deferred to blocked and the rest &mdash; as are moves in and out of a state nobody declared. <em>Sixteen until v0.15.0</em>: <a href="brd.html#rules-commercial">BR-32</a> made <code>idle&nbsp;&rarr;&nbsp;blocked</code> legal, so a refused dispatch can block a task that never started, and the row was inverted rather than deleted &mdash; the move is now asserted legal by <a href="#register">TC-196</a> (<code>TestStateMachineRefusesIllegalTransitions</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard state machine reject reason br-06 negative"><td>TC-140</td><td>dashboard (go test)</td><td>Negative</td><td>An illegal transition comes back as an <code>ErrRejected</code> naming both states and leaves the desk where it was; an undeclared target says the name is unknown instead (<code>TestSetStateRejectsWithAReason</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard state machine reachable declared fold positive"><td>TC-141</td><td>dashboard (go test)</td><td>Positive</td><td>Every state a live desk reaches, and every state the reducer can produce, is a state the transition table declares (<code>TestEveryReachableDeskStateIsDeclared</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard mutation rejection reason br-06 negative"><td>TC-142</td><td>dashboard (go test)</td><td>Negative</td><td>A retry or a cancel on an idle desk is refused with a sentence rather than a bare failure (<code>TestMutationsRefusedByTheMachineExplainThemselves</code>)</td><td>Implemented</td></tr>
@@ -245,6 +245,46 @@
       <tr data-tags="go test unit dashboard readiness empty record zero missing list negative"><td>TC-158</td><td>dashboard (go test)</td><td>Negative</td><td>An empty record scores zero in band <em>insufficient</em> and names all twelve signals as missing (<code>TestAnEmptyRecordScoresZeroAndNamesEverySignal</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard readiness criteria coverage all or nothing vacuous negative"><td>TC-159</td><td>dashboard (go test)</td><td>Negative</td><td>One thin <em>must</em> story forfeits the whole twelve-point coverage signal, and a record with no stories cannot earn it by vacuous truth (<code>TestCriteriaCoverageIsAllOrNothingAcrossMustStories</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard planner refuse floor br-07 missing list negative"><td>TC-160</td><td>dashboard (go test)</td><td>Negative</td><td>Below an effective 45 the planner returns no plan and a list of what is missing, and the same record filled in still plans (<code>TestThePlannerRefusesBelowTheFloorAndSaysWhatIsMissing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress pure reducer determinism l-4 positive"><td>TC-161</td><td>dashboard (go test)</td><td>Positive</td><td>The egress pass is a function of its arguments: two screens of one packet return an identical verdict, because the verdict becomes an event and the reducer folds it (<code>TestTheEgressPassIsPure</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress clean slice digest context-slice positive"><td>TC-162</td><td>dashboard (go test)</td><td>Positive</td><td>A slice with nothing to find clears, reports no redaction, and carries a digest and a byte count (<code>TestACleanSliceClearsAndCarriesADigest</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress secret credential detector br-32 l-4 negative"><td>TC-163</td><td>dashboard (go test)</td><td>Negative</td><td>Seven credential and secret shapes in a slice each refuse the dispatch under rule <code>secret</code> (<code>TestACredentialInTheSliceRefusesTheDispatch</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress refusal payload append-only br-04 negative"><td>TC-164</td><td>dashboard (go test)</td><td>Negative</td><td>A refusal names the file, the detector and the byte offset and never the matched text (<code>TestARefusalNeverCarriesTheSecretItFound</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress allowlist redaction not refusal l-4 negative"><td>TC-165</td><td>dashboard (go test)</td><td>Negative</td><td>A path outside the allowlist is dropped from the slice and the dispatch proceeds; the part is gone from the cleared packet (<code>TestAPathOutsideTheAllowlistIsRedactedNotRefused</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress ordering env-file redaction precedence positive"><td>TC-166</td><td>dashboard (go test)</td><td>Positive</td><td>A key inside a dropped <code>.env</code> is a redaction rather than a refusal, because the file never left (<code>TestASecretInsideARedactedFileIsNotARefusal</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress path escape traversal workspace negative"><td>TC-167</td><td>dashboard (go test)</td><td>Negative</td><td>A packet part resolving outside the workspace is refused under rule <code>path-escape</code> rather than quietly dropped (<code>TestTheAllowlistIsNotFooledByADotDotPath</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress glob doublestar path-match separator positive"><td>TC-168</td><td>dashboard (go test)</td><td>Positive</td><td><code>**</code> crosses separators and <code>*</code> does not, so <code>src/**</code> matches files nested beneath <code>src</code> (<code>TestGlobMatchingCrossesSeparatorsForDoubleStar</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress size limit truncation frozen slice negative"><td>TC-169</td><td>dashboard (go test)</td><td>Negative</td><td>A slice over the whole-slice byte limit is refused rather than truncated (<code>TestAnOversizedSliceIsRefusedRatherThanTruncated</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress per-file size limit redaction negative"><td>TC-170</td><td>dashboard (go test)</td><td>Negative</td><td>One file over the per-file limit is dropped and the rest of the slice still dispatches (<code>TestAnOversizedFileIsRedactedAgainstThePerPartLimit</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress no-egress local-only l-6 negative"><td>TC-171</td><td>dashboard (go test)</td><td>Negative</td><td>With <code>local_only</code> set a non-local target is refused, and a locally-hosted one still runs (<code>TestLocalOnlyRefusesANonLocalTarget</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress precedence reason ranking negative"><td>TC-172</td><td>dashboard (go test)</td><td>Negative</td><td>When several rules apply at once the refusal reports the credential, not the byte count (<code>TestARefusalReportsTheMostDangerousReasonWhenSeveralApply</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress defaults redact allowlist positive"><td>TC-173</td><td>dashboard (go test)</td><td>Positive</td><td>An empty policy arms every detector and restricts no path — the two defaults differ, deliberately (<code>TestAnEmptyPolicyStillRunsEveryDetector</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress empty slice retry guard negative"><td>TC-174</td><td>dashboard (go test)</td><td>Negative</td><td>A packet whose every part was redacted is refused rather than dispatched empty, so no attempt is spent on nothing (<code>TestEveryPartRedactedIsARefusalNotAnEmptyDispatch</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard egress cleared type gate br-32 ast negative"><td>TC-175</td><td>dashboard (go test)</td><td>Negative</td><td>No file outside <code>egress.go</code> constructs a populated <code>Cleared</code>, checked by walking the package's syntax tree (<code>TestNothingOutsideTheEgressPassConstructsACleared</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff parse mandatory fields br-30 positive"><td>TC-176</td><td>dashboard (go test)</td><td>Positive</td><td>The declared handoff shape parses: every mandatory field, both criteria with their evidence, the artifacts and the usage block (<code>TestAWellFormedHandoffParsesEveryMandatoryField</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff prose front matter br-30 negative"><td>TC-177</td><td>dashboard (go test)</td><td>Negative</td><td>A document that is prose where front matter belongs fails with the signature <code>handoff-missing</code> (<code>TestProseWithNoFrontMatterIsHandoffMissing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff missing field status vocabulary negative"><td>TC-178</td><td>dashboard (go test)</td><td>Negative</td><td>A handoff missing a mandatory field, or carrying a status outside <code>complete|blocked|partial</code>, is the same one failure (<code>TestAHandoffMissingAMandatoryFieldIsHandoffMissing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff usage optional unavailable br-37 positive"><td>TC-179</td><td>dashboard (go test)</td><td>Positive</td><td>A document that omits the usage block entirely is legal and reports no usage rather than a zero (<code>TestAHandoffWithNoUsageBlockIsLegalAndReportsNothing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff absent file signature br-30 negative"><td>TC-180</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace with no handoff document at all fails with the same signature as an unparseable one (<code>TestAnAbsentHandoffFileIsHandoffMissing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard smoke version parser pin d-049 positive"><td>TC-181</td><td>dashboard (go test)</td><td>Positive</td><td>The captured <code>--version</code> output of the pinned tool parses to 2.1.238 (<code>TestTheVersionParserReadsTheCapturedOutput</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard smoke version unparseable zero negative"><td>TC-182</td><td>dashboard (go test)</td><td>Negative</td><td>Output with no dotted triple is an error, never a zero version that would read as drift or silently pass (<code>TestAnUnparseableVersionIsARefusalNotAZero</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard smoke pin grammar inclusive exclusive negative"><td>TC-183</td><td>dashboard (go test)</td><td>Negative</td><td><code>&gt;=</code> is inclusive and <code>&lt;</code> exclusive at both edges, and a pin using any other operator is refused (<code>TestThePinPermitsTheMeasuredVersionAndRefusesTheNeighbours</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard smoke boot drift refuse d-049 negative"><td>TC-184</td><td>dashboard (go test)</td><td>Negative</td><td>A tool outside the pin refuses the boot, and the refusal names the tool, the version and the pin (<code>TestTheBootSmokeTestRefusesOnDrift</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard smoke unconfigured adapter mode off positive"><td>TC-185</td><td>dashboard (go test)</td><td>Positive</td><td>Mode <code>off</code> and an empty configuration both build no adapter and boot; a broken pin and mode <code>api</code> both refuse (<code>TestAnUnconfiguredAdapterIsAValidState</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter exit code handoff d-050 negative"><td>TC-186</td><td>dashboard (go test)</td><td>Negative</td><td>A tool that exits 0 having written <code>status: blocked</code> reports the outcome blocked, read from the document and never from the exit code (<code>TestTheAdapterNeverReadsTheOutcomeFromTheExitCode</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter handoff-missing signature br-30 negative"><td>TC-187</td><td>dashboard (go test)</td><td>Negative</td><td>Exit 0 with no handoff written, and exit 0 with an unparseable one, are both a failed attempt with the signature <code>handoff-missing</code> (<code>TestAMissingHandoffIsAFailedAttemptWithItsSignature</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter crash handoff read d-050 positive"><td>TC-188</td><td>dashboard (go test)</td><td>Positive</td><td>A non-zero exit still reads the handoff the run left behind, because the document is the authority whatever the process did (<code>TestACrashStillReadsTheHandoffItLeftBehind</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter workspace isolated environment d-051 positive"><td>TC-189</td><td>dashboard (go test)</td><td>Positive</td><td>The tool runs with the workspace as its working directory and an environment built from named variables, inheriting nothing else (<code>TestTheAdapterRunsTheToolInTheWorkspaceWithAnIsolatedEnvironment</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter cost measured unavailable d-051 br-37 positive"><td>TC-190</td><td>dashboard (go test)</td><td>Positive</td><td>Cost and tokens come from the tool's own JSON report as <code>measured</code>, cache reads included; a silent tool reports <code>unavailable</code>, never zero (<code>TestTheAdapterReadsCostAndTokensFromTheToolsOwnReport</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter cleared packet br-32 negative"><td>TC-191</td><td>dashboard (go test)</td><td>Negative</td><td>The adapter refuses a zero-value <code>Cleared</code> — the belt behind the type discipline's braces (<code>TestTheAdapterRefusesAPacketTheEgressPassNeverCleared</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter smoke exec pin positive"><td>TC-192</td><td>dashboard (go test)</td><td>Positive</td><td>The smoke test runs the real binary and passes on the pinned version, then refuses when the pin cannot be satisfied (<code>TestTheSmokeTestRunsTheRealBinaryAndComparesThePin</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter invocation mode br-33 ast negative"><td>TC-193</td><td>dashboard (go test)</td><td>Negative</td><td>No file above the adapter compares or switches on the invocation mode, checked by walking the package's syntax tree (<code>TestNothingAboveTheAdapterBranchesOnTheInvocationMode</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch task-dispatched digest positive"><td>TC-194</td><td>dashboard (go test)</td><td>Positive</td><td>A dispatch whose slice clears emits <code>TaskDispatched</code> carrying the digest and byte count of what was sent (<code>TestDispatchEmitsTaskDispatchedWhenTheSliceClears</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch refusal result not error l-5 negative"><td>TC-195</td><td>dashboard (go test)</td><td>Negative</td><td>A refused dispatch returns a result with a toast rather than a rejection, so the events it wrote reach the response that renders them (<code>TestARefusedDispatchIsAnEventNotAnError</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch refusal blocked attention br-32 negative"><td>TC-196</td><td>dashboard (go test)</td><td>Negative</td><td>A refused dispatch blocks the desk with its reason, raises the attention count, and carries the machine-readable rule on the payload (<code>TestARefusedDispatchBlocksTheDeskAndSaysWhy</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch context-redacted timeline l-5 positive"><td>TC-197</td><td>dashboard (go test)</td><td>Positive</td><td>A slice cut down by the allowlist emits <code>ContextRedacted</code> with its count and still goes on to dispatch (<code>TestARedactedSliceStillDispatchesAndSaysSoOnTheTimeline</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch fold determinism new events positive"><td>TC-198</td><td>dashboard (go test)</td><td>Positive</td><td>The two new event types fold to the same floor twice, and the fold agrees with the live desk about the refusal (<code>TestTheRefusalAndTheRedactionFoldTheSameWayTwice</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch replay read-only handle t-099 negative"><td>TC-199</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only handle refuses a dispatch, so a floor parked in the past cannot send a slice assembled from a historical record (<code>TestDispatchIsRefusedInReplay</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch workspace credential r-11 end-to-end negative"><td>TC-200</td><td>dashboard (go test)</td><td>Negative</td><td>A real credential in a real workspace file refuses the dispatch, emits nothing that carries the key, and never reaches <code>TaskDispatched</code> (<code>TestACredentialInTheWorkspaceRefusesTheDispatch</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -600,6 +640,202 @@
   still plans: <code>p-1 scores %d and must still plan: %v</code>. The rule lives in
   <code>MemStore.PlanWorkflow</code>, which is also what <code>ArcadeStore</code> plans through, so
   there is one implementation and the two stores cannot disagree about it.</p>
+
+  <h3 id="go-egress">dashboard — the pre-dispatch egress pass (TC-161…TC-175)</h3>
+  <p><a href="brd.html#req-l">L-4</a> specifies a pass that runs on every context slice
+  <em>before</em> the model sees anything, and <a href="brd.html#rules-commercial">BR-32</a> makes a
+  positive detection refuse the dispatch rather than report the leak afterwards.
+  <a href="brd.html#risk-register">R-11</a> is what that is for: egress is
+  <em>"automatic, continuous, and widens on every retry ... correct behaviour, unreviewed content,
+  irreversible send."</em> The pass is a pure function, so every case below is a table entry rather
+  than a scenario.
+  <strong>Positive (TC-161):</strong> the verdict becomes an event and the reducer folds it, so two
+  screens of one packet must agree — <code>Screen returned a different verdict on the second call
+  with identical input</code>, and the message goes on to say why: <em>"a pass that is not a
+  function of its arguments makes a replay disagree with the run"</em>.
+  <strong>Positive (TC-162):</strong> a control that never lets anything through is not a control —
+  <code>a slice with nothing to find was refused: rule=%q reason=%q — a pass that never lets
+  anything through is not a control, it is an outage</code>, and the cleared packet must carry a
+  digest, because <code>04-execution.sql</code> declares <code>ContextSlice.digest</code> and
+  <code>an empty one proves nothing</code>.
+  <strong>Negative (TC-163):</strong> seven real credential shapes — an Anthropic key, an AWS access
+  key id, a private-key block, a GitHub token, a password assignment, a JWT and a URL carrying basic
+  auth — each must refuse: <code>a %s was in the slice and Screen allowed the dispatch; L-4 says a
+  positive detection refuses BEFORE the model sees anything, and a secret scored afterwards has
+  already left the building</code>.
+  <strong>Negative (TC-164):</strong> the most dangerous thing this file could do is record what it
+  found. <code>the verdict for detector %q contains the matched text; a DispatchRefused event is
+  append-only (BR-04) and rendered to a browser, so this writes the credential permanently into the
+  record that exists to prove it never left</code>.
+  <strong>Negative (TC-165) and Positive (TC-166):</strong> the allowlist and the detectors sit on
+  opposite sides of one line. A path outside the allowlist is <em>dropped</em> —
+  <code>the allowlist bounds what leaves, it does not abort — the part is dropped and
+  ContextRedacted records it</code> — and a key inside a file that was dropped is therefore not a
+  refusal at all: <code>a key inside a dropped .env refused the dispatch: rule=%q; the file never
+  left, so it is a redaction — refusing here would make every repository with a .env
+  undispatchable</code>.
+  <strong>Negative (TC-167):</strong> <code>%q cleaned to a path outside the workspace and the pass
+  allowed it; a path that escapes the workspace is a refusal, or an allowlist is a suggestion</code>.
+  <strong>Positive (TC-168):</strong> the bug the standard library hands you for free —
+  <code>matchGlob(%q, %q) = %v, want %v; path.Match&#39;s * never crosses a separator, so "src/**"
+  that matched only "src/a" would be a policy that looks configured and protects nothing</code>.
+  <strong>Negative (TC-169, TC-170):</strong> the whole-slice limit refuses and the per-file limit
+  drops, and collapsing the two would lose the distinction — <code>truncating makes the frozen
+  packet a lie about what the model received (D-051), so the limit refuses</code>.
+  <strong>Negative (TC-171):</strong> <a href="brd.html#req-l">L-6</a>'s no-egress mode —
+  <code>local_only is set and target %q is not local, and Screen allowed it; L-6 fails the task
+  rather than downgrading quietly</code> — and the other half, that it still permits a local model.
+  <strong>Negative (TC-172):</strong> the reported reason is a fixed ranking rather than whichever
+  check ran first: <code>a slice that was both oversized and carried a credential was refused with
+  rule %q; the operator must be told about the key, not the byte count</code>.
+  <strong>Positive (TC-173):</strong> the two defaults differ and a reader will assume they match, so
+  both are pinned — <code>an empty Redact list is a scanner nobody armed, and the default for a
+  forgotten security control is on</code> against <code>an empty AllowPaths is an allowlist nobody
+  wrote, which cannot be a list of files somebody meant to exclude</code>.
+  <strong>Negative (TC-174):</strong> <code>every part was redacted and the dispatch went ahead with
+  an empty slice; spending an attempt on a packet with nothing in it burns a retry against BR-17&#39;s
+  guard and teaches the reviewer nothing</code>.
+  <strong>Negative (TC-175):</strong> the gate is a type — an adapter takes a <code>Cleared</code>,
+  and only the pass returns one — but everything here is one Go package, so the type stops a caller
+  forgetting and not a caller deciding. The deliberate version is caught by walking the package&#39;s
+  syntax tree: <code>%s:%d constructs a populated Cleared outside egress.go; BR-32 says nothing
+  reaches a provider without the egress pass, and the only reason that is true is that Screen is the
+  only thing that makes the argument Dispatch takes</code>.</p>
+
+  <h3 id="go-handoff">dashboard — the handoff document (TC-176…TC-180)</h3>
+  <p><a href="brd.html#rules-execution">BR-30</a> requires a handoff document in the declared shape
+  at the declared path, and <a href="decision-log.html#d-050">D-050</a> promoted it from a
+  convenience to the thing correctness rests on. §7.6 calls it a contract rather than a convention:
+  <em>"an agent that writes prose where a parser expects a field has failed the attempt."</em>
+  <strong>Positive (TC-176):</strong> the shape printed in the BRD parses field for field —
+  <code>field %s parsed as %q, want %q; the handoff is a contract, not a convention, and a parser
+  that is lenient about the shape is a chain that degrades quietly</code>, plus
+  <code>parsed %d acceptance criteria, want 2; no criterion means no verdict, and the reviewer will
+  invent one</code> and <code>criterion 0 evidence is %q; the evidence is what makes a met criterion
+  checkable rather than claimed</code>.
+  <strong>Negative (TC-177):</strong> <code>a document with no front matter parsed successfully;
+  §7.6 says an agent that writes prose where a parser expects a field has failed the attempt</code>.
+  <strong>Negative (TC-178):</strong> a missing field and an invented status are the same failure —
+  <code>a handoff with no run id and no criteria was accepted; all four ways this fails — absent, no
+  front matter, unparseable, incomplete — are one failure to the retry loop and carry one
+  signature</code>, and <code>status "probably-fine" was accepted; the contract declares
+  complete|blocked|partial and a fourth value is a document GAOS cannot score</code>.
+  <strong>Positive (TC-179):</strong> the usage block is optional and its absence is not a zero —
+  <code>the absent usage block parsed as %+v, want nil; nil is what makes the basis unavailable
+  rather than a zero somebody invented</code>.
+  <strong>Negative (TC-180):</strong> <code>a workspace with no handoff document read successfully;
+  BR-30 says a missing one is a failed attempt, never a silent pass</code>.</p>
+
+  <h3 id="go-smoke">dashboard — the version pin and the boot smoke test (TC-181…TC-185)</h3>
+  <p><a href="decision-log.html#d-049">D-049</a> pins the first supported adapter at
+  <code>@anthropic-ai/claude-code@2.1.238</code> and leaves one obligation: <em>"the pin is worthless
+  without the boot smoke test §7.6.3 already promises, and that lands with T-057 rather than before
+  it."</em> The comparison is pure and tested against captured output; the exec half is TC-192.
+  <strong>Positive (TC-181):</strong> <code>ParseVersion(%q) = %v, want %v; this is the captured
+  output of the version D-049 pins, and the parser reading it wrong is how a correct install refuses
+  to boot</code>.
+  <strong>Negative (TC-182):</strong> <code>ParseVersion(%q) returned %v with no error; a zero
+  version compares as below the pin, which sends the operator hunting a drift that is really a
+  changed banner — and against a pin with no minimum it would silently pass</code>.
+  <strong>Negative (TC-183):</strong> both edges, and the closed grammar —
+  <code>pin %q permits %v = %v, want %v; &gt;= is inclusive and &lt; is exclusive, and a pin that got
+  either edge wrong would look right for every version except the two that matter</code>, with
+  <code>ParsePin(%q) succeeded; the grammar is &gt;=x.y.z and &lt;x.y.z and nothing else, because an
+  operator guessing which one ~ implements has pinned something other than what they meant</code>.
+  <strong>Negative (TC-184):</strong> <code>a tool reporting %v against pin %q started the dashboard;
+  §7.6.3 pins the CLI because flags and output formats move with no deprecation window, and an
+  adapter on an unmeasured version produces wrong evidence rather than an error</code>, and the
+  refusal must name all three of the tool, the version and the pin, <code>or the operator cannot
+  tell a drift from a missing binary</code>.
+  <strong>Positive (TC-185):</strong> an unconfigured adapter is a valid state, because every
+  deployment is in it today — <code>an empty ModelConfig gave (%v, %v), want (nil, nil); an upgrade
+  that refused to boot until a new variable was set would take every running dashboard down</code> —
+  while a broken pin and an unbuilt API mode both refuse: <code>an unparseable pin built an adapter
+  anyway; an adapter with no working pin is the boot smoke test switched off without anyone deciding
+  to</code>.</p>
+
+  <h3 id="go-adapter">dashboard — the CLI adapter (TC-186…TC-193)</h3>
+  <p><code>T-057</code>, run against a stand-in tool in <code>testdata/fakecli</code> rather than a
+  real provider: no network call, no credential and no cost in <code>go test</code>. The fake exists
+  to reproduce the finding behind <a href="decision-log.html#d-050">D-050</a>, which is the one that
+  makes this seam's shape necessary.
+  <strong>Negative (TC-186):</strong> the measurement was that Claude Code separates a crash from a
+  completed run but <em>not a refusal from a success</em>. So the fake exits <strong>0</strong>
+  having written <code>status: blocked</code>, and the adapter must still say blocked —
+  <code>the tool exited %d and wrote status %q, and the attempt reports outcome %q — D-050: the exit
+  code may classify crash versus ran and nothing else, because Claude Code exits 0 with
+  terminal_reason: completed for a task it could not do</code>.
+  <strong>Negative (TC-187):</strong> exit 0 with nothing written, and exit 0 with prose written, are
+  one failure — <code>the tool exited 0 and wrote no handoff document, and the attempt came back as
+  %q with signature %q; BR-30 says missing or unparseable is a failed attempt with the signature
+  handoff-missing, never a silent pass</code>, and <code>splitting the class would give the guard two
+  counters where BR-17 specifies one</code>.
+  <strong>Positive (TC-188):</strong> the document is read even after a bad exit —
+  <code>a non-zero exit skipped the handoff read; the document is the authority whatever the process
+  did, and a run killed after writing it still said what happened</code>.
+  <strong>Positive (TC-189):</strong> <a href="decision-log.html#d-051">D-051</a>'s closing
+  measurement was that a default invocation inherited the host's configuration and roughly 24k
+  cache-read tokens. So the child's environment is built rather than inherited —
+  <code>the child inherited a host variable nobody named; D-051 measured 24k cache-read tokens
+  arriving this way, which makes the frozen slice a lie about what the model received</code> — and
+  the named session variables must still arrive, or <code>the tool cannot find its own session</code>.
+  <strong>Positive (TC-190):</strong> cost comes from the tool's own report —
+  <code>the tool reported total_cost_usd and the attempt carries %v/%q; D-051 says the first adapter
+  reports, so the basis is measured from the first run</code> — cache reads included, because
+  <code>the cache-read count is real spend the operator was billed for, and dropping it
+  under-reports every run</code>; and a silent tool gives <code>%q, want %q; BR-37 and D-044 forbid
+  an unpriceable figure being reported as zero or dressed up as an estimate</code>.
+  <strong>Negative (TC-191):</strong> <code>the adapter dispatched a zero-value Cleared; BR-32 says
+  nothing reaches a model provider without passing the egress check first, and a type is only most
+  of that guarantee</code>.
+  <strong>Positive (TC-192):</strong> the exec half of the smoke test, both ways —
+  <code>a tool outside the pin passed the boot smoke test; the pin is inert without it, which is
+  exactly what D-049 said the obligation was</code>.
+  <strong>Negative (TC-193):</strong> <a href="brd.html#rules-commercial">BR-33</a> made checkable
+  rather than trusted, by the same syntax-tree walk TC-175 uses:
+  <code>%s:%d branches on the invocation mode outside the adapter; BR-33 says the mode may be
+  recorded and never branched on, and TaskRun.invocation exists so that prohibition can be checked
+  rather than trusted</code>.</p>
+
+  <h3 id="go-dispatch">dashboard — the dispatch route and its two events (TC-194…TC-200)</h3>
+  <p><code>T-127</code>. <a href="brd.html#req-l">L-5</a> requires that redactions and refusals
+  <em>"appear in the timeline like any other state change"</em>, and an event with no emitter appears
+  nowhere — which is why these run through <code>MemStore.DispatchTask</code> rather than through the
+  pass. The simulator is pointedly not the emitter: <code>dashboard/events.go</code> calls emitting a
+  catalog event from <code>sim.go</code> inventing evidence.
+  <strong>Positive (TC-194):</strong> <code>a dispatch that cleared the egress pass emitted %v; the
+  stream is the record (BR-04) and a dispatch nothing wrote never happened</code>, and the event
+  carries the digest, because <code>an attempt that does not name its input cannot be audited against
+  one</code>.
+  <strong>Negative (TC-195):</strong> the one surprising line in the method, pinned so nobody
+  &ldquo;fixes&rdquo; it — <code>DispatchTask returned err=%v on a refusal; a refusal is a recorded
+  state change, and returning ErrRejected means the two events L-5 requires are written to the stream
+  and never reach the response that renders them</code>.
+  <strong>Negative (TC-196):</strong> <code>the desk is %q after a refused dispatch, want blocked — a
+  desk left idle says nothing happened, and something did</code>, plus <code>a refused dispatch did
+  not raise the attention count (%d -&gt; %d); stats() counts blocked desks, and a refusal nobody is
+  told about is indistinguishable from a broken filter</code>, and the payload's rule, because
+  <code>a reducer that had to parse the sentence would break the first time somebody improved the
+  wording</code>. This case is why <a href="#register">TC-139</a> in
+  <code>dashboard/state_test.go</code> changed: <code>idle → blocked</code> was asserted illegal with
+  the reason <em>"nothing is running, so nothing can be blocked"</em>, and BR-32 created the
+  counter-example. The row is inverted rather than deleted.
+  <strong>Positive (TC-197):</strong> <code>a slice with a part cut dispatched without a
+  ContextRedacted: %v; L-5 exists because an invisible filter is indistinguishable from a broken
+  one</code>.
+  <strong>Positive (TC-198):</strong> two brand-new event types are the likeliest place for the
+  reducer's contract to lapse — <code>folding the stream twice put desk %s in %q then %q; the reducer
+  is required to be pure and order-stable</code>, and <code>a refusal the reducer does not reproduce
+  is a refusal that vanishes on restart</code>.
+  <strong>Negative (TC-199):</strong> <code>the read-only handle dispatched a task; the floor is
+  parked in the past, and a dispatch from there would send a slice assembled out of a historical
+  record</code>.
+  <strong>Negative (TC-200):</strong> the end-to-end version of R-11, with a real key in a real file
+  on a real disk — <code>a workspace carrying a credential was dispatched; BR-32 says a detection
+  refuses the dispatch, and the safety score in domain E cannot recall a sent slice</code>, and
+  <code>the refusal pill contains the credential; the event stream is append-only and rendered to a
+  browser, so this writes the key permanently into the record that exists to prove it never
+  left</code>.</p>
 
   <h3 id="go-store">dashboard — store isolation, the unbounded stream and replay (TC-066…TC-070)</h3>
   <p><strong>Negative (TC-066):</strong> a snapshot that shares its slices with the live floor is a

@@ -17,6 +17,12 @@ import (
 // a flag, and a read-only handle is a thing the seam has to be able to express.
 // readOnly below is that handle.
 //
+// It changes a second time, on 2026-08-22, for T-126: DispatchTask. The seam
+// grows a method rather than the handlers growing a code path, for the reason
+// the file was written around in the first place -- a dispatch emits events,
+// and only a store may. Both changes are additive, and store_arcade.go needed
+// one line for each.
+//
 // Two rules the ArcadeDB implementation will need, and which are why the
 // signatures look the way they do:
 //
@@ -59,6 +65,16 @@ type Store interface {
 	Replay(ctx context.Context, eventSeq int) (Result, error)
 
 	// ---- floor mutations ----
+
+	// DispatchTask freezes a task packet, runs it through the pre-dispatch
+	// egress pass, and dispatches what survives. T-126, T-127.
+	//
+	// It is on the seam rather than above it because it emits events, and the
+	// store is the only thing that may. A refusal comes back as a Result with
+	// a toast and a nil error, not as ErrRejected -- see the implementation for
+	// why that is deliberate rather than sloppy.
+	DispatchTask(ctx context.Context, idx int) (Result, error)
+
 	ApproveTask(ctx context.Context, idx int) (Result, error)
 	RetryTask(ctx context.Context, idx int) (Result, error)
 	CancelTask(ctx context.Context, idx int) (Result, error)
@@ -161,6 +177,9 @@ type readOnly struct{ Store }
 // once so the reason an operator sees is the same wherever they hit it.
 const replayRefusal = "The floor is in replay. Return to live before changing anything."
 
+func (readOnly) DispatchTask(context.Context, int) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
 func (readOnly) ApproveTask(context.Context, int) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }

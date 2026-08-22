@@ -72,6 +72,9 @@ var storeContract = []storeCase{
 	{"CreateWorkflowWithoutAnObjectiveIsRejected", caseCreateWorkflowNoGoal},
 	{"CreateWorkflowMovesTheDeskAndTheCoverage", caseCreateWorkflow},
 	{"ContextSliceIsAssembledFromTheRecord", caseContextSlice},
+	{"DispatchScreensBeforeItDispatches", caseDispatchScreens},
+	{"DispatchOnADeskAlreadyRunningIsRejected", caseDispatchBusy},
+	{"ARefusedDispatchBlocksTheDeskAndSaysWhy", caseDispatchRefusedBlocks},
 	{"FocusClampsRatherThanFailing", caseFocus},
 }
 
@@ -617,6 +620,7 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 	ro := readOnly{s}
 
 	for name, call := range map[string]func() (Result, error){
+		"DispatchTask":       func() (Result, error) { return ro.DispatchTask(ctx, 0) },
 		"ApproveTask":        func() (Result, error) { return ro.ApproveTask(ctx, 0) },
 		"RetryTask":          func() (Result, error) { return ro.RetryTask(ctx, 0) },
 		"CancelTask":         func() (Result, error) { return ro.CancelTask(ctx, 0) },
@@ -649,6 +653,115 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 	}
 	if _, err := ro.Replay(ctx, -1); err != nil {
 		t.Errorf("readOnly.Replay back to live: %v", err)
+	}
+}
+
+// The three dispatch cases. T-126/T-127 seen through the seam, so both stores
+// have to agree that BR-32 holds -- an egress pass that ran in memory and not
+// against the graph would be a rule with a hole exactly the shape of production.
+
+// findDeskInState returns the index of the first desk in one of the states, or
+// -1. Dispatch is only legal from idle or blocked, and which desks the fixtures
+// seed in which state is not something a conformance case should assume.
+func findDeskInState(f Floor, states ...string) int {
+	for i, d := range f.Desks {
+		for _, want := range states {
+			if d.State == want {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func caseDispatchScreens(t *testing.T, s Store) {
+	ctx := context.Background()
+	f, _ := s.Snapshot(ctx)
+	idx := findDeskInState(f, StateIdle, StateBlocked)
+	if idx < 0 {
+		t.Skip("no seeded desk is idle or blocked, so nothing is dispatchable")
+	}
+
+	res, err := s.DispatchTask(ctx, idx)
+	if err != nil {
+		t.Fatalf("DispatchTask on an idle desk returned %v; with the default policy and no workspace the packet is GAOS's own writing and must clear", err)
+	}
+	if len(res.NewEvents) == 0 {
+		t.Fatal("a dispatch emitted nothing; the stream is the record (BR-04), and a dispatch nothing wrote never happened")
+	}
+
+	var dispatched bool
+	for _, e := range res.NewEvents {
+		if e.Type == TaskDispatched {
+			dispatched = true
+			if e.Payload.Digest == "" {
+				t.Error("TaskDispatched carries no digest; an attempt that does not name its input cannot be audited against one")
+			}
+		}
+	}
+	if !dispatched {
+		t.Errorf("a cleared dispatch emitted %v with no TaskDispatched", res.NewEvents)
+	}
+
+	if _, err := s.DispatchTask(ctx, 9999); !errors.Is(err, ErrNotFound) {
+		t.Errorf("DispatchTask on a desk that does not exist returned %v, want ErrNotFound", err)
+	}
+}
+
+func caseDispatchBusy(t *testing.T, s Store) {
+	ctx := context.Background()
+	f, _ := s.Snapshot(ctx)
+	idx := findDeskInState(f, StateActive, StateReview)
+	if idx < 0 {
+		t.Skip("no seeded desk has work in flight")
+	}
+
+	_, err := s.DispatchTask(ctx, idx)
+	assertRejected(t, err, "This desk already has a task in flight.")
+}
+
+func caseDispatchRefusedBlocks(t *testing.T, s Store) {
+	ctx := context.Background()
+	f, _ := s.Snapshot(ctx)
+	idx := findDeskInState(f, StateIdle, StateBlocked)
+	if idx < 0 {
+		t.Skip("no seeded desk is idle or blocked, so nothing is dispatchable")
+	}
+
+	// Reach past the seam to set the policy: there is deliberately no Store
+	// method for it, because §7.6.1 makes the egress block a deployment
+	// decision rather than something a caller may vary per request.
+	type policySetter interface{ setEgressForTest(EgressPolicy, Target) }
+	ps, ok := s.(policySetter)
+	if !ok {
+		t.Skip("this store does not expose the egress policy for testing")
+	}
+	ps.setEgressForTest(EgressPolicy{LocalOnly: true}, Target{Provider: "anthropic", Local: false})
+
+	res, err := s.DispatchTask(ctx, idx)
+	if err != nil {
+		t.Fatalf("a refusal came back as err=%v; a refusal is a recorded state change, and an error means the events L-5 requires never reach the response that renders them", err)
+	}
+
+	var refused bool
+	for _, e := range res.NewEvents {
+		if e.Type == DispatchRefused {
+			refused = true
+			if e.Payload.Rule != RuleLocalOnly {
+				t.Errorf("DispatchRefused carries rule %q, want %q", e.Payload.Rule, RuleLocalOnly)
+			}
+		}
+	}
+	if !refused {
+		t.Fatalf("a refused dispatch emitted %v with no DispatchRefused; L-5 wants the refusal on the timeline with its reason", res.NewEvents)
+	}
+
+	d, _, err := s.Desk(ctx, idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.State != StateBlocked || d.BlockReason == "" {
+		t.Fatalf("after a refused dispatch the desk is %q with reason %q, want blocked with a reason — a desk left idle says nothing happened, and something did", d.State, d.BlockReason)
 	}
 }
 

@@ -152,6 +152,25 @@ func deskIdx(r *http.Request) int {
 	return atoiDefault(id, 0)
 }
 
+// handleDispatch is the operator-triggered half of the §7.6 execution flow:
+// freeze the packet, screen it, dispatch what survives. T-126, T-127.
+//
+// It looks exactly like its neighbours, and that is the point: a refusal comes
+// back as a Result with a toast rather than as an error, so this handler needs
+// no special case for the thing BR-32 exists to do. The refusal's pill reaches
+// the timeline through applyResult like every other event.
+//
+// s.mut(r) is the whole replay story: parked in the past, the handle is a
+// readOnly and readOnly.DispatchTask refuses like its fifteen neighbours.
+func (s *server) handleDispatch(w http.ResponseWriter, r *http.Request) {
+	res, err := s.mut(r).DispatchTask(r.Context(), deskIdx(r))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.rend.RenderWithChrome(w, "floor-tick", s.applyResult(r, res))
+}
+
 func (s *server) handleApprove(w http.ResponseWriter, r *http.Request) {
 	res, err := s.mut(r).ApproveTask(r.Context(), deskIdx(r))
 	if err != nil {

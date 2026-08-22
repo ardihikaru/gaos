@@ -32,7 +32,14 @@ func TestStateMachineAllowsTheDeclaredTransitions(t *testing.T) {
 func TestStateMachineRefusesIllegalTransitions(t *testing.T) {
 	illegal := []struct{ from, to, why string }{
 		{StateIdle, StateReview, "an empty desk has produced nothing to review"},
-		{StateIdle, StateBlocked, "nothing is running, so nothing can be blocked"},
+		// idle -> blocked USED TO BE HERE, with the reason "nothing is running,
+		// so nothing can be blocked". BR-32 created the counter-example on
+		// 2026-08-22: a dispatch the pre-dispatch egress pass refuses is a task
+		// that never started, must not look idle, and needs an operator to
+		// change a policy before it can. It is asserted as LEGAL in
+		// TestARefusedDispatchBlocksTheDeskAndSaysWhy, and the row is inverted
+		// here rather than deleted so the reversal is visible to a reader who
+		// remembers the old rule.
 		{StateIdle, StateCompleted, "a workflow nobody started cannot have finished"},
 		{StateIdle, StateMeeting, "there is no work to hold a design review about"},
 		{StateIdle, StateDeferred, "the budget guard defers ready work, not empty desks"},

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -32,6 +34,8 @@ var catalog = map[EventType]bool{
 	KnowledgeExtracted: true, KnowledgeReused: true, DecisionSuperseded: true,
 	// budget -- D-037
 	BudgetThresholdReached: true, BudgetCapReached: true, TaskDeferred: true,
+	// egress -- L-5, D-052
+	ContextRedacted: true, DispatchRefused: true,
 }
 
 // uiLifecycle is the separate block D-020 fences off: names the prototype
@@ -188,6 +192,14 @@ func drive(t *testing.T, s *MemStore) {
 		}
 	}
 
+	// The two egress events. Both are operator-driven and neither is reachable
+	// from the simulator, which is the point: sim.go emitting them would be
+	// inventing evidence about a dispatch that never happened.
+	//
+	// A real workspace with a real file outside the allowlist, so the redaction
+	// is a fact about bytes rather than a fixture asserting itself.
+	driveEgress(t, s)
+
 	// A gate answered with no, on the last stage, which is both an
 	// ApprovalRejected and a WorkflowCanceled. Drive a desk there rather than
 	// waiting for the dice: this is a scenario the operator can always reach,
@@ -204,6 +216,71 @@ func drive(t *testing.T, s *MemStore) {
 			t.Fatalf("cancel a gated desk on the last stage: %v", err)
 		}
 		break
+	}
+}
+
+// driveEgress provokes ContextRedacted and DispatchRefused, the two names L-5
+// requires and T-127 makes real.
+//
+// Two dispatches, because the pair is the point: one slice is cut down and goes
+// anyway, one is refused outright. A helper that only ever produced the refusal
+// would leave ContextRedacted declared-but-unemitted, which is exactly the gap
+// TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules exists to catch.
+func driveEgress(t *testing.T, s *MemStore) {
+	t.Helper()
+	ctx := t.Context()
+
+	park := func() int {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for i := range s.desks {
+			if s.desks[i].State == StateIdle {
+				return i
+			}
+		}
+		d := &s.desks[0]
+		d.State, d.Agents, d.Meeting = StateIdle, nil, nil
+		if s.meetingIdx == 0 {
+			s.meetingIdx = -1
+		}
+		return 0
+	}
+
+	// ---- a redacted slice that still dispatches ----
+	idx := park()
+	s.mu.Lock()
+	s.egress = EgressPolicy{AllowPaths: []string{"src/**"}}
+	s.target = Target{Provider: "anthropic"}
+	s.workspaceRoot = t.TempDir()
+	ws := s.workspaceFor(s.desks[idx])
+	s.mu.Unlock()
+
+	for rel, body := range map[string]string{
+		"src/keep.go":  "package keep\n",
+		"docs/drop.md": "notes nobody reviewed before they were sent\n",
+	} {
+		full := filepath.Join(ws, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.DispatchTask(ctx, idx); err != nil {
+		t.Fatalf("a redacted slice refused the dispatch: %v", err)
+	}
+
+	// ---- a refusal ----
+	idx = park()
+	s.mu.Lock()
+	s.egress = EgressPolicy{LocalOnly: true}
+	s.target = Target{Provider: "anthropic", Local: false}
+	s.workspaceRoot = ""
+	s.mu.Unlock()
+
+	if _, err := s.DispatchTask(ctx, idx); err != nil {
+		t.Fatalf("a refused dispatch came back as an error: %v", err)
 	}
 }
 
