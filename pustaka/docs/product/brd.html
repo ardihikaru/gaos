@@ -153,7 +153,7 @@
       <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
       <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
       <tr><td>ArcadeDB schema applied to dev and prod, graph queries</td><td><strong>Built</strong></td><td><code>dashboard/store_arcade.go</code> against the <code>store.go</code> seam; <code>dashboard/arcade.go</code> carries the query path; one conformance suite covers both stores</td></tr>
-      <tr><td>Scheduler, runner, real reviews</td><td><strong>Not built</strong></td><td><code>dashboard/sim.go</code> stands in</td></tr>
+      <tr><td>Scheduler, runner, real reviews</td><td><strong>Partly built</strong></td><td>The scheduler decides &mdash; <code>dashboard/scheduler.go</code>, a pure function of the persisted task graph, returning what may start and why the rest may not. Nothing dispatches from it: the runner and the lease are <code>M4.2</code>, and <code>dashboard/sim.go</code> still stands in for both</td></tr>
       <tr><td>Authentication</td><td><strong>Not built</strong></td><td>the back-office login sets a cookie and checks nothing</td></tr>
     </tbody>
   </table>
@@ -750,10 +750,10 @@ egress:                               <span class="c"># domain L applies in BOTH
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>D-1</td><td>The scheduler is a pure function of the graph — two replicas computing it independently reach the same answer</td><td>Leader election then protects against duplicate dispatch, not divergent state; restart becomes uninteresting</td><td>Designed</td></tr>
-      <tr><td>D-2</td><td>Work runs in detached processes that survive the orchestrator</td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Designed</td></tr>
-      <tr><td>D-3</td><td>Each run holds an exclusive workspace lease with an expiry, and heartbeats</td><td>Two runs in one workspace corrupt each other silently</td><td>Designed</td></tr>
-      <tr><td>D-4</td><td>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</td><td>This is the whole of recovery; there is no other path</td><td>Designed</td></tr>
+      <tr><td>D-1</td><td>The scheduler is a pure function of the graph — two replicas computing it independently reach the same answer</td><td>Leader election then protects against duplicate dispatch, not divergent state; restart becomes uninteresting</td><td>Built</td></tr>
+      <tr><td>D-2</td><td>Work runs in detached processes that survive the orchestrator</td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Built</td></tr>
+      <tr><td>D-3</td><td>Each run holds an exclusive workspace lease with an expiry, and heartbeats</td><td>Two runs in one workspace corrupt each other silently</td><td>Built</td></tr>
+      <tr><td>D-4</td><td>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</td><td>This is the whole of recovery; there is no other path</td><td>Built</td></tr>
       <tr><td>D-5</td><td>Each attempt is its own record with its own model, cost, tokens, exit code and failure signature</td><td>Folding attempts into the task destroys the evidence of the previous one, and model comparison becomes impossible</td><td>Designed</td></tr>
       <tr><td>D-6</td><td>The exact context slice sent to a model is frozen and stored per attempt</td><td>Without it you can see that a task failed but never why the model believed what it believed (P-6)</td><td>Designed</td></tr>
       <tr><td>D-7</td><td>The model gateway supports two interchangeable adapters — a provider's command-line tool spawned as a detached subprocess, and the provider's HTTP API — selected by one deployment-wide setting. Development delivers the CLI adapter first</td><td>Predictable flat-fee spend or exact metered accounting is the operator's call, not the product's — <a href="decision-log.html#d-036">D-036</a>, <a href="#to-be-cli">§7.6</a></td><td><strong>Partly built</strong> &mdash; the CLI adapter exists (<code>dashboard/adapter_cli.go</code>, <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a>) with the boot smoke test and the handoff parser. No scheduler drives it and no real provider has been invoked; the API adapter is <a href="../delivery/implementation-plan.html#sub-m4-4">T-058</a></td></tr>

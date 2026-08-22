@@ -36,6 +36,291 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-20-0">v0.20.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px"><b>Build-order step 5 passes:
+      kill the orchestrator mid-task, and the work survives and is re-adopted.</b> M4.2 closes, the
+      closed catalog's execution group is fully emitted for the first time, and the recovery
+      pseudocode in the architecture document turns out to have been wrong about the one branch that
+      matters.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>boot reconciliation
+        (<a href="delivery/implementation-plan.html#sub-m4-2">T-053</a>).</b>
+        <code>dashboard/reconcile.go</code> holds the decision as a pure function and
+        <code>runner.go</code> the pass that acts on it. It runs <em>before the listener</em>, because
+        a request served first would see a floor lying about what is in flight, and a failure
+        <b>fails the boot</b> &mdash; a dashboard that could not work out what was running, then
+        served a floor as if nothing were, looks completely healthy while a detached process edits a
+        repository nobody is watching.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the architecture document's recovery branch, and the
+        event it named (<a href="product/decision-log.html#d-054">D-054</a>).</b> The middle branch
+        was commented <em>"lease held, process gone"</em>. <b>It does not know the process is gone.</b>
+        It knows the <em>beat</em> is stale, and a stale beat means the SUPERVISOR died &mdash; which
+        says nothing about the child, because <a href="product/brd.html#req-d">D-2</a> detached it
+        precisely so it would outlive its supervisor. Requeuing on that basis starts a second run in a
+        workspace that may still have a live one in it: the corruption
+        <a href="product/brd.html#req-d">D-3</a> exists to prevent, reached <em>through</em> the
+        recovery routine. So requeue kills first, and where nothing is able to kill it degrades to an
+        orphan rather than requeuing on a promise it cannot keep. The page also emitted
+        <code>TaskFailed</code>, which is not in the closed catalog at all.</li>
+
+        <li><span class="chg add">Added</span> <b><code>Stop</code> on the adapter seam.</b> The
+        reconciler has to be able to say &ldquo;make this dead&rdquo;, and what that MEANS is
+        mode-specific &mdash; a signal to a process group for a CLI run, cancelling a request for the
+        API adapter. A reconciler that knew about pids would be one that only worked for one mode,
+        which is what <a href="product/brd.html#rules-commercial">BR-33</a> forbids.</li>
+
+        <li><span class="chg add">Added</span> <b>the control loop, and a flush hook the runner needed
+        to exist at all.</b> One pass asks the scheduler what may start and starts it. Along the way:
+        the runner is the first writer in this codebase that is <em>nobody's request</em>, so there is
+        no <code>mutate()</code> around it and its events would have lived and died in the projection.
+        <code>MemStore.onWrite</code> is how a background writer reaches durable storage. The first
+        version deadlocked the boot &mdash; the reconciler held the store lock while the hook tried to
+        take it &mdash; and the acceptance test below is what found it.</li>
+
+        <li><span class="chg add">Added</span> <b><code>deploy/acceptance/kill-mid-task.sh</code>
+        (<a href="product/qa-test-plan.html#sc-kill-mid-task">TC-243…TC-246</a>).</b>
+        <b>This cannot be a Go test</b>, and pretending otherwise would be worse than not having it:
+        the property is that a child outlives its parent, and under <code>go test</code> the test
+        binary <em>is</em> that parent while the harness reaps the tree on exit. Two limits are
+        printed rather than discovered &mdash; it never runs against dev or prod, and it cannot run
+        with <code>GAOS_STORE=memory</code>, because a memory store loses every task record on restart
+        and would pass by having nothing to check.</li>
+
+        <li><span class="chg change">Changed</span> <b><code>TaskOrphaned</code> came off the owed
+        list, and with it the whole execution group.</b> The split is worth keeping in mind: the three
+        names that landed one release ago are exactly the ones a live supervisor can witness, and this
+        one needed the only thing that can observe an orphan &mdash; a <em>restart</em>. No supervisor
+        ever sees one, because an orphan is a run whose supervisor is already gone.</li>
+
+        <li><span class="chg note">Note</span> <b>a finding the acceptance test surfaced and this
+        release does not fix.</b> <code>CreateWorkflow</code> seats an agent on the desk, and the
+        scheduler then sees that agent as busy for the plan's first task &mdash; the same work,
+        double-booked. The scheduler is right to refuse and says why; the desk-level seating predates
+        a scheduler that seats per task. It wants its own change rather than a quiet one here.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-19-0">v0.19.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A real tool now runs, supervised,
+      against a leased workspace &mdash; and it outlives the process that started it. Three names come
+      off the closed catalog's owed list, which is the first time that has happened since the list was
+      written.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b><a href="product/brd.html#req-d">D-2</a> was false on
+        the path an operator actually uses.</b> <code>Dispatch</code> built its context from the
+        caller's, and <code>serve()</code> builds the caller's from
+        <code>signal.NotifyContext(SIGINT, SIGTERM)</code> &mdash; so a <em>graceful</em> shutdown
+        cancelled the context and <code>CommandContext</code> killed the child, while
+        <code>SIGKILL</code> left it running because the Go runtime never gets to act.
+        <b>The ungraceful path satisfied D-2 by accident and the graceful one violated it on purpose.</b>
+        <code>context.WithoutCancel</code> is the fix; the only cancellation left is the run's own
+        twenty-minute timeout, which is a property of the run rather than of its supervisor.</li>
+
+        <li><span class="chg add">Added</span> <b>the supervisor
+        (<a href="delivery/implementation-plan.html#sub-m4-2">T-050</a>,
+        <a href="delivery/implementation-plan.html#sub-m4-2">T-052</a>).</b>
+        <code>dashboard/runner.go</code> takes the lease, writes the run record, hands the cleared
+        packet to the adapter, beats while the work runs, and records what came back.
+        <b>The heartbeat attests to the supervisor, not to the model</b> &mdash; Claude Code knows
+        nothing about GAOS &mdash; so when an orchestrator dies the beat goes stale <em>while the work
+        continues</em>. That asymmetry is easy to read backwards, and reading it backwards is how a
+        recovery routine requeues a task whose child is still editing the repository. It is why
+        <a href="product/brd.html#req-d">D-4</a> has three branches rather than two.</li>
+
+        <li><span class="chg change">Changed</span> <b>the run's output goes to files, and that is what
+        makes adoption complete rather than partial.</b> The tool's JSON envelope carries
+        <code>total_cost_usd</code>. In a <code>bytes.Buffer</code> it lives in the orchestrator's
+        address space, so a process adopting the run could recover the outcome from the handoff and
+        <em>never the cost</em> &mdash; which <a href="product/decision-log.html#d-051">D-051</a>
+        requires as <code>measured</code> from the first run. On disk, one <code>collect()</code> runs
+        on both paths, and an adopted attempt is byte-identical to a supervised one.</li>
+
+        <li><span class="chg add">Added</span> <b><code>Resume</code> on the adapter seam, and a
+        <code>RUN.json</code> for it to read.</b> An adopting orchestrator cannot
+        <code>cmd.Wait()</code> on a process it did not fork, so adoption needs its own entry point.
+        <code>Dispatch</code>'s signature is untouched, so <a href="product/brd.html#rules-commercial">BR-32</a>
+        still holds; the pid, process group and process start time ride in an opaque
+        <code>Detail</code> map that <b>nothing above the adapter reads</b>, which is what keeps
+        <a href="product/brd.html#rules-commercial">BR-33</a> true when the HTTP adapter arrives.
+        The start time is there because PID reuse is real and a bare probe after a reboot finds a
+        stranger's process.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the handoff document is emptied before an
+        invocation</b>, which <code>handoff.go</code> has claimed since it was written and nothing
+        did. Without it a retry in a reused workspace reads the previous attempt's document &mdash; and
+        the direction of that mistake is the worst available, because a run that produced nothing
+        looks like one that succeeded.</li>
+
+        <li><span class="chg add">Added</span> <b>six guards in front of a paid model call,</b> four of
+        which already existed. New: <code>GAOS_RUNNER</code>, off by default and deliberately separate
+        from whether an adapter is configured &mdash; an operator who set
+        <code>GAOS_MODEL_MODE=cli</code> to make the boot smoke test run has not thereby authorised
+        spending &mdash; and a refusal to exec anything outside <code>testdata</code> from a test
+        binary. The honest caveat: <b>the version pin is not a guard.</b> The fake answers
+        <code>--version</code> with exactly <code>2.1.238 (Claude Code)</code>, so the smoke test
+        passes identically against both. The pin protects against drift, not against spend.</li>
+
+        <li><span class="chg change">Changed</span> <b><code>RunStarted</code>, <code>Heartbeat</code> and
+        <code>RunExited</code> came off the owed list</b> in <code>dashboard/events.go</code>, with
+        their reducer cases, per <a href="product/brd.html#rules-invariants">BR-05</a>.
+        <code>TaskOrphaned</code> did not, and the split is worth noticing: the three that landed are
+        exactly the ones a live supervisor can witness, and the one still owed is the one only a
+        <em>restart</em> can observe.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-18-0">v0.18.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The lease, which the rest of
+      <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a> is unsafe without. Small, and it
+      carries the one decision in this pass that reads like a bug until you know why it is not:
+      an expired lease is still refused.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the exclusive workspace lease
+        (<a href="delivery/implementation-plan.html#sub-m4-2">T-051</a>).</b>
+        <code>dashboard/lease.go</code> &mdash; an <code>O_EXCL</code> lockfile at
+        <code>.gaos/run/LEASE.json</code>, with acquire, renew, release and break.
+        <a href="product/brd.html#req-d">D-3</a> names the failure it is written against and it is not
+        a loud one: <em>"two runs in one workspace corrupt each other silently"</em> &mdash; two agents
+        editing one checkout do not crash, they produce a diff neither of them wrote, which is then
+        reviewed, scored and possibly merged. <b>A lockfile rather than a row</b>, because the thing
+        being protected is a directory and the only primitive that excludes atomically at that
+        granularity between processes is the filesystem. The record stays in the graph;
+        <a href="product/brd.html#rules-invariants">BR-01</a> is intact because this is state on the
+        resource rather than state in the process.</li>
+
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-053">D-053</a>:
+        an expired lease is never taken by the acquirer, and the two heartbeat cadences are different
+        numbers.</b> The first reads like an oversight &mdash; the expiry passed, so surely the next
+        runner may have it &mdash; but an expiry says the <em>supervisor</em> stopped renewing, and
+        <a href="product/brd.html#req-d">D-2</a> detaches the child precisely so it outlives its
+        supervisor. Taking it starts the second run. Clearing one is <code>BreakLease</code>, a
+        separate name for an operation only safe once the previous run has been made dead.
+        The second: the beat is a field write every 30s, the <code>Heartbeat</code> <em>event</em> is
+        written every 300s. At 30s a twenty-minute run puts forty pills into a stream that is
+        append-only, snapshotted every 500 events and rendered in full; at 300s it puts five, and a
+        replay can still tell <em>alive at T</em> from <em>silent since T</em>.</li>
+
+        <li><span class="chg note">Note</span> <b>an unreadable lease counts as held.</b> Treating a
+        truncated lockfile as &ldquo;no lease&rdquo; would hand the workspace to a second run on the
+        strength of a half-finished write &mdash; the exact failure the file exists to prevent,
+        reached through the mechanism meant to prevent it. Renewal is write-then-rename for the same
+        reason, so a reader sees the old lease or the new one and never half of either.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>two counts that had drifted before this release.</b>
+        The decision log said fifty-two entries and the BRD's pointer to it said fifty-one; there are
+        fifty-three now and both say so.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-17-0">v0.17.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Something other than a dice
+      roll decides what runs. <a href="delivery/implementation-plan.html#m4-execution">M4</a> moves for
+      the first time &mdash; two of its twenty tasks close &mdash; and the property
+      <a href="product/brd.html#req-d">D-1</a> asks for is built in rather than retrofitted, which was
+      the whole argument for doing it now.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the scheduler
+        (<a href="delivery/implementation-plan.html#sub-m4-1">T-048</a>).</b>
+        <code>dashboard/scheduler.go</code> takes a <code>SchedulerInput</code> and returns what may
+        start, with the agent and the workspace named, plus <b>why every other task may not</b>.
+        <a href="product/brd.html#happy-path">§7.4</a> requires exactly five blocking reasons and says
+        why it is a business requirement rather than a nicety &mdash; <em>"an unexplained idle floor is
+        indistinguishable from a broken product"</em> &mdash; so there are five, the count is asserted,
+        and they are reported by <b>precedence rather than by whichever check ran first</b>, the same
+        rule the egress pass already states. A cycle is a dependency block naming its members, not a
+        sixth reason.</li>
+
+        <li><span class="chg add">Added</span> <b>the proof, not just the property
+        (<a href="delivery/implementation-plan.html#sub-m4-1">T-049</a>).</b> The second replica is
+        handed the same graph <em>in a shuffled row order</em>, because two replicas reading the same
+        ArcadeDB are promised nothing about order across buckets &mdash; a scheduler that inherited
+        slice order would pass the naive version of this test and diverge only in production.
+        Purity itself is enforced structurally: <code>scheduler.go</code>'s import list is closed at
+        <code>fmt</code>, <code>sort</code> and <code>strings</code>, and an AST test refuses a fourth
+        import or any declaration with a receiver. <b>A clock read that happened to return the same
+        value twice would pass every behavioural test there is.</b></li>
+
+        <li><span class="chg fix">Fixed</span> <b>the last <code>rng</code> on a scheduling path.</b>
+        <code>advance()</code> reseated an agent with <code>cand[s.rng.IntN(len(cand))]</code>. That
+        was survivable while one process owned the floor and stops being survivable at D-1: two
+        replicas would disagree about who is busy, and every capability decision downstream inherits
+        it. It now uses the deterministic helper the dispatch route already used, whose own comment
+        had been making this argument since it was written.</li>
+
+        <li><span class="chg note">Note</span> <b>nothing dispatches from the decision yet</b>, and
+        that is deliberate &mdash; the runner and the lease are
+        <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a>. The adapter landed the same way
+        one release ago, for the same reason. The budget zone is likewise always <em>normal</em>,
+        because the guard that would change it is <code>M10.3</code> and does not exist; the branch is
+        covered by a test that builds a throttled input directly, since a reason with no producer
+        rots before its module arrives.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-16-0">v0.16.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The plan stops being a
+      preview. Until now <code>PlanWorkflow</code> produced a chain and <code>CreateWorkflow</code>
+      threw it away, so there was no graph for a scheduler to read &mdash; which is why
+      <a href="delivery/implementation-plan.html#sequencing">build-order step 4</a> had to close
+      before step 5 could start. Eleven new test cases, and two id bugs that were harmless right up
+      until the moment tasks became vertices.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a real task DAG, persisted
+        (<a href="delivery/implementation-plan.html#sub-m3-2">T-042</a>).</b>
+        <code>PlanTask.Dep</code> becomes <code>Deps</code>, and the plan fans out to one
+        implement/verify pair per picked story and fans back in at the security review &mdash; so the
+        security task's prerequisite count is a property of the record rather than a number written
+        in the planner. <code>dashboard/graph.go</code> adds a deterministic topological sort whose
+        ready-queue is seeded in plan order, because a sort that varied with map iteration would be a
+        fresh source of disagreement for every replica that consumed it. The graph is written as
+        <code>Task</code> vertices with real <code>DEPENDS_ON</code> edges and restored by
+        <code>load()</code>.</li>
+
+        <li><span class="chg add">Added</span> <b>a second state machine, for
+        <code>Task.status</code>.</b> <code>dashboard/taskstate.go</code>: ten statuses and their
+        transitions, kept apart from <code>state.go</code> because desk states are CSS selectors and
+        four of these &mdash; <code>PENDING</code>, <code>READY</code>, <code>DISPATCHED</code>,
+        <code>RUNNING</code> &mdash; are never a desk's state at all. <b><code>DEFERRED</code> has no
+        edge to <code>FAILED</code></b>, which is <a href="product/brd.html#rules-commercial">BR-34</a>
+        made enforceable rather than aspirational, and it has its own test because the missing row
+        reads as an oversight to anyone tidying the table.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>two id collisions that were waiting for vertices.</b>
+        <code>wf-%d</code> was built from <code>len(desks)+1</code>, which never changes, so every
+        workflow ever created was called <code>wf-7</code>; and every plan numbered from
+        <code>t-1</code>, which under <code>Task (tenantId, id) UNIQUE</code> means the second plan
+        upserts over the first and inherits its <code>DEPENDS_ON</code> edges. The counter is now
+        monotonic and restored from the ids in the graph; plan ids are qualified by their workflow on
+        the way to storage, and <code>PlanWorkflow</code> stays pure by not knowing about either.</li>
+
+        <li><span class="chg change">Changed</span> <b>every refusal in
+        <code>CreateWorkflow</code> now happens before the first write.</b> A plan rejected halfway
+        used to leave the story coverage bar moved for a workflow that did not exist. The cycle check
+        lives here rather than in the planner on purpose: the planner cannot build a cycle, and the
+        <code>Store</code> seam is public, so the caller is what can.</li>
+
+        <li><span class="chg change">Changed</span> <b>the task graph is read from the store, never
+        folded</b> &mdash; the same way the master record already is, and the
+        <code>TaskPlanned</code> case in <code>fold.go</code> now carries the argument at length.
+        <code>TaskPlanned</code>'s payload gains the planned tasks as an <em>audit</em> field the
+        reducer does not read, because &ldquo;what did the planner produce, at that moment&rdquo;
+        stops being answerable from the present graph the first time a dependency is rewired.
+        The consequence is stated where it will be found: a scrubbed timeline shows the present
+        graph beside a past floor, so <a href="delivery/implementation-plan.html#sub-m9-3">T-109</a>'s
+        blocking reasons must come from the live scheduler.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the store conformance suite is forty cases, not
+        thirty-two.</b> The QA plan had been carrying the older number since the suite grew; the
+        register, both its rows and its prose, now say what the table holds.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-15-0">v0.15.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The first code that could send
       somebody's source code to a model provider, and the gate that stands in front of it &mdash; in

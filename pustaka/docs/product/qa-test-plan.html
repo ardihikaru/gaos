@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred cases, positive and negative, across the three deploy automations and the
+  two hundred and forty-six cases, positive and negative, across the four deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -62,6 +62,7 @@
       <tr><td>Post-deploy verification (bind, healthz, routes, base-href, and with <code>--full-verify</code>: X-Forwarded-For, public HTTPS)</td><td>Same</td><td>Automatically, after every <code>deploy</code> and <code>restart</code></td><td>Each check reports independently; the run exits 1 on any failure, but nothing rolls back automatically today — the nonzero exit is the operator's signal to investigate</td></tr>
       <tr><td><code>rebuild-restart.sh status</code></td><td>Same</td><td>On demand, whenever the operator wants a read of current state</td><td>No failure mode by design — see <a href="#rr-status">TC-017</a></td></tr>
       <tr><td><code>deploy/schema/scratch.sh</code> + <code>go test -run Conformance</code></td><td>Product owner, on demand</td><td>Never automatically: the ArcadeDB half of the store conformance suite <em>skips</em> without <code>GAOS_ARCADE_TEST_URL</code>, so the deploy gate stays green on a machine with no database. Run it by hand when the store or the schema changes</td><td>Nothing is deployed, because nothing was &mdash; the throwaway container is <code>--rm</code> with no volume. The operator reads the failure and reruns</td></tr>
+      <tr><td><code>deploy/acceptance/kill-mid-task.sh</code></td><td>Product owner, before every release that touches the runner, the lease or recovery</td><td>Never automatically, and never against dev or prod: it needs a scratch ArcadeDB, it sends a real <code>SIGKILL</code>, and recovery writes to the graph. It also cannot run against <code>GAOS_STORE=memory</code>, which loses the task records there would be anything to reconcile</td><td>Nothing is deployed. This is build-order step 5 and a failure is a release blocker, not a warning &mdash; a runner whose work does not survive a restart is a runner that loses paid model calls</td></tr>
       <tr><td><code>deploy/schema/apply.sh</code></td><td>Product owner, on demand</td><td>Only for a scratch database from a workstation. Dev and prod get the schema from the dashboard binary's embedded copy on every boot, which is idempotent</td><td>Exit 1 with the offending statement and the server's own <code>detail</code>. A partial apply is safe to rerun</td></tr>
       <tr><td>Unsatisfiable-task test</td><td>Product owner, once domain E exists</td><td>Proposed: before every release</td><td>Per <a href="brd.html#to-be-exceptions">§7.5</a>: looping or failing silently means the guard-limit implementation is not finished — release is blocked</td></tr>
       <tr><td>Fold test</td><td>Product owner, once domain H exists</td><td>Proposed: periodic (weekly) — the design itself calls this test "periodic"</td><td>Divergence is a release blocker, in the design's own words: "divergence proves the event model is incomplete"</td></tr>
@@ -72,7 +73,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and forty-six cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -208,8 +209,8 @@
       <tr data-tags="go test unit dashboard schema embed drift go-embed positive"><td>TC-121</td><td>dashboard (go test)</td><td>Positive</td><td>The schema embedded in the binary matches <code>dashboard/schema/</code> file for file and byte for byte (<code>TestEmbeddedSchemaMatchesTheDirectory</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema statement split apply.sh parity positive"><td>TC-122</td><td>dashboard (go test)</td><td>Positive</td><td>The Go statement splitter strips comments, folds multi-line declarations and splits on the terminator exactly as <code>apply.sh</code> does (<code>TestSplitStatementsMatchesTheShellApplier</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema statement split empty comment negative"><td>TC-123</td><td>dashboard (go test)</td><td>Negative</td><td>No statement survives the split empty or still carrying a comment marker, and the total does not collapse (<code>TestEverySchemaStatementSurvivesTheSplit</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All thirty-two contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same thirty-two cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All forty contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same forty cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard store arcadedb restart rebuild br-01 positive"><td>TC-126</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant rebuilds the floor, the events and the master record from the graph, so the in-memory projection is a cache rather than a source of truth (<code>TestArcadeStoreRebuildsTheFloorFromTheGraph</code>)</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks store arcadedb graph tier parity positive"><td>TC-127</td><td>check-stacks.sh</td><td>Positive</td><td>Both tiers declare <code>GAOS_STORE: &quot;arcadedb&quot;</code>, so neither is quietly serving fixtures</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks store arcadedb graph tier parity negative"><td>TC-128</td><td>check-stacks.sh</td><td>Negative</td><td>A tier's <code>GAOS_STORE</code> setting is removed or changed away from <code>arcadedb</code></td><td>Implemented</td></tr>
@@ -285,6 +286,52 @@
       <tr data-tags="go test unit dashboard dispatch fold determinism new events positive"><td>TC-198</td><td>dashboard (go test)</td><td>Positive</td><td>The two new event types fold to the same floor twice, and the fold agrees with the live desk about the refusal (<code>TestTheRefusalAndTheRedactionFoldTheSameWayTwice</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch replay read-only handle t-099 negative"><td>TC-199</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only handle refuses a dispatch, so a floor parked in the past cannot send a slice assembled from a historical record (<code>TestDispatchIsRefusedInReplay</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch workspace credential r-11 end-to-end negative"><td>TC-200</td><td>dashboard (go test)</td><td>Negative</td><td>A real credential in a real workspace file refuses the dispatch, emits nothing that carries the key, and never reaches <code>TaskDispatched</code> (<code>TestACredentialInTheWorkspaceRefusesTheDispatch</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph dag fan-out fan-in t-042 positive"><td>TC-201</td><td>dashboard (go test)</td><td>Positive</td><td>Two picked stories become two independent branches off the architect, and the security review waits on every verifier (<code>TestThePlannerProducesADAGWithFanOutAndFanIn</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph topological order depends_on t-042 positive"><td>TC-202</td><td>dashboard (go test)</td><td>Positive</td><td>Every prerequisite is placed before the task that waits on it in the topological order (<code>TestEveryDependencyPointsAtATaskEarlierInTheTopologicalOrder</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph cycle rejection t-042 negative"><td>TC-203</td><td>dashboard (go test)</td><td>Negative</td><td>A caller-supplied plan whose dependencies loop is refused, names every task in the cycle, and writes nothing (<code>TestThePlannerRefusesAPlanWhoseDependenciesFormACycle</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph dangling prerequisite t-042 negative"><td>TC-204</td><td>dashboard (go test)</td><td>Negative</td><td>A task depending on an id outside its own plan is refused and the missing prerequisite is named (<code>TestADependencyOnATaskOutsideThePlanIsRejectedAndNamesIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task id collision unique index workflow counter negative"><td>TC-205</td><td>dashboard (go test)</td><td>Negative</td><td>Two workflows on one desk produce distinct task ids and distinct workflow ids, so neither upserts over the other under <code>Task (tenantId, id) UNIQUE</code> (<code>TestTaskIdsAreUniqueAcrossTwoWorkflowsOnTheSameDesk</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task graph fold floorstate br-01 t-042 positive"><td>TC-206</td><td>dashboard (go test)</td><td>Positive</td><td>The folded floor is identical with and without a planned graph, and the graph is still there afterwards — it is persisted state, not a reduction (<code>TestTheGraphSurvivesAFoldBecauseItIsNotInTheFloor</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status state machine transitions positive"><td>TC-207</td><td>dashboard (go test)</td><td>Positive</td><td>Every transition the task table declares is permitted, including a status moving to itself (<code>TestEveryDeclaredTaskTransitionIsPermitted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status state machine transitions negative"><td>TC-208</td><td>dashboard (go test)</td><td>Negative</td><td>Fifteen undeclared task moves are refused, each with the reason it is illegal, and an undeclared status is refused in both directions (<code>TestEveryUndeclaredTaskTransitionIsRefused</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status deferred br-34 budget negative"><td>TC-209</td><td>dashboard (go test)</td><td>Negative</td><td><code>DEFERRED</code> cannot reach <code>FAILED</code>, the refusal names both statuses, and the task is unchanged afterwards (<code>TestADeferredTaskCanNeverGoStraightToFailed</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema ddl task status vocabulary positive"><td>TC-210</td><td>dashboard (go test)</td><td>Positive</td><td>The ten Go task statuses and <code>Task.status</code>'s DDL regexp are the same set, checked in both directions (<code>TestTheTaskStatusVocabularyMatchesTheDDL</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb restart task graph depends_on br-01 positive"><td>TC-211</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant returns every task, its ordinal and its prerequisites, and the workflow counter with them (<code>TestTheTaskGraphSurvivesARestart</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler determinism two replicas d-1 t-049 positive"><td>TC-212</td><td>dashboard (go test)</td><td>Positive</td><td>Two replicas handed the same graph in a shuffled row order reach the identical decision (<code>TestTwoReplicasSchedulingTheSameGraphAgree</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler purity ast imports d-1 t-048 negative"><td>TC-213</td><td>dashboard (go test)</td><td>Negative</td><td><code>scheduler.go</code> may not import beyond <code>fmt</code>, <code>sort</code> and <code>strings</code>, may declare no method, and may not reach a lock or an rng (<code>TestTheSchedulerIsAPureFunctionOfTheGraph</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler blocking reasons t-109 br-7.4 positive"><td>TC-214</td><td>dashboard (go test)</td><td>Positive</td><td>Exactly five blocking reasons are declared, and each one is actually produced by an input that breaks its condition (<code>TestTheSchedulerNamesTheFiveBlockingReasonsAndNoOthers</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler precedence blocking reason negative"><td>TC-215</td><td>dashboard (go test)</td><td>Negative</td><td>A task failing all five conditions is reported once, under the precedence reason, never under whichever check ran first (<code>TestATaskBlockedForFiveReasonsReportsThePrecedenceOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler cycle dependency negative"><td>TC-216</td><td>dashboard (go test)</td><td>Negative</td><td>A cycle reaching the scheduler blocks every member as a dependency and names the whole cycle on each (<code>TestTheSchedulerRefusesACycleAndNamesTheTasksInIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler readiness planning floor br-07 negative"><td>TC-217</td><td>dashboard (go test)</td><td>Negative</td><td>A task exactly at the floor dispatches and one below it does not, so BR-07 holds after the record decays as well as before the plan (<code>TestNothingIsDispatchedBelowReadinessFortyFive</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler lease workspace agent exclusivity d-3 negative"><td>TC-218</td><td>dashboard (go test)</td><td>Negative</td><td>Two ready tasks are never handed the same workspace or the same agent inside one pass (<code>TestTwoReadyTasksAreNeverHandedTheSameAgentOrWorkspace</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler agent seating determinism rng d-1 positive"><td>TC-219</td><td>dashboard (go test)</td><td>Positive</td><td>Advancing a stage seats the same agent regardless of the store's seed, so two replicas cannot disagree about who is busy (<code>TestAgentSeatingIsDeterministic</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease workspace exclusivity o_excl d-3 t-051 negative"><td>TC-220</td><td>dashboard (go test)</td><td>Negative</td><td>A second run is refused a workspace that is already leased, the refusal names the holder, and the losing acquire writes nothing (<code>TestASecondLeaseOnALiveWorkspaceIsRefused</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease expiry break d-2 d-053 negative"><td>TC-221</td><td>dashboard (go test)</td><td>Negative</td><td>An expired lease is still refused by <code>AcquireLease</code> and only <code>BreakLease</code> clears it, because expiry describes the supervisor and not the detached child (<code>TestAnExpiredLeaseIsStillNotTakenByAcquire</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease reacquire idempotent positive"><td>TC-222</td><td>dashboard (go test)</td><td>Positive</td><td>A run re-acquiring its own lease succeeds and refreshes the expiry rather than deadlocking against itself (<code>TestReAcquiringYourOwnLeaseSucceeds</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease heartbeat renewal holder d-3 t-052 negative"><td>TC-223</td><td>dashboard (go test)</td><td>Negative</td><td>A renewal extends only the expiry and only for the run holding the lease; a run that does not hold it is refused (<code>TestAHeartbeatExtendsTheLeaseAndOnlyForTheRunThatHoldsIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease release holder idempotent negative"><td>TC-224</td><td>dashboard (go test)</td><td>Negative</td><td>Only the holder may release a lease, and releasing one that is already gone is not an error (<code>TestReleaseGivesTheWorkspaceBackAndOnlyToItsHolder</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease corrupt unreadable fail-safe negative"><td>TC-225</td><td>dashboard (go test)</td><td>Negative</td><td>A truncated lockfile reads as held rather than as absent, and the scheduler reaches the same conclusion (<code>TestAnUnreadableLeaseIsTreatedAsHeldRatherThanAsAbsent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease round trip intervals d-053 positive"><td>TC-226</td><td>dashboard (go test)</td><td>Positive</td><td>The lease round-trips through the file for a process that never held it, and the beat/stale/expiry ladder is ordered as declared (<code>TestTheLeaseFileSurvivesTheProcessThatWroteIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner runstarted runexited cost d-051 t-050 positive"><td>TC-227</td><td>dashboard (go test)</td><td>Positive</td><td>A supervised run writes <code>RunStarted</code>, a <code>Heartbeat</code> and <code>RunExited</code> in that order, and the tool's own cost figure reaches the desk (<code>TestARunEmitsRunStartedAndRunExitedAroundTheWorkItSupervised</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner invented evidence lease refused negative"><td>TC-228</td><td>dashboard (go test)</td><td>Negative</td><td>A run refused the workspace lease emits nothing at all, because a <code>RunStarted</code> from a process that never started is invented evidence (<code>TestARunThatCouldNotStartEmitsNoRunStarted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner heartbeat cadence d-053 br-02 positive"><td>TC-229</td><td>dashboard (go test)</td><td>Positive</td><td>Twelve minutes of beats writes twenty-four field updates and three <code>Heartbeat</code> events, with both endpoints always written (<code>TestTheHeartbeatWritesTheBeatMoreOftenThanItWritesAnEvent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner adoption resume br-33 d-051 positive"><td>TC-230</td><td>dashboard (go test)</td><td>Positive</td><td>An adopted run and a supervised one produce the same <code>Attempt</code>, cost included, because both assemble it from the same evidence on disk (<code>TestAnAdoptedRunAndASupervisedRunProduceTheSameAttempt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner handoff truncation retry br-30 negative"><td>TC-231</td><td>dashboard (go test)</td><td>Negative</td><td>A handoff left by an earlier attempt is not read as this one's; a run that wrote nothing reports <code>handoff-missing</code> rather than the stale success (<code>TestAHandoffFromThePreviousAttemptIsNotReadAsThisOnes</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner detached withoutcancel d-2 positive"><td>TC-232</td><td>dashboard (go test)</td><td>Positive</td><td>Cancelling the caller's context mid-run does not kill the child, which is D-2 on the graceful-shutdown path that used to violate it (<code>TestTheDetachedChildIsNotKilledByTheOrchestratorsContext</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner lease release cleanup d-3 positive"><td>TC-233</td><td>dashboard (go test)</td><td>Positive</td><td>The lease is released whether the run completed or produced no handoff at all (<code>TestTheRunReleasesItsLeaseWhateverHappens</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner workspace root guard negative"><td>TC-234</td><td>dashboard (go test)</td><td>Negative</td><td>A run with no workspace is refused before anything is leased or spawned (<code>TestTheRunnerRefusesToSpawnWithoutAWorkspaceRoot</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner money guard testing provider negative"><td>TC-235</td><td>dashboard (go test)</td><td>Negative</td><td>A test binary may exec only a tool under <code>testdata</code>, and <code>Dispatch</code> is checked to still carry the guard (<code>TestNoTestEverReachesTheRealProviderCommand</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile adopt requeue orphan d-4 t-053 positive"><td>TC-236</td><td>dashboard (go test)</td><td>Positive</td><td>The three recovery branches match the architecture page's pseudocode, each carrying a machine-readable rule and a reason (<code>TestTheThreeRecoveryBranches</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile scope dispatched running d-4 negative"><td>TC-237</td><td>dashboard (go test)</td><td>Negative</td><td>Only <code>DISPATCHED</code> and <code>RUNNING</code> are reconciled; the other eight statuses are left alone (<code>TestTheReconcilerLooksAtEveryTaskClaimingToBeDispatchedOrRunningAndNoOthers</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile purity ast imports negative"><td>TC-238</td><td>dashboard (go test)</td><td>Negative</td><td><code>reconcile.go</code> may import only <code>fmt</code> and <code>sort</code> and may declare no method (<code>TestReconciliationIsPureAndDoesNotReadTheClock</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile catalog closed rule d-052 br-05 positive"><td>TC-239</td><td>dashboard (go test)</td><td>Positive</td><td>Adopt and requeue share <code>TaskResumed</code> and are distinguishable only by the payload's rule, so the catalog stays closed (<code>TestAdoptAndRequeueReuseTheCatalogNamesAndDifferOnlyInTheRule</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile requeue kill d-054 d-3 negative"><td>TC-240</td><td>dashboard (go test)</td><td>Negative</td><td>A requeue with nothing able to kill the previous run degrades to an orphan rather than handing the workspace on (<code>TestARequeueThatCannotKillDegradesToAnOrphan</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile adopt lease d-2 positive"><td>TC-241</td><td>dashboard (go test)</td><td>Positive</td><td>An adopted run keeps its lease, its <code>RUNNING</code> status and its desk; nothing is killed and nothing restarted (<code>TestAnAdoptedRunIsNotKilledAndNotRestarted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile orphan workspace release br-7.5 positive"><td>TC-242</td><td>dashboard (go test)</td><td>Positive</td><td>An orphaned run releases its workspace, so the expiry that made it an orphan does not go on making it one (<code>TestOrphanReleasesTheWorkspaceSoSomethingCanUseItAgain</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 positive"><td>TC-243</td><td>kill-mid-task.sh</td><td>Positive</td><td>After <code>SIGKILL</code> to the orchestrator the child process is still alive</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 negative"><td>TC-244</td><td>kill-mid-task.sh</td><td>Negative</td><td>The child died with its orchestrator, which is D-2 broken</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 positive"><td>TC-245</td><td>kill-mid-task.sh</td><td>Positive</td><td>The restarted orchestrator reconciles before it listens and adopts the surviving run</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 negative"><td>TC-246</td><td>kill-mid-task.sh</td><td>Negative</td><td>No adoption in the timeline — a held lease with a fresh beat was requeued or orphaned instead</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -993,7 +1040,7 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds thirty-two cases, each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty cases, each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
@@ -1123,8 +1170,15 @@
   <code>only %d distinct event types were emitted; the run is not exercising enough of the catalog
   for this to mean anything</code>.
   <strong>Negative (TC-144):</strong> the declared-but-unwritten names are pinned to the modules that
-  owe them — the runner (M4.2), the review engine (M5.2), the six guards (M5.5), the planner's task
-  graph (M3.2), recall (M7.3) and the budget guard (M10.3). A name that starts being emitted fails
+  owe them — the review engine (M5.2), the six guards (M5.5), the
+  planner's task graph (M3.2), recall (M7.3) and the budget guard (M10.3).
+  <strong>The whole execution group came off that list on 2026-08-22</strong>, which is what this
+  case is for: the driver now runs one real supervision against the stand-in tool <em>and</em> one
+  boot reconciliation over an expired lease, because a name is only <em>emitted</em> if something
+  emits it and a test that just deleted four rows from the map would be recording an intention.
+  <code>TaskOrphaned</code> needed the second driver rather than the first, and the reason is the
+  point: no live supervisor ever witnesses an orphan, because an orphan is a run whose supervisor is
+  already gone. A name that starts being emitted fails
   (<code>%s is being emitted, but this list still says it is owed to %s -- if the module landed, take
   it out of the list</code>) and so does a declared name with no reason beside it
   (<code>%s is in the catalog, is not emitted, and is not listed as owed to a later module; a
@@ -1300,12 +1354,371 @@
   proxy in front, nothing changes — <code>unproxied Location = %q, want the unprefixed login
   URL</code>.</p>
 
+  <h3 id="go-taskgraph">dashboard — the persisted task graph (TC-201…TC-206, TC-211)</h3>
+  <p><code>T-042</code>. <a href="../delivery/implementation-plan.html#sub-m3-2">M3.2</a> was
+  <em>"🟡 on the strength of its signature, not its output"</em>: <code>PlanWorkflow</code> was pure
+  and produced a chain, every task carrying the previous one as its only prerequisite, and
+  <code>CreateWorkflow</code> then threw the result away. A chain is acyclic the way a straight line
+  is, which is why the cycle check had nothing to catch and <code>DEPENDS_ON</code> was decoration.
+  <strong>Positive (TC-201):</strong> two picked stories become two branches off the architect rather
+  than a queue behind each other — <code>%s waits on %v rather than on the architect alone; two
+  stories that wait on each other are a chain wearing a graph's name</code> — and the security review
+  waits on both, which is the fan-in that makes the field a slice:
+  <code>security waits on %v, want %v; the fan-in is per story, so its prerequisite count is a
+  property of the record rather than a number written in the planner</code>.
+  <strong>Positive (TC-202):</strong> the model document's planner invariant, asserted against the
+  sort rather than against slice order, because the old version asserted an accident of how the
+  planner walked the stories — <code>%s is placed at %d and its prerequisite %s at %d; DEPENDS_ON
+  points from the dependent to the prerequisite, so the prerequisite runs first</code>.
+  <strong>Negative (TC-203):</strong> the check lives in <code>CreateWorkflow</code>, not in
+  <code>PlanWorkflow</code>, because the planner cannot build a cycle and the seam is public —
+  <code>a plan that loops was accepted; a task graph with no first task can never be scheduled, and
+  the scheduler would spin over it forever</code>, it must carry its members
+  (<code>the refusal is %T and does not carry the cycle; sending an operator back to the wizard
+  without naming a row is a dead end (B-3)</code>), and it must leave nothing behind:
+  <code>a refused plan wrote %d task(s); every check in CreateWorkflow runs before the first write
+  precisely so a rejection leaves nothing behind</code>.
+  <strong>Negative (TC-204):</strong> the other unusable plan, kept separate because the operator's
+  next action differs — <code>a task depending on something outside the plan was accepted; the
+  DEPENDS_ON edge would point at a vertex that does not exist and the task would never be
+  ready</code>, and <code>the refusal reads %q and does not name the missing prerequisite</code>.
+  <strong>Negative (TC-205):</strong> two id bugs that were cosmetic until vertices existed.
+  <code>PlanWorkflow</code> numbers from <code>t-1</code> every time and
+  <code>wf-%d</code> was built from <code>len(desks)+1</code>, which never changes —
+  <code>two workflows left %d tasks on the desk, want %d; the second plan overwrote the first rather
+  than joining it</code>, <code>%s appears twice; Task (tenantId, id) is UNIQUE, so the second write
+  would upsert over the first and inherit its DEPENDS_ON edges</code>, and
+  <code>the two workflows are called %v; len(desks)+1 does not change between creations, which is how
+  every workflow ended up being wf-7</code>.
+  <strong>Positive (TC-206):</strong> the decision that the graph is read from the store and not
+  folded, pinned so a later reader does not tidy it into the reducer —
+  <code>the folded floor differs between two runs whose only difference is the task graph; the
+  reducer is reading TaskPlanned's payload, and FloorState has just grown a copy of the graph that
+  every snapshot rung now carries</code>, with the other half of the argument as its companion:
+  <code>the graph is empty after planning; not being folded is the reason it must be persisted, and a
+  graph that is neither is not state at all</code>.
+  <strong>Positive (TC-211):</strong> and therefore <a href="brd.html#rules-invariants">BR-01</a> is
+  proved by reload rather than by fold, which is the same way
+  <code>TestArcadeStoreRebuildsTheFloorFromTheGraph</code> proves it for the floor — this one needs a
+  reachable ArcadeDB and skips without one. <code>the reopened graph holds %d tasks, %d were written
+  -- the graph is not folded from the stream, so load() is the only way back and it did not bring
+  them</code>; the ordinal comes back because the slice order has to be a property of the data
+  (<code>%s came back on workflow %q at ordinal %d, was %q at %d; the ordinal is what puts the slice
+  back in plan order, which D-1 needs to be a property of the data rather than of the bucket
+  layout</code>); the edge direction is asserted rather than assumed, because a reversed edge
+  round-trips perfectly and inverts every readiness answer —
+  <code>%s waits on %v after the reopen, wrote %v; DEPENDS_ON points from the dependent to its
+  prerequisite, and an edge that came back reversed would invert every readiness answer computed from
+  it</code>; and the workflow counter is restored from the ids in the graph, not from a count:
+  <code>%s was written twice after a restart; the workflow counter restarted too, and Task (tenantId,
+  id) UNIQUE means the second write upserted over the first</code>.</p>
+
+  <h3 id="go-taskstatus">dashboard — the task status machine (TC-207, TC-208, TC-209, TC-210)</h3>
+  <p><code>T-042</code>, and a second state machine rather than an extension of the first.
+  <code>dashboard/state.go</code> is about <code>Desk.State</code> — seven lowercase names, one desk
+  per product, each of which <code>model.go</code> calls <em>"a distinct CSS selector in app.css
+  (data-state)"</em> — while <code>Task.status</code> is ten uppercase names on a different
+  cardinality, four of which (<code>PENDING</code>, <code>READY</code>, <code>DISPATCHED</code>,
+  <code>RUNNING</code>) are never a desk's state at all.
+  <strong>Positive (TC-207):</strong> same shape as <a href="#register">TC-131</a> one table over —
+  <code>the table declares %s -&gt; %s and canTaskTransition refuses it</code>, and a status may
+  always reach itself, because <code>%s -&gt; %s refused; recording a beat on a task that is already
+  there is still a write, and every call site would need its own exception</code>.
+  <strong>Negative (TC-208):</strong> fifteen rows, each carrying the reason it is illegal and each
+  printing that reason — <code>%s -&gt; %s is permitted; %s</code> — so a rule nobody can explain
+  does not get deleted later as an oversight. An undeclared status is a typo rather than a task that
+  cannot move, and gets its own message in both directions:
+  <code>"SHIPPING" is not a task status and the machine accepted it</code> and
+  <code>the machine accepted a move out of a status it does not declare</code>.
+  <strong>Negative (TC-209):</strong> <a href="brd.html#rules-commercial">BR-34</a> as its own test,
+  because <code>DEFERRED</code> → <code>FAILED</code> reads as an omission — every other non-terminal
+  status reaches <code>FAILED</code>, and a reader adding the row would be making the table
+  symmetrical and the product wrong. <code>DEFERRED -&gt; FAILED is permitted; BR-34 says a deferral
+  is not a failure, and a task that failed for want of budget has spent a retry it never used</code>,
+  the boundary is the only way through
+  (<code>moveTask carried a deferred task to FAILED; the table is the boundary and a caller that can
+  go around it means there is no boundary</code>), the refusal is a rejection rather than a 500
+  (<code>moveTask returned %v, which is not an ErrRejected; BR-06 wants a reason a handler can put in
+  a toast, not a 500</code>), and a refused move must not have written anyway:
+  <code>the task is %q after a refused move, want DEFERRED — a rejected transition that still wrote is
+  worse than one that was never checked</code>.
+  <strong>Positive (TC-210):</strong> the Go vocabulary and the DDL's, compared as sets in
+  <em>both</em> directions. <a href="#register">TC-146</a> next door checks that one name is present,
+  which catches a DDL missing a state Go can reach but not a Go constant the DDL would refuse — and
+  that one fails at commit time in production and in no test at all.
+  <code>Task.status permits %q; Go declares %q — a status the DDL refuses is a row the scheduler
+  cannot write, and it fails at commit rather than here</code>, and the other way,
+  <code>the DDL permits %q and taskstate.go declares no transitions for it; a status nothing can
+  produce or leave is a state the machine cannot reach</code>.</p>
+
+  <h3 id="go-scheduler">dashboard — the scheduler, and the property it has to have (TC-212…TC-219)</h3>
+  <p><code>T-048</code> and <code>T-049</code>. <a href="brd.html#req-d">D-1</a> asks for something
+  stronger than a working scheduler — <em>"a pure function of the graph, such that two replicas
+  computing it independently reach the same answer"</em> — and the sentence after it is the reason:
+  leader election then protects against duplicate <em>dispatch</em> rather than divergent
+  <em>state</em>, which is <a href="brd.html#rules-invariants">BR-01</a> at the one layer that would
+  otherwise need authoritative state of its own.
+  <strong>Positive (TC-212):</strong> the shuffle is the test. Two replicas read the same rows out of
+  the same database and are not promised the same order across buckets, so a scheduler that inherited
+  slice order would pass a naive version of this and diverge only in production —
+  <code>two replicas over the same graph produced different decisions (%+v vs %+v); D-1 makes the
+  scheduler a function of the graph, and a scheduler that depends on row order is a function of the
+  database's bucket layout</code>. Paired with the plain purity half, the same shape
+  <code>TestTheEgressPassIsPure</code> uses next door: <code>two identical calls disagreed; a decision
+  that varies between calls becomes an event, and a replay would disagree with the run it
+  replays</code>. And a fixture that scheduled nothing would prove nothing, so
+  <code>the fixture scheduled nothing, so agreeing about it proves nothing</code>.
+  <strong>Negative (TC-213):</strong> purity cannot be tested by calling the function — a clock read
+  that happened to return the same value twice passes every behavioural test there is — so this parses
+  <code>dashboard/scheduler.go</code> instead, in the mould of
+  <a href="#register">TC-193</a>. The import list is the test:
+  <code>scheduler.go imports %s; a scheduler that can reach the clock is one edit from reading it, and
+  D-1 says the answer must be a function of the graph alone</code>. No declaration may have a receiver
+  (<code>scheduler.go declares a method (%s); a method on the store has the lock and the rng in scope
+  by definition, and the file's whole claim is that it has neither</code>), and nothing may reach the
+  machinery the imports keep out: <code>scheduler.go reads .%s; SchedulerInput is the only input the
+  decision may have, and every field on it is a value the caller already resolved</code>.
+  <strong>Positive (TC-214):</strong> <a href="brd.html#happy-path">BRD §7.4</a> is prescriptive about
+  the number — all five blocking reasons <em>"must be surfaced in the UI as the blocking reason …
+  because an unexplained idle floor is indistinguishable from a broken product"</em> — so the count is
+  asserted rather than assumed: <code>the scheduler declares %d blocking reasons, BRD §7.4 names five;
+  a sixth is a reason the UI has no row for, and a fifth missing is a floor that looks idle for a
+  reason nobody can explain</code>. Each one is then produced by an input that breaks its condition,
+  because a constant nothing emits is a row the UI renders blank forever —
+  <code>%s did not block the task; %s is a reason the scheduler declares and nothing produces</code> —
+  and budget is the one at real risk, since its guard is <code>M10.3</code> and does not exist yet.
+  Every block carries a specific: <code>%s blocked with no detail; a reason without a specific is a
+  dead end (B-3) and leaves the operator nothing to act on</code>.
+  <strong>Negative (TC-215):</strong> the rule <code>Screen</code> already states for the egress pass,
+  applied here — every reason is computed before one is reported —
+  <code>a task failing all five reported %q; readiness comes first because below the planning floor
+  nothing else is worth saying, and the reported reason must not depend on which check ran
+  first</code>, and once only: <code>one task produced %d blocked entries; a task has one reason at a
+  time or the floor shows the same desk five times</code>.
+  <strong>Negative (TC-216):</strong> <code>CreateWorkflow</code> refuses a cycle at planning time, so
+  one reaching the scheduler means the graph was written by something else or edited since —
+  <code>%d task(s) in a three-way cycle were dispatched; none of them can ever have its prerequisite
+  satisfied</code>, every member is named
+  (<code>%d of 3 cycle members were reported blocked; a member the floor does not mention is a desk
+  sitting idle for no stated reason</code>), and it is not a sixth reason:
+  <code>%s in a cycle reported %q; the BRD makes acyclicity part of the dependency condition rather
+  than a sixth reason</code>.
+  <strong>Negative (TC-217):</strong> <a href="brd.html#rules-readiness">BR-07</a> at the scheduler,
+  which is not the same check as the planner-side refusal <a href="#register">TC-156</a> asserts. The
+  planner refuses to produce a plan below the floor; this refuses to dispatch a plan produced above it
+  whose record has decayed since, which is the only way a task reaches here under a failing gate.
+  Both boundaries: <code>a task exactly at the floor of %d was not dispatched; BR-07 says BELOW the
+  floor, and an off-by-one here refuses work that is allowed to run</code>, and
+  <code>a task on a record below the planning floor was dispatched; BR-07 ends "Nothing is
+  dispatched", and a model called against a record this thin is money spent on a brief nobody
+  finished</code>.
+  <strong>Negative (TC-218):</strong> the within-one-pass half of <a href="brd.html#req-d">D-3</a> —
+  <code>%d tasks were dispatched into one workspace; D-3 exists because "two runs in one workspace
+  corrupt each other silently"</code>, and the seat as well as the workspace:
+  <code>both tasks were seated on %s; one agent cannot carry two runs, and the conflict would surface
+  as a lease failure rather than as a decision</code>.
+  <strong>Positive (TC-219):</strong> the last <code>rng</code> on a scheduling path, removed.
+  <code>advance()</code> reseated with <code>cand[s.rng.IntN(len(cand))]</code>, which was survivable
+  while one process owned the floor and stops being survivable at D-1 —
+  <code>two stores with different seeds seated different agents (%v vs %v); fixtures.go says a
+  dispatch that seated a different agent on every replay would make the fold disagree with the run,
+  and D-1 extends that to two replicas</code>.</p>
+
+  <h3 id="go-lease">dashboard — the exclusive workspace lease (TC-220…TC-226)</h3>
+  <p><code>T-051</code>. <a href="brd.html#req-d">D-3</a> asks for an exclusive workspace lease with
+  an expiry, and names the failure it is written against: <em>"two runs in one workspace corrupt each
+  other silently."</em> That failure is not loud — two agents editing one checkout do not crash, they
+  produce a diff neither of them wrote, which is then reviewed, scored and possibly merged. The
+  enforcement is an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code> rather than a
+  row, because the thing being protected is a directory and the only primitive that excludes
+  atomically at that granularity between processes is the filesystem.
+  <strong>Negative (TC-220):</strong> <code>a second run took a workspace that was already leased;
+  D-3 exists because two runs in one workspace corrupt each other silently, and neither would
+  crash</code>; the refusal has to be identifiable
+  (<code>the refusal is %v, which is not an ErrLeaseHeld; a caller cannot tell a busy workspace from
+  a broken disk</code>) and has to carry the holder, because
+  <code>the refusal is %+v and does not name the holder; the reconciler needs the pid and the expiry
+  to decide between adopting, requeuing and orphaning</code>. The loser must also leave the file
+  alone: <code>the lease now reads %+v; the refused acquire wrote over the holder it was refused
+  by</code>.
+  <strong>Negative (TC-221):</strong> the row most likely to be &ldquo;fixed&rdquo; later, so it is
+  asserted rather than left to a comment. An expired lease looks takeable — the expiry exists and it
+  passed — but expiry says the <em>supervisor</em> stopped renewing, and
+  <a href="brd.html#req-d">D-2</a> detaches the child precisely so it outlives its supervisor:
+  <code>an expired lease was taken by a new run (err=%v); the expiry says the supervisor stopped
+  renewing and says nothing about the child it was supervising, which D-2 detached so it would
+  outlive exactly this</code>. Clearing one is <code>BreakLease</code>, a separate name for an
+  operation only safe once the previous run has been made dead
+  (<a href="decision-log.html#d-053">D-053</a>).
+  <strong>Positive (TC-222):</strong> <code>a run could not re-acquire its own lease: %v; a retry
+  after a partial write would deadlock against itself</code>.
+  <strong>Negative (TC-223):</strong> the renewal half, whose negative is the one that matters —
+  <code>a run that does not hold the lease extended it (err=%v); a supervisor declared dead and
+  broken off could keep somebody else's workspace alive, which hands one directory to two runs
+  through the back door</code>. A beat that does not extend is equally wrong:
+  <code>the expiry is %d after a renewal, want 2300; a beat that does not extend the lease is a beat
+  that lets the workspace expire under a live run</code>.
+  <strong>Negative (TC-224):</strong> <code>a run released a lease it did not hold (err=%v)</code>,
+  and the lockfile must actually go —
+  <code>the lockfile survived a release; the next run would be refused by a lease whose holder has
+  finished</code>.
+  <strong>Negative (TC-225):</strong> the corrupt-file case, where the <em>direction</em> of the
+  answer is the whole test. Treating an unparseable lease as &ldquo;no lease&rdquo; would hand the
+  workspace to a second run on the strength of a truncated write:
+  <code>a truncated lease read as ok=%v err=%v; an unreadable lease must not read as an absent one,
+  or a half-written file hands the workspace to a second run</code>, and the safe answer must not
+  stop at the boundary — <code>leaseStateOf called an unreadable lease free; the scheduler would
+  dispatch into a workspace nothing could prove was empty</code>.
+  <strong>Positive (TC-226):</strong> the property that makes a file the right primitive at all — a
+  value read back by something that never held the original, which is what an adopting orchestrator
+  is: <code>the lease round-tripped as %+v, wrote %+v; a process that has never seen the database has
+  only this file to work out whose workspace it is</code>. The four intervals are asserted in the same
+  case because the relationship between them <em>is</em> the design:
+  <code>the intervals are beat=%d stale=%d ttl=%d; a beat slower than the staleness window declares
+  every live run dead, and a ttl inside it expires the lease before the beat is even missed</code>,
+  and D-053's separation of the two cadences —
+  <code>the Heartbeat event cadence is %ds against a %ds beat; D-053 separates them so a
+  twenty-minute run writes five pills rather than forty into a stream that is append-only and
+  rendered in full</code>.</p>
+
+  <h3 id="go-runner">dashboard — the detached runner and its heartbeat (TC-227…TC-235)</h3>
+  <p><code>T-050</code> and <code>T-052</code>. <a href="brd.html#req-d">D-2</a> asks that work run in
+  detached processes that survive the orchestrator, <em>"an orchestrator restart must not kill a paid
+  model call in flight"</em>, and until this landed the code did the opposite on the one path an
+  operator actually uses: <code>Dispatch</code> built its context from the caller's, <code>serve()</code>
+  builds the caller's from <code>signal.NotifyContext(SIGINT, SIGTERM)</code>, so a graceful shutdown
+  cancelled the context and <code>CommandContext</code> killed the child. <code>SIGKILL</code> was
+  already fine by accident — the Go runtime never runs and <code>Setpgid</code> means no terminal
+  signal arrives — so the <em>ungraceful</em> path satisfied D-2 and the <em>graceful</em> one
+  violated it, which is the wrong way round.
+  <strong>Positive (TC-232):</strong> <code>context.WithoutCancel</code> is the fix, and this is the
+  assertion on it — <code>the child reported %q after its caller's context was cancelled; D-2 says
+  work runs in detached processes that survive the orchestrator, and an orchestrator restart must not
+  kill a paid model call in flight</code>. The full property, killing the orchestrator
+  <em>process</em>, cannot be a Go test: the test binary is the parent of everything it spawns and
+  <code>go test</code> reaps the tree on exit, so the harness undoes the thing under test. That is a
+  shell script and it belongs with <code>T-053</code>.
+  <strong>Positive (TC-227):</strong> the three names that came off the owed list, in order —
+  <code>the run wrote %v, want %v; RunStarted before the work and RunExited after it is the shape a
+  replay reads a run's duration from</code> — and the money reaching the record, because
+  <a href="decision-log.html#d-051">D-051</a> asks for measured cost from the first run:
+  <code>the run cost money and the desk still reads zero; a cost nothing recorded is a cost the
+  budget guard will never see</code>.
+  <strong>Negative (TC-228):</strong> the discipline <code>dashboard/events.go</code> states, checked
+  rather than trusted — <code>a run that never started wrote %v; a RunStarted from a process that
+  never started is invented evidence, and events.go says so in as many words</code>.
+  <strong>Positive (TC-229):</strong> <a href="decision-log.html#d-053">D-053</a> made checkable, and
+  against the pure half so it does not take twelve minutes to run:
+  <code>the same twelve minutes wrote %d Heartbeat events, want 3; D-053 separates the cadences so a
+  run does not put one pill per beat into a stream that is append-only, snapshotted every %d events
+  and rendered in full</code>. Both endpoints always write, because
+  <code>a run with no opening beat has no start for a replay to measure silence from</code>.
+  <strong>Positive (TC-230):</strong> <a href="brd.html#rules-commercial">BR-33</a> as a comparison
+  rather than a promise. An adopting orchestrator cannot <code>cmd.Wait()</code> on a process it did
+  not fork, so <code>Resume</code> is a second entry point — and a second entry point is a second
+  place to drift: <code>an adopted run produced %+v and a supervised one %+v; BR-33 asks that nothing
+  above the seam be able to tell them apart, and a scoring difference between the two would be one
+  nobody could explain</code>. It works only because the log is a file:
+  <code>the adopted run's basis is %q, want measured; the cost lives in a file rather than in the
+  dead orchestrator's memory precisely so this works</code>.
+  <strong>Negative (TC-231):</strong> <code>handoff.go</code> has said since it was written that the
+  document <em>"is declared and empty before the invocation starts"</em>, and nothing did it. A retry
+  in a reused workspace would read the previous attempt's document —
+  <code>a run that wrote no handoff reported %q, want %q; the previous attempt's document was still
+  on disk and was read as this one's</code>, and the direction of that mistake is the worst available:
+  <code>the attempt's outcome is %q; a stale document made a run that produced nothing look like one
+  that succeeded</code>.
+  <strong>Positive (TC-233):</strong> <code>the lease survived a %s run (held=%v err=%v); the
+  workspace can never be scheduled again and nothing short of a restart would notice</code>.
+  <strong>Negative (TC-234):</strong> <code>a run was supervised with no workspace; there would be
+  nothing to lease and nothing to be exclusive about</code>.
+  <strong>Negative (TC-235):</strong> the money guard. Five configuration guards stand in front of a
+  paid call — <code>GAOS_MODEL_MODE</code> defaults to off, only <code>serve()</code> builds a real
+  adapter, <code>GAOS_WORKSPACE_ROOT</code> is unset, <code>GAOS_RUNNER</code> is off — and every one
+  can be switched on by a developer with a good reason who then runs <code>go test ./...</code>. So
+  the sixth is in the code: <code>refuseIfUnderTest permitted the real provider command from a test
+  binary; a paid model call triggered by go test is money that does not come back</code>, and it must
+  not block the stand-in, because <code>a guard that blocks them is a guard somebody will delete</code>.
+  The case also parses <code>adapter_cli.go</code> to check the guard is still <em>on</em> the spawn
+  path, because <code>every test in this package would still pass without it, because they all drive
+  the fake, and the deletion would only surface as a bill</code>.</p>
+
+  <h3 id="go-reconcile">dashboard — boot reconciliation (TC-236…TC-242)</h3>
+  <p><code>T-053</code>. <a href="brd.html#req-d">D-4</a> does not hedge:
+  <em>"On boot, reconcile every task claiming to be dispatched or running against its lease and
+  heartbeat: adopt, requeue, or fail as orphaned. This is the whole of recovery; there is no other
+  path."</em>
+  <strong>Positive (TC-236):</strong> the architecture page's pseudocode, one row per branch, each
+  carrying the reason it is what it is — a live lease with a fresh beat is adopted, because
+  <em>"killing or restarting it would throw away work that is going fine"</em>; a live lease with a
+  stale beat is requeued, because <em>"the supervisor stopped beating, which says nothing about the
+  child — D-2 detached it precisely so it would outlive its supervisor"</em>; an expired lease is
+  orphaned, because <em>"a task that cannot be proved alive is not assumed alive"</em>. Failures read
+  <code>%s was %s, want %s; %s</code> with that reason substituted, and every decision must carry one:
+  <code>the decision carries no reason; a recovery nobody can explain is a recovery nobody can
+  audit</code>.
+  <strong>Negative (TC-237):</strong> D-4's scope is a scope rather than a filter —
+  <code>%d of the ten statuses were reconciled, want 2; D-4 scopes recovery to DISPATCHED and
+  RUNNING, and a task in any other status is not claiming a process</code>, and neither may be
+  skipped: <code>%s was not reconciled; a task claiming a process that nobody checked is the hole
+  recovery exists to close</code>.
+  <strong>Negative (TC-238):</strong> the same structural discipline the scheduler is held to, for a
+  sharper reason — this runs once per boot over evidence nobody can reproduce afterwards:
+  <code>reconcile.go imports %s; the whole of recovery has to be a function of the evidence it was
+  handed, and a file that can reach the clock is one edit from a recovery nobody can reproduce</code>.
+  <strong>Positive (TC-239):</strong> the closed catalog, kept closed —
+  <code>both recoveries carry rule %q; they share TaskResumed, so the rule is the only thing that
+  distinguishes them and a reader of the stream could not tell an adopted run from a requeued
+  one</code>.
+  <strong>Negative (TC-240):</strong> <a href="decision-log.html#d-054">D-054</a>'s teeth, and the
+  case most likely to be read as over-caution. Requeue <em>promises</em> the previous run has been
+  made dead; with nothing able to kill it that promise cannot be kept, and a requeue whose kill
+  silently did nothing is the second run in one workspace wearing a reassuring event saying it was
+  handled — <code>a requeue with nothing able to kill emitted %s, want %s; the requeue would have
+  handed the workspace on while claiming the previous run was dead, which is the corruption D-3 exists
+  to prevent reached through the recovery routine</code>.
+  <strong>Positive (TC-241):</strong> <code>the task is %s after adoption, want %s; nothing stopped,
+  so nothing should have moved</code>, and <code>adoption broke the lease; the run is still going and
+  its workspace is still its own</code>.
+  <strong>Positive (TC-242):</strong> BRD §7.5's exception row —
+  <code>an orphaned run kept its lease; the workspace can never be scheduled again, and the expiry
+  that made it an orphan would go on making it one forever</code>.</p>
+
+  <h3 id="sc-kill-mid-task">kill-mid-task.sh — build-order step 5 (TC-243…TC-246)</h3>
+  <p>The acceptance test the whole of <a href="../delivery/implementation-plan.html#sub-m4-2">M4.2</a>
+  exists to satisfy: <em>"Kill the orchestrator mid-task; the work survives and is re-adopted."</em>
+  <strong>It cannot be a Go test, and pretending otherwise would be worse than not having it.</strong>
+  The property is that a child outlives its parent; under <code>go test</code> the test binary
+  <em>is</em> the parent of everything it spawns and the harness reaps the tree on exit, so the
+  framework undoes the one thing being asserted. <a href="#register">TC-232</a> gets as close as Go
+  can by cancelling a context, which covers <code>context.WithoutCancel</code> and nothing beyond it.
+  <strong>Positive (TC-243) / Negative (TC-244):</strong> the assertion the script exists for —
+  <code>the child outlived the orchestrator that started it</code>, against
+  <code>the child died with its orchestrator — D-2 says work runs in detached processes that survive
+  it</code>.
+  <strong>Positive (TC-245) / Negative (TC-246):</strong> the recovery half —
+  <code>boot reconciliation ran before the listener came up</code> and
+  <code>the run was adopted rather than restarted or orphaned</code>, against
+  <code>no adoption in the timeline — a lease held and a beat fresh is the adopt branch (D-4)</code>.
+  It closes with <code>step 5: the work survived and was re-adopted</code>.
+  <strong>Two limits, both deliberate and both printed rather than discovered.</strong> It runs
+  against a scratch ArcadeDB and never against dev or prod, because recovery writes to the graph and
+  those instances belong to the wider stacks. And it <em>cannot</em> run with
+  <code>GAOS_STORE=memory</code>: <code>MemStore</code> loses every task record on restart, so there
+  is no claim left to reconcile — recovery is a property of the ArcadeDB deployment, and a green run
+  against memory would have proved nothing. The provider tool is the stand-in, with a sleep long
+  enough to be killed around; the thing under test is the orchestrator's recovery, not a model's
+  output.</p>
+
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
-  writing before the code that would satisfy it — and neither can run today: domains C (planning), D
-  (execution) and E (review, scoring &amp; retry) are all <strong>Designed</strong>, not
-  <strong>Built</strong>, per <a href="brd.html#current-state">BRD §2.1</a>.</p>
+  writing before the code that would satisfy it — and neither can run today. Domain E (review, scoring
+  &amp; retry) is entirely <strong>Designed</strong>, not <strong>Built</strong>, per
+  <a href="brd.html#current-state">BRD §2.1</a>; C (planning) and D (execution) have each had one
+  requirement close since — the task graph is persisted (<code>C-2</code>, partly) and the scheduler
+  is a pure function of it (<code>D-1</code>) — but nothing dispatches from either yet, and an
+  acceptance test needs the whole loop rather than the first link of it.</p>
 
   <p>The third has moved. <a href="#im-fold">The fold test</a> ran for the first time on 2026-08-17
   and now lives with the implemented scenarios, which is what closing
