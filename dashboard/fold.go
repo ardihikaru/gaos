@@ -201,6 +201,40 @@ func reduce(st FloorState, e Event) FloorState {
 		d.State = StateDeferred
 		d.BlockReason = e.Text
 
+	// ---- egress ----
+
+	case ContextRedacted:
+		// The slice was cut down and the dispatch went ahead anyway. Nothing
+		// about the TASK changed, so nothing about the desk changes: this is a
+		// fact about what was SENT, not about what is happening.
+		//
+		// It still reaches the operator, through the timeline pill and through
+		// p.Logs at the bottom of this function, which is exactly what L-5 asks
+		// for -- "an invisible filter is indistinguishable from a broken one".
+		//
+		// Its own case rather than a line in the no-op list below, because the
+		// reason it moves nothing is specific to it and worth reading here.
+
+	case DispatchRefused:
+		// BR-32: the dispatch did not happen, so the desk must not look like it
+		// did. Blocked is what this is -- not running, and waiting on something
+		// a human has to clear -- and it is the state stats() counts into
+		// Attention, so the refusal reaches the bell with no extra wiring.
+		//
+		// Pointedly NOT deferred: BR-34 says a deferral is not a failure and
+		// consumes no retry, while an egress refusal is a failure that needs a
+		// person to change a policy or a slice. Pointedly not idle either: an
+		// idle desk carrying a reason is a contradiction the inspector renders
+		// as an empty desk, which is the invisible-filter failure again.
+		//
+		// This is why state.go now permits idle -> blocked. See the comment on
+		// the transition table: until BR-32 existed, blocked could only be
+		// reached from work that was already running.
+		d.State = StateBlocked
+		d.BlockReason = e.Text
+		d.Progress = 0
+		d.Agents = nil
+
 	case TaskCompleted:
 		d.State = StateReview
 		d.Progress = 100

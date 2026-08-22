@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-160`; the
-   next free number is `TC-161`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-200`; the
+   next free number is `TC-201`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it —
    do not delete it and do not renumber anything after it. `TC-076` is the worked
    example: BR-07 made planning an empty record illegal, so the case that asserted
@@ -50,21 +50,22 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "one hundred and sixty", so
-   `grep -rn "one hundred and sixty" pustaka/` finds every one. Retired rows still
-   count: the register is every ID ever issued, and `TC-076` is one of the hundred
-   and sixty. Older changelog notes keep their own numbers; they are release
+   changing all four or none. They are currently all "two hundred", so
+   `grep -rn "two hundred" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
+   finds every one. Retired rows still count: the register is every ID ever issued,
+   and `TC-076` is one of the two hundred. Older changelog notes keep their own numbers; they are release
    records and stay as written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All one hundred and sixty cases…")
+   - the register intro on the same page ("All two hundred cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file
 
    Do **not** change the older counts in `pustaka/docs/changelog.html` — the
    "fifty-three" in the v0.3.0 note, the "one hundred and eight" in v0.6.0 and
    v0.8.0, the "one hundred and twelve" in v0.9.0, the "one hundred and thirty"
-   in v0.10.0, the "one hundred and forty-eight" in v0.11.0. Those are release
-   notes, and each records what was true at that release.
+   in v0.10.0, the "one hundred and forty-eight" in v0.11.0, and the "two hundred"
+   in v0.15.0. Those are release notes, and each records what was true at that
+   release.
 
 4. **Release hygiene**, if the change is user-visible: add to
    `pustaka/docs/changelog.html` and bump `product.semver` in
@@ -87,9 +88,12 @@ the deploy gate's Go-toolchain fallback, and `TC-149` the projection regression
 in `dashboard/main_test.go`. `TC-150`/`TC-151` are the licence assertions in
 `check-stacks.sh`, `TC-152`…`TC-155` the tag-and-worktree deploy path in
 `rebuild-restart.sh`, and `TC-156`…`TC-160` the readiness rubric and the planning
-floor in `dashboard/readiness_test.go` — **one row per `func Test…`**, because
-that is the unit `go test -run` can select. The register currently covers 96 Go
-tests: 74 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding its row
+floor in `dashboard/readiness_test.go`. `TC-161`…`TC-200` are the pre-dispatch
+egress pass, the handoff parser, the version pin, the CLI adapter and the
+dispatch route in `dashboard/egress_test.go`, `handoff_test.go`, `smoke_test.go`,
+`adapter_test.go` and `dispatch_test.go` — **one row per `func Test…`**, because
+that is the unit `go test -run` can select. The register currently covers 136 Go
+tests: 114 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding its row
 and its `h3`; the gap that used to be here is closed and must not reopen.
 
 The store conformance suite is one `func Test…` per implementation over a shared

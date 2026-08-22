@@ -82,6 +82,12 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"POST", "/ui/pause", 200},
 		{"POST", "/ui/speed/2", 200},
 		{"POST", "/ui/bell", 200},
+		// Desk 0 is running in the fixtures, so this is the "already in
+		// flight" rejection rather than a dispatch. 422 is what BR-06's
+		// rejection half renders as, and asserting the route ANSWERS is what
+		// this table is for -- the dispatch path's own behaviour is
+		// dispatch_test.go's job.
+		{"POST", "/tasks/0/dispatch", 422},
 		{"POST", "/tasks/0/retry", 200},
 		{"POST", "/tasks/0/cancel", 200},
 		{"GET", "/tasks/1/context", 200},

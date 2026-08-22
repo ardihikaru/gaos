@@ -213,6 +213,23 @@ type EventPayload struct {
 	// actually had, rather than the log it has now.
 	Logs []LogLine
 
+	// Egress. Read by the ContextRedacted and DispatchRefused cases in fold.go
+	// and by nothing else.
+	//
+	// Reason duplicates Event.Text on purpose. Text is the pill's sentence and
+	// may be re-worded whenever the UI is; Reason is the record. A future reader
+	// asking "why was this refused" must not be reading a caption.
+	//
+	// Rule is the machine-readable half -- secret | local-only | size |
+	// empty-slice | path-escape, and budget-cap when M10.3 reuses the event.
+	// A reducer that had to parse the sentence would break the first time
+	// somebody improved the wording.
+	Reason     string
+	Rule       string
+	Redactions int    // how many parts the pass cut
+	Bytes      int    // the size of the slice after redaction
+	Digest     string // the cleared packet's digest; ContextSlice.digest in 04-execution.sql
+
 	// Genesis is set by FloorOpened and by nothing else. It is the seeded floor
 	// -- the `?? empty` half of §08's `snapshot_before(t) ?? empty` -- and it is
 	// what lets a fold from an empty state reproduce a floor that was never
@@ -223,6 +240,10 @@ type EventPayload struct {
 // Clone deep-copies a payload. Same argument as Desk.Clone: a payload handed to
 // a caller shares its slices with the stream otherwise, and the stream is
 // supposed to be immutable.
+//
+// The five egress fields are absent here because all five are scalars and there
+// is nothing for a clone to copy. Adding a slice or a pointer up there means
+// adding a line down here, and this sentence is the reminder.
 func (p EventPayload) Clone() EventPayload {
 	c := p
 	c.Agents = append([]string(nil), p.Agents...)
