@@ -8,11 +8,11 @@ window.DOCS.nav.push({
       id: "implementation-plan",
       file: "delivery/implementation-plan.html",
       title: "Implementation plan",
-      desc: "Every BRD requirement mapped against the code that is actually committed, cut into fourteen modules and fifty-seven sub-modules — one hundred and forty-one tasks, forty done, sixteen standing on fixtures, eighty-five not started.",
+      desc: "Every BRD requirement mapped against the code that is actually committed, cut into fourteen modules and fifty-seven sub-modules — one hundred and forty-one tasks, forty-seven done, sixteen standing on fixtures, seventy-eight not started.",
       tags: ["implementation", "roadmap", "tasks", "gap-analysis", "modules", "build-order", "brd", "delivery", "backlog"],
       sections: [
         { anchor: "how-to-read-this", title: "How to read this",
-          text: "Why the BRD's four statuses are the wrong vocabulary for a Monday morning, and what the three flags mean: done and pointable at a file, standing on fixtures or the simulator, and not started. Forty tasks are done: ten are the operator surface, five the schema, three the store seam that reads and writes it, one the event catalog block, and the rest the foundations, the readiness rubric and the pre-dispatch egress pass that landed with them." },
+          text: "Why the BRD's four statuses are the wrong vocabulary for a Monday morning, and what the three flags mean: done and pointable at a file, standing on fixtures or the simulator, and not started. Forty-seven tasks are done: ten are the operator surface, six the scheduler and the detached runner with its lease, heartbeat and boot reconciliation, five the schema, three the store seam that reads and writes it, one the event catalog block, and the rest the foundations, the readiness rubric, the planner's task graph and the pre-dispatch egress pass that landed with them." },
         { anchor: "scoreboard", title: "Scoreboard",
           text: "Fourteen modules and fifty-seven sub-modules with their done, partial and not-started counts, and the first open task in each — the thing to pick up if you open that module today." },
         { anchor: "sequencing", title: "Sequencing",

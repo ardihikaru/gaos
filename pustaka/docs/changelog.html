@@ -36,6 +36,34 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-20-1">v0.20.1 <time datetime="2026-08-22">2026-08-22</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The implementation plan caught
+      up with v0.20.0. Nothing in the code moved: boot reconciliation shipped in that release and the
+      register went on saying it had not, which is the
+      <a href="#v0-13-1">v0.13.1</a> pattern again — <code>go run . check ./docs</code> checks
+      structure and links, not whether a status column agrees with the repository.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b><a href="delivery/implementation-plan.html#register">T-053</a>'s
+        status, and the three counts that follow from it.</b> The row read <code>❌</code> against
+        <code>dashboard/reconcile.go</code>, <code>dashboard/runner.go</code> and seven tests in
+        <code>dashboard/reconcile_test.go</code>; it now reads <code>✅</code> and names the files, as
+        the flag legend requires. M4 goes to six done and twelve not started, the totals to
+        forty-seven and seventy-eight, and the module's next open task is
+        <a href="delivery/implementation-plan.html#sub-m4-3">T-054</a>, the attempt record.</li>
+        <li><span class="chg fix">Fixed</span> <b>the plan's lede, which still read <em>forty done,
+        eighty-five not started</em></b> — six tasks behind the scoreboard on the same page, from the
+        planner's task graph and the scheduler through to the lease and the heartbeat. The lede, the
+        scoreboard total and <code>assets/toc/delivery.js</code> now say the same three numbers.</li>
+        <li><span class="chg add">Added</span> <b>the write-up
+        <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a> owed the reconciler.</b> The
+        section documented the lease and the runner on the day each landed and stopped there, so the
+        one part of the module that corrects the architecture document — the middle branch does not
+        know the process is gone, so requeue kills first (<a href="product/decision-log.html#d-054">D-054</a>)
+        — existed in the code, the decision log and this changelog, and not in the plan.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-20-0">v0.20.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px"><b>Build-order step 5 passes:
       kill the orchestrator mid-task, and the work survives and is re-adopted.</b> M4.2 closes, the
