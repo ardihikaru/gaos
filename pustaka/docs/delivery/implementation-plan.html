@@ -75,7 +75,7 @@
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>2</td><td>18</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>2</td><td>2</td><td>16</td><td><a href="#register">T-050</a> &mdash; detached runs that outlive the orchestrator</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
@@ -85,7 +85,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>41</b></td><td><b>16</b></td><td><b>84</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>43</b></td><td><b>16</b></td><td><b>82</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -186,8 +186,8 @@
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-045</td><td>M3.4</td><td>Model senior-role capacity across all products</td><td>C-5</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing done built m3.5"><td>T-046</td><td>M3.5</td><td>Operator wizard: objective, scope, plan preview &mdash; <code>handlers_cw.go</code></td><td>C-6</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.5"><td>T-047</td><td>M3.5</td><td>Survive a restart mid-wizard; the draft round-trips through hidden form fields with no server session</td><td>C-6</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph</td><td>D-1</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer</td><td>D-1</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph &mdash; <code>dashboard/scheduler.go</code>, imports limited to <code>fmt</code>, <code>sort</code> and <code>strings</code>, the clock passed in as a value, and the five blocking reasons of §7.4 returned per task</td><td>D-1</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer &mdash; the second replica is handed the same graph in a shuffled row order, plus an AST test that closes the import list</td><td>D-1</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator</td><td>D-2</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run</td><td>D-3</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease</td><td>D-3</td><td>❌</td></tr>
@@ -583,15 +583,34 @@
 
   <h2 id="m4-execution">M4 · Execution</h2>
   <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
-  count and by task count. Twenty tasks, none done, none partial. Everything here is currently
+  count and by task count. Twenty tasks, two done and two partial. Most of what is here is still
   played by <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker that moves desks through states
   and emits catalog events without ever calling a model.</p>
 
   <h3 id="sub-m4-1">M4.1 — The scheduler (T-048–T-049)</h3>
-  <p><code>D-1</code> asks for something stronger than a working scheduler: a <em>pure function of
+  <p><code>D-1</code> asked for something stronger than a working scheduler: a <em>pure function of
   the graph</em>, such that two replicas computing it independently reach the same answer. That
   property is the reason the orchestrator can hold no authoritative state, and it is far cheaper to
-  build in than to add later.</p>
+  build in than to add later — which is why it was built in on 2026-08-22 rather than retrofitted.</p>
+  <p><code>dashboard/scheduler.go</code> takes a <code>SchedulerInput</code> and returns a
+  <code>ScheduleDecision</code>. The clock arrives as a field, read once by the impure shell on the
+  store and passed down as a value; every collection is sorted on entry, because two replicas reading
+  the same ArcadeDB are promised nothing about row order across buckets and a scheduler that
+  inherited slice order would agree in a naive test and disagree in production. The purity is enforced
+  structurally rather than behaviourally: the file's import list is closed at <code>fmt</code>,
+  <code>sort</code> and <code>strings</code>, and an AST test refuses a fourth import or any
+  declaration with a receiver. A clock read that happened to return the same value twice would pass
+  every behavioural test there is.</p>
+  <p>The decision returns both halves. <code>Ready</code> is what a runner would start — with the
+  agent and the workspace named, so two tasks cannot be handed the same seat by a decision that never
+  recorded making one. <code>Blocked</code> is the other half, and it is
+  <a href="../product/brd.html#happy-path">§7.4</a>'s requirement rather than a convenience: five
+  reasons, no more and no fewer, reported by precedence rather than by whichever check ran first.
+  A cycle is a dependency block naming its members, not a sixth reason.
+  <code>M10.3</code> does not exist, so the budget zone is always normal — the branch is covered by a
+  test that constructs a throttled input directly, because a reason with no producer rots before its
+  module arrives. <a href="#sub-m9-3">T-109</a> renders these; nothing dispatches from them yet, which
+  is <a href="#sub-m4-2">M4.2</a>.</p>
 
   <h3 id="sub-m4-2">M4.2 — Runner, lease and reconciliation (T-050–T-053)</h3>
   <p>Work runs in detached processes that survive the orchestrator (<code>D-2</code>), each holding
