@@ -80,10 +80,7 @@ func TestEveryEmittedEventIsInTheClosedCatalog(t *testing.T) {
 func TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules(t *testing.T) {
 	owed := map[EventType]string{
 		DependencyRewired:      "M3.2 -- the planner's task graph",
-		RunStarted:             "M4.2 -- the runner",
-		Heartbeat:              "M4.2 -- the runner",
-		RunExited:              "M4.2 -- the runner",
-		TaskOrphaned:           "M4.2 -- the lease",
+		TaskOrphaned:           "M4.2 -- boot reconciliation, T-053",
 		SafetyVeto:             "M5.2 -- the real review engine",
 		GuardExhausted:         "M5.5 -- the six guards",
 		KnowledgeReused:        "M7.3 -- recall at planning time",
@@ -95,6 +92,7 @@ func TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules(t *testing.T)
 
 	s := runAWorkflow(t, 41, 400)
 	drive(t, s)
+	driveRunner(t, s)
 
 	emitted := map[EventType]bool{}
 	for _, e := range s.events {
@@ -362,4 +360,19 @@ func lastReadiness(t *testing.T, s *MemStore, id string) int {
 	}
 	t.Fatalf("no ReadinessEvaluated for %s in the stream", id)
 	return 0
+}
+
+// driveRunner supervises one run against the stand-in tool, so the catalog test
+// sees the three names T-050 and T-052 took off the owed list.
+//
+// It has to be here rather than asserted in the abstract: TC-144 asks whether a
+// name is EMITTED, and a name is only emitted if something emits it. A test
+// that removed the three from the owed map without also running a supervisor
+// would be recording an intention.
+func driveRunner(t *testing.T, s *MemStore) {
+	t.Helper()
+	a, ws := fakeCLI(t, "complete", "0")
+	if _, err := s.superviseRun(t.Context(), a, s.desks[0].ID, clearedFor(t, ws), 1); err != nil {
+		t.Fatalf("supervising one run against the fake tool failed: %v", err)
+	}
 }

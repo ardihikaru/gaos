@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and twenty-six cases, positive and negative, across the three deploy automations and the
+  two hundred and thirty-five cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -72,7 +72,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and twenty-six cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and thirty-five cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -311,6 +311,15 @@
       <tr data-tags="go test unit dashboard lease release holder idempotent negative"><td>TC-224</td><td>dashboard (go test)</td><td>Negative</td><td>Only the holder may release a lease, and releasing one that is already gone is not an error (<code>TestReleaseGivesTheWorkspaceBackAndOnlyToItsHolder</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard lease corrupt unreadable fail-safe negative"><td>TC-225</td><td>dashboard (go test)</td><td>Negative</td><td>A truncated lockfile reads as held rather than as absent, and the scheduler reaches the same conclusion (<code>TestAnUnreadableLeaseIsTreatedAsHeldRatherThanAsAbsent</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard lease round trip intervals d-053 positive"><td>TC-226</td><td>dashboard (go test)</td><td>Positive</td><td>The lease round-trips through the file for a process that never held it, and the beat/stale/expiry ladder is ordered as declared (<code>TestTheLeaseFileSurvivesTheProcessThatWroteIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner runstarted runexited cost d-051 t-050 positive"><td>TC-227</td><td>dashboard (go test)</td><td>Positive</td><td>A supervised run writes <code>RunStarted</code>, a <code>Heartbeat</code> and <code>RunExited</code> in that order, and the tool's own cost figure reaches the desk (<code>TestARunEmitsRunStartedAndRunExitedAroundTheWorkItSupervised</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner invented evidence lease refused negative"><td>TC-228</td><td>dashboard (go test)</td><td>Negative</td><td>A run refused the workspace lease emits nothing at all, because a <code>RunStarted</code> from a process that never started is invented evidence (<code>TestARunThatCouldNotStartEmitsNoRunStarted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner heartbeat cadence d-053 br-02 positive"><td>TC-229</td><td>dashboard (go test)</td><td>Positive</td><td>Twelve minutes of beats writes twenty-four field updates and three <code>Heartbeat</code> events, with both endpoints always written (<code>TestTheHeartbeatWritesTheBeatMoreOftenThanItWritesAnEvent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner adoption resume br-33 d-051 positive"><td>TC-230</td><td>dashboard (go test)</td><td>Positive</td><td>An adopted run and a supervised one produce the same <code>Attempt</code>, cost included, because both assemble it from the same evidence on disk (<code>TestAnAdoptedRunAndASupervisedRunProduceTheSameAttempt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner handoff truncation retry br-30 negative"><td>TC-231</td><td>dashboard (go test)</td><td>Negative</td><td>A handoff left by an earlier attempt is not read as this one's; a run that wrote nothing reports <code>handoff-missing</code> rather than the stale success (<code>TestAHandoffFromThePreviousAttemptIsNotReadAsThisOnes</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner detached withoutcancel d-2 positive"><td>TC-232</td><td>dashboard (go test)</td><td>Positive</td><td>Cancelling the caller's context mid-run does not kill the child, which is D-2 on the graceful-shutdown path that used to violate it (<code>TestTheDetachedChildIsNotKilledByTheOrchestratorsContext</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner lease release cleanup d-3 positive"><td>TC-233</td><td>dashboard (go test)</td><td>Positive</td><td>The lease is released whether the run completed or produced no handoff at all (<code>TestTheRunReleasesItsLeaseWhateverHappens</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner workspace root guard negative"><td>TC-234</td><td>dashboard (go test)</td><td>Negative</td><td>A run with no workspace is refused before anything is leased or spawned (<code>TestTheRunnerRefusesToSpawnWithoutAWorkspaceRoot</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner money guard testing provider negative"><td>TC-235</td><td>dashboard (go test)</td><td>Negative</td><td>A test binary may exec only a tool under <code>testdata</code>, and <code>Dispatch</code> is checked to still carry the guard (<code>TestNoTestEverReachesTheRealProviderCommand</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1149,8 +1158,13 @@
   <code>only %d distinct event types were emitted; the run is not exercising enough of the catalog
   for this to mean anything</code>.
   <strong>Negative (TC-144):</strong> the declared-but-unwritten names are pinned to the modules that
-  owe them — the runner (M4.2), the review engine (M5.2), the six guards (M5.5), the planner's task
-  graph (M3.2), recall (M7.3) and the budget guard (M10.3). A name that starts being emitted fails
+  owe them — boot reconciliation (M4.2, T-053), the review engine (M5.2), the six guards (M5.5), the
+  planner's task graph (M3.2), recall (M7.3) and the budget guard (M10.3).
+  <code>RunStarted</code>, <code>Heartbeat</code> and <code>RunExited</code> came off that list on
+  2026-08-22 when T-050 and T-052 gave them a supervisor, which is what this case is for: the driver
+  now runs one real supervision against the stand-in tool, because a name is only <em>emitted</em> if
+  something emits it and a test that just deleted three rows from the map would be recording an
+  intention. A name that starts being emitted fails
   (<code>%s is being emitted, but this list still says it is owed to %s -- if the module landed, take
   it out of the list</code>) and so does a declared name with no reason beside it
   (<code>%s is in the catalog, is not emitted, and is not listed as owed to a later module; a
@@ -1552,6 +1566,68 @@
   <code>the Heartbeat event cadence is %ds against a %ds beat; D-053 separates them so a
   twenty-minute run writes five pills rather than forty into a stream that is append-only and
   rendered in full</code>.</p>
+
+  <h3 id="go-runner">dashboard — the detached runner and its heartbeat (TC-227…TC-235)</h3>
+  <p><code>T-050</code> and <code>T-052</code>. <a href="brd.html#req-d">D-2</a> asks that work run in
+  detached processes that survive the orchestrator, <em>"an orchestrator restart must not kill a paid
+  model call in flight"</em>, and until this landed the code did the opposite on the one path an
+  operator actually uses: <code>Dispatch</code> built its context from the caller's, <code>serve()</code>
+  builds the caller's from <code>signal.NotifyContext(SIGINT, SIGTERM)</code>, so a graceful shutdown
+  cancelled the context and <code>CommandContext</code> killed the child. <code>SIGKILL</code> was
+  already fine by accident — the Go runtime never runs and <code>Setpgid</code> means no terminal
+  signal arrives — so the <em>ungraceful</em> path satisfied D-2 and the <em>graceful</em> one
+  violated it, which is the wrong way round.
+  <strong>Positive (TC-232):</strong> <code>context.WithoutCancel</code> is the fix, and this is the
+  assertion on it — <code>the child reported %q after its caller's context was cancelled; D-2 says
+  work runs in detached processes that survive the orchestrator, and an orchestrator restart must not
+  kill a paid model call in flight</code>. The full property, killing the orchestrator
+  <em>process</em>, cannot be a Go test: the test binary is the parent of everything it spawns and
+  <code>go test</code> reaps the tree on exit, so the harness undoes the thing under test. That is a
+  shell script and it belongs with <code>T-053</code>.
+  <strong>Positive (TC-227):</strong> the three names that came off the owed list, in order —
+  <code>the run wrote %v, want %v; RunStarted before the work and RunExited after it is the shape a
+  replay reads a run's duration from</code> — and the money reaching the record, because
+  <a href="decision-log.html#d-051">D-051</a> asks for measured cost from the first run:
+  <code>the run cost money and the desk still reads zero; a cost nothing recorded is a cost the
+  budget guard will never see</code>.
+  <strong>Negative (TC-228):</strong> the discipline <code>dashboard/events.go</code> states, checked
+  rather than trusted — <code>a run that never started wrote %v; a RunStarted from a process that
+  never started is invented evidence, and events.go says so in as many words</code>.
+  <strong>Positive (TC-229):</strong> <a href="decision-log.html#d-053">D-053</a> made checkable, and
+  against the pure half so it does not take twelve minutes to run:
+  <code>the same twelve minutes wrote %d Heartbeat events, want 3; D-053 separates the cadences so a
+  run does not put one pill per beat into a stream that is append-only, snapshotted every %d events
+  and rendered in full</code>. Both endpoints always write, because
+  <code>a run with no opening beat has no start for a replay to measure silence from</code>.
+  <strong>Positive (TC-230):</strong> <a href="brd.html#rules-commercial">BR-33</a> as a comparison
+  rather than a promise. An adopting orchestrator cannot <code>cmd.Wait()</code> on a process it did
+  not fork, so <code>Resume</code> is a second entry point — and a second entry point is a second
+  place to drift: <code>an adopted run produced %+v and a supervised one %+v; BR-33 asks that nothing
+  above the seam be able to tell them apart, and a scoring difference between the two would be one
+  nobody could explain</code>. It works only because the log is a file:
+  <code>the adopted run's basis is %q, want measured; the cost lives in a file rather than in the
+  dead orchestrator's memory precisely so this works</code>.
+  <strong>Negative (TC-231):</strong> <code>handoff.go</code> has said since it was written that the
+  document <em>"is declared and empty before the invocation starts"</em>, and nothing did it. A retry
+  in a reused workspace would read the previous attempt's document —
+  <code>a run that wrote no handoff reported %q, want %q; the previous attempt's document was still
+  on disk and was read as this one's</code>, and the direction of that mistake is the worst available:
+  <code>the attempt's outcome is %q; a stale document made a run that produced nothing look like one
+  that succeeded</code>.
+  <strong>Positive (TC-233):</strong> <code>the lease survived a %s run (held=%v err=%v); the
+  workspace can never be scheduled again and nothing short of a restart would notice</code>.
+  <strong>Negative (TC-234):</strong> <code>a run was supervised with no workspace; there would be
+  nothing to lease and nothing to be exclusive about</code>.
+  <strong>Negative (TC-235):</strong> the money guard. Five configuration guards stand in front of a
+  paid call — <code>GAOS_MODEL_MODE</code> defaults to off, only <code>serve()</code> builds a real
+  adapter, <code>GAOS_WORKSPACE_ROOT</code> is unset, <code>GAOS_RUNNER</code> is off — and every one
+  can be switched on by a developer with a good reason who then runs <code>go test ./...</code>. So
+  the sixth is in the code: <code>refuseIfUnderTest permitted the real provider command from a test
+  binary; a paid model call triggered by go test is money that does not come back</code>, and it must
+  not block the stand-in, because <code>a guard that blocks them is a guard somebody will delete</code>.
+  The case also parses <code>adapter_cli.go</code> to check the guard is still <em>on</em> the spawn
+  path, because <code>every test in this package would still pass without it, because they all drive
+  the fake, and the deletion would only surface as a bill</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

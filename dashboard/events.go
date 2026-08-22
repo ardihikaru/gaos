@@ -13,12 +13,18 @@ package main
 // written under an invented name is a state change nothing downstream can read.
 //
 // The names are grouped exactly as the model document groups them. Names marked
-// "needs the runner" or "needs the review engine" are declared and not emitted:
-// they belong to M4 and M5, neither of which exists. They are declared anyway so
-// that the catalog in code is the catalog in the document, and so a reviewer can
-// see at a glance what is still missing. Emitting one of them from sim.go would
-// be inventing evidence -- a Heartbeat nothing sent, a RunExited from a process
-// that never started -- and the audit trail is the last place to do that.
+// "needs the review engine" or "needs the budget guard" are declared and not
+// emitted: they belong to modules that do not exist yet. They are declared
+// anyway so that the catalog in code is the catalog in the document, and so a
+// reviewer can see at a glance what is still missing. Emitting one of them from
+// sim.go would be inventing evidence, and the audit trail is the last place to
+// do that.
+//
+// RunStarted, Heartbeat and RunExited came off that list on 2026-08-22, when
+// T-050 and T-052 gave them a runner that actually sends them. TaskOrphaned is
+// still owed, to boot reconciliation (T-053) -- and it is worth noticing that
+// the three that landed are exactly the ones a supervisor can witness, while
+// the one still owed is the one only a RESTART can observe.
 //
 // Every name that IS emitted has a case in fold.go. That is BR-05 in practice:
 // the catalog is closed because a new event type is a schema change to the fold,
@@ -46,9 +52,9 @@ const (
 // execution
 const (
 	TaskDispatched EventType = "TaskDispatched"
-	RunStarted     EventType = "RunStarted" // needs the runner -- M4.2
-	Heartbeat      EventType = "Heartbeat"  // needs the runner -- M4.2
-	RunExited      EventType = "RunExited"  // needs the runner -- M4.2
+	RunStarted     EventType = "RunStarted"
+	Heartbeat      EventType = "Heartbeat"
+	RunExited      EventType = "RunExited"
 	TaskBlocked    EventType = "TaskBlocked"
 	TaskResumed    EventType = "TaskResumed"
 	TaskOrphaned   EventType = "TaskOrphaned" // needs the lease -- M4.2

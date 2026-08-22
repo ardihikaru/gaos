@@ -751,8 +751,8 @@ egress:                               <span class="c"># domain L applies in BOTH
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
       <tr><td>D-1</td><td>The scheduler is a pure function of the graph — two replicas computing it independently reach the same answer</td><td>Leader election then protects against duplicate dispatch, not divergent state; restart becomes uninteresting</td><td>Built</td></tr>
-      <tr><td>D-2</td><td>Work runs in detached processes that survive the orchestrator</td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Designed</td></tr>
-      <tr><td>D-3</td><td>Each run holds an exclusive workspace lease with an expiry, and heartbeats</td><td>Two runs in one workspace corrupt each other silently</td><td>Designed</td></tr>
+      <tr><td>D-2</td><td>Work runs in detached processes that survive the orchestrator</td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Built</td></tr>
+      <tr><td>D-3</td><td>Each run holds an exclusive workspace lease with an expiry, and heartbeats</td><td>Two runs in one workspace corrupt each other silently</td><td>Built</td></tr>
       <tr><td>D-4</td><td>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</td><td>This is the whole of recovery; there is no other path</td><td>Designed</td></tr>
       <tr><td>D-5</td><td>Each attempt is its own record with its own model, cost, tokens, exit code and failure signature</td><td>Folding attempts into the task destroys the evidence of the previous one, and model comparison becomes impossible</td><td>Designed</td></tr>
       <tr><td>D-6</td><td>The exact context slice sent to a model is frozen and stored per attempt</td><td>Without it you can see that a task failed but never why the model believed what it believed (P-6)</td><td>Designed</td></tr>

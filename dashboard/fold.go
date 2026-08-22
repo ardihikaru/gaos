@@ -206,6 +206,54 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Scored, d.Score, d.ScoreParts = false, 0, nil
 		d.BlockReason = ""
 
+	case RunStarted:
+		// A supervisor has a process and a lease. The desk is already where it
+		// belongs -- TaskDispatched put it there -- so this moves nothing, and
+		// says so here rather than in the no-op list below, where a reader would
+		// have to guess whether it was an omission.
+		//
+		// It would be easy to set StateActive here "for safety". That would be a
+		// reducer inventing a transition the live path never made, and the first
+		// thing to notice would be TestFoldFromGenesisMatchesTheLiveFloor,
+		// because the fold would be describing a floor that never existed.
+		//
+		// It is not nothing to the TIMELINE: it is the moment a real tool began
+		// editing a real repository, and the digest it carries is what ties the
+		// run to the slice that was cleared for it.
+
+	case Heartbeat:
+		// Evidence of continuity, not a state change. D-053 is the argument for
+		// why this is written at all and why it is written far less often than
+		// the beat itself.
+		//
+		// Deliberately touches nothing. A heartbeat that moved progress would be
+		// inventing progress: the supervisor knows the child is alive and knows
+		// nothing whatever about what it has achieved, and a bar that crept
+		// forward on liveness alone would be the most convincing lie on the
+		// floor.
+
+	case RunExited:
+		// The process is over. What it ACHIEVED is not decided here -- that is
+		// the review engine's, M5 -- so this records what the run cost and does
+		// not guess at completed or failed from an exit. D-050 forbids exactly
+		// that guess, and this is the case where it would be tempting.
+		//
+		// Cost is absolute, per D-048: the desk's running total after this
+		// event, not what this run added. finishRun writes the same number to
+		// the desk under the same lock, which is what keeps a fold from
+		// describing a floor that never existed.
+		if p.Cost > 0 {
+			d.Cost = p.Cost
+		}
+		if p.Reason != "" {
+			// A run that could not start, or one whose handoff was missing
+			// (BR-30). The desk blocks rather than looking idle -- the same rule
+			// DispatchRefused follows, for the same reason: something happened
+			// and a desk that looks untouched says otherwise.
+			d.State = StateBlocked
+			d.BlockReason = p.Reason
+		}
+
 	case TaskBlocked:
 		d.State = StateBlocked
 		d.BlockReason = e.Text

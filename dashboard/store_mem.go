@@ -874,6 +874,31 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 	ev = append(ev, s.emit(TaskDispatched, d.ID,
 		"Dispatched "+taskIDOf(*d)+" · slice cleared", KindInfo, p))
 
+	// And now, if a runner is configured, something actually runs.
+	//
+	// This is the gap store_mem.go's header described for a release: "adapter is
+	// nil in every test and in every deployment that has not configured one, and
+	// DispatchTask is written so that nil means screen the packet, record the
+	// verdict, and stop there ... with no runner and no lease (M4.2), actually
+	// spawning the tool would emit RunStarted and RunExited with nothing
+	// supervising them." There is a lease now, and a supervisor.
+	//
+	// Two conditions, not one. An adapter exists so the boot smoke test can run;
+	// GAOS_RUNNER is what says money may be spent. See runnerEnabled.
+	//
+	// A goroutine, because superviseRun blocks for as long as the work takes and
+	// this method is holding the floor's lock. The goroutine's first act that
+	// needs the lock will simply wait for this to return.
+	//
+	// context.WithoutCancel because ctx here is the HTTP request's, which is
+	// cancelled the moment the response is written -- a run tied to it would die
+	// as the operator's browser finished painting the toast.
+	if s.adapter != nil && runnerEnabled() {
+		ad, deskID, cl := s.adapter, d.ID, cleared
+		run := context.WithoutCancel(ctx)
+		go func() { _, _ = s.superviseRun(run, ad, deskID, cl, 1) }()
+	}
+
 	return s.result("Dispatched. The slice cleared the egress pass.", ev...), nil
 }
 
