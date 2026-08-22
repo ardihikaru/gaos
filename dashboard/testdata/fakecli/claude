@@ -1,0 +1,42 @@
+#!/bin/sh
+# A stand-in for the provider CLI, so the adapter's own behaviour can be tested
+# without a network call, a credential, or the real tool being installed.
+#
+# It exists to reproduce the ONE finding that makes D-050 necessary: the
+# `blocked` mode below writes a handoff document saying `status: blocked` and
+# exits 0. A test that only ever ran the happy path would pass against an
+# adapter that read success from the exit code, which is the exact bug the whole
+# seam is shaped around.
+#
+# Run as `sh testdata/fakecli/claude` rather than executed directly, so nothing
+# depends on git having preserved an execute bit.
+#
+# Modes, via FAKE_CLI_MODE:
+#   complete   a clean run with every criterion met          (default)
+#   blocked    exit 0, status: blocked   <- the D-050 trap
+#   garbage    prose where front matter belongs
+#   nohandoff  exit 0 and write nothing at all
+#   silent     a complete run whose JSON envelope reports no cost
+
+case "$1" in
+  --version) echo "2.1.238 (Claude Code)"; exit 0 ;;
+esac
+
+cat > /dev/null                       # drain stdin, as the real tool does
+
+mkdir -p .gaos/handoff
+case "${FAKE_CLI_MODE:-complete}" in
+  complete)  cp "$FAKE_CLI_FIXTURES/complete.md"       .gaos/handoff/OUTPUT.md ;;
+  blocked)   cp "$FAKE_CLI_FIXTURES/blocked.md"        .gaos/handoff/OUTPUT.md ;;
+  garbage)   cp "$FAKE_CLI_FIXTURES/no-frontmatter.md" .gaos/handoff/OUTPUT.md ;;
+  silent)    cp "$FAKE_CLI_FIXTURES/no-usage.md"       .gaos/handoff/OUTPUT.md ;;
+  nohandoff) : ;;
+esac
+
+# The result envelope D-051 measured: total_cost_usd plus a per-model
+# modelUsage breakdown with input, output and both cache-token counts.
+if [ "${FAKE_CLI_MODE:-complete}" != "silent" ]; then
+  printf '%s\n' '{"total_cost_usd":0.1312,"modelUsage":{"claude-sonnet-5":{"inputTokens":184320,"outputTokens":9104,"cacheReadInputTokens":24576,"cacheCreationInputTokens":0}}}'
+fi
+
+exit "${FAKE_CLI_EXIT:-0}"

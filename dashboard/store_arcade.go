@@ -174,6 +174,21 @@ func (s *ArcadeStore) ClearNotifications(ctx context.Context) (Result, error) {
 // mutation touches the database not at all, which is what makes reject() cheap
 // enough to use as the first line of every one of these.
 
+// SetAdapter forwards to the projection, which is where DispatchTask runs. Not
+// on the Store interface: installing the model gateway is a boot-time act by
+// serve(), not something a handler may do, and putting it on the seam would
+// invite a request-scoped caller.
+func (s *ArcadeStore) SetAdapter(a Adapter) { s.proj.SetAdapter(a) }
+
+// setEgressForTest forwards to the projection, so the conformance suite proves
+// the same refusal against both stores. See MemStore.setEgressForTest.
+func (s *ArcadeStore) setEgressForTest(p EgressPolicy, tgt Target) {
+	s.proj.setEgressForTest(p, tgt)
+}
+
+func (s *ArcadeStore) DispatchTask(ctx context.Context, i int) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.DispatchTask(ctx, i) })
+}
 func (s *ArcadeStore) ApproveTask(ctx context.Context, i int) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.ApproveTask(ctx, i) })
 }

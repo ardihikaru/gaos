@@ -54,6 +54,28 @@ var rooms = []Room{
 
 var stages = []string{"planning", "architecture", "coding", "testing", "review", "deployment"}
 
+// agentForStage picks the first agent holding the stage's role, using the
+// stageRole table the prototype already had. Used by DispatchTask to seat a
+// lead agent on a desk that has none, so a dispatched task has somebody
+// attached to it the way every other path already assumes.
+//
+// Deterministic
+// by construction -- it scans `agents` in order -- because a dispatch that
+// seated a different agent on every replay would make the fold disagree with
+// the run.
+func agentForStage(stageIdx int) *Agent {
+	if stageIdx < 0 || stageIdx >= len(stages) {
+		return nil
+	}
+	want := stageRole[stages[stageIdx]]
+	for i := range agents {
+		if agents[i].Role == want {
+			return &agents[i]
+		}
+	}
+	return nil
+}
+
 // screenMode picks what the little monitor on a desk card draws. The three
 // modes are CSS states in app.css (.screen[data-mode]); there is no fourth.
 var screenMode = map[string]string{

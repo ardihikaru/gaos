@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Fifty-one entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Fifty-two entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-08-16"
+       data-updated="2026-08-22"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -802,6 +802,44 @@
         <a href="../delivery/implementation-plan.html#sub-m4-6">T-065</a>,
         <a href="../delivery/implementation-plan.html#sub-m4-3">T-055</a></td>
       </tr>
+      <tr id="d-052">
+        <td>D-052</td><td>2026-08-22</td>
+        <td><strong>The refused-dispatch event is named <code>DispatchRefused</code>, and its reason
+        travels in the payload as a machine-readable <code>rule</code>.</strong>
+        <a href="brd.html#req-l">L-5</a> requires "a refused dispatch with its reason" and stops
+        short of naming it, and <a href="brd.html#rules-invariants">BR-05</a> makes the catalog
+        closed, so the name had to be decided rather than chosen at a call site.
+        <strong>The reasoning is about the second caller, not the first.</strong>
+        <code>EgressRefused</code> names the cause and reads more precisely today; it would also
+        oblige <a href="brd.html#rules-commercial">BR-35</a>'s budget cap to invent a second name for
+        the same shape of event when M10.3 lands, reopening a closed catalog for a distinction that
+        belongs in a field. <code>DispatchRefused</code> names the <em>effect</em> — the dispatch did
+        not happen — and carries <code>rule</code>: <code>secret</code>, <code>local-only</code>,
+        <code>size</code>, <code>empty-slice</code> or <code>path-escape</code> today, and
+        <code>budget-cap</code> when the guard arrives. It also pairs with the
+        <code>TaskDispatched</code> the catalog already had.
+        <strong>Two consequences that are easy to miss.</strong> First, the payload records the file
+        and the byte offset of a detection and <em>never the matched text</em>: the stream is
+        append-only (<a href="brd.html#rules-invariants">BR-04</a>) and the timeline is rendered into
+        a browser, so a payload carrying the credential would write it permanently into the record
+        whose purpose is to prove it never left. Second, a refusal is returned as a <em>result</em>
+        rather than a rejection — it is a recorded state change, and an <code>ErrRejected</code>
+        would write the two events L-5 requires into the stream while keeping them out of the
+        response that renders them.
+        <strong>What this cost:</strong> one reversal in the state machine. A refused dispatch blocks
+        a task that never started, and <code>dashboard/state_test.go</code> had asserted
+        <code>idle&nbsp;&rarr;&nbsp;blocked</code> illegal on the ground that "nothing is running, so
+        nothing can be blocked". BR-32 is the counter-example; the row was inverted rather than
+        deleted.</td>
+        <td>Implements <a href="brd.html#req-l">L-5</a> under
+        <a href="brd.html#rules-invariants">BR-05</a>; anticipates
+        <a href="brd.html#rules-commercial">BR-35</a>;
+        <code>artifacts/v1/gaos-arcadedb-model.html</code> §08,
+        <code>dashboard/events.go</code>, <code>dashboard/fold.go</code>;
+        <a href="../delivery/implementation-plan.html#sub-m11-2">T-126</a>,
+        <a href="../delivery/implementation-plan.html#sub-m11-2">T-127</a>;
+        <a href="qa-test-plan.html#go-dispatch">TC-194…TC-200</a></td>
+      </tr>
     </tbody>
   </table>
 
@@ -824,14 +862,19 @@
     never been run and a strategy that has never been run is a claim rather than a capability;
     <a href="#d-041">D-041</a> names one adapter and no second one exists; and
     <a href="#d-040">D-040</a>'s three preconditions — authentication, per-tenant scoping,
-    accessibility — are none of them started. The three entries of 2026-08-21 are the newest members
-    of this list and the clearest case for it: <a href="#d-049">D-049</a>,
-    <a href="#d-050">D-050</a> and <a href="#d-051">D-051</a> record what a provider's tool was
-    measured to do, and <strong>no adapter calls it yet</strong> — there is still no scheduler, no
-    runner and no model call anywhere in the repository. They constrain
-    <a href="../delivery/implementation-plan.html#m4-execution">M4</a> when it is written; they do
-    not advance it. A decision recorded here is a commitment about what gets built, never a claim
-    that it was.</p>
+    accessibility — are none of them started. <a href="#d-049">D-049</a>,
+    <a href="#d-050">D-050</a> and <a href="#d-051">D-051</a> recorded what a provider's tool was
+    measured to do on 2026-08-21, and constrained
+    <a href="../delivery/implementation-plan.html#m4-execution">M4</a> without advancing it.
+    <strong>One day later the adapter that obeys them exists</strong>
+    (<a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a>), and so does the egress gate
+    <a href="brd.html#rules-commercial">BR-32</a> required in front of it
+    (<a href="../delivery/implementation-plan.html#sub-m11-2">T-126</a>,
+    <a href="../delivery/implementation-plan.html#sub-m11-2">T-127</a>). The claim that needs care is
+    what that does <em>not</em> mean: there is still no scheduler and no lease, the adapter is driven
+    by one operator-triggered route and exercised against a stand-in tool, and
+    <strong>no real model provider has been invoked from inside GAOS</strong>. A decision recorded
+    here is a commitment about what gets built, never a claim that it was.</p>
   </div>
 
 </main>
