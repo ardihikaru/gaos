@@ -54,6 +54,9 @@
   </div>
 
   <div class="actions">
+    <button class="btn" {{if not .CanDispatch}}disabled style="opacity:.45"{{end}}
+            hx-post="tasks/{{.Idx}}/dispatch" hx-target="#sink" hx-swap="innerHTML"
+            title="Freeze the packet, run the pre-dispatch egress pass, and dispatch what clears">Dispatch</button>
     <button class="btn" {{if not .CanApprove}}disabled style="opacity:.45"{{end}}
             hx-post="tasks/{{.Idx}}/approve" hx-target="#sink" hx-swap="innerHTML">Approve</button>
     <button class="btn" hx-post="tasks/{{.Idx}}/retry" hx-target="#sink" hx-swap="innerHTML">Retry</button>

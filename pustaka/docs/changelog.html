@@ -36,6 +36,88 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-15-0">v0.15.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The first code that could send
+      somebody's source code to a model provider, and the gate that stands in front of it &mdash; in
+      that order, because <a href="product/brd.html#rules-commercial">BR-32</a> says so and because
+      after the adapter is written the ordering is no longer free. Two of Domain L's nine tasks close,
+      the CLI adapter lands against a stand-in tool, and the version pin finally has the boot smoke
+      test <a href="product/decision-log.html#d-049">D-049</a> said it was worthless without.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the pre-dispatch egress pass
+        (<a href="delivery/implementation-plan.html#sub-m11-2">T-126</a>).</b>
+        <code>dashboard/egress.go</code>: ten detectors across secrets, credentials and
+        credential-bearing filenames, path allow and deny lists, a per-file and a whole-slice byte
+        limit, and <a href="product/brd.html#req-l">L-6</a>'s no-egress check. A pure function of the
+        packet and the policy, because its verdict becomes an event and the reducer folds it.
+        <b>The gate is a type, not a call order</b>: an adapter's <code>Dispatch</code> takes a
+        <code>Cleared</code> and the pass is the only thing that returns one, so skipping it does not
+        compile &mdash; the same trick <code>readOnly</code> plays for replay, and the same honest
+        limit, written down beside it and checked by a test that walks the package's syntax tree.</li>
+
+        <li><span class="chg add">Added</span> <b><code>ContextRedacted</code> and
+        <code>DispatchRefused</code> to the closed catalog
+        (<a href="delivery/implementation-plan.html#sub-m11-2">T-127</a>,
+        <a href="product/decision-log.html#d-052">D-052</a>).</b> The refusal names the
+        <em>effect</em> rather than the cause and carries its reason as a machine-readable
+        <code>rule</code>, so <a href="product/brd.html#rules-commercial">BR-35</a>'s budget cap
+        reuses it instead of forcing a closed catalog open a second time.
+        <b>A finding records the file and the byte offset and never the matched text</b>: the stream
+        is append-only and the timeline renders into a browser, so a payload carrying the credential
+        would write it permanently into the record that exists to prove it never left. Name, model
+        document and reducer landed together, as <a href="product/brd.html#rules-invariants">BR-05</a>
+        requires.</li>
+
+        <li><span class="chg add">Added</span> <b>the CLI adapter and its boot smoke test
+        (<a href="delivery/implementation-plan.html#sub-m4-4">T-057</a>, 🟡).</b> Spawns the pinned
+        tool in its own process group with the workspace as its working directory and an environment
+        built rather than inherited &mdash; <a href="product/decision-log.html#d-051">D-051</a>
+        measured a default invocation picking up 24k cache-read tokens from the host, which makes the
+        frozen slice a lie about what the model received. Outcome is read from the handoff document
+        and never from the exit code (<a href="product/decision-log.html#d-050">D-050</a>); cost comes
+        from the tool's own report as <code>measured</code>, and a silent tool reports
+        <code>unavailable</code> rather than zero
+        (<a href="product/brd.html#rules-commercial">BR-37</a>). A drifted version refuses the boot.
+        <b>🟡 and not ✅:</b> no scheduler calls it and no real provider has been invoked.</li>
+
+        <li><span class="chg add">Added</span> <b>a thin operator-triggered dispatch route</b> &mdash;
+        <code>POST /tasks/{id}/dispatch</code> and a Dispatch button in the inspector. It exists
+        because the two events above need a real emitter and <code>sim.go</code> may not be one:
+        <code>dashboard/events.go</code> calls emitting a catalog event from the simulator inventing
+        evidence. No scheduler, no lease, no heartbeat &mdash; those stay
+        <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a>.</li>
+
+        <li><span class="chg change">Changed</span> <b><code>idle &rarr; blocked</code> is now a legal
+        transition.</b> <code>dashboard/state_test.go</code> had asserted it impossible with the
+        reason <em>"nothing is running, so nothing can be blocked"</em>. A refused dispatch is exactly
+        that counter-example &mdash; a task that never started, must not look idle, and needs an
+        operator. The row was inverted rather than deleted, and
+        <a href="product/qa-test-plan.html#register">TC-139</a> records the reversal on its face.</li>
+
+        <li><span class="chg change">Changed</span> <b>the <code>Store</code> seam, for the second
+        time in its life.</b> <code>DispatchTask</code> joins it, because a dispatch emits events and
+        only a store may. <code>ArcadeStore</code> needed one line, as it did for the first change.
+        A refusal returns a <em>result</em> rather than a rejection: it is a recorded state change,
+        and an error would write the events to the stream while keeping them out of the response that
+        renders them.</li>
+
+        <li><span class="chg add">Added</span> <b>forty test cases,
+        <a href="product/qa-test-plan.html#register">TC-161…TC-200</a></b>, across the pass, the
+        handoff parser, the pin, the adapter and the dispatch route &mdash; two hundred in the
+        register, and 136 Go tests. Two of them are syntax-tree walks rather than behaviour tests,
+        because <a href="product/brd.html#rules-commercial">BR-32</a> and
+        <a href="product/brd.html#rules-commercial">BR-33</a> are both rules about what code may not
+        do.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the delivery ToC's counts, which had drifted.</b>
+        <code>assets/toc/delivery.js</code> read <em>nineteen done … one hundred and seven not
+        started</em> against the page's own thirty-eight and eighty-eight. Both now say forty, sixteen
+        and eighty-five. The QA plan's unit-test counts were stale in the same way and are corrected
+        with them.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-14-0">v0.14.0 <time datetime="2026-08-21">2026-08-21</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The cheap experiment
       <a href="product/open-questions.html#oq-23">OQ-23</a> asked for — <em>"it should precede the

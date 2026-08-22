@@ -32,8 +32,18 @@ import "fmt"
 // resuming a run that was already active are all real mutations that leave the
 // state alone, and making those illegal would mean writing the same exception at
 // every call site.
+//
+// idle -> blocked is the one row BR-32 added, on 2026-08-22, and it is worth
+// reading as a correction rather than an addition. Until the pre-dispatch
+// egress pass existed, "blocked" could only be reached from work that was
+// already running, and state_test.go said so in as many words: "nothing is
+// running, so nothing can be blocked". A refused dispatch is the counter-example
+// the requirement creates -- a task that never started, that must not look
+// idle, and that needs an operator to change a policy before it can start. The
+// blocked -> active and blocked -> idle rows already present are what let them
+// fix it and retry, or give up.
 var transitions = map[string][]string{
-	StateIdle:      {StateActive},
+	StateIdle:      {StateActive, StateBlocked},
 	StateActive:    {StateBlocked, StateDeferred, StateReview, StateMeeting, StateIdle, StateCompleted},
 	StateBlocked:   {StateActive, StateIdle},
 	StateDeferred:  {StateActive, StateIdle},

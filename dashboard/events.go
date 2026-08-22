@@ -99,6 +99,29 @@ const (
 	TaskDeferred           EventType = "TaskDeferred"           // needs the budget guard -- M10.3
 )
 
+// egress
+//
+// The two names L-5 requires: "Redactions and refusals are events
+// (ContextRedacted, a refused dispatch with its reason) and appear in the
+// timeline like any other state change." The reason they are declared here
+// rather than at a call site is BR-05 -- a new event type is a schema change to
+// the fold, so the constant, the model document's catalog table and the reducer
+// case land in one change or in none.
+//
+// DispatchRefused, not EgressRefused, and the choice is D-052. The refusal is
+// about the DISPATCH; why it did not happen travels in the payload as Rule.
+// BR-35's budget cap refuses a dispatch for an entirely different reason and
+// gets to reuse this name with a different Rule, rather than forcing a closed
+// catalog open a second time -- which is the exact trap D-037 had to be written
+// to get out of.
+//
+// Unlike the budget block below these are emitted today: MemStore.DispatchTask
+// writes both, which is what makes T-127 true rather than declared.
+const (
+	ContextRedacted EventType = "ContextRedacted"
+	DispatchRefused EventType = "DispatchRefused"
+)
+
 // Names the prototype emitted that are not in the model document's catalog.
 // They are UI lifecycle, not graph state, and they are kept separate so nobody
 // mistakes them for domain events when the ArcadeDB store lands.

@@ -766,6 +766,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
       <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
       <tr><td class="mono">memory</td><td class="mono">KnowledgeExtracted · KnowledgeReused · DecisionSuperseded</td></tr>
       <tr><td class="mono">budget</td><td class="mono">BudgetThresholdReached · BudgetCapReached · TaskDeferred</td></tr>
+      <tr><td class="mono">egress</td><td class="mono">ContextRedacted · DispatchRefused</td></tr>
     </tbody>
   </table>
 
@@ -779,6 +780,28 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     schema change to the fold, so the name, the <code>DEFERRED</code> task status above and the
     reducer case in <code>dashboard/fold.go</code> landed in one change on 2026-08-17. The guard
     that emits them is M10.3 and does not exist yet; the vocabulary it will need does.
+  </div>
+
+  <div class="warn">
+    <b>Amended by D-052 — the egress group is new, and unlike the budget group it is emitted.</b>
+    <a href="../../pustaka/docs/product/brd.html#req-l">L-5</a> requires that redactions and
+    refusals be events: <code>ContextRedacted</code> when the pre-dispatch pass cuts a slice down
+    and the dispatch goes ahead, and a refused dispatch with its reason when it does not.
+    <b>The refusal is named <code>DispatchRefused</code>, not <code>EgressRefused</code></b>, and
+    the choice is the whole of D-052: the event is about the <i>dispatch</i>, and why it did not
+    happen travels in the payload as <code>rule</code> — <code>secret</code>,
+    <code>local-only</code>, <code>size</code>, <code>empty-slice</code> or
+    <code>path-escape</code> today. <a href="../../pustaka/docs/product/brd.html#rules-commercial">BR-35</a>'s
+    budget cap refuses a dispatch for an entirely different reason and reuses this name with
+    <code>rule: budget-cap</code>, rather than forcing a closed catalog open a second time — which
+    is the trap the amendment above had to be written to get out of.
+    <b>These two are written today</b>, by <code>MemStore.DispatchTask</code>, which is what makes
+    <code>T-127</code> true rather than declared. The name, this table and the reducer case in
+    <code>dashboard/fold.go</code> landed in one change on 2026-08-22, as BR-05 requires.
+    One detail of the payload is deliberate and worth reading: a finding records the file and the
+    byte offset and <b>never the matched text</b>. The stream is append-only and the timeline is
+    rendered to a browser, so a payload carrying the credential would write it permanently into
+    the record whose purpose is to prove it never left.
   </div>
 </section>
 

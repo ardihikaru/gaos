@@ -313,7 +313,14 @@ type InspectorView struct {
 	Ctx        []string
 	Logs       []LogView
 	CanApprove bool
-	Hint       string
+
+	// CanDispatch mirrors the guard in MemStore.DispatchTask rather than
+	// replacing it. The store refuses a desk with work in flight whatever the
+	// button says -- the UI is not the only caller this method will ever have,
+	// which is the same reason RetryTask enforces its own retry guard.
+	CanDispatch bool
+
+	Hint string
 }
 
 func NewInspectorView(d Desk, idx int, ctx []string) *InspectorView {
@@ -324,6 +331,11 @@ func NewInspectorView(d Desk, idx int, ctx []string) *InspectorView {
 		Cost:       fmt.Sprintf("$%.2f", d.Cost),
 		Ctx:        ctx,
 		CanApprove: d.ApprovalRequired,
+		// Dispatch is legal only from a desk with nothing running. Blocked is
+		// included because a refused dispatch lands there, and the operator
+		// fixing the policy and trying again is the whole point of the
+		// blocked -> active row BR-32 added to the state machine.
+		CanDispatch: d.State == StateIdle || d.State == StateBlocked,
 	}
 
 	lead := leadAgent(d)

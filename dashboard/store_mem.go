@@ -3,7 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"math/rand/v2"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -79,6 +83,56 @@ type MemStore struct {
 	paused bool
 	speed  int
 	simOn  bool
+
+	// The egress gate and the model gateway. T-126 and T-057.
+	//
+	// The policy lives on the store rather than on the adapter because §7.6.1
+	// says the egress block is not per-mode: "the pre-dispatch check in L-4
+	// runs identically whether a subprocess or an HTTP request is about to
+	// carry the slice out." An adapter that owned its own policy could differ
+	// from the other one, which is the whole thing that rule forbids.
+	//
+	// adapter is nil in every test and in every deployment that has not
+	// configured one, and DispatchTask is written so that nil means "screen the
+	// packet, record the verdict, and stop there". That is not a degraded mode:
+	// with no runner and no lease (M4.2), actually spawning the tool would emit
+	// RunStarted and RunExited with nothing supervising them, which events.go
+	// calls inventing evidence.
+	egress  EgressPolicy
+	target  Target
+	adapter Adapter
+
+	// workspaceRoot is where a run's files live, one directory per desk. Empty
+	// in every deployment today, which means a packet carries the record and
+	// no repository files -- a smaller egress, screened by the same pass.
+	workspaceRoot string
+}
+
+// setEgressForTest overrides the deployment's egress policy.
+//
+// Unexported and named for what it is, because there is deliberately no Store
+// method for this: §7.6.1 makes the egress block a deployment decision read
+// once at boot, and a caller that could vary it per request would be a per-task
+// override of exactly the kind that section refuses to offer. The conformance
+// suite needs one to prove a refusal happens, so it gets a door with a sign on
+// it rather than a hole in the seam.
+func (s *MemStore) setEgressForTest(p EgressPolicy, tgt Target) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.egress, s.target = p, tgt
+}
+
+// SetAdapter installs the model gateway. Called once, from serve(), after the
+// boot smoke test has passed -- never per request, because §7.6.1 makes the
+// mode a deployment decision and a per-task override "would make two attempts
+// at the same task incomparable".
+func (s *MemStore) SetAdapter(a Adapter) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.adapter = a
+	if a != nil {
+		s.target = a.Target()
+	}
 }
 
 // NewMemStore builds a store from the fixtures. The seed is a parameter so the
@@ -106,6 +160,13 @@ func newProjection() *MemStore {
 		meetingIdx:  -1,
 		speed:       1,
 		pending:     map[string][]LogLine{},
+
+		// The documented defaults of §7.6.1, so a store built without a
+		// configuration still screens. An egress policy that defaulted to
+		// nothing would make BR-32 true only for deployments that remembered
+		// to configure it, which is the same as not being true.
+		egress:        ModelConfigFromEnv().Egress,
+		workspaceRoot: envOr("GAOS_WORKSPACE_ROOT", ""),
 	}
 }
 
@@ -664,6 +725,253 @@ func (s *MemStore) ApproveTask(ctx context.Context, idx int) (Result, error) {
 	ev := []Event{e}
 	ev = append(ev, s.advance(d)...)
 	return s.result("Approved. The gate is released.", ev...), nil
+}
+
+// DispatchTask freezes a packet, screens it, and dispatches. T-126, T-127,
+// and the caller T-057's adapter was missing.
+//
+// This is the operator-triggered half of the §7.6 execution flow, steps 2-5.
+// There is no scheduler behind it, no lease and no heartbeat -- those are T-048
+// and T-050-053. What it buys is that the egress pass runs against the real
+// store and its events land on the real timeline, rather than only inside a
+// test. L-5 asks for the redaction and the refusal to "appear in the timeline
+// like any other state change", and an event with no emitter does not appear
+// anywhere.
+//
+// WHAT THIS DELIBERATELY DOES NOT DO: it does not emit RunStarted or RunExited.
+// Those two names are in events.go's "needs the runner -- M4.2" list and in
+// events_test.go's owed map. Writing them without a lease and a heartbeat
+// behind them would be a RunExited from a process nothing is supervising, which
+// the header of events.go calls inventing evidence -- and the audit trail is
+// the last place to do that.
+//
+// A REFUSAL RETURNS (Result, nil), NOT AN ERROR, and that is the one surprising
+// line in the method. A refusal is a RECORDED STATE CHANGE, not a rejected
+// mutation: it blocks the desk and writes two events. If it came back as
+// ErrRejected the handler would take the s.fail path, applyResult would never
+// run, and the events this task exists to produce would be in the stream and
+// absent from the response -- visible only after the next full render. L-5 says
+// they appear on the timeline; that is a Result, not an error.
+func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if idx < 0 || idx >= len(s.desks) {
+		return Result{}, ErrNotFound
+	}
+	d := &s.desks[idx]
+
+	// Only a desk with nothing in flight may be dispatched. Re-dispatching a
+	// running task would produce a second attempt against one TaskRun, which
+	// BR-22 is precisely about not doing.
+	if d.State != StateIdle && d.State != StateBlocked {
+		return Result{}, reject("This desk already has a task in flight.")
+	}
+
+	pkt := s.freezePacket(*d)
+	cleared, v, err := Screen(s.egress, s.target, pkt)
+
+	var ev []Event
+
+	// The redaction event is emitted whether or not the dispatch then proceeds.
+	// A slice that was cut down and then refused was still cut down, and L-5
+	// wants both facts on the record rather than only the more dramatic one.
+	if len(v.Redactions) > 0 {
+		for _, r := range v.Redactions {
+			s.log(d, fmt.Sprintf("egress: dropped %s — %s", r.Path, r.Why), "y")
+		}
+		ev = append(ev, s.emit(ContextRedacted, d.ID,
+			fmt.Sprintf("Context slice cut by %d part(s) before dispatch", len(v.Redactions)),
+			KindWarn, EventPayload{
+				Redactions: len(v.Redactions), Bytes: v.Bytes, Digest: v.Digest,
+			}))
+	}
+
+	if err != nil {
+		if serr := s.setState(d, StateBlocked); serr != nil {
+			return Result{}, serr
+		}
+		d.BlockReason = v.Reason
+		d.Progress = 0
+		d.Agents = nil
+		s.log(d, "egress: dispatch refused — "+v.Reason, "r")
+		ev = append(ev, s.emit(DispatchRefused, d.ID, v.Reason, KindFail, EventPayload{
+			Reason: v.Reason, Rule: v.Rule, Bytes: v.Bytes, Digest: v.Digest,
+			Redactions: len(v.Redactions),
+		}))
+		return s.result("Dispatch refused. "+v.Reason, ev...), nil
+	}
+
+	if serr := s.setState(d, StateActive); serr != nil {
+		return Result{}, serr
+	}
+	d.BlockReason = ""
+	d.Progress = 2
+	d.Task = s.pickTask(*d)
+	d.Scored, d.Score, d.ScoreParts = false, 0, nil
+	if len(d.Agents) == 0 {
+		if a := agentForStage(d.StageIdx); a != nil {
+			d.Agents = []string{a.ID}
+		}
+	}
+	s.log(d, fmt.Sprintf("packet frozen · %d parts · %d bytes · digest %s",
+		len(cleared.Packet().Parts), cleared.Bytes(), cleared.Digest()), "g")
+
+	p := deskPayload(*d)
+	p.Bytes, p.Digest = cleared.Bytes(), cleared.Digest()
+	ev = append(ev, s.emit(TaskDispatched, d.ID,
+		"Dispatched "+taskIDOf(*d)+" · slice cleared", KindInfo, p))
+
+	return s.result("Dispatched. The slice cleared the egress pass.", ev...), nil
+}
+
+// freezePacket assembles the task packet of §7.6, in memory.
+//
+// IN MEMORY ONLY. Materialising it as files in a leased workspace is T-061, and
+// the frozen ContextSlice vertex is T-055; neither exists. Packet.Workspace is
+// the path an adapter would run in, and this store never touches it.
+//
+// Assumes the lock is held.
+func (s *MemStore) freezePacket(d Desk) Packet {
+	pkt := Packet{
+		TaskID:    taskIDOf(d),
+		DeskID:    d.ID,
+		Workspace: s.workspaceFor(d),
+	}
+	add := func(path, kind, body string) {
+		if strings.TrimSpace(body) != "" {
+			pkt.Parts = append(pkt.Parts, PacketPart{Path: path, Kind: kind, Body: body})
+		}
+	}
+
+	add(".gaos/packet/task.md", KindTask,
+		"# "+taskIDOf(d)+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+"\n")
+
+	m := s.masterPtr(d.ID)
+	if m == nil {
+		return pkt
+	}
+
+	var rules strings.Builder
+	if m.BRD.Problem != "" {
+		fmt.Fprintf(&rules, "## Problem\n%s\n\n", m.BRD.Problem)
+	}
+	for _, r := range m.BRD.Rules {
+		fmt.Fprintf(&rules, "- %s\n", r)
+	}
+	for _, o := range m.BRD.OutOfScope {
+		fmt.Fprintf(&rules, "- OUT OF SCOPE: %s\n", o)
+	}
+	add(".gaos/packet/rules.md", KindRules, rules.String())
+
+	var ctxb strings.Builder
+	for _, st := range m.Stories {
+		fmt.Fprintf(&ctxb, "### %s (%s) — as %s, I want %s so %s\n", st.ID, st.Pri, st.Role, st.Want, st.So)
+		for _, c := range st.AC {
+			fmt.Fprintf(&ctxb, "- %s\n", c)
+		}
+	}
+	for _, a := range m.Decisions {
+		fmt.Fprintf(&ctxb, "### %s — %s (confidence %.2f)\n", a.ID, a.Title, a.Confidence)
+	}
+	add(".gaos/packet/context/record.md", KindContext, ctxb.String())
+
+	// The repository half, and the reason the allowlist exists at all.
+	//
+	// §8.12.1 is blunt about which class matters: indexed code is "the single
+	// largest egress and the one buyers care about", and the finding under the
+	// table says egress is "source code, chosen automatically by a traversal,
+	// including files nobody reviewed before they were sent".
+	//
+	// The traversal that chooses it is M1.2's repository index, which does not
+	// exist. What does exist is a workspace directory, so the packet carries
+	// the files in it -- real bytes, screened against the real allowlist. When
+	// M1.2 lands it replaces this walk and the egress pass does not change,
+	// because the pass screens PacketParts and does not care who chose them.
+	pkt.Parts = append(pkt.Parts, readWorkspace(pkt.Workspace)...)
+
+	return pkt
+}
+
+// workspaceReadLimits bound what a dispatch will read off disk. A workspace is
+// somebody's repository and may contain a node_modules; walking it without a
+// ceiling turns one button press into an unbounded read.
+//
+// They are not a security control -- the egress policy is -- they are a
+// liveness one, and the distinction matters: a file skipped here is skipped
+// SILENTLY, so these numbers are deliberately far above any real slice and far
+// below anything that would hang the request.
+const (
+	maxWorkspaceFiles = 2000
+	maxWorkspaceBytes = 32 << 20
+)
+
+// readWorkspace reads the operator's files as KindRepo parts.
+//
+// Returns nil for an unset or unreadable workspace, which is every deployment
+// today: GAOS_WORKSPACE_ROOT is unset, so a dispatch screens the record alone.
+// That is a smaller egress rather than an unscreened one -- the pass runs
+// either way, which is what BR-32 actually asks for.
+func readWorkspace(root string) []PacketPart {
+	if root == "" {
+		return nil
+	}
+	var (
+		parts []PacketPart
+		total int
+	)
+	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		name := d.Name()
+		if d.IsDir() {
+			// .git is history, not source, and .gaos is the packet we just
+			// wrote -- feeding either back in would be egress of our own
+			// making.
+			if name == ".git" || name == ".gaos" || name == "node_modules" || name == "vendor" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if len(parts) >= maxWorkspaceFiles || total >= maxWorkspaceBytes {
+			return fs.SkipAll
+		}
+		rel, rerr := filepath.Rel(root, p)
+		if rerr != nil {
+			return nil
+		}
+		b, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return nil
+		}
+		total += len(b)
+		parts = append(parts, PacketPart{
+			Path: filepath.ToSlash(rel), Kind: KindRepo, Body: string(b),
+		})
+		return nil
+	})
+
+	// Sorted, because WalkDir's order is the filesystem's and the digest must
+	// not depend on it. Screen sorts its own output; this keeps the PACKET
+	// stable too, so two freezes of one workspace are the same packet.
+	sort.Slice(parts, func(i, j int) bool { return parts[i].Path < parts[j].Path })
+	return parts
+}
+
+// workspaceFor is where a run would happen: one directory per desk under the
+// configured root.
+//
+// GAOS_WORKSPACE_ROOT is unset in every deployment today, so this is usually
+// empty and a dispatch screens the record alone. One directory per desk rather
+// than one shared one because T-051's exclusive lease is per workspace, and a
+// layout that has to change when the lease lands is a layout that will not.
+//
+// Assumes the lock is held.
+func (s *MemStore) workspaceFor(d Desk) string {
+	if s.workspaceRoot == "" {
+		return ""
+	}
+	return filepath.Join(s.workspaceRoot, d.ID)
 }
 
 func (s *MemStore) RetryTask(ctx context.Context, idx int) (Result, error) {

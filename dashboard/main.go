@@ -58,6 +58,19 @@ type server struct {
 	store Store
 	rend  *Renderer
 	arc   *Arcade
+
+	// adapter is nil unless GAOS_MODEL_MODE names one. Held for /healthz and
+	// the boot log only -- the dispatch path reaches it through the store,
+	// because a dispatch emits events and only a store may.
+	adapter Adapter
+}
+
+// describeAdapter is what /healthz and the boot line report.
+func (s *server) describeAdapter() string {
+	if s.adapter == nil {
+		return "unconfigured"
+	}
+	return fmt.Sprintf("%s (%s)", s.adapter.Name(), s.adapter.Mode())
 }
 
 // mut is the handle a mutating handler must use. While the floor is parked in
@@ -119,7 +132,31 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 	if err != nil {
 		return err
 	}
-	srv := &server{store: store, rend: rend, arc: arc}
+	// The model gateway. T-057, and D-049's standing obligation: "the pin is
+	// worthless without the boot smoke test §7.6.3 already promises."
+	//
+	// selectAdapter FAILS THE BOOT rather than falling back, for exactly the
+	// reason selectStore does above. An UNCONFIGURED adapter is nil and is a
+	// valid state -- that is the local stack, and handleHealth has always
+	// treated an unconfigured dependency as healthy. A CONFIGURED adapter whose
+	// binary is missing, or whose version has drifted out of the pin, is a
+	// dashboard that would accept a dispatch and produce evidence nobody can
+	// trust. That is worse than a dashboard that did not start, because it
+	// looks completely healthy while doing it.
+	adapter, err := selectAdapter(ModelConfigFromEnv())
+	if err != nil {
+		return err
+	}
+	if adapter != nil {
+		if err := adapter.Smoke(ctx); err != nil {
+			return fmt.Errorf("boot smoke test: %w", err)
+		}
+		if sa, ok := store.(interface{ SetAdapter(Adapter) }); ok {
+			sa.SetAdapter(adapter)
+		}
+	}
+
+	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter}
 
 	// The simulation belongs to MemStore and is not on the Store interface, so
 	// it is asked for rather than assumed. ArcadeStore holds real state and has
@@ -151,8 +188,8 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 	if !dev {
 		mode = "prod"
 	}
-	log.Printf("gaos dashboard listening on %s (%s, sim=%v, store=%s, arcade=%s)",
-		addr, mode, sim, store.Kind(), srv.arc.Describe())
+	log.Printf("gaos dashboard listening on %s (%s, sim=%v, store=%s, arcade=%s, adapter=%s)",
+		addr, mode, sim, store.Kind(), srv.arc.Describe(), srv.describeAdapter())
 
 	if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
@@ -181,6 +218,7 @@ func (s *server) routes() http.Handler {
 	// to be renamed when the graph is behind it. ---
 	mux.HandleFunc("GET /events", s.handleEvents)
 	mux.HandleFunc("GET /replay/{workflow}", s.handleReplay)
+	mux.HandleFunc("POST /tasks/{id}/dispatch", s.handleDispatch)
 	mux.HandleFunc("POST /tasks/{id}/approve", s.handleApprove)
 	mux.HandleFunc("POST /tasks/{id}/retry", s.handleRetry)
 	mux.HandleFunc("POST /tasks/{id}/cancel", s.handleCancel)
@@ -252,6 +290,7 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"ok":      true,
 		"service": "gaos-dashboard",
 		"store":   s.store.Kind(),
+		"adapter": s.describeAdapter(),
 		"uptime":  time.Since(started).Round(time.Second).String(),
 	}
 
