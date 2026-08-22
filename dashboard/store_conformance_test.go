@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -71,6 +72,8 @@ var storeContract = []storeCase{
 	{"PlanWorkflowWritesNothing", casePlanIsPure},
 	{"CreateWorkflowWithoutAnObjectiveIsRejected", caseCreateWorkflowNoGoal},
 	{"CreateWorkflowMovesTheDeskAndTheCoverage", caseCreateWorkflow},
+	{"PlanningWritesTasksAndDependencies", casePlanWritesGraph},
+	{"APlanWithACycleIsRejected", casePlanCycleRejected},
 	{"ContextSliceIsAssembledFromTheRecord", caseContextSlice},
 	{"DispatchScreensBeforeItDispatches", caseDispatchScreens},
 	{"DispatchOnADeskAlreadyRunningIsRejected", caseDispatchBusy},
@@ -161,6 +164,114 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	if len(m.Stories) == 0 {
 		t.Error("the story added before the reopen is gone from the master record")
 	}
+}
+
+// TestTheTaskGraphSurvivesARestart is the BR-01 half of T-042, and it has to be
+// its own test for the same reason as the one above: "restart the process" is
+// not something the Store interface offers.
+//
+// It matters more here than for the floor. The floor is folded from the stream,
+// so a projection that lost it could rebuild it; the task graph is deliberately
+// NOT folded -- see the TaskPlanned case in fold.go -- so ArcadeStore.load is
+// the only path back. If this fails, the graph is memory wearing a record's
+// clothes, and the scheduler that reads it after a restart is scheduling
+// against nothing.
+//
+// The direction of DEPENDS_ON is asserted rather than assumed. 08-edges.sql
+// says "the OUT side waits for the IN side" and every readiness query depends
+// on it, so an edge written the other way round would round-trip perfectly and
+// invert every scheduling decision made from it.
+func TestTheTaskGraphSurvivesARestart(t *testing.T) {
+	arc := arcadeTestTarget(t)
+	ctx := context.Background()
+	tenant := "conf-graph-restart"
+
+	first := newArcadeTestStore(t, arc, tenant)
+	m, err := first.Master(ctx, "p-1")
+	if err != nil {
+		t.Fatalf("master: %v", err)
+	}
+	if len(m.Stories) < 2 {
+		t.Skip("p-1 has fewer than two stories, so there is no fan-in to assert")
+	}
+	draft := WorkflowDraft{
+		ProductID: "p-1",
+		Goal:      "Prove the graph comes back",
+		Stories:   []string{m.Stories[0].ID, m.Stories[1].ID},
+	}
+	plan, err := first.PlanWorkflow(ctx, draft)
+	if err != nil {
+		t.Fatalf("PlanWorkflow: %v", err)
+	}
+	if _, err := first.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	before := first.(graphReader).tasksSnapshot("p-1")
+	if len(before) == 0 {
+		t.Fatal("nothing was planned, so there is nothing to prove about a restart")
+	}
+
+	second, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
+	if err != nil {
+		t.Fatalf("reopen the store on the same tenant: %v", err)
+	}
+	after := second.tasksSnapshot("p-1")
+
+	if len(after) != len(before) {
+		t.Fatalf("the reopened graph holds %d tasks, %d were written -- the graph is not "+
+			"folded from the stream, so load() is the only way back and it did not bring "+
+			"them", len(after), len(before))
+	}
+	byID := map[string]TaskRecord{}
+	for _, task := range after {
+		byID[task.ID] = task
+	}
+	for _, want := range before {
+		got, ok := byID[want.ID]
+		if !ok {
+			t.Errorf("%s is missing after the reopen", want.ID)
+			continue
+		}
+		if got.Title != want.Title || got.Role != want.Role || got.Status != want.Status {
+			t.Errorf("%s came back as %q/%s/%s, was %q/%s/%s", want.ID,
+				got.Title, got.Role, got.Status, want.Title, want.Role, want.Status)
+		}
+		if got.WorkflowID != want.WorkflowID || got.Ordinal != want.Ordinal {
+			t.Errorf("%s came back on workflow %q at ordinal %d, was %q at %d; the ordinal is "+
+				"what puts the slice back in plan order, which D-1 needs to be a property of "+
+				"the data rather than of the bucket layout",
+				want.ID, got.WorkflowID, got.Ordinal, want.WorkflowID, want.Ordinal)
+		}
+		if !reflect.DeepEqual(sortedCopy(got.Deps), sortedCopy(want.Deps)) {
+			t.Errorf("%s waits on %v after the reopen, wrote %v; DEPENDS_ON points from the "+
+				"dependent to its prerequisite, and an edge that came back reversed would "+
+				"invert every readiness answer computed from it",
+				want.ID, got.Deps, want.Deps)
+		}
+	}
+
+	// The counter, which is the other thing load() has to put back. A restarted
+	// dashboard that resumed numbering from a count would hand the next workflow
+	// an id an earlier one already holds.
+	if _, err := second.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow after the reopen: %v", err)
+	}
+	third := second.tasksSnapshot("p-1")
+	seen := map[string]bool{}
+	for _, task := range third {
+		if seen[task.ID] {
+			t.Errorf("%s was written twice after a restart; the workflow counter restarted "+
+				"too, and Task (tenantId, id) UNIQUE means the second write upserted over "+
+				"the first", task.ID)
+		}
+		seen[task.ID] = true
+	}
+}
+
+func sortedCopy(in []string) []string {
+	out := append([]string(nil), in...)
+	sort.Strings(out)
+	return out
 }
 
 // TestFoldSurvivesTheGraphRoundTrip is the other case the interface cannot
@@ -927,6 +1038,108 @@ func caseCreateWorkflowNoGoal(t *testing.T, s Store) {
 
 	_, err = s.CreateWorkflow(ctx, WorkflowDraft{ProductID: id, Goal: "A real objective"}, nil)
 	assertRejected(t, err, "The plan is empty. Go back and build it.")
+}
+
+// graphReader is the task graph, reached past the seam on purpose.
+//
+// Same door-with-a-sign-on-it as policySetter in caseDispatchRefusedBlocks: the
+// graph is not on the Store interface -- nothing above the store needs to read
+// it yet, and the scheduler that will is T-048 -- but a conformance case that
+// could not see it would be asserting that CreateWorkflow does not crash.
+type graphReader interface {
+	tasksSnapshot(deskID string) []TaskRecord
+}
+
+// casePlanWritesGraph is T-042's positive half at the seam: creating a workflow
+// leaves a real graph behind, in both stores, with the prerequisites intact.
+func casePlanWritesGraph(t *testing.T, s Store) {
+	g, ok := s.(graphReader)
+	if !ok {
+		t.Skip("this store does not expose the task graph for testing")
+	}
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	m, _ := s.Master(ctx, id)
+	if len(m.Stories) == 0 {
+		t.Skip("the first master record has no stories to plan against")
+	}
+	draft := WorkflowDraft{
+		ProductID: id,
+		Goal:      "Persist the plan as a graph rather than a preview",
+		Stories:   []string{m.Stories[0].ID},
+	}
+	plan, err := s.PlanWorkflow(ctx, draft)
+	if err != nil {
+		t.Fatalf("PlanWorkflow: %v", err)
+	}
+	if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+
+	tasks := g.tasksSnapshot(id)
+	if len(tasks) != len(plan) {
+		t.Fatalf("the plan had %d tasks and the graph holds %d; a plan that is previewed and "+
+			"not stored is a plan the scheduler cannot see", len(plan), len(tasks))
+	}
+	ids := map[string]bool{}
+	deps := 0
+	for _, task := range tasks {
+		ids[task.ID] = true
+		deps += len(task.Deps)
+		if task.Status != StatusPending {
+			t.Errorf("%s was written as %q; READY is the scheduler's word (D-1) and the "+
+				"planner has no lease, no capacity and no budget zone to decide it with",
+				task.ID, task.Status)
+		}
+		if task.WorkflowID == "" || !strings.HasPrefix(task.ID, task.WorkflowID+"-") {
+			t.Errorf("%s is not qualified by its workflow %q; two plans both numbering from "+
+				"t-1 collide under Task (tenantId, id) UNIQUE", task.ID, task.WorkflowID)
+		}
+	}
+	if deps == 0 {
+		t.Error("the graph holds no prerequisites at all; DEPENDS_ON is what makes it a graph " +
+			"rather than a list, and T-042 exists because it used to be neither")
+	}
+	for _, task := range tasks {
+		for _, dep := range task.Deps {
+			if !ids[dep] {
+				t.Errorf("%s depends on %s, which is not in the stored graph; the edge points "+
+					"at a vertex that does not exist and the task can never become ready",
+					task.ID, dep)
+			}
+		}
+	}
+}
+
+// casePlanCycleRejected is the negative half, and the reason validatePlan lives
+// in CreateWorkflow rather than in PlanWorkflow: the planner cannot produce a
+// cycle, but this method takes the plan from the caller and the seam is public.
+func casePlanCycleRejected(t *testing.T, s Store) {
+	g, ok := s.(graphReader)
+	if !ok {
+		t.Skip("this store does not expose the task graph for testing")
+	}
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	before := len(g.tasksSnapshot(id))
+
+	_, err := s.CreateWorkflow(ctx, WorkflowDraft{ProductID: id, Goal: "A real objective"},
+		[]PlanTask{
+			{ID: "t-1", Title: "a", Role: "planner", Deps: []string{"t-2"}},
+			{ID: "t-2", Title: "b", Role: "backend", Deps: []string{"t-1"}},
+		})
+	if err == nil {
+		t.Fatal("a plan whose two tasks wait on each other was accepted; neither can ever " +
+			"be ready, and the scheduler would walk that graph on every pass forever")
+	}
+	if !errors.Is(err, ErrRejected) {
+		t.Errorf("the refusal is %v, which is not an ErrRejected; BR-06 wants a reason the "+
+			"handler can put in a toast", err)
+	}
+	if after := len(g.tasksSnapshot(id)); after != before {
+		t.Errorf("a refused plan left %d task(s) behind; the validation runs before the first "+
+			"write so a rejection changes nothing", after-before)
+	}
 }
 
 func caseCreateWorkflow(t *testing.T, s Store) {

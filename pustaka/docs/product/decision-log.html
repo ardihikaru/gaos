@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Fifty-two entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Fifty-four entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -839,6 +839,81 @@
         <a href="../delivery/implementation-plan.html#sub-m11-2">T-126</a>,
         <a href="../delivery/implementation-plan.html#sub-m11-2">T-127</a>;
         <a href="qa-test-plan.html#go-dispatch">TC-194…TC-200</a></td>
+      </tr>
+      <tr id="d-053">
+        <td>D-053</td><td>2026-08-22</td>
+        <td><strong>The heartbeat interval and the <code>Heartbeat</code> event cadence are two
+        different numbers, and an expired lease is never taken by the acquirer.</strong>
+        <a href="brd.html#req-d">D-3</a> asks for a lease with an expiry and a heartbeat and does not
+        say how often either happens, so the numbers had to be decided rather than picked at a call
+        site. They are: <strong>beat every 30s, stale after 90s, lease expires after 300s, and a
+        <code>Heartbeat</code> event every 300s</strong> — plus always the first beat of a run and
+        always the last before it exits.
+        <strong>Why the last number is not the first.</strong> A beat is a field write to
+        <code>Task.lastHeartbeatAt</code>, a mutable property the DDL already declares. An event is an
+        append to a stream that is append-only
+        (<a href="brd.html#rules-invariants">BR-04</a>), snapshotted every 500 events, and rendered in
+        full by the timeline. At 30s a twenty-minute run writes forty pills, and a six-desk floor
+        running three attempts an hour writes around seven hundred an hour of pure noise. At 300s the
+        same run writes five, and a replay can still tell <em>alive at T</em> from <em>silent since
+        T</em>, which is the only question a heartbeat is asked.
+        <strong>The BR-02 tension, stated rather than buried.</strong>
+        <a href="brd.html#rules-invariants">BR-02</a> says every change emits an event. Its subject is
+        a <em>state change</em>, and a heartbeat is not one — the task is <code>RUNNING</code> before
+        and after. It is evidence of continuity, and 300s is a resolution that answers the question.
+        That is a reading, which is why it is a decision here rather than a comment in the code.
+        <strong>And what the beat actually attests to.</strong> The supervisor, not the model. Claude
+        Code knows nothing about GAOS, so the goroutine that beats is in the orchestrator — meaning
+        that after an orchestrator dies the beat goes stale <em>while the work continues</em>. That
+        asymmetry is why boot reconciliation has three branches rather than two, and it is why
+        <code>AcquireLease</code> refuses an expired lease instead of taking it: an expiry says the
+        supervisor stopped renewing and says nothing whatever about the detached child, which
+        <a href="brd.html#req-d">D-2</a> arranged to outlive it. Clearing one is
+        <code>BreakLease</code>, a separate name for an operation that is only safe after the previous
+        run has been made dead.</td>
+        <td>Implements <a href="brd.html#req-d">D-3</a> under
+        <a href="brd.html#rules-invariants">BR-02</a> and
+        <a href="brd.html#rules-invariants">BR-04</a>;
+        <code>dashboard/lease.go</code>;
+        <a href="../delivery/implementation-plan.html#sub-m4-2">T-051</a>;
+        <a href="qa-test-plan.html#go-lease">TC-220…TC-226</a></td>
+      </tr>
+      <tr id="d-054">
+        <td>D-054</td><td>2026-08-22</td>
+        <td><strong>Requeue is kill-then-requeue, and the architecture page's recovery pseudocode was
+        wrong about why.</strong> Its middle branch is commented <em>"lease held, process gone"</em>.
+        <strong>It does not know the process is gone.</strong> It knows the <em>beat</em> is stale,
+        and a stale beat means the SUPERVISOR died — which says nothing whatever about the child,
+        because <a href="brd.html#req-d">D-2</a> detached the child precisely so it would outlive its
+        supervisor.
+        <strong>What that costs if it is read the easy way.</strong> Requeuing on a stale beat starts
+        a second run in a workspace that may still have a live one in it: the exact silent corruption
+        <a href="brd.html#req-d">D-3</a> exists to prevent, reached <em>through</em> the routine meant
+        to recover from failure. Two agents editing one checkout do not crash; they produce a diff
+        neither of them wrote, which is then reviewed, scored and possibly merged.
+        <strong>So a run that can be proved neither alive nor dead is MADE dead.</strong> The
+        reconciler reads the run record, signals the process group, waits a grace period, signals
+        again, releases the lease, and only then puts the task back at <code>READY</code>. Where
+        nothing is able to kill — no adapter configured, no process ever recorded — the branch
+        <em>degrades to orphan</em> rather than requeuing on a promise it cannot keep. A task that
+        failed and needs a human is a worse outcome than a clean requeue and a far better one than
+        silent corruption.
+        <strong>This does not contradict <a href="brd.html#rules-commercial">BR-35</a>'s "never kills
+        a run already in flight", and the difference is the subject rather than the verb.</strong>
+        BR-35 is a BUDGET rule about a run this orchestrator is supervising and whose spend it can
+        still account for; killing that forfeits money already spent. This is a RECOVERY rule about an
+        unsupervised run whose supervisor is already gone. Different subject, opposite risk.
+        <strong>Two corrections to <code>architecture/system.html</code> landed with the code:</strong>
+        the branch comment, and the event it emitted — the page wrote
+        <code>TaskFailed(reason=orphaned)</code>, and <code>TaskFailed</code> is not in the closed
+        catalog at all. It is <code>TaskOrphaned</code>.</td>
+        <td>Corrects <code>architecture/system.html</code> §boot-recovery; implements
+        <a href="brd.html#req-d">D-4</a> without breaking
+        <a href="brd.html#req-d">D-3</a>;
+        <code>dashboard/reconcile.go</code>, <code>dashboard/runner.go</code>,
+        <code>dashboard/adapter_cli.go</code>;
+        <a href="../delivery/implementation-plan.html#sub-m4-2">T-053</a>;
+        <a href="qa-test-plan.html#go-reconcile">TC-236…TC-242</a></td>
       </tr>
     </tbody>
   </table>

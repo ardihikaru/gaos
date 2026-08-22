@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -110,11 +112,29 @@ func (a *CLIAdapter) Dispatch(ctx context.Context, c Cleared) (Attempt, error) {
 		return Attempt{}, fmt.Errorf("cleared packet has no workspace")
 	}
 
+	if err := refuseIfUnderTest(a.Argv); err != nil {
+		return Attempt{}, err
+	}
+
 	timeout := a.Timeout
 	if timeout == 0 {
 		timeout = defaultDispatchTimeout
 	}
-	dc, cancel := context.WithTimeout(ctx, timeout)
+
+	// context.WithoutCancel, and this is the line that makes D-2 true.
+	//
+	// Before it, dc descended from the caller's ctx, which serve() builds from
+	// signal.NotifyContext(SIGINT, SIGTERM). So a graceful shutdown cancelled
+	// the context, CommandContext killed the child, and "work runs in detached
+	// processes that survive the orchestrator" was false on precisely the path
+	// an operator uses. (SIGKILL was already fine, by accident: the Go runtime
+	// never runs, nothing kills the child, and Setpgid below means no terminal
+	// signal reaches it either. The ungraceful path satisfied D-2 and the
+	// graceful one violated it, which is the wrong way round.)
+	//
+	// The only cancellation left is the timeout, which is a property of the RUN
+	// rather than of the orchestrator supervising it.
+	dc, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 	defer cancel()
 
 	args := append([]string(nil), a.Argv[1:]...)
@@ -123,31 +143,129 @@ func (a *CLIAdapter) Dispatch(ctx context.Context, c Cleared) (Attempt, error) {
 		args = append(args, "--model", a.Model)
 	}
 
+	// The handoff document is emptied before the invocation, which handoff.go
+	// has claimed since it was written -- "it is declared and empty before the
+	// invocation starts, per the §7.6 packet layout" -- and which nothing
+	// actually did. Without it a retry in a reused workspace reads the previous
+	// attempt's document and scores the wrong run.
+	if err := truncateHandoff(ws); err != nil {
+		return Attempt{}, err
+	}
+
+	logPath, stdout, stderr, err := openRunLogs(ws, c.Digest())
+	if err != nil {
+		return Attempt{}, err
+	}
+	defer stdout.Close()
+	defer stderr.Close()
+
 	cmd := exec.CommandContext(dc, a.Argv[0], args...)
 	cmd.Dir = ws
 	cmd.Stdin = strings.NewReader(instructionOf(c.Packet()))
 	cmd.Env = isolatedEnv(a.SessionEnv)
 
-	// A process group of its own. Two reasons: D-2 wants work detached from the
-	// orchestrator, and killing the group rather than the leader is the only
-	// way a timeout reaches a tool that has spawned children of its own -- which
-	// an agent that runs tests certainly has.
+	// A process group of its own. Three reasons now: D-2 wants work detached
+	// from the orchestrator; killing the group rather than the leader is the
+	// only way a timeout reaches a tool that has spawned children of its own,
+	// which an agent that runs tests certainly has; and the reconciler's
+	// kill-then-requeue branch needs a group to signal, because by then the
+	// leader may already be gone and its children may not be.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	// Files rather than bytes.Buffer, and this is what makes adoption COMPLETE
+	// rather than partial.
+	//
+	// The tool's JSON envelope carries total_cost_usd, and D-051 requires
+	// costBasis: measured from the first run. In a buffer that envelope lives in
+	// the orchestrator's address space -- so an orchestrator that died mid-run
+	// takes the cost with it, and the process that adopts the run can recover
+	// the outcome from the handoff but never what it cost. On disk, collect()
+	// runs identically on the spawn path and the adoption path.
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 
-	runErr := cmd.Run()
+	// Start, not Run: the pid does not exist until Start returns, and the
+	// RunRecord has to be on disk before anything can be adopted.
+	if err := cmd.Start(); err != nil {
+		return Attempt{}, err
+	}
+	// Stamp the process detail into the RunRecord the runner already wrote. A
+	// read-modify-write rather than a callback, because the alternative is a
+	// mutable field on an adapter two runs share, and the seam's signature is
+	// BR-32 and does not get widened for this.
+	//
+	// No RunRecord means nobody is supervising -- the operator-triggered
+	// dispatch route -- and then there is nothing to adopt and nothing to
+	// stamp.
+	if err := stampRunDetail(ws, runDetail(cmd)); err != nil {
+		return Attempt{}, err
+	}
+
+	runErr := cmd.Wait()
 	class, code := classifyExit(runErr)
 
+	att := collect(ws, logPath, c.Digest(), a.Model)
+	att.ExitClass, att.ExitCode = class, code
+	return att, nil
+}
+
+// Resume rebuilds an Attempt for a run this process did not start.
+//
+// It waits for the process to go away and then reads the same evidence
+// Dispatch reads. The pid probe is corroboration, not authority: whether the
+// run should have been adopted at all was decided by the reconciler from the
+// lease and the beat, per D-4, before this was ever called.
+func (a *CLIAdapter) Resume(ctx context.Context, c Cleared, r RunRecord) (Attempt, error) {
+	if r.RunID == "" || r.Workspace == "" {
+		return Attempt{}, fmt.Errorf("resume: the run record names no run or no workspace")
+	}
+	timeout := a.Timeout
+	if timeout == 0 {
+		timeout = defaultDispatchTimeout
+	}
+	dc, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+	defer cancel()
+
+	for alive(r.Detail) {
+		select {
+		case <-dc.Done():
+			// The adopted run outlived the timeout. It is still not this
+			// function's business to kill it -- that is the reconciler's, which
+			// owns the decision and the lease.
+			att := collect(r.Workspace, r.LogRef, r.Digest, r.Model)
+			att.ExitClass, att.ExitCode = ExitCrashed, -1
+			return att, nil
+		case <-time.After(resumePollInterval):
+		}
+	}
+
+	att := collect(r.Workspace, r.LogRef, r.Digest, r.Model)
+	// An adopted run has no exit status to read: nobody was waiting on it. That
+	// is honest rather than lossy, because D-050 already forbids reading meaning
+	// into the exit code -- ExitRan says the process ran, and the handoff says
+	// what it did.
+	att.ExitClass, att.ExitCode = ExitRan, 0
+	return att, nil
+}
+
+// resumePollInterval is how often adoption checks whether the child is gone.
+// Coarse on purpose: this is a liveness poll on a run that may take twenty
+// minutes, not a latency-sensitive path.
+const resumePollInterval = 2 * time.Second
+
+// collect is the tail both Dispatch and Resume run, and it is ONE function
+// rather than two on purpose.
+//
+// BR-33 asks that nothing above the adapter be able to tell the modes apart.
+// The same argument applies within a mode: an adopted attempt assembled by
+// different code from a supervised one would drift, and the drift would show up
+// as a scoring difference nobody could explain.
+func collect(ws, logPath, digest, model string) Attempt {
 	att := Attempt{
 		Invocation: InvocationCLI,
-		Model:      a.Model,
-		Digest:     c.Digest(),
-		ExitClass:  class,
-		ExitCode:   code,
+		Model:      model,
+		Digest:     digest,
 		CostBasis:  CostUnavailable,
-		LogRef:     truncateLog(stdout.String(), stderr.String()),
+		LogRef:     logPath,
 	}
 
 	// THE HANDOFF IS READ UNCONDITIONALLY, including after a crash.
@@ -164,8 +282,9 @@ func (a *CLIAdapter) Dispatch(ctx context.Context, c Cleared) (Attempt, error) {
 		att.Handoff = &h
 	}
 
-	applyUsage(&att, stdout.Bytes(), h, err == nil)
-	return att, nil
+	out, _ := os.ReadFile(logPath)
+	applyUsage(&att, out, h, err == nil)
+	return att
 }
 
 // cliResult is the shape D-051 measured: "its JSON result carries
@@ -279,18 +398,208 @@ func isolatedEnv(session []string) []string {
 	return env
 }
 
-// maxLogRef bounds what an attempt carries inline. BR-25 puts heavy payloads in
-// object storage; there is no object storage yet, so the cap is what stands in
-// for it and the comment is what stops it being mistaken for the design.
-const maxLogRef = 8 << 10
+// ---------------------------------------------------------------- the run's
+// files, its process, and the two guards in front of both.
+//
+// UNIX ONLY, and stated rather than discovered. Setpgid, killing a process
+// group and reading /proc are all Linux-shaped, and this package has no build
+// tags. The deploy target is a distroless Linux container (deploy/), so the
+// honest choice is to say so here rather than to add _unix.go/_other.go pairs
+// that nobody would maintain and no CI would exercise.
 
-func truncateLog(stdout, stderr string) string {
-	s := stdout
-	if stderr != "" {
-		s += "\n--- stderr ---\n" + stderr
+// openRunLogs creates the files a run writes to, and returns the path the
+// Attempt will carry as its LogRef.
+//
+// LogRef used to be up to 8 KiB of inline text with a comment saying the cap
+// stood in for object storage "because there is no object storage yet". A file
+// in the workspace is not object storage either, but it IS a reference, which
+// is what BR-25 asked for -- "heavy payloads stored EXTERNAL or by reference,
+// never inline on a vertex the scheduler traverses" -- and unlike the inline
+// text it survives the process that produced it.
+func openRunLogs(ws, digest string) (string, *os.File, *os.File, error) {
+	dir := filepath.Join(ws, ".gaos", "run", "log")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", nil, nil, err
 	}
-	if len(s) > maxLogRef {
-		return s[:maxLogRef] + fmt.Sprintf("\n... truncated, %d bytes total", len(s))
+	stem := digest
+	if len(stem) > 16 {
+		stem = stem[:16]
 	}
-	return s
+	if stem == "" {
+		stem = "run"
+	}
+	outPath := filepath.Join(dir, stem+".log")
+	out, err := os.OpenFile(outPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	errPath := filepath.Join(dir, stem+".err")
+	errf, err := os.OpenFile(errPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		out.Close()
+		return "", nil, nil, err
+	}
+	return outPath, out, errf, nil
+}
+
+// truncateHandoff declares the document and empties it, which handoff.go has
+// always said happens before an invocation starts and which nothing did. A
+// retry in a reused workspace would otherwise read the previous attempt's
+// document, and the adopting orchestrator's `h.Run == record.RunID` check would
+// be comparing against a run that had already finished.
+func truncateHandoff(ws string) error {
+	path := filepath.Join(ws, HandoffPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, nil, 0o600)
+}
+
+// runDetail is what the CLI adapter puts in RunRecord.Detail, and the only code
+// in the package that may read it back is alive() below.
+//
+// procStart is field 22 of /proc/<pid>/stat, the process's start time in clock
+// ticks since boot. It is here because PID reuse is real: a bare kill(pid, 0)
+// after a reboot, or after enough process churn, finds a stranger and reports a
+// long-dead run as alive. Where it cannot be read the field is empty and
+// adoption falls back to the lease and the beat, which D-4 already treats as
+// the two independent signals.
+func runDetail(cmd *exec.Cmd) map[string]string {
+	pid := cmd.Process.Pid
+	d := map[string]string{
+		"pid":  strconv.Itoa(pid),
+		"pgid": strconv.Itoa(pid), // Setpgid makes the child its own group leader
+	}
+	if s := procStart(pid); s != "" {
+		d["procStart"] = s
+	}
+	return d
+}
+
+func procStart(pid int) string {
+	body, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return ""
+	}
+	// The comm field is parenthesised and may contain spaces, so fields are
+	// counted from after the closing paren rather than from the start.
+	i := bytes.LastIndexByte(body, ')')
+	if i < 0 {
+		return ""
+	}
+	fields := strings.Fields(string(body[i+1:]))
+	// After the paren, field 1 is state; starttime is field 22 overall, which
+	// is index 19 here.
+	if len(fields) < 20 {
+		return ""
+	}
+	return fields[19]
+}
+
+// Stop makes a CLI run dead: SIGTERM to the process GROUP, a grace period, then
+// SIGKILL.
+//
+// The group and not the leader. The leader may already be gone -- that is a
+// large part of why the caller could not tell whether the run was alive -- while
+// the test runner or compiler it spawned is very much still there, holding the
+// workspace open. Setpgid in Dispatch is what makes the group addressable, and
+// this is the second reason it is set.
+//
+// Negative pid is the group. Idempotent by construction: signalling a group
+// that is gone returns ESRCH, which is the success case here.
+func (a *CLIAdapter) Stop(r RunRecord) error {
+	pgid, err := strconv.Atoi(r.Detail["pgid"])
+	if err != nil || pgid <= 0 {
+		// Nothing was ever recorded, so nothing was ever spawned by this
+		// adapter. There is nothing to kill and saying so is not a failure.
+		return nil
+	}
+	_ = syscall.Kill(-pgid, syscall.SIGTERM)
+	deadline := time.Now().Add(stopGracePeriod)
+	for time.Now().Before(deadline) {
+		if !alive(r.Detail) {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	return nil
+}
+
+// stopGracePeriod is how long a run gets to exit on its own after SIGTERM.
+// Short: by the time this is called the run is already unsupervised and its
+// workspace is about to be handed to somebody else.
+const stopGracePeriod = 3 * time.Second
+
+// alive reports whether the recorded process is still there AND is still the
+// same process. Signal 0 checks for existence without delivering anything.
+func alive(detail map[string]string) bool {
+	pid, err := strconv.Atoi(detail["pid"])
+	if err != nil || pid <= 0 {
+		return false
+	}
+	if err := syscall.Kill(pid, 0); err != nil {
+		return false
+	}
+	if want := detail["procStart"]; want != "" {
+		if got := procStart(pid); got != "" && got != want {
+			// The pid exists and is somebody else's. Reporting this as alive
+			// would keep a finished run open forever.
+			return false
+		}
+	}
+	return true
+}
+
+// stampRunDetail records the process detail on the RunRecord the runner wrote
+// before the spawn. Absent record, nothing to stamp.
+func stampRunDetail(ws string, detail map[string]string) error {
+	r, ok, err := ReadRunRecord(ws)
+	if err != nil || !ok {
+		return err
+	}
+	r.Detail = detail
+	return WriteRunRecord(ws, r)
+}
+
+// WriteRunRecord persists the record, atomically for the same reason the lease
+// is: a reader must see the whole of one version or the whole of the other.
+func WriteRunRecord(ws string, r RunRecord) error {
+	path := filepath.Join(ws, RunRecordPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	body, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, body, 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// ReadRunRecord reads it back, for an orchestrator that was not running when it
+// was written.
+func ReadRunRecord(ws string) (RunRecord, bool, error) {
+	if ws == "" {
+		return RunRecord{}, false, nil
+	}
+	body, err := os.ReadFile(filepath.Join(ws, RunRecordPath))
+	if os.IsNotExist(err) {
+		return RunRecord{}, false, nil
+	}
+	if err != nil {
+		return RunRecord{}, false, err
+	}
+	var r RunRecord
+	if err := json.Unmarshal(body, &r); err != nil {
+		return RunRecord{}, false, fmt.Errorf("run record at %s is unreadable: %w", ws, err)
+	}
+	return r, true, nil
 }

@@ -156,6 +156,22 @@ func cloneDesks(in []Desk) []Desk {
 	return out
 }
 
+// clonePlannedTasks deep-copies the audit list a TaskPlanned event carries. Nil
+// in, nil out: an event of any other type must not grow an empty slice on its
+// way through Clone, or two payloads that are the same fact stop comparing
+// equal and the purity tests start arguing about representation.
+func clonePlannedTasks(in []PlannedTask) []PlannedTask {
+	if in == nil {
+		return nil
+	}
+	out := make([]PlannedTask, len(in))
+	for i, t := range in {
+		out[i] = t
+		out[i].Deps = append([]string(nil), t.Deps...)
+	}
+	return out
+}
+
 // ---------- the event stream ----------
 
 // Event is one thing that happened, and the delta it left behind.
@@ -230,6 +246,11 @@ type EventPayload struct {
 	Bytes      int    // the size of the slice after redaction
 	Digest     string // the cleared packet's digest; ContextSlice.digest in 04-execution.sql
 
+	// Tasks is set by TaskPlanned and by nothing else, and no reducer case reads
+	// it. See PlannedTask: the graph is not folded, so this is the audit copy of
+	// what the planner produced rather than a delta anything applies.
+	Tasks []PlannedTask
+
 	// Genesis is set by FloorOpened and by nothing else. It is the seeded floor
 	// -- the `?? empty` half of §08's `snapshot_before(t) ?? empty` -- and it is
 	// what lets a fold from an empty state reproduce a floor that was never
@@ -249,6 +270,7 @@ func (p EventPayload) Clone() EventPayload {
 	c.Agents = append([]string(nil), p.Agents...)
 	c.Parts = append([]ScorePart(nil), p.Parts...)
 	c.Logs = append([]LogLine(nil), p.Logs...)
+	c.Tasks = clonePlannedTasks(p.Tasks)
 	if p.Meeting != nil {
 		m := *p.Meeting
 		m.Participants = append([]string(nil), p.Meeting.Participants...)
@@ -582,16 +604,82 @@ type WorkflowDraft struct {
 	Stories   []string
 }
 
-// PlanTask is one row of the plan preview. Dep is a task id, not a pointer,
+// PlanTask is one row of the plan preview. Deps are task ids, not pointers,
 // because DEPENDS_ON in the graph points at an id too.
+//
+// A slice rather than one id, and that is the whole of T-042. A single Dep can
+// only ever express a line, and the plan is not a line: every story's verify
+// task fans into one security review, so the security task has as many
+// prerequisites as there are stories. The fan-in is the reason the field is
+// plural; a chain would not need it.
+//
+// The ids here are plan-local -- t-1, t-2 -- because PlanWorkflow is pure and
+// does not know which workflow it is planning for. CreateWorkflow qualifies
+// them on the way to the graph. See TaskRecord.
 type PlanTask struct {
 	ID    string
 	Title string
 	Role  string
 	Story string
-	Dep   string
+	Deps  []string
 	Model string
 	Gate  bool
+}
+
+// TaskRecord is the Go mirror of the Task vertex in 04-execution.sql. One per
+// planned task, and the thing the scheduler traverses.
+//
+// What is deliberately absent is BR-25: no packet, no context slice, no handoff
+// text, no log tail. Heavy payloads are stored EXTERNAL or by reference "never
+// inline on a vertex the scheduler traverses", so the heavy half lives in the
+// workspace and behind TaskRun.logRef, and this record stays cheap to walk.
+//
+// LeaseUntil and LastBeatAt are unix seconds rather than time.Time, matching
+// Event.T's choice: a value the fold and the reconciler both compare, with no
+// monotonic-clock reading riding along inside it.
+type TaskRecord struct {
+	ID          string
+	WorkflowID  string
+	DeskID      string
+	Title       string
+	Role        string
+	Story       string
+	Model       string
+	Status      string
+	Deps        []string
+	Priority    int
+	Ordinal     int
+	Gate        bool
+	Retry       int
+	Esc         int
+	BlockReason string
+	Workspace   string
+	LeaseUntil  int64
+	LastBeatAt  int64
+	Attempt     int
+}
+
+// Clone deep-copies a task record. Same argument as Desk.Clone: Deps is a slice,
+// and a record handed across the store's lock that shares it is an aliasing bug
+// waiting for a concurrent writer.
+func (t TaskRecord) Clone() TaskRecord {
+	c := t
+	c.Deps = append([]string(nil), t.Deps...)
+	return c
+}
+
+// PlannedTask is the audit shape of one task, carried by TaskPlanned.
+//
+// The reducer does not read it -- the graph is not in FloorState, see the
+// TaskPlanned case in fold.go. It is here because "which tasks the planner
+// produced, at that moment" stops being answerable from the present graph the
+// first time a dependency is rewired, and BR-04 makes the stream the record.
+// An audit field, named as one so it does not read as a field nobody uses.
+type PlannedTask struct {
+	ID    string
+	Title string
+	Role  string
+	Deps  []string
 }
 
 type ProductDraft struct {

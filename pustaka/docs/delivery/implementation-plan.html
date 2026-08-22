@@ -74,8 +74,8 @@
       <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the nine names still owed to the runner and the review engine</td></tr>
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>2</td><td>18</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>5</td><td>2</td><td>13</td><td><a href="#register">T-053</a> &mdash; adopt, requeue or orphan on boot</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
@@ -85,7 +85,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>40</b></td><td><b>16</b></td><td><b>85</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>46</b></td><td><b>16</b></td><td><b>79</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -179,18 +179,18 @@
       <tr data-tags="domain-b readiness rubric band drift done m2.5"><td>T-038</td><td>M2.5</td><td>Publish the rubric and the missing list to the author &mdash; done 2026-08-20; the checklist carries the score, the band and per-signal weights, and <code>GET /products/{id}/readiness</code> answers the missing list too</td><td>B-3</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.1"><td>T-039</td><td>M3.1</td><td>A workflow is one objective on one product with a scope &mdash; <code>WorkflowDraft</code> carries objective and scope</td><td>C-1</td><td>🟡</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.1"><td>T-040</td><td>M3.1</td><td>Set the gate policy per workflow at creation time</td><td>C-1, F-1</td><td>❌</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.2"><td>T-041</td><td>M3.2</td><td>Expand an objective into an acyclic task graph &mdash; <code>PlanWorkflow</code> is pure but produces a fixed shape</td><td>C-2</td><td>🟡</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.2"><td>T-042</td><td>M3.2</td><td>Give planned tasks real dependencies, and reject a cycle</td><td>C-2</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.2"><td>T-041</td><td>M3.2</td><td>Expand an objective into an acyclic task graph &mdash; the output is a real DAG derived from the picked stories and it is persisted, but the shape is still a template rather than an expansion of the objective</td><td>C-2</td><td>🟡</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing done built m3.2"><td>T-042</td><td>M3.2</td><td>Give planned tasks real dependencies, and reject a cycle &mdash; <code>PlanTask.Deps</code>, fan-out per story and fan-in at the security review, written as <code>Task</code> vertices with <code>DEPENDS_ON</code> edges; a cycle is refused in <code>CreateWorkflow</code> before the first write</td><td>C-2</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.3"><td>T-043</td><td>M3.3</td><td>Reject a task that is not atomic: one concern, one workspace, at least one acceptance criterion</td><td>C-3, BR-11</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-044</td><td>M3.4</td><td>Select role and model capability first, then risk, then cost &mdash; never cost first</td><td>C-4, BR-12</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-045</td><td>M3.4</td><td>Model senior-role capacity across all products</td><td>C-5</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing done built m3.5"><td>T-046</td><td>M3.5</td><td>Operator wizard: objective, scope, plan preview &mdash; <code>handlers_cw.go</code></td><td>C-6</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.5"><td>T-047</td><td>M3.5</td><td>Survive a restart mid-wizard; the draft round-trips through hidden form fields with no server session</td><td>C-6</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph</td><td>D-1</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer</td><td>D-1</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator</td><td>D-2</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run</td><td>D-3</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease</td><td>D-3</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph &mdash; <code>dashboard/scheduler.go</code>, imports limited to <code>fmt</code>, <code>sort</code> and <code>strings</code>, the clock passed in as a value, and the five blocking reasons of §7.4 returned per task</td><td>D-1</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer &mdash; the second replica is handed the same graph in a shuffled row order, plus an AST test that closes the import list</td><td>D-1</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator &mdash; <code>context.WithoutCancel</code> plus <code>Setpgid</code>, logs to files and a <code>RUN.json</code> written before the supervisor sees the child, so an adopting orchestrator can recover the outcome <em>and</em> the cost</td><td>D-2</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run &mdash; <code>dashboard/lease.go</code>, an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code>; an expired lease is reported and never taken, and breaking one has its own name</td><td>D-3</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease &mdash; the beat renews every 30s and the <code>Heartbeat</code> event is written every 300s, which is <a href="../product/decision-log.html#d-053">D-053</a></td><td>D-3</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running</td><td>D-4</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature</td><td>D-5, BR-22</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice</td><td>D-6, BR-23</td><td>❌</td></tr>
@@ -410,10 +410,15 @@
   operator answers a merge gate with no, which is a different fact from nobody having answered it;
   and <code>ProposalRecorded</code>, because a meeting that recorded a decision nobody proposed is
   not a meeting anybody can audit.</p>
-  <p>The remaining nine are not written, and writing them would be worse than leaving them.
-  <code>RunStarted</code>, <code>Heartbeat</code>, <code>RunExited</code> and
-  <code>TaskOrphaned</code> belong to the runner and the lease (<code>M4.2</code>);
-  <code>SafetyVeto</code> and <code>GuardExhausted</code> to the review engine and the six guards
+  <p>The whole execution group came off the list on 2026-08-22, and this paragraph is where
+  <a href="../product/qa-test-plan.html#go-catalog">TC-146</a> said the next person to close a module
+  would have to come and say so. <code>RunStarted</code>, <code>Heartbeat</code> and
+  <code>RunExited</code> got a supervisor that sends them (<code>T-050</code>, <code>T-052</code>);
+  <code>TaskOrphaned</code> got the only thing that can observe an orphan, which is a
+  <em>restart</em> (<code>T-053</code>). That split is worth keeping: no live supervisor ever
+  witnesses an orphan, because an orphan is a run whose supervisor is already gone.</p>
+  <p>The remaining five are not written, and writing them would be worse than leaving them.
+  <code>SafetyVeto</code> and <code>GuardExhausted</code> belong to the review engine and the six guards
   (<code>M5.2</code>, <code>M5.5</code>); <code>DependencyRewired</code> to the planner's task graph
   (<code>M3.2</code>); <code>KnowledgeReused</code> and <code>DecisionSuperseded</code> to recall
   and contradiction detection (<code>M7.3</code>). Emitting a <code>Heartbeat</code> nobody sent, or
@@ -542,10 +547,26 @@
   today has no answer to the question M6 is built around.</p>
 
   <h3 id="sub-m3-2">M3.2 — The task graph (T-041–T-042)</h3>
-  <p><code>PlanWorkflow</code> is already a pure function, which is the property that matters and
-  the one that is hardest to retrofit. What it produces is a fixed shape rather than an expansion of
-  the objective, with no real dependencies and no cycle check — so <code>C-2</code> is 🟡 on the
-  strength of its signature, not its output.</p>
+  <p><code>PlanWorkflow</code> was already a pure function, which is the property that matters and
+  the one that is hardest to retrofit. What it produced was a chain — every task carrying the
+  previous one as its single prerequisite — which is acyclic the way a straight line is, and which
+  left the cycle check with nothing to catch and <code>DEPENDS_ON</code> as decoration.
+  <code>T-042</code> closed that on 2026-08-22. <code>PlanTask.Deps</code> is a slice, the plan fans
+  out to one implement/verify pair per picked story and fans back in at the security review, and the
+  result is persisted: <code>Task</code> vertices with real <code>DEPENDS_ON</code> edges, written by
+  <code>ArcadeStore.writeTasks</code> and restored by <code>load()</code>. The cycle check lives in
+  <code>CreateWorkflow</code> rather than in the planner, because the planner cannot build a cycle
+  and the <code>Store</code> seam is public — the caller is what can.</p>
+  <p>Two id bugs had to close with it, both cosmetic until vertices existed.
+  <code>wf-%d</code> was built from <code>len(desks)+1</code>, which never changes, so every workflow
+  ever created was <code>wf-7</code>; and every plan numbered from <code>t-1</code>, which under
+  <code>Task (tenantId, id) UNIQUE</code> means the second plan upserts over the first and inherits
+  its edges. The counter is now monotonic and restored from the graph, and plan ids are qualified by
+  their workflow on the way to storage.</p>
+  <p><code>C-2</code> stays 🟡, and the reading is worth stating rather than leaving to a glance at
+  the glyph: the output is now a genuine DAG derived from the record, but it is still a template the
+  planner walks rather than an expansion of the objective by a model. That is <code>T-041</code>, and
+  moving it would be a decision about what &ldquo;expand&rdquo; means, not a change to the code.</p>
 
   <h3 id="sub-m3-3">M3.3 — Atomicity (T-043)</h3>
   <p><code>BR-11</code> makes atomicity a rejection rather than a guideline: one concern, one
@@ -567,15 +588,34 @@
 
   <h2 id="m4-execution">M4 · Execution</h2>
   <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
-  count and by task count. Twenty tasks, none done, none partial. Everything here is currently
+  count and by task count. Twenty tasks, five done and two partial. Most of what is here is still
   played by <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker that moves desks through states
   and emits catalog events without ever calling a model.</p>
 
   <h3 id="sub-m4-1">M4.1 — The scheduler (T-048–T-049)</h3>
-  <p><code>D-1</code> asks for something stronger than a working scheduler: a <em>pure function of
+  <p><code>D-1</code> asked for something stronger than a working scheduler: a <em>pure function of
   the graph</em>, such that two replicas computing it independently reach the same answer. That
   property is the reason the orchestrator can hold no authoritative state, and it is far cheaper to
-  build in than to add later.</p>
+  build in than to add later — which is why it was built in on 2026-08-22 rather than retrofitted.</p>
+  <p><code>dashboard/scheduler.go</code> takes a <code>SchedulerInput</code> and returns a
+  <code>ScheduleDecision</code>. The clock arrives as a field, read once by the impure shell on the
+  store and passed down as a value; every collection is sorted on entry, because two replicas reading
+  the same ArcadeDB are promised nothing about row order across buckets and a scheduler that
+  inherited slice order would agree in a naive test and disagree in production. The purity is enforced
+  structurally rather than behaviourally: the file's import list is closed at <code>fmt</code>,
+  <code>sort</code> and <code>strings</code>, and an AST test refuses a fourth import or any
+  declaration with a receiver. A clock read that happened to return the same value twice would pass
+  every behavioural test there is.</p>
+  <p>The decision returns both halves. <code>Ready</code> is what a runner would start — with the
+  agent and the workspace named, so two tasks cannot be handed the same seat by a decision that never
+  recorded making one. <code>Blocked</code> is the other half, and it is
+  <a href="../product/brd.html#happy-path">§7.4</a>'s requirement rather than a convenience: five
+  reasons, no more and no fewer, reported by precedence rather than by whichever check ran first.
+  A cycle is a dependency block naming its members, not a sixth reason.
+  <code>M10.3</code> does not exist, so the budget zone is always normal — the branch is covered by a
+  test that constructs a throttled input directly, because a reason with no producer rots before its
+  module arrives. <a href="#sub-m9-3">T-109</a> renders these; nothing dispatches from them yet, which
+  is <a href="#sub-m4-2">M4.2</a>.</p>
 
   <h3 id="sub-m4-2">M4.2 — Runner, lease and reconciliation (T-050–T-053)</h3>
   <p>Work runs in detached processes that survive the orchestrator (<code>D-2</code>), each holding
@@ -583,6 +623,41 @@
   task claiming to be dispatched or running is reconciled against its lease and heartbeat and is
   adopted, requeued or orphaned (<code>D-4</code>). This is build-order step 5 and its own
   acceptance test: kill the orchestrator mid-task and the work survives.</p>
+  <p>The lease landed first, on 2026-08-22, because the other three are unsafe without it.
+  <code>dashboard/lease.go</code> holds it as an <code>O_EXCL</code> lockfile inside the workspace
+  rather than as a row: the thing being protected is a <em>directory</em>, and the only primitive
+  that excludes atomically at that granularity between processes on one host is the filesystem. The
+  record stays in the graph — <code>Task.leaseUntil</code> and <code>Task.lastHeartbeatAt</code> are
+  what boot reconciliation reads — but the enforcement has to survive the orchestrator, which is what
+  <code>D-2</code> is for, and a file carrying its own expiry explains itself to a process that was
+  not running when the lease was taken. This does not put authoritative state in process memory, so
+  <a href="../product/brd.html#rules-invariants">BR-01</a> is intact: it is state on the resource.</p>
+  <p>The runner followed the same day. Four changes make <code>D-2</code> true rather than nearly
+  true. <code>context.WithoutCancel</code>, because <code>Dispatch</code> built its context from the
+  caller's and <code>serve()</code> builds the caller's from a SIGTERM handler — so a <em>graceful</em>
+  shutdown killed the child while <code>SIGKILL</code> did not, which is the wrong way round. Logs to
+  files rather than to a buffer, which is what makes adoption complete rather than partial: the tool's
+  JSON envelope carries <code>total_cost_usd</code>, and in a buffer it dies with the orchestrator, so
+  an adopting process could recover the outcome from the handoff and never the cost that
+  <a href="../product/decision-log.html#d-051">D-051</a> requires. A <code>RUN.json</code> written
+  before the supervisor sees the child, carrying the pid, the process group and the process start
+  time — because PID reuse is real and a bare probe after a reboot finds a stranger. And the handoff
+  document emptied before the invocation, which <code>handoff.go</code> had claimed since it was
+  written and nothing did.</p>
+  <p><code>Adapter</code> gains exactly one method, <code>Resume</code>: an adopting orchestrator
+  cannot <code>cmd.Wait()</code> on a process it did not fork. <code>Dispatch</code>'s signature is
+  untouched, so <code>BR-32</code> is intact, and both share one <code>collect()</code> so an adopted
+  attempt cannot drift from a supervised one. What <code>Resume</code> does <em>not</em> do is decide
+  whether to adopt — that is the reconciler's, from the lease and the beat alone.</p>
+  <p>One decision fell out of the lease and is logged as
+  <a href="../product/decision-log.html#d-053">D-053</a>:
+  <strong>an expired lease is never taken by the acquirer.</strong> It reads like an oversight —
+  the expiry passed, so surely the next runner may have it — but an expiry says the <em>supervisor</em>
+  stopped renewing, and the supervisor is not the thing editing the repository. Taking it would start
+  the second run <code>D-3</code> exists to prevent. Clearing one is <code>BreakLease</code>, which
+  only <code>T-053</code> may call and only on the branch that kills first. The same decision fixes
+  the four intervals and separates the heartbeat's <em>write</em> from the <code>Heartbeat</code>
+  <em>event</em>, so a twenty-minute run adds five pills to the timeline rather than forty.</p>
 
   <h3 id="sub-m4-3">M4.3 — The attempt record (T-054–T-056)</h3>
   <p><code>Task</code> and <code>TaskRun</code> are separate records so per-attempt evidence

@@ -269,6 +269,47 @@ func TestSchemaDirectoryHasEveryNumberedFile(t *testing.T) {
 	}
 }
 
+// TestTheTaskStatusVocabularyMatchesTheDDL holds taskstate.go and
+// 04-execution.sql to each other, in both directions.
+//
+// Both directions is the whole point, and it is what the DEFERRED test below
+// does not do. That one asks whether one name is present, which catches a DDL
+// missing a state Go can reach -- but not a Go constant the DDL would refuse,
+// which fails at commit time in production and in no test at all. A status
+// vocabulary is a closed set on both sides or it is two vocabularies.
+func TestTheTaskStatusVocabularyMatchesTheDDL(t *testing.T) {
+	sql := schemaSQL(t)["04-execution.sql"]
+	if sql == "" {
+		t.Fatal("04-execution.sql is empty or missing")
+	}
+	m := regexp.MustCompile(`Task\.status[^;]*regexp '([^']+)'`).FindStringSubmatch(sql)
+	if m == nil {
+		t.Fatal("Task.status declares no regexp; its vocabulary is unconstrained")
+	}
+
+	inDDL := map[string]bool{}
+	for _, v := range strings.Split(m[1], "|") {
+		inDDL[v] = true
+	}
+	inGo := map[string]bool{}
+	for _, v := range taskStatuses() {
+		inGo[v] = true
+	}
+
+	for v := range inGo {
+		if !inDDL[v] {
+			t.Errorf("Task.status permits %q; Go declares %q — a status the DDL refuses is a "+
+				"row the scheduler cannot write, and it fails at commit rather than here", m[1], v)
+		}
+	}
+	for v := range inDDL {
+		if !inGo[v] {
+			t.Errorf("the DDL permits %q and taskstate.go declares no transitions for it; a "+
+				"status nothing can produce or leave is a state the machine cannot reach", v)
+		}
+	}
+}
+
 // TestTheDeferredStateAndItsCompanionsLandedTogether is T-015 held to its own
 // terms. D-037 adds three event names, one task state and two TaskRun
 // properties, and the BRD is explicit that "none of it should be done

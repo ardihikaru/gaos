@@ -24,6 +24,10 @@ esac
 
 cat > /dev/null                       # drain stdin, as the real tool does
 
+# FAKE_CLI_SLEEP lets a test hold the child open long enough to kill the
+# orchestrator around it, which is what D-2 is actually about.
+[ -n "${FAKE_CLI_SLEEP:-}" ] && sleep "$FAKE_CLI_SLEEP"
+
 mkdir -p .gaos/handoff
 case "${FAKE_CLI_MODE:-complete}" in
   complete)  cp "$FAKE_CLI_FIXTURES/complete.md"       .gaos/handoff/OUTPUT.md ;;

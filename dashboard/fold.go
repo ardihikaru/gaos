@@ -164,7 +164,28 @@ func reduce(st FloorState, e Event) FloorState {
 		}
 
 	case TaskPlanned:
-		// Tasks live in the graph, not on the desk. Nothing on the floor moves.
+		// Tasks live in the graph, not on the desk. Nothing on the floor moves,
+		// and the payload's Tasks list is deliberately not read here.
+		//
+		// T-042 made that a real decision rather than a convenience. The task
+		// graph is authoritative persisted state, and this reducer is not how it
+		// is rebuilt -- ArcadeStore.load is, exactly as it is for the master
+		// record, whose ProductCreated and RecordUpdated sit in the no-op list
+		// further down for the same reason. BR-01 asks that memory be
+		// reconstructible, not that it be reconstructible by folding; the test
+		// that keeps this honest is TestTheTaskGraphSurvivesARestart.
+		//
+		// FloorState is also the wrong container for it. The comment at the top
+		// of this file already names what stays out and why, and a graph in here
+		// would additionally ride inside every snapshot rung, turning "six
+		// desks" into "six desks plus every task ever planned".
+		//
+		// The consequence, worth stating because it will surprise somebody:
+		// scrubbing the timeline shows the PRESENT graph beside a PAST floor.
+		// That is the same trade this file already makes for the room meters and
+		// the spend rail. It matters for T-109 -- the five blocking reasons the
+		// inspector renders must come from the live scheduler, never from a
+		// replayed floor.
 
 	case WorkflowCanceled:
 		d.State = StateIdle
@@ -185,6 +206,54 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Scored, d.Score, d.ScoreParts = false, 0, nil
 		d.BlockReason = ""
 
+	case RunStarted:
+		// A supervisor has a process and a lease. The desk is already where it
+		// belongs -- TaskDispatched put it there -- so this moves nothing, and
+		// says so here rather than in the no-op list below, where a reader would
+		// have to guess whether it was an omission.
+		//
+		// It would be easy to set StateActive here "for safety". That would be a
+		// reducer inventing a transition the live path never made, and the first
+		// thing to notice would be TestFoldFromGenesisMatchesTheLiveFloor,
+		// because the fold would be describing a floor that never existed.
+		//
+		// It is not nothing to the TIMELINE: it is the moment a real tool began
+		// editing a real repository, and the digest it carries is what ties the
+		// run to the slice that was cleared for it.
+
+	case Heartbeat:
+		// Evidence of continuity, not a state change. D-053 is the argument for
+		// why this is written at all and why it is written far less often than
+		// the beat itself.
+		//
+		// Deliberately touches nothing. A heartbeat that moved progress would be
+		// inventing progress: the supervisor knows the child is alive and knows
+		// nothing whatever about what it has achieved, and a bar that crept
+		// forward on liveness alone would be the most convincing lie on the
+		// floor.
+
+	case RunExited:
+		// The process is over. What it ACHIEVED is not decided here -- that is
+		// the review engine's, M5 -- so this records what the run cost and does
+		// not guess at completed or failed from an exit. D-050 forbids exactly
+		// that guess, and this is the case where it would be tempting.
+		//
+		// Cost is absolute, per D-048: the desk's running total after this
+		// event, not what this run added. finishRun writes the same number to
+		// the desk under the same lock, which is what keeps a fold from
+		// describing a floor that never existed.
+		if p.Cost > 0 {
+			d.Cost = p.Cost
+		}
+		if p.Reason != "" {
+			// A run that could not start, or one whose handoff was missing
+			// (BR-30). The desk blocks rather than looking idle -- the same rule
+			// DispatchRefused follows, for the same reason: something happened
+			// and a desk that looks untouched says otherwise.
+			d.State = StateBlocked
+			d.BlockReason = p.Reason
+		}
+
 	case TaskBlocked:
 		d.State = StateBlocked
 		d.BlockReason = e.Text
@@ -192,8 +261,39 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Cost = p.Cost
 
 	case TaskResumed:
-		d.State = StateActive
-		d.BlockReason = ""
+		// Two different recoveries share this name, and the payload's Rule is
+		// what tells them apart -- D-052's precedent, so the closed catalog does
+		// not have to grow two more entries for one shape of event.
+		//
+		// "requeued" is boot reconciliation putting work back in the queue after
+		// making its unsupervised run dead (D-054). The desk goes idle, not
+		// active: nothing is running on it, and a desk that looked active with
+		// no process behind it is the exact lie this whole module exists to
+		// prevent.
+		//
+		// "adopted" changes nothing on the floor, because nothing stopped -- the
+		// child is alive and simply has a new supervisor.
+		switch p.Rule {
+		case RuleRequeued:
+			d.State = StateIdle
+			d.BlockReason = ""
+		case RuleAdopted:
+			// Deliberately nothing.
+		default:
+			d.State = StateActive
+			d.BlockReason = ""
+		}
+
+	case TaskOrphaned:
+		// A task that claimed to be running, whose lease had expired and whose
+		// beat was long gone. BRD §7.5: "release the workspace, emit
+		// TaskOrphaned, apply the retry policy."
+		//
+		// The desk blocks rather than going idle. An orphan is not work waiting
+		// to be picked up; it is work whose fate nobody can establish, and it
+		// needs a human before anything touches that workspace again.
+		d.State = StateBlocked
+		d.BlockReason = p.Reason
 
 	case TaskDeferred:
 		// D-037's throttled zone. BR-34: not a failure, so the retry and
