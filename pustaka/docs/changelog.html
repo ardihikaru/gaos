@@ -36,6 +36,50 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-18-0">v0.18.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The lease, which the rest of
+      <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a> is unsafe without. Small, and it
+      carries the one decision in this pass that reads like a bug until you know why it is not:
+      an expired lease is still refused.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the exclusive workspace lease
+        (<a href="delivery/implementation-plan.html#sub-m4-2">T-051</a>).</b>
+        <code>dashboard/lease.go</code> &mdash; an <code>O_EXCL</code> lockfile at
+        <code>.gaos/run/LEASE.json</code>, with acquire, renew, release and break.
+        <a href="product/brd.html#req-d">D-3</a> names the failure it is written against and it is not
+        a loud one: <em>"two runs in one workspace corrupt each other silently"</em> &mdash; two agents
+        editing one checkout do not crash, they produce a diff neither of them wrote, which is then
+        reviewed, scored and possibly merged. <b>A lockfile rather than a row</b>, because the thing
+        being protected is a directory and the only primitive that excludes atomically at that
+        granularity between processes is the filesystem. The record stays in the graph;
+        <a href="product/brd.html#rules-invariants">BR-01</a> is intact because this is state on the
+        resource rather than state in the process.</li>
+
+        <li><span class="chg add">Added</span> <b><a href="product/decision-log.html#d-053">D-053</a>:
+        an expired lease is never taken by the acquirer, and the two heartbeat cadences are different
+        numbers.</b> The first reads like an oversight &mdash; the expiry passed, so surely the next
+        runner may have it &mdash; but an expiry says the <em>supervisor</em> stopped renewing, and
+        <a href="product/brd.html#req-d">D-2</a> detaches the child precisely so it outlives its
+        supervisor. Taking it starts the second run. Clearing one is <code>BreakLease</code>, a
+        separate name for an operation only safe once the previous run has been made dead.
+        The second: the beat is a field write every 30s, the <code>Heartbeat</code> <em>event</em> is
+        written every 300s. At 30s a twenty-minute run puts forty pills into a stream that is
+        append-only, snapshotted every 500 events and rendered in full; at 300s it puts five, and a
+        replay can still tell <em>alive at T</em> from <em>silent since T</em>.</li>
+
+        <li><span class="chg note">Note</span> <b>an unreadable lease counts as held.</b> Treating a
+        truncated lockfile as &ldquo;no lease&rdquo; would hand the workspace to a second run on the
+        strength of a half-finished write &mdash; the exact failure the file exists to prevent,
+        reached through the mechanism meant to prevent it. Renewal is write-then-rename for the same
+        reason, so a reader sees the old lease or the new one and never half of either.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>two counts that had drifted before this release.</b>
+        The decision log said fifty-two entries and the BRD's pointer to it said fifty-one; there are
+        fifty-three now and both say so.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-17-0">v0.17.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Something other than a dice
       roll decides what runs. <a href="delivery/implementation-plan.html#m4-execution">M4</a> moves for
