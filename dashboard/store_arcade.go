@@ -289,6 +289,9 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 		if err := s.writeDesk(ctx, tx, d); err != nil {
 			return err
 		}
+		if err := s.writeTasks(ctx, tx, d.ID); err != nil {
+			return err
+		}
 	}
 	if r.Master != nil {
 		// The Product vertex first. writeMaster sets code, owner and the record
@@ -378,6 +381,9 @@ func (s *ArcadeStore) persistAll(ctx context.Context) error {
 		if err := s.writeDesk(ctx, tx, d); err != nil {
 			return err
 		}
+		if err := s.writeTasks(ctx, tx, d.ID); err != nil {
+			return err
+		}
 	}
 	for _, e := range events {
 		if err := s.writeEvent(ctx, tx, e); err != nil {
@@ -391,6 +397,18 @@ func (s *ArcadeStore) persistAll(ctx context.Context) error {
 }
 
 // ---------------------------------------------------------------- writes
+
+// tasksSnapshot forwards to the projection, the same one-line way every other
+// read that needs no graph query does.
+//
+// Deliberately NOT on the Store interface. store.go's header records that the
+// seam has changed exactly twice and why each time was worth it; the task graph
+// does not need a third, because the only callers are persist() above and the
+// conformance suite, and the suite already has the named-local-interface
+// pattern for reaching past the seam on purpose (see caseDispatchRefusedBlocks).
+func (s *ArcadeStore) tasksSnapshot(deskID string) []TaskRecord {
+	return s.proj.tasksSnapshot(deskID)
+}
 
 func (s *ArcadeStore) productByID(ctx context.Context, id string) (Product, bool) {
 	ps, err := s.proj.Products(ctx)
@@ -513,6 +531,11 @@ func (s *ArcadeStore) writeDesk(ctx context.Context, tx *ArcadeTx, d Desk) error
 	if d.State == StateIdle || strings.TrimSpace(d.Task) == "" {
 		return nil
 	}
+	// The desk's CURRENT task, by its display id -- see taskIDOf, which builds
+	// one from the workflow number and the desk's task counter. This is not a
+	// planned task and is deliberately distinguishable from one: it carries no
+	// workflowId property, and that absence is exactly what load() filters on
+	// when it rebuilds the graph. A planned Task comes from writeTasks below.
 	taskID := taskIDOf(d)
 	if err := s.upsert(ctx, tx, "Task", taskID, map[string]any{
 		"title": d.Task, "status": taskStatus(d.State), "role": deskRole(d),
@@ -522,6 +545,49 @@ func (s *ArcadeStore) writeDesk(ctx context.Context, tx *ArcadeTx, d Desk) error
 		return err
 	}
 	return s.edge(ctx, tx, "HAS_TASK", "Workflow", d.WorkflowID, "Task", taskID)
+}
+
+// writeTasks persists one desk's planned graph: a Task vertex per record, the
+// HAS_TASK edge from its Workflow, and a DEPENDS_ON edge per prerequisite.
+// T-042.
+//
+// Direction matters and is not the argument order's to decide by accident.
+// schema/08-edges.sql: "Task -DEPENDS_ON-> Task means the OUT side waits for
+// the IN side", so the dependent is the FROM and the prerequisite is the TO.
+// TestTheTaskGraphSurvivesARestart asserts that rather than trusting it.
+//
+// workflowId, deskId, story and ordinal ride as undeclared properties. That is
+// established practice here rather than a shortcut -- writeDesk already writes
+// productId, deskState, stageIdx and taskSeq onto Workflow, none of which the
+// DDL declares either. The declared columns are the ones the scheduler filters
+// and indexes on; these four are how a row finds its way home.
+//
+// Known cost, written down rather than discovered: this rewrites every task of
+// every desk on every mutation, which is the same profile persist already has
+// for desks. At fixture scale it is a few dozen statements. At real scale it
+// wants to write only the task that changed, and that is a follow-up.
+func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID string) error {
+	for _, t := range s.proj.tasksSnapshot(deskID) {
+		if err := s.upsert(ctx, tx, "Task", t.ID, map[string]any{
+			"title": t.Title, "status": t.Status, "role": t.Role,
+			"priority": t.Priority, "modelHint": t.Model,
+			"retryCount": t.Retry, "escalationCount": t.Esc,
+			"approvalRequired": t.Gate, "blockReason": t.BlockReason,
+			"workflowId": t.WorkflowID, "deskId": t.DeskID,
+			"story": t.Story, "ordinal": t.Ordinal,
+		}); err != nil {
+			return err
+		}
+		if err := s.edge(ctx, tx, "HAS_TASK", "Workflow", t.WorkflowID, "Task", t.ID); err != nil {
+			return err
+		}
+		for _, dep := range t.Deps {
+			if err := s.edge(ctx, tx, "DEPENDS_ON", "Task", t.ID, "Task", dep); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // eventPayloadWire is Event.payload as it sits in the database: the three
@@ -901,6 +967,87 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		m.spend += r.Spent
 		m.desks = append(m.desks, d)
+	}
+
+	// The planned task graph. T-042, and the half of BR-01 that makes the
+	// scheduler's input legitimate: the graph is not folded from the stream, so
+	// if this could not put it back it would be memory pretending to be a
+	// record.
+	//
+	// workflowId IS NOT NULL is the filter that separates a planned task from
+	// the desk's current display task -- writeDesk writes one of those per
+	// seated desk with a taskIDOf id and no workflowId, and pulling it in here
+	// would put a task in the graph that no plan ever produced.
+	//
+	// Ordered by workflowId then ordinal, so the slice comes back in plan order.
+	// The scheduler is required to reach the same answer in two replicas (D-1),
+	// and an input whose order came out of the storage layer's bucket layout
+	// would be the first thing to break that.
+	var trows []struct {
+		ID         string `json:"id"`
+		WorkflowID string `json:"workflowId"`
+		DeskID     string `json:"deskId"`
+		Title      string `json:"title"`
+		Role       string `json:"role"`
+		Story      string `json:"story"`
+		Model      string `json:"modelHint"`
+		Status     string `json:"status"`
+		Priority   int    `json:"priority"`
+		Ordinal    int    `json:"ordinal"`
+		Gate       bool   `json:"approvalRequired"`
+		Retry      int    `json:"retryCount"`
+		Esc        int    `json:"escalationCount"`
+		Block      string `json:"blockReason"`
+	}
+	if err := s.arc.Query(ctx,
+		`SELECT id, workflowId, deskId, title, role, story, modelHint, status,
+		        priority, ordinal, approvalRequired, retryCount, escalationCount, blockReason
+		 FROM Task WHERE tenantId = :t AND workflowId IS NOT NULL
+		 ORDER BY workflowId, ordinal`,
+		map[string]any{"t": s.tenant}, &trows); err != nil {
+		return false, err
+	}
+	for _, r := range trows {
+		// One traversal per task rather than a projection of out('DEPENDS_ON')
+		// across the whole type. The expand form is the one this file has
+		// already proved works on 26.7.2 -- edge() says filtering an edge any
+		// other way "returns zero for an edge that is demonstrably there" -- and
+		// load runs once per boot, so N+1 queries buy correctness cheaply.
+		var deps []struct {
+			ID string `json:"id"`
+		}
+		if err := s.arc.Query(ctx,
+			`SELECT id FROM (SELECT expand(out('DEPENDS_ON')) FROM Task
+			 WHERE id = :a AND tenantId = :t) ORDER BY id`,
+			map[string]any{"a": r.ID, "t": s.tenant}, &deps); err != nil {
+			return false, err
+		}
+		t := TaskRecord{
+			ID: r.ID, WorkflowID: r.WorkflowID, DeskID: r.DeskID,
+			Title: r.Title, Role: r.Role, Story: r.Story, Model: r.Model,
+			Status: r.Status, Priority: r.Priority, Ordinal: r.Ordinal,
+			Gate: r.Gate, Retry: r.Retry, Esc: r.Esc, BlockReason: r.Block,
+		}
+		for _, d := range deps {
+			t.Deps = append(t.Deps, d.ID)
+		}
+		m.tasks = append(m.tasks, t)
+	}
+
+	// The workflow counter, restored from the ids actually in the graph rather
+	// than from a count of anything. A restarted dashboard that resumed
+	// numbering from len(desks) would hand the next workflow an id some earlier
+	// workflow already has, and Workflow (tenantId, id) UNIQUE would let the
+	// second one overwrite the first.
+	for _, d := range m.desks {
+		if n, ok := workflowNumber(d.WorkflowID); ok && n > m.workflowSeq {
+			m.workflowSeq = n
+		}
+	}
+	for _, t := range m.tasks {
+		if n, ok := workflowNumber(t.WorkflowID); ok && n > m.workflowSeq {
+			m.workflowSeq = n
+		}
 	}
 
 	// The whole stream, oldest first. There used to be a LIMIT here matching the

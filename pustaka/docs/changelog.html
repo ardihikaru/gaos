@@ -36,6 +36,65 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-16-0">v0.16.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The plan stops being a
+      preview. Until now <code>PlanWorkflow</code> produced a chain and <code>CreateWorkflow</code>
+      threw it away, so there was no graph for a scheduler to read &mdash; which is why
+      <a href="delivery/implementation-plan.html#sequencing">build-order step 4</a> had to close
+      before step 5 could start. Eleven new test cases, and two id bugs that were harmless right up
+      until the moment tasks became vertices.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a real task DAG, persisted
+        (<a href="delivery/implementation-plan.html#sub-m3-2">T-042</a>).</b>
+        <code>PlanTask.Dep</code> becomes <code>Deps</code>, and the plan fans out to one
+        implement/verify pair per picked story and fans back in at the security review &mdash; so the
+        security task's prerequisite count is a property of the record rather than a number written
+        in the planner. <code>dashboard/graph.go</code> adds a deterministic topological sort whose
+        ready-queue is seeded in plan order, because a sort that varied with map iteration would be a
+        fresh source of disagreement for every replica that consumed it. The graph is written as
+        <code>Task</code> vertices with real <code>DEPENDS_ON</code> edges and restored by
+        <code>load()</code>.</li>
+
+        <li><span class="chg add">Added</span> <b>a second state machine, for
+        <code>Task.status</code>.</b> <code>dashboard/taskstate.go</code>: ten statuses and their
+        transitions, kept apart from <code>state.go</code> because desk states are CSS selectors and
+        four of these &mdash; <code>PENDING</code>, <code>READY</code>, <code>DISPATCHED</code>,
+        <code>RUNNING</code> &mdash; are never a desk's state at all. <b><code>DEFERRED</code> has no
+        edge to <code>FAILED</code></b>, which is <a href="product/brd.html#rules-commercial">BR-34</a>
+        made enforceable rather than aspirational, and it has its own test because the missing row
+        reads as an oversight to anyone tidying the table.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>two id collisions that were waiting for vertices.</b>
+        <code>wf-%d</code> was built from <code>len(desks)+1</code>, which never changes, so every
+        workflow ever created was called <code>wf-7</code>; and every plan numbered from
+        <code>t-1</code>, which under <code>Task (tenantId, id) UNIQUE</code> means the second plan
+        upserts over the first and inherits its <code>DEPENDS_ON</code> edges. The counter is now
+        monotonic and restored from the ids in the graph; plan ids are qualified by their workflow on
+        the way to storage, and <code>PlanWorkflow</code> stays pure by not knowing about either.</li>
+
+        <li><span class="chg change">Changed</span> <b>every refusal in
+        <code>CreateWorkflow</code> now happens before the first write.</b> A plan rejected halfway
+        used to leave the story coverage bar moved for a workflow that did not exist. The cycle check
+        lives here rather than in the planner on purpose: the planner cannot build a cycle, and the
+        <code>Store</code> seam is public, so the caller is what can.</li>
+
+        <li><span class="chg change">Changed</span> <b>the task graph is read from the store, never
+        folded</b> &mdash; the same way the master record already is, and the
+        <code>TaskPlanned</code> case in <code>fold.go</code> now carries the argument at length.
+        <code>TaskPlanned</code>'s payload gains the planned tasks as an <em>audit</em> field the
+        reducer does not read, because &ldquo;what did the planner produce, at that moment&rdquo;
+        stops being answerable from the present graph the first time a dependency is rewired.
+        The consequence is stated where it will be found: a scrubbed timeline shows the present
+        graph beside a past floor, so <a href="delivery/implementation-plan.html#sub-m9-3">T-109</a>'s
+        blocking reasons must come from the live scheduler.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the store conformance suite is forty cases, not
+        thirty-two.</b> The QA plan had been carrying the older number since the suite grew; the
+        register, both its rows and its prose, now say what the table holds.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-15-0">v0.15.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The first code that could send
       somebody's source code to a model provider, and the gate that stands in front of it &mdash; in

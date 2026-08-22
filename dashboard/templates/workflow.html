@@ -90,7 +90,7 @@
       <div class="plan-task{{if .Gate}} gate{{end}}">
         <span class="id">{{.ID}}</span>
         <span>{{.Title}}
-          <span class="dep">{{if .Dep}}DEPENDS_ON {{.Dep}}{{else}}no prerequisite{{end}}{{if .Story}} · IMPLEMENTS {{.Story}}{{end}}</span>
+          <span class="dep">{{if .Deps}}DEPENDS_ON {{.DepText}}{{else}}no prerequisite{{end}}{{if .Story}} · IMPLEMENTS {{.Story}}{{end}}</span>
         </span>
         <span class="rl">{{roleShort .Role}} · {{.Model}}</span>
       </div>

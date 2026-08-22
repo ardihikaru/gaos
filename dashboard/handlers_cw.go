@@ -158,9 +158,7 @@ func (s *server) buildCW(r *http.Request, d WorkflowDraft) (*CWView, error) {
 			if t.Gate {
 				cw.PlanGates++
 			}
-			if t.Dep != "" {
-				cw.PlanDeps++
-			}
+			cw.PlanDeps += len(t.Deps)
 		}
 		cw.NextLabel = "Create workflow"
 		cw.Hint = itoa(len(plan)) + " tasks · " + itoa(cw.PlanGates) + " approval gate"

@@ -51,6 +51,29 @@ type MemStore struct {
 	products []Product
 	masters  []Master
 
+	// tasks is the planned graph -- one TaskRecord per Task vertex, with
+	// TaskRecord.Deps standing in for the DEPENDS_ON edges. T-042.
+	//
+	// A slice rather than a map, and that is not an oversight about lookup cost.
+	// The scheduler is required to be a pure function whose answer does not vary
+	// between two replicas (D-1), so every collection it reads has to have an
+	// order that is a property of the data rather than of the runtime. A slice
+	// has one by construction; a map would need a sort.Strings(keys) at every
+	// site and would be wrong the first time somebody forgot one.
+	//
+	// This is NOT folded. The graph is authoritative persisted state, restored
+	// by ArcadeStore.load exactly as the master record is, and the TaskPlanned
+	// case in fold.go says so at more length.
+	tasks []TaskRecord
+
+	// workflowSeq numbers workflows. Monotonic, and never derived from
+	// len(desks): the desks are the six seeded products and their count does not
+	// change, so `wf-len(desks)+1` handed every workflow ever created the same
+	// id. Harmless while a workflow was only a desk field; not harmless at all
+	// once Task vertices hang off Workflow by HAS_TASK and Workflow (tenantId,
+	// id) is UNIQUE.
+	workflowSeq int
+
 	// events is the record. Append-only and unbounded -- BR-04. There used to be
 	// a 160-entry ring here with the replay cursor shifted whenever the window
 	// moved, which made the oldest history unreachable and the cursor a lie. The
@@ -196,6 +219,10 @@ func NewMemStore(seed uint64) *MemStore {
 		d.Task = s.pickTask(d)
 		s.desks = append(s.desks, d)
 	}
+	// The seeded desks took wf-1..wf-N, so the counter starts where they left
+	// off rather than at zero. ArcadeStore.load restores it the same way, from
+	// the ids actually in the graph.
+	s.workflowSeq = len(s.desks)
 
 	// The boot sequence from the prototype: a runner line on every seated desk
 	// so the inspector is not empty on the first paint, then one FloorOpened
@@ -227,11 +254,37 @@ func (s *MemStore) pickTask(d Desk) string {
 	return pool[s.rng.IntN(len(pool))]
 }
 
+// taskIDOf builds the DISPLAY id of the task a desk is currently showing.
+//
+// "wf-2" + seq 2 -> "t-213". The shape is the prototype's, and the name it
+// produces is not a planned task's: since T-042 a planned Task carries an id of
+// the form "wf-9-t-1", qualified by qualify() so two plans cannot collide under
+// Task (tenantId, id) UNIQUE. Three id spaces now exist where a reader will
+// assume one -- this display id, the plan-local "t-1" PlanWorkflow hands the
+// wizard, and the graph id. This one is the display id. It is not a key to
+// anything the scheduler reads, and the day the graph drives the desk it should
+// be retired rather than reconciled.
 func taskIDOf(d Desk) string {
-	// "wf-2" + seq 2 -> "t-213". The shape is the prototype's; it is a display
-	// id, and the real Task.id comes from the graph.
 	n := strings.TrimPrefix(d.WorkflowID, "wf-")
 	return fmt.Sprintf("t-%s%d", n, d.TaskSeq+11)
+}
+
+// workflowNumber reads the counter back out of a workflow id. Returns false for
+// anything that is not "wf-<digits>", so an id from some other scheme cannot
+// silently reset the sequence to zero.
+func workflowNumber(id string) (int, bool) {
+	rest, ok := strings.CutPrefix(id, "wf-")
+	if !ok || rest == "" {
+		return 0, false
+	}
+	n := 0
+	for _, c := range rest {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n, true
 }
 
 func leadAgent(d Desk) *Agent {
@@ -1347,8 +1400,27 @@ func (s *MemStore) evaluateReadiness(id string, m Master) []Event {
 
 // PlanWorkflow is pure. It reads the master and returns a task graph without
 // writing anything, so the wizard can show a plan the operator is free to throw
-// away. The shape -- planner, architect, then a build/verify pair per story,
-// then security, then a gated devops task -- is the prototype's buildPlan().
+// away.
+//
+// T-042 changed the shape from a line to a graph. It used to hand every task
+// the previous one as its single prerequisite, which made "acyclic" true the
+// way a chain is trivially acyclic and made DEPENDS_ON a decoration. What it
+// produces now:
+//
+//	planner → architect
+//	architect → implement(story)      one per picked story, all parallel
+//	implement(story) → verify(story)
+//	{verify(story) …} → security      every story's verifier, fanning in
+//	security → devops (gated)
+//
+// The fan-out is what lets two stories be worked at once; the fan-in is what
+// makes Deps a slice rather than a field. Neither is expressible in a chain,
+// and the security task's prerequisite count is now a function of the record
+// rather than a constant.
+//
+// The ids are plan-local -- t-1, t-2 -- because this function does not know
+// which workflow it is planning for and must not, or it would have to read the
+// counter and stop being pure. CreateWorkflow qualifies them; see qualify().
 func (s *MemStore) PlanWorkflow(ctx context.Context, d WorkflowDraft) ([]PlanTask, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -1374,38 +1446,49 @@ func (s *MemStore) PlanWorkflow(ctx context.Context, d WorkflowDraft) ([]PlanTas
 	}
 
 	var plan []PlanTask
-	add := func(title, role, story, dep string, gate bool) string {
+	add := func(title, role, story string, deps []string, gate bool) string {
 		id := fmt.Sprintf("t-%d", len(plan)+1)
 		model := roles[role].Model
 		if gate {
 			model = "claude-opus-5"
 		}
-		plan = append(plan, PlanTask{ID: id, Title: title, Role: role, Story: story, Dep: dep, Model: model, Gate: gate})
+		plan = append(plan, PlanTask{
+			ID: id, Title: title, Role: role, Story: story,
+			Deps: deps, Model: model, Gate: gate,
+		})
 		return id
 	}
+	after := func(ids ...string) []string { return ids }
 
-	p1 := add("Read the record and split the goal into tasks", "planner", "", "", false)
-	last := add("Confirm boundaries against the diagrams and ADRs", "architect", "", p1, false)
+	p1 := add("Read the record and split the goal into tasks", "planner", "", nil, false)
+	arch := add("Confirm boundaries against the diagrams and ADRs", "architect", "", after(p1), false)
 
-	any := false
+	// One implement/verify pair per picked story, each pair hanging off the
+	// architect rather than off the previous pair. That is the fan-out: two
+	// stories are two independent branches, and the scheduler is free to run
+	// both the moment the architect is done.
+	var verifiers []string
 	for _, st := range m.Stories {
 		if !picked[st.ID] {
 			continue
 		}
-		any = true
-		impl := add("Implement "+st.Want, "backend", st.ID, last, false)
+		impl := add("Implement "+st.Want, "backend", st.ID, after(arch), false)
 		ac := "acceptance criteria for " + st.ID
 		if len(st.AC) > 0 {
 			ac = st.AC[0]
 		}
-		last = add("Verify: "+ac, "qa", st.ID, impl, false)
+		verifiers = append(verifiers, add("Verify: "+ac, "qa", st.ID, after(impl), false))
 	}
-	if !any {
-		impl := add("Implement the objective", "backend", "", last, false)
-		last = add("Write integration tests", "qa", "", impl, false)
+	if len(verifiers) == 0 {
+		impl := add("Implement the objective", "backend", "", after(arch), false)
+		verifiers = append(verifiers, add("Write integration tests", "qa", "", after(impl), false))
 	}
-	sec := add("Review the security and pricing edge cases", "security", "", last, false)
-	add("Prepare the rollout and record the lesson", "devops", "", sec, d.Gate)
+
+	// And the fan-in. Security waits on every verifier there is, so its
+	// prerequisite count is a property of the record rather than a number
+	// written here.
+	sec := add("Review the security and pricing edge cases", "security", "", verifiers, false)
+	add("Prepare the rollout and record the lesson", "devops", "", after(sec), d.Gate)
 	return plan, nil
 }
 
@@ -1422,6 +1505,22 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	if len(plan) == 0 {
 		return Result{}, reject("The plan is empty. Go back and build it.")
 	}
+	// T-042's teeth, and they are here rather than in PlanWorkflow on purpose:
+	// the planner cannot build a cycle, so checking its own output proves
+	// nothing. This method takes the plan as an argument, and the Store seam is
+	// public -- an API caller may hand it a graph that loops, names a
+	// prerequisite outside the plan, or repeats an id.
+	//
+	// Every refusal in this method happens before the first write. A plan
+	// rejected halfway would leave the story coverage bar moved for a workflow
+	// that does not exist.
+	if err := validatePlan(plan); err != nil {
+		return Result{}, err
+	}
+	idx := s.deskIdxByID(d.ProductID)
+	if idx < 0 {
+		return Result{}, ErrNotFound
+	}
 
 	// The picked stories now have planned tasks, which is what moves the
 	// coverage bar. Two per story: implement + verify.
@@ -1435,12 +1534,27 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 		}
 	}
 
-	idx := s.deskIdxByID(d.ProductID)
-	if idx < 0 {
-		return Result{}, ErrNotFound
-	}
 	dk := &s.desks[idx]
-	wf := fmt.Sprintf("wf-%d", len(s.desks)+1)
+	s.workflowSeq++
+	wf := fmt.Sprintf("wf-%d", s.workflowSeq)
+
+	// The plan becomes the graph. Ids are qualified here because two plans both
+	// numbering from t-1 collide under Task (tenantId, id) UNIQUE, and the
+	// second one would upsert over the first taking its DEPENDS_ON edges along.
+	//
+	// Every task lands PENDING, including the ones with no prerequisites. READY
+	// is the scheduler's word (D-1, T-048) and writing it here would be the
+	// planner making a scheduling decision it has no inputs for -- no lease, no
+	// agent capacity, no budget zone. PENDING is also the DDL's own default.
+	graph := qualify(wf, plan)
+	for i, t := range graph {
+		s.tasks = append(s.tasks, TaskRecord{
+			ID: t.ID, WorkflowID: wf, DeskID: d.ProductID,
+			Title: t.Title, Role: t.Role, Story: t.Story, Model: t.Model,
+			Status: StatusPending, Deps: append([]string(nil), t.Deps...),
+			Priority: taskPriority(d.Priority), Ordinal: i, Gate: t.Gate,
+		})
+	}
 	dk.WorkflowID = wf
 	dk.TaskSeq = 0
 	if err := s.setState(dk, StateActive); err != nil {
@@ -1459,13 +1573,65 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 
 	s.log(dk, fmt.Sprintf("planner read the master record · %d stories, %d rules", len(m.Stories), len(m.BRD.Rules)), "p")
 	s.log(dk, "workspace "+strings.Replace(wf, "wf", "ws", 1)+" leased", "t")
+	// TaskPlanned carries the graph it planned. The reducer does not read it and
+	// the floor does not move -- see the case in fold.go -- but "what did the
+	// planner produce, at that moment" stops being answerable from the present
+	// graph the first time a dependency is rewired, and BR-04 makes the stream
+	// the record rather than the current state.
+	planned := deskPayload(*dk)
+	for _, t := range graph {
+		planned.Tasks = append(planned.Tasks, PlannedTask{
+			ID: t.ID, Title: t.Title, Role: t.Role,
+			Deps: append([]string(nil), t.Deps...),
+		})
+	}
 	ev := []Event{
 		s.emit(WorkflowCreated, dk.ID, d.Goal, KindInfo, deskPayload(*dk)),
-		s.emit(TaskPlanned, dk.ID, fmt.Sprintf("%d tasks planned from the product master", len(plan)), KindKnow, deskPayload(*dk)),
+		s.emit(TaskPlanned, dk.ID, fmt.Sprintf("%d tasks planned from the product master", len(plan)), KindKnow, planned),
 	}
 	s.focusIdx = idx
 	s.replayAtSeq = liveMode
 	return s.result("Workflow created. The desk is live on the floor.", ev...), nil
+}
+
+// taskPriority maps the wizard's three words onto Task.priority, which
+// 04-execution.sql declares INTEGER with min 0 and max 100 and a default of 50.
+// Three points on a scale of a hundred rather than a scale of three, because
+// the column is the one that exists and T-044's routing will want room between
+// the words later.
+func taskPriority(word string) int {
+	switch word {
+	case "high":
+		return 75
+	case "low":
+		return 25
+	default:
+		return 50
+	}
+}
+
+// tasksFor returns the graph for one desk, in plan order. Assumes the lock is
+// held, same as every other private helper here.
+//
+// Copies, not references: TaskRecord carries a slice, and handing a caller the
+// live one is the aliasing bug the top of this file is written about.
+func (s *MemStore) tasksFor(deskID string) []TaskRecord {
+	var out []TaskRecord
+	for _, t := range s.tasks {
+		if t.DeskID == deskID {
+			out = append(out, t.Clone())
+		}
+	}
+	return out
+}
+
+// tasksSnapshot is tasksFor with the lock taken, for callers reaching into the
+// projection from outside its own helpers. ArcadeStore.persist is the one, and
+// it reaches in the same way foldAt already lets it.
+func (s *MemStore) tasksSnapshot(deskID string) []TaskRecord {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.tasksFor(deskID)
 }
 
 // ---------- small helpers ----------
