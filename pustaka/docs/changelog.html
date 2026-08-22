@@ -36,6 +36,52 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-17-0">v0.17.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Something other than a dice
+      roll decides what runs. <a href="delivery/implementation-plan.html#m4-execution">M4</a> moves for
+      the first time &mdash; two of its twenty tasks close &mdash; and the property
+      <a href="product/brd.html#req-d">D-1</a> asks for is built in rather than retrofitted, which was
+      the whole argument for doing it now.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the scheduler
+        (<a href="delivery/implementation-plan.html#sub-m4-1">T-048</a>).</b>
+        <code>dashboard/scheduler.go</code> takes a <code>SchedulerInput</code> and returns what may
+        start, with the agent and the workspace named, plus <b>why every other task may not</b>.
+        <a href="product/brd.html#happy-path">§7.4</a> requires exactly five blocking reasons and says
+        why it is a business requirement rather than a nicety &mdash; <em>"an unexplained idle floor is
+        indistinguishable from a broken product"</em> &mdash; so there are five, the count is asserted,
+        and they are reported by <b>precedence rather than by whichever check ran first</b>, the same
+        rule the egress pass already states. A cycle is a dependency block naming its members, not a
+        sixth reason.</li>
+
+        <li><span class="chg add">Added</span> <b>the proof, not just the property
+        (<a href="delivery/implementation-plan.html#sub-m4-1">T-049</a>).</b> The second replica is
+        handed the same graph <em>in a shuffled row order</em>, because two replicas reading the same
+        ArcadeDB are promised nothing about order across buckets &mdash; a scheduler that inherited
+        slice order would pass the naive version of this test and diverge only in production.
+        Purity itself is enforced structurally: <code>scheduler.go</code>'s import list is closed at
+        <code>fmt</code>, <code>sort</code> and <code>strings</code>, and an AST test refuses a fourth
+        import or any declaration with a receiver. <b>A clock read that happened to return the same
+        value twice would pass every behavioural test there is.</b></li>
+
+        <li><span class="chg fix">Fixed</span> <b>the last <code>rng</code> on a scheduling path.</b>
+        <code>advance()</code> reseated an agent with <code>cand[s.rng.IntN(len(cand))]</code>. That
+        was survivable while one process owned the floor and stops being survivable at D-1: two
+        replicas would disagree about who is busy, and every capability decision downstream inherits
+        it. It now uses the deterministic helper the dispatch route already used, whose own comment
+        had been making this argument since it was written.</li>
+
+        <li><span class="chg note">Note</span> <b>nothing dispatches from the decision yet</b>, and
+        that is deliberate &mdash; the runner and the lease are
+        <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a>. The adapter landed the same way
+        one release ago, for the same reason. The budget zone is likewise always <em>normal</em>,
+        because the guard that would change it is <code>M10.3</code> and does not exist; the branch is
+        covered by a test that builds a throttled input directly, since a reason with no producer
+        rots before its module arrives.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-16-0">v0.16.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The plan stops being a
       preview. Until now <code>PlanWorkflow</code> produced a chain and <code>CreateWorkflow</code>

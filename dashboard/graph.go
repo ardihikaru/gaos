@@ -52,26 +52,52 @@ func (e *CycleError) Is(target error) bool { return target == ErrRejected }
 // sentence to show an operator. validatePlan checks for that first, so by the
 // time this runs every id in every Deps resolves.
 func topoOrder(plan []PlanTask) ([]string, error) {
-	indeg := make(map[string]int, len(plan))
-	dependents := make(map[string][]string, len(plan))
-	for _, t := range plan {
-		indeg[t.ID] += 0
-		for _, dep := range t.Deps {
-			indeg[t.ID]++
-			dependents[dep] = append(dependents[dep], t.ID)
+	ids := make([]string, len(plan))
+	deps := make(map[string][]string, len(plan))
+	for i, t := range plan {
+		ids[i] = t.ID
+		deps[t.ID] = t.Deps
+	}
+	order, ce := topoIDs(ids, deps)
+	// The nil check is not ceremony. Returning a typed nil pointer through an
+	// error interface produces a non-nil error, and every caller of this
+	// function tests err != nil.
+	if ce != nil {
+		return nil, ce
+	}
+	return order, nil
+}
+
+// topoIDs is the sort itself, over ids and their prerequisites.
+//
+// Split out from topoOrder so the scheduler can reach it without owning a
+// []PlanTask -- it works from TaskRecords, and converting one to the other just
+// to sort it would be a copy whose only purpose was to satisfy a signature.
+//
+// ids is a slice and not a map's keys, and that is the determinism. The queue
+// is seeded in ids order and grows in ids order; deps is only ever indexed,
+// never ranged over. A Kahn that seeded from a map would return a different
+// valid order per process, and D-1 asks for the same answer, not an equally
+// correct one.
+func topoIDs(ids []string, deps map[string][]string) ([]string, *CycleError) {
+	indeg := make(map[string]int, len(ids))
+	dependents := make(map[string][]string, len(ids))
+	for _, id := range ids {
+		indeg[id] += 0
+		for _, dep := range deps[id] {
+			indeg[id]++
+			dependents[dep] = append(dependents[dep], id)
 		}
 	}
 
-	// The queue is seeded in plan order, and grows in plan order, which is what
-	// makes the result reproducible.
 	var queue []string
-	for _, t := range plan {
-		if indeg[t.ID] == 0 {
-			queue = append(queue, t.ID)
+	for _, id := range ids {
+		if indeg[id] == 0 {
+			queue = append(queue, id)
 		}
 	}
 
-	out := make([]string, 0, len(plan))
+	out := make([]string, 0, len(ids))
 	for len(queue) > 0 {
 		id := queue[0]
 		queue = queue[1:]
@@ -84,15 +110,15 @@ func topoOrder(plan []PlanTask) ([]string, error) {
 		}
 	}
 
-	if len(out) != len(plan) {
+	if len(out) != len(ids) {
 		placed := make(map[string]bool, len(out))
 		for _, id := range out {
 			placed[id] = true
 		}
 		var stuck []string
-		for _, t := range plan {
-			if !placed[t.ID] {
-				stuck = append(stuck, t.ID)
+		for _, id := range ids {
+			if !placed[id] {
+				stuck = append(stuck, id)
 			}
 		}
 		sort.Strings(stuck)

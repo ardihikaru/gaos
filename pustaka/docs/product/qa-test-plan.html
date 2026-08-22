@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and eleven cases, positive and negative, across the three deploy automations and the
+  two hundred and nineteen cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -72,7 +72,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and eleven cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and nineteen cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -296,6 +296,14 @@
       <tr data-tags="go test unit dashboard task status deferred br-34 budget negative"><td>TC-209</td><td>dashboard (go test)</td><td>Negative</td><td><code>DEFERRED</code> cannot reach <code>FAILED</code>, the refusal names both statuses, and the task is unchanged afterwards (<code>TestADeferredTaskCanNeverGoStraightToFailed</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema ddl task status vocabulary positive"><td>TC-210</td><td>dashboard (go test)</td><td>Positive</td><td>The ten Go task statuses and <code>Task.status</code>'s DDL regexp are the same set, checked in both directions (<code>TestTheTaskStatusVocabularyMatchesTheDDL</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb restart task graph depends_on br-01 positive"><td>TC-211</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant returns every task, its ordinal and its prerequisites, and the workflow counter with them (<code>TestTheTaskGraphSurvivesARestart</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler determinism two replicas d-1 t-049 positive"><td>TC-212</td><td>dashboard (go test)</td><td>Positive</td><td>Two replicas handed the same graph in a shuffled row order reach the identical decision (<code>TestTwoReplicasSchedulingTheSameGraphAgree</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler purity ast imports d-1 t-048 negative"><td>TC-213</td><td>dashboard (go test)</td><td>Negative</td><td><code>scheduler.go</code> may not import beyond <code>fmt</code>, <code>sort</code> and <code>strings</code>, may declare no method, and may not reach a lock or an rng (<code>TestTheSchedulerIsAPureFunctionOfTheGraph</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler blocking reasons t-109 br-7.4 positive"><td>TC-214</td><td>dashboard (go test)</td><td>Positive</td><td>Exactly five blocking reasons are declared, and each one is actually produced by an input that breaks its condition (<code>TestTheSchedulerNamesTheFiveBlockingReasonsAndNoOthers</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler precedence blocking reason negative"><td>TC-215</td><td>dashboard (go test)</td><td>Negative</td><td>A task failing all five conditions is reported once, under the precedence reason, never under whichever check ran first (<code>TestATaskBlockedForFiveReasonsReportsThePrecedenceOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler cycle dependency negative"><td>TC-216</td><td>dashboard (go test)</td><td>Negative</td><td>A cycle reaching the scheduler blocks every member as a dependency and names the whole cycle on each (<code>TestTheSchedulerRefusesACycleAndNamesTheTasksInIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler readiness planning floor br-07 negative"><td>TC-217</td><td>dashboard (go test)</td><td>Negative</td><td>A task exactly at the floor dispatches and one below it does not, so BR-07 holds after the record decays as well as before the plan (<code>TestNothingIsDispatchedBelowReadinessFortyFive</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler lease workspace agent exclusivity d-3 negative"><td>TC-218</td><td>dashboard (go test)</td><td>Negative</td><td>Two ready tasks are never handed the same workspace or the same agent inside one pass (<code>TestTwoReadyTasksAreNeverHandedTheSameAgentOrWorkspace</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler agent seating determinism rng d-1 positive"><td>TC-219</td><td>dashboard (go test)</td><td>Positive</td><td>Advancing a stage seats the same agent regardless of the store's seed, so two replicas cannot disagree about who is busy (<code>TestAgentSeatingIsDeterministic</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1408,12 +1416,88 @@
   <code>the DDL permits %q and taskstate.go declares no transitions for it; a status nothing can
   produce or leave is a state the machine cannot reach</code>.</p>
 
+  <h3 id="go-scheduler">dashboard — the scheduler, and the property it has to have (TC-212…TC-219)</h3>
+  <p><code>T-048</code> and <code>T-049</code>. <a href="brd.html#req-d">D-1</a> asks for something
+  stronger than a working scheduler — <em>"a pure function of the graph, such that two replicas
+  computing it independently reach the same answer"</em> — and the sentence after it is the reason:
+  leader election then protects against duplicate <em>dispatch</em> rather than divergent
+  <em>state</em>, which is <a href="brd.html#rules-invariants">BR-01</a> at the one layer that would
+  otherwise need authoritative state of its own.
+  <strong>Positive (TC-212):</strong> the shuffle is the test. Two replicas read the same rows out of
+  the same database and are not promised the same order across buckets, so a scheduler that inherited
+  slice order would pass a naive version of this and diverge only in production —
+  <code>two replicas over the same graph produced different decisions (%+v vs %+v); D-1 makes the
+  scheduler a function of the graph, and a scheduler that depends on row order is a function of the
+  database's bucket layout</code>. Paired with the plain purity half, the same shape
+  <code>TestTheEgressPassIsPure</code> uses next door: <code>two identical calls disagreed; a decision
+  that varies between calls becomes an event, and a replay would disagree with the run it
+  replays</code>. And a fixture that scheduled nothing would prove nothing, so
+  <code>the fixture scheduled nothing, so agreeing about it proves nothing</code>.
+  <strong>Negative (TC-213):</strong> purity cannot be tested by calling the function — a clock read
+  that happened to return the same value twice passes every behavioural test there is — so this parses
+  <code>dashboard/scheduler.go</code> instead, in the mould of
+  <a href="#register">TC-193</a>. The import list is the test:
+  <code>scheduler.go imports %s; a scheduler that can reach the clock is one edit from reading it, and
+  D-1 says the answer must be a function of the graph alone</code>. No declaration may have a receiver
+  (<code>scheduler.go declares a method (%s); a method on the store has the lock and the rng in scope
+  by definition, and the file's whole claim is that it has neither</code>), and nothing may reach the
+  machinery the imports keep out: <code>scheduler.go reads .%s; SchedulerInput is the only input the
+  decision may have, and every field on it is a value the caller already resolved</code>.
+  <strong>Positive (TC-214):</strong> <a href="brd.html#happy-path">BRD §7.4</a> is prescriptive about
+  the number — all five blocking reasons <em>"must be surfaced in the UI as the blocking reason …
+  because an unexplained idle floor is indistinguishable from a broken product"</em> — so the count is
+  asserted rather than assumed: <code>the scheduler declares %d blocking reasons, BRD §7.4 names five;
+  a sixth is a reason the UI has no row for, and a fifth missing is a floor that looks idle for a
+  reason nobody can explain</code>. Each one is then produced by an input that breaks its condition,
+  because a constant nothing emits is a row the UI renders blank forever —
+  <code>%s did not block the task; %s is a reason the scheduler declares and nothing produces</code> —
+  and budget is the one at real risk, since its guard is <code>M10.3</code> and does not exist yet.
+  Every block carries a specific: <code>%s blocked with no detail; a reason without a specific is a
+  dead end (B-3) and leaves the operator nothing to act on</code>.
+  <strong>Negative (TC-215):</strong> the rule <code>Screen</code> already states for the egress pass,
+  applied here — every reason is computed before one is reported —
+  <code>a task failing all five reported %q; readiness comes first because below the planning floor
+  nothing else is worth saying, and the reported reason must not depend on which check ran
+  first</code>, and once only: <code>one task produced %d blocked entries; a task has one reason at a
+  time or the floor shows the same desk five times</code>.
+  <strong>Negative (TC-216):</strong> <code>CreateWorkflow</code> refuses a cycle at planning time, so
+  one reaching the scheduler means the graph was written by something else or edited since —
+  <code>%d task(s) in a three-way cycle were dispatched; none of them can ever have its prerequisite
+  satisfied</code>, every member is named
+  (<code>%d of 3 cycle members were reported blocked; a member the floor does not mention is a desk
+  sitting idle for no stated reason</code>), and it is not a sixth reason:
+  <code>%s in a cycle reported %q; the BRD makes acyclicity part of the dependency condition rather
+  than a sixth reason</code>.
+  <strong>Negative (TC-217):</strong> <a href="brd.html#rules-readiness">BR-07</a> at the scheduler,
+  which is not the same check as the planner-side refusal <a href="#register">TC-156</a> asserts. The
+  planner refuses to produce a plan below the floor; this refuses to dispatch a plan produced above it
+  whose record has decayed since, which is the only way a task reaches here under a failing gate.
+  Both boundaries: <code>a task exactly at the floor of %d was not dispatched; BR-07 says BELOW the
+  floor, and an off-by-one here refuses work that is allowed to run</code>, and
+  <code>a task on a record below the planning floor was dispatched; BR-07 ends "Nothing is
+  dispatched", and a model called against a record this thin is money spent on a brief nobody
+  finished</code>.
+  <strong>Negative (TC-218):</strong> the within-one-pass half of <a href="brd.html#req-d">D-3</a> —
+  <code>%d tasks were dispatched into one workspace; D-3 exists because "two runs in one workspace
+  corrupt each other silently"</code>, and the seat as well as the workspace:
+  <code>both tasks were seated on %s; one agent cannot carry two runs, and the conflict would surface
+  as a lease failure rather than as a decision</code>.
+  <strong>Positive (TC-219):</strong> the last <code>rng</code> on a scheduling path, removed.
+  <code>advance()</code> reseated with <code>cand[s.rng.IntN(len(cand))]</code>, which was survivable
+  while one process owned the floor and stops being survivable at D-1 —
+  <code>two stores with different seeds seated different agents (%v vs %v); fixtures.go says a
+  dispatch that seated a different agent on every replay would make the fold disagree with the run,
+  and D-1 extends that to two replicas</code>.</p>
+
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
-  writing before the code that would satisfy it — and neither can run today: domains C (planning), D
-  (execution) and E (review, scoring &amp; retry) are all <strong>Designed</strong>, not
-  <strong>Built</strong>, per <a href="brd.html#current-state">BRD §2.1</a>.</p>
+  writing before the code that would satisfy it — and neither can run today. Domain E (review, scoring
+  &amp; retry) is entirely <strong>Designed</strong>, not <strong>Built</strong>, per
+  <a href="brd.html#current-state">BRD §2.1</a>; C (planning) and D (execution) have each had one
+  requirement close since — the task graph is persisted (<code>C-2</code>, partly) and the scheduler
+  is a pure function of it (<code>D-1</code>) — but nothing dispatches from either yet, and an
+  acceptance test needs the whole loop rather than the first link of it.</p>
 
   <p>The third has moved. <a href="#im-fold">The fold test</a> ran for the first time on 2026-08-17
   and now lives with the implemented scenarios, which is what closing

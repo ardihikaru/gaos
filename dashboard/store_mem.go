@@ -1020,11 +1020,16 @@ func readWorkspace(root string) []PacketPart {
 // layout that has to change when the lease lands is a layout that will not.
 //
 // Assumes the lock is held.
-func (s *MemStore) workspaceFor(d Desk) string {
+func (s *MemStore) workspaceFor(d Desk) string { return s.workspaceForDesk(d.ID) }
+
+// workspaceForDesk is the same answer from the id alone. The scheduler works
+// from TaskRecords and never holds a Desk, and passing it a synthetic one just
+// to satisfy a signature would be a lie about what the function reads.
+func (s *MemStore) workspaceForDesk(deskID string) string {
 	if s.workspaceRoot == "" {
 		return ""
 	}
-	return filepath.Join(s.workspaceRoot, d.ID)
+	return filepath.Join(s.workspaceRoot, deskID)
 }
 
 func (s *MemStore) RetryTask(ctx context.Context, idx int) (Result, error) {
@@ -1199,15 +1204,19 @@ func (s *MemStore) advance(d *Desk) []Event {
 	d.Retry = 0
 	d.Task = s.pickTask(*d)
 
-	want := stageRole[stageOf(*d)]
-	var cand []string
-	for _, a := range agents {
-		if a.Role == want {
-			cand = append(cand, a.ID)
-		}
-	}
-	if len(cand) > 0 {
-		d.Agents = []string{cand[s.rng.IntN(len(cand))]}
+	// Deterministic seating, via the same helper DispatchTask uses.
+	//
+	// This used to be cand[s.rng.IntN(len(cand))], picking among the agents
+	// holding the stage's role. That was survivable while one process owned the
+	// floor. It stops being survivable at D-1, which requires two replicas
+	// computing from the same graph to reach the same answer: a reseat drawn
+	// from a private rng makes the two disagree about who is busy, and every
+	// capability decision downstream inherits the disagreement. fixtures.go says
+	// the same thing about agentForStage in its own comment -- "a dispatch that
+	// seated a different agent on every replay would make the fold disagree with
+	// the run" -- and this was the one path still doing it the other way.
+	if a := agentForStage(d.StageIdx); a != nil {
+		d.Agents = []string{a.ID}
 	}
 	s.log(d, "stage → "+stageOf(*d)+" · agent reseated", "t")
 	return []Event{s.emit(TaskDispatched, d.ID, stageOf(*d)+": "+d.Task, KindInfo, deskPayload(*d))}
@@ -1623,6 +1632,65 @@ func (s *MemStore) tasksFor(deskID string) []TaskRecord {
 		}
 	}
 	return out
+}
+
+// schedulerInput is the impure shell around Schedule. T-048.
+//
+// Everything the decision may read is gathered here, under the lock, and handed
+// down as a value -- including the clock, which is why now is a parameter
+// rather than a time.Now() call inside. The caller reads the clock ONCE per
+// pass and that read is the only one on the whole path; two tasks in one
+// decision compared against two different "now"s would be a scheduler that
+// disagreed with itself, never mind with a replica.
+//
+// Budget is BudgetNormal unconditionally, and will be until M10.3 exists. That
+// is honest rather than optimistic: there is no guard, so there is no zone to
+// report, and inventing a throttled one here would put a refusal in the
+// timeline that no limit produced.
+//
+// Leases are empty for the same reason -- the lease is T-051, and a scheduler
+// that made them up would hand out a workspace it had not taken.
+func (s *MemStore) schedulerInput(now int64) SchedulerInput {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	in := SchedulerInput{
+		Readiness:  make(map[string]int, len(s.masters)),
+		Workspaces: make(map[string]string, len(s.tasks)),
+		Budget:     BudgetNormal,
+		Now:        now,
+	}
+	for _, t := range s.tasks {
+		in.Tasks = append(in.Tasks, TaskNode{
+			ID: t.ID, WorkflowID: t.WorkflowID, DeskID: t.DeskID,
+			Title: t.Title, Role: t.Role, Model: t.Model, Status: t.Status,
+			Deps:     append([]string(nil), t.Deps...),
+			Priority: t.Priority, Ordinal: t.Ordinal, Gate: t.Gate,
+		})
+		if ws := s.workspaceForDesk(t.DeskID); ws != "" {
+			in.Workspaces[t.ID] = ws
+		}
+	}
+	for i := range s.masters {
+		in.Readiness[s.masters[i].ID] = s.masters[i].ReadinessScore()
+	}
+
+	// Busy is a fact about the floor, not something the scheduler infers: an
+	// agent seated at a desk that is running, in review or in a meeting cannot
+	// take another task.
+	busy := map[string]bool{}
+	for _, d := range s.desks {
+		switch d.State {
+		case StateActive, StateReview, StateMeeting:
+			for _, id := range d.Agents {
+				busy[id] = true
+			}
+		}
+	}
+	for _, a := range agents {
+		in.Agents = append(in.Agents, AgentSlot{ID: a.ID, Role: a.Role, Busy: busy[a.ID]})
+	}
+	return in
 }
 
 // tasksSnapshot is tasksFor with the lock taken, for callers reaching into the
