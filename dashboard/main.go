@@ -154,6 +154,16 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 		if sa, ok := store.(interface{ SetAdapter(Adapter) }); ok {
 			sa.SetAdapter(adapter)
 		}
+		// Said out loud at boot, because the two switches are easy to conflate
+		// and the difference between them is money. An adapter that passed its
+		// smoke test CAN talk to a provider; GAOS_RUNNER is what says it MAY. An
+		// operator who set one and meant both would otherwise find out from a
+		// dispatch that quietly did nothing.
+		if runnerEnabled() {
+			log.Printf("runner on: a cleared dispatch spawns %s and spends against it", adapter.Name())
+		} else {
+			log.Printf("runner off (GAOS_RUNNER): a dispatch screens and records, and stops there")
+		}
 	}
 
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter}

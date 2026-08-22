@@ -36,6 +36,76 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-19-0">v0.19.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A real tool now runs, supervised,
+      against a leased workspace &mdash; and it outlives the process that started it. Three names come
+      off the closed catalog's owed list, which is the first time that has happened since the list was
+      written.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b><a href="product/brd.html#req-d">D-2</a> was false on
+        the path an operator actually uses.</b> <code>Dispatch</code> built its context from the
+        caller's, and <code>serve()</code> builds the caller's from
+        <code>signal.NotifyContext(SIGINT, SIGTERM)</code> &mdash; so a <em>graceful</em> shutdown
+        cancelled the context and <code>CommandContext</code> killed the child, while
+        <code>SIGKILL</code> left it running because the Go runtime never gets to act.
+        <b>The ungraceful path satisfied D-2 by accident and the graceful one violated it on purpose.</b>
+        <code>context.WithoutCancel</code> is the fix; the only cancellation left is the run's own
+        twenty-minute timeout, which is a property of the run rather than of its supervisor.</li>
+
+        <li><span class="chg add">Added</span> <b>the supervisor
+        (<a href="delivery/implementation-plan.html#sub-m4-2">T-050</a>,
+        <a href="delivery/implementation-plan.html#sub-m4-2">T-052</a>).</b>
+        <code>dashboard/runner.go</code> takes the lease, writes the run record, hands the cleared
+        packet to the adapter, beats while the work runs, and records what came back.
+        <b>The heartbeat attests to the supervisor, not to the model</b> &mdash; Claude Code knows
+        nothing about GAOS &mdash; so when an orchestrator dies the beat goes stale <em>while the work
+        continues</em>. That asymmetry is easy to read backwards, and reading it backwards is how a
+        recovery routine requeues a task whose child is still editing the repository. It is why
+        <a href="product/brd.html#req-d">D-4</a> has three branches rather than two.</li>
+
+        <li><span class="chg change">Changed</span> <b>the run's output goes to files, and that is what
+        makes adoption complete rather than partial.</b> The tool's JSON envelope carries
+        <code>total_cost_usd</code>. In a <code>bytes.Buffer</code> it lives in the orchestrator's
+        address space, so a process adopting the run could recover the outcome from the handoff and
+        <em>never the cost</em> &mdash; which <a href="product/decision-log.html#d-051">D-051</a>
+        requires as <code>measured</code> from the first run. On disk, one <code>collect()</code> runs
+        on both paths, and an adopted attempt is byte-identical to a supervised one.</li>
+
+        <li><span class="chg add">Added</span> <b><code>Resume</code> on the adapter seam, and a
+        <code>RUN.json</code> for it to read.</b> An adopting orchestrator cannot
+        <code>cmd.Wait()</code> on a process it did not fork, so adoption needs its own entry point.
+        <code>Dispatch</code>'s signature is untouched, so <a href="product/brd.html#rules-commercial">BR-32</a>
+        still holds; the pid, process group and process start time ride in an opaque
+        <code>Detail</code> map that <b>nothing above the adapter reads</b>, which is what keeps
+        <a href="product/brd.html#rules-commercial">BR-33</a> true when the HTTP adapter arrives.
+        The start time is there because PID reuse is real and a bare probe after a reboot finds a
+        stranger's process.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the handoff document is emptied before an
+        invocation</b>, which <code>handoff.go</code> has claimed since it was written and nothing
+        did. Without it a retry in a reused workspace reads the previous attempt's document &mdash; and
+        the direction of that mistake is the worst available, because a run that produced nothing
+        looks like one that succeeded.</li>
+
+        <li><span class="chg add">Added</span> <b>six guards in front of a paid model call,</b> four of
+        which already existed. New: <code>GAOS_RUNNER</code>, off by default and deliberately separate
+        from whether an adapter is configured &mdash; an operator who set
+        <code>GAOS_MODEL_MODE=cli</code> to make the boot smoke test run has not thereby authorised
+        spending &mdash; and a refusal to exec anything outside <code>testdata</code> from a test
+        binary. The honest caveat: <b>the version pin is not a guard.</b> The fake answers
+        <code>--version</code> with exactly <code>2.1.238 (Claude Code)</code>, so the smoke test
+        passes identically against both. The pin protects against drift, not against spend.</li>
+
+        <li><span class="chg change">Changed</span> <b><code>RunStarted</code>, <code>Heartbeat</code> and
+        <code>RunExited</code> came off the owed list</b> in <code>dashboard/events.go</code>, with
+        their reducer cases, per <a href="product/brd.html#rules-invariants">BR-05</a>.
+        <code>TaskOrphaned</code> did not, and the split is worth noticing: the three that landed are
+        exactly the ones a live supervisor can witness, and the one still owed is the one only a
+        <em>restart</em> can observe.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-18-0">v0.18.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The lease, which the rest of
       <a href="delivery/implementation-plan.html#sub-m4-2">M4.2</a> is unsafe without. Small, and it

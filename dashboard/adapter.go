@@ -125,7 +125,51 @@ type Adapter interface {
 	// a Cleared can only come from Screen, so there is no route from a Packet
 	// to a provider that does not pass the egress check first.
 	Dispatch(ctx context.Context, c Cleared) (Attempt, error)
+
+	// Resume produces an Attempt from a run THIS PROCESS DID NOT START.
+	//
+	// D-2 detaches the work so it outlives the orchestrator, which means an
+	// orchestrator that restarts finds a live child it cannot cmd.Wait() on --
+	// you can only wait on a process you forked. So adoption cannot be a
+	// variation on Dispatch; it needs its own entry point.
+	//
+	// It reads the same evidence Dispatch reads: the handoff document BR-30
+	// requires of every mode, and the log the run recorded on disk. That is what
+	// makes an adopted run and a supervised one indistinguishable above the seam
+	// (BR-33), and TestAnAdoptedRunAndASupervisedRunProduceTheSameAttempt is the
+	// check rather than the promise.
+	//
+	// Resume does NOT decide whether the run should be adopted. That decision is
+	// the reconciler's, from the lease and the beat alone, per D-4's pseudocode.
+	// Anything this learns about the process is corroboration inside the
+	// adapter, never a branch above it.
+	Resume(ctx context.Context, c Cleared, r RunRecord) (Attempt, error)
 }
+
+// RunRecord is what a run left behind for whoever picks it up next. Written to
+// the workspace before the child is handed to the supervisor, and read back by
+// an orchestrator that was not running when it was written.
+//
+// Detail is deliberately opaque above the adapter. The CLI adapter puts a pid,
+// a process-group id and a process start time in it; the HTTP adapter (T-058)
+// will put something else entirely -- a request id, a poll URL. NOTHING ABOVE
+// THE ADAPTER READS IT, which is what keeps BR-33 true when a second mode
+// arrives: a reconciler that understood pids would be a reconciler that only
+// worked for one mode.
+type RunRecord struct {
+	RunID     string            `json:"runId"`
+	TaskID    string            `json:"taskId"`
+	Attempt   int               `json:"attempt"`
+	Workspace string            `json:"workspace"`
+	Digest    string            `json:"digest"`
+	Model     string            `json:"model"`
+	StartedAt int64             `json:"startedAt"`
+	LogRef    string            `json:"logRef"`
+	Detail    map[string]string `json:"detail"`
+}
+
+// RunRecordPath is where it lives, relative to the workspace, beside the lease.
+const RunRecordPath = ".gaos/run/RUN.json"
 
 // classifyExit is the whole of the exit code's authority.
 //
