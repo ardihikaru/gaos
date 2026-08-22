@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and nineteen cases, positive and negative, across the three deploy automations and the
+  two hundred and twenty-six cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -72,7 +72,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and nineteen cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and twenty-six cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -304,6 +304,13 @@
       <tr data-tags="go test unit dashboard scheduler readiness planning floor br-07 negative"><td>TC-217</td><td>dashboard (go test)</td><td>Negative</td><td>A task exactly at the floor dispatches and one below it does not, so BR-07 holds after the record decays as well as before the plan (<code>TestNothingIsDispatchedBelowReadinessFortyFive</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler lease workspace agent exclusivity d-3 negative"><td>TC-218</td><td>dashboard (go test)</td><td>Negative</td><td>Two ready tasks are never handed the same workspace or the same agent inside one pass (<code>TestTwoReadyTasksAreNeverHandedTheSameAgentOrWorkspace</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler agent seating determinism rng d-1 positive"><td>TC-219</td><td>dashboard (go test)</td><td>Positive</td><td>Advancing a stage seats the same agent regardless of the store's seed, so two replicas cannot disagree about who is busy (<code>TestAgentSeatingIsDeterministic</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease workspace exclusivity o_excl d-3 t-051 negative"><td>TC-220</td><td>dashboard (go test)</td><td>Negative</td><td>A second run is refused a workspace that is already leased, the refusal names the holder, and the losing acquire writes nothing (<code>TestASecondLeaseOnALiveWorkspaceIsRefused</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease expiry break d-2 d-053 negative"><td>TC-221</td><td>dashboard (go test)</td><td>Negative</td><td>An expired lease is still refused by <code>AcquireLease</code> and only <code>BreakLease</code> clears it, because expiry describes the supervisor and not the detached child (<code>TestAnExpiredLeaseIsStillNotTakenByAcquire</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease reacquire idempotent positive"><td>TC-222</td><td>dashboard (go test)</td><td>Positive</td><td>A run re-acquiring its own lease succeeds and refreshes the expiry rather than deadlocking against itself (<code>TestReAcquiringYourOwnLeaseSucceeds</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease heartbeat renewal holder d-3 t-052 negative"><td>TC-223</td><td>dashboard (go test)</td><td>Negative</td><td>A renewal extends only the expiry and only for the run holding the lease; a run that does not hold it is refused (<code>TestAHeartbeatExtendsTheLeaseAndOnlyForTheRunThatHoldsIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease release holder idempotent negative"><td>TC-224</td><td>dashboard (go test)</td><td>Negative</td><td>Only the holder may release a lease, and releasing one that is already gone is not an error (<code>TestReleaseGivesTheWorkspaceBackAndOnlyToItsHolder</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease corrupt unreadable fail-safe negative"><td>TC-225</td><td>dashboard (go test)</td><td>Negative</td><td>A truncated lockfile reads as held rather than as absent, and the scheduler reaches the same conclusion (<code>TestAnUnreadableLeaseIsTreatedAsHeldRatherThanAsAbsent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease round trip intervals d-053 positive"><td>TC-226</td><td>dashboard (go test)</td><td>Positive</td><td>The lease round-trips through the file for a process that never held it, and the beat/stale/expiry ladder is ordered as declared (<code>TestTheLeaseFileSurvivesTheProcessThatWroteIt</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1488,6 +1495,63 @@
   <code>two stores with different seeds seated different agents (%v vs %v); fixtures.go says a
   dispatch that seated a different agent on every replay would make the fold disagree with the run,
   and D-1 extends that to two replicas</code>.</p>
+
+  <h3 id="go-lease">dashboard — the exclusive workspace lease (TC-220…TC-226)</h3>
+  <p><code>T-051</code>. <a href="brd.html#req-d">D-3</a> asks for an exclusive workspace lease with
+  an expiry, and names the failure it is written against: <em>"two runs in one workspace corrupt each
+  other silently."</em> That failure is not loud — two agents editing one checkout do not crash, they
+  produce a diff neither of them wrote, which is then reviewed, scored and possibly merged. The
+  enforcement is an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code> rather than a
+  row, because the thing being protected is a directory and the only primitive that excludes
+  atomically at that granularity between processes is the filesystem.
+  <strong>Negative (TC-220):</strong> <code>a second run took a workspace that was already leased;
+  D-3 exists because two runs in one workspace corrupt each other silently, and neither would
+  crash</code>; the refusal has to be identifiable
+  (<code>the refusal is %v, which is not an ErrLeaseHeld; a caller cannot tell a busy workspace from
+  a broken disk</code>) and has to carry the holder, because
+  <code>the refusal is %+v and does not name the holder; the reconciler needs the pid and the expiry
+  to decide between adopting, requeuing and orphaning</code>. The loser must also leave the file
+  alone: <code>the lease now reads %+v; the refused acquire wrote over the holder it was refused
+  by</code>.
+  <strong>Negative (TC-221):</strong> the row most likely to be &ldquo;fixed&rdquo; later, so it is
+  asserted rather than left to a comment. An expired lease looks takeable — the expiry exists and it
+  passed — but expiry says the <em>supervisor</em> stopped renewing, and
+  <a href="brd.html#req-d">D-2</a> detaches the child precisely so it outlives its supervisor:
+  <code>an expired lease was taken by a new run (err=%v); the expiry says the supervisor stopped
+  renewing and says nothing about the child it was supervising, which D-2 detached so it would
+  outlive exactly this</code>. Clearing one is <code>BreakLease</code>, a separate name for an
+  operation only safe once the previous run has been made dead
+  (<a href="decision-log.html#d-053">D-053</a>).
+  <strong>Positive (TC-222):</strong> <code>a run could not re-acquire its own lease: %v; a retry
+  after a partial write would deadlock against itself</code>.
+  <strong>Negative (TC-223):</strong> the renewal half, whose negative is the one that matters —
+  <code>a run that does not hold the lease extended it (err=%v); a supervisor declared dead and
+  broken off could keep somebody else's workspace alive, which hands one directory to two runs
+  through the back door</code>. A beat that does not extend is equally wrong:
+  <code>the expiry is %d after a renewal, want 2300; a beat that does not extend the lease is a beat
+  that lets the workspace expire under a live run</code>.
+  <strong>Negative (TC-224):</strong> <code>a run released a lease it did not hold (err=%v)</code>,
+  and the lockfile must actually go —
+  <code>the lockfile survived a release; the next run would be refused by a lease whose holder has
+  finished</code>.
+  <strong>Negative (TC-225):</strong> the corrupt-file case, where the <em>direction</em> of the
+  answer is the whole test. Treating an unparseable lease as &ldquo;no lease&rdquo; would hand the
+  workspace to a second run on the strength of a truncated write:
+  <code>a truncated lease read as ok=%v err=%v; an unreadable lease must not read as an absent one,
+  or a half-written file hands the workspace to a second run</code>, and the safe answer must not
+  stop at the boundary — <code>leaseStateOf called an unreadable lease free; the scheduler would
+  dispatch into a workspace nothing could prove was empty</code>.
+  <strong>Positive (TC-226):</strong> the property that makes a file the right primitive at all — a
+  value read back by something that never held the original, which is what an adopting orchestrator
+  is: <code>the lease round-tripped as %+v, wrote %+v; a process that has never seen the database has
+  only this file to work out whose workspace it is</code>. The four intervals are asserted in the same
+  case because the relationship between them <em>is</em> the design:
+  <code>the intervals are beat=%d stale=%d ttl=%d; a beat slower than the staleness window declares
+  every live run dead, and a ttl inside it expires the lease before the beat is even missed</code>,
+  and D-053's separation of the two cadences —
+  <code>the Heartbeat event cadence is %ds against a %ds beat; D-053 separates them so a
+  twenty-minute run writes five pills rather than forty into a stream that is append-only and
+  rendered in full</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

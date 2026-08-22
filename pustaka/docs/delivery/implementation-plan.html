@@ -75,7 +75,7 @@
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>2</td><td>2</td><td>16</td><td><a href="#register">T-050</a> &mdash; detached runs that outlive the orchestrator</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>3</td><td>2</td><td>15</td><td><a href="#register">T-050</a> &mdash; detached runs that outlive the orchestrator</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
@@ -85,7 +85,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>43</b></td><td><b>16</b></td><td><b>82</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>44</b></td><td><b>16</b></td><td><b>81</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -189,7 +189,7 @@
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph &mdash; <code>dashboard/scheduler.go</code>, imports limited to <code>fmt</code>, <code>sort</code> and <code>strings</code>, the clock passed in as a value, and the five blocking reasons of §7.4 returned per task</td><td>D-1</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer &mdash; the second replica is handed the same graph in a shuffled row order, plus an AST test that closes the import list</td><td>D-1</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator</td><td>D-2</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run</td><td>D-3</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run &mdash; <code>dashboard/lease.go</code>, an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code>; an expired lease is reported and never taken, and breaking one has its own name</td><td>D-3</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease</td><td>D-3</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.2"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running</td><td>D-4</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature</td><td>D-5, BR-22</td><td>❌</td></tr>
@@ -583,7 +583,7 @@
 
   <h2 id="m4-execution">M4 · Execution</h2>
   <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
-  count and by task count. Twenty tasks, two done and two partial. Most of what is here is still
+  count and by task count. Twenty tasks, three done and two partial. Most of what is here is still
   played by <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker that moves desks through states
   and emits catalog events without ever calling a model.</p>
 
@@ -618,6 +618,23 @@
   task claiming to be dispatched or running is reconciled against its lease and heartbeat and is
   adopted, requeued or orphaned (<code>D-4</code>). This is build-order step 5 and its own
   acceptance test: kill the orchestrator mid-task and the work survives.</p>
+  <p>The lease landed first, on 2026-08-22, because the other three are unsafe without it.
+  <code>dashboard/lease.go</code> holds it as an <code>O_EXCL</code> lockfile inside the workspace
+  rather than as a row: the thing being protected is a <em>directory</em>, and the only primitive
+  that excludes atomically at that granularity between processes on one host is the filesystem. The
+  record stays in the graph — <code>Task.leaseUntil</code> and <code>Task.lastHeartbeatAt</code> are
+  what boot reconciliation reads — but the enforcement has to survive the orchestrator, which is what
+  <code>D-2</code> is for, and a file carrying its own expiry explains itself to a process that was
+  not running when the lease was taken. This does not put authoritative state in process memory, so
+  <a href="../product/brd.html#rules-invariants">BR-01</a> is intact: it is state on the resource.</p>
+  <p>One decision fell out of it and is logged as <a href="../product/decision-log.html#d-053">D-053</a>:
+  <strong>an expired lease is never taken by the acquirer.</strong> It reads like an oversight —
+  the expiry passed, so surely the next runner may have it — but an expiry says the <em>supervisor</em>
+  stopped renewing, and the supervisor is not the thing editing the repository. Taking it would start
+  the second run <code>D-3</code> exists to prevent. Clearing one is <code>BreakLease</code>, which
+  only <code>T-053</code> may call and only on the branch that kills first. The same decision fixes
+  the four intervals and separates the heartbeat's <em>write</em> from the <code>Heartbeat</code>
+  <em>event</em>, so a twenty-minute run adds five pills to the timeline rather than forty.</p>
 
   <h3 id="sub-m4-3">M4.3 — The attempt record (T-054–T-056)</h3>
   <p><code>Task</code> and <code>TaskRun</code> are separate records so per-attempt evidence

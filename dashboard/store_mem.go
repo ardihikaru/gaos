@@ -1648,9 +1648,30 @@ func (s *MemStore) tasksFor(deskID string) []TaskRecord {
 // report, and inventing a throttled one here would put a refusal in the
 // timeline that no limit produced.
 //
-// Leases are empty for the same reason -- the lease is T-051, and a scheduler
-// that made them up would hand out a workspace it had not taken.
+// The lease read happens AFTER the lock is dropped, and that is not tidiness.
+// leaseStateOf touches the filesystem, and holding a read lock over the store
+// while stat-ing somebody else's repository would let one slow disk stall every
+// reader on the floor. The two halves cannot disagree in a way that matters:
+// the worst case is a lease taken between them, which makes the scheduler
+// refuse a task it could have run, and refusing to dispatch is the safe
+// direction.
 func (s *MemStore) schedulerInput(now int64) SchedulerInput {
+	in := s.schedulerInputLocked(now)
+
+	seen := map[string]bool{}
+	for _, ws := range in.Workspaces {
+		if seen[ws] {
+			continue
+		}
+		seen[ws] = true
+		if l, held := leaseStateOf(ws, now); held {
+			in.Leases = append(in.Leases, l)
+		}
+	}
+	return in
+}
+
+func (s *MemStore) schedulerInputLocked(now int64) SchedulerInput {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
