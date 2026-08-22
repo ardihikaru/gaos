@@ -166,6 +166,61 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 		}
 	}
 
+	// Boot reconciliation. T-053, and D-4 is unusually plain about its standing:
+	// "this is the whole of recovery; there is no other path."
+	//
+	// HERE, and not in a goroutine, and not after the listener. Because execution
+	// does not die with orchestration (D-2), a restart finds tasks that claim to
+	// be running -- and a request served before this ran would see a floor that
+	// is lying about what is in flight.
+	//
+	// Running before the listener is also what makes the read-only replay handle
+	// irrelevant on this path: no operator can be in replay yet, because no
+	// operator can have reached the process.
+	//
+	// A failure FAILS THE BOOT, for the same reason selectStore and
+	// selectAdapter do. A dashboard that could not work out what was running,
+	// then served a floor as if nothing were, looks completely healthy while a
+	// detached process edits a repository nobody is watching.
+	if rc, ok := store.(interface {
+		Reconcile(context.Context) (Result, error)
+	}); ok {
+		res, err := rc.Reconcile(ctx)
+		if err != nil {
+			return fmt.Errorf("boot reconciliation: %w", err)
+		}
+		if n := len(res.NewEvents); n > 0 {
+			log.Printf("boot reconciliation: %d claimed run(s) adopted, requeued or orphaned", n)
+		}
+	}
+
+	// The control loop. One pass asks the scheduler what may start and starts it;
+	// the pass itself is where the clock is read, so Schedule stays a pure
+	// function of what it is handed (D-1).
+	//
+	// Behind both switches, same as the dispatch route: an adapter says a
+	// provider CAN be reached, GAOS_RUNNER says it MAY be. Without them the loop
+	// would still produce a correct decision and nothing to do with it, so it
+	// simply does not run.
+	if adapter != nil && runnerEnabled() {
+		if r, ok := store.(interface {
+			RunOnce(context.Context, Adapter) ScheduleDecision
+		}); ok {
+			go func() {
+				t := time.NewTicker(schedulerTick)
+				defer t.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-t.C:
+						r.RunOnce(ctx, adapter)
+					}
+				}
+			}()
+		}
+	}
+
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter}
 
 	// The simulation belongs to MemStore and is not on the Store interface, so

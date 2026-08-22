@@ -80,7 +80,6 @@ func TestEveryEmittedEventIsInTheClosedCatalog(t *testing.T) {
 func TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules(t *testing.T) {
 	owed := map[EventType]string{
 		DependencyRewired:      "M3.2 -- the planner's task graph",
-		TaskOrphaned:           "M4.2 -- boot reconciliation, T-053",
 		SafetyVeto:             "M5.2 -- the real review engine",
 		GuardExhausted:         "M5.5 -- the six guards",
 		KnowledgeReused:        "M7.3 -- recall at planning time",
@@ -93,6 +92,7 @@ func TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules(t *testing.T)
 	s := runAWorkflow(t, 41, 400)
 	drive(t, s)
 	driveRunner(t, s)
+	driveRecovery(t, s)
 
 	emitted := map[EventType]bool{}
 	for _, e := range s.events {
@@ -374,5 +374,36 @@ func driveRunner(t *testing.T, s *MemStore) {
 	a, ws := fakeCLI(t, "complete", "0")
 	if _, err := s.superviseRun(t.Context(), a, s.desks[0].ID, clearedFor(t, ws), 1); err != nil {
 		t.Fatalf("supervising one run against the fake tool failed: %v", err)
+	}
+}
+
+// driveRecovery plants one task that claims to be running over a lease that has
+// long expired, and reconciles it. That is the only way TaskOrphaned is ever
+// written: no live supervisor witnesses an orphan, because an orphan is a run
+// whose supervisor is gone, so the event exists only on the boot path.
+func driveRecovery(t *testing.T, s *MemStore) {
+	t.Helper()
+	root := t.TempDir()
+	deskID := s.desks[0].ID
+	ws := filepath.Join(root, deskID)
+	if err := os.MkdirAll(ws, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := AcquireLease(ws, Lease{
+		TaskID: "wf-1-t-9", RunID: "wf-1-t-9-a1", StartedAt: 1, LeaseUntil: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	s.mu.Lock()
+	s.workspaceRoot = root
+	s.tasks = append(s.tasks, TaskRecord{
+		ID: "wf-1-t-9", WorkflowID: "wf-1", DeskID: deskID,
+		Title: "a run nobody was watching", Role: "backend", Status: StatusRunning,
+	})
+	s.mu.Unlock()
+
+	if _, err := s.Reconcile(t.Context()); err != nil {
+		t.Fatalf("boot reconciliation failed: %v", err)
 	}
 }

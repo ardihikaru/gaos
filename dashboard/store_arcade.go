@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -98,6 +99,21 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 		return nil, err
 	}
 
+	// The flush hook, before anything can write. Every mutation a handler makes
+	// is persisted by mutate(); a BACKGROUND writer -- the runner, the
+	// reconciler -- has no request behind it and no mutate() around it, so its
+	// events would live and die in the projection without this.
+	//
+	// context.Background rather than a request's, because these writes belong to
+	// a run that outlives whatever asked for it. That is the whole of D-2.
+	installHook := func(m *MemStore) {
+		m.SetOnWrite(func(r Result) {
+			if err := s.persistBackground(context.Background(), r); err != nil {
+				log.Printf("background write did not reach the graph: %v", err)
+			}
+		})
+	}
+
 	seeded, err := s.load(ctx)
 	if err != nil {
 		return nil, err
@@ -108,6 +124,7 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 			return nil, fmt.Errorf("seed: %w", err)
 		}
 	}
+	installHook(s.proj)
 	return s, nil
 }
 
@@ -179,6 +196,43 @@ func (s *ArcadeStore) ClearNotifications(ctx context.Context) (Result, error) {
 // serve(), not something a handler may do, and putting it on the seam would
 // invite a request-scoped caller.
 func (s *ArcadeStore) SetAdapter(a Adapter) { s.proj.SetAdapter(a) }
+
+// persistBackground writes what a runner or the reconciler produced.
+//
+// It takes the store's own lock, the same one mutate() holds, because the two
+// write to the same tables and a runner finishing mid-request would otherwise
+// interleave with the handler that request is serving.
+//
+// A failure is logged rather than returned, and that is a real limitation
+// stated rather than hidden: the caller is a goroutine nobody is waiting on, so
+// there is nothing to return an error TO. BR-02 says an event that was never
+// written is a state change that never happened, and a background write that
+// failed is exactly that -- which is why boot reconciliation exists, and why
+// the log line is worded so a human reading it knows the graph is behind.
+func (s *ArcadeStore) persistBackground(ctx context.Context, r Result) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.persist(ctx, r)
+}
+
+// Reconcile is boot recovery. T-053.
+//
+// NOT wrapped in mutate, and the reason is worth reading before somebody
+// "fixes" it: the projection publishes each recovery event through the onWrite
+// hook as it goes, and that hook takes this store's lock. mutate holds the same
+// lock for the whole callback, so wrapping this would deadlock the boot -- the
+// dashboard would come up, print its adapter line, and never listen. That is
+// exactly how it was found.
+func (s *ArcadeStore) Reconcile(ctx context.Context) (Result, error) {
+	return s.proj.Reconcile(ctx)
+}
+
+// RunOnce is one pass of the control loop. Not wrapped in mutate: what it
+// starts runs in goroutines that finish long after this returns, and each one
+// persists itself through the hook SetAdapter installed.
+func (s *ArcadeStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
+	return s.proj.RunOnce(ctx, ad)
+}
 
 // setEgressForTest forwards to the projection, so the conformance suite proves
 // the same refusal against both stores. See MemStore.setEgressForTest.

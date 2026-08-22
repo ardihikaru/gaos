@@ -410,17 +410,15 @@
   operator answers a merge gate with no, which is a different fact from nobody having answered it;
   and <code>ProposalRecorded</code>, because a meeting that recorded a decision nobody proposed is
   not a meeting anybody can audit.</p>
-  <p>Three more came off the list on 2026-08-22, and this paragraph is where
+  <p>The whole execution group came off the list on 2026-08-22, and this paragraph is where
   <a href="../product/qa-test-plan.html#go-catalog">TC-146</a> said the next person to close a module
   would have to come and say so. <code>RunStarted</code>, <code>Heartbeat</code> and
-  <code>RunExited</code> now have a supervisor that sends them (<code>T-050</code>,
-  <code>T-052</code>). Notice which one did not: <code>TaskOrphaned</code> is still owed, and it is
-  owed to boot reconciliation (<code>T-053</code>) rather than to the runner — the three that landed
-  are exactly the ones a live supervisor can witness, and the one still missing is the one only a
-  <em>restart</em> can observe.</p>
-  <p>The remaining six are not written, and writing them would be worse than leaving them.
-  <code>TaskOrphaned</code> belongs to boot reconciliation (<code>T-053</code>);
-  <code>SafetyVeto</code> and <code>GuardExhausted</code> to the review engine and the six guards
+  <code>RunExited</code> got a supervisor that sends them (<code>T-050</code>, <code>T-052</code>);
+  <code>TaskOrphaned</code> got the only thing that can observe an orphan, which is a
+  <em>restart</em> (<code>T-053</code>). That split is worth keeping: no live supervisor ever
+  witnesses an orphan, because an orphan is a run whose supervisor is already gone.</p>
+  <p>The remaining five are not written, and writing them would be worse than leaving them.
+  <code>SafetyVeto</code> and <code>GuardExhausted</code> belong to the review engine and the six guards
   (<code>M5.2</code>, <code>M5.5</code>); <code>DependencyRewired</code> to the planner's task graph
   (<code>M3.2</code>); <code>KnowledgeReused</code> and <code>DecisionSuperseded</code> to recall
   and contradiction detection (<code>M7.3</code>). Emitting a <code>Heartbeat</code> nobody sent, or

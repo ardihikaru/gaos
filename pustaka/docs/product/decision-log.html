@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Fifty-three entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Fifty-four entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -877,6 +877,43 @@
         <code>dashboard/lease.go</code>;
         <a href="../delivery/implementation-plan.html#sub-m4-2">T-051</a>;
         <a href="qa-test-plan.html#go-lease">TC-220…TC-226</a></td>
+      </tr>
+      <tr id="d-054">
+        <td>D-054</td><td>2026-08-22</td>
+        <td><strong>Requeue is kill-then-requeue, and the architecture page's recovery pseudocode was
+        wrong about why.</strong> Its middle branch is commented <em>"lease held, process gone"</em>.
+        <strong>It does not know the process is gone.</strong> It knows the <em>beat</em> is stale,
+        and a stale beat means the SUPERVISOR died — which says nothing whatever about the child,
+        because <a href="brd.html#req-d">D-2</a> detached the child precisely so it would outlive its
+        supervisor.
+        <strong>What that costs if it is read the easy way.</strong> Requeuing on a stale beat starts
+        a second run in a workspace that may still have a live one in it: the exact silent corruption
+        <a href="brd.html#req-d">D-3</a> exists to prevent, reached <em>through</em> the routine meant
+        to recover from failure. Two agents editing one checkout do not crash; they produce a diff
+        neither of them wrote, which is then reviewed, scored and possibly merged.
+        <strong>So a run that can be proved neither alive nor dead is MADE dead.</strong> The
+        reconciler reads the run record, signals the process group, waits a grace period, signals
+        again, releases the lease, and only then puts the task back at <code>READY</code>. Where
+        nothing is able to kill — no adapter configured, no process ever recorded — the branch
+        <em>degrades to orphan</em> rather than requeuing on a promise it cannot keep. A task that
+        failed and needs a human is a worse outcome than a clean requeue and a far better one than
+        silent corruption.
+        <strong>This does not contradict <a href="brd.html#rules-commercial">BR-35</a>'s "never kills
+        a run already in flight", and the difference is the subject rather than the verb.</strong>
+        BR-35 is a BUDGET rule about a run this orchestrator is supervising and whose spend it can
+        still account for; killing that forfeits money already spent. This is a RECOVERY rule about an
+        unsupervised run whose supervisor is already gone. Different subject, opposite risk.
+        <strong>Two corrections to <code>architecture/system.html</code> landed with the code:</strong>
+        the branch comment, and the event it emitted — the page wrote
+        <code>TaskFailed(reason=orphaned)</code>, and <code>TaskFailed</code> is not in the closed
+        catalog at all. It is <code>TaskOrphaned</code>.</td>
+        <td>Corrects <code>architecture/system.html</code> §boot-recovery; implements
+        <a href="brd.html#req-d">D-4</a> without breaking
+        <a href="brd.html#req-d">D-3</a>;
+        <code>dashboard/reconcile.go</code>, <code>dashboard/runner.go</code>,
+        <code>dashboard/adapter_cli.go</code>;
+        <a href="../delivery/implementation-plan.html#sub-m4-2">T-053</a>;
+        <a href="qa-test-plan.html#go-reconcile">TC-236…TC-242</a></td>
       </tr>
     </tbody>
   </table>

@@ -496,6 +496,41 @@ func procStart(pid int) string {
 	return fields[19]
 }
 
+// Stop makes a CLI run dead: SIGTERM to the process GROUP, a grace period, then
+// SIGKILL.
+//
+// The group and not the leader. The leader may already be gone -- that is a
+// large part of why the caller could not tell whether the run was alive -- while
+// the test runner or compiler it spawned is very much still there, holding the
+// workspace open. Setpgid in Dispatch is what makes the group addressable, and
+// this is the second reason it is set.
+//
+// Negative pid is the group. Idempotent by construction: signalling a group
+// that is gone returns ESRCH, which is the success case here.
+func (a *CLIAdapter) Stop(r RunRecord) error {
+	pgid, err := strconv.Atoi(r.Detail["pgid"])
+	if err != nil || pgid <= 0 {
+		// Nothing was ever recorded, so nothing was ever spawned by this
+		// adapter. There is nothing to kill and saying so is not a failure.
+		return nil
+	}
+	_ = syscall.Kill(-pgid, syscall.SIGTERM)
+	deadline := time.Now().Add(stopGracePeriod)
+	for time.Now().Before(deadline) {
+		if !alive(r.Detail) {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	return nil
+}
+
+// stopGracePeriod is how long a run gets to exit on its own after SIGTERM.
+// Short: by the time this is called the run is already unsupervised and its
+// workspace is about to be handed to somebody else.
+const stopGracePeriod = 3 * time.Second
+
 // alive reports whether the recorded process is still there AND is still the
 // same process. Signal 0 checks for existence without delivering anything.
 func alive(detail map[string]string) bool {

@@ -20,11 +20,11 @@ package main
 // sim.go would be inventing evidence, and the audit trail is the last place to
 // do that.
 //
-// RunStarted, Heartbeat and RunExited came off that list on 2026-08-22, when
-// T-050 and T-052 gave them a runner that actually sends them. TaskOrphaned is
-// still owed, to boot reconciliation (T-053) -- and it is worth noticing that
-// the three that landed are exactly the ones a supervisor can witness, while
-// the one still owed is the one only a RESTART can observe.
+// The whole execution group came off that list on 2026-08-22. RunStarted,
+// Heartbeat and RunExited when T-050 and T-052 gave them a supervisor that
+// sends them; TaskOrphaned when T-053 gave it the one thing that can observe an
+// orphan, which is a RESTART -- no live supervisor ever sees one, by definition,
+// because an orphan is a run whose supervisor is already gone.
 //
 // Every name that IS emitted has a case in fold.go. That is BR-05 in practice:
 // the catalog is closed because a new event type is a schema change to the fold,
@@ -57,7 +57,7 @@ const (
 	RunExited      EventType = "RunExited"
 	TaskBlocked    EventType = "TaskBlocked"
 	TaskResumed    EventType = "TaskResumed"
-	TaskOrphaned   EventType = "TaskOrphaned" // needs the lease -- M4.2
+	TaskOrphaned   EventType = "TaskOrphaned"
 )
 
 // judgment

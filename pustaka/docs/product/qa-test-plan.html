@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and thirty-five cases, positive and negative, across the three deploy automations and the
+  two hundred and forty-six cases, positive and negative, across the four deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -62,6 +62,7 @@
       <tr><td>Post-deploy verification (bind, healthz, routes, base-href, and with <code>--full-verify</code>: X-Forwarded-For, public HTTPS)</td><td>Same</td><td>Automatically, after every <code>deploy</code> and <code>restart</code></td><td>Each check reports independently; the run exits 1 on any failure, but nothing rolls back automatically today — the nonzero exit is the operator's signal to investigate</td></tr>
       <tr><td><code>rebuild-restart.sh status</code></td><td>Same</td><td>On demand, whenever the operator wants a read of current state</td><td>No failure mode by design — see <a href="#rr-status">TC-017</a></td></tr>
       <tr><td><code>deploy/schema/scratch.sh</code> + <code>go test -run Conformance</code></td><td>Product owner, on demand</td><td>Never automatically: the ArcadeDB half of the store conformance suite <em>skips</em> without <code>GAOS_ARCADE_TEST_URL</code>, so the deploy gate stays green on a machine with no database. Run it by hand when the store or the schema changes</td><td>Nothing is deployed, because nothing was &mdash; the throwaway container is <code>--rm</code> with no volume. The operator reads the failure and reruns</td></tr>
+      <tr><td><code>deploy/acceptance/kill-mid-task.sh</code></td><td>Product owner, before every release that touches the runner, the lease or recovery</td><td>Never automatically, and never against dev or prod: it needs a scratch ArcadeDB, it sends a real <code>SIGKILL</code>, and recovery writes to the graph. It also cannot run against <code>GAOS_STORE=memory</code>, which loses the task records there would be anything to reconcile</td><td>Nothing is deployed. This is build-order step 5 and a failure is a release blocker, not a warning &mdash; a runner whose work does not survive a restart is a runner that loses paid model calls</td></tr>
       <tr><td><code>deploy/schema/apply.sh</code></td><td>Product owner, on demand</td><td>Only for a scratch database from a workstation. Dev and prod get the schema from the dashboard binary's embedded copy on every boot, which is idempotent</td><td>Exit 1 with the offending statement and the server's own <code>detail</code>. A partial apply is safe to rerun</td></tr>
       <tr><td>Unsatisfiable-task test</td><td>Product owner, once domain E exists</td><td>Proposed: before every release</td><td>Per <a href="brd.html#to-be-exceptions">§7.5</a>: looping or failing silently means the guard-limit implementation is not finished — release is blocked</td></tr>
       <tr><td>Fold test</td><td>Product owner, once domain H exists</td><td>Proposed: periodic (weekly) — the design itself calls this test "periodic"</td><td>Divergence is a release blocker, in the design's own words: "divergence proves the event model is incomplete"</td></tr>
@@ -72,7 +73,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and thirty-five cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and forty-six cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -320,6 +321,17 @@
       <tr data-tags="go test unit dashboard runner lease release cleanup d-3 positive"><td>TC-233</td><td>dashboard (go test)</td><td>Positive</td><td>The lease is released whether the run completed or produced no handoff at all (<code>TestTheRunReleasesItsLeaseWhateverHappens</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard runner workspace root guard negative"><td>TC-234</td><td>dashboard (go test)</td><td>Negative</td><td>A run with no workspace is refused before anything is leased or spawned (<code>TestTheRunnerRefusesToSpawnWithoutAWorkspaceRoot</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard runner money guard testing provider negative"><td>TC-235</td><td>dashboard (go test)</td><td>Negative</td><td>A test binary may exec only a tool under <code>testdata</code>, and <code>Dispatch</code> is checked to still carry the guard (<code>TestNoTestEverReachesTheRealProviderCommand</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile adopt requeue orphan d-4 t-053 positive"><td>TC-236</td><td>dashboard (go test)</td><td>Positive</td><td>The three recovery branches match the architecture page's pseudocode, each carrying a machine-readable rule and a reason (<code>TestTheThreeRecoveryBranches</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile scope dispatched running d-4 negative"><td>TC-237</td><td>dashboard (go test)</td><td>Negative</td><td>Only <code>DISPATCHED</code> and <code>RUNNING</code> are reconciled; the other eight statuses are left alone (<code>TestTheReconcilerLooksAtEveryTaskClaimingToBeDispatchedOrRunningAndNoOthers</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile purity ast imports negative"><td>TC-238</td><td>dashboard (go test)</td><td>Negative</td><td><code>reconcile.go</code> may import only <code>fmt</code> and <code>sort</code> and may declare no method (<code>TestReconciliationIsPureAndDoesNotReadTheClock</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile catalog closed rule d-052 br-05 positive"><td>TC-239</td><td>dashboard (go test)</td><td>Positive</td><td>Adopt and requeue share <code>TaskResumed</code> and are distinguishable only by the payload's rule, so the catalog stays closed (<code>TestAdoptAndRequeueReuseTheCatalogNamesAndDifferOnlyInTheRule</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile requeue kill d-054 d-3 negative"><td>TC-240</td><td>dashboard (go test)</td><td>Negative</td><td>A requeue with nothing able to kill the previous run degrades to an orphan rather than handing the workspace on (<code>TestARequeueThatCannotKillDegradesToAnOrphan</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile adopt lease d-2 positive"><td>TC-241</td><td>dashboard (go test)</td><td>Positive</td><td>An adopted run keeps its lease, its <code>RUNNING</code> status and its desk; nothing is killed and nothing restarted (<code>TestAnAdoptedRunIsNotKilledAndNotRestarted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconcile orphan workspace release br-7.5 positive"><td>TC-242</td><td>dashboard (go test)</td><td>Positive</td><td>An orphaned run releases its workspace, so the expiry that made it an orphan does not go on making it one (<code>TestOrphanReleasesTheWorkspaceSoSomethingCanUseItAgain</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 positive"><td>TC-243</td><td>kill-mid-task.sh</td><td>Positive</td><td>After <code>SIGKILL</code> to the orchestrator the child process is still alive</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 negative"><td>TC-244</td><td>kill-mid-task.sh</td><td>Negative</td><td>The child died with its orchestrator, which is D-2 broken</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 positive"><td>TC-245</td><td>kill-mid-task.sh</td><td>Positive</td><td>The restarted orchestrator reconciles before it listens and adopts the surviving run</td><td>Implemented</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 negative"><td>TC-246</td><td>kill-mid-task.sh</td><td>Negative</td><td>No adoption in the timeline — a held lease with a fresh beat was requeued or orphaned instead</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1158,13 +1170,15 @@
   <code>only %d distinct event types were emitted; the run is not exercising enough of the catalog
   for this to mean anything</code>.
   <strong>Negative (TC-144):</strong> the declared-but-unwritten names are pinned to the modules that
-  owe them — boot reconciliation (M4.2, T-053), the review engine (M5.2), the six guards (M5.5), the
+  owe them — the review engine (M5.2), the six guards (M5.5), the
   planner's task graph (M3.2), recall (M7.3) and the budget guard (M10.3).
-  <code>RunStarted</code>, <code>Heartbeat</code> and <code>RunExited</code> came off that list on
-  2026-08-22 when T-050 and T-052 gave them a supervisor, which is what this case is for: the driver
-  now runs one real supervision against the stand-in tool, because a name is only <em>emitted</em> if
-  something emits it and a test that just deleted three rows from the map would be recording an
-  intention. A name that starts being emitted fails
+  <strong>The whole execution group came off that list on 2026-08-22</strong>, which is what this
+  case is for: the driver now runs one real supervision against the stand-in tool <em>and</em> one
+  boot reconciliation over an expired lease, because a name is only <em>emitted</em> if something
+  emits it and a test that just deleted four rows from the map would be recording an intention.
+  <code>TaskOrphaned</code> needed the second driver rather than the first, and the reason is the
+  point: no live supervisor ever witnesses an orphan, because an orphan is a run whose supervisor is
+  already gone. A name that starts being emitted fails
   (<code>%s is being emitted, but this list still says it is owed to %s -- if the module landed, take
   it out of the list</code>) and so does a declared name with no reason beside it
   (<code>%s is in the catalog, is not emitted, and is not listed as owed to a later module; a
@@ -1628,6 +1642,73 @@
   The case also parses <code>adapter_cli.go</code> to check the guard is still <em>on</em> the spawn
   path, because <code>every test in this package would still pass without it, because they all drive
   the fake, and the deletion would only surface as a bill</code>.</p>
+
+  <h3 id="go-reconcile">dashboard — boot reconciliation (TC-236…TC-242)</h3>
+  <p><code>T-053</code>. <a href="brd.html#req-d">D-4</a> does not hedge:
+  <em>"On boot, reconcile every task claiming to be dispatched or running against its lease and
+  heartbeat: adopt, requeue, or fail as orphaned. This is the whole of recovery; there is no other
+  path."</em>
+  <strong>Positive (TC-236):</strong> the architecture page's pseudocode, one row per branch, each
+  carrying the reason it is what it is — a live lease with a fresh beat is adopted, because
+  <em>"killing or restarting it would throw away work that is going fine"</em>; a live lease with a
+  stale beat is requeued, because <em>"the supervisor stopped beating, which says nothing about the
+  child — D-2 detached it precisely so it would outlive its supervisor"</em>; an expired lease is
+  orphaned, because <em>"a task that cannot be proved alive is not assumed alive"</em>. Failures read
+  <code>%s was %s, want %s; %s</code> with that reason substituted, and every decision must carry one:
+  <code>the decision carries no reason; a recovery nobody can explain is a recovery nobody can
+  audit</code>.
+  <strong>Negative (TC-237):</strong> D-4's scope is a scope rather than a filter —
+  <code>%d of the ten statuses were reconciled, want 2; D-4 scopes recovery to DISPATCHED and
+  RUNNING, and a task in any other status is not claiming a process</code>, and neither may be
+  skipped: <code>%s was not reconciled; a task claiming a process that nobody checked is the hole
+  recovery exists to close</code>.
+  <strong>Negative (TC-238):</strong> the same structural discipline the scheduler is held to, for a
+  sharper reason — this runs once per boot over evidence nobody can reproduce afterwards:
+  <code>reconcile.go imports %s; the whole of recovery has to be a function of the evidence it was
+  handed, and a file that can reach the clock is one edit from a recovery nobody can reproduce</code>.
+  <strong>Positive (TC-239):</strong> the closed catalog, kept closed —
+  <code>both recoveries carry rule %q; they share TaskResumed, so the rule is the only thing that
+  distinguishes them and a reader of the stream could not tell an adopted run from a requeued
+  one</code>.
+  <strong>Negative (TC-240):</strong> <a href="decision-log.html#d-054">D-054</a>'s teeth, and the
+  case most likely to be read as over-caution. Requeue <em>promises</em> the previous run has been
+  made dead; with nothing able to kill it that promise cannot be kept, and a requeue whose kill
+  silently did nothing is the second run in one workspace wearing a reassuring event saying it was
+  handled — <code>a requeue with nothing able to kill emitted %s, want %s; the requeue would have
+  handed the workspace on while claiming the previous run was dead, which is the corruption D-3 exists
+  to prevent reached through the recovery routine</code>.
+  <strong>Positive (TC-241):</strong> <code>the task is %s after adoption, want %s; nothing stopped,
+  so nothing should have moved</code>, and <code>adoption broke the lease; the run is still going and
+  its workspace is still its own</code>.
+  <strong>Positive (TC-242):</strong> BRD §7.5's exception row —
+  <code>an orphaned run kept its lease; the workspace can never be scheduled again, and the expiry
+  that made it an orphan would go on making it one forever</code>.</p>
+
+  <h3 id="sc-kill-mid-task">kill-mid-task.sh — build-order step 5 (TC-243…TC-246)</h3>
+  <p>The acceptance test the whole of <a href="../delivery/implementation-plan.html#sub-m4-2">M4.2</a>
+  exists to satisfy: <em>"Kill the orchestrator mid-task; the work survives and is re-adopted."</em>
+  <strong>It cannot be a Go test, and pretending otherwise would be worse than not having it.</strong>
+  The property is that a child outlives its parent; under <code>go test</code> the test binary
+  <em>is</em> the parent of everything it spawns and the harness reaps the tree on exit, so the
+  framework undoes the one thing being asserted. <a href="#register">TC-232</a> gets as close as Go
+  can by cancelling a context, which covers <code>context.WithoutCancel</code> and nothing beyond it.
+  <strong>Positive (TC-243) / Negative (TC-244):</strong> the assertion the script exists for —
+  <code>the child outlived the orchestrator that started it</code>, against
+  <code>the child died with its orchestrator — D-2 says work runs in detached processes that survive
+  it</code>.
+  <strong>Positive (TC-245) / Negative (TC-246):</strong> the recovery half —
+  <code>boot reconciliation ran before the listener came up</code> and
+  <code>the run was adopted rather than restarted or orphaned</code>, against
+  <code>no adoption in the timeline — a lease held and a beat fresh is the adopt branch (D-4)</code>.
+  It closes with <code>step 5: the work survived and was re-adopted</code>.
+  <strong>Two limits, both deliberate and both printed rather than discovered.</strong> It runs
+  against a scratch ArcadeDB and never against dev or prod, because recovery writes to the graph and
+  those instances belong to the wider stacks. And it <em>cannot</em> run with
+  <code>GAOS_STORE=memory</code>: <code>MemStore</code> loses every task record on restart, so there
+  is no claim left to reconcile — recovery is a property of the ArcadeDB deployment, and a green run
+  against memory would have proved nothing. The provider tool is the stand-in, with a sleep long
+  enough to be killed around; the thing under test is the orchestrator's recovery, not a model's
+  output.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

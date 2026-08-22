@@ -143,6 +143,14 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 		return Attempt{}, err
 	}
 
+	// DISPATCHED -> RUNNING. The distinction exists for exactly one reader: boot
+	// reconciliation, which D-4 scopes to "every task claiming to be dispatched
+	// or running". A task that had been decided on but never reached a process
+	// and one that has a live child are different recoveries, and collapsing
+	// them would mean either killing work that was fine or requeuing work that
+	// never started.
+	s.moveTaskByID(taskID, StatusRunning)
+
 	s.emitLocked(RunStarted, deskID,
 		fmt.Sprintf("run %s started, attempt %d", runID, attempt), KindInfo,
 		EventPayload{Digest: c.Digest(), Bytes: c.Bytes()})
@@ -156,7 +164,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	close(done)
 
 	if err != nil {
-		s.finishRun(deskID, runID, Attempt{Digest: c.Digest()}, err)
+		s.finishRun(deskID, taskID, runID, Attempt{Digest: c.Digest()}, err)
 		return Attempt{}, err
 	}
 
@@ -164,7 +172,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	// for "silent since T" rather than having to infer one from the RunExited.
 	s.beatOnce(deskID, ws, runID, time.Now().Unix(), 0, false, true)
 
-	s.finishRun(deskID, runID, att, nil)
+	s.finishRun(deskID, taskID, runID, att, nil)
 	return att, nil
 }
 
@@ -180,9 +188,8 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 // process ended and what it cost; whether the output is any good is the review
 // engine's, M5. D-050 forbids reading that from an exit, and this is the place
 // it would be tempting to.
-func (s *MemStore) finishRun(deskID, runID string, att Attempt, runErr error) {
+func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	p := EventPayload{Digest: att.Digest}
 	text := fmt.Sprintf("run %s exited %s, outcome %s", runID, att.ExitClass, att.Outcome())
@@ -198,6 +205,22 @@ func (s *MemStore) finishRun(deskID, runID string, att Attempt, runErr error) {
 		// the desk must not be left looking like nothing happened.
 		p.Reason = att.Failure
 		kind = KindFail
+	}
+
+	// Where the task goes next, and pointedly not "done".
+	//
+	// A run that ended is a run that produced something to judge, not a verdict.
+	// D-050 forbids reading the outcome from the exit, and BR-13 scores every
+	// attempt, so the furthest this may move a task is REVIEW -- M5 decides the
+	// rest. The two exceptions are failures of the invocation rather than of the
+	// work: no handoff at all (BR-30), and a run that never started.
+	switch {
+	case runErr != nil, att.Failure != "":
+		s.moveTaskLocked(taskID, StatusFailed)
+	case att.Outcome() == HandoffBlocked:
+		s.moveTaskLocked(taskID, StatusBlocked)
+	default:
+		s.moveTaskLocked(taskID, StatusReview)
 	}
 
 	if i := s.deskIdxByID(deskID); i >= 0 {
@@ -217,7 +240,12 @@ func (s *MemStore) finishRun(deskID, runID string, att Attempt, runErr error) {
 			}
 		}
 	}
-	s.emit(RunExited, deskID, text, kind, p)
+	e := s.emit(RunExited, deskID, text, kind, p)
+	s.mu.Unlock()
+
+	// Outside the lock on purpose: publish is a database round trip, and one
+	// slow write must not hold the floor closed against every reader.
+	s.publish(e)
 }
 
 // beat runs until the run is over. Its own goroutine because the adapter call
@@ -266,8 +294,268 @@ func (s *MemStore) beatOnce(deskID, ws, runID string, now, lastEvent int64, firs
 // stop every reader on it.
 func (s *MemStore) emitLocked(t EventType, deskID, text, kind string, p EventPayload) {
 	s.mu.Lock()
+	e := s.emit(t, deskID, text, kind, p)
+	s.mu.Unlock()
+	s.publish(e)
+}
+
+// moveTaskByID takes the lock and moves one task. moveTaskLocked assumes it is
+// already held, same split as every other pair in the store.
+//
+// A task id that names nothing is NOT an error. The operator-triggered dispatch
+// route freezes a packet with a display id (see freezePacketFor) and has no
+// planned task behind it at all, so "no record to move" is the ordinary case
+// rather than a failure -- and turning it into one would mean the runner
+// refused to supervise anything an operator asked for by hand.
+//
+// A refused TRANSITION is different, and is dropped on the floor here on
+// purpose: moveTask already returns the reason, the caller is a supervisor with
+// nowhere to put it, and the state machine's job is to refuse the write rather
+// than to unwind the run around it.
+func (s *MemStore) moveTaskByID(id, to string) {
+	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.emit(t, deskID, text, kind, p)
+	s.moveTaskLocked(id, to)
+}
+
+func (s *MemStore) moveTaskLocked(id, to string) {
+	for i := range s.tasks {
+		if s.tasks[i].ID == id {
+			_ = moveTask(&s.tasks[i], to)
+			return
+		}
+	}
+}
+
+// schedulerTick is how often the control loop asks. Seconds rather than
+// milliseconds: a pass reads the graph, stats every leased workspace and starts
+// processes, and nothing on this floor becomes ready faster than a run finishes.
+const schedulerTick = 2 * time.Second
+
+// RunOnce is one pass of the control loop: ask the scheduler what may start,
+// and start it.
+//
+// The clock is read HERE and nowhere below. Schedule is a pure function of what
+// it is handed (D-1), and a second read further down would let two tasks in one
+// decision be judged against two different nows.
+//
+// Everything it starts runs in its own goroutine, because superviseRun blocks
+// for as long as the work takes and a loop that waited would dispatch one task
+// per twenty minutes.
+func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
+	now := time.Now().Unix()
+	decision := Schedule(s.schedulerInput(now))
+	if ad == nil || !runnerEnabled() {
+		// The decision still stands and is still worth having -- T-109 renders
+		// the blocked half whether or not anything may run. What does not happen
+		// is the spending.
+		return decision
+	}
+	for _, d := range decision.Ready {
+		c, ok := s.clearFor(d)
+		if !ok {
+			continue
+		}
+		// PENDING -> READY -> DISPATCHED, both legal and both meaningful. READY
+		// is the scheduler's verdict; DISPATCHED is this loop acting on it, and
+		// the gap between them is what boot reconciliation reads.
+		s.moveTaskByID(d.TaskID, StatusReady)
+		s.moveTaskByID(d.TaskID, StatusDispatched)
+
+		dispatch, task := d, d.TaskID
+		go func() {
+			if _, err := s.superviseRun(context.WithoutCancel(ctx), ad, dispatch.DeskID, c, 1); err != nil {
+				// The run never started. Put the task back rather than leaving
+				// it DISPATCHED forever, which would make the next boot
+				// reconcile a run that does not exist.
+				s.moveTaskByID(task, StatusReady)
+			}
+		}()
+	}
+	return decision
+}
+
+// clearFor freezes and screens the packet for one scheduled task. BR-32: the
+// only way to a provider is through Screen, and the only thing that returns a
+// Cleared is Screen.
+func (s *MemStore) clearFor(d Dispatch) (Cleared, bool) {
+	s.mu.RLock()
+	idx := s.deskIdxByID(d.DeskID)
+	if idx < 0 {
+		s.mu.RUnlock()
+		return Cleared{}, false
+	}
+	pkt := s.freezePacketFor(s.desks[idx], d.TaskID)
+	pol, tgt := s.egress, s.target
+	s.mu.RUnlock()
+
+	c, _, err := Screen(pol, tgt, pkt)
+	if err != nil {
+		return Cleared{}, false
+	}
+	return c, !c.empty()
+}
+
+// ---------------------------------------------------------------- recovery
+//
+// The pure decision is in reconcile.go. This is the boot pass that reads the
+// evidence for it, acts on what it says, and writes the result down.
+
+// claimsFrom gathers the evidence for every task that says it is running.
+//
+// The two signals come from different places on purpose. The STATUS is in the
+// graph, which is what a restart rebuilds from; the LEASE and the BEAT come off
+// the workspace, which is what survives when the graph does not. That is also
+// why the acceptance test for build-order step 5 cannot run against
+// GAOS_STORE=memory: MemStore loses every task record on restart, so there is
+// no claim left to reconcile, and recovery is an ArcadeDB-deployment property.
+func (s *MemStore) claimsFrom() []RunClaim {
+	s.mu.RLock()
+	type pending struct{ id, desk, ws, status string }
+	var todo []pending
+	for _, t := range s.tasks {
+		if t.Status != StatusDispatched && t.Status != StatusRunning {
+			continue
+		}
+		todo = append(todo, pending{t.ID, t.DeskID, s.workspaceForDesk(t.DeskID), t.Status})
+	}
+	s.mu.RUnlock()
+
+	// The filesystem read is outside the lock, same argument schedulerInput
+	// makes: one slow disk must not stall every reader on the floor.
+	out := make([]RunClaim, 0, len(todo))
+	for _, p := range todo {
+		claim := RunClaim{TaskID: p.id, DeskID: p.desk, Workspace: p.ws, Status: p.status}
+		if l, ok, err := ReadLease(p.ws); err == nil && ok {
+			claim.LeaseUntil = l.LeaseUntil
+			// The beat is not stored separately: every beat renews the lease to
+			// now+leaseTTL, so the last renewal IS the last beat and one number
+			// carries both. Deriving it here rather than writing it twice means
+			// the two cannot disagree, which is worth more than the field.
+			claim.LastBeatAt = l.LeaseUntil - leaseTTL
+		}
+		out = append(out, claim)
+	}
+	return out
+}
+
+// Reconcile is the boot pass. D-4: "this is the whole of recovery; there is no
+// other path."
+//
+// It runs before the listener is up, which is what makes the read-only replay
+// handle irrelevant here -- no operator can be in replay yet -- and it is why a
+// failure fails the boot. A dashboard that could not work out what was running,
+// then served a floor as if nothing were, would look completely healthy while a
+// detached process edited a repository nobody was watching.
+func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
+	now := time.Now().Unix()
+	claims := s.claimsFrom()
+	decisions := Reconcile(claims, now, heartbeatTimeout)
+
+	byID := map[string]RunClaim{}
+	for _, c := range claims {
+		byID[c.TaskID] = c
+	}
+
+	s.mu.RLock()
+	ad := s.adapter
+	s.mu.RUnlock()
+
+	var ev []Event
+	for _, d := range decisions {
+		c := byID[d.TaskID]
+		switch s.resolveAction(d, ad, c) {
+		case ReconcileAdopt:
+			// The child is alive and the beat is fresh. Nothing is killed and
+			// nothing restarted: the task carries on being RUNNING under a new
+			// supervisor, which is the whole point of having detached it.
+			s.moveTaskByID(d.TaskID, StatusRunning)
+			ev = append(ev, s.emitReconciled(TaskResumed, c.DeskID,
+				"adopted the run on "+d.TaskID, KindInfo, "", d))
+
+		case ReconcileRequeue:
+			// D-054, the kill half. The pseudocode's "process gone" is not a
+			// fact anybody here has established -- see reconcile.go -- so the
+			// run is MADE dead before its workspace is handed on.
+			if r, ok, err := ReadRunRecord(c.Workspace); err == nil && ok && ad != nil {
+				_ = ad.Stop(r)
+			}
+			_ = BreakLease(c.Workspace)
+			s.moveTaskByID(d.TaskID, StatusReady)
+			ev = append(ev, s.emitReconciled(TaskResumed, c.DeskID,
+				"requeued "+d.TaskID+" after making its unsupervised run dead", KindWarn,
+				StateIdle, d))
+
+		case ReconcileOrphan:
+			_ = BreakLease(c.Workspace)
+			s.moveTaskByID(d.TaskID, StatusFailed)
+			ev = append(ev, s.emitReconciled(TaskOrphaned, c.DeskID,
+				"orphaned "+d.TaskID, KindFail, StateBlocked, d))
+		}
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return Result{
+		Floor:     s.floor(),
+		NewEvents: ev,
+		Toast:     fmt.Sprintf("Reconciled %d claimed run(s).", len(decisions)),
+	}, nil
+}
+
+// resolveAction is the one place the boot pass may overrule the pure decision,
+// and it does so in exactly one direction.
+//
+// Requeue promises that the previous run has been made dead. With no adapter
+// configured there is nothing that knows how to kill it, so that promise cannot
+// be kept -- and a requeue whose kill silently did nothing is the second run in
+// one workspace that D-3 exists to prevent, with a reassuring event in the
+// timeline saying it was handled.
+//
+// So it degrades to orphan. A task that failed and needs a human is a worse
+// outcome than a clean requeue and a far better one than silent corruption.
+func (s *MemStore) resolveAction(d Reconciliation, ad Adapter, c RunClaim) string {
+	if d.Action != ReconcileRequeue {
+		return d.Action
+	}
+	if ad == nil {
+		return ReconcileOrphan
+	}
+	if r, ok, err := ReadRunRecord(c.Workspace); err != nil || !ok || r.Detail["pgid"] == "" {
+		// Nothing recorded a process, so nothing can be proved dead.
+		return ReconcileOrphan
+	}
+	return ReconcileRequeue
+}
+
+// emitReconciled moves the desk and writes the event, under one lock.
+//
+// One lock and one function for the same reason finishRun is: the reducer's
+// case for this event has to reproduce exactly what the live path did, and two
+// separate steps are two chances for them to diverge. deskState may be empty,
+// which is the adopt branch -- an adopted run changes nothing on the floor,
+// because nothing about it stopped.
+//
+// D-052's precedent for the payload: adopt and requeue share TaskResumed and
+// differ only in Rule, so the catalog stays closed (BR-05) and no reducer has
+// to parse a sentence somebody might improve.
+func (s *MemStore) emitReconciled(t EventType, deskID, text, kind, deskState string, d Reconciliation) Event {
+	s.mu.Lock()
+	if deskState != "" {
+		if i := s.deskIdxByID(deskID); i >= 0 {
+			if err := s.setState(&s.desks[i], deskState); err == nil {
+				if deskState == StateBlocked {
+					s.desks[i].BlockReason = d.Reason
+				} else {
+					s.desks[i].BlockReason = ""
+				}
+			}
+		}
+	}
+	e := s.emit(t, deskID, text, kind, EventPayload{Rule: d.Rule, Reason: d.Reason})
+	s.mu.Unlock()
+	s.publish(e)
+	return e
 }
 
 func exitKind(a Attempt) string {

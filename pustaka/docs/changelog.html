@@ -36,6 +36,72 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-20-0">v0.20.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px"><b>Build-order step 5 passes:
+      kill the orchestrator mid-task, and the work survives and is re-adopted.</b> M4.2 closes, the
+      closed catalog's execution group is fully emitted for the first time, and the recovery
+      pseudocode in the architecture document turns out to have been wrong about the one branch that
+      matters.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>boot reconciliation
+        (<a href="delivery/implementation-plan.html#sub-m4-2">T-053</a>).</b>
+        <code>dashboard/reconcile.go</code> holds the decision as a pure function and
+        <code>runner.go</code> the pass that acts on it. It runs <em>before the listener</em>, because
+        a request served first would see a floor lying about what is in flight, and a failure
+        <b>fails the boot</b> &mdash; a dashboard that could not work out what was running, then
+        served a floor as if nothing were, looks completely healthy while a detached process edits a
+        repository nobody is watching.</li>
+
+        <li><span class="chg fix">Fixed</span> <b>the architecture document's recovery branch, and the
+        event it named (<a href="product/decision-log.html#d-054">D-054</a>).</b> The middle branch
+        was commented <em>"lease held, process gone"</em>. <b>It does not know the process is gone.</b>
+        It knows the <em>beat</em> is stale, and a stale beat means the SUPERVISOR died &mdash; which
+        says nothing about the child, because <a href="product/brd.html#req-d">D-2</a> detached it
+        precisely so it would outlive its supervisor. Requeuing on that basis starts a second run in a
+        workspace that may still have a live one in it: the corruption
+        <a href="product/brd.html#req-d">D-3</a> exists to prevent, reached <em>through</em> the
+        recovery routine. So requeue kills first, and where nothing is able to kill it degrades to an
+        orphan rather than requeuing on a promise it cannot keep. The page also emitted
+        <code>TaskFailed</code>, which is not in the closed catalog at all.</li>
+
+        <li><span class="chg add">Added</span> <b><code>Stop</code> on the adapter seam.</b> The
+        reconciler has to be able to say &ldquo;make this dead&rdquo;, and what that MEANS is
+        mode-specific &mdash; a signal to a process group for a CLI run, cancelling a request for the
+        API adapter. A reconciler that knew about pids would be one that only worked for one mode,
+        which is what <a href="product/brd.html#rules-commercial">BR-33</a> forbids.</li>
+
+        <li><span class="chg add">Added</span> <b>the control loop, and a flush hook the runner needed
+        to exist at all.</b> One pass asks the scheduler what may start and starts it. Along the way:
+        the runner is the first writer in this codebase that is <em>nobody's request</em>, so there is
+        no <code>mutate()</code> around it and its events would have lived and died in the projection.
+        <code>MemStore.onWrite</code> is how a background writer reaches durable storage. The first
+        version deadlocked the boot &mdash; the reconciler held the store lock while the hook tried to
+        take it &mdash; and the acceptance test below is what found it.</li>
+
+        <li><span class="chg add">Added</span> <b><code>deploy/acceptance/kill-mid-task.sh</code>
+        (<a href="product/qa-test-plan.html#sc-kill-mid-task">TC-243…TC-246</a>).</b>
+        <b>This cannot be a Go test</b>, and pretending otherwise would be worse than not having it:
+        the property is that a child outlives its parent, and under <code>go test</code> the test
+        binary <em>is</em> that parent while the harness reaps the tree on exit. Two limits are
+        printed rather than discovered &mdash; it never runs against dev or prod, and it cannot run
+        with <code>GAOS_STORE=memory</code>, because a memory store loses every task record on restart
+        and would pass by having nothing to check.</li>
+
+        <li><span class="chg change">Changed</span> <b><code>TaskOrphaned</code> came off the owed
+        list, and with it the whole execution group.</b> The split is worth keeping in mind: the three
+        names that landed one release ago are exactly the ones a live supervisor can witness, and this
+        one needed the only thing that can observe an orphan &mdash; a <em>restart</em>. No supervisor
+        ever sees one, because an orphan is a run whose supervisor is already gone.</li>
+
+        <li><span class="chg note">Note</span> <b>a finding the acceptance test surfaced and this
+        release does not fix.</b> <code>CreateWorkflow</code> seats an agent on the desk, and the
+        scheduler then sees that agent as busy for the plan's first task &mdash; the same work,
+        double-booked. The scheduler is right to refuse and says why; the desk-level seating predates
+        a scheduler that seats per task. It wants its own change rather than a quiet one here.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-19-0">v0.19.0 <time datetime="2026-08-22">2026-08-22</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A real tool now runs, supervised,
       against a leased workspace &mdash; and it outlives the process that started it. Three names come

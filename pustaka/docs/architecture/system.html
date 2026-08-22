@@ -75,13 +75,26 @@
     if lease &gt; now and beat &gt; now - heartbeat_timeout:
         adopt(task)                    <span class="c"># the process is alive; reattach</span>
     elif lease &gt; now:
-        requeue(task)                  <span class="c"># lease held, process gone</span>
+        kill(task); requeue(task)      <span class="c"># lease held, SUPERVISOR gone -- see below</span>
     else:
-        emit TaskFailed(reason=orphaned)</pre>
+        emit TaskOrphaned(rule=lease-expired)</pre>
   </div>
 
   <p>A task that cannot be proved alive is not assumed alive. The heartbeat and the lease are two
   independent signals precisely so that a hung process and a dead one are distinguishable.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">The middle branch used to say &ldquo;process gone&rdquo;. It does not know that.</p>
+    <p>It knows the <em>beat</em> is stale, and a stale beat means the <em>supervisor</em> died &mdash;
+    which says nothing whatever about the child, because work is detached precisely so it outlives
+    its supervisor. Requeuing on that basis starts a second run in a workspace that may still have a
+    live one in it: the exact silent corruption the exclusive lease exists to prevent, reached
+    through the recovery routine. So requeue <strong>kills first</strong>. A run that can be proved
+    neither alive nor dead is made dead before its workspace is handed to anybody
+    (<a href="../product/decision-log.html#d-054">D-054</a>). The event this branch emitted was also
+    named <code>TaskFailed</code> here, which is not in the closed catalog &mdash; it is
+    <code>TaskOrphaned</code>, and both corrections landed with the code that made them matter.</p>
+  </div>
 
   <h2 id="setup-to-autonomy">From an empty record to autonomous work</h2>
 
