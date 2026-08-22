@@ -63,7 +63,7 @@ window.DOCS.nav.push({
         { anchor: "references", title: "13. References",
           text: "Section-precise pointers into the three artifacts, the dashboard files that hold the seam and the closed event catalog, the deployment runbooks, the architecture and infrastructure pages, and the FAQ." },
         { anchor: "decision-log", title: "14. Decision log",
-          text: "Pointer to the fifty-three logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
+          text: "Pointer to the fifty-four logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
         { anchor: "business-milestones", title: "15. Business milestones",
           text: "Eight real dated milestones from git history, ending with the repository becoming licensed, and the next twelve — led by landing the new event names and task state together, then the first adapter and the budget guard." },
         { anchor: "business-decision-matrix", title: "16. Business decision matrix",
@@ -132,15 +132,15 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates two hundred and thirty-five positive and negative test cases across the deploy tooling and the two Go test packages that run today, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates two hundred and forty-six positive and negative test cases across the deploy tooling and the two Go test packages that run today, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All two hundred and thirty-five TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the one hundred and seventy-one unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All two hundred and forty-six TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the one hundred and seventy-eight unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
-          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and forty-nine dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
+          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and fifty-six dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
           text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist." }
       ]

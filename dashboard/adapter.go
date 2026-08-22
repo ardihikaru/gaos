@@ -144,6 +144,20 @@ type Adapter interface {
 	// Anything this learns about the process is corroboration inside the
 	// adapter, never a branch above it.
 	Resume(ctx context.Context, c Cleared, r RunRecord) (Attempt, error)
+
+	// Stop makes a run dead, and it is on the seam rather than in the reconciler
+	// because BR-33 would not survive it being anywhere else.
+	//
+	// Boot reconciliation has to be able to say "make this dead" -- D-054, the
+	// kill half of kill-then-requeue -- and what that MEANS is entirely
+	// mode-specific: for a CLI run it is a signal to a process group, for the
+	// API adapter (T-058) it will be cancelling a request. A reconciler that
+	// knew about pids would be a reconciler that only worked for one mode, and
+	// BR-33 says nothing above this line may branch on the mode at all.
+	//
+	// Idempotent: stopping a run that is already gone is not an error, because
+	// the caller reached here precisely because it could not tell.
+	Stop(r RunRecord) error
 }
 
 // RunRecord is what a run left behind for whoever picks it up next. Written to

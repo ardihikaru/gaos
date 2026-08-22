@@ -261,8 +261,39 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Cost = p.Cost
 
 	case TaskResumed:
-		d.State = StateActive
-		d.BlockReason = ""
+		// Two different recoveries share this name, and the payload's Rule is
+		// what tells them apart -- D-052's precedent, so the closed catalog does
+		// not have to grow two more entries for one shape of event.
+		//
+		// "requeued" is boot reconciliation putting work back in the queue after
+		// making its unsupervised run dead (D-054). The desk goes idle, not
+		// active: nothing is running on it, and a desk that looked active with
+		// no process behind it is the exact lie this whole module exists to
+		// prevent.
+		//
+		// "adopted" changes nothing on the floor, because nothing stopped -- the
+		// child is alive and simply has a new supervisor.
+		switch p.Rule {
+		case RuleRequeued:
+			d.State = StateIdle
+			d.BlockReason = ""
+		case RuleAdopted:
+			// Deliberately nothing.
+		default:
+			d.State = StateActive
+			d.BlockReason = ""
+		}
+
+	case TaskOrphaned:
+		// A task that claimed to be running, whose lease had expired and whose
+		// beat was long gone. BRD §7.5: "release the workspace, emit
+		// TaskOrphaned, apply the retry policy."
+		//
+		// The desk blocks rather than going idle. An orphan is not work waiting
+		// to be picked up; it is work whose fate nobody can establish, and it
+		// needs a human before anything touches that workspace again.
+		d.State = StateBlocked
+		d.BlockReason = p.Reason
 
 	case TaskDeferred:
 		// D-037's throttled zone. BR-34: not a failure, so the retry and

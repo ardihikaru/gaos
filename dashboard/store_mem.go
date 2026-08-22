@@ -125,6 +125,20 @@ type MemStore struct {
 	target  Target
 	adapter Adapter
 
+	// onWrite is how a BACKGROUND writer's changes reach durable storage.
+	//
+	// Every other mutation on this store is called by a handler, and ArcadeStore
+	// wraps those in mutate() which persists whatever they produced. The runner
+	// is the first writer that is nobody's request: it emits RunStarted minutes
+	// before it emits RunExited, from a goroutine no handler is waiting on, so
+	// there is no mutate() around it and its events would live and die in this
+	// projection.
+	//
+	// nil in a memory deployment, where the projection IS the store and there is
+	// nothing to flush to. ArcadeStore sets it. Called outside the lock, because
+	// it writes to a database.
+	onWrite func(Result)
+
 	// workspaceRoot is where a run's files live, one directory per desk. Empty
 	// in every deployment today, which means a packet carries the record and
 	// no repository files -- a smaller egress, screened by the same pass.
@@ -149,6 +163,29 @@ func (s *MemStore) setEgressForTest(p EgressPolicy, tgt Target) {
 // boot smoke test has passed -- never per request, because §7.6.1 makes the
 // mode a deployment decision and a per-task override "would make two attempts
 // at the same task incomparable".
+// SetOnWrite installs the flush hook. See MemStore.onWrite.
+func (s *MemStore) SetOnWrite(f func(Result)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onWrite = f
+}
+
+// publish hands a background writer's events to durable storage, if there is
+// any. Takes the lock only to read the floor and the hook, and calls the hook
+// outside it: persisting is a network round trip, and holding the floor's lock
+// across one would stall every reader on it.
+func (s *MemStore) publish(ev ...Event) {
+	if len(ev) == 0 {
+		return
+	}
+	s.mu.RLock()
+	f, floor := s.onWrite, s.floor()
+	s.mu.RUnlock()
+	if f != nil {
+		f(Result{Floor: floor, NewEvents: ev})
+	}
+}
+
 func (s *MemStore) SetAdapter(a Adapter) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -910,8 +947,20 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 //
 // Assumes the lock is held.
 func (s *MemStore) freezePacket(d Desk) Packet {
+	return s.freezePacketFor(d, taskIDOf(d))
+}
+
+// freezePacketFor is freezePacket with the task id supplied.
+//
+// The operator-triggered route has no graph task behind it and passes the
+// display id; the scheduler-driven route passes the id of the Task vertex it
+// decided to run. The difference matters downstream: the runner updates the
+// TaskRecord it was named, and a packet carrying a display id simply has no
+// record to update -- which is correct rather than lossy, because there is no
+// planned task behind an operator poking a desk.
+func (s *MemStore) freezePacketFor(d Desk, taskID string) Packet {
 	pkt := Packet{
-		TaskID:    taskIDOf(d),
+		TaskID:    taskID,
 		DeskID:    d.ID,
 		Workspace: s.workspaceFor(d),
 	}
@@ -922,7 +971,7 @@ func (s *MemStore) freezePacket(d Desk) Packet {
 	}
 
 	add(".gaos/packet/task.md", KindTask,
-		"# "+taskIDOf(d)+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+"\n")
+		"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+"\n")
 
 	m := s.masterPtr(d.ID)
 	if m == nil {
