@@ -74,7 +74,7 @@
       <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the nine names still owed to the runner and the review engine</td></tr>
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>1</td><td>2</td><td>6</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>0</td><td>2</td><td>18</td><td><a href="#register">T-048</a> &mdash; the scheduler</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
@@ -85,7 +85,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>40</b></td><td><b>16</b></td><td><b>85</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>41</b></td><td><b>16</b></td><td><b>84</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -179,8 +179,8 @@
       <tr data-tags="domain-b readiness rubric band drift done m2.5"><td>T-038</td><td>M2.5</td><td>Publish the rubric and the missing list to the author &mdash; done 2026-08-20; the checklist carries the score, the band and per-signal weights, and <code>GET /products/{id}/readiness</code> answers the missing list too</td><td>B-3</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.1"><td>T-039</td><td>M3.1</td><td>A workflow is one objective on one product with a scope &mdash; <code>WorkflowDraft</code> carries objective and scope</td><td>C-1</td><td>🟡</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.1"><td>T-040</td><td>M3.1</td><td>Set the gate policy per workflow at creation time</td><td>C-1, F-1</td><td>❌</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.2"><td>T-041</td><td>M3.2</td><td>Expand an objective into an acyclic task graph &mdash; <code>PlanWorkflow</code> is pure but produces a fixed shape</td><td>C-2</td><td>🟡</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.2"><td>T-042</td><td>M3.2</td><td>Give planned tasks real dependencies, and reject a cycle</td><td>C-2</td><td>❌</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing partial fixtures m3.2"><td>T-041</td><td>M3.2</td><td>Expand an objective into an acyclic task graph &mdash; the output is a real DAG derived from the picked stories and it is persisted, but the shape is still a template rather than an expansion of the objective</td><td>C-2</td><td>🟡</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing done built m3.2"><td>T-042</td><td>M3.2</td><td>Give planned tasks real dependencies, and reject a cycle &mdash; <code>PlanTask.Deps</code>, fan-out per story and fan-in at the security review, written as <code>Task</code> vertices with <code>DEPENDS_ON</code> edges; a cycle is refused in <code>CreateWorkflow</code> before the first write</td><td>C-2</td><td>✅</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.3"><td>T-043</td><td>M3.3</td><td>Reject a task that is not atomic: one concern, one workspace, at least one acceptance criterion</td><td>C-3, BR-11</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-044</td><td>M3.4</td><td>Select role and model capability first, then risk, then cost &mdash; never cost first</td><td>C-4, BR-12</td><td>❌</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.4"><td>T-045</td><td>M3.4</td><td>Model senior-role capacity across all products</td><td>C-5</td><td>❌</td></tr>
@@ -542,10 +542,26 @@
   today has no answer to the question M6 is built around.</p>
 
   <h3 id="sub-m3-2">M3.2 — The task graph (T-041–T-042)</h3>
-  <p><code>PlanWorkflow</code> is already a pure function, which is the property that matters and
-  the one that is hardest to retrofit. What it produces is a fixed shape rather than an expansion of
-  the objective, with no real dependencies and no cycle check — so <code>C-2</code> is 🟡 on the
-  strength of its signature, not its output.</p>
+  <p><code>PlanWorkflow</code> was already a pure function, which is the property that matters and
+  the one that is hardest to retrofit. What it produced was a chain — every task carrying the
+  previous one as its single prerequisite — which is acyclic the way a straight line is, and which
+  left the cycle check with nothing to catch and <code>DEPENDS_ON</code> as decoration.
+  <code>T-042</code> closed that on 2026-08-22. <code>PlanTask.Deps</code> is a slice, the plan fans
+  out to one implement/verify pair per picked story and fans back in at the security review, and the
+  result is persisted: <code>Task</code> vertices with real <code>DEPENDS_ON</code> edges, written by
+  <code>ArcadeStore.writeTasks</code> and restored by <code>load()</code>. The cycle check lives in
+  <code>CreateWorkflow</code> rather than in the planner, because the planner cannot build a cycle
+  and the <code>Store</code> seam is public — the caller is what can.</p>
+  <p>Two id bugs had to close with it, both cosmetic until vertices existed.
+  <code>wf-%d</code> was built from <code>len(desks)+1</code>, which never changes, so every workflow
+  ever created was <code>wf-7</code>; and every plan numbered from <code>t-1</code>, which under
+  <code>Task (tenantId, id) UNIQUE</code> means the second plan upserts over the first and inherits
+  its edges. The counter is now monotonic and restored from the graph, and plan ids are qualified by
+  their workflow on the way to storage.</p>
+  <p><code>C-2</code> stays 🟡, and the reading is worth stating rather than leaving to a glance at
+  the glyph: the output is now a genuine DAG derived from the record, but it is still a template the
+  planner walks rather than an expansion of the objective by a model. That is <code>T-041</code>, and
+  moving it would be a decision about what &ldquo;expand&rdquo; means, not a change to the code.</p>
 
   <h3 id="sub-m3-3">M3.3 — Atomicity (T-043)</h3>
   <p><code>BR-11</code> makes atomicity a rejection rather than a guideline: one concern, one

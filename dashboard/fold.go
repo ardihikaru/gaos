@@ -164,7 +164,28 @@ func reduce(st FloorState, e Event) FloorState {
 		}
 
 	case TaskPlanned:
-		// Tasks live in the graph, not on the desk. Nothing on the floor moves.
+		// Tasks live in the graph, not on the desk. Nothing on the floor moves,
+		// and the payload's Tasks list is deliberately not read here.
+		//
+		// T-042 made that a real decision rather than a convenience. The task
+		// graph is authoritative persisted state, and this reducer is not how it
+		// is rebuilt -- ArcadeStore.load is, exactly as it is for the master
+		// record, whose ProductCreated and RecordUpdated sit in the no-op list
+		// further down for the same reason. BR-01 asks that memory be
+		// reconstructible, not that it be reconstructible by folding; the test
+		// that keeps this honest is TestTheTaskGraphSurvivesARestart.
+		//
+		// FloorState is also the wrong container for it. The comment at the top
+		// of this file already names what stays out and why, and a graph in here
+		// would additionally ride inside every snapshot rung, turning "six
+		// desks" into "six desks plus every task ever planned".
+		//
+		// The consequence, worth stating because it will surprise somebody:
+		// scrubbing the timeline shows the PRESENT graph beside a PAST floor.
+		// That is the same trade this file already makes for the room meters and
+		// the spend rail. It matters for T-109 -- the five blocking reasons the
+		// inspector renders must come from the live scheduler, never from a
+		// replayed floor.
 
 	case WorkflowCanceled:
 		d.State = StateIdle

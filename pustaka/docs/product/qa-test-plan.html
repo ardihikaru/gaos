@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred cases, positive and negative, across the three deploy automations and the
+  two hundred and eleven cases, positive and negative, across the three deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -72,7 +72,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and eleven cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -208,8 +208,8 @@
       <tr data-tags="go test unit dashboard schema embed drift go-embed positive"><td>TC-121</td><td>dashboard (go test)</td><td>Positive</td><td>The schema embedded in the binary matches <code>dashboard/schema/</code> file for file and byte for byte (<code>TestEmbeddedSchemaMatchesTheDirectory</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema statement split apply.sh parity positive"><td>TC-122</td><td>dashboard (go test)</td><td>Positive</td><td>The Go statement splitter strips comments, folds multi-line declarations and splits on the terminator exactly as <code>apply.sh</code> does (<code>TestSplitStatementsMatchesTheShellApplier</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema statement split empty comment negative"><td>TC-123</td><td>dashboard (go test)</td><td>Negative</td><td>No statement survives the split empty or still carrying a comment marker, and the total does not collapse (<code>TestEverySchemaStatementSurvivesTheSplit</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All thirty-two contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same thirty-two cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All forty contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same forty cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard store arcadedb restart rebuild br-01 positive"><td>TC-126</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant rebuilds the floor, the events and the master record from the graph, so the in-memory projection is a cache rather than a source of truth (<code>TestArcadeStoreRebuildsTheFloorFromTheGraph</code>)</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks store arcadedb graph tier parity positive"><td>TC-127</td><td>check-stacks.sh</td><td>Positive</td><td>Both tiers declare <code>GAOS_STORE: &quot;arcadedb&quot;</code>, so neither is quietly serving fixtures</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks store arcadedb graph tier parity negative"><td>TC-128</td><td>check-stacks.sh</td><td>Negative</td><td>A tier's <code>GAOS_STORE</code> setting is removed or changed away from <code>arcadedb</code></td><td>Implemented</td></tr>
@@ -285,6 +285,17 @@
       <tr data-tags="go test unit dashboard dispatch fold determinism new events positive"><td>TC-198</td><td>dashboard (go test)</td><td>Positive</td><td>The two new event types fold to the same floor twice, and the fold agrees with the live desk about the refusal (<code>TestTheRefusalAndTheRedactionFoldTheSameWayTwice</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch replay read-only handle t-099 negative"><td>TC-199</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only handle refuses a dispatch, so a floor parked in the past cannot send a slice assembled from a historical record (<code>TestDispatchIsRefusedInReplay</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch workspace credential r-11 end-to-end negative"><td>TC-200</td><td>dashboard (go test)</td><td>Negative</td><td>A real credential in a real workspace file refuses the dispatch, emits nothing that carries the key, and never reaches <code>TaskDispatched</code> (<code>TestACredentialInTheWorkspaceRefusesTheDispatch</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph dag fan-out fan-in t-042 positive"><td>TC-201</td><td>dashboard (go test)</td><td>Positive</td><td>Two picked stories become two independent branches off the architect, and the security review waits on every verifier (<code>TestThePlannerProducesADAGWithFanOutAndFanIn</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph topological order depends_on t-042 positive"><td>TC-202</td><td>dashboard (go test)</td><td>Positive</td><td>Every prerequisite is placed before the task that waits on it in the topological order (<code>TestEveryDependencyPointsAtATaskEarlierInTheTopologicalOrder</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph cycle rejection t-042 negative"><td>TC-203</td><td>dashboard (go test)</td><td>Negative</td><td>A caller-supplied plan whose dependencies loop is refused, names every task in the cycle, and writes nothing (<code>TestThePlannerRefusesAPlanWhoseDependenciesFormACycle</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task graph dangling prerequisite t-042 negative"><td>TC-204</td><td>dashboard (go test)</td><td>Negative</td><td>A task depending on an id outside its own plan is refused and the missing prerequisite is named (<code>TestADependencyOnATaskOutsideThePlanIsRejectedAndNamesIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard planner task id collision unique index workflow counter negative"><td>TC-205</td><td>dashboard (go test)</td><td>Negative</td><td>Two workflows on one desk produce distinct task ids and distinct workflow ids, so neither upserts over the other under <code>Task (tenantId, id) UNIQUE</code> (<code>TestTaskIdsAreUniqueAcrossTwoWorkflowsOnTheSameDesk</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task graph fold floorstate br-01 t-042 positive"><td>TC-206</td><td>dashboard (go test)</td><td>Positive</td><td>The folded floor is identical with and without a planned graph, and the graph is still there afterwards — it is persisted state, not a reduction (<code>TestTheGraphSurvivesAFoldBecauseItIsNotInTheFloor</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status state machine transitions positive"><td>TC-207</td><td>dashboard (go test)</td><td>Positive</td><td>Every transition the task table declares is permitted, including a status moving to itself (<code>TestEveryDeclaredTaskTransitionIsPermitted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status state machine transitions negative"><td>TC-208</td><td>dashboard (go test)</td><td>Negative</td><td>Fifteen undeclared task moves are refused, each with the reason it is illegal, and an undeclared status is refused in both directions (<code>TestEveryUndeclaredTaskTransitionIsRefused</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status deferred br-34 budget negative"><td>TC-209</td><td>dashboard (go test)</td><td>Negative</td><td><code>DEFERRED</code> cannot reach <code>FAILED</code>, the refusal names both statuses, and the task is unchanged afterwards (<code>TestADeferredTaskCanNeverGoStraightToFailed</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema ddl task status vocabulary positive"><td>TC-210</td><td>dashboard (go test)</td><td>Positive</td><td>The ten Go task statuses and <code>Task.status</code>'s DDL regexp are the same set, checked in both directions (<code>TestTheTaskStatusVocabularyMatchesTheDDL</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb restart task graph depends_on br-01 positive"><td>TC-211</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant returns every task, its ordinal and its prerequisites, and the workflow counter with them (<code>TestTheTaskGraphSurvivesARestart</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -993,7 +1004,7 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds thirty-two cases, each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty cases, each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
@@ -1299,6 +1310,103 @@
   (<code>logout Location = %q, want the prefixed login page</code>) are prefixed too; and with no
   proxy in front, nothing changes — <code>unproxied Location = %q, want the unprefixed login
   URL</code>.</p>
+
+  <h3 id="go-taskgraph">dashboard — the persisted task graph (TC-201…TC-206, TC-211)</h3>
+  <p><code>T-042</code>. <a href="../delivery/implementation-plan.html#sub-m3-2">M3.2</a> was
+  <em>"🟡 on the strength of its signature, not its output"</em>: <code>PlanWorkflow</code> was pure
+  and produced a chain, every task carrying the previous one as its only prerequisite, and
+  <code>CreateWorkflow</code> then threw the result away. A chain is acyclic the way a straight line
+  is, which is why the cycle check had nothing to catch and <code>DEPENDS_ON</code> was decoration.
+  <strong>Positive (TC-201):</strong> two picked stories become two branches off the architect rather
+  than a queue behind each other — <code>%s waits on %v rather than on the architect alone; two
+  stories that wait on each other are a chain wearing a graph's name</code> — and the security review
+  waits on both, which is the fan-in that makes the field a slice:
+  <code>security waits on %v, want %v; the fan-in is per story, so its prerequisite count is a
+  property of the record rather than a number written in the planner</code>.
+  <strong>Positive (TC-202):</strong> the model document's planner invariant, asserted against the
+  sort rather than against slice order, because the old version asserted an accident of how the
+  planner walked the stories — <code>%s is placed at %d and its prerequisite %s at %d; DEPENDS_ON
+  points from the dependent to the prerequisite, so the prerequisite runs first</code>.
+  <strong>Negative (TC-203):</strong> the check lives in <code>CreateWorkflow</code>, not in
+  <code>PlanWorkflow</code>, because the planner cannot build a cycle and the seam is public —
+  <code>a plan that loops was accepted; a task graph with no first task can never be scheduled, and
+  the scheduler would spin over it forever</code>, it must carry its members
+  (<code>the refusal is %T and does not carry the cycle; sending an operator back to the wizard
+  without naming a row is a dead end (B-3)</code>), and it must leave nothing behind:
+  <code>a refused plan wrote %d task(s); every check in CreateWorkflow runs before the first write
+  precisely so a rejection leaves nothing behind</code>.
+  <strong>Negative (TC-204):</strong> the other unusable plan, kept separate because the operator's
+  next action differs — <code>a task depending on something outside the plan was accepted; the
+  DEPENDS_ON edge would point at a vertex that does not exist and the task would never be
+  ready</code>, and <code>the refusal reads %q and does not name the missing prerequisite</code>.
+  <strong>Negative (TC-205):</strong> two id bugs that were cosmetic until vertices existed.
+  <code>PlanWorkflow</code> numbers from <code>t-1</code> every time and
+  <code>wf-%d</code> was built from <code>len(desks)+1</code>, which never changes —
+  <code>two workflows left %d tasks on the desk, want %d; the second plan overwrote the first rather
+  than joining it</code>, <code>%s appears twice; Task (tenantId, id) is UNIQUE, so the second write
+  would upsert over the first and inherit its DEPENDS_ON edges</code>, and
+  <code>the two workflows are called %v; len(desks)+1 does not change between creations, which is how
+  every workflow ended up being wf-7</code>.
+  <strong>Positive (TC-206):</strong> the decision that the graph is read from the store and not
+  folded, pinned so a later reader does not tidy it into the reducer —
+  <code>the folded floor differs between two runs whose only difference is the task graph; the
+  reducer is reading TaskPlanned's payload, and FloorState has just grown a copy of the graph that
+  every snapshot rung now carries</code>, with the other half of the argument as its companion:
+  <code>the graph is empty after planning; not being folded is the reason it must be persisted, and a
+  graph that is neither is not state at all</code>.
+  <strong>Positive (TC-211):</strong> and therefore <a href="brd.html#rules-invariants">BR-01</a> is
+  proved by reload rather than by fold, which is the same way
+  <code>TestArcadeStoreRebuildsTheFloorFromTheGraph</code> proves it for the floor — this one needs a
+  reachable ArcadeDB and skips without one. <code>the reopened graph holds %d tasks, %d were written
+  -- the graph is not folded from the stream, so load() is the only way back and it did not bring
+  them</code>; the ordinal comes back because the slice order has to be a property of the data
+  (<code>%s came back on workflow %q at ordinal %d, was %q at %d; the ordinal is what puts the slice
+  back in plan order, which D-1 needs to be a property of the data rather than of the bucket
+  layout</code>); the edge direction is asserted rather than assumed, because a reversed edge
+  round-trips perfectly and inverts every readiness answer —
+  <code>%s waits on %v after the reopen, wrote %v; DEPENDS_ON points from the dependent to its
+  prerequisite, and an edge that came back reversed would invert every readiness answer computed from
+  it</code>; and the workflow counter is restored from the ids in the graph, not from a count:
+  <code>%s was written twice after a restart; the workflow counter restarted too, and Task (tenantId,
+  id) UNIQUE means the second write upserted over the first</code>.</p>
+
+  <h3 id="go-taskstatus">dashboard — the task status machine (TC-207, TC-208, TC-209, TC-210)</h3>
+  <p><code>T-042</code>, and a second state machine rather than an extension of the first.
+  <code>dashboard/state.go</code> is about <code>Desk.State</code> — seven lowercase names, one desk
+  per product, each of which <code>model.go</code> calls <em>"a distinct CSS selector in app.css
+  (data-state)"</em> — while <code>Task.status</code> is ten uppercase names on a different
+  cardinality, four of which (<code>PENDING</code>, <code>READY</code>, <code>DISPATCHED</code>,
+  <code>RUNNING</code>) are never a desk's state at all.
+  <strong>Positive (TC-207):</strong> same shape as <a href="#register">TC-131</a> one table over —
+  <code>the table declares %s -&gt; %s and canTaskTransition refuses it</code>, and a status may
+  always reach itself, because <code>%s -&gt; %s refused; recording a beat on a task that is already
+  there is still a write, and every call site would need its own exception</code>.
+  <strong>Negative (TC-208):</strong> fifteen rows, each carrying the reason it is illegal and each
+  printing that reason — <code>%s -&gt; %s is permitted; %s</code> — so a rule nobody can explain
+  does not get deleted later as an oversight. An undeclared status is a typo rather than a task that
+  cannot move, and gets its own message in both directions:
+  <code>"SHIPPING" is not a task status and the machine accepted it</code> and
+  <code>the machine accepted a move out of a status it does not declare</code>.
+  <strong>Negative (TC-209):</strong> <a href="brd.html#rules-commercial">BR-34</a> as its own test,
+  because <code>DEFERRED</code> → <code>FAILED</code> reads as an omission — every other non-terminal
+  status reaches <code>FAILED</code>, and a reader adding the row would be making the table
+  symmetrical and the product wrong. <code>DEFERRED -&gt; FAILED is permitted; BR-34 says a deferral
+  is not a failure, and a task that failed for want of budget has spent a retry it never used</code>,
+  the boundary is the only way through
+  (<code>moveTask carried a deferred task to FAILED; the table is the boundary and a caller that can
+  go around it means there is no boundary</code>), the refusal is a rejection rather than a 500
+  (<code>moveTask returned %v, which is not an ErrRejected; BR-06 wants a reason a handler can put in
+  a toast, not a 500</code>), and a refused move must not have written anyway:
+  <code>the task is %q after a refused move, want DEFERRED — a rejected transition that still wrote is
+  worse than one that was never checked</code>.
+  <strong>Positive (TC-210):</strong> the Go vocabulary and the DDL's, compared as sets in
+  <em>both</em> directions. <a href="#register">TC-146</a> next door checks that one name is present,
+  which catches a DDL missing a state Go can reach but not a Go constant the DDL would refuse — and
+  that one fails at commit time in production and in no test at all.
+  <code>Task.status permits %q; Go declares %q — a status the DDL refuses is a row the scheduler
+  cannot write, and it fails at commit rather than here</code>, and the other way,
+  <code>the DDL permits %q and taskstate.go declares no transitions for it; a status nothing can
+  produce or leave is a state the machine cannot reach</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

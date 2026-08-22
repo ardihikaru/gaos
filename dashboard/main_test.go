@@ -557,8 +557,10 @@ func TestPlanShapeAndDependencies(t *testing.T) {
 	// must be acyclic -- the planner invariant from the ArcadeDB model §11.
 	seen := map[string]bool{}
 	for _, task := range plan {
-		if task.Dep != "" && !seen[task.Dep] {
-			t.Errorf("%s depends on %s, which is not earlier in the plan", task.ID, task.Dep)
+		for _, dep := range task.Deps {
+			if !seen[dep] {
+				t.Errorf("%s depends on %s, which is not earlier in the plan", task.ID, dep)
+			}
 		}
 		seen[task.ID] = true
 	}
