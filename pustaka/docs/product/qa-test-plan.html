@@ -1866,12 +1866,26 @@
   model</code>.</p>
   <div class="adm warn">
     <p class="adm-title">What the first live runs measured, including two things nobody had asked</p>
-    <p><strong>The loop works.</strong> On 2026-08-23 a real Claude Code run, spawned by the
-    scheduler from a planned graph, was given the packet, wrote the handoff document, and had it
-    parsed to <em>outcome complete</em>. It cost <strong>$1.28</strong> for 18 turns over 195
-    seconds, measured from the tool's own JSON envelope rather than estimated
-    (<a href="decision-log.html#d-051">D-051</a>), and it produced a 376-line operator runbook in the
-    leased worktree.</p>
+    <p><strong>The loop works, three times.</strong> On 2026-08-23 three real Claude Code runs,
+    spawned by the scheduler from a planned graph, were each given the packet, wrote the handoff
+    document, and had it parsed to <em>outcome complete</em>. Cost is measured from the tool's own
+    JSON envelope rather than estimated (<a href="decision-log.html#d-051">D-051</a>):</p>
+    <table class="tbl">
+      <thead><tr><th>Run</th><th>Cost</th><th>Turns</th><th>Duration</th><th>Deliverable</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>$1.2834</td><td>18</td><td>195 s</td><td>376-line runbook</td></tr>
+        <tr><td>2</td><td>$1.0798</td><td>16</td><td>143 s</td><td>227-line runbook</td></tr>
+        <tr><td>3</td><td>$1.1834</td><td>17</td><td>164 s</td><td>314-line runbook</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Identical input, different output, and that is the useful half.</strong> Runs 2 and 3
+    were given <em>byte-identical</em> packets — same four files, same digest
+    <code>1d6ffc90a0067d2f</code>, which is why both wrote their log to a file of that name — and
+    produced runbooks of 227 and 314 lines. GAOS's half of the system is reproducible and the model's
+    half is not, which is exactly the split the design assumes: replay reconstructs <em>what an
+    attempt was given</em> (<a href="brd.html#req-d">D-6</a>) and never what it answered, and
+    <a href="brd.html#req-h">H-4</a>'s fourth scope exists to compare two runs precisely because they
+    differ. A frozen slice would be worth much less if they did not.</p>
     <p><strong>The contract has to be a standing instruction.</strong> The first attempt did the work
     well and never wrote the document: the contract had been the last section of a long input and
     read as background by the time the work was done. It is now repeated in the task's definition of

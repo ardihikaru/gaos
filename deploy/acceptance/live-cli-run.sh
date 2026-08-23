@@ -392,11 +392,44 @@ else
   bad "$TASK_FILE was not created"
 fi
 
-COST="$(echo "$EVENTS" | grep -o '"Cost":[0-9.]*' | tail -1 | cut -d: -f2)"
-if [ -n "$COST" ] && [ "$COST" != "0" ]; then
-  ok "cost recorded from the tool's own report: \$$COST (D-051: measured, not estimated)"
+# Cost, from the tool's own JSON envelope — the same place the adapter reads it,
+# which is what D-051 means by measured.
+#
+# NOT from the event stream. EventPayload.Cost exists and Events() strips every
+# payload at the seam, so an earlier version of this line grepped for "Cost" in
+# a response that structurally cannot contain one, and printed "no cost" on a
+# run that had recorded $1.28. That is the second vacuous assertion this script
+# has had, both in the same shape: reading a field the API does not return.
+LOG="$(ls -t "$WORKTREE"/.gaos/run/log/*.log 2>/dev/null | head -1)"
+COST="$(python3 - "$LOG" <<'PY' 2>/dev/null
+import json,sys
+try:
+    lines=open(sys.argv[1]).read().splitlines()
+except Exception:
+    sys.exit()
+for line in reversed(lines):
+    line=line.strip()
+    if not line.startswith("{"):
+        continue
+    try:
+        d=json.loads(line)
+    except Exception:
+        continue
+    if "total_cost_usd" in d:
+        u=d.get("modelUsage") or {}
+        tin=sum(v.get("inputTokens",0)+v.get("cacheReadInputTokens",0)+v.get("cacheCreationInputTokens",0) for v in u.values())
+        tout=sum(v.get("outputTokens",0) for v in u.values())
+        print("%.4f %d %d %s %ds" % (d["total_cost_usd"], tin, tout,
+                                     d.get("num_turns", 0),
+                                     int(d.get("duration_ms", 0)) // 1000))
+        break
+PY
+)"
+if [ -n "$COST" ]; then
+  set -- $COST
+  ok "cost \$$1 · $2 tokens in, $3 out · $4 turns in $5 (D-051: measured, not estimated)"
 else
-  info "no cost in the stream — a subscription plan reports none, and BR-37 records that as unavailable rather than zero"
+  info "the tool reported no usage envelope — BR-37 records that as unavailable rather than zero"
 fi
 
 echo
