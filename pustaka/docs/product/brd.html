@@ -23,7 +23,7 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-08-22"
+       data-updated="2026-08-23"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -149,11 +149,11 @@
     <tbody>
       <tr><td>System architecture, control loops, scoring, readiness rubric</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-architecture.html</code></td></tr>
       <tr><td>Graph schema: 25 vertex types, 3 document types, 32 edge types, event store</td><td><strong>Built (applied to dev and prod)</strong></td><td><code>dashboard/schema/</code> — extracted from <code>artifacts/v1/gaos-arcadedb-model.html</code> and reconciled against ArcadeDB 26.7.2; see <code>schema/RECONCILIATION.md</code></td></tr>
-      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 51 tests, stdlib only</td></tr>
+      <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 156 tests, stdlib only</td></tr>
       <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
       <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
       <tr><td>ArcadeDB schema applied to dev and prod, graph queries</td><td><strong>Built</strong></td><td><code>dashboard/store_arcade.go</code> against the <code>store.go</code> seam; <code>dashboard/arcade.go</code> carries the query path; one conformance suite covers both stores</td></tr>
-      <tr><td>Scheduler, runner, real reviews</td><td><strong>Partly built</strong></td><td>The scheduler decides &mdash; <code>dashboard/scheduler.go</code>, a pure function of the persisted task graph, returning what may start and why the rest may not. Nothing dispatches from it: the runner and the lease are <code>M4.2</code>, and <code>dashboard/sim.go</code> still stands in for both</td></tr>
+      <tr><td>Scheduler, runner, real reviews</td><td><strong>Partly built</strong></td><td>The scheduler decides &mdash; <code>dashboard/scheduler.go</code>, a pure function of the persisted task graph, returning what may start and why the rest may not. The runner supervises detached runs under an exclusive workspace lease and reconciles every claimed run on boot &mdash; <code>dashboard/runner.go</code>, <code>lease.go</code>, <code>reconcile.go</code>, <code>M4.2</code>. What is still missing is what they exist to feed: no model has ever been called, no attempt is recorded as a <code>TaskRun</code>, reviews are not real, and <code>dashboard/sim.go</code> still moves the floor</td></tr>
       <tr><td>Authentication</td><td><strong>Not built</strong></td><td>the back-office login sets a cookie and checks nothing</td></tr>
     </tbody>
   </table>
@@ -323,14 +323,16 @@
     architecture → coding → testing → review → deployment because <code>dashboard/sim.go</code>
     advances them. No task is dispatched, no process is spawned, no model is called.</li>
     <li><strong>The back office accepts a login and checks nothing.</strong> Any value opens it. It
-    then shows product records, a readiness checklist, a graph projection count and story coverage
-    — computed from fixtures in <code>dashboard/fixtures.go</code>.</li>
-    <li><strong>Events are written to the graph, and the stream is still a window.</strong>
+    then shows product records, a readiness checklist, a graph projection count and story coverage.
+    What it writes is persisted and survives a restart; the world it starts from is still the
+    fixtures in <code>dashboard/fixtures.go</code>.</li>
+    <li><strong>Events are written to the graph, and the stream is the whole record.</strong>
     <code>dashboard/store_arcade.go</code> appends every event as an <code>Event</code> document
     before its mutation commits, and rebuilds the floor from ArcadeDB on boot;
     <code>dashboard/store_mem.go</code> remains the in-memory double the conformance suite runs the
-    same cases against. The retained window is still 160 entries, which is what
-    <code>BR-04</code> is still waiting on.</li>
+    same cases against. The 160-entry ring came out in v0.11.0 — the stream is unbounded and
+    append-only as <code>BR-04</code> asks, an event carries the delta a reducer folds rather than a
+    photograph of the floor, and replay is a fold from the nearest snapshot forward.</li>
     <li><strong>The stacks serve four paths from one origin</strong> — <code>/</code> landing,
     <code>/app/</code> Mission Control, <code>/docs/</code> this site, <code>/api/</code> the health
     endpoint — behind a per-product Traefik on the private VM, fronted by nginx on
@@ -686,7 +688,7 @@ egress:                               <span class="c"># domain L applies in BOTH
       <tr><td>A-4</td><td>Accept behaviour diagrams and data models as artifacts</td><td>Call order and cardinality are the two things prose loses</td><td>Designed</td></tr>
       <tr><td>A-5</td><td>Index a linked repository into files and functions, and identify the entrypoint</td><td>Impact analysis from a diff is a traversal, and it needs the code in the graph</td><td>Designed</td></tr>
       <tr><td>A-6</td><td>Injection parses the record into vertices and edges and rescores it in one operation</td><td>A record that is edited but not injected is a lie the planner will believe</td><td>Designed</td></tr>
-      <tr><td>A-7</td><td>Back-office surface for all of the above</td><td>The record author is a human with a browser</td><td>Built (against fixtures)</td></tr>
+      <tr><td>A-7</td><td>Back-office surface for all of the above</td><td>The record author is a human with a browser</td><td><strong>Built</strong> — <code>dashboard/handlers_bo.go</code>, and what it writes survives a restart as the record document (<code>T-028</code>, <code>T-029</code>)</td></tr>
     </tbody>
   </table>
 
@@ -726,7 +728,7 @@ egress:                               <span class="c"># domain L applies in BOTH
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
       <tr><td>C-1</td><td>A workflow is one objective on one product, with a scope and a gate policy</td><td>Scope and gates are business inputs, not engineering defaults</td><td>Designed</td></tr>
-      <tr><td>C-2</td><td>The planner expands an objective into an acyclic task graph with dependencies</td><td>Order of work is derived, not typed by a human</td><td>Designed</td></tr>
+      <tr><td>C-2</td><td>The planner expands an objective into an acyclic task graph with dependencies</td><td>Order of work is derived, not typed by a human</td><td><strong>Partly built</strong> — the graph is real, acyclic and persisted as <code>Task</code> vertices with <code>DEPENDS_ON</code> edges, and a cycle is refused before the first write (<code>T-042</code>); its shape is still a stage template rather than an expansion of the objective (<code>T-041</code>)</td></tr>
       <tr><td>C-3</td><td>Every task is atomic: one concern, one workspace, at least one acceptance criterion</td><td>A task with two failure modes and one score tells you nothing</td><td>Designed</td></tr>
       <tr><td>C-4</td><td>Role and model are selected capability first, then risk, then cost — never cost first</td><td>Cost-first routing sends a security-critical migration to the cheapest model because it happened to be free</td><td>Designed</td></tr>
       <tr><td>C-5</td><td>Senior roles (architect, security) are modelled with explicit capacity across all products</td><td>Otherwise they become the bottleneck nobody sees until three workflows wait on one reviewer</td><td>Designed</td></tr>
@@ -849,10 +851,10 @@ efficiency    tokens, latency, retries consumed</pre>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>H-1</td><td>State at any past moment is a fold over the event stream, from the nearest snapshot forward</td><td>Snapshots are an optimisation, never the source — otherwise any moment between two snapshots is unreachable</td><td>Designed</td></tr>
-      <tr><td>H-2</td><td>The reducer is pure, total and order-stable: no clock, no randomness, unknown event types skipped rather than fatal, ties broken by <code>(ts, seq)</code></td><td>A replay that is not reproducible is not evidence</td><td>Designed</td></tr>
-      <tr><td>H-3</td><td>Replay is structurally read-only — routed through a read-only store handle, not a flag someone can forget to check</td><td>A flag will eventually be forgotten and will overwrite live state with a historical one</td><td>Designed</td></tr>
-      <tr><td>H-4</td><td>Four replay scopes: workflow, task, meeting, and comparison between two runs of the same task on different models</td><td>Model routing decisions must be backed by evidence, not preference</td><td>Designed</td></tr>
+      <tr><td>H-1</td><td>State at any past moment is a fold over the event stream, from the nearest snapshot forward</td><td>Snapshots are an optimisation, never the source — otherwise any moment between two snapshots is unreachable</td><td><strong>Built</strong> — <code>dashboard/fold.go</code>, <code>T-097</code>/<code>T-100</code>; fold-from-genesis is asserted equal to fold-from-nearest-snapshot at <a href="qa-test-plan.html#im-fold">TC-050/TC-051</a></td></tr>
+      <tr><td>H-2</td><td>The reducer is pure, total and order-stable: no clock, no randomness, unknown event types skipped rather than fatal, ties broken by <code>(ts, seq)</code></td><td>A replay that is not reproducible is not evidence</td><td><strong>Built</strong> — <code>dashboard/fold.go</code>, <code>T-098</code>; purity, totality and order-stability each have their own case at <a href="qa-test-plan.html#go-reducer">TC-133…TC-137</a></td></tr>
+      <tr><td>H-3</td><td>Replay is structurally read-only — routed through a read-only store handle, not a flag someone can forget to check</td><td>A flag will eventually be forgotten and will overwrite live state with a historical one</td><td><strong>Built</strong> — the <code>readOnly</code> handle in <code>dashboard/store.go</code>, <code>T-099</code>; it is a type rather than a check, so a handler holding one cannot mutate by forgetting anything</td></tr>
+      <tr><td>H-4</td><td>Four replay scopes: workflow, task, meeting, and comparison between two runs of the same task on different models</td><td>Model routing decisions must be backed by evidence, not preference</td><td><strong>Partly built</strong> — <code>/replay/{workflow}</code> serves the workflow scope (<code>T-101</code>); the comparison scope needs <code>TaskRun</code> to exist first</td></tr>
       <tr><td>H-5</td><td>Operator timeline with a replay scrub</td><td>Replay needs a surface an operator can drive</td><td>Built (against fixtures)</td></tr>
     </tbody>
   </table>
@@ -860,7 +862,7 @@ efficiency    tokens, latency, retries consumed</pre>
   <h3 id="req-i">8.9 Domain I — Operator surface (Mission Control)</h3>
   <p>The only domain that is substantially built. Ported from
   <code>artifacts/v1/gaos-mission-control.html</code> to Go and HTMX, server-rendered, stdlib only,
-  no <code>go.sum</code>, 37 tests.</p>
+  no <code>go.sum</code>. The port landed with 37 tests in v0.1.0; the package carries 156 today.</p>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
@@ -869,7 +871,7 @@ efficiency    tokens, latency, retries consumed</pre>
       <tr><td>I-3</td><td>The event timeline with scrub-to-replay and speed control</td><td>Understanding <em>when</em> something went wrong precedes understanding why</td><td>Built</td></tr>
       <tr><td>I-4</td><td>The design-review overlay: agenda, participants, confidence, decision</td><td>Meetings are a system state, not an off-screen event</td><td>Built</td></tr>
       <tr><td>I-5</td><td>The back office: product master, requirements, stories, diagrams, knowledge, agents, readiness checklist, graph projection, story coverage</td><td>Where the record author works</td><td>Built</td></tr>
-      <tr><td>I-6</td><td>The UI never invents state the graph does not have</td><td>A projection that guesses is worse than a blank</td><td>Designed (architectural prohibition)</td></tr>
+      <tr><td>I-6</td><td>The UI never invents state the graph does not have</td><td>A projection that guesses is worse than a blank</td><td><strong>Built</strong> — an architectural prohibition rather than a feature, and it holds today: <code>static/app.js</code> carries HTMX wiring and keyboard shortcuts and renders no markup at all (<code>T-108</code>)</td></tr>
       <tr><td>I-7</td><td>The five blocking reasons for an idle desk are displayed explicitly, including "deferred — budget window" with the time it resumes</td><td><a href="#to-be-autonomy">§7.4</a> — an unexplained idle floor reads as a broken product, and a budget pause that looks like a hang is the version of that failure an operator will report as a bug</td><td>Designed</td></tr>
       <tr><td>I-8</td><td><strong>Mission Control is one surface for both audiences — the operator's view and the internal operations view are the same pages with different capabilities granted, separated by role and never by codebase.</strong> Three things are preconditions on any further work here rather than later additions: real authentication, per-tenant scoping so a role sees one tenant's records and not the store, and accessibility. The provider data-handling profile and the egress inventory are displayed here (<a href="#req-l">L-3</a>)</td><td><a href="decision-log.html#d-040">D-040</a>. A second console would fork the only finished thing in the repository, and the fork would drift. Choosing both audiences means the surface is now something external operators sit in front of, which is what turns the three preconditions from aspirations into blockers — <a href="open-questions.html#oq-11">OQ-11</a> becomes a blocking dependency rather than an open question</td><td>Designed — none of the three preconditions is started</td></tr>
     </tbody>
