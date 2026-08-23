@@ -402,7 +402,7 @@ func (s *server) newView(r *http.Request) (*View, Floor) {
 	v.Meeting = NewMeetingView(f.Meeting, f.MeetDesk)
 
 	if f.FocusIdx < len(f.Desks) {
-		ctx, _ := s.store.ContextSlice(r.Context(), f.FocusIdx)
+		ctx, _ := s.store.TaskContext(r.Context(), f.FocusIdx)
 		v.Insp = NewInspectorView(f.Desks[f.FocusIdx], f.FocusIdx, ctx)
 	}
 

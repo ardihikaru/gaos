@@ -61,16 +61,21 @@ type PacketPart struct {
 //	  .gaos/packet/context/...  <- the frozen slice, verbatim
 //	  .gaos/packet/rules.md     <- domain rules to score against
 //	  .gaos/handoff/OUTPUT.md   <- declared, empty, required
+//
+// Cites is the provenance half, and it travels WITH the packet rather than
+// beside it so that the pass can cut both together. See Screen step 2.
 type Packet struct {
 	TaskID    string
 	DeskID    string
 	Workspace string
 	Parts     []PacketPart
+	Cites     []Citation
 }
 
 func (p Packet) Clone() Packet {
 	c := p
 	c.Parts = append([]PacketPart(nil), p.Parts...)
+	c.Cites = append([]Citation(nil), p.Cites...)
 	return c
 }
 
@@ -249,6 +254,10 @@ func (c Cleared) Packet() Packet    { return c.packet.Clone() }
 func (c Cleared) Workspace() string { return c.packet.Workspace }
 func (c Cleared) Digest() string    { return c.digest }
 func (c Cleared) Bytes() int        { return c.bytes }
+
+// Cites is the provenance of what SURVIVED, which is not the same list the
+// packet was assembled with. A copy, for the reason Packet() is a copy.
+func (c Cleared) Cites() []Citation { return append([]Citation(nil), c.packet.Cites...) }
 
 // empty reports the zero value. Dispatch checks it, and the check is a belt
 // rather than the braces: if the type discipline held, it is unreachable.
@@ -514,7 +523,39 @@ func Screen(pol EgressPolicy, tgt Target, p Packet) (Cleared, EgressVerdict, err
 
 	c := p.Clone()
 	c.Parts = survivors
+	c.Cites = citationsFor(p.Cites, survivors)
 	return Cleared{packet: c, digest: v.Digest, bytes: v.Bytes}, v, nil
+}
+
+// citationsFor keeps the provenance of the parts that survived, and drops the
+// rest.
+//
+// This is the honesty of the audit edge in one function. USES_CONTEXT answers
+// "what was this attempt given"; a citation kept for a part the pass redacted
+// answers it wrongly, and wrongly in the direction that matters -- it would say
+// a rule reached the model when the file carrying it was cut on the way out.
+//
+// Paths are compared after path.Clean because step 1 cleans the parts, and a
+// citation written against the assembler's spelling of a path would otherwise
+// silently fail to match its own part.
+func citationsFor(cites []Citation, survivors []PacketPart) []Citation {
+	if len(cites) == 0 {
+		return nil
+	}
+	live := make(map[string]bool, len(survivors))
+	for _, part := range survivors {
+		live[part.Path] = true
+	}
+	out := make([]Citation, 0, len(cites))
+	for _, c := range cites {
+		if live[path.Clean(c.Path)] {
+			out = append(out, c)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // reportFindings runs the armed detectors and returns hits in a stable order.

@@ -16,7 +16,7 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: forty-eight done, nineteen standing on fixtures, seventy-four
+  One hundred and forty-one tasks: fifty-one done, eighteen standing on fixtures, seventy-two
   not started.</p>
 
   <div class="page-meta"
@@ -51,18 +51,19 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Forty-eight tasks are done. Eleven of them are the operator surface, five are the schema, and
+    <p>Fifty-one tasks are done. Eleven of them are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
     machine, one the determinism proof, three the readiness rubric and the floor it feeds
     (<code>M2</code>, 2026-08-20), three the whole of <code>M13</code>, which is now complete,
     one the planner's real task graph (<code>T-042</code>), two the pre-dispatch egress gate
-    (<code>M11.2</code>), and six the scheduler and the runner — <code>M4.1</code> and
-    <code>M4.2</code>, both on 2026-08-22.
-    What is still missing is the half of execution that spends money and the half that records it:
-    <strong>no model has ever been called from this repository</strong>, no attempt has a
-    <code>TaskRun</code> of its own, no context slice has ever been frozen, and the floor
+    (<code>M11.2</code>), six the scheduler and the runner — <code>M4.1</code> and
+    <code>M4.2</code>, both on 2026-08-22 — and three the attempt record and the frozen context
+    slice (<code>M4.3</code>, 2026-08-23).
+    What is still missing is the half of execution that spends money:
+    <strong>no model has ever been called from this repository</strong>, every attempt on record so
+    far was made against a stand-in tool, nothing reviews what one produced, and the floor
     that renders above the graph is still moved by a simulation rather than by work. That inversion
     is deliberate and logged as
     <a href="../product/decision-log.html#delivery-decisions">D-019</a>
@@ -82,7 +83,7 @@
       <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>2</td><td>5</td><td>4</td><td><a href="#register">T-026</a> &mdash; the count <code>Inject()</code> reports, and <code>MemStore</code> writing nothing</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>6</td><td>2</td><td>12</td><td><a href="#register">T-054</a> &mdash; one <code>TaskRun</code> per attempt</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>9</td><td>1</td><td>10</td><td><a href="#register">T-058</a> &mdash; the API adapter, indistinguishable above the seam</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
       <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>1</td><td>7</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>2</td><td>5</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
@@ -92,7 +93,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>48</b></td><td><b>19</b></td><td><b>74</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>51</b></td><td><b>18</b></td><td><b>72</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -199,9 +200,9 @@
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run &mdash; <code>dashboard/lease.go</code>, an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code>; an expired lease is reported and never taken, and breaking one has its own name</td><td>D-3</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease &mdash; the beat renews every 30s and the <code>Heartbeat</code> event is written every 300s, which is <a href="../product/decision-log.html#d-053">D-053</a></td><td>D-3</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running &mdash; <code>dashboard/reconcile.go</code> as a pure function of the lease and the beat, held to the scheduler's import allowlist; <code>dashboard/runner.go</code> acts on it before the listener is up, so a failure fails the boot. Requeue kills first, which is <a href="../product/decision-log.html#d-054">D-054</a></td><td>D-4</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature</td><td>D-5, BR-22</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice</td><td>D-6, BR-23</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; the route exists and computes one live</td><td>D-6</td><td>🟡</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature &mdash; <code>TaskRunRecord</code> in <code>dashboard/model.go</code>, opened by <code>superviseRun</code> once the lease is held and closed by <code>finishRun</code> under the lock that writes <code>RunExited</code>; boot reconciliation marks what it recovered <code>KILLED</code> or <code>ORPHANED</code>. The cost basis is whatever the attempt measured and never a default (<code>BR-31</code>)</td><td>D-5, BR-22</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice &mdash; <code>SliceRecord</code> keyed by the egress pass's digest, its provenance assembled in <code>freezePacketFor</code> and cut by <code>Screen</code> along with the parts it belonged to, written as a <code>ContextSlice</code> vertex with <code>ASSEMBLED</code> and <code>USES_CONTEXT</code> edges</td><td>D-6, BR-23</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; <code>Store.TaskContext</code> replaced <code>ContextSlice</code> on the seam so the answer carries <code>Frozen</code>; with nothing run the live assembly is still returned and says so, which is the honest half of the same requirement</td><td>D-6</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.4"><td>T-057</td><td>M4.4</td><td>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess &mdash; <code>dashboard/adapter_cli.go</code>, with the boot smoke test <a href="../product/decision-log.html#d-049">D-049</a> owed, the handoff parser <a href="../product/decision-log.html#d-050">D-050</a> requires and cost read per <a href="../product/decision-log.html#d-051">D-051</a>. Exercised against a stand-in tool in <code>testdata/fakecli</code>; no scheduler calls it and no real provider has been invoked</td><td>D-7</td><td>🟡</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-058</td><td>M4.4</td><td>Build the API adapter, indistinguishable from the CLI one above the seam</td><td>D-7</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-059</td><td>M4.4</td><td>Select the adapter from one deployment-wide setting in the master configuration, never per task</td><td>D-12</td><td>❌</td></tr>
@@ -606,9 +607,12 @@
 
   <h2 id="m4-execution">M4 · Execution</h2>
   <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
-  count and by task count. Twenty tasks, six done and two partial. Most of what is here is still
-  played by <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker that moves desks through states
-  and emits catalog events without ever calling a model.</p>
+  count and by task count. Twenty tasks, nine done and one partial. The half that decides and
+  supervises work is real — the scheduler, the detached runner, the lease, boot reconciliation, and
+  since 2026-08-23 the attempt record and the frozen context slice. The half that does the work is
+  not: <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker, still moves desks through states and
+  emits catalog events without ever calling a model, and <code>T-067</code> is the task that deletes
+  it once there is nothing left for it to stand in for.</p>
 
   <h3 id="sub-m4-1">M4.1 — The scheduler (T-048–T-049)</h3>
   <p><code>D-1</code> asked for something stronger than a working scheduler: a <em>pure function of
@@ -698,13 +702,39 @@
   subject, opposite risk.</p>
 
   <h3 id="sub-m4-3">M4.3 — The attempt record (T-054–T-056)</h3>
-  <p><code>Task</code> and <code>TaskRun</code> are separate records so per-attempt evidence
-  survives a retry (<code>BR-22</code>), and the exact context slice sent to a model is frozen and
-  stored per attempt with <code>USES_CONTEXT</code> hanging off the slice rather than the task
-  (<code>BR-23</code>) — because the slice differs per attempt.
-  <code>GET /tasks/{id}/context</code> already exists and answers in HTML or JSON; it computes a
-  slice live instead of returning the frozen one, which is the difference between a demonstration
-  and an audit trail.</p>
+  <p><strong>Done, on 2026-08-23.</strong> <code>Task</code> and <code>TaskRun</code> are separate
+  records so per-attempt evidence survives a retry (<code>BR-22</code>):
+  <code>TaskRunRecord</code> in <code>dashboard/model.go</code> mirrors the vertex,
+  <code>superviseRun</code> opens it as <code>STARTED</code> once the lease is held and before
+  anything spawns, moves it to <code>RUNNING</code> beside the <code>RunStarted</code> event, and
+  <code>finishRun</code> closes it under the same lock that writes <code>RunExited</code> — one lock,
+  because a record and an event that can disagree leave an auditor with no way to choose between
+  them. Boot reconciliation marks what it recovered <code>KILLED</code> or <code>ORPHANED</code>
+  rather than leaving a row asserting a process nobody believes in.</p>
+  <p>The slice is the harder half and the one <code>BR-23</code> is about. It is frozen at the point
+  the egress pass clears it — keyed by that pass's digest, so two attempts given identical context
+  share one record and the comparison <code>H-4</code> wants is a string equality. Provenance is
+  built where the packet is assembled rather than parsed back out of it later, and the pass drops a
+  citation whenever it drops the part that carried it; a slice claiming to have sent something
+  <code>BR-32</code> refused would be the least trustworthy edge in the graph.
+  <code>USES_CONTEXT</code> hangs off the <code>ContextSlice</code> and not off the
+  <code>Task</code>, which the <a href="../architecture/graph.html#edges">data model</a> calls out as
+  easy to reverse: attach it to the task and attempt two overwrites the evidence of what attempt one
+  received.</p>
+  <p><code>T-056</code> is where the requirement is either met or quietly missed.
+  <code>GET /tasks/{id}/context</code> answered before, in HTML or JSON, by computing a slice live —
+  the difference between a demonstration and an audit trail, and invisible on the page. So the seam
+  changed: <code>Store.ContextSlice</code> returning <code>[]string</code> became
+  <code>Store.TaskContext</code> returning a <code>ContextView</code> that carries
+  <strong><code>Frozen</code></strong>. With an attempt behind it the route answers with what that
+  attempt was given; with nothing run it still answers live and says which it is. Only the third
+  seam change since <code>store.go</code> was written, and <code>store.go</code> says why in its own
+  header.</p>
+  <p>One finding came out of running it, in the same class as
+  <a href="../product/decision-log.html#d-047">D-047</a>: <code>ContextSlice</code> became a type
+  written by business id, ArcadeDB 26.7.2 refused the first write for want of a
+  <code>(tenantId, id)</code> index, and the index was added under D-047's own heading — which is
+  the case that decision predicted rather than a new one. The DDL applies 324 statements.</p>
 
   <h3 id="sub-m4-4">M4.4 — The model gateway (T-057–T-060)</h3>
   <p><strong>Partly built, on 2026-08-22.</strong> <code>T-057</code> is 🟡 rather than ✅ and the

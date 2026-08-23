@@ -143,6 +143,28 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 		return Attempt{}, err
 	}
 
+	// The graph's record of this attempt, and the slice it is about to be given.
+	// T-054 and T-055.
+	//
+	// Both before the spawn, and the RUN.json above is why the order is safe to
+	// reason about: that file is what an adopting process finds on disk, this is
+	// what an auditor finds in the graph, and a run that dies between them has
+	// left both. The slice is recorded rather than re-derived because by the time
+	// anyone asks what attempt two was given, the record it was assembled from
+	// will have moved on.
+	s.mu.Lock()
+	slice := s.recordSlice(c, taskID, deskID, attempt)
+	s.startRun(TaskRunRecord{
+		ID: runID, TaskID: taskID, DeskID: deskID, Attempt: attempt,
+		Status: RunStatusStarted, Model: ad.Name(), Invocation: ad.Mode(),
+		StartedAt: now, SliceDigest: slice.Digest,
+		// No CostBasis yet, and deliberately not "estimated". A run that has
+		// spent nothing has no basis to record; BR-31 is about never aggregating
+		// a measured number with a guessed one, and a default here would seed
+		// every abandoned attempt with a guess.
+	})
+	s.mu.Unlock()
+
 	// DISPATCHED -> RUNNING. The distinction exists for exactly one reader: boot
 	// reconciliation, which D-4 scopes to "every task claiming to be dispatched
 	// or running". A task that had been decided on but never reached a process
@@ -150,6 +172,9 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	// them would mean either killing work that was fine or requeuing work that
 	// never started.
 	s.moveTaskByID(taskID, StatusRunning)
+	s.mu.Lock()
+	s.markRun(runID, RunStatusRunning)
+	s.mu.Unlock()
 
 	s.emitLocked(RunStarted, deskID,
 		fmt.Sprintf("run %s started, attempt %d", runID, attempt), KindInfo,
@@ -190,6 +215,12 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 // it would be tempting to.
 func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr error) {
 	s.mu.Lock()
+
+	// The attempt's own record, closed under the same lock as the event that
+	// describes it. Two writers could otherwise leave a TaskRun saying one thing
+	// and a RunExited saying another, and there would be no way to tell which of
+	// them the auditor should believe.
+	s.closeRun(runID, att, runErr)
 
 	p := EventPayload{Digest: att.Digest}
 	text := fmt.Sprintf("run %s exited %s, outcome %s", runID, att.ExitClass, att.Outcome())
@@ -427,6 +458,7 @@ func (s *MemStore) claimsFrom() []RunClaim {
 	for _, p := range todo {
 		claim := RunClaim{TaskID: p.id, DeskID: p.desk, Workspace: p.ws, Status: p.status}
 		if l, ok, err := ReadLease(p.ws); err == nil && ok {
+			claim.RunID = l.RunID
 			claim.LeaseUntil = l.LeaseUntil
 			// The beat is not stored separately: every beat renews the lease to
 			// now+leaseTTL, so the last renewal IS the last beat and one number
@@ -470,6 +502,7 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 			// nothing restarted: the task carries on being RUNNING under a new
 			// supervisor, which is the whole point of having detached it.
 			s.moveTaskByID(d.TaskID, StatusRunning)
+			s.setRunStatus(c.RunID, RunStatusRunning)
 			ev = append(ev, s.emitReconciled(TaskResumed, c.DeskID,
 				"adopted the run on "+d.TaskID, KindInfo, "", d))
 
@@ -482,6 +515,7 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 			}
 			_ = BreakLease(c.Workspace)
 			s.moveTaskByID(d.TaskID, StatusReady)
+			s.setRunStatus(c.RunID, RunStatusKilled)
 			ev = append(ev, s.emitReconciled(TaskResumed, c.DeskID,
 				"requeued "+d.TaskID+" after making its unsupervised run dead", KindWarn,
 				StateIdle, d))
@@ -489,6 +523,7 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 		case ReconcileOrphan:
 			_ = BreakLease(c.Workspace)
 			s.moveTaskByID(d.TaskID, StatusFailed)
+			s.setRunStatus(c.RunID, RunStatusOrphaned)
 			ev = append(ev, s.emitReconciled(TaskOrphaned, c.DeskID,
 				"orphaned "+d.TaskID, KindFail, StateBlocked, d))
 		}
@@ -501,6 +536,21 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 		NewEvents: ev,
 		Toast:     fmt.Sprintf("Reconciled %d claimed run(s).", len(decisions)),
 	}, nil
+}
+
+// setRunStatus records what recovery did to an attempt, taking the lock itself.
+//
+// Separate from markRun so that the reconciliation loop, which holds no lock,
+// does not have to grow one around every branch. A run id that names nothing is
+// not an error: a task can claim to be dispatched with no lease on disk at all,
+// which is precisely the claim the orphan branch exists for.
+func (s *MemStore) setRunStatus(runID, status string) {
+	if runID == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.markRun(runID, status)
 }
 
 // resolveAction is the one place the boot pass may overrule the pure decision,

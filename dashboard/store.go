@@ -23,6 +23,16 @@ import (
 // and only a store may. Both changes are additive, and store_arcade.go needed
 // one line for each.
 //
+// And a third time, on 2026-08-23, for M4.3. This one is not additive:
+// ContextSlice([]string) becomes TaskContext(ContextView), and the replacement
+// is the requirement rather than a tidy-up. D-6 says the slice sent to a model
+// is frozen and stored per attempt; a []string cannot say whether it is the
+// frozen one or a fresh guess at the same question, and a caller that cannot
+// tell those apart will eventually present the guess as evidence. The return
+// type carries Frozen because the distinction is the point. Runs is the other
+// half, T-054: attempts are records now, and something has to be able to ask
+// for them.
+//
 // Two rules the ArcadeDB implementation will need, and which are why the
 // signatures look the way they do:
 //
@@ -49,7 +59,14 @@ type Store interface {
 	Products(ctx context.Context) ([]Product, error)
 	Master(ctx context.Context, productID string) (Master, error)
 	Masters(ctx context.Context) ([]Master, error)
-	ContextSlice(ctx context.Context, deskIdx int) ([]string, error)
+	// TaskContext answers GET /tasks/{id}/context: the frozen slice the desk's
+	// most recent attempt was given, or -- when nothing has run -- the live
+	// assembly, saying so. T-056, requirement D-6.
+	TaskContext(ctx context.Context, deskIdx int) (ContextView, error)
+
+	// Runs is one task's attempts, oldest first. T-054, D-5, BR-22.
+	Runs(ctx context.Context, taskID string) ([]TaskRunRecord, error)
+
 	Events(ctx context.Context) ([]Event, error)
 
 	// Focus moves the inspector without changing any domain state.
