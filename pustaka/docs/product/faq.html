@@ -22,15 +22,17 @@
        data-tags="faq, commercial, pricing, licensing, self-hosting, support, data-handling"
        data-hashtags="faq, product, pricing, open-source"
        data-published="2026-08-08"
-       data-updated="2026-08-16"
+       data-updated="2026-08-23"
        data-version-from="0.4.0"
        data-version-to=""></div>
 
   <div class="adm warn">
     <p class="adm-title">Read this one first: GAOS does not work yet</p>
-    <p>Every answer below describes a product whose design is complete and whose engine is not
-    built. As of v0.5.0 what runs is the operator interface, the documentation and the deployment —
-    <strong>no agent has ever been dispatched and no model has ever been called</strong>. The
+    <p>Every answer below describes a product whose design is complete and whose engine is only
+    partly built. As of v0.20.1 what runs is the operator interface, the graph store underneath it,
+    the scheduler, the detached runner with its lease and boot reconciliation, the documentation and
+    the deployment — and still <strong>no agent has ever been dispatched to a real model, and no
+    model has ever been called</strong>. The
     repository's own README keeps a designed-versus-built table and this site repeats it on
     <a href="brd.html#current-state">§2.1 of the BRD</a>. Nothing here is a promise about a delivery
     date, because there is no roadmap with dates on it. If you are evaluating GAOS to use next month,
@@ -276,12 +278,16 @@
 
   <h3 id="q-status">What actually works today?</h3>
   <p>Mission Control (rendering a simulation, not a fleet), the documentation site, the landing page,
-  and both deployment tiers end to end. The ArcadeDB schema now runs too, in the narrow sense that
-  matters least and had to come first: the DDL applies cleanly to a scratch database on the pinned
-  version, but neither dev nor prod carries it and no code reads or writes a graph. Not built: the
-  scheduler, the runner, real reviews, authentication — the back-office login currently accepts any
-  value and checks nothing. The <a href="brd.html#current-state">designed-versus-built table</a> is maintained
-  honestly and is the thing to read before forming an opinion.</p>
+  and both deployment tiers end to end. The graph is real: the DDL applies on the pinned ArcadeDB
+  version, both tiers carry it, and <code>dashboard/store_arcade.go</code> reads and writes it, so a
+  restart rebuilds the floor from the database rather than from the fixtures. The scheduler decides
+  as a pure function of the task graph and the runner supervises detached work under a workspace
+  lease, reconciling every claimed run on boot. What is <em>not</em> built is the reason those exist:
+  <strong>no model has ever been called from this repository</strong>, no attempt is recorded as a
+  <code>TaskRun</code>, reviews are simulated, and authentication is absent — the back-office login
+  accepts any value and checks nothing. The
+  <a href="brd.html#current-state">designed-versus-built table</a> is maintained honestly and is the
+  thing to read before forming an opinion.</p>
 
   <h3 id="q-contribute">Can I contribute or fork it?</h3>
   <p>Yes to both, and the terms are written down. Forking needs nothing from anyone — Apache-2.0,
