@@ -36,6 +36,36 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-22-1">v0.22.1 <time datetime="2026-08-23">2026-08-23</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A boot that applied a schema
+      change said nothing about it. Found while confirming the v0.22.0 deploy had carried
+      <code>ContextSlice</code>'s new index to dev — the answer had to come from querying the
+      database by hand, which is exactly the guessing <code>ApplySchema</code> was written to
+      prevent.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>the schema counts were thrown away.</b>
+        <code>ApplySchema</code> returns how many statements were accepted and how many were already
+        declared, and its own comment says why: <em>"so the boot log can say which of the two
+        happened without the operator having to guess."</em>
+        <code>NewArcadeStoreFor</code> discarded both. The store keeps them now and
+        <code>serve()</code> prints one line, once per process:
+        <code>schema: 324 statements from the embedded DDL, none failed (128 accepted, 196 already
+        declared)</code>. In <code>serve()</code> rather than the constructor, because the
+        conformance suite builds a store per case and forty lines of schema arithmetic per test run
+        teaches everyone to skim past it.</li>
+        <li><span class="chg fix">Fixed</span> <b>a comment that promised more than the numbers
+        deliver.</b> <a href="product/qa-test-plan.html#go-schema-counts">TC-274</a> was first
+        written to assert that a second apply against a populated database applies
+        <strong>nothing</strong>; the database said <strong>128</strong>. Most of the DDL is
+        <code>IF NOT EXISTS</code>, which 26.7.2 honours <em>silently</em> rather than by raising
+        <code>AlreadyExists</code> — so <code>applied</code> means "accepted", never "created", and
+        the pair cannot say whether anything changed. The comment now says so and the log line is
+        worded accordingly, because a line implying a migration had run would send somebody looking
+        for one that never happened.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-22-0">v0.22.0 <time datetime="2026-08-23">2026-08-23</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px"><strong>GAOS called a real
       model.</strong> On 2026-08-23 a Claude Code run, spawned by the scheduler from a planned graph,

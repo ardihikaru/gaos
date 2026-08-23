@@ -31,8 +31,20 @@ var schemaFS embed.FS
 // and not a failure. A migration you are afraid to re-run is a migration nobody
 // runs -- and this one runs on every boot of every dashboard in both tiers.
 //
-// It returns the number applied and the number already present, so the boot log
-// can say which of the two happened without the operator having to guess.
+// It returns two counts, and what they MEAN is narrower than their names
+// suggest -- measured on 26.7.2, and worth stating because the first reader of
+// this comment believed the flattering version.
+//
+//	present  statements the server rejected with AlreadyExists
+//	applied  every other statement that succeeded
+//
+// `applied` is NOT "newly created". Most of the DDL is written IF NOT EXISTS,
+// and the server honours that silently rather than raising AlreadyExists -- so a
+// re-run against a fully populated database still reports 128 applied and 196
+// present, not 0 and 324. The pair tells an operator how large the embedded DDL
+// is and that none of it failed; it does not tell them whether anything changed.
+// Nothing in this repository can answer that from the counts alone, and a log
+// line implying otherwise would be worse than no log line.
 func (a *Arcade) ApplySchema(ctx context.Context) (applied, present int, err error) {
 	if !a.Configured() {
 		return 0, 0, ErrUnconfigured
