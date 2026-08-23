@@ -43,6 +43,15 @@ CREATE INDEX IF NOT EXISTS ON Artifact            (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON Decision            (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON Repository          (tenantId, id) UNIQUE;
 
+-- AMENDED AGAIN, same deviation, 2026-08-23. ContextSlice became a type
+-- store_arcade.go writes by business id when M4.3 landed -- the id being the
+-- egress pass's digest -- and 26.7.2 refused the first write with the identical
+-- message. This is the eighth type in the same class rather than a new finding,
+-- and it is exactly the case D-047 predicted: the list grows as writers appear.
+-- Ten of the model's twenty-five vertex types remain unindexed, still for the
+-- reason above: nothing writes them yet.
+CREATE INDEX IF NOT EXISTS ON ContextSlice        (tenantId, id) UNIQUE;
+
 -- THE scheduler index. Runs every tick, on every tenant, forever.
 -- Order matters: equality columns first, then the ordering column.
 CREATE INDEX IF NOT EXISTS ON Task (tenantId, status, priority) NOTUNIQUE;

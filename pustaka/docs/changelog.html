@@ -36,6 +36,130 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-22-0">v0.22.0 <time datetime="2026-08-23">2026-08-23</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px"><strong>GAOS called a real
+      model.</strong> On 2026-08-23 a Claude Code run, spawned by the scheduler from a planned graph,
+      was handed the task packet, did the work in a leased git worktree, wrote the handoff document
+      GAOS demanded, and had it read to <em>outcome complete</em> — 18 turns, 195 seconds, a measured
+      $1.28. That is <a href="delivery/implementation-plan.html#sub-m4-5">M4.5</a>, and everything
+      below is either what made it possible or what it taught.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the task packet as files
+        (<a href="delivery/implementation-plan.html#register">T-061</a>).</b> Until this landed a
+        provider tool could be spawned and <em>could not possibly succeed</em>: it was given a working
+        directory with nothing in it. <code>MaterialisePacket</code> writes the <em>cleared</em>
+        packet into the leased workspace — never a redacted part, because the workspace is the one
+        directory the tool may read, and never a <code>KindRepo</code> part, which came off that disk
+        in the first place.</li>
+        <li><span class="chg add">Added</span> <b>the handoff contract
+        (<a href="delivery/implementation-plan.html#register">T-062</a>,
+        <a href="delivery/implementation-plan.html#register">T-063</a>).</b> The other half of why a
+        real run could not succeed: nothing told it what to produce. The contract travels in the
+        packet, so what a run was <em>asked</em> for is inside the frozen slice and inside the digest;
+        it names the run's own ids rather than describing them; and its worked example is flush left,
+        because the parser reads a leading space as <em>this key belongs to the block above</em> and
+        an example indented for looks would punish the models that copy it most carefully.
+        <a href="product/qa-test-plan.html#go-packet">TC-259</a> parses that example on every run.</li>
+        <li><span class="chg add">Added</span> <b>the handoff stored as an <code>Artifact</code>
+        (<a href="delivery/implementation-plan.html#register">T-064</a>).</b> Cited into the next
+        packet with role <code>lesson</code> and reachable no other way, which is
+        <a href="product/brd.html#req-d">D-10</a>. Stored rather than left on disk because the
+        workspace is a lease — and that stopped being hypothetical on the second live run, which took
+        the workspace and truncated its predecessor's document while the record stayed intact.</li>
+        <li><span class="chg add">Added</span> <b><code>deploy/acceptance/live-cli-run.sh</code></b>,
+        the only script here that spends money and the only check that can answer the question the
+        CLI approach rests on. Opt-in twice over: <code>GAOS_LIVE_FAKE=1</code> exercises the whole
+        harness for nothing, <code>GAOS_LIVE_OK=1</code> makes the real call. Six cases,
+        <a href="product/qa-test-plan.html#sc-live-cli">TC-268…TC-273</a>.</li>
+        <li><span class="chg fix">Fixed</span> <b>a refused dispatch on the scheduler's path left no
+        trace at all.</b> Found by running it: the loop declined to dispatch every two seconds,
+        forever, with nothing in the timeline and nothing on the desk.
+        <a href="product/brd.html#req-l">L-5</a> has no scheduler exemption, so the same two events
+        the operator's route writes are written here, and the task goes <code>BLOCKED</code> rather
+        than spinning against a packet that cannot change on its own.</li>
+        <li><span class="chg change">Changed</span> <b>the CLI adapter passes a permission mode and a
+        standing system prompt.</b> Both measured rather than assumed. A tool that cannot be asked
+        resolves "may I write this file" to <em>no</em> — including the handoff document it was told
+        to produce. And the first live run read the whole packet, did the work well, and never wrote
+        the document: the contract had been the last section of a long input and read as background
+        by the time the work was done.</li>
+        <li><span class="chg add">Added</span> <b><a href="product/open-questions.html#oq-24">OQ-24</a>,
+        raised by measurement.</b> The run was configured to send exactly one repository file, and the
+        agent's output quotes a file the allowlist had deliberately kept out — it read it off the
+        worktree. Nothing is broken: <a href="product/brd.html#req-l">L-4</a> screens the packet and
+        <a href="product/brd.html#req-d">D-8</a> gives the tool a directory to work in. But together
+        they mean the frozen slice is not the whole of what a CLI-mode model saw, and the egress
+        documentation does not currently say so.</li>
+        <li><span class="chg note">Note</span> <b>a planned workflow cannot be started by the
+        scheduler today.</b> <code>CreateWorkflow</code> seats the planner agent at the desk it makes
+        Active, the first planned task has role <code>planner</code>, and the seeded floor holds one
+        planner — so the graph blocks waiting for an agent that is busy being its own desk. A
+        capacity-model problem (<code>T-045</code>), written down rather than worked around.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-21-0">v0.21.0 <time datetime="2026-08-23">2026-08-23</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One record per attempt, and the
+      context slice it was actually given — <a href="delivery/implementation-plan.html#sub-m4-3">M4.3</a>,
+      closing build-order step 5's record half. Plus the pass over the pages that had drifted away
+      from the code they describe, which is the release this one is bundled with rather than a
+      separate one: the register's own filters had stopped agreeing with its status column.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a <code>TaskRun</code> per attempt
+        (<a href="delivery/implementation-plan.html#register">T-054</a>).</b>
+        <code>TaskRunRecord</code> mirrors the vertex; <code>superviseRun</code> opens it once the
+        lease is held and before anything spawns, and <code>finishRun</code> closes it — model, cost,
+        tokens, exit code, log reference and failure signature — under the same lock that writes
+        <code>RunExited</code>, because a record and an event that can disagree leave an auditor with
+        no way to choose. Boot reconciliation marks what it recovered <code>KILLED</code> or
+        <code>ORPHANED</code> rather than leaving a row asserting a process nobody believes in. The
+        cost basis is whatever the attempt measured and never the DDL's default
+        (<a href="product/brd.html#rules-commercial">BR-31</a>).</li>
+        <li><span class="chg add">Added</span> <b>the frozen context slice
+        (<a href="delivery/implementation-plan.html#register">T-055</a>).</b> Frozen at the moment the
+        egress pass clears it and keyed by that pass's digest, so two attempts given identical context
+        share one record. Provenance is built where the packet is assembled and <em>cut by the pass
+        along with the part that carried it</em> — a citation surviving its own redaction would claim
+        the model was given something <a href="product/brd.html#rules-commercial">BR-32</a> refused to
+        send. <code>USES_CONTEXT</code> hangs off the <code>ContextSlice</code>, never the
+        <code>Task</code>.</li>
+        <li><span class="chg change">Changed</span> <b><code>GET /tasks/{id}/context</code> answers from
+        the frozen slice (<a href="delivery/implementation-plan.html#register">T-056</a>).</b> The
+        route used to recompute one live, which looks identical on the page and is the difference
+        between a demonstration and an audit trail. <code>Store.ContextSlice</code> became
+        <code>Store.TaskContext</code> so the answer can carry <code>Frozen</code> — the third change
+        to <code>store.go</code> since it was written, and the header says why. With nothing run the
+        live assembly is still returned, and the inspector and the JSON both say so.</li>
+        <li><span class="chg add">Added</span> <b>twelve cases,
+        <a href="product/qa-test-plan.html#go-taskrun">TC-247…TC-258</a></b>, in
+        <code>dashboard/taskrun_test.go</code> plus two in the store conformance table. Two of them
+        need a scratch ArcadeDB and prove the part a projection cannot: an attempt and its slice
+        survive a restart, citations included.</li>
+        <li><span class="chg fix">Fixed</span> <b>one schema gap, in D-047's own class.</b>
+        <code>ContextSlice</code> became a type written by business id and 26.7.2 refused the first
+        write for want of a <code>(tenantId, id)</code> index — exactly the case
+        <a href="product/decision-log.html#d-047">D-047</a> predicted. The index is added under that
+        decision's heading, no new ruling; the DDL applies 324 statements.</li>
+        <li><span class="chg fix">Fixed</span> <b>the implementation plan's filters, which contradicted
+        its own status column on fourteen rows.</b> Filtering the register by <code>done</code> hid
+        thirteen finished tasks and <code>todo</code> surfaced them. Four rows were also flagged
+        against facts that had stopped being true, checked against the code rather than the prose
+        beside them: the back office persists what it writes (<code>T-029</code>),
+        <code>Inject()</code> writes the master subgraph (<code>T-026</code>), and
+        <code>ApprovalRejected</code> and <code>ProposalRecorded</code> are both emitted
+        (<code>T-085</code>, <code>T-094</code>).</li>
+        <li><span class="chg fix">Fixed</span> <b>the claims around the register.</b> The admonition
+        still said forty tasks were done and that there was no scheduler and no runner in the
+        repository; <a href="architecture/graph.html#not-yet">the graph page</a> repeated the
+        sentence; the BRD still marked <code>H-1</code>, <code>H-2</code> and <code>H-3</code> as
+        <em>Designed</em> with their tasks long done, described a 160-entry event window that came out
+        in v0.11.0, and counted 51 tests in a package that has 168; the FAQ said no code reads or
+        writes a graph.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-20-1">v0.20.1 <time datetime="2026-08-22">2026-08-22</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The implementation plan caught
       up with v0.20.0. Nothing in the code moved: boot reconciliation shipped in that release and the

@@ -58,6 +58,40 @@ type CLIAdapter struct {
 	Local    bool
 	Timeout  time.Duration
 
+	// PermissionMode is how the tool is told it may act without being asked.
+	//
+	// A tool run non-interactively cannot be asked anything, so its default --
+	// prompt the human -- resolves to "refuse", and an agent that may not write
+	// a file cannot write the handoff document either. The whole invocation then
+	// fails as handoff-missing for a reason that has nothing to do with the work.
+	//
+	// The value is deliberately NOT a blanket bypass. What makes accepting edits
+	// reasonable here is D-3: the tool runs in a workspace this orchestrator holds
+	// an exclusive lease on, materialised from a packet the egress pass cleared.
+	// The bound is the lease, not the prompt.
+	//
+	// Empty means the flag is not passed at all, which is what a tool with no
+	// such concept needs -- and what keeps this the only file that knows one
+	// tool has the flag.
+	PermissionMode string
+
+	// ContractInSystemPrompt repeats the handoff contract as a standing
+	// instruction rather than leaving it only in the packet.
+	//
+	// MEASURED, on the first real call this repository ever made: the agent read
+	// the packet, did the work well, and never wrote the handoff document. The
+	// contract was the last section of a long stdin, behind the objective, the
+	// rules, the record and a source file -- and by the time the work was done
+	// it read as background rather than as an instruction. The run was recorded
+	// as handoff-missing, which is correct and useless: the work existed and
+	// GAOS could not tell.
+	//
+	// A system prompt is the channel for "this holds for the whole session",
+	// which is exactly what the contract is. The packet keeps its copy -- that
+	// is the RECORD of what was asked, and it is what the frozen slice contains
+	// -- so this is deliberate duplication rather than a move.
+	ContractInSystemPrompt bool
+
 	// SessionEnv names the environment variables the tool needs in order to
 	// find its own session. NAMED, never inherited -- see isolatedEnv.
 	SessionEnv []string
@@ -141,6 +175,14 @@ func (a *CLIAdapter) Dispatch(ctx context.Context, c Cleared) (Attempt, error) {
 	args = append(args, "-p", "--output-format", "json")
 	if a.Model != "" {
 		args = append(args, "--model", a.Model)
+	}
+	if a.PermissionMode != "" {
+		args = append(args, "--permission-mode", a.PermissionMode)
+	}
+	if a.ContractInSystemPrompt {
+		if c := partOfKind(c.Packet(), KindContract); c != "" {
+			args = append(args, "--append-system-prompt", c)
+		}
 	}
 
 	// The handoff document is emptied before the invocation, which handoff.go
@@ -275,7 +317,19 @@ func collect(ws, logPath, digest, model string) Attempt {
 	// skipping the read because the exit looked bad would be reading meaning
 	// into the exit code by omission -- the same mistake, in the one shape that
 	// is easy to miss in review.
-	h, err := ReadHandoff(ws)
+	//
+	// The bytes are kept as well as the parse. T-064 stores them as an Artifact,
+	// and a document that failed to parse is still the best evidence there is
+	// about an attempt that failed to produce one -- so the raw text is carried
+	// on both branches and the failure signature is set on one.
+	raw, rerr := os.ReadFile(filepath.Join(ws, HandoffPath))
+	if rerr == nil {
+		att.HandoffRaw = string(raw)
+	}
+	h, err := ParseHandoff(raw)
+	if rerr != nil {
+		err = fmt.Errorf("%s: %w", SigHandoffMissing, rerr)
+	}
 	if err != nil {
 		att.Failure = SigHandoffMissing
 	} else {
@@ -356,9 +410,25 @@ func parseCLIResult(stdout []byte) (cliResult, bool) {
 // prompt string -- is what the adapter hands over". The difference matters at
 // replay time: a prompt is a thing GAOS composed and would have to recompose
 // identically, and a packet is a thing it stored.
+// The contract goes LAST, after the repository dump, and the ordering is not
+// cosmetic. It is the one part of the packet whose instructions must be
+// followed rather than merely read, and the end of a long input is where a
+// model attends to an instruction best. It is also on disk, at
+// .gaos/packet/handoff.md, because a tool that summarises its input rather than
+// reading it whole still has somewhere to look.
+// partOfKind returns the body of the first part of a kind, or empty.
+func partOfKind(p Packet, kind string) string {
+	for _, part := range p.Parts {
+		if part.Kind == kind {
+			return part.Body
+		}
+	}
+	return ""
+}
+
 func instructionOf(p Packet) string {
 	var b strings.Builder
-	for _, kind := range []string{KindTask, KindRules, KindContext, KindRepo} {
+	for _, kind := range []string{KindTask, KindRules, KindContext, KindRepo, KindContract} {
 		for _, part := range p.Parts {
 			if part.Kind != kind {
 				continue

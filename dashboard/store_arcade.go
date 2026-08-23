@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -156,8 +157,11 @@ func (s *ArcadeStore) Master(ctx context.Context, id string) (Master, error) {
 }
 func (s *ArcadeStore) Masters(ctx context.Context) ([]Master, error) { return s.proj.Masters(ctx) }
 func (s *ArcadeStore) Events(ctx context.Context) ([]Event, error)   { return s.proj.Events(ctx) }
-func (s *ArcadeStore) ContextSlice(ctx context.Context, i int) ([]string, error) {
-	return s.proj.ContextSlice(ctx, i)
+func (s *ArcadeStore) TaskContext(ctx context.Context, i int) (ContextView, error) {
+	return s.proj.TaskContext(ctx, i)
+}
+func (s *ArcadeStore) Runs(ctx context.Context, taskID string) ([]TaskRunRecord, error) {
+	return s.proj.Runs(ctx, taskID)
 }
 func (s *ArcadeStore) PlanWorkflow(ctx context.Context, d WorkflowDraft) ([]PlanTask, error) {
 	return s.proj.PlanWorkflow(ctx, d)
@@ -344,6 +348,9 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 			return err
 		}
 		if err := s.writeTasks(ctx, tx, d.ID); err != nil {
+			return err
+		}
+		if err := s.writeRuns(ctx, tx, d.ID); err != nil {
 			return err
 		}
 	}
@@ -644,6 +651,126 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 	return nil
 }
 
+// writeRuns persists one desk's attempts and the context each was given.
+// T-054 and T-055, requirements D-5 and D-6.
+//
+// Three edges, and their directions are the model document's rather than
+// convenience:
+//
+//	Task -HAS_RUN->        TaskRun         one row per attempt
+//	TaskRun -ASSEMBLED->   ContextSlice    what THIS attempt was given
+//	ContextSlice -USES_CONTEXT-> source    why each node was in the prompt
+//
+// The last one hangs off the slice and not off the task, which the data model
+// calls out as easy to get backwards: attach it to the task and attempt two
+// overwrites the evidence of what attempt one received, which is the one thing
+// D-6 exists to prevent.
+//
+// A citation with no NodeID gets no edge. Repository files are the case -- until
+// M1.2 indexes a repository there is no vertex for a file to point at, and an
+// edge to a vertex that does not exist is refused at commit, taking the whole
+// transaction with it. The citation is still stored on the slice record, so the
+// fact that code was sent survives even though the graph cannot yet say which.
+func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string) error {
+	runs, slices := s.proj.runsSnapshot(deskID)
+
+	// Handoff documents first, because a slice's USES_CONTEXT edge below needs
+	// its endpoint to exist. T-064.
+	//
+	// NO edge from the Product, deliberately. D-10 says the document "reaches the
+	// next agent only through USES_CONTEXT on that agent's slice" -- a
+	// HAS_ARTIFACT edge beside it would be a second route to the same document,
+	// and the requirement is about there being exactly one.
+	for _, a := range s.proj.artifactsSnapshot(deskID) {
+		if err := s.upsert(ctx, tx, "Artifact", a.ID, map[string]any{
+			"kind": a.Kind, "title": a.Title, "body": a.Body, "mimeType": "text/markdown",
+			"taskId": a.TaskID, "deskId": a.DeskID, "runId": a.RunID, "attempt": a.Attempt,
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Slices next, and in digest order: an ASSEMBLED edge below needs its
+	// endpoint to exist, and a map iterated in Go's order would write the same
+	// transaction differently on every call.
+	digests := make([]string, 0, len(slices))
+	for d := range slices {
+		digests = append(digests, d)
+	}
+	sort.Strings(digests)
+	for _, d := range digests {
+		rec := slices[d]
+		// The citations go on the vertex AND, where they can, on edges.
+		//
+		// Not redundancy. The edge is the traversable form and the one §12's
+		// queries walk, but an edge needs both endpoints to exist, and a
+		// citation commonly names a vertex that does not: a repository file has
+		// none until M1.2 indexes one, and a requirement has none until the
+		// record is injected. Dropping the citation in that case would lose the
+		// provenance of most of a slice for a reason that has nothing to do with
+		// the slice. The property is the RECORD -- complete, exactly what was
+		// frozen -- and load() reads it; the edges are the index over it.
+		cites, err := jsonList(rec.Cites)
+		if err != nil {
+			return err
+		}
+		if err := s.upsert(ctx, tx, "ContextSlice", rec.Digest, map[string]any{
+			"assembledAt": unixStamp(rec.AssembledAt), "tokenCount": rec.TokenCount,
+			"nodeCount": rec.NodeCount, "digest": rec.Digest, "rendered": rec.Rendered,
+			"taskId": rec.TaskID, "deskId": rec.DeskID, "attempt": rec.Attempt,
+			"cites": cites,
+		}); err != nil {
+			return err
+		}
+		for _, c := range rec.Cites {
+			if c.NodeID == "" || c.NodeType == "" {
+				continue
+			}
+			if err := s.optional(s.edgeProps(ctx, tx, "USES_CONTEXT",
+				"ContextSlice", rec.Digest, c.NodeType, c.NodeID,
+				map[string]any{"role": c.Role, "tokens": c.Tokens})); err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, r := range runs {
+		props := map[string]any{
+			"attempt": r.Attempt, "status": r.Status, "model": r.Model,
+			"startedAt": unixStamp(r.StartedAt), "invocation": r.Invocation,
+			"exitCode": r.ExitCode, "tokensIn": r.TokensIn, "tokensOut": r.TokensOut,
+			"failureSignature": r.FailureSignature, "logRef": r.LogRef,
+			"taskId": r.TaskID, "deskId": r.DeskID,
+		}
+		if r.EndedAt > 0 {
+			props["endedAt"] = unixStamp(r.EndedAt)
+		}
+		// Cost and its basis travel together or not at all. BR-31 forbids
+		// aggregating a measured figure with a guessed one, and a costUsd
+		// written beside the DDL's default basis of "estimated" would be a
+		// guess this code never made.
+		if r.CostBasis != "" {
+			props["costUsd"], props["costBasis"] = r.CostUSD, r.CostBasis
+		}
+		if err := s.upsert(ctx, tx, "TaskRun", r.ID, props); err != nil {
+			return err
+		}
+		// The task may be a desk display id rather than a planned Task vertex --
+		// the operator-triggered dispatch route has no graph task behind it -- so
+		// the edge is optional in exactly the way injectSubgraph's are.
+		if err := s.optional(s.edge(ctx, tx, "HAS_RUN", "Task", r.TaskID, "TaskRun", r.ID)); err != nil {
+			return err
+		}
+		if r.SliceDigest != "" {
+			if err := s.optional(s.edge(ctx, tx, "ASSEMBLED",
+				"TaskRun", r.ID, "ContextSlice", r.SliceDigest)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // eventPayloadWire is Event.payload as it sits in the database: the three
 // presentation fields the timeline reads, plus the reducer's delta under its own
 // key.
@@ -862,6 +989,21 @@ func (s *ArcadeStore) upsert(ctx context.Context, tx *ArcadeTx, typ, id string, 
 // success case rather than the failure one. BR-24 is why there is one edge type
 // per relationship and no type property to filter on.
 func (s *ArcadeStore) edge(ctx context.Context, tx *ArcadeTx, label, fromType, fromID, toType, toID string) error {
+	return s.edgeProps(ctx, tx, label, fromType, fromID, toType, toID, nil)
+}
+
+// edgeProps is edge with properties on the edge itself.
+//
+// USES_CONTEXT is the reason it exists: role is mandatory on that type, so an
+// edge written without one is refused, and role is the entire point of the edge
+// -- "why was this node in the prompt" is the question, and an unlabelled edge
+// answers only "it was".
+//
+// Properties are set on CREATE only. An edge that already exists is left alone,
+// for the same reason the existence probe below is there rather than a retry:
+// re-writing an audit edge would let a later pass restate what an earlier
+// attempt was given.
+func (s *ArcadeStore) edgeProps(ctx context.Context, tx *ArcadeTx, label, fromType, fromID, toType, toID string, props map[string]any) error {
 	// The existence check is not belt-and-braces over the unique index; it is
 	// the only thing that works. 26.7.2 has no CREATE EDGE ... IF NOT EXISTS,
 	// and inside a transaction the index violation is raised at COMMIT rather
@@ -885,10 +1027,19 @@ func (s *ArcadeStore) edge(ctx context.Context, tx *ArcadeTx, label, fromType, f
 	if len(hits) > 0 && hits[0].N > 0 {
 		return nil
 	}
+	sets := []string{"createdAt = sysdate()"}
+	i := 0
+	for k, v := range props {
+		p := fmt.Sprintf("e%d", i)
+		sets = append(sets, k+" = :"+p)
+		params[p] = v
+		i++
+	}
+	sort.Strings(sets) // one statement per edge, byte-identical between runs
 	sql := fmt.Sprintf(
 		`CREATE EDGE %s FROM (SELECT FROM %s WHERE id = :a AND tenantId = :t)
-		 TO (SELECT FROM %s WHERE id = :b AND tenantId = :t) SET createdAt = sysdate()`,
-		label, fromType, toType)
+		 TO (SELECT FROM %s WHERE id = :b AND tenantId = :t) SET %s`,
+		label, fromType, toType, strings.Join(sets, ", "))
 	err := s.run(ctx, tx, sql, params)
 	var ae *ArcadeError
 	if errors.As(err, &ae) && strings.Contains(ae.Exception, "DuplicatedKeyException") {
@@ -1088,6 +1239,119 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		m.tasks = append(m.tasks, t)
 	}
 
+	// The attempts and the context each was given. T-054 and T-055, and the
+	// same argument as the task graph above: neither is folded from the stream,
+	// so if this could not put them back they would be memory pretending to be
+	// a record -- and the thing they are a record OF is what a model was sent,
+	// which is the one question BR-01's "reconstructible" promise cannot be
+	// allowed to fail on.
+	//
+	// Slices first, because a run names one and the projection resolves the
+	// name on read.
+	var slrows []struct {
+		Digest      string          `json:"digest"`
+		TaskID      string          `json:"taskId"`
+		DeskID      string          `json:"deskId"`
+		Attempt     int             `json:"attempt"`
+		AssembledAt string          `json:"assembledAt"`
+		TokenCount  int             `json:"tokenCount"`
+		NodeCount   int             `json:"nodeCount"`
+		Rendered    string          `json:"rendered"`
+		Cites       json.RawMessage `json:"cites"`
+	}
+	if err := s.arc.Query(ctx,
+		`SELECT digest, taskId, deskId, attempt, assembledAt, tokenCount, nodeCount,
+		        rendered, cites
+		 FROM ContextSlice WHERE tenantId = :t ORDER BY digest`,
+		map[string]any{"t": s.tenant}, &slrows); err != nil {
+		return false, err
+	}
+	for _, r := range slrows {
+		rec := SliceRecord{
+			Digest: r.Digest, TaskID: r.TaskID, DeskID: r.DeskID, Attempt: r.Attempt,
+			AssembledAt: parseStamp(r.AssembledAt), TokenCount: r.TokenCount,
+			NodeCount: r.NodeCount, Rendered: r.Rendered,
+		}
+		// From the property, not from out('USES_CONTEXT'). The edges only exist
+		// for citations whose target vertex does -- see writeRuns -- so reading
+		// them back would silently return a subset of the provenance and call it
+		// the whole of it, which is a worse failure than having none.
+		if err := decodeInto(r.Cites, &rec.Cites); err != nil {
+			return false, err
+		}
+		m.slices[rec.Digest] = rec
+	}
+
+	// The handoff documents, T-064. Filtered by kind rather than read whole:
+	// Artifact also carries the record's diagrams, which injectSubgraph writes
+	// and which are a different thing entirely.
+	var arows []struct {
+		ID        string `json:"id"`
+		Kind      string `json:"kind"`
+		Title     string `json:"title"`
+		Body      string `json:"body"`
+		TaskID    string `json:"taskId"`
+		DeskID    string `json:"deskId"`
+		RunID     string `json:"runId"`
+		Attempt   int    `json:"attempt"`
+		CreatedAt string `json:"createdAt"`
+	}
+	if err := s.arc.Query(ctx,
+		`SELECT id, kind, title, body, taskId, deskId, runId, attempt, createdAt
+		 FROM Artifact WHERE tenantId = :t AND kind = :k ORDER BY id`,
+		map[string]any{"t": s.tenant, "k": ArtifactHandoff}, &arows); err != nil {
+		return false, err
+	}
+	for _, r := range arows {
+		m.artifacts[r.ID] = ArtifactRecord{
+			ID: r.ID, Kind: r.Kind, Title: r.Title, Body: r.Body,
+			TaskID: r.TaskID, DeskID: r.DeskID, RunID: r.RunID, Attempt: r.Attempt,
+			// The vertex's own createdAt, which is the write time rather than the
+			// moment the document was produced. Close enough for the only thing
+			// that reads it -- "which of these is the latest" -- and honest about
+			// which clock it came from.
+			CreatedAt: parseStamp(r.CreatedAt),
+		}
+	}
+
+	var rrows []struct {
+		ID          string  `json:"id"`
+		TaskID      string  `json:"taskId"`
+		DeskID      string  `json:"deskId"`
+		Attempt     int     `json:"attempt"`
+		Status      string  `json:"status"`
+		Model       string  `json:"model"`
+		Invocation  string  `json:"invocation"`
+		StartedAt   string  `json:"startedAt"`
+		EndedAt     string  `json:"endedAt"`
+		ExitCode    int     `json:"exitCode"`
+		TokensIn    int64   `json:"tokensIn"`
+		TokensOut   int64   `json:"tokensOut"`
+		CostUSD     float64 `json:"costUsd"`
+		CostBasis   string  `json:"costBasis"`
+		Signature   string  `json:"failureSignature"`
+		LogRef      string  `json:"logRef"`
+		SliceDigest string  `json:"sliceDigest"`
+	}
+	if err := s.arc.Query(ctx,
+		`SELECT id, taskId, deskId, attempt, status, model, invocation, startedAt, endedAt,
+		        exitCode, tokensIn, tokensOut, costUsd, costBasis, failureSignature, logRef,
+		        first(out('ASSEMBLED').digest) AS sliceDigest
+		 FROM TaskRun WHERE tenantId = :t ORDER BY id`,
+		map[string]any{"t": s.tenant}, &rrows); err != nil {
+		return false, err
+	}
+	for _, r := range rrows {
+		m.runs = append(m.runs, TaskRunRecord{
+			ID: r.ID, TaskID: r.TaskID, DeskID: r.DeskID, Attempt: r.Attempt,
+			Status: r.Status, Model: r.Model, Invocation: r.Invocation,
+			StartedAt: parseStamp(r.StartedAt), EndedAt: parseStamp(r.EndedAt),
+			ExitCode: r.ExitCode, TokensIn: r.TokensIn, TokensOut: r.TokensOut,
+			CostUSD: r.CostUSD, CostBasis: r.CostBasis,
+			FailureSignature: r.Signature, LogRef: r.LogRef, SliceDigest: r.SliceDigest,
+		})
+	}
+
 	// The workflow counter, restored from the ids actually in the graph rather
 	// than from a count of anything. A restarted dashboard that resumed
 	// numbering from len(desks) would hand the next workflow an id some earlier
@@ -1243,6 +1507,33 @@ func issueStatus(tasks int) string {
 }
 
 func nowStamp() string { return time.Now().UTC().Format("2006-01-02 15:04:05") }
+
+// parseStamp is unixStamp backwards, for the load path. An unparseable or empty
+// stamp is zero rather than an error: it means "not yet", which is what an
+// attempt that has not ended has, and failing a whole boot over one is a worse
+// answer than a run whose end time reads as unset.
+func parseStamp(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Unix()
+		}
+	}
+	return 0
+}
+
+// unixStamp renders one of the domain's unix-second fields as the DATETIME the
+// DDL declares. Zero means "not yet" -- an attempt that has not ended -- and
+// becomes an empty string the caller is expected to leave out of the write
+// rather than a stamp claiming 1970.
+func unixStamp(sec int64) string {
+	if sec <= 0 {
+		return ""
+	}
+	return time.Unix(sec, 0).UTC().Format("2006-01-02 15:04:05")
+}
 
 // jsonMap and jsonList move a Go value through JSON so it reaches ArcadeDB as a
 // document rather than as a string holding JSON. The difference matters on the

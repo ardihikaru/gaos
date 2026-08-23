@@ -75,8 +75,14 @@ const (
 // RunClaim is one task that says it is running, plus the two independent
 // signals D-4 weighs it against.
 type RunClaim struct {
-	TaskID     string
-	DeskID     string
+	TaskID string
+	DeskID string
+	// RunID names the ATTEMPT the claim is about, read off the lease. The
+	// decision below does not look at it -- which attempt it is changes nothing
+	// about whether to adopt, requeue or orphan -- but the boot pass has to close
+	// the right TaskRun afterwards, and deriving it from a task's attempt counter
+	// would be guessing at exactly the moment the counter is least trustworthy.
+	RunID      string
 	Workspace  string
 	Status     string
 	LeaseUntil int64

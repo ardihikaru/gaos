@@ -75,6 +75,8 @@ var storeContract = []storeCase{
 	{"PlanningWritesTasksAndDependencies", casePlanWritesGraph},
 	{"APlanWithACycleIsRejected", casePlanCycleRejected},
 	{"ContextSliceIsAssembledFromTheRecord", caseContextSlice},
+	{"ADispatchedTaskHasAFrozenSliceAndAnAttempt", caseDispatchFreezesAndRecords},
+	{"RunsOfATaskNobodyRanIsEmptyNotAnError", caseRunsOfAnUnrunTask},
 	{"DispatchScreensBeforeItDispatches", caseDispatchScreens},
 	{"DispatchOnADeskAlreadyRunningIsRejected", caseDispatchBusy},
 	{"ARefusedDispatchBlocksTheDeskAndSaysWhy", caseDispatchRefusedBlocks},
@@ -1185,16 +1187,92 @@ func caseCreateWorkflow(t *testing.T, s Store) {
 
 func caseContextSlice(t *testing.T, s Store) {
 	ctx := context.Background()
-	slice, err := s.ContextSlice(ctx, 0)
+	view, err := s.TaskContext(ctx, 0)
 	if err != nil {
-		t.Fatalf("ContextSlice(0): %v", err)
+		t.Fatalf("TaskContext(0): %v", err)
 	}
-	if len(slice) == 0 {
+	if len(view.Chips) == 0 {
 		t.Fatal("the context slice is empty; the inspector card claims it is what the model receives")
 	}
-	if _, err := s.ContextSlice(ctx, 9999); !errors.Is(err, ErrNotFound) {
-		t.Errorf("ContextSlice of a desk that does not exist returned %v, want ErrNotFound", err)
+	// Nothing has run on a freshly seeded desk, so there is nothing frozen to
+	// serve. Saying so is the requirement (D-6): a live assembly presented as
+	// the slice an attempt received would be evidence nobody produced.
+	if view.Frozen {
+		t.Errorf("TaskContext reported a frozen slice on a desk that has never run an attempt (digest %q)", view.Digest)
 	}
+	if _, err := s.TaskContext(ctx, 9999); !errors.Is(err, ErrNotFound) {
+		t.Errorf("TaskContext of a desk that does not exist returned %v, want ErrNotFound", err)
+	}
+}
+
+// caseDispatchFreezesAndRecords is T-055 across the seam: whichever store this
+// is, a cleared dispatch leaves a slice behind, and the digest the event
+// published is the one the store will answer with. A store that emitted the
+// digest and froze nothing would pass every event assertion in the suite and
+// still have lost the evidence.
+func caseDispatchFreezesAndRecords(t *testing.T, s Store) {
+	ctx := context.Background()
+	idx := idleDeskIn(t, s)
+
+	res, err := s.DispatchTask(ctx, idx)
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	var digest string
+	for _, e := range res.NewEvents {
+		if e.Type == TaskDispatched {
+			digest = e.Payload.Digest
+		}
+	}
+	if digest == "" {
+		t.Skip("this desk's dispatch was refused by the deployment's egress policy; " +
+			"caseDispatchRefusedBlocks covers that path")
+	}
+
+	view, err := s.TaskContext(ctx, idx)
+	if err != nil {
+		t.Fatalf("TaskContext after a dispatch: %v", err)
+	}
+	if !view.Frozen {
+		t.Fatalf("the dispatch published digest %s and the store still answers with a live "+
+			"assembly; D-6 stores the slice per attempt so the answer is evidence rather than "+
+			"a second guess", digest)
+	}
+	if view.Digest != digest {
+		t.Errorf("the store answers with digest %q and the event published %q; two answers to "+
+			"one question", view.Digest, digest)
+	}
+}
+
+// caseRunsOfAnUnrunTask pins the empty case on both stores. Nothing has run, so
+// the honest answer is no attempts -- not ErrNotFound, which would make "this
+// task has never been attempted" indistinguishable from "there is no such task"
+// at exactly the moment a caller needs to tell them apart.
+func caseRunsOfAnUnrunTask(t *testing.T, s Store) {
+	runs, err := s.Runs(context.Background(), "no-such-task")
+	if err != nil {
+		t.Fatalf("Runs of a task nobody ran returned %v, want no error and no rows", err)
+	}
+	if len(runs) != 0 {
+		t.Errorf("Runs of a task nobody ran returned %d attempt(s)", len(runs))
+	}
+}
+
+// idleDeskIn is idleDesk through the seam, for the cases that must run against
+// both stores.
+func idleDeskIn(t *testing.T, s Store) int {
+	t.Helper()
+	f, err := s.Snapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, d := range f.Desks {
+		if d.State == StateIdle {
+			return i
+		}
+	}
+	t.Skip("no idle desk in this store's seeded floor")
+	return 0
 }
 
 // caseFocus records a deliberate asymmetry: Focus clamps where Desk refuses.
@@ -1302,7 +1380,7 @@ func wipeTenant(t *testing.T, arc *Arcade, tenant string) {
 	t.Helper()
 	ctx := context.Background()
 	for _, typ := range []string{
-		"Product", "Workflow", "Task", "TaskRun", "Requirement", "Issue",
+		"Product", "Workflow", "Task", "TaskRun", "ContextSlice", "Requirement", "Issue",
 		"AcceptanceCriterion", "Artifact", "Decision", "Repository",
 		"Event", "Snapshot", "Agent", "Room", "Tenant",
 	} {
