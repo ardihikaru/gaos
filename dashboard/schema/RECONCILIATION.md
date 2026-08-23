@@ -14,13 +14,14 @@ version and for the dialect to be reconciled. This is that reconciliation.
   (`dashboard/schema_embed.go`), which is why the SQL lives inside the
   `dashboard` module rather than beside the script.
 - **Date measured:** 2026-08-16; deviation 3 added 2026-08-17; re-measured the
-  same day after `D-037` (see "Additions" below).
-- **Result:** 323 statements apply clean, and re-applying is a no-op. **Three**
+  same day after `D-037`, and again on 2026-08-23 when `M4.3` added the eighth
+  identity index deviation 3 already predicted (see "Additions" below).
+- **Result:** 324 statements apply clean, and re-applying is a no-op. **Three**
   deviations from the committed model document were required to get there: one
   is dialect, **one is a design error in the model**, and one is an
   incompleteness found later, when `T-006` first wrote to the graph. The count
-  was 321 when those three were ruled; the two statements since are additions
-  rather than reconciliations, and needed no deviation at all.
+  was 321 when those three were ruled; the three statements since are additions
+  rather than reconciliations, and needed no new ruling at all.
 
 The model document warns in its own words that the ArcadeDB SQL dialect moves
 between releases and that the schema should be run against the target version
@@ -146,7 +147,8 @@ the correction where they would otherwise copy the mistake.
 ## Deviation 3 — an identity index on seven types, but every type is addressed by id
 
 **Severity:** incompleteness in the committed model. **Statements affected:** 7
-added. **Found on 2026-08-17, writing `store_arcade.go` (`T-006`).**
+added, and an eighth on 2026-08-23. **Found on 2026-08-17, writing
+`store_arcade.go` (`T-006`).**
 
 The model gives `(tenantId, id) UNIQUE` to seven vertex types: `Product`,
 `Workflow`, `Task`, `TaskRun`, `Agent`, `Issue`, `Knowledge`. The other eighteen
@@ -175,6 +177,14 @@ that writes one of them adds its index in the same change.
 a uniqueness the model already assumed by addressing records by business id.
 The DDL now applies **321** statements rather than 314.
 
+**Extended 2026-08-23, `T-055`.** The sentence above — *"the next task that
+writes one of them adds its index in the same change"* — came due. `M4.3` made
+`ContextSlice` a type `store_arcade.go` writes by business id, the id being the
+egress pass's digest, and 26.7.2 refused the first write with the identical
+message. One more index under the same heading, no new ruling: this is `D-047`
+being applied rather than amended, and ten of the twenty-five vertex types
+remain unindexed for the same stated reason.
+
 ---
 
 ## Additions — `D-037`, 2026-08-17
@@ -197,7 +207,7 @@ and one is a widened vocabulary on an existing property — `Task.status` gains
 **Measured 2026-08-17 on a fresh `26.7.2` scratch database:**
 
 ```
-./deploy/schema/scratch.sh up            # 323 applied, 0 already present, 0 failed
+./deploy/schema/scratch.sh up            # 324 applied, 0 already present, 0 failed
 ./deploy/schema/apply.sh scratch --url … # 0 failed on a second run
 ```
 

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // maxDeskLogs is how many inspector lines a desk keeps. This one is a display
@@ -65,6 +66,22 @@ type MemStore struct {
 	// by ArcadeStore.load exactly as the master record is, and the TaskPlanned
 	// case in fold.go says so at more length.
 	tasks []TaskRecord
+
+	// runs is one TaskRunRecord per ATTEMPT -- T-054, D-5, BR-22 -- and slices
+	// are the frozen ContextSlices they were given, keyed by digest (T-055, D-6).
+	//
+	// A slice and a map, and the asymmetry is deliberate. Attempts have an order
+	// that is a property of the data (a task's attempt 1 precedes its attempt 2)
+	// and things that read them care about it; slices have no order at all, only
+	// an identity, and two attempts given the same context share one record
+	// rather than storing it twice. The digest IS that identity -- it comes from
+	// the egress pass, over the surviving parts in path order.
+	//
+	// Neither is folded, for the same reason the task graph is not: they are
+	// persisted records restored by ArcadeStore.load, not projections of the
+	// stream. RunStarted and RunExited describe them; they are not made of them.
+	runs   []TaskRunRecord
+	slices map[string]SliceRecord
 
 	// workflowSeq numbers workflows. Monotonic, and never derived from
 	// len(desks): the desks are the six seeded products and their count does not
@@ -220,6 +237,7 @@ func newProjection() *MemStore {
 		meetingIdx:  -1,
 		speed:       1,
 		pending:     map[string][]LogLine{},
+		slices:      map[string]SliceRecord{},
 
 		// The documented defaults of §7.6.1, so a store built without a
 		// configuration still screens. An egress policy that defaulted to
@@ -673,23 +691,110 @@ func (s *MemStore) rawEvents() []Event {
 	return out
 }
 
-// ContextSlice is the exact set of graph nodes that would be rendered into the
-// model's prompt. It is assembled from the product master, never invented --
-// that is the claim the inspector card makes, so it has to be true.
-func (s *MemStore) ContextSlice(ctx context.Context, idx int) ([]string, error) {
+// TaskContext answers §09's "the exact slice sent to the model". T-056.
+//
+// Two answers, and the caller is told which one it got. If the desk has an
+// attempt behind it, the frozen ContextSlice that attempt was given is the
+// answer -- evidence, in D-6's sense, unchanged by anything edited since. If
+// nothing has run, there is no evidence and the live assembly is returned with
+// Frozen false, because a projection of today's record is a reasonable preview
+// and a terrible audit trail, and the difference has to be visible rather than
+// inferred.
+func (s *MemStore) TaskContext(ctx context.Context, idx int) (ContextView, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if idx < 0 || idx >= len(s.desks) {
-		return nil, ErrNotFound
+		return ContextView{}, ErrNotFound
 	}
 	d := s.desks[idx]
+
+	if rec, attempt, ok := s.frozenFor(d.ID); ok {
+		return ContextView{
+			Chips:       chipsFor(rec),
+			Frozen:      true,
+			Digest:      rec.Digest,
+			AssembledAt: rec.AssembledAt,
+			Attempt:     attempt,
+			Cites:       rec.Cites,
+		}, nil
+	}
+	return ContextView{Chips: s.liveSlice(d)}, nil
+}
+
+// frozenFor finds the slice this desk was last given, and the attempt number to
+// report with it.
+//
+// Two sources, in that order. An attempt's own SliceDigest is the better answer
+// because it names what a process was actually handed. Failing that, the most
+// recently frozen slice for the desk still counts: a dispatch that cleared the
+// egress pass with no runner configured froze a real slice and never spawned
+// anything, and calling that "live" would hide a thing that genuinely happened.
+//
+// What it will NOT do is open a TaskRun for that case. There was no attempt --
+// no process, no cost, no exit -- and events.go's rule about inventing evidence
+// applies to records as much as to events.
+//
+// Assumes the lock is held.
+func (s *MemStore) frozenFor(deskID string) (SliceRecord, int, bool) {
+	if run, ok := s.latestRunForDesk(deskID); ok {
+		if rec, ok := s.slices[run.SliceDigest]; ok {
+			return rec.Clone(), run.Attempt, true
+		}
+	}
+	var (
+		best  SliceRecord
+		found bool
+	)
+	for _, rec := range s.slices {
+		if rec.DeskID != deskID {
+			continue
+		}
+		// Ties broken by digest, not by map order: two slices frozen in the same
+		// second would otherwise make this answer depend on Go's map iteration,
+		// and an audit route that returns a different answer per call is worse
+		// than one that returns the wrong answer consistently.
+		if !found || rec.AssembledAt > best.AssembledAt ||
+			(rec.AssembledAt == best.AssembledAt && rec.Digest > best.Digest) {
+			best, found = rec, true
+		}
+	}
+	return best.Clone(), best.Attempt, found
+}
+
+// chipsFor renders a frozen slice as the inspector's chips.
+//
+// From the citations, not from the master: the whole value of a frozen slice is
+// that it does not consult the record again. A story deleted after the attempt
+// ran still shows here, because it was there when the model was given it.
+func chipsFor(rec SliceRecord) []string {
+	out := []string{"task:" + rec.TaskID, fmt.Sprintf("digest:%s", rec.Digest)}
+	byRole := map[string]int{}
+	var order []string
+	for _, c := range rec.Cites {
+		if _, seen := byRole[c.Role]; !seen {
+			order = append(order, c.Role)
+		}
+		byRole[c.Role]++
+	}
+	sort.Strings(order)
+	for _, role := range order {
+		out = append(out, fmt.Sprintf("%s(%d)", role, byRole[role]))
+	}
+	return append(out, fmt.Sprintf("parts(%d)", rec.NodeCount),
+		fmt.Sprintf("~%d tokens", rec.TokenCount))
+}
+
+// liveSlice is the set of graph nodes that WOULD be rendered into the prompt,
+// assembled from the product master and never invented -- that is the claim the
+// inspector card makes, so it has to be true. Assumes the lock is held.
+func (s *MemStore) liveSlice(d Desk) []string {
 	if leadAgent(d) == nil {
-		return []string{"planner output only"}, nil
+		return []string{"planner output only"}
 	}
 	out := []string{"task:" + taskIDOf(d), "dependency subgraph (3)"}
 	m := s.masterPtr(d.ID)
 	if m == nil {
-		return append(out, "repo:"+d.Repo, "policy:no-secrets-in-prompt", "diff:workspace HEAD"), nil
+		return append(out, "repo:"+d.Repo, "policy:no-secrets-in-prompt", "diff:workspace HEAD")
 	}
 	if m.BRD.Problem != "" {
 		out = append(out, "brd:problem")
@@ -722,7 +827,15 @@ func (s *MemStore) ContextSlice(ctx context.Context, idx int) ([]string, error) 
 	if len(m.Repos) > 0 {
 		out = append(out, "repo:"+m.Repos[0])
 	}
-	return append(out, "policy:no-secrets-in-prompt", "diff:workspace HEAD"), nil
+	return append(out, "policy:no-secrets-in-prompt", "diff:workspace HEAD")
+}
+
+// Runs is a task's attempts, oldest first. The read side of T-054: BR-22's
+// "each attempt is its own record" is only true if something can ask for them.
+func (s *MemStore) Runs(ctx context.Context, taskID string) ([]TaskRunRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.runsFor(taskID), nil
 }
 
 // ---------- navigation ----------
@@ -903,8 +1016,15 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 			d.Agents = []string{a.ID}
 		}
 	}
+	// The slice is frozen HERE, before anything is dispatched and whether or not
+	// a runner is configured. D-6 is about what was assembled and cleared, not
+	// about what a provider did with it afterwards; a dispatch that then failed
+	// to spawn still has an answer to "what would it have been given", and the
+	// operator-triggered route with no adapter behind it is exactly that case.
+	slice := s.recordSlice(cleared, taskIDOf(*d), d.ID, 1)
+
 	s.log(d, fmt.Sprintf("packet frozen · %d parts · %d bytes · digest %s",
-		len(cleared.Packet().Parts), cleared.Bytes(), cleared.Digest()), "g")
+		slice.NodeCount, cleared.Bytes(), cleared.Digest()), "g")
 
 	p := deskPayload(*d)
 	p.Bytes, p.Digest = cleared.Bytes(), cleared.Digest()
@@ -941,13 +1061,179 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 
 // freezePacket assembles the task packet of §7.6, in memory.
 //
-// IN MEMORY ONLY. Materialising it as files in a leased workspace is T-061, and
-// the frozen ContextSlice vertex is T-055; neither exists. Packet.Workspace is
-// the path an adapter would run in, and this store never touches it.
+// Materialising it as FILES in the leased workspace is still T-061 and still
+// does not exist -- Packet.Workspace is the path an adapter would run in, and
+// this store does not write into it. What does exist now is the record of what
+// was assembled: recordSlice stores the cleared packet as a ContextSlice keyed
+// by digest (T-055), so the answer to "what was attempt two given" comes out of
+// the store rather than out of a second guess at the same question.
 //
 // Assumes the lock is held.
 func (s *MemStore) freezePacket(d Desk) Packet {
 	return s.freezePacketFor(d, taskIDOf(d))
+}
+
+// recordSlice freezes what the egress pass cleared, as one ContextSlice per
+// digest. T-055, requirement D-6, rule BR-23.
+//
+// Keyed by digest and not by attempt, and that is the requirement read
+// carefully rather than a shortcut. D-6 wants the slice frozen PER ATTEMPT; two
+// attempts given byte-identical context were given one slice, and storing it
+// twice would make H-4's "compare two runs of the same task" a diff of two
+// copies of the same string instead of a pointer comparison. The attempt keeps
+// its own reference either way, on TaskRunRecord.SliceDigest, so nothing is
+// lost -- and the first attempt's assembly time is the one kept, because that is
+// when this context came into existence.
+//
+// Rendered is the parts joined, in the SAME path order the digest was computed
+// over. Any other order would render a slice whose text disagreed with its own
+// identity.
+//
+// Assumes the lock is held.
+func (s *MemStore) recordSlice(c Cleared, taskID, deskID string, attempt int) SliceRecord {
+	if s.slices == nil {
+		s.slices = map[string]SliceRecord{}
+	}
+	if existing, ok := s.slices[c.Digest()]; ok {
+		return existing.Clone()
+	}
+
+	parts := c.Packet().Parts
+	sort.Slice(parts, func(i, j int) bool { return parts[i].Path < parts[j].Path })
+	var b strings.Builder
+	for _, p := range parts {
+		fmt.Fprintf(&b, "==> %s (%s)\n%s\n", p.Path, p.Kind, p.Body)
+	}
+
+	rec := SliceRecord{
+		Digest:      c.Digest(),
+		TaskID:      taskID,
+		DeskID:      deskID,
+		Attempt:     attempt,
+		AssembledAt: time.Now().Unix(),
+		TokenCount:  tokenEstimate(b.String()),
+		NodeCount:   len(parts),
+		Bytes:       c.Bytes(),
+		Rendered:    b.String(),
+		Cites:       c.Cites(),
+	}
+	s.slices[rec.Digest] = rec
+	return rec.Clone()
+}
+
+// startRun opens the record for one attempt, before anything has spawned.
+//
+// Before, and not after, because the record is what a restart reads. A run that
+// crashed between the spawn and its first event has to leave something behind
+// that says an attempt was made -- otherwise boot reconciliation sees a task in
+// DISPATCHED with no attempt against it and cannot tell a lost run from one that
+// never began. STARTED is that fact; superviseRun moves it to RUNNING once a
+// process actually exists.
+//
+// Assumes the lock is held.
+func (s *MemStore) startRun(r TaskRunRecord) TaskRunRecord {
+	for i := range s.runs {
+		if s.runs[i].ID == r.ID {
+			// An adopted run, or a retried write. The attempt is identified by
+			// (task, attempt) and re-opening it must not fork the record: BR-22
+			// says each attempt is ONE record, and two rows for one attempt would
+			// double every cost aggregated over them.
+			s.runs[i].Status = r.Status
+			return s.runs[i].Clone()
+		}
+	}
+	s.runs = append(s.runs, r)
+	return r.Clone()
+}
+
+// markRun applies a status to one attempt and nothing else. Used by boot
+// reconciliation, where the only thing known about the run is what happened to
+// it. Assumes the lock is held.
+func (s *MemStore) markRun(runID, status string) {
+	for i := range s.runs {
+		if s.runs[i].ID == runID {
+			s.runs[i].Status = status
+			if s.runs[i].EndedAt == 0 && status != RunStatusRunning {
+				s.runs[i].EndedAt = time.Now().Unix()
+			}
+			return
+		}
+	}
+}
+
+// closeRun writes what the attempt cost and what it left behind.
+//
+// Everything here comes off the Attempt, which is the mode-independent shape the
+// adapter seam produces -- including CostBasis. It is NOT defaulted to
+// "estimated" when the tool reported nothing: BR-31 exists so that a number
+// nobody measured cannot be aggregated with one somebody did, and inventing the
+// basis is a more thorough way of breaking that rule than omitting the cost.
+//
+// Assumes the lock is held.
+func (s *MemStore) closeRun(runID string, att Attempt, runErr error) {
+	for i := range s.runs {
+		if s.runs[i].ID != runID {
+			continue
+		}
+		r := &s.runs[i]
+		r.Status = RunStatusExited
+		r.EndedAt = time.Now().Unix()
+		r.ExitCode = att.ExitCode
+		r.TokensIn, r.TokensOut = att.TokensIn, att.TokensOut
+		r.CostUSD, r.CostBasis = att.CostUSD, att.CostBasis
+		r.FailureSignature = att.Failure
+		if att.LogRef != "" {
+			r.LogRef = att.LogRef
+		}
+		if att.Model != "" {
+			r.Model = att.Model
+		}
+		if att.Invocation != "" {
+			r.Invocation = att.Invocation
+		}
+		if runErr != nil {
+			// The process never produced an exit status. ExitCrashed already
+			// says so through ExitCode -1; the signature says what to do about
+			// it, and a run that could not start is not a failure of the work.
+			r.ExitCode = -1
+			if r.FailureSignature == "" {
+				r.FailureSignature = "run-not-started"
+			}
+		}
+		return
+	}
+}
+
+// runsFor returns one task's attempts, oldest first. Copies, for the reason
+// tasksFor returns copies. Assumes the lock is held.
+func (s *MemStore) runsFor(taskID string) []TaskRunRecord {
+	var out []TaskRunRecord
+	for _, r := range s.runs {
+		if r.TaskID == taskID {
+			out = append(out, r.Clone())
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Attempt < out[j].Attempt })
+	return out
+}
+
+// latestRunForDesk is what the inspector needs: the most recent attempt on the
+// desk being looked at, whatever task it belonged to. Assumes the lock is held.
+func (s *MemStore) latestRunForDesk(deskID string) (TaskRunRecord, bool) {
+	var (
+		best  TaskRunRecord
+		found bool
+	)
+	for _, r := range s.runs {
+		if r.DeskID != deskID {
+			continue
+		}
+		if !found || r.StartedAt > best.StartedAt ||
+			(r.StartedAt == best.StartedAt && r.Attempt > best.Attempt) {
+			best, found = r, true
+		}
+	}
+	return best.Clone(), found
 }
 
 // freezePacketFor is freezePacket with the task id supplied.
@@ -970,6 +1256,19 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string) Packet {
 		}
 	}
 
+	// cite records WHY a node is in this packet, against the part carrying it.
+	//
+	// Built here rather than derived later because here is the only place that
+	// knows: once the record has been flattened into markdown, "which requirement
+	// is that bullet" is a parsing problem, and USES_CONTEXT is supposed to be
+	// the answer to it rather than another thing that needs one.
+	cite := func(nodeType, nodeID, role, path, body string) {
+		pkt.Cites = append(pkt.Cites, Citation{
+			NodeType: nodeType, NodeID: nodeID, Role: role,
+			Path: path, Tokens: tokenEstimate(body),
+		})
+	}
+
 	add(".gaos/packet/task.md", KindTask,
 		"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+"\n")
 
@@ -978,29 +1277,36 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string) Packet {
 		return pkt
 	}
 
+	const rulesPath = ".gaos/packet/rules.md"
 	var rules strings.Builder
 	if m.BRD.Problem != "" {
 		fmt.Fprintf(&rules, "## Problem\n%s\n\n", m.BRD.Problem)
 	}
-	for _, r := range m.BRD.Rules {
+	for i, r := range m.BRD.Rules {
 		fmt.Fprintf(&rules, "- %s\n", r)
+		cite("Requirement", fmt.Sprintf("%s-rule-%d", m.ID, i+1), CiteRule, rulesPath, r)
 	}
-	for _, o := range m.BRD.OutOfScope {
+	for i, o := range m.BRD.OutOfScope {
 		fmt.Fprintf(&rules, "- OUT OF SCOPE: %s\n", o)
+		cite("Requirement", fmt.Sprintf("%s-out_of_scope-%d", m.ID, i+1), CiteBoundary, rulesPath, o)
 	}
-	add(".gaos/packet/rules.md", KindRules, rules.String())
+	add(rulesPath, KindRules, rules.String())
 
+	const recordPath = ".gaos/packet/context/record.md"
 	var ctxb strings.Builder
 	for _, st := range m.Stories {
 		fmt.Fprintf(&ctxb, "### %s (%s) — as %s, I want %s so %s\n", st.ID, st.Pri, st.Role, st.Want, st.So)
-		for _, c := range st.AC {
+		cite("Issue", m.ID+"-"+st.ID, CiteStory, recordPath, st.Want+st.So)
+		for i, c := range st.AC {
 			fmt.Fprintf(&ctxb, "- %s\n", c)
+			cite("AcceptanceCriterion", fmt.Sprintf("%s-%s-ac-%d", m.ID, st.ID, i+1), CiteCriterion, recordPath, c)
 		}
 	}
 	for _, a := range m.Decisions {
 		fmt.Fprintf(&ctxb, "### %s — %s (confidence %.2f)\n", a.ID, a.Title, a.Confidence)
+		cite("Decision", m.ID+"-"+a.ID, CiteDecision, recordPath, a.Title)
 	}
-	add(".gaos/packet/context/record.md", KindContext, ctxb.String())
+	add(recordPath, KindContext, ctxb.String())
 
 	// The repository half, and the reason the allowlist exists at all.
 	//
@@ -1014,10 +1320,29 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string) Packet {
 	// the files in it -- real bytes, screened against the real allowlist. When
 	// M1.2 lands it replaces this walk and the egress pass does not change,
 	// because the pass screens PacketParts and does not care who chose them.
-	pkt.Parts = append(pkt.Parts, readWorkspace(pkt.Workspace)...)
+	repo := readWorkspace(pkt.Workspace)
+	pkt.Parts = append(pkt.Parts, repo...)
+	for _, part := range repo {
+		// No vertex id: M1.2's repository index is what would give a file one,
+		// and it does not exist. The citation is still worth keeping -- it is the
+		// difference between "code was sent" and "we no longer know what code was
+		// sent" -- and ArcadeStore writes an edge only for a citation that names a
+		// vertex, so an unnamed one records the fact without dangling an edge.
+		cite("", "", CiteCode, part.Path, part.Body)
+	}
 
 	return pkt
 }
+
+// tokenEstimate is USES_CONTEXT.tokens, and the name is the whole disclaimer.
+//
+// Four bytes per token is the usual English rule of thumb and it is wrong for
+// code, wrong for Indonesian and wrong for any tokeniser in particular. A real
+// count needs the provider's vocabulary, which is a provider shape above the
+// adapter seam and BR-33 forbids it; the DDL wants a number for tuning the
+// assembler, not for billing. The one that bills is TaskRun.tokensIn, which is
+// measured from the tool's own report and carries a basis (BR-31).
+func tokenEstimate(body string) int { return (len(body) + 3) / 4 }
 
 // workspaceReadLimits bound what a dispatch will read off disk. A workspace is
 // somebody's repository and may contain a node_modules; walking it without a
@@ -1795,6 +2120,41 @@ func (s *MemStore) tasksSnapshot(deskID string) []TaskRecord {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.tasksFor(deskID)
+}
+
+// runsSnapshot is every attempt on one desk, with the slice each was given.
+//
+// The slices come back beside the runs rather than being fetched one at a time
+// because two attempts commonly share one, and the persist path writes both in
+// a single transaction: a TaskRun whose ASSEMBLED edge points at a ContextSlice
+// that failed to write would be an attempt naming context nobody can read.
+func (s *MemStore) runsSnapshot(deskID string) ([]TaskRunRecord, map[string]SliceRecord) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var runs []TaskRunRecord
+	slices := map[string]SliceRecord{}
+	for _, r := range s.runs {
+		if r.DeskID != deskID {
+			continue
+		}
+		runs = append(runs, r.Clone())
+		if rec, ok := s.slices[r.SliceDigest]; ok {
+			slices[r.SliceDigest] = rec.Clone()
+		}
+	}
+	// Every slice frozen for this desk, including ones no attempt references.
+	// A dispatch that cleared with no runner configured froze a real slice and
+	// spawned nothing; leaving it out of the write would mean the projection
+	// could answer /tasks/{id}/context and a restarted process could not, which
+	// is BR-01's cache-must-be-reconstructible rule failing quietly.
+	for digest, rec := range s.slices {
+		if rec.DeskID == deskID {
+			slices[digest] = rec.Clone()
+		}
+	}
+	sort.SliceStable(runs, func(i, j int) bool { return runs[i].ID < runs[j].ID })
+	return runs, slices
 }
 
 // ---------- small helpers ----------

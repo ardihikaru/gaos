@@ -668,6 +668,153 @@ func (t TaskRecord) Clone() TaskRecord {
 	return c
 }
 
+// ---------- the attempt, and what it was given ----------
+
+// The TaskRun lifecycle, constrained by 04-execution.sql's regexp on
+// TaskRun.status. Constants rather than literals for the reason the event
+// catalog is: a status this build invents is a row the DDL refuses at commit,
+// and finding that out at commit time is finding it out in production.
+const (
+	RunStatusStarted  = "STARTED"  // the lease is held and the record is written; nothing has spawned
+	RunStatusRunning  = "RUNNING"  // a process exists
+	RunStatusExited   = "EXITED"   // it ended, well or badly -- the outcome is not read from here
+	RunStatusTimeout  = "TIMEOUT"  // the deadline fired before the process ended
+	RunStatusOrphaned = "ORPHANED" // a restart found it with an expired lease
+	RunStatusKilled   = "KILLED"   // a restart made it dead so its workspace could be handed on
+)
+
+// TaskRunRecord is the Go mirror of the TaskRun vertex in 04-execution.sql, one
+// per ATTEMPT. D-5 and BR-22: "each attempt is its own record with its own
+// model, cost, tokens, exit code and failure signature."
+//
+// Per attempt, not per task, and that is the whole requirement. A task that
+// retries three times against three model tiers has three costs, three exit
+// codes and possibly three different failure signatures; collapsing them onto
+// the task would leave the retry policy reading an average of things that
+// happened separately, and BR-16 routes on whether the signature CHANGED.
+//
+// Not to be confused with RunRecord in adapter.go, which is the RUN.json the
+// supervisor leaves in the workspace for whoever adopts the run. That one is
+// opaque above the adapter and holds pids; this one is the graph's record and
+// holds nothing mode-specific -- BR-33.
+//
+// Times are unix seconds, matching TaskRecord.LeaseUntil and Event.T: a value
+// the fold and the reconciler both compare, with no monotonic clock reading
+// riding along inside it.
+//
+// What is deliberately absent is BR-25: no prompt body, no log text, no packet.
+// LogRef names where the output was stored and SliceDigest names the slice; the
+// heavy halves live behind those two strings, so the scheduler can traverse a
+// task's attempts without dragging a megabyte of transcript through the query.
+type TaskRunRecord struct {
+	ID      string // runIDFor(taskID, attempt) -- stable, so an adopting process finds the same row
+	TaskID  string
+	DeskID  string
+	Attempt int
+	Status  string
+
+	Model      string
+	Invocation string // InvocationCLI | InvocationAPI -- RECORDED, never branched on (BR-33)
+
+	StartedAt int64
+	EndedAt   int64
+	ExitCode  int
+
+	TokensIn  int64
+	TokensOut int64
+	CostUSD   float64
+	CostBasis string // CostMeasured | CostEstimated | CostUnavailable (BR-31)
+
+	FailureSignature string
+	LogRef           string
+	SliceDigest      string // the ContextSlice this attempt was given: the ASSEMBLED edge
+}
+
+func (r TaskRunRecord) Clone() TaskRunRecord { return r }
+
+// The USES_CONTEXT.role vocabulary, closed by 08-edges.sql's regexp.
+//
+// Constants for the same reason as the event catalog (D-020): a role this build
+// invents is an edge the DDL refuses, and an audit edge that failed to write is
+// an attempt whose context cannot be explained afterwards.
+const (
+	CiteRequirement = "requirement"
+	CiteRule        = "rule"
+	CiteBoundary    = "boundary"
+	CiteStory       = "story"
+	CiteCriterion   = "criterion"
+	CiteDiagram     = "diagram"
+	CiteDecision    = "decision"
+	CiteLesson      = "lesson"
+	CiteCode        = "code"
+	CiteDiff        = "diff"
+	CitePolicy      = "policy"
+)
+
+// Citation is one USES_CONTEXT edge: why a node was in the prompt.
+//
+// Path names the packet part that carried it, and it is not decoration. The
+// egress pass drops parts, and a citation whose part was dropped has to go with
+// it -- otherwise the slice claims to have sent something the pass refused, and
+// the audit edge becomes the least trustworthy thing in the graph.
+type Citation struct {
+	NodeType string // the vertex type: Requirement, Issue, AcceptanceCriterion, Artifact
+	NodeID   string
+	Role     string // one of the Cite* constants
+	Tokens   int
+	Path     string // the packet part that carried it
+}
+
+// SliceRecord is the Go mirror of the ContextSlice vertex, frozen per attempt.
+// D-6 and BR-23: "the exact context slice sent to a model is frozen and stored
+// per attempt."
+//
+// Rendered is allowed to be large -- ContextSlice.rendered is EXTERNAL in
+// 10-storage.sql, so it is not on a page the scheduler walks. It is the whole
+// point of the record: GET /tasks/{id}/context has to answer with what the model
+// ACTUALLY received, and a slice reassembled later from a record that has since
+// been edited answers a different question convincingly.
+//
+// Digest is the identity. It comes from the egress pass, over the surviving
+// parts in path order, so two attempts that were given the same context share a
+// digest and the comparison H-4 asks for is a string equality rather than a
+// diff.
+type SliceRecord struct {
+	Digest      string
+	TaskID      string
+	DeskID      string
+	Attempt     int
+	AssembledAt int64
+	TokenCount  int
+	NodeCount   int
+	Bytes       int
+	Rendered    string
+	Cites       []Citation
+}
+
+func (s SliceRecord) Clone() SliceRecord {
+	c := s
+	c.Cites = append([]Citation(nil), s.Cites...)
+	return c
+}
+
+// ContextView is what the inspector and GET /tasks/{id}/context are answered
+// with. T-056.
+//
+// Frozen is the field that matters and the reason this is a struct rather than
+// the []string it used to be. A live recomputation and a frozen slice look
+// identical once they are chips on a page, and D-6 exists because they are not
+// the same thing at all: one is evidence, the other is a guess that agrees with
+// today's record. The caller is told which it is holding.
+type ContextView struct {
+	Chips       []string
+	Frozen      bool
+	Digest      string
+	AssembledAt int64
+	Attempt     int
+	Cites       []Citation
+}
+
 // PlannedTask is the audit shape of one task, carried by TaskPlanned.
 //
 // The reducer does not read it -- the graph is not in FloorState, see the
