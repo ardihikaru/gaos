@@ -46,6 +46,15 @@ type ModelConfig struct {
 	Local      bool // true when the model runs on the operator's own host (L-6)
 	SessionEnv []string
 
+	// PermissionMode is passed to a CLI tool that has one. See the field on
+	// CLIAdapter for why a non-interactive agent needs it and why the bound is
+	// the workspace lease rather than the flag.
+	PermissionMode string
+
+	// ContractInSystemPrompt repeats the handoff contract as a standing
+	// instruction. See the field on CLIAdapter for the measurement behind it.
+	ContractInSystemPrompt bool
+
 	Egress EgressPolicy
 }
 
@@ -77,6 +86,17 @@ func ModelConfigFromEnv() ModelConfig {
 		// that hands the child the whole environment makes the frozen slice a
 		// lie about what the model received (D-051).
 		SessionEnv: envList("GAOS_CLI_SESSION_ENV", nil),
+
+		// acceptEdits by default: the tool may edit inside the workspace it was
+		// pointed at and nothing else. Set it empty for a tool that has no such
+		// flag. The choice is measured -- without it, Claude Code 2.x run with
+		// -p declines every write, including the handoff document it was told
+		// to produce, and the attempt fails for a reason unrelated to the work.
+		PermissionMode: envOr("GAOS_CLI_PERMISSION_MODE", "acceptEdits"),
+
+		// On by default, and measured rather than assumed: see
+		// CLIAdapter.ContractInSystemPrompt for the run that decided it.
+		ContractInSystemPrompt: envBool("GAOS_CLI_CONTRACT_SYSTEM_PROMPT", true),
 
 		Egress: EgressPolicy{
 			// nil Redact arms every detector. See the field comment in
@@ -115,12 +135,15 @@ func selectAdapter(c ModelConfig) (Adapter, error) {
 			return nil, fmt.Errorf("GAOS_MODEL_MODE=cli but GAOS_CLI_COMMAND is empty")
 		}
 		return &CLIAdapter{
-			Argv:       strings.Fields(c.Command),
-			Pin:        pin,
-			Model:      c.Model,
-			Provider:   c.Provider,
-			Local:      c.Local,
-			SessionEnv: c.SessionEnv,
+			Argv:           strings.Fields(c.Command),
+			Pin:            pin,
+			Model:          c.Model,
+			Provider:       c.Provider,
+			Local:          c.Local,
+			SessionEnv:     c.SessionEnv,
+			PermissionMode: c.PermissionMode,
+
+			ContractInSystemPrompt: c.ContractInSystemPrompt,
 		}, nil
 
 	case ModeAPI:

@@ -29,10 +29,11 @@
   <div class="adm warn">
     <p class="adm-title">Read this one first: GAOS does not work yet</p>
     <p>Every answer below describes a product whose design is complete and whose engine is only
-    partly built. As of v0.20.1 what runs is the operator interface, the graph store underneath it,
-    the scheduler, the detached runner with its lease and boot reconciliation, the documentation and
-    the deployment — and still <strong>no agent has ever been dispatched to a real model, and no
-    model has ever been called</strong>. The
+    partly built. As of v0.22.0 what runs is the operator interface, the graph store underneath it,
+    the scheduler, the detached runner with its lease and boot reconciliation, the task packet and the
+    handoff contract, the documentation and the deployment. <strong>One real model call has been
+    made</strong>, on 2026-08-23, and it did the work it was given. What does not exist is everything
+    that judges the result, so nothing runs unattended yet. The
     repository's own README keeps a designed-versus-built table and this site repeats it on
     <a href="brd.html#current-state">§2.1 of the BRD</a>. Nothing here is a promise about a delivery
     date, because there is no roadmap with dates on it. If you are evaluating GAOS to use next month,
@@ -283,9 +284,11 @@
   restart rebuilds the floor from the database rather than from the fixtures. The scheduler decides
   as a pure function of the task graph and the runner supervises detached work under a workspace
   lease, reconciling every claimed run on boot. What is <em>not</em> built is the reason those exist:
-  <strong>no model has ever been called from this repository</strong>, no attempt is recorded as a
-  <code>TaskRun</code>, reviews are simulated, and authentication is absent — the back-office login
-  accepts any value and checks nothing. The
+  a real model call now runs end to end — on 2026-08-23 an agent was given a packet, did the
+  work in a leased worktree and wrote the handoff document GAOS reads, for a measured $1.28. What is
+  <em>not</em> built is the judgement around it: <strong>nothing reviews what a run produced</strong>,
+  no guard ends a retry loop, the floor is still moved by a simulation rather than by work, and
+  authentication is absent — the back-office login accepts any value and checks nothing. The
   <a href="brd.html#current-state">designed-versus-built table</a> is maintained honestly and is the
   thing to read before forming an opinion.</p>
 

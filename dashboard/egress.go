@@ -39,11 +39,12 @@ import (
 // The part kinds. Only KindRepo is governed by the path allowlist, and that
 // distinction is not cosmetic -- see EgressPolicy.AllowPaths.
 const (
-	KindTask    = "task"    // .gaos/packet/task.md    -- objective + criteria
-	KindRules   = "rules"   // .gaos/packet/rules.md   -- domain rules to score against
-	KindContext = "context" // .gaos/packet/context/... -- the frozen slice, verbatim
-	KindHandoff = "handoff" // .gaos/handoff/OUTPUT.md -- declared, empty, required
-	KindRepo    = "repo"    // the operator's own files: the largest egress there is
+	KindTask     = "task"     // .gaos/packet/task.md     -- objective + criteria
+	KindRules    = "rules"    // .gaos/packet/rules.md    -- domain rules to score against
+	KindContext  = "context"  // .gaos/packet/context/... -- the frozen slice, verbatim
+	KindContract = "contract" // .gaos/packet/handoff.md  -- the shape the run must produce
+	KindHandoff  = "handoff"  // .gaos/handoff/OUTPUT.md  -- declared, empty, required
+	KindRepo     = "repo"     // the operator's own files: the largest egress there is
 )
 
 // PacketPart is one file the model would be given.

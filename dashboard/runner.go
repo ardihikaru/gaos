@@ -143,6 +143,21 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 		return Attempt{}, err
 	}
 
+	// The packet, as files, in the leased workspace. T-061, requirement D-8.
+	//
+	// After the lease and before anything else touches the directory, because
+	// the lease is what makes this workspace ours to write into -- materialising
+	// first would mean two orchestrators racing to write one packet, which is
+	// the exact corruption D-3 exists to prevent.
+	//
+	// In the runner rather than in the adapter, and that is BR-33: both modes
+	// freeze the same packet and materialise it the same way, so a reviewer
+	// cannot tell from the workspace which one ran.
+	files, err := MaterialisePacket(c)
+	if err != nil {
+		return Attempt{}, err
+	}
+
 	// The graph's record of this attempt, and the slice it is about to be given.
 	// T-054 and T-055.
 	//
@@ -177,8 +192,8 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	s.mu.Unlock()
 
 	s.emitLocked(RunStarted, deskID,
-		fmt.Sprintf("run %s started, attempt %d", runID, attempt), KindInfo,
-		EventPayload{Digest: c.Digest(), Bytes: c.Bytes()})
+		fmt.Sprintf("run %s started, attempt %d · packet %d file(s)", runID, attempt, len(files)),
+		KindInfo, EventPayload{Digest: c.Digest(), Bytes: c.Bytes()})
 
 	// The beat. It renews the lease every heartbeatInterval and writes an event
 	// far less often -- D-053.
@@ -221,6 +236,22 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	// and a RunExited saying another, and there would be no way to tell which of
 	// them the auditor should believe.
 	s.closeRun(runID, att, runErr)
+
+	// What it handed over, stored where the next agent can be cited it. T-064.
+	//
+	// Under the same lock for the same reason, and keyed by the run so two
+	// attempts leave two documents. The workspace copy is not the record: the
+	// lease is released moments from now and the next attempt truncates the file
+	// before it starts.
+	if att.HandoffRaw != "" {
+		s.recordHandoff(ArtifactRecord{
+			ID: runID + "-handoff", Kind: ArtifactHandoff,
+			Title:  fmt.Sprintf("handoff from %s", runID),
+			TaskID: taskID, DeskID: deskID, RunID: runID,
+			Attempt: attemptOfRun(s.runs, runID), Body: att.HandoffRaw,
+			CreatedAt: time.Now().Unix(),
+		})
+	}
 
 	p := EventPayload{Digest: att.Digest}
 	text := fmt.Sprintf("run %s exited %s, outcome %s", runID, att.ExitClass, att.Outcome())
@@ -383,8 +414,27 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 		return decision
 	}
 	for _, d := range decision.Ready {
-		c, ok := s.clearFor(d)
-		if !ok {
+		c, v, err := s.clearFor(d)
+		if err != nil {
+			// A refusal on this path used to be a `continue`, and that was a bug
+			// found by running it: the scheduler would decline to dispatch, over
+			// and over, every two seconds, leaving nothing in the timeline and
+			// nothing on the desk. L-5 does not have a scheduler exemption -- "a
+			// refused dispatch with its reason appears in the timeline like any
+			// other state change" -- and a refusal only the logs know about is
+			// indistinguishable from a scheduler that has stopped working.
+			//
+			// The task goes BLOCKED rather than back to PENDING. An egress refusal
+			// is a policy problem an operator has to fix; retrying it on the next
+			// tick would spin forever against a packet that cannot change on its
+			// own.
+			s.refuseDispatch(d, v)
+			continue
+		}
+		if c.empty() {
+			// The desk went away between the scheduler's decision and this. Not
+			// a refusal and not worth an event: nothing was screened, so there is
+			// no state change to describe.
 			continue
 		}
 		// PENDING -> READY -> DISPATCHED, both legal and both meaningful. READY
@@ -409,22 +459,61 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 // clearFor freezes and screens the packet for one scheduled task. BR-32: the
 // only way to a provider is through Screen, and the only thing that returns a
 // Cleared is Screen.
-func (s *MemStore) clearFor(d Dispatch) (Cleared, bool) {
+// The verdict comes back as well as the packet, and the error separately from
+// the boolean, because the two failures are different facts: a desk that has
+// gone away is nothing to report, and a packet the egress pass refused is a
+// state change L-5 requires on the timeline.
+func (s *MemStore) clearFor(d Dispatch) (Cleared, EgressVerdict, error) {
 	s.mu.RLock()
 	idx := s.deskIdxByID(d.DeskID)
 	if idx < 0 {
 		s.mu.RUnlock()
-		return Cleared{}, false
+		return Cleared{}, EgressVerdict{}, nil
 	}
-	pkt := s.freezePacketFor(s.desks[idx], d.TaskID)
+	pkt := s.freezePacketFor(s.desks[idx], d.TaskID, 1)
 	pol, tgt := s.egress, s.target
 	s.mu.RUnlock()
 
-	c, _, err := Screen(pol, tgt, pkt)
+	c, v, err := Screen(pol, tgt, pkt)
 	if err != nil {
-		return Cleared{}, false
+		return Cleared{}, v, err
 	}
-	return c, !c.empty()
+	if c.empty() {
+		return Cleared{}, v, nil
+	}
+	return c, v, nil
+}
+
+// refuseDispatch records a scheduled dispatch the egress pass refused.
+//
+// The same two events MemStore.DispatchTask writes on the operator's route, for
+// the reason BR-33 gives about adapters and L-5 gives about refusals: which
+// route reached the pass is not something the timeline should be able to tell.
+func (s *MemStore) refuseDispatch(d Dispatch, v EgressVerdict) {
+	s.mu.Lock()
+	var ev []Event
+	if i := s.deskIdxByID(d.DeskID); i >= 0 {
+		dk := &s.desks[i]
+		if len(v.Redactions) > 0 {
+			ev = append(ev, s.emit(ContextRedacted, dk.ID,
+				fmt.Sprintf("Context slice cut by %d part(s) before dispatch", len(v.Redactions)),
+				KindWarn, EventPayload{
+					Redactions: len(v.Redactions), Bytes: v.Bytes, Digest: v.Digest,
+				}))
+		}
+		if err := s.setState(dk, StateBlocked); err == nil {
+			dk.BlockReason = v.Reason
+		}
+		s.log(dk, "egress: dispatch refused — "+v.Reason, "r")
+		ev = append(ev, s.emit(DispatchRefused, dk.ID, v.Reason, KindFail, EventPayload{
+			Reason: v.Reason, Rule: v.Rule, Bytes: v.Bytes, Digest: v.Digest,
+			Redactions: len(v.Redactions),
+		}))
+	}
+	s.mu.Unlock()
+
+	s.moveTaskByID(d.TaskID, StatusBlocked)
+	s.publish(ev...)
 }
 
 // ---------------------------------------------------------------- recovery
@@ -536,6 +625,18 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 		NewEvents: ev,
 		Toast:     fmt.Sprintf("Reconciled %d claimed run(s).", len(decisions)),
 	}, nil
+}
+
+// attemptOfRun reads an attempt number off the record rather than re-deriving it
+// from the run id's suffix. The id's shape is runIDFor's business and parsing it
+// back would make that format load-bearing in a second place.
+func attemptOfRun(runs []TaskRunRecord, runID string) int {
+	for _, r := range runs {
+		if r.ID == runID {
+			return r.Attempt
+		}
+	}
+	return 0
 }
 
 // setRunStatus records what recovery did to an attempt, taking the lock itself.
