@@ -674,7 +674,23 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string) error {
 	runs, slices := s.proj.runsSnapshot(deskID)
 
-	// Slices first, and in digest order: an ASSEMBLED edge below needs its
+	// Handoff documents first, because a slice's USES_CONTEXT edge below needs
+	// its endpoint to exist. T-064.
+	//
+	// NO edge from the Product, deliberately. D-10 says the document "reaches the
+	// next agent only through USES_CONTEXT on that agent's slice" -- a
+	// HAS_ARTIFACT edge beside it would be a second route to the same document,
+	// and the requirement is about there being exactly one.
+	for _, a := range s.proj.artifactsSnapshot(deskID) {
+		if err := s.upsert(ctx, tx, "Artifact", a.ID, map[string]any{
+			"kind": a.Kind, "title": a.Title, "body": a.Body, "mimeType": "text/markdown",
+			"taskId": a.TaskID, "deskId": a.DeskID, "runId": a.RunID, "attempt": a.Attempt,
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Slices next, and in digest order: an ASSEMBLED edge below needs its
 	// endpoint to exist, and a map iterated in Go's order would write the same
 	// transaction differently on every call.
 	digests := make([]string, 0, len(slices))
@@ -1264,6 +1280,38 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			return false, err
 		}
 		m.slices[rec.Digest] = rec
+	}
+
+	// The handoff documents, T-064. Filtered by kind rather than read whole:
+	// Artifact also carries the record's diagrams, which injectSubgraph writes
+	// and which are a different thing entirely.
+	var arows []struct {
+		ID        string `json:"id"`
+		Kind      string `json:"kind"`
+		Title     string `json:"title"`
+		Body      string `json:"body"`
+		TaskID    string `json:"taskId"`
+		DeskID    string `json:"deskId"`
+		RunID     string `json:"runId"`
+		Attempt   int    `json:"attempt"`
+		CreatedAt string `json:"createdAt"`
+	}
+	if err := s.arc.Query(ctx,
+		`SELECT id, kind, title, body, taskId, deskId, runId, attempt, createdAt
+		 FROM Artifact WHERE tenantId = :t AND kind = :k ORDER BY id`,
+		map[string]any{"t": s.tenant, "k": ArtifactHandoff}, &arows); err != nil {
+		return false, err
+	}
+	for _, r := range arows {
+		m.artifacts[r.ID] = ArtifactRecord{
+			ID: r.ID, Kind: r.Kind, Title: r.Title, Body: r.Body,
+			TaskID: r.TaskID, DeskID: r.DeskID, RunID: r.RunID, Attempt: r.Attempt,
+			// The vertex's own createdAt, which is the write time rather than the
+			// moment the document was produced. Close enough for the only thing
+			// that reads it -- "which of these is the latest" -- and honest about
+			// which clock it came from.
+			CreatedAt: parseStamp(r.CreatedAt),
+		}
 	}
 
 	var rrows []struct {

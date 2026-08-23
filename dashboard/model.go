@@ -798,6 +798,34 @@ func (s SliceRecord) Clone() SliceRecord {
 	return c
 }
 
+// ArtifactRecord is the Go mirror of the Artifact vertex, and today it carries
+// exactly one thing: the handoff document an attempt produced. T-064, D-10.
+//
+// Stored rather than left in the workspace because the workspace is a lease. It
+// is released when the run ends, reused by the next attempt, and truncated
+// before that attempt starts -- so a document only on disk is evidence with an
+// expiry date, and the question it answers ("what did the previous agent hand
+// over") is asked precisely when it has expired.
+//
+// Body is the RAW document, not the parsed one. What the next agent should read
+// is what the last agent wrote; handing it a re-rendering of our parse of it
+// would quietly drop everything the parser ignores, including the free text
+// after the front matter, which is where an agent explains itself.
+type ArtifactRecord struct {
+	ID        string // runID + "-handoff": one document per attempt, addressable
+	Kind      string
+	Title     string
+	TaskID    string
+	DeskID    string
+	RunID     string
+	Attempt   int
+	Body      string
+	CreatedAt int64
+}
+
+// ArtifactHandoff is the Artifact.kind for a handoff document.
+const ArtifactHandoff = "handoff"
+
 // ContextView is what the inspector and GET /tasks/{id}/context are answered
 // with. T-056.
 //

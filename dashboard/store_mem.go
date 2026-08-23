@@ -83,6 +83,13 @@ type MemStore struct {
 	runs   []TaskRunRecord
 	slices map[string]SliceRecord
 
+	// artifacts are the handoff documents attempts produced. T-064.
+	//
+	// Keyed by id and not by task, because the id IS runID-handoff and the
+	// interesting lookup is "the latest one on this desk" rather than "all of
+	// them" -- the next attempt is cited one document, not a pile.
+	artifacts map[string]ArtifactRecord
+
 	// workflowSeq numbers workflows. Monotonic, and never derived from
 	// len(desks): the desks are the six seeded products and their count does not
 	// change, so `wf-len(desks)+1` handed every workflow ever created the same
@@ -238,6 +245,7 @@ func newProjection() *MemStore {
 		speed:       1,
 		pending:     map[string][]LogLine{},
 		slices:      map[string]SliceRecord{},
+		artifacts:   map[string]ArtifactRecord{},
 
 		// The documented defaults of §7.6.1, so a store built without a
 		// configuration still screens. An egress policy that defaulted to
@@ -970,7 +978,7 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 		return Result{}, reject("This desk already has a task in flight.")
 	}
 
-	pkt := s.freezePacket(*d)
+	pkt := s.freezePacket(*d, 1)
 	cleared, v, err := Screen(s.egress, s.target, pkt)
 
 	var ev []Event
@@ -1069,8 +1077,8 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 // the store rather than out of a second guess at the same question.
 //
 // Assumes the lock is held.
-func (s *MemStore) freezePacket(d Desk) Packet {
-	return s.freezePacketFor(d, taskIDOf(d))
+func (s *MemStore) freezePacket(d Desk, attempt int) Packet {
+	return s.freezePacketFor(d, taskIDOf(d), attempt)
 }
 
 // recordSlice freezes what the egress pass cleared, as one ContextSlice per
@@ -1236,6 +1244,73 @@ func (s *MemStore) latestRunForDesk(deskID string) (TaskRunRecord, bool) {
 	return best.Clone(), found
 }
 
+// roleFor is the role the handoff document must name. The seated agent's, and
+// where no agent is seated, the planned task's -- a role GAOS invented would be
+// a document that describes work nobody was assigned. Empty is a legal answer;
+// handoffContract fills in a default rather than shipping an empty mandatory
+// field to a model. Assumes the lock is held.
+func (s *MemStore) roleFor(d Desk) string {
+	if a := leadAgent(d); a != nil {
+		return a.Role
+	}
+	for _, t := range s.tasks {
+		if t.DeskID == d.ID && t.Status != StatusDone && t.Role != "" {
+			return t.Role
+		}
+	}
+	return ""
+}
+
+// recordHandoff stores what one attempt handed over. T-064. Assumes the lock is
+// held.
+func (s *MemStore) recordHandoff(a ArtifactRecord) {
+	if a.ID == "" || strings.TrimSpace(a.Body) == "" {
+		// A document nobody wrote is not an artifact. BR-30 already recorded the
+		// absence as a failure signature on the attempt; inventing an empty
+		// Artifact beside it would put a second, softer version of the same fact
+		// in the graph.
+		return
+	}
+	if s.artifacts == nil {
+		s.artifacts = map[string]ArtifactRecord{}
+	}
+	s.artifacts[a.ID] = a
+}
+
+// latestHandoffFor finds the document the previous attempt on this desk left.
+//
+// Scoped to the desk rather than the task on purpose. A workflow's desk moves
+// through stages -- architecture, then coding, then review -- and D-10's "the
+// next agent" is the next one to sit at that desk, which is usually a different
+// task and always a different role. Restricting it to the same task id would
+// hand a retry its own previous attempt and hand a new stage nothing, which is
+// the opposite of what §7.6's chain describes.
+//
+// Attempts at or after `attempt` are excluded so a packet frozen twice for the
+// same attempt does not cite itself. Assumes the lock is held.
+func (s *MemStore) latestHandoffFor(deskID, taskID string, attempt int) (ArtifactRecord, bool) {
+	var (
+		best  ArtifactRecord
+		found bool
+	)
+	for _, a := range s.artifacts {
+		if a.DeskID != deskID {
+			continue
+		}
+		if a.TaskID == taskID && a.Attempt >= attempt {
+			continue
+		}
+		// Ties by id, never by map order: a packet whose contents depended on Go's
+		// map iteration would produce a different digest on every freeze, and the
+		// digest is what two runs are compared by.
+		if !found || a.CreatedAt > best.CreatedAt ||
+			(a.CreatedAt == best.CreatedAt && a.ID > best.ID) {
+			best, found = a, true
+		}
+	}
+	return best, found
+}
+
 // freezePacketFor is freezePacket with the task id supplied.
 //
 // The operator-triggered route has no graph task behind it and passes the
@@ -1244,7 +1319,13 @@ func (s *MemStore) latestRunForDesk(deskID string) (TaskRunRecord, bool) {
 // TaskRecord it was named, and a packet carrying a display id simply has no
 // record to update -- which is correct rather than lossy, because there is no
 // planned task behind an operator poking a desk.
-func (s *MemStore) freezePacketFor(d Desk, taskID string) Packet {
+// The attempt number is threaded through because the packet has to name the run
+// the document must be written against, and a model told to "use the run id"
+// will eventually use a different spelling of it. It also means two attempts at
+// one task have different packets and therefore different digests, which is
+// correct rather than inconvenient: attempt two really was given a different
+// instruction.
+func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	pkt := Packet{
 		TaskID:    taskID,
 		DeskID:    d.ID,
@@ -1269,8 +1350,37 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string) Packet {
 		})
 	}
 
+	// The deliverable is named at the TOP as well as in the contract at the
+	// bottom, and the repetition is measured rather than nervous: on the first
+	// real call this repository made, an agent read the whole packet, did the
+	// work well, and never wrote the handoff -- the contract had been the last
+	// section of a long input and read as background by the time the work was
+	// done. Two mentions and a standing system prompt, because an attempt whose
+	// work GAOS cannot see is an attempt that did not happen (BR-30).
 	add(".gaos/packet/task.md", KindTask,
-		"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+"\n")
+		"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+
+			"\n\n## Definition of done\nThe work above, AND the handoff document at "+
+			HandoffPath+" — see .gaos/packet/handoff.md for its exact shape. "+
+			"A run that does the work and writes no document is recorded as failed.\n")
+
+	// The contract, T-062. In the packet rather than bolted onto the instruction
+	// at spawn time, and that placement is the requirement rather than a
+	// preference: what the run was ASKED for is as much part of the evidence as
+	// what it was given, so it belongs inside the frozen slice and inside the
+	// digest. A replay can then prove both halves.
+	add(".gaos/packet/handoff.md", KindContract,
+		handoffContract(taskID, runIDFor(taskID, attempt), s.roleFor(d)))
+
+	// What the previous attempt handed over, T-064. It reaches this agent HERE
+	// and nowhere else -- as a cited part of its own frozen slice, not by
+	// reading a file somebody left in the workspace. D-10: the document "reaches
+	// the next agent only through USES_CONTEXT on that agent's slice", which is
+	// what makes it possible to ask afterwards what attempt two was told about
+	// attempt one.
+	if a, ok := s.latestHandoffFor(d.ID, taskID, attempt); ok {
+		add(".gaos/packet/context/handoff-previous.md", KindContext, a.Body)
+		cite("Artifact", a.ID, CiteLesson, ".gaos/packet/context/handoff-previous.md", a.Body)
+	}
 
 	m := s.masterPtr(d.ID)
 	if m == nil {
@@ -2155,6 +2265,21 @@ func (s *MemStore) runsSnapshot(deskID string) ([]TaskRunRecord, map[string]Slic
 	}
 	sort.SliceStable(runs, func(i, j int) bool { return runs[i].ID < runs[j].ID })
 	return runs, slices
+}
+
+// artifactsSnapshot is one desk's handoff documents, in id order. T-064.
+func (s *MemStore) artifactsSnapshot(deskID string) []ArtifactRecord {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var out []ArtifactRecord
+	for _, a := range s.artifacts {
+		if a.DeskID == deskID {
+			out = append(out, a)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 // ---------- small helpers ----------

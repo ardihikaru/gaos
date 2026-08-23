@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and fifty-eight cases, positive and negative, across the four deploy automations and the
+  two hundred and seventy-three cases, positive and negative, across the five deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -73,7 +73,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and fifty-eight cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and seventy-three cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -344,6 +344,21 @@
       <tr data-tags="go test unit dashboard arcadedb restart contextslice br-01 positive"><td>TC-256</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant still answers with the frozen slice, its digest and every citation (<code>TestTheFrozenSliceSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb restart taskrun br-22 positive"><td>TC-257</td><td>dashboard (go test)</td><td>Positive</td><td>A reopened store holds the attempt with its status, model, cost, basis and the slice it names (<code>TestAnAttemptSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard replay read-only handle br-20 negative"><td>TC-258</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only handle passes both new reads through and still refuses a dispatch (<code>TestTheReadOnlyHandleStillAnswersRunsAndContext</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff contract parser br-30 positive"><td>TC-259</td><td>dashboard (go test)</td><td>Positive</td><td>The example document inside the handoff contract parses, so a model that copies it faithfully passes rather than fails (<code>TestTheContractsOwnExampleParses</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff contract ids d-9 positive"><td>TC-260</td><td>dashboard (go test)</td><td>Positive</td><td>The contract names the path, the task, the run, the role and the failure signature, rather than describing fields the model must guess (<code>TestTheContractNamesTheRunTheDocumentMustCarry</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet contract frozen slice d-6 positive"><td>TC-261</td><td>dashboard (go test)</td><td>Positive</td><td>The contract travels in the frozen packet and reaches the tool's instruction, so what a run was asked for is inside the digest (<code>TestAFrozenPacketCarriesTheContract</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet materialise workspace d-8 positive"><td>TC-262</td><td>dashboard (go test)</td><td>Positive</td><td>The cleared packet is written as files in the leased workspace and the handoff document is declared empty beside it (<code>TestMaterialiseWritesThePacketAndDeclaresTheHandoff</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet materialise redaction egress br-32 negative"><td>TC-263</td><td>dashboard (go test)</td><td>Negative</td><td>A part the egress pass redacted is never written into the workspace the tool can read (<code>TestMaterialiseNeverWritesARedactedPart</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet path escape workspace negative"><td>TC-264</td><td>dashboard (go test)</td><td>Negative</td><td>A packet path that resolves outside the workspace is refused at the boundary that writes, not only at the one that screens (<code>TestTheWriterRefusesAPathThatLeavesTheWorkspace</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff missing signature br-30 negative"><td>TC-265</td><td>dashboard (go test)</td><td>Negative</td><td>A run that writes no document fails the attempt with <code>handoff-missing</code>, on the attempt record as well as the outcome (<code>TestARunWithNoHandoffFailsWithTheSignature</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard artifact handoff uses-context d-10 positive"><td>TC-266</td><td>dashboard (go test)</td><td>Positive</td><td>The document one attempt produced is stored as an <code>Artifact</code> and cited into the next packet with role <code>lesson</code> (<code>TestTheHandoffIsStoredForTheNextAgent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard artifact handoff self citation negative"><td>TC-267</td><td>dashboard (go test)</td><td>Negative</td><td>An attempt is never cited the handoff it produced itself (<code>TestAnAttemptDoesNotCiteItsOwnHandoff</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance real model boot smoke pin positive"><td>TC-268</td><td>live-cli-run.sh</td><td>Positive</td><td>A real provider tool is present, inside the version pin, and the dashboard boots against it</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance readiness planner br-07 positive"><td>TC-269</td><td>live-cli-run.sh</td><td>Positive</td><td>A record written through the back office scores above the planning floor and the planner accepts it</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance egress refusal br-32 negative"><td>TC-270</td><td>live-cli-run.sh</td><td>Negative</td><td>A dispatch the egress pass refused is reported as a refusal with its reason, rather than read as success from the 200</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance packet materialise d-8 positive"><td>TC-271</td><td>live-cli-run.sh</td><td>Positive</td><td>The packet is on disk in the leased worktree before the tool is given it</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance handoff contract real model br-30 positive"><td>TC-272</td><td>live-cli-run.sh</td><td>Positive</td><td>A real model, given only the packet, writes a handoff document GAOS parses to an outcome rather than a signature</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance real work worktree negative"><td>TC-273</td><td>live-cli-run.sh</td><td>Negative</td><td>The deliverable the packet asked for is absent from the worktree, or does not mention what the packet asked about</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1785,6 +1800,89 @@
     writes one of them adds its index in the same change"</em>, so the index was added under the same
     heading and no new ruling was needed. The DDL applies 324 statements rather than 323;
     <code>dashboard/schema/RECONCILIATION.md</code> records it.</p>
+  </div>
+
+  <h3 id="go-packet">dashboard — the packet on disk and the contract in it (TC-259…TC-267)</h3>
+  <p><code>T-061</code>…<code>T-064</code>, in <code>dashboard/packet_test.go</code>. Until these
+  existed a real provider tool could be spawned and <em>could not possibly succeed</em>: it was
+  handed a working directory with nothing in it and an instruction that never said what to produce,
+  so it would do the work, exit 0, and fail the attempt with <code>handoff-missing</code> every
+  single time.
+  <strong>Positive (TC-259):</strong> the case that would have caught the whole feature being
+  useless — <code>the contract's own example does not parse: %v; a model that copies it faithfully
+  fails the attempt, and the contract is the only instruction it got</code>. The contract and the
+  parser are two files written at different times, and nothing else makes them agree.
+  <strong>Positive (TC-260):</strong> <code>the contract never mentions %q; a model cannot satisfy a
+  requirement nobody stated</code>.
+  <strong>Positive (TC-261):</strong> <code>the frozen packet has no contract part; every real
+  invocation would do the work, exit 0 and fail with handoff-missing, because nothing ever told it
+  what to write</code>.
+  <strong>Positive (TC-262):</strong> <code>%s is not on disk: %v; cmd.Dir points at this directory
+  and the tool has nothing to read</code>, and the declared document must be empty, because
+  <code>the declared handoff is %d bytes (err %v), want an empty file</code>.
+  <strong>Negative (TC-263):</strong> the security half — <code>a redacted part was written into the
+  workspace the tool reads; the egress pass refused it at the front door and the packet writer let
+  it in the back</code>.
+  <strong>Negative (TC-264):</strong> <code>path %q resolved to %q instead of being refused; the
+  workspace is a lease and anything outside it belongs to somebody else</code>. Asserted at
+  <code>insideWorkspace</code> rather than through <code>MaterialisePacket</code>, because driving it
+  from the top would mean forging a <code>Cleared</code> and
+  <a href="#go-egress">TC-175</a> walks the syntax tree to forbid that — a guard that caught this
+  test being written the easy way.
+  <strong>Negative (TC-265):</strong> <code>a run that wrote no handoff came back with failure %q,
+  want %q; BR-30 makes the document mandatory and the exit code says only that the process ran</code>.
+  <strong>Positive (TC-266):</strong> <code>the next packet does not cite %s; a document the next
+  agent cannot be shown to have received is not a handoff, it is a file</code>.
+  <strong>Negative (TC-267):</strong> <code>attempt 1 of t-1 was cited artifact %s, which attempt 1
+  of t-1 produced; an attempt reading its own output is a loop with extra steps</code>.</p>
+
+  <h3 id="sc-live-cli">live-cli-run.sh — the first real model call (TC-268…TC-273)</h3>
+  <p>The only script in this repository that spends money, and the only check anywhere that can
+  answer the question the CLI approach rests on: <em>does a real provider tool, handed GAOS's packet
+  and nothing else, produce a document GAOS can read?</em> A fake tool told to write a document
+  writes it whatever the packet said, so every other check here proves the orchestrator and not the
+  contract.</p>
+  <p>Opt-in twice over: <code>GAOS_LIVE_FAKE=1</code> exercises the whole harness for nothing, and
+  <code>GAOS_LIVE_OK=1</code> is the real call. With neither it prints what it would do and stops.
+  The agent is given a git worktree at a temporary path, detached at <code>HEAD</code>, never the
+  working tree; nothing is committed and nothing is pushed.
+  <strong>Positive (TC-268):</strong> <code>ok   claude present — 2.1.241 (Claude Code)</code> and
+  <code>ok   dashboard ready — the boot smoke test passed against the pin</code>, against
+  <code>FAIL the dashboard never became ready</code>.
+  <strong>Positive (TC-269):</strong> <code>ok   readiness 69 — the planning floor is 45
+  (BR-07)</code>, against <code>FAIL the planner refused the workflow (HTTP %s)</code>, which on a
+  thin record is the correct answer.
+  <strong>Negative (TC-270):</strong> <code>FAIL the egress pass refused the dispatch</code>. It
+  reads the stream rather than the status code, because a refusal is a recorded state change with a
+  toast and a 200 — see <a href="#register">TC-195</a>, which pins that on purpose.
+  <strong>Positive (TC-271):</strong> <code>ok   packet: .gaos/packet/handoff.md</code>.
+  <strong>Positive (TC-272):</strong> <code>ok   GAOS read the document: %s</code>, against
+  <code>FAIL GAOS recorded a failed attempt: %s</code>. Read from <code>RunExited</code>'s text and
+  not from a payload: <code>Events()</code> strips payloads at the seam, and an earlier version of
+  this script grepped for the failure signature there and passed on every run including the one
+  where no document was written.
+  <strong>Negative (TC-273):</strong> <code>FAIL %s was not created</code>, and the weaker half,
+  <code>FAIL the file exists but never mentions "%s"; the packet may not have reached the
+  model</code>.</p>
+  <div class="adm warn">
+    <p class="adm-title">What the first live runs measured, including two things nobody had asked</p>
+    <p><strong>The loop works.</strong> On 2026-08-23 a real Claude Code run, spawned by the
+    scheduler from a planned graph, was given the packet, wrote the handoff document, and had it
+    parsed to <em>outcome complete</em>. It cost <strong>$1.28</strong> for 18 turns over 195
+    seconds, measured from the tool's own JSON envelope rather than estimated
+    (<a href="decision-log.html#d-051">D-051</a>), and it produced a 376-line operator runbook in the
+    leased worktree.</p>
+    <p><strong>The contract has to be a standing instruction.</strong> The first attempt did the work
+    well and never wrote the document: the contract had been the last section of a long input and
+    read as background by the time the work was done. It is now repeated in the task's definition of
+    done and passed to the tool as a system prompt. That is a measurement, not a preference, and
+    <code>dashboard/adapter_cli.go</code> records it where the flag is set.</p>
+    <p><strong>An agent reads more than the packet.</strong> The runbook it wrote quotes
+    <code>dashboard/egress.go</code> — a file the allowlist had deliberately kept OUT of the packet.
+    The agent read it off the worktree. The allowlist bounds what GAOS <em>sends</em>; in CLI mode it
+    does not bound what the tool can <em>open</em>, because the tool has a working directory. That
+    materially qualifies <a href="brd.html#req-l">L-4</a> and it is now
+    <a href="open-questions.html#index">OQ-24</a>.</p>
   </div>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>

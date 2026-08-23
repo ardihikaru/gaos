@@ -14,18 +14,18 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Twenty-three decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Twenty-four decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Eighteen are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
-  database version, and which CLI ships first. Three of the five still open exist <em>because</em>
+  database version, and which CLI ships first. Three of the six still open exist <em>because</em>
   those answers were given.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-08-20"
+       data-updated="2026-08-23"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -60,7 +60,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All twenty-three in one place. Filter by any word in a question, or by theme.</p>
+  <p>All twenty-four in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -91,6 +91,7 @@
       <tr data-tags="technical arcadedb version ddl dialect external pin 26.7.2 answered"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Answered → <a href="decision-log.html#d-043">D-043</a></td></tr>
       <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a>, <a href="decision-log.html#d-051">D-051</a></td></tr>
       <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Answered → <a href="decision-log.html#d-049">D-049</a>, <a href="decision-log.html#d-050">D-050</a></td></tr>
+      <tr data-tags="technical egress allowlist workspace cli reads packet l-4 br-32 new"><td><a href="#oq-24">OQ-24</a></td><td>Technical</td><td>In CLI mode the tool has a working directory, so the egress allowlist bounds what GAOS <em>sends</em> and not what the model can <em>open</em>. Is the workspace itself in scope for L-4, and if so, how?</td><td>L-4, BR-32, D-8</td><td>Open — raised by measurement 2026-08-23</td></tr>
       <tr data-tags="operations cadence review evaluation acceptance tests answered"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
       <tr data-tags="operations ha availability replication backup single-node narrowed"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required, and for whom?</td><td>R-09</td><td>Open — narrowed by <a href="decision-log.html#d-031">D-031</a></td></tr>
       <tr data-tags="operations budget cap spend guard defer pacing answered"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Answered → <a href="decision-log.html#d-037">D-037</a></td></tr>
@@ -580,6 +581,41 @@
   long, so <a href="brd.html#risk-register">R-08</a> does not fall and
   <a href="brd.html#risk-register">R-12</a> is untouched — neither is a question this repository can
   close by measurement.</p>
+
+  <h3 id="oq-24">OQ-24 · The allowlist bounds what GAOS sends, not what the model can open</h3>
+  <p><strong>Why it is open, and how it was found:</strong> by measurement, on 2026-08-23, the first
+  time a real model call was made from this repository.</p>
+  <p>The run was configured with <code>GAOS_EGRESS_ALLOW_PATHS=dashboard/modelconfig.go</code>. That
+  is the allowlist doing its job: exactly one repository file entered the packet, everything else was
+  redacted out of the slice before dispatch, and the frozen <code>ContextSlice</code> records
+  precisely that. The agent then wrote a runbook <strong>quoting
+  <code>dashboard/egress.go</code></strong> — a file the allowlist had deliberately kept out. It had
+  read it off the worktree.</p>
+  <p>Nothing was broken. <a href="brd.html#req-l">L-4</a> screens the <em>packet</em>, and
+  <a href="brd.html#req-d">D-8</a> gives the tool a working directory to do its work in; a coding
+  agent that could not read the repository it is editing would be useless. But the two together mean
+  something the egress documentation does not currently say: <strong>in CLI mode the frozen slice is
+  not the whole of what the model saw.</strong> An operator reading "the pass refuses a dispatch that
+  would carry a secret" may reasonably conclude that a file outside the allowlist cannot reach the
+  provider, and in CLI mode it can, if it is in the leased workspace.</p>
+  <p>The question is what to do about it, and the options differ in cost rather than in
+  correctness:</p>
+  <ul>
+    <li><strong>Say so, and nothing else.</strong> Document that the workspace is in scope for
+    whatever the tool may read, and make the workspace's contents the operator's decision — which it
+    already is, since they choose what the worktree contains.</li>
+    <li><strong>Screen the workspace as well as the packet</strong>, before the spawn. Honest, and
+    expensive: it is a full scan of a repository on every dispatch, and its refusals would be about
+    files nobody put in the packet.</li>
+    <li><strong>Constrain the tool.</strong> Every CLI in this category has some form of
+    directory or tool restriction. Using it moves a security property into a per-tool flag, which is
+    exactly what <a href="brd.html#rules-commercial">BR-33</a> warns against, and it would not exist
+    at all in API mode.</li>
+  </ul>
+  <p>It is a real question about what <a href="brd.html#req-l">L-4</a> promises, so it stays open
+  rather than being resolved by whoever writes the next paragraph of documentation. What is not open
+  is that the pass itself works: the same run had a dispatch refused earlier, correctly, because
+  <code>dashboard/egress.go</code> trips its own <code>env-assignment</code> detector.</p>
 
   <h2 id="oq-operations">Operations</h2>
 
