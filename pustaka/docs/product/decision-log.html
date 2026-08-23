@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-08-22"
+       data-updated="2026-08-23"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -946,9 +946,10 @@
     <a href="brd.html#rules-commercial">BR-32</a> required in front of it
     (<a href="../delivery/implementation-plan.html#sub-m11-2">T-126</a>,
     <a href="../delivery/implementation-plan.html#sub-m11-2">T-127</a>). The claim that needs care is
-    what that does <em>not</em> mean: there is still no scheduler and no lease, the adapter is driven
-    by one operator-triggered route and exercised against a stand-in tool, and
-    <strong>no real model provider has been invoked from inside GAOS</strong>. A decision recorded
+    what that does <em>not</em> mean. The scheduler and the lease arrived later the same day; what has
+    not is a reason to trust it unattended — nothing reviews what a run produced and no guard ends a
+    retry loop. <strong>A real provider was first invoked from inside GAOS on 2026-08-23</strong>,
+    once <code>M4.5</code> gave it a packet on disk and a contract to satisfy. A decision recorded
     here is a commitment about what gets built, never a claim that it was.</p>
   </div>
 

@@ -22,7 +22,7 @@
        data-tags="database, schema, graph, arcadedb, events"
        data-hashtags="arcadedb, graph, schema, events"
        data-published="2026-08-07"
-       data-updated="2026-08-16"
+       data-updated="2026-08-23"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -247,9 +247,13 @@ LIMIT 20</pre>
   <p><strong>Both tiers now carry this schema, and the dashboard reads and writes it.</strong>
   <code>dashboard/store_arcade.go</code> landed on 2026-08-17 as the implementation
   <code>dashboard/store.go</code> declared the interface for, and the binary applies the DDL itself
-  from an embedded copy on every boot — idempotent, so a restart is a no-op. What is <em>not</em>
-  built is the half above it: no scheduler, no runner, no model call, and the floor that renders over
-  the graph is still moved by a simulation rather than by work.</p>
+  from an embedded copy on every boot — idempotent, so a restart is a no-op. The half above it is
+  now partly there: <code>dashboard/scheduler.go</code> decides as a pure function of the graph and
+  <code>dashboard/runner.go</code> supervises detached runs under a workspace lease, both since
+  2026-08-22. What is <em>not</em> built is what those two exist to feed — <strong>no model has ever
+  been called from this repository</strong>, no attempt has a <code>TaskRun</code> vertex of its own,
+  no <code>ContextSlice</code> has ever been frozen, and the floor that renders over the graph is
+  still moved by a simulation rather than by work.</p>
 
   <p><strong>The event stream is no longer a window over its own tail.</strong> Until v0.11.0 it was
   a ring buffer of a hundred and sixty entries, with each entry carrying a photograph of the whole

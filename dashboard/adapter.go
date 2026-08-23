@@ -80,6 +80,17 @@ type Attempt struct {
 
 	// Handoff is nil when the document was missing or unparseable.
 	Handoff *Handoff
+
+	// HandoffRaw is the document as the run wrote it, kept because T-064 stores
+	// it as an Artifact for the next agent and what that agent should read is
+	// what the last one wrote. Re-rendering our parse of it would silently drop
+	// everything the parser ignores -- including the free text after the front
+	// matter, which is where an agent explains itself.
+	//
+	// Present even when Handoff is nil: a document that failed to parse is still
+	// the best evidence there is about an attempt that failed to produce one.
+	HandoffRaw string
+
 	Failure string // SigHandoffMissing, or empty
 
 	CostUSD   float64

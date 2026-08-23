@@ -41,7 +41,7 @@
   </div>
 
   <div class="card">
-    <h3>Context slice sent to the model</h3>
+    <h3>{{if .CtxFrozen}}Context slice sent to the model{{else}}Context slice this task would be sent{{end}}</h3>
     {{template "ctx-chips" $}}
   </div>
 
@@ -69,5 +69,7 @@
 {{end}}
 
 {{define "ctx-chips"}}
-<div class="ctxchips" id="iCtx">{{with .Insp}}{{range .Ctx}}<span>{{.}}</span>{{end}}{{end}}</div>
+<div class="ctxchips" id="iCtx">{{with .Insp}}{{range .Ctx}}<span>{{.}}</span>{{end}}
+{{if .CtxFrozen}}<span class="t">frozen · {{.CtxDigest}}</span>{{else}}<span class="t">live — nothing has run</span>{{end}}
+{{end}}</div>
 {{end}}

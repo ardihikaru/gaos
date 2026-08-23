@@ -202,18 +202,27 @@ func (s *server) handleCancel(w http.ResponseWriter, r *http.Request) {
 // the chips card on its own so the inspector can refresh just that block.
 func (s *server) handleTaskContext(w http.ResponseWriter, r *http.Request) {
 	idx := deskIdx(r)
-	slice, err := s.store.ContextSlice(r.Context(), idx)
+	view, err := s.store.TaskContext(r.Context(), idx)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	if r.Header.Get("HX-Request") == "" {
-		jsonOut(w, map[string]any{"task": idx, "context": slice})
+		// frozen is first because it is the field that decides what the rest of
+		// this response is worth. D-6 wants the slice an attempt was actually
+		// given; when nothing has run there is none, and a caller reading this as
+		// an audit answer has to be able to see that without knowing our history.
+		jsonOut(w, map[string]any{
+			"task": idx, "frozen": view.Frozen, "digest": view.Digest,
+			"assembledAt": view.AssembledAt, "attempt": view.Attempt,
+			"context": view.Chips, "cites": view.Cites,
+		})
 		return
 	}
 	v, _ := s.newView(r)
 	if v.Insp != nil {
-		v.Insp.Ctx = slice
+		v.Insp.Ctx = view.Chips
+		v.Insp.CtxFrozen, v.Insp.CtxDigest = view.Frozen, view.Digest
 	}
 	s.rend.Render(w, http.StatusOK, "inspector", v)
 }

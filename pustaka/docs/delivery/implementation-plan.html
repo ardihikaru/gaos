@@ -16,14 +16,14 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: forty-seven done, sixteen standing on fixtures, seventy-eight
+  One hundred and forty-one tasks: fifty-five done, eighteen standing on fixtures, sixty-eight
   not started.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-22"
+       data-updated="2026-08-23"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -44,21 +44,28 @@
       <tr><td>❌</td><td>Not started.</td></tr>
     </tbody>
   </table>
-  <p>The middle flag is not padding. The BRD itself marks <code>A-7</code>, <code>C-6</code>,
+  <p>The middle flag is not padding. The BRD itself marks <code>C-6</code>,
   <code>F-5</code> and <code>H-5</code> as <em>Built (against fixtures)</em>, and
   <code>dashboard/sim.go</code> implements the whole of Domain E's scoring policy without ever
   calling a model. Forcing those into ✅ or ❌ would make this page lie in one direction or the
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Forty tasks are done. Ten of them are the operator surface, five are the schema, and
+    <p>Fifty-five tasks are done. Eleven of them are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
     machine, one the determinism proof, three the readiness rubric and the floor it feeds
-    (<code>M2</code>, 2026-08-20), and three the whole of <code>M13</code>, which is now complete.
-    What is still missing is the whole of execution:
-    there is no scheduler, no runner and no model call anywhere in the repository, and the floor
+    (<code>M2</code>, 2026-08-20), three the whole of <code>M13</code>, which is now complete,
+    one the planner's real task graph (<code>T-042</code>), two the pre-dispatch egress gate
+    (<code>M11.2</code>), six the scheduler and the runner — <code>M4.1</code> and
+    <code>M4.2</code>, both on 2026-08-22 — three the attempt record and the frozen context slice
+    (<code>M4.3</code>), and four the packet on disk and the handoff contract in it
+    (<code>M4.5</code>), both on 2026-08-23.
+    <strong>A real model call has now been made</strong>: on 2026-08-23 a Claude Code run spawned by
+    the scheduler was given the packet, wrote the handoff document, and had it read to
+    <em>outcome complete</em> for a measured $1.28. What is still missing is everything that judges
+    the result — nothing reviews what a run produced, no guard ends a loop, and the floor
     that renders above the graph is still moved by a simulation rather than by work. That inversion
     is deliberate and logged as
     <a href="../product/decision-log.html#delivery-decisions">D-019</a>
@@ -66,26 +73,29 @@
   </div>
 
   <h2 id="scoreboard">Scoreboard</h2>
-  <p>Fourteen modules, fifty-seven sub-modules. The last column is the first task in each module
-  that is not already done — the thing to pick up if you open that module today.</p>
+  <p>Fourteen modules, fifty-seven sub-modules. The last column is the thing to pick up if you open
+  that module today — usually the first task that is not already done, and where the module has one
+  task the rest of it waits on, that instead. <code>M1</code> names injection, <code>M6</code>
+  authentication and <code>M10</code> the budget zones for exactly that reason, and each says so in
+  its own section.</p>
   <table class="tbl">
     <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>Next</th></tr></thead>
     <tbody>
-      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the nine names still owed to the runner and the review engine</td></tr>
-      <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>1</td><td>4</td><td>6</td><td><a href="#register">T-026</a> &mdash; make <code>Inject()</code> write</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the five names still owed to the review engine, the planner and memory</td></tr>
+      <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>2</td><td>5</td><td>4</td><td><a href="#register">T-026</a> &mdash; the count <code>Inject()</code> reports, and <code>MemStore</code> writing nothing</td></tr>
       <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>6</td><td>2</td><td>12</td><td><a href="#register">T-054</a> &mdash; one <code>TaskRun</code> per attempt</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>13</td><td>1</td><td>6</td><td><a href="#register">T-058</a> &mdash; the API adapter, indistinguishable above the seam</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
-      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>0</td><td>8</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
-      <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>1</td><td>6</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
+      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>1</td><td>7</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>2</td><td>5</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
       <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>5</td><td>1</td><td>0</td><td><a href="#register">T-101</a> &mdash; the three replay scopes below the floor</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>6</td><td>0</td><td>3</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
       <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>47</b></td><td><b>16</b></td><td><b>78</b></td><td>&mdash;</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>55</b></td><td><b>18</b></td><td><b>68</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -147,27 +157,27 @@
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-006</td><td>M0.2</td><td>Write <code>dashboard/store_arcade.go</code> against the declared <code>Store</code> seam, leaving <code>store.go</code> unchanged &mdash; all twenty-four methods, and <code>store.go</code> is byte-for-byte unchanged</td><td>BR-01, BR-02, D-019</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-007</td><td>M0.2</td><td>Give <code>dashboard/arcade.go</code> a query path &mdash; parameterised query, command and transaction, stdlib only; plus <code>dashboard/schema_embed.go</code>, so the distroless binary applies its own DDL on boot</td><td>D-043, D-047</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.2"><td>T-008</td><td>M0.2</td><td>Keep <code>MemStore</code> as the test double and run both implementations against one interface suite &mdash; <code>dashboard/store_conformance_test.go</code>, thirty-two cases, both stores</td><td>D-039</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-009</td><td>M0.3</td><td>Make <code>Event</code> append-only and never updated, with its own retention policy</td><td>BR-04, J-6</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-010</td><td>M0.3</td><td>Reference the business <code>id</code> in every event, never the physical RID</td><td>BR-03</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-012</td><td>M0.3</td><td>Prove fold-from-genesis equals fold-from-nearest-snapshot on a real workflow</td><td>H-1, BR-21</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.3"><td>T-013</td><td>M0.3</td><td>Remove the 160-event ring in <code>store_mem.go</code>; the stream is the record, not a window</td><td>BR-04</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-014</td><td>M0.4</td><td>Emit the twelve catalog names currently declared <code>// pass 2</code> and never written</td><td>BR-05, D-020</td><td>🟡</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.4"><td>T-015</td><td>M0.4</td><td>Land the four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties in one change</td><td>BR-05</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.3"><td>T-009</td><td>M0.3</td><td>Make <code>Event</code> append-only and never updated, with its own retention policy</td><td>BR-04, J-6</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.3"><td>T-010</td><td>M0.3</td><td>Reference the business <code>id</code> in every event, never the physical RID</td><td>BR-03</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.3"><td>T-011</td><td>M0.3</td><td>Replace <code>Event.Snapshot []Desk</code> with a pure, total, order-stable reducer</td><td>H-2, BR-21</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.3"><td>T-012</td><td>M0.3</td><td>Prove fold-from-genesis equals fold-from-nearest-snapshot on a real workflow</td><td>H-1, BR-21</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.3"><td>T-013</td><td>M0.3</td><td>Remove the 160-event ring in <code>store_mem.go</code>; the stream is the record, not a window</td><td>BR-04</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer partial fixtures m0.4"><td>T-014</td><td>M0.4</td><td>Emit the catalog names declared <code>// pass 2</code> and never written &mdash; nine of the fourteen now have a real code path and a reducer case; the five left belong to the review engine, the planner and memory, and writing them from anywhere else would be inventing evidence</td><td>BR-05, D-020</td><td>🟡</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.4"><td>T-015</td><td>M0.4</td><td>Land the four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties in one change</td><td>BR-05</td><td>✅</td></tr>
       <tr data-tags="foundations schema arcadedb event fold reducer done built m0.4"><td>T-016</td><td>M0.4</td><td>Keep the four UI-lifecycle names in their own block, outside the domain catalog</td><td>D-020</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer todo not-built m0.5"><td>T-017</td><td>M0.5</td><td>Build the task state machine so illegal transitions are rejected at the boundary, not by convention</td><td>&mdash;</td><td>✅</td></tr>
-      <tr data-tags="foundations schema arcadedb event fold reducer partial fixtures m0.5"><td>T-018</td><td>M0.5</td><td>Every mutation returns the new state or a rejection reason &mdash; <code>Result</code> and <code>reject()</code> exist, the state machine behind them does not</td><td>BR-06</td><td>✅</td></tr>
-      <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-019</td><td>M1.1</td><td>Own a product record per product, scoped to a tenant &mdash; <code>Master</code> exists, the tenant scope does not</td><td>A-1</td><td>🟡</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.5"><td>T-017</td><td>M0.5</td><td>Build the task state machine so illegal transitions are rejected at the boundary, not by convention</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer done built m0.5"><td>T-018</td><td>M0.5</td><td>Every mutation returns the new state or a rejection reason &mdash; <code>Result</code> and <code>reject()</code> exist, the state machine behind them does not</td><td>BR-06</td><td>✅</td></tr>
+      <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-019</td><td>M1.1</td><td>Own a product record per product, scoped to a tenant &mdash; <code>Master</code> exists and every write carries a <code>tenantId</code> under a <code>Tenant</code> vertex that <code>OWNS</code> the product; the scope is the store instance's, not the record's, because the Go domain types carry no tenant at all</td><td>A-1</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-020</td><td>M1.1</td><td>Capture the brief as structured requirements rather than prose &mdash; <code>BRD</code> struct, in memory only</td><td>A-2</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-021</td><td>M1.1</td><td>Capture stories in as / want / so form with acceptance criteria &mdash; <code>Story</code> plus its empty-story rejection</td><td>A-3</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository partial fixtures m1.1"><td>T-022</td><td>M1.1</td><td>Accept behaviour diagrams and data models as artifacts &mdash; <code>Diagram</code> plus the <code>seq.go</code> renderer</td><td>A-4</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository todo not-built m1.2"><td>T-023</td><td>M1.2</td><td>Index a linked repository into files and functions</td><td>A-5</td><td>❌</td></tr>
       <tr data-tags="domain-a product master record inject repository todo not-built m1.2"><td>T-024</td><td>M1.2</td><td>Identify the entrypoint of an indexed repository</td><td>A-5</td><td>❌</td></tr>
       <tr data-tags="domain-a product master record inject repository todo not-built m1.2"><td>T-025</td><td>M1.2</td><td>Make impact analysis from a diff a traversal over the indexed code</td><td>A-5</td><td>❌</td></tr>
-      <tr data-tags="domain-a product master record inject repository todo not-built m1.3"><td>T-026</td><td>M1.3</td><td>Make <code>Inject()</code> write vertices and edges &mdash; today it emits the event and reports a projection, and writes nothing</td><td>A-6</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository partial fixtures m1.3"><td>T-026</td><td>M1.3</td><td>Make <code>Inject()</code> write vertices and edges &mdash; <code>ArcadeStore.injectSubgraph</code> writes the <code>Requirement</code>, <code>Issue</code>, <code>AcceptanceCriterion</code> and <code>Artifact</code> vertices with their edges; the count it reports still comes from <code>Master.Project()</code> rather than from the write, and under <code>MemStore</code> nothing is written at all</td><td>A-6</td><td>🟡</td></tr>
       <tr data-tags="domain-a product master record inject repository todo not-built m1.3"><td>T-027</td><td>M1.3</td><td>Rescore readiness inside the same injection operation</td><td>A-6</td><td>❌</td></tr>
       <tr data-tags="domain-a product master record inject repository done built m1.4"><td>T-028</td><td>M1.4</td><td>Back-office surface for the whole record &mdash; <code>handlers_bo.go</code>, <code>templates/backoffice.html</code></td><td>A-7</td><td>✅</td></tr>
-      <tr data-tags="domain-a product master record inject repository todo not-built m1.4"><td>T-029</td><td>M1.4</td><td>Persist what the back office writes; a restart currently returns the fixtures</td><td>A-7</td><td>❌</td></tr>
+      <tr data-tags="domain-a product master record inject repository done built m1.4"><td>T-029</td><td>M1.4</td><td>Persist what the back office writes &mdash; every back-office mutation goes through <code>ArcadeStore.mutate</code> to <code>writeMaster</code>, which carries the brief, the stories, the diagrams and the decisions onto the <code>Product</code> vertex; a store reopened on the same tenant returns them (<a href="../product/qa-test-plan.html#go-store-seam">TC-126</a>). As the record document, not yet as vertices &mdash; that is <code>T-026</code></td><td>A-7</td><td>✅</td></tr>
       <tr data-tags="domain-b readiness rubric band drift done m2.1"><td>T-030</td><td>M2.1</td><td>Implement the twelve-signal, hundred-point rubric &mdash; done 2026-08-20; eleven signals are earnable, <em>verification strategy</em> scores 0 until the record can carry it (M1), so the ceiling is 95</td><td>B-1</td><td>✅</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.1"><td>T-031</td><td>M2.1</td><td>Score every record on ingestion and on a schedule</td><td>B-1</td><td>❌</td></tr>
       <tr data-tags="domain-b readiness rubric band drift todo not-built m2.2"><td>T-032</td><td>M2.2</td><td>Implement the four autonomy bands and their gate behaviour</td><td>B-2</td><td>❌</td></tr>
@@ -192,17 +202,17 @@
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run &mdash; <code>dashboard/lease.go</code>, an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code>; an expired lease is reported and never taken, and breaking one has its own name</td><td>D-3</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease &mdash; the beat renews every 30s and the <code>Heartbeat</code> event is written every 300s, which is <a href="../product/decision-log.html#d-053">D-053</a></td><td>D-3</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running &mdash; <code>dashboard/reconcile.go</code> as a pure function of the lease and the beat, held to the scheduler's import allowlist; <code>dashboard/runner.go</code> acts on it before the listener is up, so a failure fails the boot. Requeue kills first, which is <a href="../product/decision-log.html#d-054">D-054</a></td><td>D-4</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature</td><td>D-5, BR-22</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice</td><td>D-6, BR-23</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; the route exists and computes one live</td><td>D-6</td><td>🟡</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature &mdash; <code>TaskRunRecord</code> in <code>dashboard/model.go</code>, opened by <code>superviseRun</code> once the lease is held and closed by <code>finishRun</code> under the lock that writes <code>RunExited</code>; boot reconciliation marks what it recovered <code>KILLED</code> or <code>ORPHANED</code>. The cost basis is whatever the attempt measured and never a default (<code>BR-31</code>)</td><td>D-5, BR-22</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice &mdash; <code>SliceRecord</code> keyed by the egress pass's digest, its provenance assembled in <code>freezePacketFor</code> and cut by <code>Screen</code> along with the parts it belonged to, written as a <code>ContextSlice</code> vertex with <code>ASSEMBLED</code> and <code>USES_CONTEXT</code> edges</td><td>D-6, BR-23</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; <code>Store.TaskContext</code> replaced <code>ContextSlice</code> on the seam so the answer carries <code>Frozen</code>; with nothing run the live assembly is still returned and says so, which is the honest half of the same requirement</td><td>D-6</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.4"><td>T-057</td><td>M4.4</td><td>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess &mdash; <code>dashboard/adapter_cli.go</code>, with the boot smoke test <a href="../product/decision-log.html#d-049">D-049</a> owed, the handoff parser <a href="../product/decision-log.html#d-050">D-050</a> requires and cost read per <a href="../product/decision-log.html#d-051">D-051</a>. Exercised against a stand-in tool in <code>testdata/fakecli</code>; no scheduler calls it and no real provider has been invoked</td><td>D-7</td><td>🟡</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-058</td><td>M4.4</td><td>Build the API adapter, indistinguishable from the CLI one above the seam</td><td>D-7</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-059</td><td>M4.4</td><td>Select the adapter from one deployment-wide setting in the master configuration, never per task</td><td>D-12</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-060</td><td>M4.4</td><td>Record <code>TaskRun.invocation</code>, and let no component above the adapter branch on it</td><td>D-13, BR-33</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-061</td><td>M4.5</td><td>Materialise the frozen slice as a task packet of files in the leased workspace</td><td>D-8</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-062</td><td>M4.5</td><td>Require a handoff document at the declared path in the declared shape on every invocation</td><td>D-9, BR-30</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-063</td><td>M4.5</td><td>Fail the attempt with the signature <code>handoff-missing</code> when it is absent or unparseable</td><td>D-9, BR-30</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.5"><td>T-064</td><td>M4.5</td><td>Store the handoff as an <code>Artifact</code> reachable only through <code>USES_CONTEXT</code></td><td>D-10</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-061</td><td>M4.5</td><td>Materialise the frozen slice as a task packet of files in the leased workspace &mdash; <code>MaterialisePacket</code> in <code>dashboard/packet.go</code>, called by the runner after the lease and before the spawn; the <em>cleared</em> packet only, and never a <code>KindRepo</code> part, which came off that disk in the first place</td><td>D-8</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-062</td><td>M4.5</td><td>Require a handoff document at the declared path in the declared shape on every invocation &mdash; <code>handoffContract</code> travels in the packet as <code>.gaos/packet/handoff.md</code>, names the run's own ids, and is repeated as a standing system prompt because a real run proved once that the tail of a long input is not an instruction</td><td>D-9, BR-30</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-063</td><td>M4.5</td><td>Fail the attempt with the signature <code>handoff-missing</code> when it is absent or unparseable &mdash; one signature for all four ways, on the <code>TaskRun</code> as well as the outcome (<a href="../product/qa-test-plan.html#go-packet">TC-265</a>)</td><td>D-9, BR-30</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-064</td><td>M4.5</td><td>Store the handoff as an <code>Artifact</code> reachable only through <code>USES_CONTEXT</code> &mdash; <code>ArtifactRecord</code> keyed by run, cited into the next packet with role <code>lesson</code>, and no <code>HAS_ARTIFACT</code> edge beside it, because D-10 is about there being exactly one route</td><td>D-10</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.6"><td>T-065</td><td>M4.6</td><td>Carry a basis, <code>measured</code> or <code>estimated</code>, on every recorded cost</td><td>D-11, BR-31</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.6"><td>T-066</td><td>M4.6</td><td>Keep the distinction alive through every aggregation</td><td>D-11, BR-31</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.7"><td>T-067</td><td>M4.7</td><td>Delete <code>dashboard/sim.go</code> once the scheduler and runner are real, as the file itself instructs</td><td>&mdash;</td><td>❌</td></tr>
@@ -223,7 +233,7 @@
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.1"><td>T-082</td><td>M6.1</td><td>Always gate money arithmetic, authentication and schema changes, at every band including <em>Complete</em></td><td>F-3</td><td>❌</td></tr>
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-083</td><td>M6.2</td><td>Make a gated task unmergeable through every path, the API included</td><td>F-2, BR-19</td><td>❌</td></tr>
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-084</td><td>M6.2</td><td>Record approval and rejection as vertices with a decider, a timestamp and a reason</td><td>F-4</td><td>❌</td></tr>
-      <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-085</td><td>M6.2</td><td>Emit <code>ApprovalRejected</code></td><td>F-4</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge partial fixtures m6.2"><td>T-085</td><td>M6.2</td><td>Emit <code>ApprovalRejected</code> &mdash; <code>MemStore.CancelTask</code> writes it when the desk it cancels was holding a merge gate, which is what lets an auditor tell <em>nobody answered</em> from <em>somebody answered no</em>; the gate that raised the flag is still the simulator's, and the rejection has no vertex to hang on until <code>T-084</code></td><td>F-4</td><td>🟡</td></tr>
       <tr data-tags="domain-f gate approval auth merge done built m6.3"><td>T-086</td><td>M6.3</td><td>Operator approve / retry / cancel on the inspector &mdash; <code>handlers_floor.go</code></td><td>F-5</td><td>✅</td></tr>
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-087</td><td>M6.4</td><td>Authenticate and authorise operators &mdash; the cookie is checked, the password never is</td><td>F-6, R-02</td><td>❌</td></tr>
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-088</td><td>M6.4</td><td>Remove the demo credentials shipped as <code>value=</code> attributes in the login form</td><td>F-6</td><td>❌</td></tr>
@@ -232,13 +242,13 @@
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-091</td><td>M7.1</td><td>Carry decisions as ADRs into every later prompt, with supersession tracked</td><td>G-2</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-092</td><td>M7.1</td><td>Emit <code>DecisionSuperseded</code></td><td>G-2</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction partial fixtures m7.2"><td>T-093</td><td>M7.2</td><td>Make a multi-agent meeting a first-class record &mdash; the overlay renders a scripted fixture</td><td>G-3</td><td>🟡</td></tr>
-      <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.2"><td>T-094</td><td>M7.2</td><td>Emit <code>ProposalRecorded</code> with a confidence</td><td>G-3</td><td>❌</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction partial fixtures m7.2"><td>T-094</td><td>M7.2</td><td>Emit <code>ProposalRecorded</code> with a confidence &mdash; <code>MemStore.CloseMeeting</code> emits it beside <code>DecisionRecorded</code>, because a meeting that recorded a decision nobody proposed is not one anybody can audit; the proposal it names is a scripted fixture and the confidence is the overlay's, not a participant's</td><td>G-3</td><td>🟡</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-095</td><td>M7.3</td><td>Recall knowledge during planning by tag and reuse count, and emit <code>KnowledgeReused</code></td><td>G-4</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-096</td><td>M7.3</td><td>Detect contradictions: a decision conflicting with a requirement, a criterion no test maps to</td><td>G-5</td><td>❌</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-097</td><td>M8.1</td><td>Reconstruct state at any past moment as a fold from the nearest snapshot forward</td><td>H-1</td><td>✅</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.1"><td>T-098</td><td>M8.1</td><td>Make the reducer pure, total and order-stable, skipping unknown event types rather than failing</td><td>H-2</td><td>✅</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-099</td><td>M8.2</td><td>Route replay through a read-only store handle &mdash; <code>replayAt</code> is exactly the flag this rule forbids</td><td>H-3, BR-20</td><td>✅</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline todo not-built m8.2"><td>T-100</td><td>M8.2</td><td>Treat snapshots as an optimisation and never as a source of truth</td><td>BR-21</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline done built m8.1"><td>T-097</td><td>M8.1</td><td>Reconstruct state at any past moment as a fold from the nearest snapshot forward</td><td>H-1</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline done built m8.1"><td>T-098</td><td>M8.1</td><td>Make the reducer pure, total and order-stable, skipping unknown event types rather than failing</td><td>H-2</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline done built m8.2"><td>T-099</td><td>M8.2</td><td>Route replay through a read-only store handle &mdash; <code>replayAt</code> is exactly the flag this rule forbids</td><td>H-3, BR-20</td><td>✅</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline done built m8.2"><td>T-100</td><td>M8.2</td><td>Treat snapshots as an optimisation and never as a source of truth</td><td>BR-21</td><td>✅</td></tr>
       <tr data-tags="domain-h replay audit fold timeline partial fixtures m8.3"><td>T-101</td><td>M8.3</td><td>Support all four replay scopes: workflow, task, meeting, and a comparison between two runs</td><td>H-4</td><td>🟡</td></tr>
       <tr data-tags="domain-h replay audit fold timeline done built m8.4"><td>T-102</td><td>M8.4</td><td>Operator timeline with a replay scrub &mdash; <code>handlers_floor.go</code>, <code>templates/timeline.html</code></td><td>H-5</td><td>✅</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-103</td><td>M9.1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>I-1</td><td>✅</td></tr>
@@ -273,7 +283,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy todo not-built m11.4"><td>T-132</td><td>M11.4</td><td>Ship a data-handling statement template the operator can complete for their own stakeholders</td><td>L-11</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-133</td><td>M12.1</td><td>Auditability: <code>GET /tasks/{id}/context</code> matches what the model actually received</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-134</td><td>M12.1</td><td>Recoverability: killing the orchestrator mid-run loses nothing</td><td>&mdash;</td><td>❌</td></tr>
-      <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.1"><td>T-135</td><td>M12.1</td><td>Determinism: the same events always fold to the same state, tested from genesis</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation done built m12.1"><td>T-135</td><td>M12.1</td><td>Determinism: the same events always fold to the same state, tested from genesis</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-136</td><td>M12.2</td><td>Isolation: a tenant sees nothing of another even when a query forgets to filter</td><td>&mdash;</td><td>❌</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation partial fixtures m12.2"><td>T-137</td><td>M12.2</td><td>Explicability: every rejection tells the caller why &mdash; the shape holds, the states behind it are simulated</td><td>BR-06</td><td>🟡</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation todo not-built m12.2"><td>T-138</td><td>M12.2</td><td>Termination: no loop runs forever and no stop is silent</td><td>BR-18</td><td>❌</td></tr>
@@ -444,10 +454,11 @@
   reaches to be a state the table declares.</p>
 
   <h2 id="m1-product-master">M1 · Product master &amp; knowledge ingestion</h2>
-  <p>Domain A, requirements <code>A-1</code>…<code>A-7</code>. Eleven tasks, one done and four
-  partial — the highest partial count of any module, because the back office is complete and
-  everything under it is memory. The record is the thing agents read instead of a prompt, so
-  nothing above this module means much until the record survives a restart.</p>
+  <p>Domain A, requirements <code>A-1</code>…<code>A-7</code>. Eleven tasks, two done and five
+  partial — the highest partial count of any module, because the back office is complete, what it
+  writes now survives a restart, and everything <em>between</em> those two facts is still a JSON
+  document rather than a graph. The record is the thing agents read instead of a prompt, so nothing
+  above this module means much until the planner can traverse it rather than parse it.</p>
 
   <h3 id="sub-m1-1">M1.1 — The record (T-019–T-022)</h3>
   <p><code>dashboard/model.go</code> already carries the right shapes: <code>Master</code> with a
@@ -476,10 +487,20 @@
   injected is a lie the planner will believe.</p>
 
   <h3 id="sub-m1-4">M1.4 — The surface (T-028–T-029)</h3>
-  <p><code>A-7</code> is done. <code>dashboard/handlers_bo.go</code> and
+  <p><strong>Both tasks are done.</strong> <code>dashboard/handlers_bo.go</code> and
   <code>templates/backoffice.html</code> give the record author product CRUD, the BRD pane,
-  stories, diagrams, knowledge, agents and the readiness checklist. The remaining task is the one
-  the module is named after: make what it writes survive.</p>
+  stories, diagrams, knowledge, agents and the readiness checklist, and since <code>M0.2</code>
+  what they write survives: every back-office mutation runs through <code>ArcadeStore.mutate</code>,
+  and <code>writeMaster</code> carries the brief, the stories, the diagrams and the decisions onto
+  the <code>Product</code> vertex in the same transaction as the event that describes them.
+  <a href="../product/qa-test-plan.html#go-store-seam">TC-126</a> is the case that keeps it honest —
+  a product and a story written, the store reopened on the same tenant, both still there.</p>
+  <p>Be precise about what <em>persisted</em> means here, because the difference is a whole other
+  task. The record is stored <strong>as the record document</strong>, JSON on the
+  <code>Product</code> vertex. Parsing it into <code>Requirement</code>, <code>Story</code> and
+  <code>Criterion</code> vertices with edges between them is <code>A-6</code>, which is
+  <code>T-026</code>, which has not been done — so the record survives a restart and is still not
+  something the planner can traverse.</p>
 
   <h2 id="m2-readiness">M2 · Readiness gating</h2>
   <p>Domain B, requirements <code>B-1</code>…<code>B-5</code>, plus <code>BR-07</code>…<code>BR-10</code>.
@@ -538,7 +559,7 @@
   it.</p>
 
   <h2 id="m3-planning">M3 · Planning</h2>
-  <p>Domain C, requirements <code>C-1</code>…<code>C-6</code>. Nine tasks, one done and two partial.
+  <p>Domain C, requirements <code>C-1</code>…<code>C-6</code>. Nine tasks, two done and two partial.
   Build-order step 4 — one goal must yield an acyclic DAG with roles and dependencies.</p>
 
   <h3 id="sub-m3-1">M3.1 — Workflow shape (T-039–T-040)</h3>
@@ -588,9 +609,12 @@
 
   <h2 id="m4-execution">M4 · Execution</h2>
   <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
-  count and by task count. Twenty tasks, six done and two partial. Most of what is here is still
-  played by <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker that moves desks through states
-  and emits catalog events without ever calling a model.</p>
+  count and by task count. Twenty tasks, thirteen done and one partial. The half that decides and
+  supervises work is real — the scheduler, the detached runner, the lease, boot reconciliation, and
+  since 2026-08-23 the attempt record and the frozen context slice. The half that does the work is
+  not: <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker, still moves desks through states and
+  emits catalog events without ever calling a model, and <code>T-067</code> is the task that deletes
+  it once there is nothing left for it to stand in for.</p>
 
   <h3 id="sub-m4-1">M4.1 — The scheduler (T-048–T-049)</h3>
   <p><code>D-1</code> asked for something stronger than a working scheduler: a <em>pure function of
@@ -680,13 +704,39 @@
   subject, opposite risk.</p>
 
   <h3 id="sub-m4-3">M4.3 — The attempt record (T-054–T-056)</h3>
-  <p><code>Task</code> and <code>TaskRun</code> are separate records so per-attempt evidence
-  survives a retry (<code>BR-22</code>), and the exact context slice sent to a model is frozen and
-  stored per attempt with <code>USES_CONTEXT</code> hanging off the slice rather than the task
-  (<code>BR-23</code>) — because the slice differs per attempt.
-  <code>GET /tasks/{id}/context</code> already exists and answers in HTML or JSON; it computes a
-  slice live instead of returning the frozen one, which is the difference between a demonstration
-  and an audit trail.</p>
+  <p><strong>Done, on 2026-08-23.</strong> <code>Task</code> and <code>TaskRun</code> are separate
+  records so per-attempt evidence survives a retry (<code>BR-22</code>):
+  <code>TaskRunRecord</code> in <code>dashboard/model.go</code> mirrors the vertex,
+  <code>superviseRun</code> opens it as <code>STARTED</code> once the lease is held and before
+  anything spawns, moves it to <code>RUNNING</code> beside the <code>RunStarted</code> event, and
+  <code>finishRun</code> closes it under the same lock that writes <code>RunExited</code> — one lock,
+  because a record and an event that can disagree leave an auditor with no way to choose between
+  them. Boot reconciliation marks what it recovered <code>KILLED</code> or <code>ORPHANED</code>
+  rather than leaving a row asserting a process nobody believes in.</p>
+  <p>The slice is the harder half and the one <code>BR-23</code> is about. It is frozen at the point
+  the egress pass clears it — keyed by that pass's digest, so two attempts given identical context
+  share one record and the comparison <code>H-4</code> wants is a string equality. Provenance is
+  built where the packet is assembled rather than parsed back out of it later, and the pass drops a
+  citation whenever it drops the part that carried it; a slice claiming to have sent something
+  <code>BR-32</code> refused would be the least trustworthy edge in the graph.
+  <code>USES_CONTEXT</code> hangs off the <code>ContextSlice</code> and not off the
+  <code>Task</code>, which the <a href="../architecture/graph.html#edges">data model</a> calls out as
+  easy to reverse: attach it to the task and attempt two overwrites the evidence of what attempt one
+  received.</p>
+  <p><code>T-056</code> is where the requirement is either met or quietly missed.
+  <code>GET /tasks/{id}/context</code> answered before, in HTML or JSON, by computing a slice live —
+  the difference between a demonstration and an audit trail, and invisible on the page. So the seam
+  changed: <code>Store.ContextSlice</code> returning <code>[]string</code> became
+  <code>Store.TaskContext</code> returning a <code>ContextView</code> that carries
+  <strong><code>Frozen</code></strong>. With an attempt behind it the route answers with what that
+  attempt was given; with nothing run it still answers live and says which it is. Only the third
+  seam change since <code>store.go</code> was written, and <code>store.go</code> says why in its own
+  header.</p>
+  <p>One finding came out of running it, in the same class as
+  <a href="../product/decision-log.html#d-047">D-047</a>: <code>ContextSlice</code> became a type
+  written by business id, ArcadeDB 26.7.2 refused the first write for want of a
+  <code>(tenantId, id)</code> index, and the index was added under D-047's own heading — which is
+  the case that decision predicted rather than a new one. The DDL applies 324 statements.</p>
 
   <h3 id="sub-m4-4">M4.4 — The model gateway (T-057–T-060)</h3>
   <p><strong>Partly built, on 2026-08-22.</strong> <code>T-057</code> is 🟡 rather than ✅ and the
@@ -712,12 +762,48 @@
   it.</p>
 
   <h3 id="sub-m4-5">M4.5 — Packet and handoff (T-061–T-064)</h3>
-  <p>The frozen slice is materialised as a task packet of files in the leased workspace, and the
-  packet — not a prompt string — is what the adapter hands over (<code>D-8</code>). Every invocation
-  must produce a handoff document at a declared path in a declared shape; a missing or unparseable
-  one is a failed attempt with the signature <code>handoff-missing</code>, never a silent pass
-  (<code>D-9</code>, <code>BR-30</code>). The BRD is explicit that this is the load-bearing
-  assumption of the whole CLI approach, which is why the validator is a task and not a nicety.</p>
+  <p><strong>Done, on 2026-08-23, and this is the module that made a real model call possible.</strong>
+  Until it landed a provider tool could be spawned and <em>could not possibly succeed</em>: it was
+  handed a working directory with nothing in it and an instruction that never said what to produce.
+  It would do the work, exit 0, and fail the attempt with <code>handoff-missing</code> every single
+  time. Both halves of that are this sub-module.</p>
+  <p><code>T-061</code> writes the cleared packet into the leased workspace — the cleared one, never
+  the raw one, because the workspace is the one directory the tool is pointed at and free to read,
+  and writing a redacted part there is a longer way round to the leak <code>BR-32</code> refuses at
+  the front door. <code>KindRepo</code> parts are skipped: they were read off that disk by the packet
+  assembler, and writing them back would be the assembler overwriting the operator's own source with
+  a copy that has been through a size limit.</p>
+  <p><code>T-062</code> is the contract, and where it lives is the requirement rather than a
+  preference. It travels IN the packet, so what a run was <em>asked</em> for is inside the frozen
+  slice and inside the digest, and a replay can prove both halves. It names the run's own task and
+  run ids rather than describing the fields, because a model told to "use the run id" will
+  eventually use a different spelling of it. And its worked example is flush left in a fenced block,
+  because <code>handoff.go</code> reads a leading space as <em>this key belongs to the block
+  above</em> — an example indented for looks, copied faithfully, parses to an empty document.
+  <a href="../product/qa-test-plan.html#go-packet">TC-259</a> exists so those two files cannot drift
+  apart.</p>
+  <p><code>T-064</code> stores what an attempt handed over as an <code>Artifact</code> and cites it
+  into the next packet with role <code>lesson</code>. Stored rather than left in the workspace,
+  because the workspace is a lease: it is released when the run ends, re-taken by the next attempt,
+  and truncated before that attempt starts — so a document only on disk is evidence with an expiry
+  date, and the question it answers is asked precisely when it has expired. That is not hypothetical;
+  it is what happened on the second live run, which took the workspace and truncated its
+  predecessor's document while the record of it stayed intact.</p>
+  <div class="adm note">
+    <p class="adm-title">Two things a real call measured that no fake could</p>
+    <p><strong>The contract has to be a standing instruction.</strong> The first live run read the
+    whole packet, did the work well, and never wrote the document — the contract had been the last
+    section of a long input and read as background by the time the work was done. It is now in the
+    task's <em>definition of done</em> at the top, in the packet as a file, and passed to the tool as
+    a system prompt. Three channels for one instruction is not belt and braces; it is what the
+    measurement said was needed.</p>
+    <p><strong>A non-interactive agent may not write anything by default.</strong> A tool that cannot
+    be asked resolves "may I edit this file" to <em>no</em>, and an agent that may not write a file
+    cannot write the handoff document either — the invocation then fails for a reason that has
+    nothing to do with the work. <code>dashboard/adapter_cli.go</code> passes a permission mode, and
+    what makes accepting edits reasonable is <code>D-3</code>: the tool runs in a workspace this
+    orchestrator holds an exclusive lease on. The bound is the lease, not the prompt.</p>
+  </div>
 
   <h3 id="sub-m4-6">M4.6 — Cost basis (T-065–T-066)</h3>
   <p><code>BR-31</code>: every cost figure carries its basis, <code>measured</code> or
@@ -777,7 +863,7 @@
   on this module.</p>
 
   <h2 id="m6-gates">M6 · Gates &amp; approvals</h2>
-  <p>Domain F, requirements <code>F-1</code>…<code>F-6</code>. Nine tasks, one done. Build-order
+  <p>Domain F, requirements <code>F-1</code>…<code>F-6</code>. Nine tasks, one done and one partial. Build-order
   step 8, and the module that holds the only requirement in the whole BRD explicitly marked
   <strong>Not built</strong> rather than <em>Designed</em>.</p>
 
@@ -789,8 +875,11 @@
   <h3 id="sub-m6-2">M6.2 — Enforcement and record (T-083–T-085)</h3>
   <p><code>BR-19</code> is absolute: a gated task cannot merge through any path, the API included —
   not a UI check. Approval and rejection are recorded as vertices with a decider, a timestamp and a
-  reason (<code>F-4</code>), which is also where <code>ApprovalRejected</code> finally gets written;
-  <code>ApprovalGranted</code> and <code>ApprovalRequested</code> already are.</p>
+  reason (<code>F-4</code>), and that vertex is the half that does not exist. The event does:
+  <code>MemStore.CancelTask</code> emits <code>ApprovalRejected</code> when the desk it cancels was
+  holding a merge gate, beside the <code>ApprovalGranted</code> and <code>ApprovalRequested</code>
+  that were already written. What is missing is the record it should hang on, and a gate that a
+  policy rather than <code>sim.go</code> decided to raise.</p>
 
   <h3 id="sub-m6-3">M6.3 — Operator controls (T-086)</h3>
   <p><code>F-5</code> is done. <code>dashboard/handlers_floor.go</code> serves approve, retry and
@@ -809,7 +898,7 @@
   lockout, already covered by fifteen of its own tests.</p>
 
   <h2 id="m7-memory">M7 · Memory &amp; learning</h2>
-  <p>Domain G, requirements <code>G-1</code>…<code>G-5</code>. Seven tasks, one partial. Build-order
+  <p>Domain G, requirements <code>G-1</code>…<code>G-5</code>. Seven tasks, two partial. Build-order
   step 10, last for a reason — and also the module the product's one success measurement depends on,
   since <em>the second run needs fewer retries</em> is only true if extraction works.</p>
 
@@ -824,8 +913,11 @@
   <p><code>G-3</code> makes a multi-agent meeting a first-class record: agenda, participants,
   proposals with confidence, and the decision it produced. The overlay renders all of that from
   <code>meetingScript</code> in <code>dashboard/fixtures.go</code> — a scripted design review — so
-  the requirement is 🟡 on its surface and ❌ underneath. <code>ProposalRecorded</code> is
-  declared and never written.</p>
+  the requirement is 🟡 on its surface and ❌ underneath. <code>ProposalRecorded</code> <em>is</em>
+  written: <code>MemStore.CloseMeeting</code> emits it beside <code>DecisionRecorded</code>, because
+  a meeting that recorded a decision nobody proposed is not one anybody can audit. The proposal it
+  names is a constant in that method and the confidence is the overlay's, which is why the task is
+  🟡 rather than done — the event exists and the participant who would hold an opinion does not.</p>
 
   <h3 id="sub-m7-3">M7.3 — Recall and contradiction (T-095–T-096)</h3>
   <p>Knowledge is recalled during planning by tag and reuse count (<code>G-4</code>), which is what

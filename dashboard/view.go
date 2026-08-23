@@ -311,6 +311,14 @@ type InspectorView struct {
 	Scores     []ScoreRow
 	ScoreText  string
 	Ctx        []string
+
+	// CtxFrozen and CtxDigest say WHICH slice the chips above are. T-056: a
+	// frozen slice is what an attempt was given and a live one is what an
+	// attempt would be given today, and a card that showed them identically
+	// would be inviting the reader to treat the second as evidence.
+	CtxFrozen bool
+	CtxDigest string
+
 	Logs       []LogView
 	CanApprove bool
 
@@ -323,13 +331,15 @@ type InspectorView struct {
 	Hint string
 }
 
-func NewInspectorView(d Desk, idx int, ctx []string) *InspectorView {
+func NewInspectorView(d Desk, idx int, ctx ContextView) *InspectorView {
 	v := &InspectorView{
 		Idx: idx, Name: d.Name, Goal: d.Goal, State: d.State,
 		StateStyle: cssVar("color", stateColor(d.State)),
 		Retry:      d.Retry, Esc: d.Esc,
 		Cost:       fmt.Sprintf("$%.2f", d.Cost),
-		Ctx:        ctx,
+		Ctx:        ctx.Chips,
+		CtxFrozen:  ctx.Frozen,
+		CtxDigest:  ctx.Digest,
 		CanApprove: d.ApprovalRequired,
 		// Dispatch is legal only from a desk with nothing running. Blocked is
 		// included because a refused dispatch lands there, and the operator
