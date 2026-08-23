@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and seventy-three cases, positive and negative, across the five deploy automations and the
+  two hundred and seventy-four cases, positive and negative, across the five deploy automations and the
   two Go test packages that actually run today, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -73,7 +73,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and seventy-three cases in one filterable table. Filter by automation, kind, or any
+  <p>All two hundred and seventy-four cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -359,6 +359,7 @@
       <tr data-tags="live-cli-run acceptance packet materialise d-8 positive"><td>TC-271</td><td>live-cli-run.sh</td><td>Positive</td><td>The packet is on disk in the leased worktree before the tool is given it</td><td>Implemented</td></tr>
       <tr data-tags="live-cli-run acceptance handoff contract real model br-30 positive"><td>TC-272</td><td>live-cli-run.sh</td><td>Positive</td><td>A real model, given only the packet, writes a handoff document GAOS parses to an outcome rather than a signature</td><td>Implemented</td></tr>
       <tr data-tags="live-cli-run acceptance real work worktree negative"><td>TC-273</td><td>live-cli-run.sh</td><td>Negative</td><td>The deliverable the packet asked for is absent from the worktree, or does not mention what the packet asked about</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema apply counts boot log arcadedb positive"><td>TC-274</td><td>dashboard (go test)</td><td>Positive</td><td>The store records what the schema apply did, and two applies of one embedded DDL count the same total (<code>TestTheStoreRecordsWhatTheSchemaApplyDid</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1864,6 +1865,32 @@
   <strong>Negative (TC-273):</strong> <code>FAIL %s was not created</code>, and the weaker half,
   <code>FAIL the file exists but never mentions "%s"; the packet may not have reached the
   model</code>.</p>
+
+  <h3 id="go-schema-counts">dashboard — what the schema apply did (TC-274)</h3>
+  <p><code>ApplySchema</code> has always returned two counts so the boot could say what happened, and
+  <code>NewArcadeStoreFor</code> discarded both — so after a deploy that added an index, the only way
+  to confirm it had landed was to query the database by hand. The store keeps them now and
+  <code>serve()</code> prints one line:
+  <code>schema: 324 statements from the embedded DDL, none failed (128 accepted, 196 already
+  declared)</code>.
+  <strong>Positive (TC-274):</strong> the counts are captured —
+  <code>the store reports %d applied and %d present; the DDL is over three hundred statements, so
+  both being zero means the counts were thrown away rather than that nothing ran</code> — and the
+  total is stable across two applies, because <code>two applies of one embedded DDL counted %d
+  statements then %d; the DDL is compiled into the binary and cannot change between them</code>.
+  Skips without <code>GAOS_ARCADE_TEST_URL</code>; see <a href="#sc-scratch">scratch.sh</a>.</p>
+  <div class="adm warn">
+    <p class="adm-title">What the counts do <em>not</em> mean, measured</p>
+    <p>This case was first written to assert that a second apply against a populated database applies
+    <strong>nothing</strong>. The database said <strong>128</strong>. On 26.7.2 most of the DDL is
+    <code>IF NOT EXISTS</code> and the server honours that <em>silently</em> rather than raising
+    <code>AlreadyExists</code>, so <code>applied</code> means "the server accepted it" and never
+    "something new was created". The pair tells an operator how large the embedded DDL is and that
+    none of it failed; <strong>it cannot say whether anything changed</strong>. The doc comment on
+    <code>ApplySchema</code> promised more than that and has been corrected, and the log line is
+    worded <em>accepted</em> rather than <em>applied</em> for the same reason — a line implying a
+    migration had run would send somebody looking for one that never happened.</p>
+  </div>
   <div class="adm warn">
     <p class="adm-title">What the first live runs measured, including two things nobody had asked</p>
     <p><strong>The loop works, three times.</strong> On 2026-08-23 three real Claude Code runs,

@@ -1275,6 +1275,53 @@ func idleDeskIn(t *testing.T, s Store) int {
 	return 0
 }
 
+// TestTheStoreRecordsWhatTheSchemaApplyDid pins the counts being CAPTURED, which
+// is the half that was missing rather than the log line that reads them.
+//
+// ApplySchema has always returned applied and present "so the boot log can say
+// which of the two happened without the operator having to guess", and the
+// constructor discarded both for long enough that a schema change reaching a
+// deployed database could only be confirmed by querying that database by hand.
+// A log line is not testable without capturing stderr; the value behind it is,
+// and this is that value.
+func TestTheStoreRecordsWhatTheSchemaApplyDid(t *testing.T) {
+	arc := arcadeTestTarget(t)
+	ctx := t.Context()
+
+	s := newArcadeTestStore(t, arc, "conf-schema-counts")
+	st, ok := s.(*ArcadeStore)
+	if !ok {
+		t.Fatalf("newArcadeTestStore returned %T, want *ArcadeStore", s)
+	}
+	applied, present := st.SchemaCounts()
+	if applied+present == 0 {
+		t.Fatalf("the store reports %d applied and %d present; the DDL is over three hundred "+
+			"statements, so both being zero means the counts were thrown away rather than that "+
+			"nothing ran", applied, present)
+	}
+
+	// A second store against the same database sees the same DDL. The TOTAL is
+	// the invariant, and it is the only one there is: `applied` does not mean
+	// "newly created" -- most of the DDL is IF NOT EXISTS and the server honours
+	// that silently -- so asserting the re-run applies nothing would be
+	// asserting something 26.7.2 does not do. That assertion was written here
+	// first, and the database said 128. See ApplySchema.
+	again, err := NewArcadeStoreFor(ctx, arc, 1, "conf-schema-counts-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reapplied, stillPresent := again.SchemaCounts()
+	if reapplied+stillPresent != applied+present {
+		t.Errorf("two applies of one embedded DDL counted %d statements then %d; the DDL is "+
+			"compiled into the binary and cannot change between them",
+			applied+present, reapplied+stillPresent)
+	}
+	if stillPresent == 0 {
+		t.Errorf("the second apply reports nothing already declared, which cannot be true of a "+
+			"database the first one just populated with %d statements", applied+present)
+	}
+}
+
 // caseFocus records a deliberate asymmetry: Focus clamps where Desk refuses.
 // Moving the inspector is navigation, not a domain change, and an operator
 // whose click landed one past the end wants the last desk rather than an error

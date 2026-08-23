@@ -132,6 +132,30 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 	if err != nil {
 		return err
 	}
+	// What the schema apply did, said out loud once.
+	//
+	// HERE and not in the constructor, which is the whole reason this is three
+	// lines rather than one. NewArcadeStoreFor runs per store, and the
+	// conformance suite builds one per case against its own tenant -- logging
+	// there would print forty-odd lines of schema arithmetic into every test run
+	// and teach everyone to skim past it. serve() runs once per process.
+	//
+	// The TOTAL first, because that is the number that answers a real question:
+	// does the binary now running carry the DDL you think it does. It moved from
+	// 323 to 324 when M4.5 added ContextSlice's identity index, and an operator
+	// reading 324 here knows the deploy carried it.
+	//
+	// The breakdown is deliberately worded "accepted", not "applied". See
+	// ApplySchema: a re-run against a fully populated database still reports 128
+	// accepted, because most of the DDL is IF NOT EXISTS and the server honours
+	// that silently instead of raising AlreadyExists. These counts cannot say
+	// whether anything CHANGED, and a line that implied they could would send
+	// somebody looking for a migration that never happened.
+	if sc, ok := store.(interface{ SchemaCounts() (int, int) }); ok {
+		accepted, present := sc.SchemaCounts()
+		log.Printf("schema: %d statements from the embedded DDL, none failed (%d accepted, %d already declared)",
+			accepted+present, accepted, present)
+	}
 	// The model gateway. T-057, and D-049's standing obligation: "the pin is
 	// worthless without the boot smoke test §7.6.3 already promises."
 	//

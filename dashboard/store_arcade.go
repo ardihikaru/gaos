@@ -57,6 +57,22 @@ type ArcadeStore struct {
 	// a floor the graph does not yet agree with.
 	mu   sync.Mutex
 	proj *MemStore
+
+	// What the boot's schema apply did. ApplySchema returns these "so the boot
+	// log can say which of the two happened without the operator having to
+	// guess", and for a while this constructor discarded both -- so the only
+	// evidence a schema change had landed was that the process was still
+	// running, which is an inference rather than a reading.
+	schemaApplied, schemaPresent int
+}
+
+// SchemaCounts is what the last apply did: statements newly applied, and
+// statements already present.
+//
+// Read once at boot by serve(). Not on the Store interface: it is a fact about
+// how this implementation started, not something a handler may ask.
+func (s *ArcadeStore) SchemaCounts() (applied, present int) {
+	return s.schemaApplied, s.schemaPresent
 }
 
 // ArcadeStoreDefaultTenant is the tenant every vertex and event is written
@@ -93,9 +109,11 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 	}
 	s := &ArcadeStore{arc: arc, tenant: tenant}
 
-	if _, _, err := arc.ApplySchema(ctx); err != nil {
+	applied, present, err := arc.ApplySchema(ctx)
+	if err != nil {
 		return nil, fmt.Errorf("schema: %w", err)
 	}
+	s.schemaApplied, s.schemaPresent = applied, present
 	if err := s.ensureTenant(ctx); err != nil {
 		return nil, err
 	}

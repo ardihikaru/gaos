@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-273`; the
-   next free number is `TC-274`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-274`; the
+   next free number is `TC-275`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it —
    do not delete it and do not renumber anything after it. `TC-076` is the worked
    example: BR-07 made planning an empty record illegal, so the case that asserted
@@ -50,16 +50,16 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "two hundred and seventy-three", so
+   changing all four or none. They are currently all "two hundred and seventy-four", so
    `grep -rn "two hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
    finds every one. Retired rows still count: the register is every ID ever issued,
-   and `TC-076` is one of the two hundred and seventy-three. Older changelog notes keep their own
+   and `TC-076` is one of the two hundred and seventy-four. Older changelog notes keep their own
    numbers; they are release records and stay as written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All two hundred and seventy-three cases…")
+   - the register intro on the same page ("All two hundred and seventy-four cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
-     the Go unit-test count, currently "one hundred and ninety-nine"
+     the Go unit-test count, currently "two hundred"
 
    Do **not** change the older counts in `pustaka/docs/changelog.html` — the
    "fifty-three" in the v0.3.0 note, the "one hundred and eight" in v0.6.0 and
@@ -99,9 +99,10 @@ in `dashboard/graph_test.go`, `taskstate_test.go`, `scheduler_test.go`,
 `deploy/kill-mid-task.sh`; `TC-247`…`TC-258` are the attempt record and the
 frozen context slice in `dashboard/taskrun_test.go`, `TC-259`…`TC-267` the task
 packet and the handoff contract in `dashboard/packet_test.go`, and
-`TC-268`…`TC-273` the live model call in `deploy/acceptance/live-cli-run.sh` — **one row per `func Test…`**,
+`TC-268`…`TC-273` the live model call in `deploy/acceptance/live-cli-run.sh`,
+and `TC-274` the schema-apply counts in `dashboard/store_conformance_test.go` — **one row per `func Test…`**,
 because that is the unit `go test -run` can select. The register currently covers
-199 Go tests: 177 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
+200 Go tests: 178 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
 its row and its `h3`; the gap that used to be here is closed and must not reopen.
 
 The store conformance suite is one `func Test…` per implementation over a shared
