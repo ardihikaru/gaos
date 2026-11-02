@@ -69,6 +69,10 @@ func TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	empty, _ := s.Board(context.Background(), firstProductWithoutTasks(t, s))
+	if raw, _ := json.Marshal(empty); !strings.Contains(string(raw), `"cards":[]`) {
+		t.Fatalf("a product with no tasks answered %s; cards must be an empty array, not null", raw)
+	}
 	var cols []string
 	for _, c := range b.Columns {
 		cols = append(cols, c.ID)
@@ -205,4 +209,16 @@ func TestTheReplayHandleRefusesEveryMove(t *testing.T) {
 	if taskStatusOf(s, id) == StatusCanceled {
 		t.Fatal("a refused replay move changed the task anyway")
 	}
+}
+
+func firstProductWithoutTasks(t *testing.T, s *MemStore) string {
+	t.Helper()
+	ms, _ := s.Masters(context.Background())
+	for _, m := range ms {
+		if len(productTasks(s, m.ID)) == 0 {
+			return m.ID
+		}
+	}
+	t.Fatal("every seeded product has tasks")
+	return ""
 }

@@ -51,6 +51,8 @@
         <li><span class="chg add">Added</span> <code>TaskMoved</code> and <code>TaskReordered</code>, and
         <code>Task.rank</code> (366 DDL statements). <code>TaskMoved</code> replaces the reuse of judgment
         events D-061 first named, which would have moved a desk in the fold.</li>
+        <li><span class="chg fix">Fixed</span> <b>an empty board answered <code>"cards": null</code></b>,
+        found on dev's fresh database; it is <code>[]</code> now, which a client board can iterate.</li>
       </ul>
     </section>
 

@@ -168,7 +168,9 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	if m == nil {
 		return Board{}, ErrNotFound
 	}
-	b := Board{ProductID: productID, Columns: boardColumns}
+	// Cards is never nil: a product with no tasks answers "cards": [], not
+	// null, which a client board iterating it would fall over on.
+	b := Board{ProductID: productID, Columns: boardColumns, Cards: []BoardCard{}}
 	b.Rows = append(b.Rows, BoardRow{ID: PlanLane, Label: "Plan"})
 	for _, st := range m.Stories {
 		b.Rows = append(b.Rows, BoardRow{ID: st.ID, Label: st.ID + " · " + st.Want})

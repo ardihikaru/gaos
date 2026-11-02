@@ -2174,7 +2174,9 @@
   <p>M14.6, in <code>dashboard/board_test.go</code>, against a workflow planned on a seeded product.
   <strong>TC-304, positive</strong> (<code>TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory</code>):
   the Board tab renders a card (<code>the Board tab rendered %d without a card; a template error here is
-  a 500 no store test sees</code>), the columns are the eight declared ones in order (<code>columns are
+  a 500 no store test sees</code>), a product with no tasks answers an empty array rather than
+  <code>null</code> (<code>a product with no tasks answered %s; cards must be an empty array, not
+  null</code> — found on dev, where the fresh database had no tasks), the columns are the eight declared ones in order (<code>columns are
   %s; want the eight declared ones in order</code>), every card sits in a declared lane (<code>card %s
   sits in lane %q, which the board does not declare</code>), and every task appears exactly once with a
   plan lane (<code>the board has %d cards for %d tasks (lanes %v); want every task exactly once and a
