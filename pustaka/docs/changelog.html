@@ -36,6 +36,30 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-26-0">v0.26.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The graph moves to the
+      production-ready database host, and dev talks to a real model gateway.</p>
+      <ul>
+        <li><span class="chg change">Changed</span> <b>ArcadeDB is the shared instance on
+        <code>clinodb</code></b> for both tiers: database <code>gaos_dev</code> with user
+        <code>gaos_dev</code>, database <code>gaos</code> with user <code>gaos_prod</code>, each user
+        refused on the other's database. It is reached over WireGuard through
+        <code>gaos-arcade-bridge</code>, a relay that publishes on <code>10.10.0.5</code> only and
+        leaves the shared stack untouched. No service joins a shared infra network any more.
+        <code>check-stacks.sh</code> asserts the new shape:
+        <a href="product/qa-test-plan.html#cs-tenancy">TC-001/TC-002</a> now guard the database name,
+        <a href="product/qa-test-plan.html#cs-infra">TC-005/TC-006</a> that no infra network is
+        joined, and <a href="product/qa-test-plan.html#cs-parity">TC-009</a> no longer requires equal
+        database names.</li>
+        <li><span class="chg add">Added</span> <b>gateway mode on dev</b>:
+        <code>GAOS_MODEL_MODE=aimanager</code> against ai-manager on <code>rnd-v2-vpn</code> over
+        WireGuard, with the ai-stack login and the admin key mounted read-only from untracked,
+        mode-600 files that <a href="product/qa-test-plan.html#cs-secrets">TC-013</a> now also covers.
+        The runner stays off: a turn can be sent, and spending is still an operator's decision.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-25-0">v0.25.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A published Blueprint now reaches
       the product's workspace, and nothing is dispatched through the gateway under rules the workspace

@@ -5,7 +5,7 @@ the primitive, not the prompt.** State lives in vertices and edges rather than a
 conversation, every change emits an event, and the orchestrator holds nothing —
 kill it mid-run and it rebuilds from the graph.
 
-**Product version 0.25.0** (`pustaka/docs/assets/toc.js`). The graph, the event
+**Product version 0.26.0** (`pustaka/docs/assets/toc.js`). The graph, the event
 store, readiness, the planner, the scheduler and the attempt record are built, and
 GAOS has made real model calls. What judges a result — review, scoring, the retry
 guards — is not built yet. Every page and every file says which is which.

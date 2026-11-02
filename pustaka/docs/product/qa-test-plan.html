@@ -88,19 +88,19 @@
   <table class="tbl">
     <thead><tr><th>ID</th><th>Automation</th><th>Kind</th><th>Scenario</th><th>Status</th></tr></thead>
     <tbody id="tc-index">
-      <tr data-tags="check-stacks network isolation tenancy positive"><td>TC-001</td><td>check-stacks.sh</td><td>Positive</td><td>Compose files as committed: neither tier names the other's infra network or database</td><td>Implemented</td></tr>
-      <tr data-tags="check-stacks network isolation tenancy negative"><td>TC-002</td><td>check-stacks.sh</td><td>Negative</td><td>Dev compose file edited to reference the prod infra network or database</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks network isolation tenancy positive"><td>TC-001</td><td>check-stacks.sh</td><td>Positive</td><td>Compose files as committed: each tier names its own database on the shared server and never the other's</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks network isolation tenancy negative"><td>TC-002</td><td>check-stacks.sh</td><td>Negative</td><td>Dev compose file edited to use the prod database, or prod to use the dev one</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks tunnel bind publish positive"><td>TC-003</td><td>check-stacks.sh</td><td>Positive</td><td>Each tier publishes exactly one port, bound to the tunnel address only</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks tunnel bind publish negative"><td>TC-004</td><td>check-stacks.sh</td><td>Negative</td><td>A <code>ports:</code> mapping drops the tunnel-address prefix or a second mapping is added</td><td>Implemented</td></tr>
-      <tr data-tags="check-stacks infra-network exclusivity positive"><td>TC-005</td><td>check-stacks.sh</td><td>Positive</td><td>Exactly one service per tier joins the shared infra network</td><td>Implemented</td></tr>
-      <tr data-tags="check-stacks infra-network exclusivity negative"><td>TC-006</td><td>check-stacks.sh</td><td>Negative</td><td>A second service is joined to the shared infra network</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks infra-network exclusivity positive"><td>TC-005</td><td>check-stacks.sh</td><td>Positive</td><td>No service in either tier joins a neighbour's shared infra network</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks infra-network exclusivity negative"><td>TC-006</td><td>check-stacks.sh</td><td>Negative</td><td>A service is joined to a shared infra network again</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks project name subnet positive"><td>TC-007</td><td>check-stacks.sh</td><td>Positive</td><td>Distinct compose project names and subnets, no reuse of a neighbour's range</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks project name subnet negative"><td>TC-008</td><td>check-stacks.sh</td><td>Negative</td><td>Prod's subnet is set to a neighbouring product's range</td><td>Implemented</td></tr>
-      <tr data-tags="check-stacks cookie secure parity positive"><td>TC-009</td><td>check-stacks.sh</td><td>Positive</td><td>Cookie-secure flag and database name are identical between tiers</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks cookie secure parity positive"><td>TC-009</td><td>check-stacks.sh</td><td>Positive</td><td>The cookie-secure flag is identical between tiers</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks cookie secure parity negative"><td>TC-010</td><td>check-stacks.sh</td><td>Negative</td><td>Dev's Secure cookie flag is turned off "because it's dev"</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks docker socket proxy positive"><td>TC-011</td><td>check-stacks.sh</td><td>Positive</td><td>No compose file mounts the Docker socket into the proxy</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks docker socket proxy negative"><td>TC-012</td><td>check-stacks.sh</td><td>Negative</td><td>A Docker socket volume mount is added to a Traefik service</td><td>Implemented</td></tr>
-      <tr data-tags="check-stacks secrets committed positive"><td>TC-013</td><td>check-stacks.sh</td><td>Positive</td><td>No <code>.env</code> file (other than <code>.example</code>) is tracked, no baked-in password</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks secrets committed positive"><td>TC-013</td><td>check-stacks.sh</td><td>Positive</td><td>No <code>.env</code> file (other than <code>.example</code>) or gateway secret file (<code>*.aim-*</code>) is tracked, no baked-in password</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks secrets committed negative"><td>TC-014</td><td>check-stacks.sh</td><td>Negative</td><td>A real <code>deploy/stacks/*.env</code> file is committed to git</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks trailing-slash redirect routing positive"><td>TC-015</td><td>check-stacks.sh</td><td>Positive</td><td>The <code>/app</code> and <code>/docs</code> trailing-slash redirects exist with correct priority</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks trailing-slash redirect routing negative"><td>TC-016</td><td>check-stacks.sh</td><td>Negative</td><td>The <code>/docs</code> redirect rule is removed</td><td>Implemented</td></tr>
@@ -410,18 +410,21 @@
   packages, <code>dashboard/</code> and <code>pustaka/</code>. Every expected message is quoted from
   the script or the test that produces it, not paraphrased.</p>
 
-  <h3 id="cs-tenancy">check-stacks.sh — tier network &amp; database isolation (TC-001, TC-002)</h3>
+  <h3 id="cs-tenancy">check-stacks.sh — tier database isolation (TC-001, TC-002)</h3>
   <p>The script's own header names this the expensive check: a dev stack pointed at the production
-  database starts cleanly, passes every smoke test, and is invisible at runtime. <strong>Positive
-  (TC-001):</strong> the compose files as committed — <code>compose.dev.yaml</code> joins
-  <code>master-compose-ai-dev-net</code> and points at
-  <code>http://arcadedb-master-dev:2480</code>; <code>compose.prod.yaml</code> joins
-  <code>master-compose-ai-net</code> and points at <code>http://arcadedb-master:2480</code>; neither
-  file names the other's network or database string — produces eight <code>ok</code> lines.
-  <strong>Negative (TC-002):</strong> edit either file to reference the other tier's network or
-  database string — the matching <code>hasnt</code> assertion prints <code>FAIL</code> with the exact
-  label (e.g. <code>dev does not point at the PROD database</code>), <code>fails</code> increments,
-  final exit code is 1.</p>
+  database starts cleanly, passes every smoke test, and is invisible at runtime. <strong>Since
+  2026-11-02 both tiers use one ArcadeDB server</strong>, the shared one on <code>clinodb</code>,
+  reached over WireGuard at <code>http://10.10.0.5:2480</code> through
+  <code>deploy/clinodb/compose.arcade-bridge.yml</code>; the boundary is now the database and its
+  user — <code>gaos_dev</code> read by user <code>gaos_dev</code>, <code>gaos</code> by
+  <code>gaos_prod</code>, each refused (<code>403</code>) on the other's, which was measured when the
+  users were created. <strong>Positive (TC-001):</strong> the files as committed print
+  <code>ok dev uses the gaos_dev database</code>, <code>ok dev does not use the PROD database</code>,
+  <code>ok prod uses the gaos database</code>, <code>ok prod does not use the DEV database</code>,
+  <code>ok dev reaches the database over WireGuard</code> and <code>ok prod reaches the database over
+  WireGuard</code>. <strong>Negative (TC-002):</strong> set dev's <code>GAOS_ARCADE_DB</code> to
+  <code>"gaos"</code> — <code>FAIL dev uses the gaos_dev database</code> and <code>FAIL dev does not use
+  the PROD database</code>, and the run exits 1.</p>
 
   <h3 id="cs-bind">check-stacks.sh — tunnel-only publish binding (TC-003, TC-004)</h3>
   <p>Without the <code>10.10.0.2</code> prefix a <code>ports:</code> mapping binds every interface the
@@ -431,12 +434,13 @@
   address prefix (<code>"19301:80"</code>) or add a second mapping — <code>FAIL unexpected bind</code>
   or <code>FAIL n ports: mappings, want 1</code>.</p>
 
-  <h3 id="cs-infra">check-stacks.sh — infra-network exclusivity (TC-005, TC-006)</h3>
-  <p>Least privilege as topology: only the dashboard has a reason to resolve a neighbouring product's
-  database, queue or cache. <strong>Positive (TC-005):</strong> exactly one
-  <code>networks: [internal, infra]</code> line per compose file. <strong>Negative (TC-006):</strong>
-  add that line to a second service (e.g. <code>traefik</code>) — <code>FAIL 2 services on the infra
-  network, want 1</code>.</p>
+  <h3 id="cs-infra">check-stacks.sh — no neighbour's network (TC-005, TC-006)</h3>
+  <p>Least privilege as topology. Until 2026-11-02 the dashboard alone joined the shared infra network to
+  resolve ArcadeDB by name; with the database an address on the tunnel, no service needs a neighbour's
+  network at all. <strong>Positive (TC-005):</strong> <code>ok compose.dev.yaml: no service on a shared
+  infra network</code>, and the same for prod. <strong>Negative (TC-006):</strong> put a service back on
+  <code>[internal, infra]</code> — <code>FAIL compose.dev.yaml: 4 line(s) join a shared infra network,
+  want none</code> (the count is every matching line in the file).</p>
 
   <h3 id="cs-identity">check-stacks.sh — distinct project identity (TC-007, TC-008)</h3>
   <p><strong>Positive (TC-007):</strong> <code>name: gaos-dev</code> / <code>172.30.13.0/24</code> and
@@ -448,8 +452,9 @@
   <h3 id="cs-parity">check-stacks.sh — cross-tier parity (TC-009, TC-010)</h3>
   <p>The Secure cookie flag is env-driven, never scheme-derived — both tiers sit behind real TLS at the
   edge and see plain HTTP inside the tunnel, per <a href="decision-log.html#d-023">D-023</a>.
-  <strong>Positive (TC-009):</strong> both files carry <code>GAOS_COOKIE_SECURE: "1"</code> and
-  <code>GAOS_ARCADE_DB: "gaos"</code>. <strong>Negative (TC-010):</strong> turn dev's flag off "because
+  <strong>Positive (TC-009):</strong> both files carry <code>GAOS_COOKIE_SECURE: "1"</code>. The
+  database name used to be asserted equal here too; since both tiers share one server it must
+  <em>differ</em>, and that moved to <a href="#cs-tenancy">TC-001</a>. <strong>Negative (TC-010):</strong> turn dev's flag off "because
   it's dev" — <code>FAIL dev keeps Secure cookies on</code> — exactly the bug D-023 exists to prevent.</p>
 
   <h3 id="cs-docker">check-stacks.sh — no Docker socket on the proxy (TC-011, TC-012)</h3>
@@ -463,7 +468,10 @@
   <code>*.example</code> is tracked by git, and neither compose file bakes a literal
   <code>PASSWORD: "…"</code>. <strong>Negative (TC-014):</strong> <code>git add</code> a real
   <code>docs.env</code> — <code>git ls-files --error-unmatch</code> succeeds, so the check prints
-  <code>FAIL deploy/stacks/docs.env is tracked by git</code>.</p>
+  <code>FAIL deploy/stacks/docs.env is tracked by git</code>. Since 2026-11-02 the same loop covers the
+  gateway's two secret files, <code>deploy/stacks/*.aim-*</code> (the ai-stack login and ai-manager's
+  admin key, mounted read-only into the dev dashboard): <code>ok dev.aim-chat.json is untracked</code>,
+  or <code>FAIL deploy/stacks/dev.aim-chat.json is tracked by git</code>.</p>
 
   <h3 id="cs-redirects">check-stacks.sh — trailing-slash redirects (TC-015, TC-016)</h3>
   <p>Without these the <code>&lt;base href&gt;</code> resolves one level up and every asset 404s, while

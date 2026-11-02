@@ -7,15 +7,16 @@
 #   https://dev.gaos.mfardiansyah.id/app/   Mission Control  ·  /docs/  ·  /api/
 #
 # Deliberately the same shape as compose.prod.yaml, differing ONLY in: the port,
-# the compose project name, the internal subnet, the infra network and the
-# ArcadeDB host. Anything else that diverges between the two files is a bug.
-# Read the prod file's comments first -- they are not repeated here.
+# the compose project name, the internal subnet, the database name -- and, until
+# prod runs one, the gateway block. Anything else that diverges is a bug. Read
+# the prod file's comments first -- they are not repeated here.
 #
-# THE DEV DATABASE IS A DIFFERENT ARCADEDB INSTANCE, on a different shared
-# network. A dev stack wired to the prod database starts cleanly, passes every
-# smoke test and is invisible at runtime -- which is exactly why
-# deploy/check-stacks.sh asserts that these two files never name each other's
-# network or database host.
+# THE DEV DATABASE SHARES A SERVER WITH PROD (clinodb, since 2026-11-02) BUT NOT A
+# DATABASE OR A USER: gaos_dev, read and written by user gaos_dev, which ArcadeDB
+# refuses on gaos. A dev stack wired to the prod database would start cleanly,
+# pass every smoke test and be invisible at runtime -- which is why
+# deploy/check-stacks.sh asserts these two files never name each other's
+# database.
 #
 #   docker compose -f deploy/stacks/compose.dev.yaml build
 #   docker compose -f deploy/stacks/compose.dev.yaml up -d
@@ -28,9 +29,6 @@ networks:
     ipam:
       config:
         - subnet: 172.30.13.0/24
-  infra:
-    external: true
-    name: master-compose-ai-dev-net
 
 services:
   traefik:
@@ -61,8 +59,15 @@ services:
     env_file: [./dev.dashboard.env]
     environment:
       GAOS_ADDR: ":8080"
-      GAOS_ARCADE_URL: "http://arcadedb-master-dev:2480"
-      GAOS_ARCADE_DB: "gaos"
+      # THE DATABASE IS ON clinodb, NOT ON THIS HOST (2026-11-02). One shared
+      # ArcadeDB 26.7.2 (shared-infra on clinodb), reached over WireGuard through
+      # gaos-arcade-bridge, which publishes on 10.10.0.5 only -- deploy/clinodb/.
+      # The tiers are kept apart by DATABASE and by USER: dev is gaos_dev with
+      # user gaos_dev, prod is gaos with user gaos_prod, and each user has rights
+      # on its own database alone (a 403 on the other's). There is no infra
+      # network to join any more; nothing here resolves a neighbour by name.
+      GAOS_ARCADE_URL: "http://10.10.0.5:2480"
+      GAOS_ARCADE_DB: "gaos_dev"
       # The graph store, not the fixtures. The binary applies the schema from
       # its embedded copy on boot -- idempotent, so a restart is a no-op -- and
       # REFUSES TO START if the database is unreachable. That is deliberate: a
@@ -72,7 +77,25 @@ services:
       GAOS_ARCADE_TENANT: "loop-eng"
       # "1" even in dev: this tier also sits behind real TLS at the edge.
       GAOS_COOKIE_SECURE: "1"
-    networks: [internal, infra]
+      # THE GATEWAY (D-055): model work goes to ai-manager on rnd-v2-vpn over
+      # WireGuard, never to a tool in this image. The two secrets are FILES,
+      # mounted read-only below from host-side files that are never committed
+      # (deploy/stacks/*.aim-*, gitignored, mode 600). GAOS_RUNNER stays unset:
+      # gateway mode means a turn CAN be sent; the runner is the permission to
+      # spend, and it is an operator's decision per tier.
+      GAOS_MODEL_MODE: "aimanager"
+      GAOS_AIM_URL: "http://10.10.0.4:8099"
+      GAOS_AIM_CHAT_AUTH_FILE: "/run/secrets/aim-chat.json"
+      GAOS_AIM_ADMIN_KEY_FILE: "/run/secrets/aim-admin-key"
+      GAOS_MODEL: "claude-sonnet-5"
+    volumes:
+      - ./dev.aim-chat.json:/run/secrets/aim-chat.json:ro
+      - ./dev.aim-admin-key:/run/secrets/aim-admin-key:ro
+    # The secrets are mode 600 and owned by the deploy user, so the container
+    # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
+    # 65532, which could not read them. Nothing else in the image is uid-bound.
+    user: "1001:1001"
+    networks: [internal]
 
   docs:
     build:

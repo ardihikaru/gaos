@@ -29,16 +29,17 @@ hasnt()   { grep -qF "$2" "$1" && bad "$3" || ok "$3"; }
 hasre()   { grep -qE "$2" "$1" && ok "$3" || bad "$3"; }
 hasntre() { grep -qE "$2" "$1" && bad "$3" || ok "$3"; }
 
-echo "== the two tiers never name each other's infrastructure =="
+echo "== the two tiers never name each other's database =="
 # This is the expensive one. Everything else on this list is loud when it breaks.
-hasnt $DEV  "master-compose-ai-net"          "dev does not join the PROD infra network"
-has   $DEV  "master-compose-ai-dev-net"      "dev joins the dev infra network"
-has   $PROD "master-compose-ai-net"          "prod joins the prod infra network"
-hasnt $PROD "master-compose-ai-dev-net"      "prod does not join the DEV infra network"
-hasnt $DEV  "http://arcadedb-master:2480"    "dev does not point at the PROD database"
-has   $DEV  "http://arcadedb-master-dev:2480" "dev points at the dev database"
-has   $PROD "http://arcadedb-master:2480"    "prod points at the prod database"
-hasnt $PROD "arcadedb-master-dev"            "prod does not point at the DEV database"
+# Since 2026-11-02 both tiers use ONE ArcadeDB server on clinodb, reached over
+# WireGuard (deploy/clinodb/), so the boundary is the database and its user:
+# gaos_dev / gaos_dev and gaos / gaos_prod, each user refused on the other's.
+has   $DEV  'GAOS_ARCADE_DB: "gaos_dev"'      "dev uses the gaos_dev database"
+hasnt $DEV  'GAOS_ARCADE_DB: "gaos"'           "dev does not use the PROD database"
+has   $PROD 'GAOS_ARCADE_DB: "gaos"'          "prod uses the gaos database"
+hasnt $PROD 'GAOS_ARCADE_DB: "gaos_dev"'       "prod does not use the DEV database"
+has   $DEV  '"http://10.10.0.5:2480"'          "dev reaches the database over WireGuard"
+has   $PROD '"http://10.10.0.5:2480"'          "prod reaches the database over WireGuard"
 
 echo
 echo "== nothing is published beyond the tunnel =="
@@ -53,13 +54,14 @@ for f in $DEV $PROD; do
 done
 
 echo
-echo "== the shared infra network is joined by the dashboard alone =="
-# Least privilege as topology: the proxy, the landing page and the docs have no
-# reason to resolve a neighbour's MySQL, Qdrant or RabbitMQ.
+echo "== no service joins a neighbour's network =="
+# Least privilege as topology: since the database moved to clinodb nothing here
+# needs to resolve a neighbour's MySQL, Qdrant or RabbitMQ by name, so no service
+# joins a shared infra network at all -- and one appearing is a regression.
 for f in $DEV $PROD; do
-  n=$(grep -c 'networks: \[internal, infra\]' "$f")
-  [ "$n" = 1 ] && ok "$(basename "$f"): one service on the infra network" \
-                || bad "$(basename "$f"): $n services on the infra network, want 1"
+  n=$(grep -cE 'master-compose-ai|networks: \[[^]]*infra' "$f")
+  [ "$n" = 0 ] && ok "$(basename "$f"): no service on a shared infra network" \
+                || bad "$(basename "$f"): $n line(s) join a shared infra network, want none"
 done
 
 echo
@@ -79,8 +81,6 @@ echo "== what must NOT differ between the tiers =="
 # off in dev "because it is dev" breaks the back office there and nowhere else.
 has   $DEV  'GAOS_COOKIE_SECURE: "1"'        "dev keeps Secure cookies on"
 has   $PROD 'GAOS_COOKIE_SECURE: "1"'        "prod keeps Secure cookies on"
-has   $DEV  'GAOS_ARCADE_DB: "gaos"'         "dev uses the gaos database"
-has   $PROD 'GAOS_ARCADE_DB: "gaos"'         "prod uses the gaos database"
 # Both tiers run the graph store. A tier that silently fell back to the
 # in-memory fixtures would serve a floor, answer /healthz with ok:true and lose
 # every write on restart -- which is precisely the failure BR-01 is about, and
@@ -99,6 +99,16 @@ echo "== no secret is committed =="
 for f in deploy/stacks/*.env; do
   [ -e "$f" ] || continue
   case "$f" in *.example) continue;; esac
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    bad "$f is tracked by git"
+  else
+    ok "$(basename "$f") is untracked"
+  fi
+done
+for f in deploy/stacks/*.aim-*; do
+  # The gateway's two secrets (the ai-stack login, ai-manager's admin key) are
+  # host-side files mounted read-only; committing one would publish both.
+  [ -e "$f" ] || continue
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     bad "$f is tracked by git"
   else
