@@ -93,6 +93,19 @@ func (a *Arcade) ensureDatabase(ctx context.Context) error {
 	if ae.AlreadyExists() {
 		return nil
 	}
+	// A least-privilege user -- gaos_dev / gaos_prod on the shared server, whose
+	// rights are on their own database alone -- may not run server commands at
+	// all, so creation is refused even when the database is right there. That
+	// is the deployment working as intended, not a failure: the database is
+	// created once by the server's operator. Prove it exists by reading it as
+	// this user, and boot; if even that fails, say which of the two it is.
+	if ae.RootOnly() {
+		var one []map[string]any
+		if qerr := a.Query(ctx, "SELECT 1 AS one", nil, &one); qerr != nil {
+			return fmt.Errorf("database %s: this user may not create it (%s), and cannot read it either: %w", a.DB, ae.Err, qerr)
+		}
+		return nil
+	}
 	return ae
 }
 

@@ -56,6 +56,11 @@
         WireGuard, with the ai-stack login and the admin key mounted read-only from untracked,
         mode-600 files that <a href="product/qa-test-plan.html#cs-secrets">TC-013</a> now also covers.
         The runner stays off: a turn can be sent, and spending is still an operator's decision.</li>
+        <li><span class="chg fix">Fixed</span> <b>booting as a least-privilege user.</b> The first
+        dev deploy against the shared server crash-looped: <code>ensureDatabase</code> always ran
+        <code>create database</code>, a root-only server command, and treated <em>Only root user is
+        authorized</em> as fatal. It now proves the database exists by reading it as that user;
+        <a href="product/qa-test-plan.html#go-least-privilege">TC-313</a>.</li>
       </ul>
     </section>
 

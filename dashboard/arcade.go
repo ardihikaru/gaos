@@ -167,6 +167,13 @@ func (e *ArcadeError) AlreadyExists() bool {
 	return strings.Contains(strings.ToLower(e.Detail+" "+e.Err), "already exist")
 }
 
+// RootOnly reports a server command refused because the user is not root --
+// measured on 26.7.2: "Only root user is authorized to execute server
+// commands".
+func (e *ArcadeError) RootOnly() bool {
+	return strings.Contains(strings.ToLower(e.Detail+" "+e.Err), "only root user is authorized")
+}
+
 // Query runs a read. Results are decoded from the envelope's `result` array
 // into out, which should be a pointer to a slice of structs or maps.
 //

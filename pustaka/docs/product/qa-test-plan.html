@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and twelve cases, positive and negative, across the five deploy automations and the
+  three hundred and thirteen cases, positive and negative, across the five deploy automations and the
   two Go test packages that actually run today — twenty-one of them the first of the gateway's forward
   specifications, now running — fifteen more forward specifications for the rest of that move, plus
   the two business acceptance tests
@@ -75,7 +75,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and twelve cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and thirteen cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -400,6 +400,7 @@
       <tr data-tags="check-stacks licence sisflow vendored br-27 negative not-implemented"><td>TC-310</td><td>check-stacks.sh</td><td>Negative</td><td>A vendored sisflow board without its licence beside it fails the deploy pre-flight</td><td>Not implemented</td></tr>
       <tr data-tags="blueprint arcadedb restart persistence go test unit dashboard positive implemented"><td>TC-311</td><td>dashboard (go test)</td><td>Positive</td><td>A policy, a knowledge source and a published Blueprint version come back from a reopened ArcadeDB store (<code>TestTheBlueprintSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint back-office tab template render publish session go test unit dashboard positive implemented"><td>TC-312</td><td>dashboard (go test)</td><td>Positive</td><td>The back-office Blueprint tab renders, saves a policy and publishes version 1, and refuses a publish without a session (<code>TestTheBlueprintTabRendersAndPublishes</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="arcadedb least privilege user create database boot schema go test unit dashboard positive implemented"><td>TC-313</td><td>dashboard (go test)</td><td>Positive</td><td>A user who may read its database but not create it boots, and one who can do neither is refused with both reasons (<code>TestALeastPrivilegeUserBootsAgainstADatabaseItCannotCreate</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -2105,6 +2106,19 @@
   here — <code>t-b reported %+v; with t-a running in the same product it must be blocked by the graph
   lease (BR-38)</code>, while another product's task still runs (<code>dispatched %+v; another
   product's task must still run</code>).</p>
+
+  <h3 id="go-least-privilege">dashboard — booting as a least-privilege database user (TC-313)</h3>
+  <p>Since 2026-11-02 each tier signs in to the shared ArcadeDB on <code>clinodb</code> as a user with
+  rights on its own database alone, and only root may run server commands such as
+  <code>create database</code>. <code>ensureDatabase</code> used to treat that refusal as fatal, and the
+  dev dashboard crash-looped on its first boot against the shared server. It now proves the database
+  exists by reading it as that user. <strong>TC-313, positive</strong>
+  (<code>TestALeastPrivilegeUserBootsAgainstADatabaseItCannotCreate</code>), against an
+  <code>httptest</code> server answering the measured refusal: a user who can read
+  <code>gaos_dev</code> boots — <code>a user who may read gaos_dev but not create it was refused at boot:
+  %v</code> — and a database the user can neither create nor read fails with both reasons —
+  <code>a database this user can neither create nor read booted with %v; want the refusal naming
+  both</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

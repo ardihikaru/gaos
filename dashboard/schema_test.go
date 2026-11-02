@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -364,5 +366,35 @@ func TestTheDeferredStateAndItsCompanionsLandedTogether(t *testing.T) {
 		if m[1] != want.vocab {
 			t.Errorf("%s permits %q, want %q", want.prop, m[1], want.vocab)
 		}
+	}
+}
+
+// A least-privilege user cannot create a database -- only root may run server
+// commands -- and the deployment on clinodb is built that way on purpose:
+// gaos_dev and gaos_prod each hold rights on their own database alone. The
+// first version of ensureDatabase treated that refusal as fatal, and the dev
+// dashboard crash-looped on its first boot against the shared server.
+func TestALeastPrivilegeUserBootsAgainstADatabaseItCannotCreate(t *testing.T) {
+	readable := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/server":
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"Only root user is authorized to execute server commands (create database gaos_dev)"}`))
+		case strings.HasPrefix(r.URL.Path, "/api/v1/query/gaos_dev") && readable:
+			w.Write([]byte(`{"result":[{"one":1}]}`))
+		default:
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"Forbidden"}`))
+		}
+	}))
+	defer srv.Close()
+	a := &Arcade{URL: srv.URL, DB: "gaos_dev", User: "gaos_dev", Password: "x", client: srv.Client(), stmtClient: srv.Client()}
+	if err := a.ensureDatabase(t.Context()); err != nil {
+		t.Fatalf("a user who may read gaos_dev but not create it was refused at boot: %v", err)
+	}
+	readable = false
+	if err := a.ensureDatabase(t.Context()); err == nil || !strings.Contains(err.Error(), "cannot read it either") {
+		t.Fatalf("a database this user can neither create nor read booted with %v; want the refusal naming both", err)
 	}
 }
