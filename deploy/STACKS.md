@@ -86,22 +86,30 @@ rules exist in exactly one place. The service names `traefik`, `landing`,
 
 ## The database
 
-GAOS runs **no** database of its own. Each stack joins the shared infra network
-as `external` and reaches ArcadeDB by container DNS — no host ports, no
-`host.docker.internal`.
+GAOS runs **no** database of its own. **Since 2026-11-02 both tiers use the shared
+ArcadeDB 26.7.2 on `clinodb`** (`shared-infra`, wg `10.10.0.5`) — one server, one
+database and one user per tier, each user refused (`403`) on the other's database:
 
-| | Network | ArcadeDB | Infra stack |
-|---|---|---|---|
-| dev | `master-compose-ai-dev-net` | `http://arcadedb-master-dev:2480` | `projects/infra` |
-| prod | `master-compose-ai-net` | `http://arcadedb-master:2480` | `projects/infra-prod` |
+| | ArcadeDB | Database | User | Credentials |
+|---|---|---|---|---|
+| dev | `http://10.10.0.5:2480` | `gaos_dev` | `gaos_dev` | `deploy/stacks/dev.dashboard.env` |
+| prod | `http://10.10.0.5:2480` | `gaos` | `gaos_prod` | `deploy/stacks/prod.dashboard.env` |
 
-Only `dashboard` joins it. The proxy, the landing page and the docs cannot reach
-the other projects' MySQL, RabbitMQ or Qdrant that share that network.
+`shared-infra` publishes ArcadeDB on `127.0.0.1` only — `clinodb` is a **public**
+box and Docker bypasses `ufw`. GAOS reaches it through
+**`gaos-arcade-bridge`** (`deploy/clinodb/compose.arcade-bridge.yml`, deployed on
+`clinodb` as `~/devel/projects/gaos-arcade-bridge/compose.yml`): a socat relay on
+`master-compose-ai-net` that publishes on `10.10.0.5:2480` and nowhere else. It
+holds no credentials and leaves `shared-infra` and its other tenants untouched.
 
-If compose reports *"network … declared as external, but could not be found"*,
-the infra stack is down. Start it there — **never `docker network create` it
-here**, which produces an empty network with the right name and a stack that
-starts cleanly and can reach nothing.
+```bash
+ssh clinodb 'cd ~/devel/projects/gaos-arcade-bridge && docker compose up -d'   # (re)start the relay
+```
+
+No GAOS service joins any shared infra network any more; `check-stacks.sh`
+asserts that none does. The previous databases (`arcadedb-master-dev` on this
+VM, `arcadedb-master` of `master-compose-ai`) were left as they were — repointing
+moved nothing and deleted nothing.
 
 **In this pass the dashboard does not query the graph.** It renders fixtures and
 probes reachability. `GET /api/healthz` answers:

@@ -7,8 +7,9 @@
 #   https://gaos.mfardiansyah.id/app/   Mission Control  ·  /docs/  ·  /api/
 #
 # compose.dev.yaml is deliberately the same shape, differing ONLY in: the port,
-# the hostname, the compose project name, the internal subnet, the infra network
-# and the ArcadeDB host. A difference outside that list is a bug rather than a
+# the hostname, the compose project name, the internal subnet and the database
+# name (gaos here, gaos_dev there, on one shared server) -- and the gateway block,
+# which dev runs first. A difference outside that list is a bug rather than a
 # decision, and deploy/check-stacks.sh asserts the ones that matter.
 #
 #   docker compose -f deploy/stacks/compose.prod.yaml build
@@ -26,14 +27,6 @@ networks:
       config:
         - subnet: 172.30.12.0/24
 
-  # The shared infrastructure network, where ArcadeDB lives. DECLARED EXTERNAL,
-  # NEVER CREATED. If compose says "network ... declared as external, but could
-  # not be found", the infra stack is down -- start it there. Running
-  # `docker network create` here produces an empty network with the right name
-  # and a stack that starts cleanly and can reach nothing.
-  infra:
-    external: true
-    name: master-compose-ai-net
 
 services:
   traefik:
@@ -69,7 +62,14 @@ services:
     env_file: [./prod.dashboard.env]
     environment:
       GAOS_ADDR: ":8080"
-      GAOS_ARCADE_URL: "http://arcadedb-master:2480"
+      # THE DATABASE IS ON clinodb, NOT ON THIS HOST (2026-11-02). One shared
+      # ArcadeDB 26.7.2 (shared-infra on clinodb), reached over WireGuard through
+      # gaos-arcade-bridge, which publishes on 10.10.0.5 only -- deploy/clinodb/.
+      # The tiers are kept apart by DATABASE and by USER: dev is gaos_dev with
+      # user gaos_dev, prod is gaos with user gaos_prod, and each user has rights
+      # on its own database alone (a 403 on the other's). There is no infra
+      # network to join any more; nothing here resolves a neighbour by name.
+      GAOS_ARCADE_URL: "http://10.10.0.5:2480"
       GAOS_ARCADE_DB: "gaos"
       # The graph store, not the fixtures. The binary applies the schema from
       # its embedded copy on boot -- idempotent, so a restart is a no-op -- and
@@ -83,11 +83,10 @@ services:
       # its Secure flag. The flag is env-driven, never scheme-derived, because
       # these containers only ever see plain HTTP inside the tunnel.
       GAOS_COOKIE_SECURE: "1"
-    # ONLY THIS SERVICE JOINS THE INFRA NETWORK. The proxy, the landing page and
-    # the docs have no reason to resolve a neighbouring project's MySQL, Qdrant
-    # or RabbitMQ, and least privilege expressed as topology needs no policy to
-    # enforce it.
-    networks: [internal, infra]
+    # No service joins an infra network: the database is an address on the
+    # tunnel, and least privilege as topology is now simply "nobody resolves a
+    # neighbour's services by name".
+    networks: [internal]
 
   docs:
     build:

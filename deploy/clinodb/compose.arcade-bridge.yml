@@ -1,0 +1,30 @@
+# gaos-arcade-bridge -- how GAOS, on vm-rnd-ardi (10.10.0.2), reaches the shared
+# ArcadeDB on clinodb (10.10.0.5). Deployed on clinodb as
+# ~/devel/projects/gaos-arcade-bridge/compose.yml; see deploy/STACKS.md.
+#
+# shared-infra publishes ArcadeDB on 127.0.0.1 only, on purpose: clinodb is a
+# PUBLIC box and Docker bypasses ufw, so a publish on 0.0.0.0 would put the
+# database on the internet. This relay publishes on the WireGuard address
+# alone, which only tunnel peers can route to, and leaves shared-infra -- and
+# every tenant already on it -- untouched: no restart, no edit to its compose.
+#
+# It carries no credentials. GAOS authenticates as gaos_dev / gaos_prod, users
+# whose only rights are on their own database (gaos_dev / gaos).
+name: gaos-arcade-bridge
+
+networks:
+  infra:
+    external: true
+    name: master-compose-ai-net   # where shared-infra's arcadedb-master lives
+
+services:
+  bridge:
+    image: alpine/socat:1.8.0.1
+    restart: unless-stopped
+    command: ["TCP-LISTEN:2480,fork,reuseaddr", "TCP:arcadedb-master:2480"]
+    ports:
+      - "10.10.0.5:2480:2480"     # WireGuard only -- never 0.0.0.0 on this box
+    networks: [infra]
+    cpus: "0.25"
+    mem_limit: 32m
+    read_only: true
