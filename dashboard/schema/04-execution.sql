@@ -25,7 +25,7 @@ CREATE PROPERTY Workflow.spentUsd   FLOAT (default 0.0, min 0);
 CREATE VERTEX TYPE Task IF NOT EXISTS EXTENDS GaosVertex BUCKETS 8;
 CREATE PROPERTY Task.title            STRING  (mandatory true, notnull true);
 CREATE PROPERTY Task.status           STRING  (mandatory true, notnull true, default 'PENDING',
-                 regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED');
+                 regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED|AWAITING_INPUT');
 CREATE PROPERTY Task.role             STRING  (mandatory true, notnull true,
                  regexp 'planner|architect|backend|frontend|qa|security|devops');
 CREATE PROPERTY Task.riskClass        STRING  (default 'normal',

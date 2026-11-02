@@ -77,8 +77,8 @@ func TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory(t *testing.T) {
 	for _, c := range b.Columns {
 		cols = append(cols, c.ID)
 	}
-	if got := strings.Join(cols, ","); got != "backlog,ready,working,review,blocked,failed,done,canceled" {
-		t.Fatalf("columns are %s; want the eight declared ones in order", got)
+	if got := strings.Join(cols, ","); got != "backlog,ready,working,needs-you,review,blocked,failed,done,canceled" {
+		t.Fatalf("columns are %s; want the nine declared ones in order", got)
 	}
 	tasks := productTasks(s, desk)
 	seen := map[string]int{}

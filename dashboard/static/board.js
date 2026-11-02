@@ -13,6 +13,26 @@
 import { createBoard, createRestProvider } from "./vendor/sisflow/board/index.js";
 
 const mounted = new WeakMap();
+const AWAITING = "AWAITING_INPUT";
+
+// "Needs you" (M15): a waiting card carries a badge that opens the answer
+// sheet. The badge is a button, so sisflow's drag ignores it; app.js handles
+// the click by delegation, exactly as it does for the server board's badge.
+function needsBadge(product, card) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "needs-badge";
+  b.id = "nb-" + card.id;
+  b.textContent = "Needs you";
+  b.setAttribute("aria-label", "Needs you — answer the agent on " + card.id);
+  b.dataset.answerOpen = "ui/answer/" + encodeURIComponent(product) + "/" + encodeURIComponent(card.id) + "?from=board";
+  // Enter on a focused card opens sisflow's editor and Delete asks to delete
+  // it; on the badge those keys belong to the badge.
+  b.addEventListener("keydown", (ev) => {
+    if (["Enter", " ", "F2", "Delete", "Backspace"].includes(ev.key)) ev.stopPropagation();
+  });
+  return b;
+}
 
 function themeName() {
   return document.documentElement.getAttribute("data-theme") === "light" ? "sismaya-light" : "sismaya-dark";
@@ -45,7 +65,10 @@ export function mount(host) {
         if (!res.ok) throw Object.assign(new Error("the board did not load"), { status: res.status });
         const doc = await res.json();
         doc.rows = (doc.rows || []).filter((r) => r.id !== "plan");
-        for (const c of doc.cards || []) if (c.row === "plan") c.row = null;
+        for (const c of doc.cards || []) {
+          if (c.row === "plan") c.row = null;
+          if (c.status === AWAITING) c.css = "is-needs-you";
+        }
         return doc;
       },
       push(entry) {
@@ -57,6 +80,7 @@ export function mount(host) {
     board = createBoard(host, {
       provider, theme: themeName(), cards: [], columns: [], rows: [],
       catalogs: { en: { "lane.none": "Plan" } },
+      cardTemplate: (card, ctx) => card.status === AWAITING ? [needsBadge(host.dataset.product, card), ctx.defaultRender(card)] : null,
     });
     board.on("board:provider-error", ({ error, status }) =>
       say(host, status === 409 ? "Refused: the task state machine does not allow that move." : (status || 0) + ": " + error.message));
@@ -64,6 +88,21 @@ export function mount(host) {
 
   create();
   mounted.set(host, true);
+  // live.js asks for a reload when a task hint names this product. A drag in
+  // progress wins: reloading under the pointer would drop the card mid-air.
+  host.addEventListener("gaos:board-refresh", () => {
+    if (!host.isConnected || host.querySelector(".sfb-dragging") || host.firstElementChild?.classList.contains("sfb-dragging")) return;
+    // Needs you sits right of Working, often scrolled into view; a refresh the
+    // operator did not ask for must not throw them back to Backlog.
+    const body = host.querySelector(".sfb-body");
+    const at = body ? [body.scrollLeft, body.scrollTop] : null;
+    create();
+    if (at) {
+      const keep = () => { const b = host.querySelector(".sfb-body"); if (b) [b.scrollLeft, b.scrollTop] = at; };
+      board.on("board:change", function once() { keep(); board.off?.("board:change", once); });
+      setTimeout(keep, 300);
+    }
+  });
   // style, not the hidden attribute: both elements carry a display of their
   // own, which an author style gives precedence over [hidden].
   host.style.display = "";

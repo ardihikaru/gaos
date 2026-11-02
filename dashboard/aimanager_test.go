@@ -36,11 +36,22 @@ type fakeAIM struct {
 	// them, and how many writes reached it (TC-293 asserts zero).
 	spaces map[string][]WorkspaceFile
 	writes int
+
+	// The answer route (M15): every answer it received, keyed by question id,
+	// and the status it answers with (0 = 202).
+	answers      map[string][]fakeAnswer
+	answerStatus int
+}
+
+type fakeAnswer struct {
+	RequestID string
+	AnswerRequest
 }
 
 func newFakeAIM(t *testing.T) (*fakeAIM, *AIMAdapter) {
 	t.Helper()
-	f := &fakeAIM{posts: map[string]int{}, provider: "claude", spaces: map[string][]WorkspaceFile{}}
+	f := &fakeAIM{posts: map[string]int{}, provider: "claude", spaces: map[string][]WorkspaceFile{},
+		answers: map[string][]fakeAnswer{}}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
 	ad := &AIMAdapter{
@@ -75,6 +86,19 @@ func (f *fakeAIM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusAccepted)
 		fmt.Fprintf(w, `{"request_id":%q,"status":"pending"}`, id)
+	case r.Method == "POST" && strings.HasPrefix(r.URL.Path, "/v1/questions/") && strings.HasSuffix(r.URL.Path, "/answer"):
+		qid := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/questions/"), "/answer")
+		var a AnswerRequest
+		b, _ := io.ReadAll(r.Body)
+		json.Unmarshal(b, &a)
+		f.answers[qid] = append(f.answers[qid], fakeAnswer{RequestID: r.Header.Get("X-Request-ID"), AnswerRequest: a})
+		if f.answerStatus != 0 {
+			w.WriteHeader(f.answerStatus)
+			w.Write([]byte(`{"error":"scripted answer refusal"}`))
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		fmt.Fprintf(w, `{"request_id":%q,"question_id":%q,"status":"pending"}`, r.Header.Get("X-Request-ID"), qid)
 	case strings.HasSuffix(r.URL.Path, "/result"):
 		if f.pending > 0 {
 			f.pending--

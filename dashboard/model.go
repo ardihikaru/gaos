@@ -260,6 +260,10 @@ type EventPayload struct {
 	// what the planner produced rather than a delta anything applies.
 	Tasks []PlannedTask
 
+	// Question is set by QuestionAsked (the question) and QuestionAnswered
+	// (the same question, with the answer filled in), and by nothing else.
+	Question *QuestionPayload
+
 	// Genesis is set by FloorOpened and by nothing else. It is the seeded floor
 	// -- the `?? empty` half of §08's `snapshot_before(t) ?? empty` -- and it is
 	// what lets a fold from an empty state reproduce a floor that was never
@@ -288,6 +292,11 @@ func (p EventPayload) Clone() EventPayload {
 	}
 	if p.Genesis != nil {
 		c.Genesis = cloneDesks(p.Genesis)
+	}
+	if p.Question != nil {
+		q := *p.Question
+		q.Options = append([]QuestionOption(nil), p.Question.Options...)
+		c.Question = &q
 	}
 	return c
 }
@@ -861,6 +870,8 @@ const ArtifactHandoff = "handoff"
 const (
 	ArtifactPrompt = "prompt"
 	ArtifactReply  = "reply"
+	// ArtifactQuestion is the question a turn ended on, rendered (M15).
+	ArtifactQuestion = "question"
 )
 
 // ContextView is what the inspector and GET /tasks/{id}/context are answered

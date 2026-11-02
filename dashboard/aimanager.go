@@ -81,6 +81,10 @@ type ChatRequest struct {
 	NewSession  bool   `json:"new_session,omitempty"`
 	SessionID   string `json:"session_id,omitempty"`
 	WorkspaceID string `json:"workspace_id,omitempty"`
+	// AskUser lets the agent end its turn with an ai-question block (D-064);
+	// Caller tags the question so GET /v1/questions can filter GAOS's own.
+	AskUser bool   `json:"ask_user,omitempty"`
+	Caller  string `json:"caller,omitempty"`
 }
 
 // ChatReply is the part of ai-manager's reply GAOS reads.
@@ -95,6 +99,9 @@ type ChatReply struct {
 	SessionID    string          `json:"session_id"`
 	WorkspaceID  string          `json:"workspace_id"`
 	Metadata     json.RawMessage `json:"metadata"`
+	// Question is set when the agent ended the turn asking the operator; the
+	// finish reason is then "awaiting_input" (M15).
+	Question *GatewayQuestion `json:"question,omitempty"`
 }
 
 // ObservedContext reports metadata.context.workspace: what the worker's

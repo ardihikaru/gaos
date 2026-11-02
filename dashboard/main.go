@@ -285,6 +285,7 @@ func (s *server) routes() http.Handler {
 	// --- the documented surface (architecture §09). Named now so nothing has
 	// to be renamed when the graph is behind it. ---
 	mux.HandleFunc("GET /events", s.handleEvents)
+	mux.HandleFunc("GET /events/stream", s.handleStream) // D-065: hints, not HTML
 	mux.HandleFunc("GET /replay/{workflow}", s.handleReplay)
 	mux.HandleFunc("POST /tasks/{id}/dispatch", s.handleDispatch)
 	mux.HandleFunc("POST /tasks/{id}/approve", s.handleApprove)
@@ -316,6 +317,13 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("PUT /products/{id}/board/cards/{taskId}", s.handleCardRefused)
 	mux.HandleFunc("DELETE /products/{id}/board/cards/{taskId}", s.handleCardRefused)
 	mux.HandleFunc("GET /products/{id}/readiness", s.handleReadiness)
+
+	// --- "Needs you" (M15): agents waiting on the operator, and the answer ---
+	mux.HandleFunc("GET /questions", s.handleQuestions)
+	mux.HandleFunc("GET /products/{id}/questions", s.handleQuestions)
+	mux.HandleFunc("POST /products/{id}/tasks/{taskId}/answer", s.handleAnswer)
+	mux.HandleFunc("GET /ui/needs", s.handleNeeds)                      // the chip and the nav count
+	mux.HandleFunc("GET /ui/answer/{id}/{taskId}", s.handleAnswerSheet) // the answer sheet
 
 	// --- create workflow ---
 	mux.HandleFunc("GET /ui/cw", s.handleCWOpen)
@@ -392,6 +400,7 @@ func (s *server) newView(r *http.Request) (*View, Floor) {
 		Stats:    f.Stats,
 		SignedIn: signedIn(r),
 		Tenant:   tenantOf(r),
+		Needs:    s.needsCount(r),
 	}
 	return v, f
 }

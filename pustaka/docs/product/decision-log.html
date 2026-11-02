@@ -1108,6 +1108,43 @@
         <td>Product-owner ruling, 2026-11-02; <code>dashboard/static/vendor/sisflow/NOTICE-sisflow.txt</code>;
         <a href="qa-test-plan.html#cs-sisflow">TC-310</a>; <a href="brd.html#req-i">I-10</a></td>
       </tr>
+      <tr id="d-064">
+        <td>D-064</td><td>2026-11-02</td>
+        <td><strong>An agent asks the operator by ending its turn, and the answer resumes the session
+        that asked.</strong> A gateway turn cannot pause: the worker runs the model headless with no
+        input channel, and ai-manager has no streaming and no cancel (<a href="open-questions.html#oq-26">OQ-26</a>).
+        So a question is a <em>way to end a turn</em>: the model closes its reply with one
+        <code>ai-question</code> block — exactly three options, the one it recommends first; the
+        operator's own words are always the fourth — and owes no handoff for that turn. The worker
+        (ai-claude-cli, ai-antigravity-cli, through ai-cli-common) parses the block and turns off the
+        built-in <code>AskUserQuestion</code> tool, which cannot be answered headless; ai-manager keeps
+        the question in the <code>temp</code> bucket (thirty-day expiry) and answers it through
+        <code>POST /v1/questions/{id}/answer</code>, which starts the next turn on the same session
+        under the caller's request id. GAOS records the question as <code>QuestionAsked</code>, holds
+        the task in <code>AWAITING_INPUT</code> (<a href="brd.html#rules-gateway">BR-44</a>), and on
+        the answer writes <code>QuestionAnswered</code> and requeues it. The answer turn is an ordinary
+        attempt — lease, heartbeat, TaskRun, request-id recovery — and carries the answer twice: to the
+        session through the answer route, and in the frozen slice as
+        <code>context/answer.md</code>, so a turn that must fall back to <code>/v1/chat</code> (the
+        question already answered elsewhere, or expired) still reads it.</td>
+        <td>Product-owner request, 2026-11-02; <a href="brd.html#req-i">I-11</a>;
+        <a href="qa-test-plan.html#go-questions">TC-321…TC-330</a>; <code>dashboard/questions.go</code></td>
+      </tr>
+      <tr id="d-065">
+        <td>D-065</td><td>2026-11-02</td>
+        <td><strong>Live updates are server-sent hints, never pushed HTML.</strong> <code>emit()</code>
+        was cut as the SSE seam when the store was written; the broker it waited for is
+        <code>dashboard/broker.go</code>. <code>GET /events/stream</code> sends one line per event —
+        its seq, type, kind, product and task — and the browser re-fetches the fragment it affects
+        through the ordinary routes, so there is no second rendering path and nothing on the stream a
+        client could act on without asking. Delivery is best effort: a subscriber that cannot keep up
+        is dropped rather than waited for, so one stalled tab never holds the store's lock, and
+        reconnects with <code>Last-Event-ID</code> to catch up from the record. Only the live store
+        has a broker — a projection built to fold or replay has none, so the past is never announced
+        as if it were happening.</td>
+        <td><code>dashboard/broker.go</code>; <a href="qa-test-plan.html#go-broker">TC-331…TC-333</a>;
+        closes <a href="../delivery/implementation-plan.html#sub-m9-3">T-110</a></td>
+      </tr>
     </tbody>
   </table>
 

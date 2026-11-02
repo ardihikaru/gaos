@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -22,6 +23,17 @@ func gatewayOn(t *testing.T, s *MemStore) (*fakeAIM, *AIMAdapter) {
 // handoff costing cost.
 func completeTurn(f *fakeAIM, task string, attempt int, cost string) {
 	f.reply = chatReply("done\n\n"+handoffBlock(task, runIDFor(task, attempt)), cost, "")
+}
+
+// askTurn scripts the fake to answer with a question for the operator: three
+// options, the first recommended, and no handoff (M15).
+func askTurn(f *fakeAIM, qid string) {
+	f.reply = chatReply("I need a decision before I build the store.", "0.05",
+		fmt.Sprintf(`,"finish_reason":"awaiting_input","question":{"id":%q,"question":"Which database should the orders service use?",`+
+			`"context":"The BRD names none and the two choices change the schema.","options":[`+
+			`{"label":"PostgreSQL","description":"what the other services already run"},`+
+			`{"label":"SQLite","description":"simplest, single node"},`+
+			`{"label":"ArcadeDB","description":"the graph the platform uses"}]}`, qid))
 }
 
 // clearedFor is the screened brief for attempt of task on desk, carrying the
