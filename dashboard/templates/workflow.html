@@ -121,9 +121,5 @@
 {{/* The modal closes itself by being replaced with its own empty shell. */}}
 {{define "cw-closed"}}
 <div class="modal-back" id="cwModal" hidden hx-swap-oob="true"></div>
-{{template "carousel" .}}
-{{template "inspector" .}}
-{{template "prod-list" .}}
-{{template "rooms" .}}
 {{template "bo-sheet" .}}
 {{end}}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GAOS · Mission Control</title>
+<title>GAOS · Products</title>
 <meta name="color-scheme" content="dark light">
 
 <!-- MOUNT POINT. This is the only place the prefix appears, and it is why every
@@ -41,40 +41,23 @@
 
 {{template "topbar" .}}
 
-<div class="shell">
-  {{template "rail" .}}
-
-  <main class="floor">
-    <div class="floor-head">
-      <div>
-        <h2>Engineering floor</h2>
-        {{template "floor-sub" .}}
-      </div>
-      {{template "floor-ctl" .}}
+<!-- The product master is the home page (M14.7, T-168): signed in, it is the
+     back-office sheet below, open on the product list; signed out, the sign-in
+     sheet. The engineering floor that used to sit here was retired with the
+     CLI execution layer -- a product's work is on its own Board tab. -->
+<main class="floor">
+  <div class="floor-head">
+    <div>
+      <h2>Products</h2>
+      <p>Sign in to manage each product's record, Blueprint and board.</p>
     </div>
-
-    <div class="stage" id="stage">
-      {{template "carousel" .}}
-      {{template "meeting" .}}
-      <div class="walkers" id="walkers"></div>
-    </div>
-  </main>
-
-  {{template "inspector" .}}
-</div>
-
-{{template "timeline" .}}
+  </div>
+</main>
 
 {{template "login-sheet" .}}
 {{template "bo-sheet" .}}
 {{template "cw-modal" .}}
 {{template "toast" .}}
-
-<!-- The tick. It is a bare element that is never swapped, so the poll survives
-     every fragment replacement on the page. One request per tick returns the
-     whole floor as out-of-band swaps -- see handleFloor. Replace the trigger
-     with hx-ext="sse" and this is the SSE client. -->
-<div id="ticker" hx-get="ui/floor" hx-trigger="every 1400ms" hx-target="#sink" hx-swap="innerHTML"></div>
 
 <!-- Every request in this application targets #sink and returns nothing for it:
      all real updates arrive as hx-swap-oob elements. One rule, no per-request

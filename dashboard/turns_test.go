@@ -21,15 +21,7 @@ func turnStore(t *testing.T) (*MemStore, *fakeAIM, *AIMAdapter, string) {
 
 func turnCleared(t *testing.T, s *MemStore, desk, task string, attempt int) Cleared {
 	t.Helper()
-	s.mu.RLock()
-	sid, reason := s.sessionForLocked(task, s.adapter.(TurnAdapter), time.Now().Unix())
-	s.mu.RUnlock()
-	c, _, err := Screen(EgressPolicy{}, Target{Provider: "anthropic"}, Packet{TaskID: task, RunID: runIDFor(task, attempt), DeskID: desk,
-		SessionID: sid, SessionReason: reason, Parts: []PacketPart{{Path: ".gaos/packet/task.md", Kind: KindTask, Body: "# " + task}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
+	return clearedFor(t, s, desk, task, attempt)
 }
 
 func storeEvents(s *MemStore, typ EventType) []Event {

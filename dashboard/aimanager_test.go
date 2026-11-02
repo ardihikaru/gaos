@@ -99,7 +99,7 @@ func gatewayCleared(t *testing.T) Cleared {
 	t.Helper()
 	p := Packet{TaskID: "T-1", RunID: "R-1", Role: "backend", DeskID: "p-5",
 		Parts: []PacketPart{{Path: ".gaos/packet/task.md", Kind: KindTask, Body: "# T-1\nadd the thing"},
-			{Path: ".gaos/packet/handoff.md", Kind: KindContract, Body: handoffContract("T-1", "R-1", "backend")}}}
+			{Path: ".gaos/packet/handoff.md", Kind: KindContract, Body: gatewayContract("T-1", "R-1", "backend")}}}
 	c, _, err := Screen(EgressPolicy{}, Target{Provider: "anthropic"}, p)
 	if err != nil {
 		t.Fatal(err)

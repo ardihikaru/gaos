@@ -1,5 +1,15 @@
 package main
 
+// The floor simulation, kept for the tests only (M14.7, T-167).
+//
+// It no longer runs in any deployment: the floor UI it animated was retired
+// and nothing in production may write events nobody asked for (BR-04). The
+// tests keep it because it is the cheapest generator of long, varied event
+// streams, which is what the fold's genesis-equals-snapshot property and the
+// closed catalog are checked against. The operator controls it answered --
+// focus, pause, speed, the bell, calling and closing a review -- moved here
+// with it, off the Store interface.
+
 import (
 	"context"
 	"fmt"
@@ -319,4 +329,137 @@ func lowerFirst(s string) string {
 		r[0] = r[0] + 32
 	}
 	return string(r)
+}
+
+// ---------- the floor controls, retired from the Store interface ----------
+
+func (s *MemStore) Focus(ctx context.Context, idx int) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.desks) == 0 {
+		return s.result(""), nil
+	}
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(s.desks) {
+		idx = len(s.desks) - 1
+	}
+	s.focusIdx = idx
+	return s.result(""), nil
+}
+
+func (s *MemStore) ClearNotifications(ctx context.Context) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.notifs = 0
+	for i, d := range s.desks {
+		if d.ApprovalRequired || d.State == StateBlocked {
+			s.focusIdx = i
+			break
+		}
+	}
+	return s.result(""), nil
+}
+
+func (s *MemStore) SetPaused(ctx context.Context, paused bool) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.paused = paused
+	return s.result(""), nil
+}
+
+func (s *MemStore) SetSpeed(ctx context.Context, speed int) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if speed != 1 && speed != 2 && speed != 4 {
+		return Result{}, reject("speed must be 1, 2 or 4")
+	}
+	s.speed = speed
+	return s.result(""), nil
+}
+
+func (s *MemStore) CallReview(ctx context.Context, idx int) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if idx < 0 || idx >= len(s.desks) {
+		return Result{}, ErrNotFound
+	}
+	if s.meetingIdx >= 0 {
+		return Result{}, reject("A review is already in session.")
+	}
+	if s.replayAtSeq != liveMode {
+		return Result{}, reject("The floor is in replay. Return to live first.")
+	}
+	d := &s.desks[idx]
+	if d.State == StateIdle || d.State == StateMeeting {
+		return Result{}, reject("There is no running task to review here.")
+	}
+	ev := s.startMeeting(idx, "Operator called a review on "+taskIDOf(*d))
+	return s.result("Review called. The room is filling.", ev...), nil
+}
+
+func (s *MemStore) CloseMeeting(ctx context.Context) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.meetingIdx < 0 {
+		return Result{}, reject("No review is in session.")
+	}
+	ev := s.closeMeeting()
+	return s.result("Decision recorded. ADR-014 written.", ev...), nil
+}
+
+// startMeeting seats up to five agents: the architect, security and QA always,
+// plus whoever is already on the desk. Assumes the lock is held.
+func (s *MemStore) startMeeting(idx int, reason string) []Event {
+	d := &s.desks[idx]
+	seen := map[string]bool{}
+	var participants []string
+	for _, id := range append([]string{"a-1", "a-7", "a-5"}, d.Agents...) {
+		if !seen[id] && len(participants) < 5 {
+			seen[id] = true
+			participants = append(participants, id)
+		}
+	}
+	s.mustSetState(d, StateMeeting)
+	d.Meeting = &Meeting{Reason: reason, Participants: participants, Conf: 38}
+	s.meetingIdx = idx
+	p := deskPayload(*d)
+	p.Meeting = d.Meeting
+	return []Event{s.emit(MeetingStarted, d.ID, reason, KindMeet, p)}
+}
+
+// closeMeeting applies the decision: an ADR is written, the model is escalated
+// one tier, and the retry counter resets because the task is now a different
+// task. Assumes the lock is held.
+func (s *MemStore) closeMeeting() []Event {
+	idx := s.meetingIdx
+	s.meetingIdx = -1
+	if idx < 0 || idx >= len(s.desks) {
+		return nil
+	}
+	d := &s.desks[idx]
+	var ev []Event
+
+	// The room's own record, before the decision is applied: the proposal that
+	// was on the table and then the decision taken on it. ProposalRecorded and
+	// DecisionRecorded are two different facts and the catalog names them
+	// separately -- a meeting that recorded a decision nobody proposed is not a
+	// meeting anybody can audit.
+	meet := deskPayload(*d)
+	meet.Meeting = d.Meeting
+	ev = append(ev, s.emit(ProposalRecorded, d.ID, "Proposal on the table · move rounding into the pricing service", KindMeet, meet))
+	ev = append(ev, s.emit(DecisionRecorded, d.ID, "ADR-014 accepted · 2 action items created", KindKnow, meet))
+
+	s.mustSetState(d, StateActive)
+	d.Esc++
+	d.Retry = 0
+	d.Progress = 8
+	d.Scored, d.Score, d.ScoreParts = false, 0, nil
+	d.Task = "Apply ADR-014: move rounding into the pricing service"
+	d.Meeting = nil
+	s.log(d, "meeting decision applied · model upgraded to claude-opus-5", "p")
+	ev = append(ev, s.emit(ModelEscalated, d.ID, "Retry running on a stronger model after the review", KindKnow, deskPayload(*d)))
+	ev = append(ev, s.emit(MeetingClosed, d.ID, "Design review closed", KindMeet, deskPayload(*d)))
+	return ev
 }

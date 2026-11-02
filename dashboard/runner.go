@@ -3,45 +3,35 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
-	"testing"
 	"time"
 )
 
-// The runner. T-050 and T-052, requirements D-2 and D-3.
+// The runner. T-050 and T-052, re-based on the gateway in M14.7 (D-060).
 //
-// One supervising goroutine per run. It takes the workspace lease, writes the
-// RunRecord, hands the cleared packet to the adapter, beats while the work
-// runs, and records what came back. The child it starts is detached: it has its
-// own process group and a context that no longer descends from the
-// orchestrator's signal handler, so an orchestrator restart does not take a
-// paid model call with it.
+// One supervising goroutine per attempt. It records the TaskRun with its
+// request id, submits the turn through the adapter, beats while it polls, and
+// records what came back. Nothing runs on this host: the work happens in the
+// product's workspace on the worker, and what survives an orchestrator restart
+// is the request id, which recovery polls (turns.go).
 //
 // # What the heartbeat actually attests to
 //
-// The supervisor, NOT the model. Claude Code knows nothing about GAOS, so the
-// thing that beats is this goroutine -- which means that when an orchestrator
-// dies, the beat goes stale WHILE THE WORK CONTINUES.
-//
-// That asymmetry is easy to read backwards, and reading it backwards is how a
-// reconciler ends up requeuing a task whose child is still editing the
-// repository. It is why D-4 has three branches rather than two, and why the
-// middle one (lease held, beat stale) has to kill before it requeues -- see
-// reconcile.go. Nothing about a stale beat says the child is gone; it says only
-// that nobody is watching it any more.
+// The supervisor, NOT the model. When an orchestrator dies the beat goes stale
+// while the turn continues upstream -- which is why recovery asks the gateway
+// rather than reading the beat, and why a request the gateway no longer knows
+// holds its product until the turn must have ended (D-060).
 //
 // # Two cadences, not one
 //
 // The beat is a field write every heartbeatInterval. The Heartbeat EVENT is
 // written every heartbeatEventEvery, plus always the first beat of a run and
-// always the last before it exits. D-053 has the argument; lease.go has the
-// numbers.
+// always the last before it exits. D-053 has the argument.
 
 // runnerEnabled is the runner's own switch, deliberately separate from whether
 // an adapter is configured.
 //
-// An operator who sets GAOS_MODEL_MODE=cli to make the boot smoke test run has
+// An operator who sets GAOS_MODEL_MODE=aimanager to make the boot smoke test run has
 // not thereby authorised spending money on model calls. Two different
 // decisions, two different variables, and the default on this one is off.
 func runnerEnabled() bool {
@@ -52,36 +42,14 @@ func runnerEnabled() bool {
 	return false
 }
 
-// refuseIfUnderTest is the guard of last resort in front of a paid model call.
-//
-// Importing "testing" into non-test code is ugly and it is here anyway. The
-// four guards in front of it are all configuration -- GAOS_MODEL_MODE defaults
-// to off, only serve() builds a real adapter, GAOS_WORKSPACE_ROOT is unset so a
-// Cleared has no workspace, and GAOS_RUNNER is off -- and every one of them can
-// be switched on by a developer who then runs `go test ./...` and spends real
-// money that does not come back. This is the only guard that cannot be
-// forgotten, because it does not depend on anybody remembering anything.
-//
-// It is not a substitute for the other five. It is the one that holds when they
-// have all been turned off for a good reason on a laptop.
-//
-// It refuses a REAL tool, not a subprocess. The adapter's own tests drive the
-// fake in testdata/fakecli and must keep working, so the rule is the narrow
-// one that says what is actually meant: inside a test binary, the only thing
-// this package may exec is something under a testdata directory.
-func refuseIfUnderTest(argv []string) error {
-	if !testing.Testing() {
-		return nil
-	}
-	for _, a := range argv {
-		if strings.Contains(a, "testdata") {
-			return nil
-		}
-	}
-	return fmt.Errorf("refusing to invoke %q from a test binary: a paid model call triggered by "+
-		"go test is money that does not come back, and the fake in testdata/fakecli exists for this",
-		strings.Join(argv, " "))
-}
+// The heartbeat's two cadences (D-053): the supervisor beats every
+// heartbeatInterval seconds while it polls a turn, and writes a Heartbeat
+// event only every heartbeatEventEvery -- a run must not put one pill per beat
+// into a stream that is append-only and rendered in full.
+const (
+	heartbeatInterval   = 30
+	heartbeatEventEvery = 300
+)
 
 // beatEmitsEvent is the pure half of the heartbeat: given when the last event
 // was written, say whether this beat writes another.
@@ -113,15 +81,14 @@ func runIDFor(taskID string, attempt int) string {
 // process that never started, or a Heartbeat nobody sent, would put invented
 // evidence in the one record the whole audit story rests on.
 func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, c Cleared, attempt int) (Attempt, error) {
-	ws := c.Workspace()
-	// A turn needs no folder on this host (M14.5): the workspace that matters
-	// is the product's, on the worker, and one live turn per product is the
-	// graph lease the scheduler reads (BR-38). The lockfile, the run record and
-	// the packet on disk below exist for a local process, and only happen when
-	// there is a local folder to put them in.
+	// Every attempt is a turn (D-060, M14.7). There is no folder on this host
+	// to lease, no run record to write and no packet to put on disk: the
+	// workspace that matters is the product's, on the worker, one live turn per
+	// product is the graph lease the scheduler reads (BR-38), and what survives
+	// a restart is the request id recorded below.
 	ta, isTurn := ad.(TurnAdapter)
-	if ws == "" && !isTurn {
-		return Attempt{}, fmt.Errorf("supervise: the cleared packet has no workspace")
+	if !isTurn {
+		return Attempt{}, fmt.Errorf("supervise: %s does not run turns; the CLI path was retired in M14.7", ad.Name())
 	}
 	taskID := c.Packet().TaskID
 	if taskID == "" {
@@ -130,56 +97,16 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	runID := runIDFor(taskID, attempt)
 	now := time.Now().Unix()
 
-	var files []string
-	if ws != "" {
-		if err := AcquireLease(ws, Lease{
-			TaskID: taskID, RunID: runID, Holder: hostHolder(),
-			StartedAt: now, LeaseUntil: now + leaseTTL,
-		}); err != nil {
-			return Attempt{}, err
-		}
-		// The lease is released on every path out of here, including a panic in the
-		// adapter: a workspace left leased by a run that is over is a desk nothing
-		// can ever schedule again, and it would take a restart plus a reconciler to
-		// notice.
-		defer func() { _ = ReleaseLease(ws, runID) }()
-
-		if err := WriteRunRecord(ws, RunRecord{
-			RunID: runID, TaskID: taskID, Attempt: attempt, Workspace: ws,
-			Digest: c.Digest(), Model: ad.Name(), StartedAt: now,
-		}); err != nil {
-			return Attempt{}, err
-		}
-
-		// The packet, as files, in the leased workspace. T-061, requirement D-8.
-		//
-		// After the lease and before anything else touches the directory, because
-		// the lease is what makes this workspace ours to write into -- materialising
-		// first would mean two orchestrators racing to write one packet, which is
-		// the exact corruption D-3 exists to prevent.
-		//
-		// In the runner rather than in the adapter, and that is BR-33: both modes
-		// freeze the same packet and materialise it the same way, so a reviewer
-		// cannot tell from the workspace which one ran.
-		var err error
-		if files, err = MaterialisePacket(c); err != nil {
-			return Attempt{}, err
-		}
-	}
-	requestID := ""
-	if isTurn {
-		// Recorded BEFORE the turn is sent: it is the only thing a restarted
-		// orchestrator can recover the turn by (D-060).
-		requestID = ta.RequestIDFor(runID)
-	}
+	// Recorded BEFORE the turn is sent: it is the only thing a restarted
+	// orchestrator can recover the turn by (D-060).
+	requestID := ta.RequestIDFor(runID)
 
 	// The graph's record of this attempt, and the slice it is about to be given.
 	// T-054 and T-055.
 	//
-	// Both before the spawn, and the RUN.json above is why the order is safe to
-	// reason about: that file is what an adopting process finds on disk, this is
-	// what an auditor finds in the graph, and a run that dies between them has
-	// left both. The slice is recorded rather than re-derived because by the time
+	// Both before the submit, so a run that dies after it has left a record
+	// recovery can find the turn by. The slice is recorded rather than
+	// re-derived because by the time
 	// anyone asks what attempt two was given, the record it was assembled from
 	// will have moved on.
 	s.mu.Lock()
@@ -208,13 +135,13 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	s.mu.Unlock()
 
 	s.emitLocked(RunStarted, deskID,
-		fmt.Sprintf("run %s started, attempt %d · packet %d file(s)", runID, attempt, len(files)),
+		fmt.Sprintf("run %s started, attempt %d · turn %s", runID, attempt, requestID),
 		KindInfo, EventPayload{Digest: c.Digest(), Bytes: c.Bytes()})
 
-	// The beat. It renews the lease every heartbeatInterval and writes an event
+	// The beat. It writes the field every heartbeatInterval and an event
 	// far less often -- D-053.
 	done := make(chan struct{})
-	go s.beat(deskID, ws, runID, now, done)
+	go s.beat(deskID, runID, now, done)
 
 	att, err := ad.Dispatch(ctx, c)
 	close(done)
@@ -229,7 +156,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 
 	// The last beat before the exit always writes, so a replay has an endpoint
 	// for "silent since T" rather than having to infer one from the RunExited.
-	s.beatOnce(deskID, ws, runID, time.Now().Unix(), 0, false, true)
+	s.beatOnce(deskID, runID, time.Now().Unix(), 0, false, true)
 
 	s.finishRun(deskID, taskID, runID, att, nil)
 	return att, nil
@@ -342,7 +269,7 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 
 // beat runs until the run is over. Its own goroutine because the adapter call
 // blocks for as long as the work takes.
-func (s *MemStore) beat(deskID, ws, runID string, startedAt int64, done <-chan struct{}) {
+func (s *MemStore) beat(deskID, runID string, startedAt int64, done <-chan struct{}) {
 	tick := time.NewTicker(heartbeatInterval * time.Second)
 	defer tick.Stop()
 
@@ -354,7 +281,7 @@ func (s *MemStore) beat(deskID, ws, runID string, startedAt int64, done <-chan s
 			return
 		case <-tick.C:
 			now := time.Now().Unix()
-			if s.beatOnce(deskID, ws, runID, now, lastEvent, first, false) {
+			if s.beatOnce(deskID, runID, now, lastEvent, first, false) {
 				lastEvent = now
 			}
 			first = false
@@ -365,13 +292,11 @@ func (s *MemStore) beat(deskID, ws, runID string, startedAt int64, done <-chan s
 // beatOnce writes the beat and, when the cadence says so, the event. Returns
 // whether it wrote an event.
 //
-// A renewal that fails is NOT treated as fatal here. The lease may have been
-// broken by a reconciler that decided this run was dead, and the right response
-// to that is to let the run finish and let the reconciler's kill land -- a
+// Nothing here can fail the run: a beat is evidence that the supervisor is
+// alive, never a condition the turn depends on -- a
 // supervisor that tore its own work down on a failed renew would race the very
 // process that is trying to arbitrate.
-func (s *MemStore) beatOnce(deskID, ws, runID string, now, lastEvent int64, first, final bool) bool {
-	_ = RenewLease(ws, runID, now+leaseTTL)
+func (s *MemStore) beatOnce(deskID, runID string, now, lastEvent int64, first, final bool) bool {
 	if !beatEmitsEvent(lastEvent, now, first, final) {
 		return false
 	}
@@ -563,122 +488,50 @@ func (s *MemStore) refuseDispatch(d Dispatch, v EgressVerdict) {
 }
 
 // ---------------------------------------------------------------- recovery
-//
-// The pure decision is in reconcile.go. This is the boot pass that reads the
-// evidence for it, acts on what it says, and writes the result down.
 
-// claimsFrom gathers the evidence for every task that says it is running.
-//
-// The two signals come from different places on purpose. The STATUS is in the
-// graph, which is what a restart rebuilds from; the LEASE and the BEAT come off
-// the workspace, which is what survives when the graph does not. That is also
-// why the acceptance test for build-order step 5 cannot run against
-// GAOS_STORE=memory: MemStore loses every task record on restart, so there is
-// no claim left to reconcile, and recovery is an ArcadeDB-deployment property.
-func (s *MemStore) claimsFrom() []RunClaim {
-	s.mu.RLock()
-	type pending struct{ id, desk, ws, status string }
-	var todo []pending
-	for _, t := range s.tasks {
-		if t.Status != StatusDispatched && t.Status != StatusRunning {
-			continue
-		}
-		todo = append(todo, pending{t.ID, t.DeskID, s.workspaceForDesk(t.DeskID), t.Status})
-	}
-	s.mu.RUnlock()
-
-	// The filesystem read is outside the lock, same argument schedulerInput
-	// makes: one slow disk must not stall every reader on the floor.
-	out := make([]RunClaim, 0, len(todo))
-	for _, p := range todo {
-		claim := RunClaim{TaskID: p.id, DeskID: p.desk, Workspace: p.ws, Status: p.status}
-		if l, ok, err := ReadLease(p.ws); err == nil && ok {
-			claim.RunID = l.RunID
-			claim.LeaseUntil = l.LeaseUntil
-			// The beat is not stored separately: every beat renews the lease to
-			// now+leaseTTL, so the last renewal IS the last beat and one number
-			// carries both. Deriving it here rather than writing it twice means
-			// the two cannot disagree, which is worth more than the field.
-			claim.LastBeatAt = l.LeaseUntil - leaseTTL
-		}
-		out = append(out, claim)
-	}
-	return out
-}
-
-// Reconcile is the boot pass. D-4: "this is the whole of recovery; there is no
-// other path."
-//
-// It runs before the listener is up, which is what makes the read-only replay
-// handle irrelevant here -- no operator can be in replay yet -- and it is why a
-// failure fails the boot. A dashboard that could not work out what was running,
-// then served a floor as if nothing were, would look completely healthy while a
-// detached process edited a repository nobody was watching.
+// Reconcile is boot recovery (D-060). Every gateway run still STARTED or
+// RUNNING is polled by the request id it recorded before it was sent, and
+// finished into the same attempt a supervised run gets (turns.go). A task
+// that claims to be running with no run behind it -- it never reached a
+// turn -- is put back to READY, because there is nothing anywhere that could
+// still be doing its work.
 func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
-	now := time.Now().Unix()
-	claims := s.claimsFrom()
-	decisions := Reconcile(claims, now, heartbeatTimeout)
-
-	byID := map[string]RunClaim{}
-	for _, c := range claims {
-		byID[c.TaskID] = c
-	}
-
 	s.mu.RLock()
 	ad := s.adapter
 	s.mu.RUnlock()
-
-	// Gateway turns are recovered by request id, not by lease (D-060).
 	var ev []Event
 	taken := map[string]bool{}
 	if ta, ok := ad.(TurnAdapter); ok {
 		taken, ev = s.recoverTurns(ctx, ad, ta)
 	}
-	for _, d := range decisions {
-		if taken[d.TaskID] {
+	s.mu.Lock()
+	for i := range s.tasks {
+		t := &s.tasks[i]
+		if taken[t.ID] || (t.Status != StatusDispatched && t.Status != StatusRunning) || s.hasOpenTurnLocked(t.ID) {
 			continue
 		}
-		c := byID[d.TaskID]
-		switch s.resolveAction(d, ad, c) {
-		case ReconcileAdopt:
-			// The child is alive and the beat is fresh. Nothing is killed and
-			// nothing restarted: the task carries on being RUNNING under a new
-			// supervisor, which is the whole point of having detached it.
-			s.moveTaskByID(d.TaskID, StatusRunning)
-			s.setRunStatus(c.RunID, RunStatusRunning)
-			ev = append(ev, s.emitReconciled(TaskResumed, c.DeskID,
-				"adopted the run on "+d.TaskID, KindInfo, "", d))
-
-		case ReconcileRequeue:
-			// D-054, the kill half. The pseudocode's "process gone" is not a
-			// fact anybody here has established -- see reconcile.go -- so the
-			// run is MADE dead before its workspace is handed on.
-			if r, ok, err := ReadRunRecord(c.Workspace); err == nil && ok && ad != nil {
-				_ = ad.Stop(r)
+		if moveTask(t, StatusReady) == nil {
+			ev = append(ev, s.emit(TaskResumed, t.DeskID, t.ID+" requeued: it claimed to be running and no turn was ever recorded",
+				KindWarn, EventPayload{Rule: RuleRequeued}))
+			if j := s.deskIdxByID(t.DeskID); j >= 0 {
+				_ = s.setState(&s.desks[j], StateIdle)
 			}
-			_ = BreakLease(c.Workspace)
-			s.moveTaskByID(d.TaskID, StatusReady)
-			s.setRunStatus(c.RunID, RunStatusKilled)
-			ev = append(ev, s.emitReconciled(TaskResumed, c.DeskID,
-				"requeued "+d.TaskID+" after making its unsupervised run dead", KindWarn,
-				StateIdle, d))
-
-		case ReconcileOrphan:
-			_ = BreakLease(c.Workspace)
-			s.moveTaskByID(d.TaskID, StatusFailed)
-			s.setRunStatus(c.RunID, RunStatusOrphaned)
-			ev = append(ev, s.emitReconciled(TaskOrphaned, c.DeskID,
-				"orphaned "+d.TaskID, KindFail, StateBlocked, d))
 		}
 	}
+	r := Result{Floor: s.floor(), NewEvents: ev}
+	s.mu.Unlock()
+	return r, nil
+}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return Result{
-		Floor:     s.floor(),
-		NewEvents: ev,
-		Toast:     fmt.Sprintf("Reconciled %d claimed run(s).", len(decisions)),
-	}, nil
+// hasOpenTurnLocked reports whether task has a run still in flight with a
+// request id -- one recovery is already polling. Caller holds s.mu.
+func (s *MemStore) hasOpenTurnLocked(taskID string) bool {
+	for _, r := range s.runs {
+		if r.TaskID == taskID && r.RequestID != "" && (r.Status == RunStatusStarted || r.Status == RunStatusRunning) {
+			return true
+		}
+	}
+	return false
 }
 
 // attemptOfRun reads an attempt number off the record rather than re-deriving it
@@ -697,8 +550,8 @@ func attemptOfRun(runs []TaskRunRecord, runID string) int {
 //
 // Separate from markRun so that the reconciliation loop, which holds no lock,
 // does not have to grow one around every branch. A run id that names nothing is
-// not an error: a task can claim to be dispatched with no lease on disk at all,
-// which is precisely the claim the orphan branch exists for.
+// not an error: a task can claim to be dispatched with no turn recorded at
+// all, which is precisely the claim the requeue branch exists for.
 func (s *MemStore) setRunStatus(runID, status string) {
 	if runID == "" {
 		return
@@ -706,61 +559,6 @@ func (s *MemStore) setRunStatus(runID, status string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.markRun(runID, status)
-}
-
-// resolveAction is the one place the boot pass may overrule the pure decision,
-// and it does so in exactly one direction.
-//
-// Requeue promises that the previous run has been made dead. With no adapter
-// configured there is nothing that knows how to kill it, so that promise cannot
-// be kept -- and a requeue whose kill silently did nothing is the second run in
-// one workspace that D-3 exists to prevent, with a reassuring event in the
-// timeline saying it was handled.
-//
-// So it degrades to orphan. A task that failed and needs a human is a worse
-// outcome than a clean requeue and a far better one than silent corruption.
-func (s *MemStore) resolveAction(d Reconciliation, ad Adapter, c RunClaim) string {
-	if d.Action != ReconcileRequeue {
-		return d.Action
-	}
-	if ad == nil {
-		return ReconcileOrphan
-	}
-	if r, ok, err := ReadRunRecord(c.Workspace); err != nil || !ok || r.Detail["pgid"] == "" {
-		// Nothing recorded a process, so nothing can be proved dead.
-		return ReconcileOrphan
-	}
-	return ReconcileRequeue
-}
-
-// emitReconciled moves the desk and writes the event, under one lock.
-//
-// One lock and one function for the same reason finishRun is: the reducer's
-// case for this event has to reproduce exactly what the live path did, and two
-// separate steps are two chances for them to diverge. deskState may be empty,
-// which is the adopt branch -- an adopted run changes nothing on the floor,
-// because nothing about it stopped.
-//
-// D-052's precedent for the payload: adopt and requeue share TaskResumed and
-// differ only in Rule, so the catalog stays closed (BR-05) and no reducer has
-// to parse a sentence somebody might improve.
-func (s *MemStore) emitReconciled(t EventType, deskID, text, kind, deskState string, d Reconciliation) Event {
-	s.mu.Lock()
-	if deskState != "" {
-		if i := s.deskIdxByID(deskID); i >= 0 {
-			if err := s.setState(&s.desks[i], deskState); err == nil {
-				if deskState == StateBlocked {
-					s.desks[i].BlockReason = d.Reason
-				} else {
-					s.desks[i].BlockReason = ""
-				}
-			}
-		}
-	}
-	e := s.emit(t, deskID, text, kind, EventPayload{Rule: d.Rule, Reason: d.Reason})
-	s.mu.Unlock()
-	s.publish(e)
-	return e
 }
 
 func exitKind(a Attempt) string {
@@ -772,13 +570,4 @@ func exitKind(a Attempt) string {
 	default:
 		return KindFail
 	}
-}
-
-// hostHolder names which orchestrator took a lease. Best effort: it is evidence
-// for a human reading a lockfile, never something the code branches on.
-func hostHolder() string {
-	if h, err := os.Hostname(); err == nil && h != "" {
-		return h
-	}
-	return "orchestrator"
 }
