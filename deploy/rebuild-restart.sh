@@ -150,7 +150,9 @@ if [ -z "$INSIDE" ]; then
     # stop at "env file not found". Symlinked rather than copied, so a secret
     # exists once on this disk and a rotation cannot leave a stale duplicate
     # behind in a worktree nobody removed.
-    for e in deploy/stacks/*.env; do
+    # The gateway's two secret files (deploy/stacks/<tier>.aim-*) are the same
+    # kind of thing and are linked the same way.
+    for e in deploy/stacks/*.env deploy/stacks/*.aim-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac
       ln -sfn "$PWD/$e" "$WT/$e"
