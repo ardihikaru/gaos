@@ -94,13 +94,13 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 201 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 202 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ```
 
 Every test case — implemented or still a forward specification — is registered in
-`pustaka/docs/product/qa-test-plan.html` (312 cases). There is no CI: the product
+`pustaka/docs/product/qa-test-plan.html` (313 cases). There is no CI: the product
 owner runs them (D-025), and a test that is not on that page is one nobody knows
 to run.
 
