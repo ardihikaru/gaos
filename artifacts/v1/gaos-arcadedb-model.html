@@ -205,7 +205,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
   <a href="#storage"><i>13</i>Storage &amp; tenancy</a>
   <a href="#wiring"><i>14</i>Wiring to the UI</a>
 
-  <h3>Proposed</h3>
+  <h3>Since v0.24.0</h3>
   <a href="#gateway-additions"><i>15</i>Gateway, Blueprint &amp; Board</a>
 
   <button class="dl" id="dlBtn"><span>download</span>gaos-schema.sql — every DDL block on this page</button>
@@ -1269,8 +1269,8 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 
 <!-- ============================================================ -->
 <section id="gateway-additions">
-  <h2><span class="num">15</span> Proposed · Gateway, Blueprint and Board</h2>
-  <p class="lede">Decided on 2026-11-02 (D-055 to D-062) and not yet applied. Nothing below is in <code>dashboard/schema/</code>, and the download button deliberately leaves it out: under BR-05 these types and events land here, in <code>dashboard/events.go</code> and in the fold together, in the change that first writes them — <code>M14.3</code> to <code>M14.6</code>.</p>
+  <h2><span class="num">15</span> Gateway, Blueprint and Board</h2>
+  <p class="lede">Decided on 2026-11-02 (D-055 to D-062). <b>Applied in v0.24.0</b> as <code>dashboard/schema/11-blueprint.sql</code> — the three types, the five edges, the gateway's TaskRun properties and the widened <span class="mono">invocation</span> — proved on a scratch 26.7.2: 365 statements, none failed, idempotent on a second apply. <b>Still proposed:</b> the Workspace changes, the five execution events and <span class="mono">TaskReordered</span>, which land with M14.4–M14.6 under BR-05. <span class="mono">BlueprintPublished</span> is in the catalog and the fold.</p>
 
   <h4>New vertex types · 25 become 28</h4>
   <table>
@@ -1306,45 +1306,86 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
   </table>
   <p>Each new edge gets the endpoint uniqueness index D-045 established, and each new vertex the identity index D-047 did.</p>
 
-  <div class="code">
-    <div class="bar"><b>11-blueprint.sql — proposed, not applied</b><span class="sp"><button class="cp">Copy</button></span></div>
-    <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Policy</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
-<span class="k">CREATE PROPERTY</span> Policy.productId <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
-<span class="k">CREATE PROPERTY</span> Policy.key       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
-<span class="k">CREATE PROPERTY</span> Policy.kind      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
-                 regexp <span class="s">'technical|coding|security|testing|custom'</span>);
-<span class="k">CREATE PROPERTY</span> Policy.title     <span class="s">STRING</span> (notnull <span class="k">true</span>);
-<span class="k">CREATE PROPERTY</span> Policy.body      <span class="s">STRING</span>;
-<span class="k">CREATE PROPERTY</span> Policy.order     <span class="s">INTEGER</span> (min 0);
-<span class="k">CREATE PROPERTY</span> Policy.scope     <span class="s">STRING</span>;   <span class="c">-- optional glob, unused in v1</span>
+  <div class="code" data-sql>
+    <div class="bar"><b>11-blueprint.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre>-- 11 · The Blueprint, and the gateway's evidence on an attempt.
+--
+-- D-055..D-062, data model document §15. A product's Blueprint is its
+-- standing technical knowledge: policies, knowledge sources, and the immutable
+-- versions published from them, which every attempt will pin (BR-39).
+--
+-- The DRAFT lives in the record document on Product while a human edits it
+-- (D-009), beside the BRD; injection materialises it as Policy and
+-- KnowledgeSource vertices, exactly as it does Requirement and Issue. A
+-- PUBLISHED version is its own vertex from the moment it exists, because it is
+-- what a machine reads and what an attempt points at.
 
-<span class="k">CREATE VERTEX TYPE</span> <span class="t">KnowledgeSource</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
-<span class="k">CREATE PROPERTY</span> KnowledgeSource.productId <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
-<span class="k">CREATE PROPERTY</span> KnowledgeSource.kind      <span class="s">STRING</span> (mandatory <span class="k">true</span>, regexp <span class="s">'git-repo'</span>);
-<span class="k">CREATE PROPERTY</span> KnowledgeSource.url       <span class="s">STRING</span> (mandatory <span class="k">true</span>, regexp <span class="s">'https://[^@\s]+'</span>);
-<span class="k">CREATE PROPERTY</span> KnowledgeSource.ref       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);  <span class="c">-- tag or SHA, never a branch</span>
-<span class="k">CREATE PROPERTY</span> KnowledgeSource.purpose   <span class="s">STRING</span> (regexp <span class="s">'style|structure|interfaces|reference'</span>);
+CREATE VERTEX TYPE Policy IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY Policy.productId STRING  (mandatory true, notnull true);
+CREATE PROPERTY Policy.key       STRING  (mandatory true, notnull true);
+CREATE PROPERTY Policy.kind      STRING  (mandatory true, notnull true,
+                 regexp 'technical|coding|security|testing|custom');
+CREATE PROPERTY Policy.title     STRING  (notnull true);
+CREATE PROPERTY Policy.body      STRING;
+CREATE PROPERTY Policy.order     INTEGER (min 0);
+CREATE PROPERTY Policy.scope     STRING;                -- a file glob; unused in v1
 
-<span class="k">CREATE VERTEX TYPE</span> <span class="t">BlueprintVersion</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
-<span class="k">CREATE PROPERTY</span> BlueprintVersion.productId   <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
-<span class="k">CREATE PROPERTY</span> BlueprintVersion.n           <span class="s">INTEGER</span>  (mandatory <span class="k">true</span>, min 1);
-<span class="k">CREATE PROPERTY</span> BlueprintVersion.digest      <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
-<span class="k">CREATE PROPERTY</span> BlueprintVersion.files       <span class="s">LIST</span>;     <span class="c">-- [{path, sha256, bytes}]</span>
-<span class="k">CREATE PROPERTY</span> BlueprintVersion.bodyRef     <span class="s">STRING</span>;   <span class="c">-- external payload, principle 5</span>
-<span class="k">CREATE PROPERTY</span> BlueprintVersion.publishedAt <span class="s">DATETIME</span> (mandatory <span class="k">true</span>);
-<span class="k">CREATE INDEX IF NOT EXISTS ON</span> BlueprintVersion (productId, n)      <span class="k">UNIQUE</span>;
-<span class="k">CREATE INDEX IF NOT EXISTS ON</span> BlueprintVersion (productId, digest) <span class="k">UNIQUE</span>;
+CREATE VERTEX TYPE KnowledgeSource IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY KnowledgeSource.productId STRING (mandatory true, notnull true);
+CREATE PROPERTY KnowledgeSource.kind      STRING (mandatory true, regexp 'git-repo');
+CREATE PROPERTY KnowledgeSource.url       STRING (mandatory true, notnull true);  -- https, no credentials
+CREATE PROPERTY KnowledgeSource.ref       STRING (mandatory true, notnull true);  -- tag or SHA, never a branch
+CREATE PROPERTY KnowledgeSource.purpose   STRING (regexp 'style|structure|interfaces|reference');
+CREATE PROPERTY KnowledgeSource.note      STRING;
 
-<span class="k">CREATE PROPERTY</span> Workspace.workspaceId  <span class="s">STRING</span>;
-<span class="k">CREATE PROPERTY</span> Workspace.syncedDigest <span class="s">STRING</span>;
-<span class="k">CREATE PROPERTY</span> Workspace.activeTurn   <span class="s">STRING</span>;
-<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Workspace (workspaceId) <span class="k">UNIQUE_HASH</span>;
-<span class="k">CREATE PROPERTY</span> TaskRun.requestId <span class="s">STRING</span>;
-<span class="k">CREATE PROPERTY</span> TaskRun.sessionId <span class="s">STRING</span>;
-<span class="k">CREATE INDEX IF NOT EXISTS ON</span> TaskRun (requestId) <span class="k">UNIQUE_HASH</span>;
-<span class="c">-- Two regexps change (TaskRun.invocation, Workspace.state) and Workspace.path
--- loses mandatory. ALTER PROPERTY is not yet proved to re-apply idempotently on
--- 26.7.2; scratch.sh proves it before this file ships (M14.3).</span></pre>
+-- files is [{Path, SHA256, Bytes, Content}]: the rendered workspace files, so a
+-- version can be synced to a workspace long after the draft moved on.
+CREATE VERTEX TYPE BlueprintVersion IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY BlueprintVersion.productId   STRING   (mandatory true, notnull true);
+CREATE PROPERTY BlueprintVersion.n           INTEGER  (mandatory true, min 1);
+CREATE PROPERTY BlueprintVersion.digest      STRING   (mandatory true, notnull true);
+CREATE PROPERTY BlueprintVersion.files       LIST;
+CREATE PROPERTY BlueprintVersion.publishedAt DATETIME (mandatory true);
+
+CREATE EDGE TYPE HAS_POLICY            IF NOT EXISTS EXTENDS GaosEdge;  -- Product -&gt; Policy
+CREATE EDGE TYPE HAS_KNOWLEDGE_SOURCE  IF NOT EXISTS EXTENDS GaosEdge;  -- Product -&gt; KnowledgeSource
+CREATE EDGE TYPE HAS_BLUEPRINT_VERSION IF NOT EXISTS EXTENDS GaosEdge;  -- Product -&gt; BlueprintVersion
+CREATE EDGE TYPE PINNED_TO             IF NOT EXISTS EXTENDS GaosEdge;  -- TaskRun -&gt; BlueprintVersion (M14.4)
+CREATE EDGE TYPE HOSTED_IN             IF NOT EXISTS EXTENDS GaosEdge;  -- Product -&gt; Workspace (M14.4)
+
+-- D-047: an identity index on every type the store addresses by business id.
+CREATE INDEX IF NOT EXISTS ON Policy           (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON KnowledgeSource  (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON BlueprintVersion (tenantId, id) UNIQUE;
+-- One digest names one version of one product: an unchanged publish is a no-op.
+CREATE INDEX IF NOT EXISTS ON BlueprintVersion (tenantId, productId, digest) UNIQUE;
+
+-- D-045: edge uniqueness is an index on (`@out`, `@in`), not a keyword.
+CREATE INDEX IF NOT EXISTS ON HAS_POLICY            (`@out`, `@in`) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON HAS_KNOWLEDGE_SOURCE  (`@out`, `@in`) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON HAS_BLUEPRINT_VERSION (`@out`, `@in`) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON PINNED_TO             (`@out`, `@in`) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON HOSTED_IN             (`@out`, `@in`) UNIQUE;
+
+-- The gateway's evidence on an attempt (D-060, D-062). The request id is what
+-- recovery polls after a restart, so it is unique per tenant.
+CREATE PROPERTY TaskRun.requestId        STRING;
+CREATE PROPERTY TaskRun.sessionId        STRING;
+CREATE PROPERTY TaskRun.blueprintVersion INTEGER (min 1);
+CREATE INDEX IF NOT EXISTS ON TaskRun (tenantId, requestId) NOTUNIQUE;
+
+-- D-062: a turn through ai-manager records invocation = gateway. Widened in
+-- place, because 04-execution.sql's CREATE PROPERTY cannot change an existing
+-- property's constraint on a database that already has it.
+ALTER PROPERTY TaskRun.invocation REGEXP 'cli|api|gateway';
+
+-- A fix found while proving this file against a scratch 26.7.2: T-064 stores
+-- every attempt's handoff as an Artifact of kind 'handoff', and 02-master.sql's
+-- regexp never allowed it -- so on ArcadeDB the write was refused at commit and
+-- the handoff never reached the graph ("background write did not reach the
+-- graph"). TestAnAttemptSurvivesARestart fails on the scratch database without
+-- this line. Widened in place, for the same reason as TaskRun.invocation above.
+ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|upload|handoff';</pre>
   </div>
 
   <h4>New events · the closed catalog grows by six</h4>

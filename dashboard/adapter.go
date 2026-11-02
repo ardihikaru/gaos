@@ -28,10 +28,12 @@ import (
 // thing anything above here should ask, and Invocation is recorded and never
 // branched on.
 
-// Recorded on TaskRun.invocation. 04-execution.sql constrains it to 'cli|api'.
+// Recorded on TaskRun.invocation. 04-execution.sql constrains it to 'cli|api';
+// 11-blueprint.sql widens that to 'cli|api|gateway' (D-062).
 const (
-	InvocationCLI = "cli"
-	InvocationAPI = "api"
+	InvocationCLI     = "cli"
+	InvocationAPI     = "api"
+	InvocationGateway = "gateway" // a turn through ai-manager, D-055
 )
 
 // Recorded on TaskRun.costBasis. 04-execution.sql constrains it to

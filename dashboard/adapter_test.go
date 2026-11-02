@@ -257,7 +257,8 @@ func TestNothingAboveTheAdapterBranchesOnTheInvocationMode(t *testing.T) {
 
 	for _, name := range sources {
 		switch name {
-		case "adapter.go", "adapter_cli.go", "adapter_test.go", "modelconfig.go":
+		case "adapter.go", "adapter_cli.go", "adapter_test.go", "modelconfig.go",
+			"adapter_aimanager.go", "aimanager_test.go": // the gateway adapter is the seam too
 			continue // the seam itself, and the one place that selects it
 		}
 		f, perr := parser.ParseFile(fset, name, nil, 0)
@@ -290,7 +291,7 @@ func TestNothingAboveTheAdapterBranchesOnTheInvocationMode(t *testing.T) {
 
 func isInvocationConst(e ast.Expr) bool {
 	id, ok := e.(*ast.Ident)
-	return ok && (id.Name == "InvocationCLI" || id.Name == "InvocationAPI")
+	return ok && (id.Name == "InvocationCLI" || id.Name == "InvocationAPI" || id.Name == "InvocationGateway")
 }
 
 func isInvocationField(e ast.Expr) bool {

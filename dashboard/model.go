@@ -209,6 +209,10 @@ type Event struct {
 // fold that replays an increment twice is wrong in a way that is very hard to
 // see, and an absolute value folded twice is simply idempotent.
 type EventPayload struct {
+	// Blueprint. BlueprintPublished carries the version number here, and the
+	// digest identifying what it contains in Digest below.
+	Version int
+
 	// Desk fields. Which of these a reducer case reads is fixed per event type.
 	Task       string
 	Goal       string
@@ -332,6 +336,11 @@ type Master struct {
 	Stories   []Story
 	Diagrams  []Diagram
 	Decisions []Decision
+
+	// Blueprint is the product's standing technical knowledge (D-058): the
+	// policies and knowledge sources a human drafts here, and the versions
+	// published from them. blueprint.go.
+	Blueprint Blueprint
 }
 
 func (m Master) Clone() Master {
@@ -349,6 +358,7 @@ func (m Master) Clone() Master {
 	}
 	c.Diagrams = append([]Diagram(nil), m.Diagrams...)
 	c.Decisions = append([]Decision(nil), m.Decisions...)
+	c.Blueprint = m.Blueprint.Clone()
 	return c
 }
 

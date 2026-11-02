@@ -465,3 +465,51 @@ func (s *server) renderBOAfter(w http.ResponseWriter, r *http.Request, res Resul
 	v.BO = s.buildBO(r, "products", productID, tab)
 	s.rend.RenderWithChrome(w, "bo-main-oob", v)
 }
+
+// The Blueprint tab (D-058, T-153).
+
+func (s *server) handleSavePolicy(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	_ = r.ParseForm()
+	id := r.PathValue("id")
+	res, err := s.mut(r).SavePolicy(r.Context(), id, Policy{
+		Key: r.FormValue("key"), Kind: r.FormValue("kind"), Title: r.FormValue("title"),
+		Body: r.FormValue("body"), Order: atoiDefault(r.FormValue("order"), 0),
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOAfter(w, r, res, id, "blueprint")
+}
+
+func (s *server) handleAddSource(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	_ = r.ParseForm()
+	id := r.PathValue("id")
+	res, err := s.mut(r).AddKnowledgeSource(r.Context(), id, KnowledgeSource{
+		URL: r.FormValue("url"), Ref: r.FormValue("ref"), Purpose: r.FormValue("purpose"), Note: strings.TrimSpace(r.FormValue("note")),
+	})
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOAfter(w, r, res, id, "blueprint")
+}
+
+func (s *server) handlePublishBlueprint(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id := r.PathValue("id")
+	res, err := s.mut(r).PublishBlueprint(r.Context(), id)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOAfter(w, r, res, id, "blueprint")
+}

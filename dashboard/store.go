@@ -107,6 +107,14 @@ type Store interface {
 	AddStory(ctx context.Context, productID string, s Story) (Result, error)
 	AddDiagram(ctx context.Context, productID string, g Diagram) (Result, error)
 	AddDecision(ctx context.Context, productID string, a Decision) (Result, error)
+
+	// The Blueprint (D-058). SavePolicy adds or replaces a policy by key;
+	// AddKnowledgeSource records a pinned repository; PublishBlueprint renders
+	// the draft into an immutable version — and does nothing when the render is
+	// unchanged, so one digest never names two versions.
+	SavePolicy(ctx context.Context, productID string, p Policy) (Result, error)
+	AddKnowledgeSource(ctx context.Context, productID string, k KnowledgeSource) (Result, error)
+	PublishBlueprint(ctx context.Context, productID string) (Result, error)
 	Inject(ctx context.Context, productID string) (Result, error)
 
 	// ---- planning ----
@@ -233,6 +241,15 @@ func (readOnly) AddDiagram(context.Context, string, Diagram) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) AddDecision(context.Context, string, Decision) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SavePolicy(context.Context, string, Policy) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) AddKnowledgeSource(context.Context, string, KnowledgeSource) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) PublishBlueprint(context.Context, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) Inject(context.Context, string) (Result, error) {
