@@ -17,8 +17,8 @@
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
   three hundred and thirteen cases, positive and negative, across the five deploy automations and the
-  two Go test packages that actually run today — twenty-nine of them the gateway's forward specifications,
-  now running — seven more for the board, plus
+  two Go test packages that actually run today — thirty-four of the gateway's thirty-six forward
+  specifications now running — two still waiting, plus
   the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -391,12 +391,12 @@
       <tr data-tags="live-aim-run acceptance readiness blueprint publish sync positive implemented"><td>TC-301</td><td>live-aim-run.sh</td><td>Positive</td><td>A record written through the back office scores above the planning floor, and its Blueprint publishes and syncs</td><td>Implemented</td></tr>
       <tr data-tags="live-aim-run acceptance egress refusal br-32 negative implemented"><td>TC-302</td><td>live-aim-run.sh</td><td>Negative</td><td>A dispatch the egress pass refused is reported as a refusal with its reason, not read as success</td><td>Implemented</td></tr>
       <tr data-tags="live-aim-run acceptance real model handoff block digest positive implemented"><td>TC-303</td><td>live-aim-run.sh</td><td>Positive</td><td>A real model's reply carries a <code>gaos-handoff</code> block GAOS parses to an outcome, under the pinned digest</td><td>Implemented</td></tr>
-      <tr data-tags="board kanban projection columns lanes positive not-implemented"><td>TC-304</td><td>dashboard (go test)</td><td>Positive</td><td>The board has the declared columns, every task exactly once, and one lane per story</td><td>Not implemented</td></tr>
-      <tr data-tags="board kanban legal move events positive not-implemented"><td>TC-305</td><td>dashboard (go test)</td><td>Positive</td><td>Each legal move produces its events and its status</td><td>Not implemented</td></tr>
-      <tr data-tags="board kanban illegal move 409 no event br-43 negative not-implemented"><td>TC-306</td><td>dashboard (go test)</td><td>Negative</td><td>Every move outside the legal-move table answers <code>409</code> and writes no event</td><td>Not implemented</td></tr>
-      <tr data-tags="board kanban lane create delete 409 negative not-implemented"><td>TC-307</td><td>dashboard (go test)</td><td>Negative</td><td>A lane change, a card create and a card delete each answer <code>409</code></td><td>Not implemented</td></tr>
+      <tr data-tags="board kanban projection columns lanes positive implemented go test unit dashboard"><td>TC-304</td><td>dashboard (go test)</td><td>Positive</td><td>The board has the declared columns, every task exactly once, and one lane per story (<code>TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="board kanban legal move events positive implemented go test unit dashboard"><td>TC-305</td><td>dashboard (go test)</td><td>Positive</td><td>Each legal move produces its events and its status (<code>TestEachLegalMoveProducesItsEventAndStatus</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="board kanban illegal move 409 no event br-43 negative implemented go test unit dashboard"><td>TC-306</td><td>dashboard (go test)</td><td>Negative</td><td>Every move outside the legal-move table answers <code>409</code> and writes no event (<code>TestAMoveOutsideTheTableAnswers409AndWritesNoEvent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="board kanban lane create delete 409 negative implemented go test unit dashboard"><td>TC-307</td><td>dashboard (go test)</td><td>Negative</td><td>A lane change, a card create and a card delete each answer <code>409</code> (<code>TestALaneChangeACreateAndADeleteAnswer409</code>)</td><td>Implemented</td></tr>
       <tr data-tags="board task fold replay positive not-implemented"><td>TC-308</td><td>dashboard (go test)</td><td>Positive</td><td>A fold over the events reproduces the board</td><td>Not implemented</td></tr>
-      <tr data-tags="board replay read-only refuses move br-20 negative not-implemented"><td>TC-309</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only replay handle refuses every move</td><td>Not implemented</td></tr>
+      <tr data-tags="board replay read-only refuses move br-20 negative implemented go test unit dashboard"><td>TC-309</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only replay handle refuses every move (<code>TestTheReplayHandleRefusesEveryMove</code>)</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks licence sisflow vendored br-27 negative not-implemented"><td>TC-310</td><td>check-stacks.sh</td><td>Negative</td><td>A vendored sisflow board without its licence beside it fails the deploy pre-flight</td><td>Not implemented</td></tr>
       <tr data-tags="blueprint arcadedb restart persistence go test unit dashboard positive implemented"><td>TC-311</td><td>dashboard (go test)</td><td>Positive</td><td>A policy, a knowledge source and a published Blueprint version come back from a reopened ArcadeDB store (<code>TestTheBlueprintSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint back-office tab template render publish session go test unit dashboard positive implemented"><td>TC-312</td><td>dashboard (go test)</td><td>Positive</td><td>The back-office Blueprint tab renders, saves a policy and publishes version 1, and refuses a publish without a session (<code>TestTheBlueprintTabRendersAndPublishes</code>)</td><td>Implemented</td></tr>
@@ -2170,6 +2170,35 @@
   wf-6-t-1-a1 exited ran, outcome complete</code>, else <code>FAIL GAOS recorded a failed attempt</code>;
   a refusal as drift would print <code>FAIL the dispatch was refused as drift</code>.</p>
 
+  <h3 id="go-board">dashboard — the board and its legal-move table (TC-304…TC-307, TC-309)</h3>
+  <p>M14.6, in <code>dashboard/board_test.go</code>, against a workflow planned on a seeded product.
+  <strong>TC-304, positive</strong> (<code>TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory</code>):
+  the Board tab renders a card (<code>the Board tab rendered %d without a card; a template error here is
+  a 500 no store test sees</code>), the columns are the eight declared ones in order (<code>columns are
+  %s; want the eight declared ones in order</code>), every card sits in a declared lane (<code>card %s
+  sits in lane %q, which the board does not declare</code>), and every task appears exactly once with a
+  plan lane (<code>the board has %d cards for %d tasks (lanes %v); want every task exactly once and a
+  plan lane</code>).
+  <strong>TC-305, positive</strong> (<code>TestEachLegalMoveProducesItsEventAndStatus</code>): review to
+  done, review to ready, failed to ready, blocked to ready and pending to canceled each give their status
+  and one <code>TaskMoved</code> naming the action — <code>%s -&gt; %s gave status %s, events %v, err %v;
+  want %s and one TaskMoved %s</code>; a move inside a column gives one <code>TaskReordered</code>
+  (<code>a move inside its column gave %v %v; want one TaskReordered</code>); and ready to working
+  dispatches a real turn through the fake gateway with the runner on (<code>ready -&gt; working gave %v
+  %v; want a dispatch</code>).</p>
+  <p><strong>TC-306, negative</strong> (<code>TestAMoveOutsideTheTableAnswers409AndWritesNoEvent</code>):
+  seven moves over HTTP — pending to ready, done to ready, deferred to ready, into blocked, review to
+  working, a running task to canceled, canceled to backlog — each answer <code>409</code> with a reason and
+  write nothing: <code>%s -&gt; %s answered %d %v and left %s with %d new event(s); want 409 with a reason
+  and nothing written (BR-43)</code>. The running case is refused because a live turn cannot be stopped
+  through the gateway (<a href="open-questions.html#oq-26">OQ-26</a>).
+  <strong>TC-307, negative</strong> (<code>TestALaneChangeACreateAndADeleteAnswer409</code>): <code>a lane
+  change answered %d; a card's lane is its story and cannot move</code>, and <code>%s %s answered %d;
+  cards are planned, not created, edited or deleted on the board</code> for POST, PUT and DELETE.
+  <strong>TC-309, negative</strong> (<code>TestTheReplayHandleRefusesEveryMove</code>): <code>the
+  read-only handle moved a card (%v); replay must not write (BR-20)</code>; the conformance suite's
+  read-only case refuses <code>MoveCard</code> too.</p>
+
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
@@ -2190,7 +2219,7 @@
   <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
 
   <div class="adm note">
-    <p class="adm-title">The gateway forward specifications (TC-304…TC-310 still waiting)</p>
+    <p class="adm-title">The gateway forward specifications (TC-308 and TC-310 still waiting)</p>
     <p>Thirty-six cases were written on 2026-11-02, before any of the code they test, for
     <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>: the move to ai-manager as the
     one gateway, the Blueprint, and a board per product
@@ -2203,28 +2232,21 @@
     <code>httptest</code> fake ai-manager that scripts a reply per request id and counts the POSTs it
     receives; none spawns a binary and none spends money. Only
     <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.
-    <strong>TC-275…TC-290 run as of v0.24.0, TC-291…TC-295 as of v0.25.0 and TC-296…TC-303 as of
-    v0.27.0</strong>, moved up to the implemented scenarios; the seven below are the board,
-    <code>M14.6</code>.</p>
+    <strong>TC-275…TC-290 run as of v0.24.0, TC-291…TC-295 as of v0.25.0, TC-296…TC-303 as of v0.27.0
+    and TC-304…TC-307 and TC-309 as of v0.28.0</strong>, moved up to the implemented scenarios; the two
+    below wait on a task fold and on <a href="open-questions.html#oq-25">OQ-25</a>.</p>
   </div>
 
-  <h3 id="ni-board">The board (TC-304…TC-310)</h3>
-  <p><strong>Given</strong> a product with a planned workflow, <strong>then (TC-304,
-  positive)</strong> <code>GET /products/{id}/board</code> returns the eight declared columns, every
-  task exactly once, and one lane per story plus <code>plan</code>. <strong>TC-305, positive:</strong>
-  each move in the legal-move table — ready to working, review to done, review to ready, failed to
-  ready, blocked to ready, to canceled, and a reorder — produces its events and the status the state
-  machine allows. <strong>TC-308, positive:</strong> folding the events reproduces the board the
-  store reports.</p>
-  <p><strong>TC-306, negative:</strong> every move outside the table — PENDING to READY, DONE to
-  anywhere, anything into or out of DEFERRED, into working from any column but ready — answers
-  <code>409</code> with a reason and writes no event (<a href="brd.html#rules-gateway">BR-43</a>).
-  <strong>TC-307, negative:</strong> a lane change, a card create and a card delete each answer
-  <code>409</code>. <strong>TC-309, negative:</strong> under replay the read-only handle refuses every
-  move. <strong>TC-310, negative:</strong> only if the sisflow board is vendored
+  <h3 id="ni-board">The board: a fold that rebuilds it, and the vendored client (TC-308, TC-310)</h3>
+  <p>TC-304…TC-307 and TC-309 run as of v0.28.0 and moved up to <a href="#go-board">the board
+  scenarios</a>. <strong>TC-308, positive:</strong> folding the events reproduces the board the store
+  reports. It waits on a task fold: the board's own moves are evented (<code>TaskMoved</code>,
+  <code>TaskReordered</code>), but the scheduler's and the runner's status changes are carried by events
+  that name a desk rather than a task, so a fold cannot yet rebuild task statuses from the stream alone.
+  <strong>TC-310, negative:</strong> only if the sisflow board is vendored
   (<a href="open-questions.html#oq-25">OQ-25</a>) — <code>check-stacks.sh</code> fails the deploy when
-  its files are present without their licence beside them, as
-  <a href="#cs-licences">TC-150/TC-151</a> already do for the fonts and the charting library.</p>
+  its files are present without their licence beside them, as <a href="#cs-licences">TC-150/TC-151</a>
+  already do for the fonts and the charting library.</p>
 
   <h3 id="ni-unsatisfiable">The unsatisfiable task (TC-048, TC-049)</h3>
   <p><strong>Given</strong> a task whose acceptance criterion contradicts a domain rule (the shape

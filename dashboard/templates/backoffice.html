@@ -168,6 +168,7 @@
   <button role="tab" aria-selected="{{eq .Tab "stories"}}"   hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">User stories<span class="n">{{len .Master.Stories}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "diagrams"}}"  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams<span class="n">{{len .Master.Diagrams}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "knowledge"}}" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge<span class="n">{{len .Master.Decisions}}</span></button>
+  <button role="tab" aria-selected="{{eq .Tab "board"}}" hx-get="products/{{.ID}}?tab=board" hx-target="#sink" hx-swap="innerHTML">Board</button>
   <button role="tab" aria-selected="{{eq .Tab "blueprint"}}" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint<span class="n">{{len .Master.Blueprint.Policies}}</span></button>
 </div>
 
@@ -177,6 +178,7 @@
     {{else if eq .Tab "diagrams"}}{{template "pane-diagrams" .}}
     {{else if eq .Tab "knowledge"}}{{template "pane-knowledge" .}}
     {{else if eq .Tab "blueprint"}}{{template "pane-blueprint" .}}
+    {{else if eq .Tab "board"}}{{template "pane-board" .}}
     {{else}}{{template "pane-brd" .}}{{end}}
   </div>
 
@@ -350,6 +352,35 @@
   <div class="field"><label for="kTitle">Decision</label><input id="kTitle" name="title" placeholder="Rounding lives in the pricing service"></div>
   <button class="btn btn-primary" type="submit">Add decision</button>
 </form>
+{{end}}
+
+{{define "pane-board"}}
+{{$id := .ID}}
+<div class="block">
+  <h4>Board — the product's tasks by status</h4>
+  <p style="margin:0 0 8px;font-size:13px;color:var(--ink-3)">A move is a request: the task state machine decides, and a
+  refused move changes nothing. Drag a card, or use its buttons — they show only the moves allowed now.</p>
+  {{with .Board}}{{if .Cards}}
+  <div style="display:grid;grid-template-columns:repeat(8,minmax(140px,1fr));gap:8px;overflow-x:auto">
+    {{range $col := .Columns}}
+    <div class="board-col" data-col="{{$col.ID}}" style="min-height:120px;border:1px solid var(--line);border-radius:6px;padding:6px">
+      <div class="mono" style="font-size:11px;color:var(--ink-3);margin-bottom:6px">{{$col.Label}}</div>
+      {{range $.Board.Cards}}{{if eq .Column $col.ID}}
+      <div class="board-card" draggable="true" data-card="{{.ID}}" data-product="{{$id}}" style="border:1px solid var(--line);border-radius:4px;padding:6px;margin-bottom:6px;background:var(--panel)">
+        <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
+        <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}</div>
+        {{$card := .ID}}{{range .Moves}}
+        <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
+        {{end}}
+      </div>
+      {{end}}{{end}}
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+    <p style="margin:0;font-size:13px;color:var(--ink-3)">No tasks yet. Create a workflow from this product's stories and its tasks appear here.</p>
+  {{end}}{{end}}
+</div>
 {{end}}
 
 {{define "pane-blueprint"}}

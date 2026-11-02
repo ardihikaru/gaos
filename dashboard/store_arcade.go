@@ -673,7 +673,7 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 			"retryCount": t.Retry, "escalationCount": t.Esc,
 			"approvalRequired": t.Gate, "blockReason": t.BlockReason,
 			"workflowId": t.WorkflowID, "deskId": t.DeskID,
-			"story": t.Story, "ordinal": t.Ordinal,
+			"story": t.Story, "ordinal": t.Ordinal, "rank": t.Rank,
 		}); err != nil {
 			return err
 		}
@@ -1277,6 +1277,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Status     string `json:"status"`
 		Priority   int    `json:"priority"`
 		Ordinal    int    `json:"ordinal"`
+		Rank       int    `json:"rank"`
 		Gate       bool   `json:"approvalRequired"`
 		Retry      int    `json:"retryCount"`
 		Esc        int    `json:"escalationCount"`
@@ -1284,7 +1285,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, workflowId, deskId, title, role, story, modelHint, status,
-		        priority, ordinal, approvalRequired, retryCount, escalationCount, blockReason
+		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason
 		 FROM Task WHERE tenantId = :t AND workflowId IS NOT NULL
 		 ORDER BY workflowId, ordinal`,
 		map[string]any{"t": s.tenant}, &trows); err != nil {
@@ -1308,7 +1309,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		t := TaskRecord{
 			ID: r.ID, WorkflowID: r.WorkflowID, DeskID: r.DeskID,
 			Title: r.Title, Role: r.Role, Story: r.Story, Model: r.Model,
-			Status: r.Status, Priority: r.Priority, Ordinal: r.Ordinal,
+			Status: r.Status, Priority: r.Priority, Ordinal: r.Ordinal, Rank: r.Rank,
 			Gate: r.Gate, Retry: r.Retry, Esc: r.Esc, BlockReason: r.Block,
 		}
 		for _, d := range deps {
