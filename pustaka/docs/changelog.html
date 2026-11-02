@@ -36,6 +36,25 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-32-0">v0.32.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A question lives as long as the
+      session that asked it.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>question lifetime</b> (D-066, answering OQ-31): a
+        question stays open for thirty days from the asking turn — as long as ai-manager keeps the session
+        that asked it. Until then the answer always resumes that session, even past GAOS's twenty-five-day
+        rotation. At thirty days a once-a-minute sweep moves the task to <code>BLOCKED</code>
+        (<code>TaskMoved</code>, rule <code>question-expired</code>, with the reason); unblocking starts
+        again in a new session (TC-341, TC-342).</li>
+        <li><span class="chg change">Changed</span> <b>the inbox's times are live</b>: "waiting 12m" is
+        time elapsed since the agent asked, and now keeps counting without a refresh; the arbitrary
+        seven-day "stale" tag is replaced by the time left before the question expires, turning amber
+        under three days. The QA register is three hundred and forty-two cases, two hundred and
+        twenty-nine of them Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-31-0">v0.31.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Agents ask, the operator
       answers. M15 — and the live channel the store was cut for.</p>

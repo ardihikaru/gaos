@@ -161,6 +161,35 @@
     if (deferred && !busy()) refreshPane(deferred);
   });
 
+  // The inbox's times are elapsed time and time left, not snapshots: re-tick
+  // them from their datetime so "waiting 12m" keeps counting without a
+  // refresh. Same format as relSpan in handlers_bo.go. Text only -- nothing
+  // moves, so nothing animates.
+  function span(ms) {
+    var m = Math.floor(ms / 60000);
+    if (m < 1) return "<1m";
+    if (m < 60) return m + "m";
+    var h = Math.floor(m / 60);
+    if (h < 48) return h + "h";
+    return Math.floor(h / 24) + "d";
+  }
+  function tick() {
+    var now = Date.now();
+    document.querySelectorAll("time[data-since]").forEach(function (el) {
+      var t = Date.parse(el.getAttribute("data-since"));
+      if (!isNaN(t)) el.textContent = "waiting " + span(Math.max(0, now - t));
+    });
+    document.querySelectorAll("time[data-until]").forEach(function (el) {
+      var t = Date.parse(el.getAttribute("data-until"));
+      if (isNaN(t)) return;
+      var left = t - now;
+      el.textContent = left <= 0 ? "expires now" : "expires in " + span(left);
+      el.classList.toggle("urgent", left < 3 * 24 * 3600 * 1000);
+    });
+  }
+  setInterval(tick, 30000);
+  document.body.addEventListener("htmx:afterSettle", tick);
+
   // A hidden tab keeps its stream; the browser is fine with one idle
   // connection, and coming back to a stale chip is worse.
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", open);

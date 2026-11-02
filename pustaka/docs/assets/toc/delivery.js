@@ -8,7 +8,7 @@ window.DOCS.nav.push({
       id: "implementation-plan",
       file: "delivery/implementation-plan.html",
       title: "Implementation plan",
-      desc: "Every BRD requirement mapped against the code that is actually committed, cut into sixteen modules and sixty-eight sub-modules — one hundred and seventy-six tasks, eighty-eight done, seventeen standing on fixtures or partly done, sixty-six not started, five superseded by the move to ai-manager.",
+      desc: "Every BRD requirement mapped against the code that is actually committed, cut into sixteen modules and sixty-eight sub-modules — one hundred and seventy-seven tasks, ninety-one done, fifteen standing on fixtures or partly done, sixty-six not started, five superseded by the move to ai-manager.",
       tags: ["implementation", "roadmap", "tasks", "gap-analysis", "modules", "build-order", "brd", "delivery", "backlog"],
       sections: [
         { anchor: "how-to-read-this", title: "How to read this",
@@ -18,7 +18,7 @@ window.DOCS.nav.push({
         { anchor: "sequencing", title: "Sequencing",
           text: "The ten prescribed build-order steps from D-018 mapped to modules, why D-019 already inverted them once and the rest must not be reordered, and the three modules that sit outside the spine — the budget guard before the first API run, the egress pass that now runs before the first byte leaves, and the proofs after the event store." },
         { anchor: "register", title: "The register",
-          text: "All one hundred and seventy-six tasks in one filterable table: id, sub-module, task, the requirement or business rule it satisfies, and status. Filter by module, by domain, by status, or by any word in a task." },
+          text: "All one hundred and seventy-seven tasks in one filterable table: id, sub-module, task, the requirement or business rule it satisfies, and status. Filter by module, by domain, by status, or by any word in a task." },
         { anchor: "m0-foundations", title: "M0 — Foundations",
           text: "Schema and DDL, the store_arcade.go seam written against store.go unchanged and covered by one conformance suite both stores run, an event store that is the whole record rather than a window over its tail, the five catalog names still declared and never emitted, and the task state machine that refuses an undeclared transition at the boundary. Seventeen of eighteen tasks are done." },
         { anchor: "m1-product-master", title: "M1 — Product master & knowledge ingestion",

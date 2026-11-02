@@ -115,7 +115,7 @@ func (s *MemStore) sessionForLocked(taskID string, ta TurnAdapter, now int64) (s
 			opened = r.StartedAt
 		}
 	}
-	if now-opened > int64(ta.SessionMaxAge()/time.Second) {
+	if now-opened > int64(ta.SessionMaxAge()/time.Second) && !s.answerResumesLocked(taskID, last, now) {
 		return "", SessionRotation
 	}
 	return last.SessionID, ""

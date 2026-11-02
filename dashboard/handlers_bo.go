@@ -551,10 +551,40 @@ func (s *server) handleSyncBlueprint(w http.ResponseWriter, r *http.Request) {
 // The inbox and the answer sheet are views of Store.OpenQuestions; nothing here
 // writes. The answer itself posts to handleAnswer (handlers_questions.go).
 
-// staleAfter is when a waiting question gets the quiet "stale" tag: a week is
-// long enough that the operator has probably forgotten it, short enough that a
-// weekend does not trip it.
-const staleAfter = 7 * 24 * time.Hour
+// urgentBefore is when a question's expiry turns urgent: three days before it
+// closes with its session (D-066) -- a long weekend is enough to miss it.
+const urgentBefore = 3 * 24 * time.Hour
+
+// relSpan is one duration as the inbox prints it: <1m, 12m, 5h (under two
+// days), 9d. static/live.js formats the same way when it re-ticks the label,
+// so a server render and a client tick never disagree.
+func relSpan(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "<1m"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh", int(d/time.Hour))
+	}
+	return fmt.Sprintf("%dd", int(d/(24*time.Hour)))
+}
+
+// expiryFor renders when a question closes with its session: "expires in 29d",
+// the datetime, and whether it is within urgentBefore. Nothing for a question
+// whose ask time was not recorded, which never expires.
+func expiryFor(asked int64, now time.Time) (rel, iso string, urgent bool) {
+	exp := questionExpiresAt(asked)
+	if exp == 0 {
+		return "", "", false
+	}
+	t := time.Unix(exp, 0).UTC()
+	left := t.Sub(now)
+	if left <= 0 {
+		return "expires now", t.Format(time.RFC3339), true
+	}
+	return "expires in " + relSpan(left), t.Format(time.RFC3339), left < urgentBefore
+}
 
 // needsCount is the topbar chip's number. Signed out it is zero: the count is
 // back-office data, and there is no inbox to open without a session.
@@ -569,29 +599,21 @@ func (s *server) needsCount(r *http.Request) int {
 	return len(qs)
 }
 
-// waitingFor renders how long a question has waited, the absolute time for the
-// title, and whether it is stale. A missing ask time says so rather than
+// waitingFor renders how long a question has waited so far and the absolute
+// time for the title. The label is elapsed time, not a limit: static/live.js
+// re-ticks it from the datetime every thirty seconds, so "waiting 12m" becomes
+// "waiting 13m" without a refresh. A missing ask time says so rather than
 // pretending the agent asked in 1970.
-func waitingFor(asked int64, now time.Time) (rel, iso, abs string, stale bool) {
+func waitingFor(asked int64, now time.Time) (rel, iso, abs string) {
 	if asked <= 0 {
-		return "waiting", "", "The time this was asked was not recorded.", false
+		return "waiting", "", "The time this was asked was not recorded."
 	}
 	t := time.Unix(asked, 0).UTC()
 	d := now.Sub(t)
 	if d < 0 {
 		d = 0
 	}
-	switch {
-	case d < time.Minute:
-		rel = "waiting <1m"
-	case d < time.Hour:
-		rel = fmt.Sprintf("waiting %dm", int(d/time.Minute))
-	case d < 48*time.Hour:
-		rel = fmt.Sprintf("waiting %dh", int(d/time.Hour))
-	default:
-		rel = fmt.Sprintf("waiting %dd", int(d/(24*time.Hour)))
-	}
-	return rel, t.Format(time.RFC3339), "Asked " + t.Format("Mon 2 Jan 2006, 15:04 UTC"), d > staleAfter
+	return "waiting " + relSpan(d), t.Format(time.RFC3339), "Asked " + t.Format("Mon 2 Jan 2006, 15:04 UTC")
 }
 
 // splitLead is a question's first non-blank line and whatever follows it.
@@ -646,14 +668,16 @@ func (s *server) buildInbox(r *http.Request, bo *BOView, filter string, name fun
 			continue
 		}
 		lead, _ := splitLead(q.Question)
-		rel, iso, abs, stale := waitingFor(q.AskedAt, now)
+		rel, iso, abs := waitingFor(q.AskedAt, now)
+		exp, expISO, urgent := expiryFor(q.AskedAt, now)
 		label, style := roleOf(q.Role)
 		bo.Inbox = append(bo.Inbox, InboxRow{
 			ProductID: q.ProductID, ProductName: name(q.ProductID),
 			TaskID: q.TaskID, TaskTitle: def(q.TaskTitle, "untitled task"),
 			RoleLabel: label, RoleStyle: style,
 			Lead: clipEllipsis(def(lead, "(the agent sent no question text)"), 160), Question: q.Question,
-			Waiting: rel, AskedISO: iso, AskedAbs: abs, Stale: stale,
+			Waiting: rel, AskedISO: iso, AskedAbs: abs,
+			Expires: exp, ExpiresISO: expISO, Urgent: urgent,
 			OpenURL: answerSheetURL(q.ProductID, q.TaskID, "inbox", filter),
 			DomID:   "inbox-" + q.ProductID + "-" + q.TaskID,
 		})
@@ -709,12 +733,14 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 		}
 	}
 	lead, rest := splitLead(q.Question)
-	rel, iso, abs, _ := waitingFor(q.AskedAt, time.Now())
+	rel, iso, abs := waitingFor(q.AskedAt, time.Now())
+	exp, expISO, urgent := expiryFor(q.AskedAt, time.Now())
 	label, _ := roleOf(q.Role)
 	a := &AnswerView{
 		ProductID: q.ProductID, ProductName: name, TaskID: q.TaskID,
 		TaskTitle: def(q.TaskTitle, "untitled task"), RoleLabel: label,
 		Waiting: rel, AskedISO: iso, AskedAbs: abs,
+		Expires: exp, ExpiresISO: expISO, Urgent: urgent,
 		Lead: def(lead, "The agent is waiting on you."), Rest: rest,
 		Context: strings.TrimSpace(q.Context), Default: ChoiceOther,
 	}
