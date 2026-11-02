@@ -61,6 +61,13 @@ type View struct {
 	BO *BOView
 	CW *CWView
 
+	// Needs is how many agents are waiting on the operator (M15): the topbar
+	// chip and the back-office nav count. Zero when signed out -- the number is
+	// back-office data, and a signed-out page has no inbox to open.
+	Needs int
+	// Answer is the answer sheet, when one is open (M15).
+	Answer *AnswerView
+
 	// ShowLogin and a non-nil BO are what decide whether each sheet is visible.
 	// The server owns that, not the client: "am I signed in" has exactly one
 	// answer and it is not stored in the DOM.
@@ -139,7 +146,7 @@ type RollupGroup struct {
 }
 
 type BOView struct {
-	View    string // products | stories | diagrams | knowledge | agents
+	View    string // products | stories | diagrams | knowledge | agents | inbox
 	Counts  BOCounts
 	List    []ProductCard
 	Detail  *ProductDetail
@@ -148,6 +155,69 @@ type BOView struct {
 	Sub     string
 	Agents  []AgentRow
 	NewOpen bool
+
+	// The inbox (M15). Filter is the product the list is narrowed to, "" for
+	// all; Filters are the products that have someone waiting, for the chips.
+	Inbox      []InboxRow
+	Filter     string
+	FilterName string
+	Filters    []InboxFilter
+}
+
+// ---------- "Needs you" (M15) ----------
+
+// InboxRow is one agent waiting on the operator.
+type InboxRow struct {
+	ProductID   string
+	ProductName string
+	TaskID      string
+	TaskTitle   string
+	RoleLabel   string
+	RoleStyle   template.CSS
+	Lead        string // the question's first line, clipped
+	Question    string // the whole question, for the row's title
+	Waiting     string // "waiting 12m"
+	AskedISO    string // datetime attribute; "" when the time was not recorded
+	AskedAbs    string // the absolute time, for title
+	Stale       bool   // waiting longer than staleAfter
+	OpenURL     string // GET for the answer sheet
+	DomID       string
+}
+
+type InboxFilter struct {
+	ID, Name string
+	N        int
+	On       bool
+}
+
+// AnswerView is the answer sheet: one question and the four ways to answer it.
+type AnswerView struct {
+	ProductID   string
+	ProductName string
+	TaskID      string
+	TaskTitle   string
+	RoleLabel   string
+	Waiting     string
+	AskedISO    string
+	AskedAbs    string
+	Lead        string // the title: the question's first line
+	Rest        string // the rest of the question, if it ran on
+	Context     string
+	ContextLong bool
+	ContextLead string
+	Options     []AnswerOption
+	// Default is the choice preselected: the recommendation, or 4 when the
+	// agent offered nothing to recommend.
+	Default int
+	PostURL string
+}
+
+type AnswerOption struct {
+	N           int
+	Label       string
+	Description string
+	Recommended bool
+	Checked     bool
 }
 
 // ---------- create workflow ----------

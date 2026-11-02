@@ -266,6 +266,13 @@ LIMIT 20</pre>
   an old stream still folds. The full proposal, with draft DDL and two new invariants, is §15 of
   <code>artifacts/v1/gaos-arcadedb-model.html</code>; under <code>BR-05</code> it lands in
   <code>dashboard/schema/</code>, <code>dashboard/events.go</code> and the fold together.</p>
+  <p><strong>M15 adds two events and a status, and no type.</strong> An agent that needs the
+  operator's decision ends its turn on a question (<a href="../product/decision-log.html#d-064">D-064</a>):
+  <code>QuestionAsked</code> and <code>QuestionAnswered</code> join the execution group,
+  <code>Task.status</code> gains <code>AWAITING_INPUT</code>, and <code>Artifact.kind</code> gains
+  <code>question</code> — both widened in place by <code>dashboard/schema/12-questions.sql</code>, two
+  more statements. The inbox is a projection of the two events, so there is no Question vertex to
+  keep in step with them.</p>
 
   <h2 id="not-yet">What is not built yet</h2>
 

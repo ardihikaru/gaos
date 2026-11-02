@@ -25,6 +25,8 @@ var catalog = map[EventType]bool{
 	// execution
 	TaskDispatched: true, RunStarted: true, Heartbeat: true, RunExited: true,
 	TaskBlocked: true, TaskResumed: true, TaskOrphaned: true,
+	// execution -- M15, D-064
+	QuestionAsked: true, QuestionAnswered: true,
 	// judgment
 	ReviewCompleted: true, RetryRequested: true, ModelEscalated: true,
 	SafetyVeto: true, GuardExhausted: true,
@@ -421,6 +423,16 @@ func driveRunner(t *testing.T, s *MemStore) {
 	completeTurn(f, "wf-drive-t-1", 1, "0.1")
 	if _, err := s.superviseRun(t.Context(), ad, desk, clearedFor(t, s, desk, "wf-drive-t-1", 1), 1); err != nil {
 		t.Fatalf("supervising one turn against the fake gateway failed: %v", err)
+	}
+	// M15: a turn that asks, and the operator's answer -- the only writers of
+	// QuestionAsked and QuestionAnswered.
+	plantRunning(s, desk, "wf-drive-t-2")
+	askTurn(f, "q-drive")
+	if _, err := s.superviseRun(t.Context(), ad, desk, clearedFor(t, s, desk, "wf-drive-t-2", 1), 1); err != nil {
+		t.Fatalf("supervising an asking turn against the fake gateway failed: %v", err)
+	}
+	if _, err := s.AnswerQuestion(t.Context(), desk, "wf-drive-t-2", ChoiceRecommended, ""); err != nil {
+		t.Fatalf("answering the driven question failed: %v", err)
 	}
 }
 

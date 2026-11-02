@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // The back office: the product master, and the only part of the UI that writes
@@ -206,6 +209,10 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 	bo.Counts.Agents = len(agents)
 
 	switch view {
+	case "inbox":
+		s.buildInbox(r, bo, productID, name)
+		return bo
+
 	case "agents":
 		bo.Title, bo.Sub = "Agents", "Roles the scheduler can seat. Capability and model routing are read from here when a task is dispatched."
 		for _, a := range agents {
@@ -537,4 +544,205 @@ func (s *server) handleSyncBlueprint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderBOAfter(w, r, res, id, "blueprint")
+}
+
+// ---------- "Needs you" (M15) ----------
+//
+// The inbox and the answer sheet are views of Store.OpenQuestions; nothing here
+// writes. The answer itself posts to handleAnswer (handlers_questions.go).
+
+// staleAfter is when a waiting question gets the quiet "stale" tag: a week is
+// long enough that the operator has probably forgotten it, short enough that a
+// weekend does not trip it.
+const staleAfter = 7 * 24 * time.Hour
+
+// needsCount is the topbar chip's number. Signed out it is zero: the count is
+// back-office data, and there is no inbox to open without a session.
+func (s *server) needsCount(r *http.Request) int {
+	if !signedIn(r) {
+		return 0
+	}
+	qs, err := s.store.OpenQuestions(r.Context(), "")
+	if err != nil {
+		return 0
+	}
+	return len(qs)
+}
+
+// waitingFor renders how long a question has waited, the absolute time for the
+// title, and whether it is stale. A missing ask time says so rather than
+// pretending the agent asked in 1970.
+func waitingFor(asked int64, now time.Time) (rel, iso, abs string, stale bool) {
+	if asked <= 0 {
+		return "waiting", "", "The time this was asked was not recorded.", false
+	}
+	t := time.Unix(asked, 0).UTC()
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		rel = "waiting <1m"
+	case d < time.Hour:
+		rel = fmt.Sprintf("waiting %dm", int(d/time.Minute))
+	case d < 48*time.Hour:
+		rel = fmt.Sprintf("waiting %dh", int(d/time.Hour))
+	default:
+		rel = fmt.Sprintf("waiting %dd", int(d/(24*time.Hour)))
+	}
+	return rel, t.Format(time.RFC3339), "Asked " + t.Format("Mon 2 Jan 2006, 15:04 UTC"), d > staleAfter
+}
+
+// splitLead is a question's first non-blank line and whatever follows it.
+func splitLead(q string) (lead, rest string) {
+	q = strings.TrimSpace(q)
+	if i := strings.IndexByte(q, '\n'); i >= 0 {
+		return strings.TrimSpace(q[:i]), strings.TrimSpace(q[i+1:])
+	}
+	return q, ""
+}
+
+func roleOf(key string) (string, template.CSS) {
+	if r, ok := roles[key]; ok {
+		return r.Label, cssVar("background", r.Color)
+	}
+	if key == "" {
+		key = "agent"
+	}
+	return key, cssVar("background", "var(--ink-3)")
+}
+
+// answerSheetURL is the GET that opens the sheet; from says where it was
+// opened, so the answer re-renders the view the operator came from.
+func answerSheetURL(productID, taskID, from, filter string) string {
+	q := url.Values{"from": {from}}
+	if filter != "" {
+		q.Set("product", filter)
+	}
+	return "ui/answer/" + url.PathEscape(productID) + "/" + url.PathEscape(taskID) + "?" + q.Encode()
+}
+
+// buildInbox fills the inbox view: every waiting agent, oldest first, narrowed
+// to one product when filter is set.
+func (s *server) buildInbox(r *http.Request, bo *BOView, filter string, name func(string) string) {
+	bo.Title = "Needs you"
+	bo.Sub = "Agents that stopped to ask you something, oldest first. Each task waits, out of the scheduler's reach, until you answer."
+	bo.Filter = filter
+	if filter != "" {
+		bo.FilterName = name(filter)
+	}
+	all, _ := s.store.OpenQuestions(r.Context(), "")
+	now := time.Now()
+	seen := map[string]int{}
+	for _, q := range all {
+		if i, ok := seen[q.ProductID]; ok {
+			bo.Filters[i].N++
+		} else {
+			seen[q.ProductID] = len(bo.Filters)
+			bo.Filters = append(bo.Filters, InboxFilter{ID: q.ProductID, Name: name(q.ProductID), N: 1, On: q.ProductID == filter})
+		}
+		if filter != "" && q.ProductID != filter {
+			continue
+		}
+		lead, _ := splitLead(q.Question)
+		rel, iso, abs, stale := waitingFor(q.AskedAt, now)
+		label, style := roleOf(q.Role)
+		bo.Inbox = append(bo.Inbox, InboxRow{
+			ProductID: q.ProductID, ProductName: name(q.ProductID),
+			TaskID: q.TaskID, TaskTitle: def(q.TaskTitle, "untitled task"),
+			RoleLabel: label, RoleStyle: style,
+			Lead: clipEllipsis(def(lead, "(the agent sent no question text)"), 160), Question: q.Question,
+			Waiting: rel, AskedISO: iso, AskedAbs: abs, Stale: stale,
+			OpenURL: answerSheetURL(q.ProductID, q.TaskID, "inbox", filter),
+			DomID:   "inbox-" + q.ProductID + "-" + q.TaskID,
+		})
+	}
+	// One product's chips are noise; they appear when there is a choice to
+	// make, or a filter to undo.
+	if len(bo.Filters) < 2 && filter == "" {
+		bo.Filters = nil
+	}
+}
+
+// handleNeeds is GET /ui/needs: the chip and the nav count, nothing else. The
+// live channel asks for it on every question hint, so it must stay this small.
+func (s *server) handleNeeds(w http.ResponseWriter, r *http.Request) {
+	v, _ := s.newView(r)
+	s.rend.Render(w, http.StatusOK, "needs-oob", v)
+}
+
+// handleAnswerSheet is GET /ui/answer/{id}/{taskId}: the answer sheet for the
+// question a task is waiting on.
+func (s *server) handleAnswerSheet(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id, taskID := r.PathValue("id"), r.PathValue("taskId")
+	qs, err := s.store.OpenQuestions(r.Context(), id)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var q *Question
+	for i := range qs {
+		if qs[i].TaskID == taskID {
+			q = &qs[i]
+		}
+	}
+	if q == nil {
+		s.fail(w, r, reject(taskID+" is not waiting on an answer any more."))
+		return
+	}
+	v, _ := s.newView(r)
+	v.Answer = s.buildAnswer(r, *q)
+	s.rend.Render(w, http.StatusOK, "answer-modal", v)
+}
+
+func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
+	name := q.ProductID
+	if ps, err := s.store.Products(r.Context()); err == nil {
+		for _, p := range ps {
+			if p.ID == q.ProductID {
+				name = p.Name
+			}
+		}
+	}
+	lead, rest := splitLead(q.Question)
+	rel, iso, abs, _ := waitingFor(q.AskedAt, time.Now())
+	label, _ := roleOf(q.Role)
+	a := &AnswerView{
+		ProductID: q.ProductID, ProductName: name, TaskID: q.TaskID,
+		TaskTitle: def(q.TaskTitle, "untitled task"), RoleLabel: label,
+		Waiting: rel, AskedISO: iso, AskedAbs: abs,
+		Lead: def(lead, "The agent is waiting on you."), Rest: rest,
+		Context: strings.TrimSpace(q.Context), Default: ChoiceOther,
+	}
+	if ctx := []rune(a.Context); len(ctx) > 280 || strings.Count(a.Context, "\n") >= 3 {
+		a.ContextLong = true
+		first, _ := splitLead(a.Context)
+		a.ContextLead = clipEllipsis(first, 110)
+	}
+	for i, o := range q.Options {
+		if i >= ChoiceOther-1 {
+			break // 4 is always the operator's own words
+		}
+		a.Options = append(a.Options, AnswerOption{N: i + 1, Label: def(strings.TrimSpace(o.Label), fmt.Sprintf("Option %d", i+1)),
+			Description: o.Description, Recommended: i == 0, Checked: i == 0})
+	}
+	if len(a.Options) > 0 {
+		a.Default = ChoiceRecommended
+	}
+	pq := url.Values{}
+	if f := r.URL.Query().Get("product"); f != "" {
+		pq.Set("product", f)
+	}
+	if r.URL.Query().Get("from") == "board" {
+		pq.Set("from", "board")
+	}
+	a.PostURL = "products/" + url.PathEscape(q.ProductID) + "/tasks/" + url.PathEscape(q.TaskID) + "/answer"
+	if len(pq) > 0 {
+		a.PostURL += "?" + pq.Encode()
+	}
+	return a
 }

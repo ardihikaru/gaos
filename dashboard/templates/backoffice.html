@@ -56,6 +56,8 @@
       <h2>Product master</h2>
     </div>
     <div class="sp">
+      <span class="needs-slot" id="needsSlot">{{template "needs-chip" .}}</span>
+      <span class="live-off" id="liveOff" hidden title="Live updates paused — reconnecting"><i aria-hidden="true"></i><span class="sr-only">Live updates paused, reconnecting</span></span>
       <button class="icon-btn" id="boTheme" aria-label="Switch theme" title="Switch theme (T)">
         <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>
         <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
@@ -67,7 +69,9 @@
   <div class="sheet-body">
     <div class="bo">
       <nav class="bo-nav">
-        <h3>Records</h3>
+        <h3>Inbox</h3>
+        <button aria-current="{{eq .BO.View "inbox"}}" hx-get="ui/bo/inbox" hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Needs you <span class="count" id="navNeedsCount">{{num .Needs}}</span></button>
+        <h3 style="margin-top:20px">Records</h3>
         <button aria-current="{{eq .BO.View "products"}}"  hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="count">{{.BO.Counts.Products}}</span></button>
         <button aria-current="{{eq .BO.View "stories"}}"   hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">User stories <span class="count">{{.BO.Counts.Stories}}</span></button>
         <button aria-current="{{eq .BO.View "diagrams"}}"  hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="count">{{.BO.Counts.Diagrams}}</span></button>
@@ -86,9 +90,10 @@
      is the swap unit. An oob element nested inside another oob element is
      ambiguous, so this application never produces one. */}}
 {{define "bo-main"}}
-<div class="bo-main" id="boMain">
+<div class="bo-main" id="boMain" data-view="{{.BO.View}}" data-filter="{{.BO.Filter}}"{{with .BO.Detail}} data-product="{{.ID}}" data-tab="{{.Tab}}"{{end}}>
   {{with .BO}}
-    {{if eq .View "agents"}}{{template "bo-agents" .}}
+    {{if eq .View "inbox"}}{{template "bo-inbox" .}}
+    {{else if eq .View "agents"}}{{template "bo-agents" .}}
     {{else if .Detail}}{{template "bo-product-detail" .}}
     {{else if eq .View "products"}}{{template "bo-product-list" .}}
     {{else}}{{template "bo-rollup" .}}{{end}}
@@ -364,12 +369,13 @@
   <link rel="stylesheet" href="static/vendor/sisflow/sisflow-board.css">
   <p class="board-status mono" style="margin:0 0 6px;font-size:11px;color:var(--ink-3)" aria-live="polite"></p>
   <div id="board-host" class="sisflow-board-host" data-product="{{$id}}" style="display:none"></div>
-  <div class="board-ssr" style="display:grid;grid-template-columns:repeat(8,minmax(140px,1fr));gap:8px;overflow-x:auto">
+  <div class="board-ssr" style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(140px,1fr);gap:8px;overflow-x:auto">
     {{range $col := .Columns}}
     <div class="board-col" data-col="{{$col.ID}}" style="min-height:120px;border:1px solid var(--line);border-radius:6px;padding:6px">
-      <div class="mono" style="font-size:11px;color:var(--ink-3);margin-bottom:6px">{{$col.Label}}</div>
+      <div class="mono board-col-label" style="font-size:11px;margin-bottom:6px">{{$col.Label}}</div>
       {{range $.Board.Cards}}{{if eq .Column $col.ID}}
-      <div class="board-card" draggable="true" data-card="{{.ID}}" data-product="{{$id}}" style="border:1px solid var(--line);border-radius:4px;padding:6px;margin-bottom:6px;background:var(--panel)">
+      <div class="board-card{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" draggable="true" data-card="{{.ID}}" data-product="{{$id}}" style="border:1px solid var(--line);border-radius:4px;padding:6px;margin-bottom:6px;background:var(--panel)">
+        {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
         <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
         <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}</div>
         {{$card := .ID}}{{range .Moves}}

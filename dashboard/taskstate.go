@@ -39,6 +39,11 @@ const (
 	StatusDone       = "DONE"
 	StatusFailed     = "FAILED"
 	StatusCanceled   = "CANCELED"
+	// StatusAwaitingInput is M15: the agent ended its turn with a question
+	// for the operator (D-064). It is not BLOCKED: a blocker is a fact about
+	// the work, a question is a decision only a human can make, and BR-44
+	// keeps a waiting task out of the scheduler until that human answers.
+	StatusAwaitingInput = "AWAITING_INPUT"
 )
 
 // taskTransitions is the whole machine: from -> the set of statuses it may go
@@ -75,13 +80,16 @@ var taskTransitions = map[string][]string{
 	StatusPending:    {StatusReady, StatusBlocked, StatusDeferred, StatusCanceled},
 	StatusReady:      {StatusDispatched, StatusPending, StatusBlocked, StatusDeferred, StatusCanceled},
 	StatusDispatched: {StatusRunning, StatusReady, StatusBlocked, StatusFailed, StatusCanceled},
-	StatusRunning:    {StatusReview, StatusReady, StatusBlocked, StatusFailed, StatusCanceled},
+	StatusRunning:    {StatusReview, StatusReady, StatusBlocked, StatusFailed, StatusCanceled, StatusAwaitingInput},
 	StatusReview:     {StatusDone, StatusReady, StatusBlocked, StatusFailed, StatusCanceled},
 	StatusBlocked:    {StatusReady, StatusPending, StatusFailed, StatusCanceled},
 	StatusDeferred:   {StatusReady, StatusPending, StatusCanceled},
 	StatusDone:       {},
 	StatusFailed:     {StatusReady, StatusCanceled},
 	StatusCanceled:   {},
+	// AWAITING_INPUT leaves only by an answer (READY) or by the operator
+	// giving up on the task (CANCELED). No edge to FAILED: nothing was judged.
+	StatusAwaitingInput: {StatusReady, StatusCanceled},
 }
 
 // knownTaskStatus reports whether s is one of the ten. Same split as

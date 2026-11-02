@@ -78,14 +78,30 @@ type Packet struct {
 	// they say where the turn runs, not what the model is given.
 	SessionID     string
 	SessionReason string
-	DeskID        string
-	Workspace     string
-	Parts         []PacketPart
-	Cites         []Citation
+	// Answer is the operator's answer to the question the previous attempt
+	// asked (M15), which the gateway adapter sends through ai-manager's answer
+	// route. Not part of the digest either: the answer reaches the model as
+	// the packet's answer part, which is.
+	Answer    *PacketAnswer
+	DeskID    string
+	Workspace string
+	Parts     []PacketPart
+	Cites     []Citation
+}
+
+// PacketAnswer is what the answer route needs: the question and the choice.
+type PacketAnswer struct {
+	QuestionID string
+	Choice     int
+	Text       string
 }
 
 func (p Packet) Clone() Packet {
 	c := p
+	if p.Answer != nil {
+		a := *p.Answer
+		c.Answer = &a
+	}
 	c.Parts = append([]PacketPart(nil), p.Parts...)
 	c.Cites = append([]Citation(nil), p.Cites...)
 	return c

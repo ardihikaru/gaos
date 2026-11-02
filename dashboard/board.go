@@ -69,6 +69,7 @@ const (
 	ColBacklog  = "backlog"
 	ColReady    = "ready"
 	ColWorking  = "working"
+	ColNeedsYou = "needs-you"
 	ColReview   = "review"
 	ColBlocked  = "blocked"
 	ColFailed   = "failed"
@@ -82,6 +83,8 @@ var boardColumns = []BoardColumn{
 	{ID: ColBacklog, Label: "Backlog", Statuses: []string{StatusPending}},
 	{ID: ColReady, Label: "Ready", Statuses: []string{StatusReady}},
 	{ID: ColWorking, Label: "Working", Statuses: []string{StatusDispatched, StatusRunning}},
+	// M15: an agent that asked the operator a question waits here (BR-44).
+	{ID: ColNeedsYou, Label: "Needs you", Statuses: []string{StatusAwaitingInput}},
 	{ID: ColReview, Label: "Review", Statuses: []string{StatusReview}},
 	{ID: ColBlocked, Label: "Blocked", Statuses: []string{StatusBlocked, StatusDeferred}},
 	{ID: ColFailed, Label: "Failed", Statuses: []string{StatusFailed}},
@@ -115,6 +118,8 @@ const (
 	MoveRetry    = "retry"
 	MoveUnblock  = "unblock"
 	MoveCancel   = "cancel"
+	// MoveAnswer is the only way out of AWAITING_INPUT but cancel (M15).
+	MoveAnswer = "answer"
 )
 
 // The other actors that move a task, named in TaskMoved's Rule (T-164). The
@@ -123,7 +128,7 @@ const (
 const (
 	MoveSchedule     = "schedule"      // the scheduler: PENDING -> READY -> DISPATCHED
 	MoveStart        = "start"         // the runner: DISPATCHED -> RUNNING
-	MoveExit         = "exit"          // the runner: RUNNING -> REVIEW | BLOCKED | FAILED
+	MoveExit         = "exit"          // the runner: RUNNING -> REVIEW | BLOCKED | FAILED | AWAITING_INPUT
 	MoveRefused      = "refused"       // a dispatch the egress pass or the drift gate refused
 	MoveNotStarted   = "not-started"   // a dispatched turn that never reached the gateway
 	MoveDriftRelease = "drift-release" // a sync released what Blueprint drift had blocked
@@ -137,6 +142,10 @@ func legalMove(t TaskRecord, to string) (string, string) {
 	switch {
 	case t.Status == StatusDeferred || (to == ColBlocked && from != ColBlocked):
 		return "", "the budget guard and the runner own blocked and deferred work; a card cannot be dropped there"
+	case to == ColNeedsYou:
+		return "", "only an agent puts a card here, by asking a question; it cannot be dropped there"
+	case from == ColNeedsYou && to != ColCanceled:
+		return "", "the agent is waiting on your answer; answer its question to move the card on"
 	case from == ColDone || from == ColCanceled:
 		return "", "a " + strings.ToLower(t.Status) + " task is finished; plan a new task instead"
 	case to == ColBacklog || (from == ColBacklog && to == ColReady):

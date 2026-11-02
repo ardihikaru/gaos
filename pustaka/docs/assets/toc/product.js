@@ -53,7 +53,7 @@ window.DOCS.nav.push({
         { anchor: "business-requirements", title: "8. Business requirements",
           text: "Twelve domains A–L: product master, readiness gating, planning, execution, review and retry, gates, memory, replay, the operator surface, tenancy and cost control including the three-zone budget guard, commercial — now decided, with the proposed rate card — and data protection, egress and residency." },
         { anchor: "business-rules", title: "9. Business rules",
-          text: "BR-01 to BR-43 across core invariants, readiness and planning, scoring and gates, data and replay, and the commercial, execution and data-handling rules — the open-core boundary, what may never be sold, tenancy as a configurable boundary, normalised model tiers, and why an unpriceable cost is never reported as zero — plus §9.6, BR-38 to BR-43: one live turn per workspace, a pinned Blueprint, no silently replaced session, the session as transport, ids never paths, and a board move as a request." },
+          text: "BR-01 to BR-44 across core invariants, readiness and planning, scoring and gates, data and replay, and the commercial, execution and data-handling rules — the open-core boundary, what may never be sold, tenancy as a configurable boundary, normalised model tiers, and why an unpriceable cost is never reported as zero — plus §9.6, BR-38 to BR-44: one live turn per workspace, a pinned Blueprint, no silently replaced session, the session as transport, ids never paths, a board move as a request, and a question that waits only on its answer." },
         { anchor: "scope", title: "10. Scope",
           text: "What is in scope, a boundary diagram showing what GAOS never owns — the tenant's repository, the merge, the model provider, the host — and ten constraints including the ArcadeDB version coupling, the open-core seam, Apache-2.0 as a one-way door, and the two adapters that must stay indistinguishable." },
         { anchor: "risks-and-assumptions", title: "11. Risks & assumptions",
@@ -63,7 +63,7 @@ window.DOCS.nav.push({
         { anchor: "references", title: "13. References",
           text: "Section-precise pointers into the three artifacts, the dashboard files that hold the seam and the closed event catalog, the deployment runbooks, the architecture and infrastructure pages, and the FAQ." },
         { anchor: "decision-log", title: "14. Decision log",
-          text: "Pointer to the sixty-three logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
+          text: "Pointer to the sixty-five logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
         { anchor: "business-milestones", title: "15. Business milestones",
           text: "Eight real dated milestones from git history, ending with the repository becoming licensed, and the next twelve — led by landing the new event names and task state together, then the first adapter and the budget guard." },
         { anchor: "business-decision-matrix", title: "16. Business decision matrix",
@@ -75,7 +75,7 @@ window.DOCS.nav.push({
         { anchor: "appendix-document-notes", title: "Appendix C — Document notes",
           text: "Which reference template the structure came from, what was dropped and why, and the two structural departures: the decision log and the open questions are separate pages." },
         { anchor: "open-questions", title: "Consolidated open questions",
-          text: "Pointer to the thirty-question register, nineteen of them answered, six raised by the move to the gateway." }
+          text: "Pointer to the thirty-one-question register, nineteen of them answered, six raised by the move to the gateway." }
       ]
     },
     {
@@ -111,7 +111,7 @@ window.DOCS.nav.push({
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
-          text: "All thirty questions in one filterable table with theme, what each blocks, and status. Filter by pricing, licence, auth, or any word in a question." },
+          text: "All thirty-one questions in one filterable table with theme, what each blocks, and status. Filter by pricing, licence, auth, or any word in a question." },
         { anchor: "oq-commercial", title: "Commercial",
           text: "OQ-01 to OQ-07 and OQ-14, all answered on 2026-08-08 — open core, the target customer, the auditor persona, quota profiles, pricing basis, who pays the provider, support, and data handling — plus OQ-20 answered as Apache-2.0, OQ-19 answered as the generation pack, and the one still open: OQ-21 the rate card." },
         { anchor: "oq-product", title: "Product & scope",
@@ -159,13 +159,13 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and twenty positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and forty positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All three hundred and twenty TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and seven unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All three hundred and forty TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and twenty-seven unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
           text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and eighty-five dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",

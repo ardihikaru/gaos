@@ -30,6 +30,15 @@
   --block:#DCA544;    /* blocked   — amber ochre   */
   --fail:#C86458;     /* failed    — madder        */
   --know:#A585CE;     /* knowledge — heliotrope    */
+  /* waiting on the operator (M15). Not --block: amber says the machine is
+     stuck, this says a person is the next actor -- an invitation, not a fault.
+     The two sit three columns apart on the board and must not read alike, and
+     no other state ink is a green-blue, so viridian is the free pigment. */
+  --ask:#5CB8AE;      /* needs you — viridian      */
+
+  /* ---- motion (Emil Kowalski's curves; see .claude/agents/gaos-frontend.md) ---- */
+  --ease-out:cubic-bezier(0.23, 1, 0.32, 1);       /* entering and exiting */
+  --ease-in-out:cubic-bezier(0.77, 0, 0.175, 1);   /* moving on screen     */
 
   /* ---- desk scene ---- */
   --lamp-glow:rgba(255,199,119,.30);
@@ -94,6 +103,7 @@
   --block:#96681A;
   --fail:#A6473A;
   --know:#65429B;
+  --ask:#1D6E67;
 
   --lamp-glow:rgba(214,150,49,.24);
   --scene-1:#D8D3C2;
@@ -938,7 +948,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);z-index:90;
   background:var(--panel);border:1px solid var(--brass-soft);border-radius:var(--r-s);
   padding:9px 14px;font-size:13px;box-shadow:var(--shadow);
-  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+  opacity:0;pointer-events:none;transition:opacity 200ms var(--ease-out),transform 200ms var(--ease-out);
 }
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -948,3 +958,170 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   .panel-grid{grid-template-columns:minmax(0,1fr)}
 }
 
+
+/* ============================================================
+   NEEDS YOU (M15) — the chip, the inbox, the answer sheet and
+   the board badge. Colour is --ask; nothing here animates but
+   the sheet, because everything else is seen tens of times a day.
+   ============================================================ */
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+
+/* the chip, in the back-office sheet's head: colour only, no entrance (it is
+   re-sent on every mutation) */
+.needs-slot{display:contents}
+.needs-chip{
+  display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;flex:0 0 auto;
+  border:1px solid var(--ask);border-radius:999px;background:var(--panel-2);
+  font-size:12.5px;color:var(--ink);white-space:nowrap;
+  transition:background-color 150ms ease,transform 120ms var(--ease-out);
+}
+.needs-chip[hidden]{display:none}
+.needs-chip i{width:7px;height:7px;border-radius:50%;background:var(--ask);flex:0 0 7px}
+.needs-chip b{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums}
+.needs-chip:active{transform:scale(.97)}
+/* narrow: the count alone; the accessible name still says it in full */
+@media (max-width:520px){ .needs-chip .nc-words{display:none} .needs-chip{padding:0 9px} }
+@media (hover:hover) and (pointer:fine){ .needs-chip:hover{background:var(--panel-3)} }
+
+/* the stream is down: a hollow dot, shown only after a few quiet seconds */
+.live-off{display:inline-grid;place-items:center;width:14px;height:32px;flex:0 0 14px}
+.live-off[hidden]{display:none}
+.live-off i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-3)}
+
+/* back-office nav */
+.bo-nav .nav-needs.on .count{color:var(--ask);font-weight:600}
+
+/* inbox */
+.inbox-filter{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.inbox-filter button{
+  display:inline-flex;align-items:center;gap:6px;max-width:100%;
+  border:1px solid var(--line);border-radius:999px;padding:4px 11px;
+  font-size:12px;color:var(--ink-2);background:var(--panel);
+  transition:border-color 150ms ease,color 150ms ease;
+}
+.inbox-filter button[aria-pressed="true"]{border-color:var(--brass);color:var(--ink)}
+.inbox-filter .if-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28ch}
+.inbox-filter .count{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+@media (hover:hover) and (pointer:fine){ .inbox-filter button:hover{border-color:var(--brass-soft);color:var(--ink)} }
+
+.inbox{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-width:1040px}
+.inbox-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"q when" "meta when";
+  gap:5px 18px;width:100%;text-align:left;padding:11px 14px;
+  border:1px solid var(--line-soft);border-left:2px solid var(--ask);
+  border-radius:0 var(--r-s) var(--r-s) 0;background:var(--panel);
+  transition:border-color 150ms ease,background-color 150ms ease;
+}
+@media (hover:hover) and (pointer:fine){ .inbox-row:hover{background:var(--panel-2);border-color:var(--brass-soft);border-left-color:var(--ask)} }
+.inbox-row.stale{border-left-color:var(--line)}
+.ir-q{grid-area:q;min-width:0;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ir-meta{grid-area:meta;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:3px 14px;font-size:12px;color:var(--ink-3)}
+.ir-prod{color:var(--ink-2);font-weight:500;overflow-wrap:anywhere}
+.ir-task{min-width:0;max-width:56ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ir-task b{font-size:11px;font-weight:500;color:var(--ink-2)}
+.ir-role{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.ir-role i{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.ir-when{
+  grid-area:when;align-self:center;display:flex;align-items:center;gap:8px;
+  font-family:var(--font-mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.ir-stale{
+  font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:3px;padding:0 5px;
+}
+.inbox-empty p{margin:0;font-size:13px;color:var(--ink-3);line-height:1.6}
+.inbox-empty p + p{margin-top:4px}
+.inbox-empty b{color:var(--ink);font-weight:600}
+.inbox-empty .btn{margin-left:6px;padding:3px 9px;font-size:11.5px}
+@media (max-width:640px){
+  .inbox-row{grid-template-columns:minmax(0,1fr);grid-template-areas:"q" "meta" "when"}
+  .ir-q{white-space:normal;overflow-wrap:anywhere}
+  .ir-when{align-self:start}
+}
+
+/* the answer sheet. Enter 200ms from scale(.96)+opacity, exit 150ms, both on
+   the strong ease-out; centred, so no transform-origin. data-instant is set
+   when a key opened or closed it: keyboard actions never animate. The global
+   reduced-motion rule zeroes these durations; transform is dropped there too. */
+.modal-anim{opacity:0;transition:opacity 200ms var(--ease-out)}
+.modal-anim .modal{opacity:0;transform:scale(.96);transition:opacity 200ms var(--ease-out),transform 200ms var(--ease-out)}
+.modal-anim[data-state="open"],.modal-anim[data-state="open"] .modal{opacity:1;transform:none}
+.modal-anim[data-state="closing"],.modal-anim[data-state="closing"] .modal{transition-duration:150ms}
+.modal-anim[data-instant],.modal-anim[data-instant] .modal{transition:none}
+@media (prefers-reduced-motion:reduce){ .modal-anim .modal{transform:none} }
+
+.modal.answer{max-width:640px}
+/* a question can run to a paragraph; on a short screen it must not push the
+   options out of reach, so the head scrolls on its own past 40% */
+.modal.answer > header{align-items:flex-start;max-height:40vh;overflow:auto;flex:0 0 auto}
+.answer-head{flex:1;min-width:0}
+.answer-head .eyebrow{display:block;text-transform:none;letter-spacing:.02em;font-size:11px;overflow-wrap:anywhere;line-height:1.5}
+.modal.answer .answer-head h3{margin:4px 0 0;line-height:1.35;overflow-wrap:anywhere}
+.answer-rest{margin:0 0 12px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.answer-ctx{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere}
+details.answer-ctx{white-space:normal}
+details.answer-ctx summary{cursor:pointer;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.answer-ctx summary .eyebrow{margin-right:6px}
+details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pre-wrap}
+
+.answer-opts{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.opt{
+  display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:10px;align-items:start;
+  padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--panel-2);cursor:pointer;
+}
+.opt:has(input:checked){border-color:var(--brass);background:var(--panel-3)}
+@media (hover:hover) and (pointer:fine){ .opt:hover{border-color:var(--brass-soft)} .opt:has(input:checked):hover{border-color:var(--brass)} }
+.opt input[type="radio"]{margin:3px 0 0;accent-color:var(--brass)}
+.opt kbd{
+  font-family:var(--font-mono);font-size:10px;line-height:16px;padding:0 5px;margin-top:1px;
+  border:1px solid var(--line);border-radius:3px;color:var(--ink-3);background:var(--panel);
+}
+.opt-tx{min-width:0;display:block}
+.opt-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 8px;cursor:pointer}
+.opt-label b{font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+.opt .rec{
+  font-style:normal;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--brass);border:1px solid var(--brass-soft);border-radius:3px;padding:0 5px;white-space:nowrap;
+}
+.opt-desc{display:block;margin-top:2px;font-size:12.5px;line-height:1.55;color:var(--ink-2);overflow-wrap:anywhere}
+.opt-other textarea{
+  display:block;width:100%;margin-top:8px;min-height:64px;max-height:40vh;resize:vertical;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-s);
+  padding:8px 10px;color:var(--ink);font:inherit;font-size:13px;line-height:1.55;
+}
+.opt-other textarea:focus{outline:0;border-color:var(--brass-soft)}
+.answer-note{margin:12px 0 0}
+.answer-note[hidden]{display:none}
+.answer-note .opt-in{text-transform:none;letter-spacing:0;font-family:var(--font-body);font-size:11px;margin-left:4px}
+.modal.answer > form{display:flex;flex-direction:column;min-height:0;flex:1}
+/* the footer sits inside the form (the submit must be in it), so the
+   .modal > footer rule does not reach it */
+.answer-form > footer{
+  display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:13px 18px;
+  border-top:1px solid var(--line);background:var(--panel-2);
+}
+.answer-form > footer .sp{margin-left:auto;display:flex;gap:8px}
+.answer-hint{min-width:0;flex:1 1 220px;font-size:12px;color:var(--ink-3)}
+.answer-hint.warn{color:var(--block)}
+.kbd-hint{font-family:var(--font-mono);font-size:10px;font-weight:500;opacity:.75;margin-left:6px}
+.kbd-hint:empty{display:none}
+
+/* board: the waiting card and its badge, server board and sisflow board alike */
+.board-col-label{color:var(--ink-3)}
+.board-col[data-col="needs-you"] .board-col-label,
+.sfb-column[data-column-id="needs-you"] .sfb-column-title{color:var(--ask)}
+.board-card.is-needs-you,.sfb-card.is-needs-you{box-shadow:inset 3px 0 0 var(--ask)}
+.needs-badge{
+  display:inline-flex;align-items:center;gap:5px;margin:0 0 5px;padding:1px 8px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+  color:var(--ask);border:1px solid var(--ask);border-radius:999px;background:var(--panel);
+  transition:background-color 150ms ease,transform 120ms var(--ease-out);
+}
+.needs-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ask)}
+.needs-badge:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){ .needs-badge:hover{background:var(--panel-3)} }
+.sfb-card .needs-badge{margin:8px 0 0 10px}

@@ -91,6 +91,10 @@ type Attempt struct {
 
 	Failure string // SigHandoffMissing, or empty
 
+	// Question is set when the turn ended on a question for the operator
+	// (M15). Such a turn owes no handoff: it stopped to ask, by design.
+	Question *GatewayQuestion
+
 	CostUSD   float64
 	TokensIn  int64
 	TokensOut int64
@@ -120,11 +124,17 @@ type Attempt struct {
 // reviewer that special-cased a CLI exit code is the exact failure §7.6.3 names
 // as fatal to two-mode interchangeability.
 func (a Attempt) Outcome() string {
+	if a.Question != nil && a.Failure == "" {
+		return OutcomeAsked
+	}
 	if a.Handoff == nil {
 		return "failed" // and a.Failure is SigHandoffMissing
 	}
 	return a.Handoff.Status
 }
+
+// OutcomeAsked is the outcome of a turn that ended on a question (M15).
+const OutcomeAsked = "asked"
 
 // Adapter is the seam. Two implementations are planned: CLIAdapter here, and an
 // HTTP one behind the identical interface (T-058).

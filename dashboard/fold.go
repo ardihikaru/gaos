@@ -370,6 +370,12 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Scored, d.Score, d.ScoreParts = false, 0, nil
 		d.Meeting = nil
 
+	case QuestionAsked, QuestionAnswered:
+		// M15. Nothing on the floor: the task's status travels in the TaskMoved
+		// beside each of these, and the inbox is its own projection of the
+		// stream (questions.go). A case rather than the default skip, so the
+		// next reader knows the silence was decided.
+
 	// ---- gates ----
 
 	case ApprovalRequested:

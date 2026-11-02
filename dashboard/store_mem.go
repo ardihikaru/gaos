@@ -42,6 +42,11 @@ const liveMode = -1
 type MemStore struct {
 	mu sync.RWMutex
 
+	// live is the broker emit publishes to (D-065). Set on the live store
+	// only: a projection built to fold or replay has none, so the past is
+	// never re-announced as if it were happening now.
+	live *Broker
+
 	rng *rand.Rand
 
 	clock    int
@@ -254,11 +259,15 @@ func newProjection() *MemStore {
 	}
 }
 
+// Live is the store's broker, for GET /events/stream.
+func (s *MemStore) Live() *Broker { return s.live }
+
 // projectionSeed is arbitrary and fixed. See newProjection.
 const projectionSeed uint64 = 20260819
 
 func NewMemStore(seed uint64) *MemStore {
 	s := newProjection()
+	s.live = NewBroker()
 	s.rng = rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15))
 
 	s.products = append([]Product(nil), seedProducts...)
@@ -421,10 +430,11 @@ func (s *MemStore) emit(t EventType, deskID, text, kind string, p EventPayload) 
 	// after it was written, which BR-04 says cannot happen and which would be
 	// invisible until a replay showed the wrong past.
 	e := Event{Seq: s.seq, Type: t, DeskID: deskID, Text: text, Kind: kind, T: s.clock, Payload: p.Clone()}
-	if kind == KindWarn || kind == KindFail || t == ApprovalRequested {
+	if needsNotice(e) {
 		s.notifs++
 	}
 	s.events = append(s.events, e)
+	s.live.Publish(e) // never blocks; see broker.go
 
 	// The ladder, not the record. See snapshotEvery.
 	if e.Seq%snapshotEvery == 0 {
@@ -1360,6 +1370,20 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// is still the best evidence of what happened. It is labelled as a failure
 	// here, under its own name, so the next agent cannot mistake an error for
 	// work somebody handed over.
+	// The operator's answer to the question the last attempt asked (M15). In the
+	// slice, cited, like the handoff below -- and on the packet as well, so the
+	// gateway adapter can send it through the answer route that resumes the
+	// session which asked.
+	if q, ok := s.answerForLocked(taskID, attempt); ok {
+		const path = ".gaos/packet/context/answer.md"
+		body := questionBody(q.QuestionPayload)
+		add(path, KindContext, body)
+		cite("Artifact", q.RunID+"-question", CiteLesson, path, body)
+		if q.Attempt == attempt-1 {
+			pkt.Answer = &PacketAnswer{QuestionID: q.ID, Choice: q.Choice, Text: q.Text}
+		}
+	}
+
 	if a, ok := s.latestHandoffFor(d.ID, taskID, attempt); ok {
 		path, body := ".gaos/packet/context/handoff-previous.md", a.Body
 		if sig := s.failureOfRunLocked(a.RunID); sig != "" {
