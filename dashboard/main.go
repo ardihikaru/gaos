@@ -244,6 +244,26 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 	}
 
+	// D-066: a question closes with the session that asked it. Swept once a
+	// minute whatever the runner switch says -- expiring spends nothing, and a
+	// task left waiting on a question nobody can answer any more is a lie.
+	go func() {
+		t := time.NewTicker(questionSweep)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case now := <-t.C:
+				if res, err := store.ExpireQuestions(ctx, now.Unix()); err != nil {
+					log.Printf("question sweep: %v", err)
+				} else if n := len(res.NewEvents); n > 0 {
+					log.Printf("question sweep: %d question(s) expired with their session", n)
+				}
+			}
+		}
+	}()
+
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter}
 
 	h := gzipMiddleware(srv.routes())

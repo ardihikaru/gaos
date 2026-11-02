@@ -42,6 +42,9 @@ func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMov
 func (s *ArcadeStore) OpenQuestions(ctx context.Context, id string) ([]Question, error) {
 	return s.proj.OpenQuestions(ctx, id)
 }
+func (s *ArcadeStore) ExpireQuestions(ctx context.Context, now int64) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.ExpireQuestions(ctx, now) })
+}
 func (s *ArcadeStore) AnswerQuestion(ctx context.Context, id, taskID string, choice int, text string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerQuestion(ctx, id, taskID, choice, text) })
 }
