@@ -757,6 +757,7 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 			return ro.AddKnowledgeSource(ctx, "p-1", KnowledgeSource{URL: "https://x.io/r", Ref: "v1"})
 		},
 		"PublishBlueprint": func() (Result, error) { return ro.PublishBlueprint(ctx, "p-1") },
+		"SyncBlueprint":    func() (Result, error) { return ro.SyncBlueprint(ctx, "p-1") },
 		"CreateWorkflow":   func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {

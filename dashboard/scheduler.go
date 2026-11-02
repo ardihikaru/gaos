@@ -209,8 +209,19 @@ func Schedule(in SchedulerInput) ScheduleDecision {
 	sort.Slice(leases, func(i, j int) bool { return leases[i].Workspace < leases[j].Workspace })
 
 	status := make(map[string]string, len(tasks))
+	// The graph lease, BR-38 / D-060: one live turn per product. A task that
+	// is DISPATCHED or RUNNING holds its product, whether or not a workspace
+	// folder exists on this host -- through the gateway the folder that
+	// matters is on another machine, and a lockfile here proves nothing about
+	// it. Read from the graph, so it is as pure as the rest of this function.
+	liveIn := map[string]string{}
 	for _, t := range tasks {
 		status[t.ID] = t.Status
+		if (t.Status == StatusDispatched || t.Status == StatusRunning) && t.DeskID != "" {
+			if have, ok := liveIn[t.DeskID]; !ok || t.ID < have {
+				liveIn[t.DeskID] = t.ID
+			}
+		}
 	}
 
 	// The cycle check. CreateWorkflow refuses one at planning time, so finding
@@ -303,6 +314,11 @@ func Schedule(in SchedulerInput) ScheduleDecision {
 		// workspace corrupt each other silently".
 		ws := in.Workspaces[t.ID]
 		switch {
+		case liveIn[t.DeskID] != "" && liveIn[t.DeskID] != t.ID:
+			reasons[BlockedByLease] = fmt.Sprintf("product %s has a live turn (%s); one at a time per workspace (BR-38)",
+				t.DeskID, liveIn[t.DeskID])
+		case claimed["desk:"+t.DeskID]:
+			reasons[BlockedByLease] = "product " + t.DeskID + " was taken by an earlier task in this same pass (BR-38)"
 		case ws == "":
 			// No workspace root configured, so there is nothing to be exclusive
 			// about. Today that is every deployment; see MemStore.workspaceFor.
@@ -331,6 +347,7 @@ func Schedule(in SchedulerInput) ScheduleDecision {
 		if ws != "" {
 			claimed[ws] = true
 		}
+		claimed["desk:"+t.DeskID] = true
 		out.Ready = append(out.Ready, Dispatch{
 			TaskID: t.ID, WorkflowID: t.WorkflowID, DeskID: t.DeskID,
 			Role: t.Role, AgentID: seat, Workspace: ws, Model: t.Model,

@@ -28,13 +28,15 @@
        data-version-to=""></div>
 
   <div class="adm warn">
-    <p class="adm-title">Half built, as of v0.24.0</p>
+    <p class="adm-title">Built, as of v0.25.0, but for one check</p>
     <p>Decided by <a href="decision-log.html#d-058">D-058</a>. <strong>Built</strong>
     (<a href="../delivery/implementation-plan.html#sub-m14-3">M14.3</a>): policies, knowledge sources,
     the deterministic render, publishing immutable versions, and the back office's Blueprint tab.
-    <strong>Not yet</strong> (<a href="../delivery/implementation-plan.html#sub-m14-4">M14.4</a>):
-    writing a version into the product's workspace, pinning it to an attempt, and drift detection —
-    so today a published Blueprint is recorded and does not yet reach a model.</p>
+    <strong>Since v0.25.0</strong> (<a href="../delivery/implementation-plan.html#sub-m14-4">M14.4</a>):
+    <em>Sync to workspace</em> writes the published version into the product's workspace, screened by
+    the egress pass; a dispatch through the gateway is refused as drift until the workspace holds the
+    published version, and every attempt pins it. <strong>Not yet:</strong> the after-the-turn
+    comparison of what the worker loaded with the manifest.</p>
   </div>
 
   <h2 id="what-it-is">What a Blueprint is, and is not</h2>

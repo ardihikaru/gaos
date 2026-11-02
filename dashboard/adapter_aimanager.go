@@ -173,7 +173,9 @@ func (a *AIMAdapter) poll(ctx context.Context, c Cleared, reqID string) (Attempt
 			return Attempt{}, err
 		}
 		if done {
-			return a.attemptFrom(c, reply), nil
+			att := a.attemptFrom(c, reply)
+			att.RequestID = reqID
+			return att, nil
 		}
 		select {
 		case <-dc.Done():
@@ -209,7 +211,7 @@ func (a *AIMAdapter) attemptFrom(c Cleared, r ChatReply) Attempt {
 		model = a.Model
 	}
 	att := Attempt{Invocation: InvocationGateway, Model: model, Digest: c.Digest(), ExitClass: ExitRan,
-		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, LogRef: a.writeReply(c, r.Text)}
+		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, LogRef: a.writeReply(c, r.Text), SessionID: r.SessionID}
 	att.CostUSD, att.CostBasis = gatewayCost(r)
 	h, raw, err := ExtractHandoff(r.Text, p.TaskID, p.RunID)
 	att.HandoffRaw = raw

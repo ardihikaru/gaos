@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,11 +31,16 @@ type fakeAIM struct {
 	submit   int    // POST status; 0 = 202
 	down     bool
 	provider string
+
+	// The provisioning half: files per workspace, as the worker would keep
+	// them, and how many writes reached it (TC-293 asserts zero).
+	spaces map[string][]WorkspaceFile
+	writes int
 }
 
 func newFakeAIM(t *testing.T) (*fakeAIM, *AIMAdapter) {
 	t.Helper()
-	f := &fakeAIM{posts: map[string]int{}, provider: "claude"}
+	f := &fakeAIM{posts: map[string]int{}, provider: "claude", spaces: map[string][]WorkspaceFile{}}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
 	ad := &AIMAdapter{
@@ -78,6 +85,8 @@ func (f *fakeAIM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(f.status)
 		}
 		w.Write([]byte(f.reply))
+	case strings.HasPrefix(r.URL.Path, "/admin/"):
+		f.serveAdmin(w, r)
 	case r.URL.Path == "/v1/providers":
 		fmt.Fprintf(w, `{"providers":[{"name":%q,"available":true},{"name":"minimax","available":true}]}`, f.provider)
 	default:
@@ -254,4 +263,43 @@ func TestTheGatewayCredentialsNeverReachTheRecord(t *testing.T) {
 			t.Fatal("the admin key was sent on a chat route; it is for provisioning only")
 		}
 	}
+}
+
+// serveAdmin answers the provisioning routes with the worker's manifest shape
+// and its digest formula, so a sync against it proves the real arithmetic.
+func (f *fakeAIM) serveAdmin(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID    string          `json:"id"`
+		Files []WorkspaceFile `json:"files"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+	id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/admin/workspaces/"), "/files")
+	switch {
+	case r.Method == "POST" && r.URL.Path == "/admin/workspaces/provision":
+		status := http.StatusOK
+		if _, ok := f.spaces[body.ID]; !ok {
+			f.spaces[body.ID], status = body.Files, http.StatusCreated
+			f.writes++
+		}
+		w.WriteHeader(status)
+		fmt.Fprintf(w, `{"workspace":%s,"chat_listed_now":true,"active":true}`, f.manifest(body.ID))
+	case f.spaces[id] == nil:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"unknown workspace"}`))
+	case r.Method == "PUT":
+		f.spaces[id] = body.Files
+		f.writes++
+		w.Write([]byte(f.manifest(id)))
+	default:
+		w.Write([]byte(f.manifest(id)))
+	}
+}
+
+func (f *fakeAIM) manifest(id string) string {
+	files := make([]BlueprintFile, len(f.spaces[id]))
+	for i, wf := range f.spaces[id] {
+		sum := sha256.Sum256([]byte(wf.Content))
+		files[i] = BlueprintFile{Path: wf.Path, SHA256: hex.EncodeToString(sum[:])}
+	}
+	return fmt.Sprintf(`{"id":%q,"manifest_digest":%q,"files":[]}`, id, BlueprintDigest(files))
 }

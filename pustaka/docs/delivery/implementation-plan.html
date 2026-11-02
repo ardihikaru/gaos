@@ -16,8 +16,8 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fifteen modules of work you can pick up one at a time.
-  One hundred and sixty-nine tasks: sixty-seven done, sixteen standing on fixtures or partly done,
-  eighty-one not started, and five superseded by the move to ai-manager as the gateway.</p>
+  One hundred and sixty-nine tasks: seventy done, sixteen standing on fixtures or partly done,
+  seventy-eight not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
@@ -54,7 +54,7 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Sixty-seven tasks are done. Twelve of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, and the Blueprint with its schema and its tab. Eleven are the operator surface, five are the schema, and
+    <p>Seventy tasks are done. Fifteen of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, and one workspace per product with its sync, its drift gate and the graph lease. Eleven are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -98,8 +98,8 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>12</td><td>1</td><td>15</td><td>0</td><td><a href="#register">T-155</a> &mdash; one workspace per product, now that the upstream can create one</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>67</b></td><td><b>16</b></td><td><b>81</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>15</td><td>1</td><td>12</td><td>0</td><td><a href="#register">T-158</a> &mdash; the brief, then sessions per task and recovery by request id</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>70</b></td><td><b>16</b></td><td><b>78</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -309,10 +309,10 @@
       <tr data-tags="blueprint schema policy knowledge-source version done built m14.3"><td>T-151</td><td>M14.3</td><td><code>Policy</code>, <code>KnowledgeSource</code> and <code>BlueprintVersion</code> in <code>schema/11-blueprint.sql</code> and both stores &mdash; done 2026-11-02, <code>schema/11-blueprint.sql</code> proved on a scratch 26.7.2</td><td>A-8, A-9</td><td>✅</td></tr>
       <tr data-tags="blueprint render digest publish immutable done built m14.3"><td>T-152</td><td>M14.3</td><td>Deterministic render and digest; publishing stores an immutable version and an unchanged Blueprint publishes nothing &mdash; done 2026-11-02, <code>dashboard/blueprint.go</code>; the digest reproduces the production worker's</td><td>A-10</td><td>✅</td></tr>
       <tr data-tags="blueprint back-office tab ui done built m14.3"><td>T-153</td><td>M14.3</td><td>A Blueprint tab in the back office: policies, knowledge sources, publish &mdash; done 2026-11-02, <code>templates/backoffice.html</code> pane-blueprint</td><td>A-8, A-9</td><td>✅</td></tr>
-      <tr data-tags="blueprint egress screen caps partial m14.3"><td>T-154</td><td>M14.3</td><td>The egress pass over every rendered file, and a refused publish over the caps that names the policy &mdash; the caps and the allowlist refuse at publish and name the policy; the egress pass over the rendered files runs with the sync, M14.4</td><td>BR-32, BR-42</td><td>🟡</td></tr>
-      <tr data-tags="workspace provision product id todo not-built m14.4"><td>T-155</td><td>M14.4</td><td>Provision one workspace per product with a derived, never-renamed id</td><td>A-11</td><td>❌</td></tr>
-      <tr data-tags="workspace sync drift digest todo not-built m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn</td><td>D-17, BR-39</td><td>❌</td></tr>
-      <tr data-tags="workspace graph lease one turn scheduler todo not-built m14.4"><td>T-157</td><td>M14.4</td><td>The graph lease: one live turn per product workspace, read by the scheduler's lease block</td><td>D-18, BR-38</td><td>❌</td></tr>
+      <tr data-tags="blueprint egress screen caps done built m14.3"><td>T-154</td><td>M14.3</td><td>The egress pass over every rendered file, and a refused publish over the caps that names the policy &mdash; done 2026-11-02: caps and allowlist at publish, the egress pass at sync (<code>DispatchRefused</code> rule <code>egress-blueprint</code>); TC-293</td><td>BR-32, BR-42</td><td>✅</td></tr>
+      <tr data-tags="workspace provision product id done built m14.4"><td>T-155</td><td>M14.4</td><td>Provision one workspace per product with a derived, never-renamed id &mdash; done 2026-11-02, <code>dashboard/workspace.go</code>, through <code>POST /admin/workspaces/provision</code>; TC-291</td><td>A-11</td><td>✅</td></tr>
+      <tr data-tags="workspace sync drift digest partial m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn &mdash; the sync and the pre-dispatch drift gate are done (TC-292); comparing the context the worker observed after the turn is not</td><td>D-17, BR-39</td><td>🟡</td></tr>
+      <tr data-tags="workspace graph lease one turn scheduler done built m14.4"><td>T-157</td><td>M14.4</td><td>The graph lease: one live turn per product workspace, read by the scheduler's lease block &mdash; done 2026-11-02: a DISPATCHED or RUNNING task holds its product in <code>Schedule</code>, folder or no folder; TC-295</td><td>D-18, BR-38</td><td>✅</td></tr>
       <tr data-tags="turn brief prompt slice todo not-built m14.5"><td>T-158</td><td>M14.5</td><td><code>BuildBrief</code> and <code>RenderPrompt</code>; the context slice freezes the brief &mdash; <code>dashboard/brief.go</code></td><td>D-6, D-17</td><td>❌</td></tr>
       <tr data-tags="turn submit poll durable record todo not-built m14.5"><td>T-159</td><td>M14.5</td><td>Submit, poll and finish a turn; store the prompt, the reply and the metadata &mdash; <code>dashboard/turns.go</code></td><td>D-19, BR-41</td><td>❌</td></tr>
       <tr data-tags="turn session policy resume escalation todo not-built m14.5"><td>T-160</td><td>M14.5</td><td>One session per task: resume on retry, a new one on escalation, <code>410</code> or rotation</td><td>D-15, BR-40</td><td>❌</td></tr>
@@ -1279,6 +1279,17 @@
   on ArcadeDB is proved on the scratch database before this ships.</p>
 
   <h3 id="sub-m14-4">M14.4 — Workspace and sync (T-155–T-157)</h3>
+  <p><strong>Done 2026-11-02, but for one check.</strong> <a href="../product/qa-test-plan.html#go-workspace">TC-291…TC-295</a>.
+  A published Blueprint now reaches the product's workspace through the Blueprint tab's <em>Sync to
+  workspace</em>, screened by the egress pass on the way (finishing <code>T-154</code>); a dispatch
+  whose workspace does not hold the published version is refused as <code>blueprint-drift</code> on
+  both routes and released by the next sync; every gateway attempt pins its version
+  (<code>PINNED_TO</code>) and records its request and session ids. Two choices worth knowing: the
+  product's workspace is recorded on the record document rather than on the <code>Workspace</code>
+  vertex, whose mandatory <code>path</code> GAOS no longer has (BR-42); and the lease is the graph's
+  own — a DISPATCHED or RUNNING task holds its product — rather than a property written to that
+  vertex. Still open in <code>T-156</code>: comparing what the worker reports it loaded after a turn
+  with the manifest.</p>
   <p>Needs <code>M14.1</code>. The lease survives as a property of the product's
   <code>Workspace</code> vertex — <code>leasedBy</code> and <code>leaseUntil</code> already exist in
   <code>schema/04-execution.sql</code> — because one folder per product means two turns would be two

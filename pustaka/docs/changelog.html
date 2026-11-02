@@ -36,6 +36,39 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-25-0">v0.25.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A published Blueprint now reaches
+      the product's workspace, and nothing is dispatched through the gateway under rules the workspace
+      does not hold. M14.4.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>one workspace per product.</b> <em>Sync to
+        workspace</em> on the Blueprint tab provisions <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>
+        through ai-manager the first time and replaces its files after, guarded by the digest; a repeat
+        is a no-op. The files pass the egress pass first, and a credential in a policy refuses the sync
+        with <code>DispatchRefused</code> rule <code>egress-blueprint</code> before anything is written
+        — which finishes <code>T-154</code>. <code>WorkspaceProvisioned</code> and
+        <code>BlueprintSynced</code> join the catalog and the fold.</li>
+        <li><span class="chg add">Added</span> <b>the drift gate and the pin</b> (BR-39). Through the
+        gateway, a product whose workspace does not hold its published Blueprint is refused as
+        <code>blueprint-drift</code> on the scheduler's route and the operator's alike, and the next sync
+        releases it. Every attempt records the version it ran under (<code>PINNED_TO</code>), its
+        request id and its session id.</li>
+        <li><span class="chg change">Changed</span> <b>one live turn per product</b> (BR-38). The
+        scheduler now treats a DISPATCHED or RUNNING task as holding its product, folder or no folder.
+        Two workspaces of one product no longer license two runs, and
+        <a href="product/qa-test-plan.html#register">TC-218</a>'s second half moved to two products.</li>
+        <li><span class="chg fix">Fixed</span> <b>a data race in ai-cli-common</b>
+        (<code>ardi-personal-workspace-ai</code> PR #323, deployed): <code>CreateFromSpec</code> handed
+        its caller the job a worker was already writing, which the <code>POST /v1/jobs</code> handler
+        read for its <code>202</code>; and test managers that never drained their workers.</li>
+        <li><span class="chg fix">Fixed</span> <b>the handoff artifact constraint is live on dev</b> —
+        <code>schema: 365 statements from the embedded DDL, none failed (169 accepted, 196 already
+        declared)</code>. It was latent rather than active there: dev runs no adapter, so nothing had
+        tried to store a handoff yet.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-24-0">v0.24.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The first three phases of M14,
       the same day they were written down. The upstream can now create a workspace, GAOS can run a turn
