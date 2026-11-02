@@ -224,14 +224,16 @@ LIMIT 20</pre>
 
   <h2 id="connection">Connecting to it here</h2>
 
-  <p>Two instances run on the private VM, one per tier, reached by container DNS on a shared
-  network — no host ports:</p>
+  <p>Since 2026-11-02 both tiers use <strong>one</strong> ArcadeDB 26.7.2, the shared instance on
+  <code>clinodb</code>, reached over WireGuard through a relay that publishes on the tunnel address
+  only (<code>deploy/clinodb/compose.arcade-bridge.yml</code>). The tiers are kept apart by database
+  and by user, each user refused on the other's database:</p>
 
   <table class="tbl">
-    <thead><tr><th>Tier</th><th>URL</th><th>Network</th></tr></thead>
+    <thead><tr><th>Tier</th><th>URL</th><th>Database</th><th>User</th></tr></thead>
     <tbody>
-      <tr><td>dev</td><td><code>http://arcadedb-master-dev:2480</code></td><td><code>master-compose-ai-dev-net</code></td></tr>
-      <tr><td>prod</td><td><code>http://arcadedb-master:2480</code></td><td><code>master-compose-ai-net</code></td></tr>
+      <tr><td>dev</td><td><code>http://10.10.0.5:2480</code></td><td><code>gaos_dev</code></td><td><code>gaos_dev</code></td></tr>
+      <tr><td>prod</td><td><code>http://10.10.0.5:2480</code></td><td><code>gaos</code></td><td><code>gaos_prod</code></td></tr>
     </tbody>
   </table>
 

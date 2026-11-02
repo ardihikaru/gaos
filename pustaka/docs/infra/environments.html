@@ -195,8 +195,9 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
   <table class="tbl">
     <thead><tr><th>Setting</th><th>Dev</th><th>Prod</th></tr></thead>
     <tbody>
-      <tr><td><code>GAOS_AIM_URL</code></td><td colspan="2"><code>https://ai-manager.mfardiansyah.id</code></td></tr>
-      <tr><td><code>GAOS_AIM_CHAT_AUTH_FILE</code>, <code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td colspan="2">Mounted secret files, one pair per tier</td></tr>
+      <tr><td><code>GAOS_MODEL_MODE</code></td><td><code>aimanager</code> since 2026-11-02</td><td>not yet</td></tr>
+      <tr><td><code>GAOS_AIM_URL</code></td><td colspan="2"><code>http://10.10.0.4:8099</code> — ai-manager on <code>rnd-v2-vpn</code>, over WireGuard</td></tr>
+      <tr><td><code>GAOS_AIM_CHAT_AUTH_FILE</code>, <code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td colspan="2"><code>deploy/stacks/&lt;tier&gt;.aim-chat.json</code> and <code>&lt;tier&gt;.aim-admin-key</code>, mode 600, mounted read-only at <code>/run/secrets/</code>; the dashboard runs as the deploy uid so it can read them</td></tr>
       <tr><td>Workspace ids</td><td><code>gaos-&lt;dev tenant&gt;-*</code></td><td><code>gaos-&lt;prod tenant&gt;-*</code></td></tr>
       <tr><td><code>GAOS_RUNNER</code></td><td><code>on</code> only while acceptance runs</td><td>The owner's decision — it is the permission to spend</td></tr>
     </tbody>
