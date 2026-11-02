@@ -129,7 +129,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	// and one that has a live child are different recoveries, and collapsing
 	// them would mean either killing work that was fine or requeuing work that
 	// never started.
-	s.moveTaskByID(taskID, StatusRunning)
+	s.moveTaskByID(taskID, StatusRunning, MoveStart)
 	s.mu.Lock()
 	s.markRun(runID, RunStatusRunning)
 	s.mu.Unlock()
@@ -159,6 +159,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	s.beatOnce(deskID, runID, time.Now().Unix(), 0, false, true)
 
 	s.finishRun(deskID, taskID, runID, att, nil)
+	s.checkAfterTurn(ctx, deskID, runID, att)
 	return att, nil
 }
 
@@ -233,13 +234,16 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	// attempt, so the furthest this may move a task is REVIEW -- M5 decides the
 	// rest. The two exceptions are failures of the invocation rather than of the
 	// work: no handoff at all (BR-30), and a run that never started.
+	to := StatusReview
 	switch {
 	case runErr != nil, att.Failure != "":
-		s.moveTaskLocked(taskID, StatusFailed)
+		to = StatusFailed
 	case att.Outcome() == HandoffBlocked:
-		s.moveTaskLocked(taskID, StatusBlocked)
-	default:
-		s.moveTaskLocked(taskID, StatusReview)
+		to = StatusBlocked
+	}
+	var out []Event
+	if m, ok := s.moveTaskLocked(taskID, to, MoveExit); ok {
+		out = append(out, m)
 	}
 
 	if i := s.deskIdxByID(deskID); i >= 0 {
@@ -259,12 +263,12 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 			}
 		}
 	}
-	e := s.emit(RunExited, deskID, text, kind, p)
+	out = append(out, s.emit(RunExited, deskID, text, kind, p))
 	s.mu.Unlock()
 
 	// Outside the lock on purpose: publish is a database round trip, and one
 	// slow write must not hold the floor closed against every reader.
-	s.publish(e)
+	s.publish(out...)
 }
 
 // beat runs until the run is over. Its own goroutine because the adapter call
@@ -329,19 +333,37 @@ func (s *MemStore) emitLocked(t EventType, deskID, text, kind string, p EventPay
 // purpose: moveTask already returns the reason, the caller is a supervisor with
 // nowhere to put it, and the state machine's job is to refuse the write rather
 // than to unwind the run around it.
-func (s *MemStore) moveTaskByID(id, to string) {
+func (s *MemStore) moveTaskByID(id, to, rule string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.moveTaskLocked(id, to)
+	e, ok := s.moveTaskLocked(id, to, rule)
+	s.mu.Unlock()
+	if ok {
+		s.publish(e)
+	}
 }
 
-func (s *MemStore) moveTaskLocked(id, to string) {
+// moveTaskLocked moves one task and writes the TaskMoved that says so (T-164).
+//
+// Every status change is an event naming the TASK, whoever made it -- the
+// board, the scheduler, the runner, recovery, a drift release. Rule names that
+// actor and To carries the status it reached, so taskfold.go can rebuild every
+// card from the stream without reading a caption. A move to the status the task
+// already has changes nothing and writes nothing. The caller publishes the
+// returned event once it has let go of the lock.
+func (s *MemStore) moveTaskLocked(id, to, rule string) (Event, bool) {
 	for i := range s.tasks {
-		if s.tasks[i].ID == id {
-			_ = moveTask(&s.tasks[i], to)
-			return
+		t := &s.tasks[i]
+		if t.ID != id {
+			continue
 		}
+		from := t.Status
+		if from == to || moveTask(t, to) != nil {
+			return Event{}, false
+		}
+		return s.emit(TaskMoved, t.DeskID, fmt.Sprintf("%s: %s (%s → %s)", id, rule, from, to), KindInfo,
+			EventPayload{Task: id, Rule: rule, Reason: from + "→" + to, To: to}), true
 	}
+	return Event{}, false
 }
 
 // schedulerTick is how often the control loop asks. Seconds rather than
@@ -408,8 +430,8 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 		// PENDING -> READY -> DISPATCHED, both legal and both meaningful. READY
 		// is the scheduler's verdict; DISPATCHED is this loop acting on it, and
 		// the gap between them is what boot reconciliation reads.
-		s.moveTaskByID(d.TaskID, StatusReady)
-		s.moveTaskByID(d.TaskID, StatusDispatched)
+		s.moveTaskByID(d.TaskID, StatusReady, MoveSchedule)
+		s.moveTaskByID(d.TaskID, StatusDispatched, MoveSchedule)
 
 		dispatch, task := d, d.TaskID
 		go func() {
@@ -417,7 +439,7 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 				// The run never started. Put the task back rather than leaving
 				// it DISPATCHED forever, which would make the next boot
 				// reconcile a run that does not exist.
-				s.moveTaskByID(task, StatusReady)
+				s.moveTaskByID(task, StatusReady, MoveNotStarted)
 			}
 		}()
 	}
@@ -483,7 +505,7 @@ func (s *MemStore) refuseDispatch(d Dispatch, v EgressVerdict) {
 	}
 	s.mu.Unlock()
 
-	s.moveTaskByID(d.TaskID, StatusBlocked)
+	s.moveTaskByID(d.TaskID, StatusBlocked, MoveRefused)
 	s.publish(ev...)
 }
 
@@ -510,8 +532,8 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 		if taken[t.ID] || (t.Status != StatusDispatched && t.Status != StatusRunning) || s.hasOpenTurnLocked(t.ID) {
 			continue
 		}
-		if moveTask(t, StatusReady) == nil {
-			ev = append(ev, s.emit(TaskResumed, t.DeskID, t.ID+" requeued: it claimed to be running and no turn was ever recorded",
+		if m, ok := s.moveTaskLocked(t.ID, StatusReady, RuleRequeued); ok {
+			ev = append(ev, m, s.emit(TaskResumed, t.DeskID, t.ID+" requeued: it claimed to be running and no turn was ever recorded",
 				KindWarn, EventPayload{Rule: RuleRequeued}))
 			if j := s.deskIdxByID(t.DeskID); j >= 0 {
 				_ = s.setState(&s.desks[j], StateIdle)

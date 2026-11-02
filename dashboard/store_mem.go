@@ -1271,6 +1271,23 @@ func (s *MemStore) latestHandoffFor(deskID, taskID string, attempt int) (Artifac
 	return best, found
 }
 
+// failureOfRunLocked is the failure signature of the run, or "" when it did
+// not fail (or is not known). Assumes the lock is held.
+func (s *MemStore) failureOfRunLocked(runID string) string {
+	for _, r := range s.runs {
+		if r.ID == runID {
+			return r.FailureSignature
+		}
+	}
+	return ""
+}
+
+// failureLesson is how a failed attempt's stored text reaches the next agent:
+// said to be an error before it is shown.
+func failureLesson(runID, sig, body string) string {
+	return fmt.Sprintf("The previous attempt (run %s) failed with `%s`. What follows is the error it returned, not a handoff from an agent.\n\n%s", runID, sig, body)
+}
+
 // freezePacketFor is freezePacket with the task id supplied.
 //
 // The operator-triggered route has no graph task behind it and passes the
@@ -1338,9 +1355,19 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// the next agent only through USES_CONTEXT on that agent's slice", which is
 	// what makes it possible to ask afterwards what attempt two was told about
 	// attempt one.
+	//
+	// A failed turn's error text is stored as its attempt's handoff, because it
+	// is still the best evidence of what happened. It is labelled as a failure
+	// here, under its own name, so the next agent cannot mistake an error for
+	// work somebody handed over.
 	if a, ok := s.latestHandoffFor(d.ID, taskID, attempt); ok {
-		add(".gaos/packet/context/handoff-previous.md", KindContext, a.Body)
-		cite("Artifact", a.ID, CiteLesson, ".gaos/packet/context/handoff-previous.md", a.Body)
+		path, body := ".gaos/packet/context/handoff-previous.md", a.Body
+		if sig := s.failureOfRunLocked(a.RunID); sig != "" {
+			path = ".gaos/packet/context/failure-previous.md"
+			body = failureLesson(a.RunID, sig, a.Body)
+		}
+		add(path, KindContext, body)
+		cite("Artifact", a.ID, CiteLesson, path, body)
 	}
 
 	m := s.masterPtr(d.ID)
@@ -1878,7 +1905,8 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	for _, t := range graph {
 		planned.Tasks = append(planned.Tasks, PlannedTask{
 			ID: t.ID, Title: t.Title, Role: t.Role,
-			Deps: append([]string(nil), t.Deps...),
+			Deps:  append([]string(nil), t.Deps...),
+			Story: t.Story, Model: t.Model, Gate: t.Gate, Priority: taskPriority(d.Priority),
 		})
 	}
 	ev := []Event{

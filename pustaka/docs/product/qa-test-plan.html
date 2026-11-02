@@ -16,10 +16,10 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and fifteen cases, positive and negative, across the four deploy automations and the
+  three hundred and twenty cases, positive and negative, across the four deploy automations and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
-  layer in v0.29.0 and struck rather than deleted — thirty-four of the gateway's thirty-six forward
-  specifications now running — two still waiting, plus
+  layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
+  specifications now running, plus
   the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and fifteen cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and twenty cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -396,14 +396,19 @@
       <tr data-tags="board kanban legal move events positive implemented go test unit dashboard"><td>TC-305</td><td>dashboard (go test)</td><td>Positive</td><td>Each legal move produces its events and its status (<code>TestEachLegalMoveProducesItsEventAndStatus</code>)</td><td>Implemented</td></tr>
       <tr data-tags="board kanban illegal move 409 no event br-43 negative implemented go test unit dashboard"><td>TC-306</td><td>dashboard (go test)</td><td>Negative</td><td>Every move outside the legal-move table answers <code>409</code> and writes no event (<code>TestAMoveOutsideTheTableAnswers409AndWritesNoEvent</code>)</td><td>Implemented</td></tr>
       <tr data-tags="board kanban lane create delete 409 negative implemented go test unit dashboard"><td>TC-307</td><td>dashboard (go test)</td><td>Negative</td><td>A lane change, a card create and a card delete each answer <code>409</code> (<code>TestALaneChangeACreateAndADeleteAnswer409</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="board task fold replay positive not-implemented"><td>TC-308</td><td>dashboard (go test)</td><td>Positive</td><td>A fold over the events reproduces the board</td><td>Not implemented</td></tr>
+      <tr data-tags="board task fold replay taskmoved t-164 positive implemented go test unit dashboard"><td>TC-308</td><td>dashboard (go test)</td><td>Positive</td><td>A fold over the events reproduces the board, after every actor that moves a task has moved one (<code>TestTheTaskFoldReproducesTheBoard</code>)</td><td>Implemented</td></tr>
       <tr data-tags="board replay read-only refuses move br-20 negative implemented go test unit dashboard"><td>TC-309</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only replay handle refuses every move (<code>TestTheReplayHandleRefusesEveryMove</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="check-stacks licence sisflow vendored br-27 negative not-implemented"><td>TC-310</td><td>check-stacks.sh</td><td>Negative</td><td>A vendored sisflow board without its licence beside it fails the deploy pre-flight</td><td>Not implemented</td></tr>
+      <tr data-tags="check-stacks licence sisflow vendored br-27 d-063 negative implemented"><td>TC-310</td><td>check-stacks.sh</td><td>Negative</td><td>A vendored sisflow board without its licence or its NOTICE beside it fails the deploy pre-flight</td><td>Implemented</td></tr>
       <tr data-tags="blueprint arcadedb restart persistence go test unit dashboard positive implemented"><td>TC-311</td><td>dashboard (go test)</td><td>Positive</td><td>A policy, a knowledge source and a published Blueprint version come back from a reopened ArcadeDB store (<code>TestTheBlueprintSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint back-office tab template render publish session go test unit dashboard positive implemented"><td>TC-312</td><td>dashboard (go test)</td><td>Positive</td><td>The back-office Blueprint tab renders, saves a policy and publishes version 1, and refuses a publish without a session (<code>TestTheBlueprintTabRendersAndPublishes</code>)</td><td>Implemented</td></tr>
       <tr data-tags="arcadedb least privilege user create database boot schema go test unit dashboard positive implemented"><td>TC-313</td><td>dashboard (go test)</td><td>Positive</td><td>A user who may read its database but not create it boots, and one who can do neither is refused with both reasons (<code>TestALeastPrivilegeUserBootsAgainstADatabaseItCannotCreate</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard home page product list sign in floor retired t-168 positive"><td>TC-314</td><td>dashboard (go test)</td><td>Positive</td><td>Signed in, <code>GET /</code> opens on the product list with no floor and no ticker; signed out, on the sign-in sheet with the product master closed (<code>TestTheHomePageIsTheProductListAndSignedOutItAsksForASignIn</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard timeline product events tab t-168 negative"><td>TC-315</td><td>dashboard (go test)</td><td>Negative</td><td>A product's Timeline tab shows the event just written for it and not the one written for another product (<code>TestAProductsTimelineShowsItsOwnEventsAndNoOtherProducts</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="board task fold replay dropped move t-164 negative implemented go test unit dashboard"><td>TC-316</td><td>dashboard (go test)</td><td>Negative</td><td>A fold missing the last <code>TaskMoved</code> disagrees with the board (<code>TestATaskFoldMissingAMoveDisagreesWithTheBoard</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint workspace drift after turn rewritten digest observed-drift br-39 t-156 positive implemented go test unit dashboard"><td>TC-317</td><td>dashboard (go test)</td><td>Positive</td><td>A workspace rewritten during the turn refuses the next dispatch, and a sync releases it (<code>TestAWorkspaceRewrittenDuringTheTurnRefusesTheNextDispatch</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint observed context parent claude.md missing rule agent drift br-39 t-156 positive implemented go test unit dashboard"><td>TC-318</td><td>dashboard (go test)</td><td>Positive</td><td>A parent <code>CLAUDE.md</code>, a missing rule, a rule GAOS did not render or an agent in the observed context is drift (<code>TestAnObservedContextGAOSDidNotWriteIsDrift</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint observed context matching no drift t-156 negative implemented go test unit dashboard"><td>TC-319</td><td>dashboard (go test)</td><td>Negative</td><td>A matching observed context, or none at all, does not block the product (<code>TestAMatchingObservedContextIsNotDrift</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="handoff lesson failed turn failure-previous packet label positive negative implemented go test unit dashboard"><td>TC-320</td><td>dashboard (go test)</td><td>Positive</td><td>A failed turn's error reaches the next agent as <code>failure-previous.md</code>, labelled; a clean turn's handoff is still <code>handoff-previous.md</code> (<code>TestAFailedTurnIsCitedAsAFailureNotAHandoff</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -549,6 +554,19 @@
   <code>echarts has no LICENSE-echarts.txt</code>, <code>echarts has no NOTICE-echarts.txt</code>
   and <code>echarts cites LICENSE-d3 and none is vendored</code>. Any of them makes the script exit
   1, which stops the deploy at pre-flight.</p>
+
+  <h3 id="cs-sisflow">check-stacks.sh — the vendored sisflow board ships with its grant (TC-310)</h3>
+  <p><code>T-165</code>. The sisflow board is vendored into the dashboard image, under
+  <code>dashboard/static/vendor/sisflow/</code>, rather than into the docs, and it ships under the
+  owner's Apache-2.0 grant (<a href="decision-log.html#d-063">D-063</a>, which answered
+  <a href="open-questions.html#oq-25">OQ-25</a>). The check runs only when the board's
+  <code>board/index.js</code> is present, so a tree without the board passes.
+  <strong>Positive:</strong> <code>sisflow has its licence text</code> and <code>sisflow has its
+  NOTICE</code> — the <code>NOTICE</code> records the grant and the source commit.
+  <strong>Negative (TC-310):</strong> the board present without either file fails with
+  <code>sisflow is vendored without LICENSE-sisflow.txt</code> or <code>sisflow is vendored without
+  NOTICE-sisflow.txt</code>, and the script exits 1, as for the fonts and the charting library
+  (<a href="#cs-licences">TC-150/TC-151</a>).</p>
 
   <h3 id="rr-provenance">rebuild-restart.sh — prod builds from a tag (TC-152…TC-155)</h3>
   <p>Until v0.13.0 both tiers built from the working tree, so production tracked whatever happened
@@ -2271,6 +2289,68 @@
   added to it</code>, and <code>the Timeline tab of %s shows %q, an event of %s; a product's timeline
   is its own</code>.</p>
 
+  <h3 id="go-taskfold">dashboard — the task fold replays the board (TC-308, TC-316)</h3>
+  <p><code>T-164</code>, in <code>dashboard/taskfold_test.go</code>. Since v0.30.0 every task status
+  change writes a <code>TaskMoved</code> naming the task, whoever made it — the board, the scheduler,
+  the runner, recovery, a drift release — with <code>Rule</code> naming the actor and <code>To</code>
+  the status reached, and <code>TaskPlanned</code> carries each card's story, model, gate and
+  priority. <code>foldTasks</code> rebuilds a product's tasks from those three events, and
+  <code>boardOf</code> projects them exactly as the live board does. The history the test drives goes
+  only through the store's own routes: a turn that reaches review and is approved on the board, a turn
+  with no handoff that fails and is retried, a reorder and a cancel in the backlog, and a published
+  Blueprint the workspace does not hold, which refuses a dispatch until a sync releases it.
+  <strong>TC-308, positive</strong> (<code>TestTheTaskFoldReproducesTheBoard</code>): the live board
+  reaches every column the history aims at — <code>the live board has cards in %v and none in %s; the
+  history did not reach every actor</code> — every actor wrote its move — <code>the history wrote
+  TaskMoved with rules %v and none with %q; every actor that moves a task must name it</code> — and the
+  folded board equals the live one: <code>folding the events gave the board %+v; the store reports %+v
+  -- a status change wrote no TaskMoved (T-164, BR-04)</code>.
+  <strong>TC-316, negative</strong> (<code>TestATaskFoldMissingAMoveDisagreesWithTheBoard</code>): the
+  same history with its last <code>TaskMoved</code> dropped must not reproduce the board — <code>a fold
+  missing the TaskMoved %q still reproduced the board; the fold is not reading the stream
+  (TC-316)</code> — which is what proves the fold reads the stream rather than the store.</p>
+
+  <h3 id="go-after-turn">dashboard — the Blueprint is checked again after the turn (TC-317…TC-319)</h3>
+  <p><code>T-156</code>, in <code>dashboard/workspace_test.go</code>, the second half of
+  <a href="brd.html#rules-gateway">BR-39</a>. The gate before dispatch reads GAOS's own record of what
+  the workspace holds; only the worker can say what happened during the turn. After every run GAOS asks
+  the workspace for its digest again and compares <code>metadata.context.workspace</code> — the context
+  the worker reports it offered the model — with the pinned version. Drift leaves the attempt's own
+  outcome alone and refuses the <em>next</em> dispatch: a <code>DispatchRefused</code> with rule
+  <code>observed-drift</code>, the product blocked with a BR-39 reason, and the workspace record no
+  longer matching the published digest until a sync.
+  <strong>TC-317, positive</strong> (<code>TestAWorkspaceRewrittenDuringTheTurnRefusesTheNextDispatch</code>):
+  the workspace's <code>CLAUDE.md</code> is rewritten behind GAOS's record — <code>a workspace rewritten
+  during the turn gave %d observed-drift refusal(s), gate %+v, block reason %q; want one DispatchRefused
+  rule %s, the next dispatch refused, the product blocked (BR-39)</code>; the task keeps its outcome —
+  <code>the drifted turn left its task %s; drift blocks the product, it does not judge the work</code>;
+  and a re-sync releases it — <code>after the re-sync the gate says pin %d drift %+v, block reason %q;
+  want version %d, no drift, released</code>.
+  <strong>TC-318, positive</strong> (<code>TestAnObservedContextGAOSDidNotWriteIsDrift</code>): a
+  <code>CLAUDE.md</code> from a parent folder, a rule the version wrote and the worker did not load, a
+  rule GAOS did not render, and an agent each give <code>%s in the observed context gave %d
+  observed-drift refusal(s) and gate %+v; want one DispatchRefused rule %s and the next dispatch refused
+  (BR-39)</code> if they do not block.
+  <strong>TC-319, negative</strong> (<code>TestAMatchingObservedContextIsNotDrift</code>): a context
+  that matches the pin, and a reply that reports no context at all, leave the product free —
+  <code>%s gave %d observed-drift refusal(s), gate pin %d drift %+v; a turn whose workspace matches its
+  pin must not block the product</code>. No context is not drift: there is nothing to judge, and the
+  digest is still checked.</p>
+
+  <h3 id="go-failure-lesson">dashboard — a failed turn is cited as a failure (TC-320)</h3>
+  <p>In <code>dashboard/contract_test.go</code>. A failed turn's error text is still stored as that
+  attempt's handoff, because it is the best evidence of what happened, and the next agent is still cited
+  it as the lesson. What changed is how it is shown: under
+  <code>.gaos/packet/context/failure-previous.md</code>, opening with <em>"The previous attempt (run …)
+  failed with `…`. What follows is the error it returned, not a handoff from an agent."</em>
+  <strong>Positive:</strong> after a <code>410</code> the next packet carries the labelled failure and
+  no <code>handoff-previous.md</code> — <code>after a failed turn the next packet holds
+  failure-previous.md %v (body %q) and handoff-previous.md %v; want the error labelled as a failure,
+  never shown as a handoff</code>.
+  <strong>Negative:</strong> after a clean turn it is the handoff, unlabelled — <code>after a clean turn
+  the next packet holds handoff-previous.md %v and failure-previous.md %v; want the handoff,
+  unlabelled</code>.</p>
+
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
@@ -2291,7 +2371,7 @@
   <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
 
   <div class="adm note">
-    <p class="adm-title">The gateway forward specifications (TC-308 and TC-310 still waiting)</p>
+    <p class="adm-title">The gateway forward specifications (all running as of v0.30.0)</p>
     <p>Thirty-six cases were written on 2026-11-02, before any of the code they test, for
     <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>: the move to ai-manager as the
     one gateway, the Blueprint, and a board per product
@@ -2304,21 +2384,11 @@
     <code>httptest</code> fake ai-manager that scripts a reply per request id and counts the POSTs it
     receives; none spawns a binary and none spends money. Only
     <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.
-    <strong>TC-275…TC-290 run as of v0.24.0, TC-291…TC-295 as of v0.25.0, TC-296…TC-303 as of v0.27.0
-    and TC-304…TC-307 and TC-309 as of v0.28.0</strong>, moved up to the implemented scenarios; the two
-    below wait on a task fold and on <a href="open-questions.html#oq-25">OQ-25</a>.</p>
+    <strong>TC-275…TC-290 run as of v0.24.0, TC-291…TC-295 as of v0.25.0, TC-296…TC-303 as of v0.27.0,
+    TC-304…TC-307 and TC-309 as of v0.28.0, and TC-308 and TC-310 as of v0.30.0</strong>, all moved up to
+    the implemented scenarios (<a href="#go-taskfold">the task fold</a>, <a href="#cs-sisflow">the
+    vendored board</a>). None of the thirty-six is still waiting.</p>
   </div>
-
-  <h3 id="ni-board">The board: a fold that rebuilds it, and the vendored client (TC-308, TC-310)</h3>
-  <p>TC-304…TC-307 and TC-309 run as of v0.28.0 and moved up to <a href="#go-board">the board
-  scenarios</a>. <strong>TC-308, positive:</strong> folding the events reproduces the board the store
-  reports. It waits on a task fold: the board's own moves are evented (<code>TaskMoved</code>,
-  <code>TaskReordered</code>), but the scheduler's and the runner's status changes are carried by events
-  that name a desk rather than a task, so a fold cannot yet rebuild task statuses from the stream alone.
-  <strong>TC-310, negative:</strong> only if the sisflow board is vendored
-  (<a href="open-questions.html#oq-25">OQ-25</a>) — <code>check-stacks.sh</code> fails the deploy when
-  its files are present without their licence beside them, as <a href="#cs-licences">TC-150/TC-151</a>
-  already do for the fonts and the charting library.</p>
 
   <h3 id="ni-unsatisfiable">The unsatisfiable task (TC-048, TC-049)</h3>
   <p><strong>Given</strong> a task whose acceptance criterion contradicts a domain rule (the shape

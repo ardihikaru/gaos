@@ -144,6 +144,16 @@ done
 # ECharts embeds d3 and its own LICENSE points at a text it does not contain.
 [ -s "$ASSETS/vendor/LICENSE-d3.txt" ] && ok "the d3 subcomponent has its licence text" \
                                        || bad "echarts cites LICENSE-d3 and none is vendored"
+# The sisflow board (T-165, D-063) is vendored into the dashboard image, not
+# the docs, and ships under the owner's Apache-2.0 grant: the licence and the
+# NOTICE recording the grant travel with it, or the board does not ship.
+SISFLOW=dashboard/static/vendor/sisflow
+if [ -e "$SISFLOW/board/index.js" ]; then
+  [ -s "$SISFLOW/LICENSE-sisflow.txt" ] && ok "sisflow has its licence text" \
+                                        || bad "sisflow is vendored without LICENSE-sisflow.txt"
+  [ -s "$SISFLOW/NOTICE-sisflow.txt" ] && ok "sisflow has its NOTICE" \
+                                       || bad "sisflow is vendored without NOTICE-sisflow.txt"
+fi
 
 echo
 echo "== the trailing-slash redirects exist =="

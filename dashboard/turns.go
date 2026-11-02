@@ -181,7 +181,7 @@ func (s *MemStore) recoverTurns(ctx context.Context, ad Adapter, ta TurnAdapter)
 		pkt := s.freezePacketFor(t.desk, r.TaskID, r.Attempt)
 		s.mu.RUnlock()
 		c, _, _ := Screen(pol, tgt, pkt) // a refusal now leaves a zero Cleared; Resume still polls by id
-		s.moveTaskByID(r.TaskID, StatusRunning)
+		s.moveTaskByID(r.TaskID, StatusRunning, RuleAdopted)
 		s.setRunStatus(r.ID, RunStatusRunning)
 		s.mu.Lock()
 		ev = append(ev, s.emit(TaskResumed, r.DeskID, "adopted the turn "+r.RequestID+" on "+r.TaskID, KindInfo, EventPayload{Rule: RuleAdopted}))
@@ -212,14 +212,18 @@ func (s *MemStore) collectTurn(ctx context.Context, ad Adapter, ta TurnAdapter, 
 				s.runs[i].Status, s.runs[i].FailureSignature, s.runs[i].EndedAt = RunStatusOrphaned, SigRequestLost, time.Now().Unix()
 			}
 		}
-		s.moveTaskLocked(r.TaskID, StatusReady)
-		e = s.emit(TaskResumed, r.DeskID, r.TaskID+" requeued: its lost turn has passed its deadline", KindWarn, EventPayload{Rule: RuleRequeued})
+		var out []Event
+		if m, ok := s.moveTaskLocked(r.TaskID, StatusReady, RuleRequeued); ok {
+			out = append(out, m)
+		}
+		out = append(out, s.emit(TaskResumed, r.DeskID, r.TaskID+" requeued: its lost turn has passed its deadline", KindWarn, EventPayload{Rule: RuleRequeued}))
 		s.deskStateLocked(r.DeskID, StateIdle) // what the fold does with requeued
 		s.mu.Unlock()
-		s.publish(e)
+		s.publish(out...)
 		return
 	}
 	s.finishRun(r.DeskID, r.TaskID, r.ID, att, nil)
+	s.checkAfterTurn(context.WithoutCancel(ctx), r.DeskID, r.ID, att)
 }
 
 // deskStateLocked moves a desk the way the fold will when it replays the event

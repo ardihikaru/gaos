@@ -121,11 +121,22 @@
        whether you are signed in and looking at the back office. */
   }
 
-  document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); });
-  document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); });
+  // The sisflow board (T-165): mounted over the server-rendered one whenever
+  // a Board tab arrives, loaded only then. A browser without ES modules, or a
+  // failed load, keeps the server board, which works on its own.
+  function mountBoard(root) {
+    var host = (root || document).querySelector && (root || document).querySelector("#board-host");
+    if (!host) return;
+    import(new URL("static/board.js", document.baseURI).href)
+      .then(function (m) { m.mount(host); })
+      .catch(function () { /* the server board stays */ });
+  }
+  document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); });
+  document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); });
 
   /* Boot: reflect the theme label. */
   applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+  mountBoard(document);
   // The board (M14.6). Native drag and drop, by delegation so it survives
   // every swap. It renders nothing (I-6): a drop sends the same move request
   // a card's buttons do, and the server's answer -- the re-rendered board, or

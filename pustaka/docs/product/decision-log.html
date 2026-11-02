@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Sixty-two entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Sixty-three entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1090,6 +1090,23 @@
         never branched on (<a href="brd.html#rules-commercial">BR-33</a>).</td>
         <td><code>ai-manager/internal/server/response.go</code>; <a href="#d-051">D-051</a>;
         <a href="qa-test-plan.html#ni-aim">TC-282</a></td>
+      </tr>
+      <tr id="d-063">
+        <td>D-063</td><td>2026-11-02</td>
+        <td><strong>The sisflow board is vendored under an Apache-2.0 grant from its owner.</strong>
+        <em>Answers <a href="open-questions.html#oq-25">OQ-25</a>; completes
+        <a href="#d-061">D-061</a>.</em> sisflow-js has no licence file and its notice reserves it to
+        the project owner, so vendoring it into an Apache-2.0 repository
+        (<a href="#d-035">D-035</a>) needed the owner's permission, and the owner gave it. The board's
+        import closure is copied unmodified from sisflow-js at commit <code>9ebe079</code> into
+        <code>dashboard/static/vendor/sisflow/</code>, with <code>LICENSE-sisflow.txt</code> and a
+        <code>NOTICE-sisflow.txt</code> recording the grant and the source commit beside it, and
+        <code>deploy/check-stacks.sh</code> refuses the deploy if either is missing. It mounts over the
+        server-rendered board, which stays for a page without JavaScript, and talks to the same
+        <code>…/board</code> API: a move is still a request the state machine may refuse
+        (<a href="brd.html#rules-gateway">BR-43</a>).</td>
+        <td>Product-owner ruling, 2026-11-02; <code>dashboard/static/vendor/sisflow/NOTICE-sisflow.txt</code>;
+        <a href="qa-test-plan.html#cs-sisflow">TC-310</a>; <a href="brd.html#req-i">I-10</a></td>
       </tr>
     </tbody>
   </table>

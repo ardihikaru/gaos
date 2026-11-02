@@ -47,7 +47,7 @@ window.DOCS.nav.push({
         { anchor: "stakeholders", title: "5. Stakeholders",
           text: "Four internal roles the system distinguishes, five external ones led by the self-hosting operator, the difference between an operator and a tenant, and three third parties: the model provider, ArcadeDB, and the edge-plus-VM hosting pair." },
         { anchor: "as-is-process", title: "6. Current business process (as-is)",
-          text: "What v0.1.0 actually does end to end — a simulated floor, a login that checks nothing, an in-memory event store, and four paths served from one origin behind the tunnel." },
+          text: "What actually runs today, end to end — a product list with a board per product, model turns through ai-manager, a login that checks nothing, an event stream in ArcadeDB, and four paths served from one origin behind the tunnel." },
         { anchor: "to-be-process", title: "7. Future business process (to-be)",
           text: "The value chain from record to lesson, activities per stage, the happy path, the five conditions autonomy requires, seven exception flows each terminating with a reason code, and §7.6 — how a task reaches a model through either a CLI or an API, with the flowchart, the master configuration and the handoff-document contract — and §7.7, which supersedes it: through ai-manager, one workspace and one Blueprint per product, one session per task, the handoff in the reply." },
         { anchor: "business-requirements", title: "8. Business requirements",
@@ -63,7 +63,7 @@ window.DOCS.nav.push({
         { anchor: "references", title: "13. References",
           text: "Section-precise pointers into the three artifacts, the dashboard files that hold the seam and the closed event catalog, the deployment runbooks, the architecture and infrastructure pages, and the FAQ." },
         { anchor: "decision-log", title: "14. Decision log",
-          text: "Pointer to the sixty-two logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
+          text: "Pointer to the sixty-three logged decisions, maintained on their own page so that answering an open question has an obvious destination." },
         { anchor: "business-milestones", title: "15. Business milestones",
           text: "Eight real dated milestones from git history, ending with the repository becoming licensed, and the next twelve — led by landing the new event names and task state together, then the first adapter and the budget guard." },
         { anchor: "business-decision-matrix", title: "16. Business decision matrix",
@@ -75,7 +75,7 @@ window.DOCS.nav.push({
         { anchor: "appendix-document-notes", title: "Appendix C — Document notes",
           text: "Which reference template the structure came from, what was dropped and why, and the two structural departures: the decision log and the open questions are separate pages." },
         { anchor: "open-questions", title: "Consolidated open questions",
-          text: "Pointer to the thirty-question register, eighteen of them answered, six raised by the move to the gateway." }
+          text: "Pointer to the thirty-question register, nineteen of them answered, six raised by the move to the gateway." }
       ]
     },
     {
@@ -107,7 +107,7 @@ window.DOCS.nav.push({
       id: "open-questions",
       file: "product/open-questions.html",
       title: "Open questions",
-      desc: "Thirty decisions the BRD refuses to invent — eighteen now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
+      desc: "Thirty decisions the BRD refuses to invent — nineteen now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
@@ -126,7 +126,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Sixty-two decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
+      desc: "Sixty-three decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -159,15 +159,15 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and fifteen positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter and the Blueprint — two forward specifications still waiting on the board, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and twenty positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All three hundred and fifteen TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and one unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All three hundred and twenty TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and seven unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
-          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and seventy-nine dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
+          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and eighty-five dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
           text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist. Since 2026-11-02 also TC-275 to TC-310: the ai-manager adapter and reply handoff, the Blueprint, the workspace and turns, live-aim-run.sh, and the board." }
       ]

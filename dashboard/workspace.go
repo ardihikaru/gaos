@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -37,6 +38,9 @@ type WorkspaceGateway interface {
 	// SyncWorkspace makes the workspace hold exactly files, provisioning it
 	// first if needed, and returns the digest the worker now reports.
 	SyncWorkspace(ctx context.Context, workspaceID string, files []BlueprintFile) (digest string, provisioned bool, err error)
+	// WorkspaceDigest is the digest the worker reports for the workspace now,
+	// read after a turn to catch a model that rewrote its own instructions.
+	WorkspaceDigest(ctx context.Context, workspaceID string) (string, error)
 }
 
 // Drift and refusal rules, beside egress's own (D-052 made DispatchRefused
@@ -44,7 +48,18 @@ type WorkspaceGateway interface {
 const (
 	RuleBlueprintDrift  = "blueprint-drift"
 	RuleEgressBlueprint = "egress-blueprint"
+	// RuleObservedDrift is drift seen AFTER a turn (T-156): the workspace no
+	// longer holds the version the attempt pinned, or the context the worker
+	// reports shows instructions GAOS did not write. It refuses the next
+	// dispatch, the way blueprint-drift refuses this one.
+	RuleObservedDrift = "observed-drift"
 )
+
+// WorkspaceDigest implements WorkspaceGateway for ai-manager.
+func (a *AIMAdapter) WorkspaceDigest(ctx context.Context, id string) (string, error) {
+	m, err := a.Client.Files(ctx, id)
+	return m.Digest, err
+}
 
 // SyncWorkspace implements WorkspaceGateway for ai-manager. Provision when the
 // worker has never heard of the workspace; otherwise replace its files
@@ -177,17 +192,165 @@ func (s *MemStore) releaseDriftLocked(deskID string) []Event {
 	if i < 0 || !strings.Contains(s.desks[i].BlockReason, "(BR-39)") {
 		return nil
 	}
-	n := 0
+	// One TaskMoved per task released (T-164), then the desk-level TaskResumed.
+	var ev []Event
 	for j := range s.tasks {
 		if s.tasks[j].DeskID == deskID && s.tasks[j].Status == StatusBlocked {
-			if moveTask(&s.tasks[j], StatusReady) == nil {
-				n++
+			if m, ok := s.moveTaskLocked(s.tasks[j].ID, StatusReady, MoveDriftRelease); ok {
+				ev = append(ev, m)
 			}
 		}
 	}
 	dk := &s.desks[i]
 	dk.BlockReason = ""
 	_ = s.setState(dk, StateIdle)
-	return []Event{s.emit(TaskResumed, deskID, fmt.Sprintf("%d task(s) released: the workspace now holds the published Blueprint", n),
-		KindInfo, EventPayload{Rule: RuleRequeued})} // the fold makes the desk idle, as above
+	return append(ev, s.emit(TaskResumed, deskID, fmt.Sprintf("%d task(s) released: the workspace now holds the published Blueprint", len(ev)),
+		KindInfo, EventPayload{Rule: RuleRequeued})) // the fold makes the desk idle, as above
+}
+
+// ---------------------------------------------------------------- after the turn
+
+// ObservedContext is what the worker reports its workspace offered Claude Code
+// for the turn: ai-manager's metadata.context.workspace, names and sizes only.
+// ClaudeMD paths are the worker's own, absolute; Kind is project (the
+// workspace's CLAUDE.md), local (CLAUDE.local.md), dot-claude
+// (.claude/CLAUDE.md) or parent (a CLAUDE.md in a folder above). Rules are
+// .claude/rules entries relative to that folder, without ".md".
+type ObservedContext struct {
+	ClaudeMD []ObservedFile `json:"claude_md"`
+	Rules    []string       `json:"rules"`
+	Agents   []string       `json:"agents"`
+	Skills   []string       `json:"skills"`
+	Commands []string       `json:"commands"`
+}
+
+// ObservedFile is one instruction file the worker found.
+type ObservedFile struct {
+	Path  string `json:"path"`
+	Bytes int64  `json:"bytes"`
+	Kind  string `json:"kind"`
+}
+
+// observedDrift compares what the worker reports with the version the attempt
+// pinned (BR-39, blueprint.html "After the turn"). A Blueprint writes exactly
+// one CLAUDE.md, the workspace's own, and its rules; anything else that
+// instructs the model -- a CLAUDE.md of any other kind, a rule GAOS did not
+// render, an agent, a skill, a command -- is an instruction GAOS did not write,
+// and a rule it did render that is missing is drift too. Pure; "" is no drift,
+// and so is a reply that reported no context, which leaves nothing to judge.
+func observedDrift(v BlueprintVersion, o *ObservedContext) string {
+	if o == nil {
+		return ""
+	}
+	want := map[string]bool{}
+	var index *BlueprintFile
+	for i, f := range v.Files {
+		if f.Path == "CLAUDE.md" {
+			index = &v.Files[i]
+			continue
+		}
+		want[strings.TrimSuffix(strings.TrimPrefix(f.Path, ".claude/rules/"), ".md")] = true
+	}
+	sawIndex := false
+	for _, f := range o.ClaudeMD {
+		if f.Kind != "project" {
+			return fmt.Sprintf("the worker loaded %s (%s), an instruction file the Blueprint did not write", f.Path, f.Kind)
+		}
+		sawIndex = true
+		if index != nil && f.Bytes != int64(index.Bytes) {
+			return fmt.Sprintf("the workspace's CLAUDE.md is %d bytes and Blueprint version %d wrote %d", f.Bytes, v.N, index.Bytes)
+		}
+	}
+	if index != nil && !sawIndex {
+		return fmt.Sprintf("the worker found no CLAUDE.md, and Blueprint version %d wrote one", v.N)
+	}
+	seen := map[string]bool{}
+	for _, r := range o.Rules {
+		if !want[r] {
+			return fmt.Sprintf("the worker loaded the rule %s, which Blueprint version %d did not write", r, v.N)
+		}
+		seen[r] = true
+	}
+	var missing []string
+	for r := range want {
+		if !seen[r] {
+			missing = append(missing, r)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		return fmt.Sprintf("the worker did not load the rule(s) %s that Blueprint version %d wrote", strings.Join(missing, ", "), v.N)
+	}
+	for kind, names := range map[string][]string{"agent": o.Agents, "skill": o.Skills, "command": o.Commands} {
+		if len(names) > 0 {
+			return fmt.Sprintf("the worker offered the %s %s, which the Blueprint did not write", kind, names[0])
+		}
+	}
+	return ""
+}
+
+// checkAfterTurn is BR-39's second half (T-156). Once a run has finished, the
+// workspace is asked for its digest again -- the only way to see a model that
+// rewrote its own CLAUDE.md during the turn -- and the context the worker
+// reported is compared with the pinned version. Either kind of drift leaves the
+// work's own outcome alone (it is judged like any other attempt) and refuses
+// the NEXT dispatch: the workspace record stops matching the published digest,
+// the desk is blocked with a BR-39 reason a sync releases, and a
+// DispatchRefused with rule observed-drift says why. Detected, not prevented
+// (R-14). The network call happens outside the store's lock.
+func (s *MemStore) checkAfterTurn(ctx context.Context, deskID, runID string, att Attempt) {
+	s.mu.RLock()
+	gw, isGateway := s.adapter.(WorkspaceGateway)
+	pin := 0
+	for _, r := range s.runs {
+		if r.ID == runID {
+			pin = r.BlueprintVersion
+		}
+	}
+	var v BlueprintVersion
+	wsID := ""
+	if m := s.masterPtr(deskID); m != nil && pin > 0 {
+		for _, bv := range m.Blueprint.Versions {
+			if bv.N == pin {
+				v = bv
+			}
+		}
+		wsID = m.Workspace.ID
+	}
+	s.mu.RUnlock()
+	if !isGateway || v.N == 0 {
+		return
+	}
+
+	why, digest := "", ""
+	if wsID != "" {
+		// A worker that cannot be asked is not evidence of drift; the next
+		// sync or the next turn asks again.
+		if d, err := gw.WorkspaceDigest(ctx, wsID); err == nil && d != v.Digest {
+			why, digest = fmt.Sprintf("the workspace %s reports digest %s after run %s, which ran under Blueprint version %d", wsID, d, runID, v.N), d
+		}
+	}
+	if why == "" {
+		why = observedDrift(v, att.Observed)
+	}
+	if why == "" {
+		return
+	}
+	reason := why + "; the next dispatch is refused until the Blueprint is synced (BR-39)"
+
+	s.mu.Lock()
+	if m := s.masterPtr(deskID); m != nil {
+		m.Workspace.SyncedDigest = digest // no longer the published one, so blueprintGate refuses
+	}
+	var e Event
+	if i := s.deskIdxByID(deskID); i >= 0 {
+		dk := &s.desks[i]
+		if dk.State == StateBlocked || s.setState(dk, StateBlocked) == nil {
+			dk.BlockReason = reason
+		}
+		s.log(dk, "blueprint: "+reason, "r")
+	}
+	e = s.emit(DispatchRefused, deskID, reason, KindFail, EventPayload{Reason: reason, Rule: RuleObservedDrift, Version: v.N, Digest: digest})
+	s.mu.Unlock()
+	s.publish(e)
 }
