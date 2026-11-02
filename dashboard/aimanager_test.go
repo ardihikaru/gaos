@@ -41,6 +41,12 @@ type fakeAIM struct {
 	// and the status it answers with (0 = 202).
 	answers      map[string][]fakeAnswer
 	answerStatus int
+
+	// M16: the admin calls that named a vendor, "<vendor> <method> <path>",
+	// and whether that vendor's pool fails them.
+	vendorCalls []string
+	agyDown     bool
+	agySplit    bool // the pool's members hold different copies until a PUT
 }
 
 type fakeAnswer struct {
@@ -112,7 +118,8 @@ func (f *fakeAIM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path, "/admin/"):
 		f.serveAdmin(w, r)
 	case r.URL.Path == "/v1/providers":
-		fmt.Fprintf(w, `{"providers":[{"name":%q,"available":true},{"name":"minimax","available":true}]}`, f.provider)
+		fmt.Fprintf(w, `{"providers":[{"name":%q,"available":true},{"name":"minimax","available":true},`+
+			`{"name":"antigravity","available":true,"default_model":"gemini-3.8-flash-high","models":["gemini-3.8-flash-high","gemini-3.8-flash-low","claude-sonnet-4-6"]}]}`, f.provider)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -298,6 +305,25 @@ func (f *fakeAIM) serveAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 	id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/admin/workspaces/"), "/files")
+	// M16: another vendor's copy is its own workspace on its own workers,
+	// selected by ?provider=; Claude's is the unqualified id, as before.
+	if v := r.URL.Query().Get("provider"); v != "" {
+		f.vendorCalls = append(f.vendorCalls, v+" "+r.Method+" "+r.URL.Path)
+		if f.agyDown {
+			w.WriteHeader(http.StatusBadGateway)
+			w.Write([]byte(`{"error":"at least one pool member is unreachable or failing"}`))
+			return
+		}
+		if f.agySplit && r.Method == "GET" {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"error":"pool members disagree","members":{}}`))
+			return
+		}
+		if r.Method == "PUT" {
+			f.agySplit = false // one write reached every member
+		}
+		id, body.ID = vendorSpace(v, id), vendorSpace(v, body.ID)
+	}
 	switch {
 	case r.Method == "POST" && r.URL.Path == "/admin/workspaces/provision":
 		status := http.StatusOK
@@ -318,6 +344,9 @@ func (f *fakeAIM) serveAdmin(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(f.manifest(id)))
 	}
 }
+
+// vendorSpace is the key the fake keeps vendor's copy of workspace id under.
+func vendorSpace(vendor, id string) string { return vendor + "|" + id }
 
 func (f *fakeAIM) manifest(id string) string {
 	files := make([]BlueprintFile, len(f.spaces[id]))

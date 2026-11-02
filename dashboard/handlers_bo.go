@@ -294,6 +294,9 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 				d.Board = &b
 			}
 		}
+		if tab == "vendors" {
+			d.Vendors = buildVendorsPane(r.Context(), m, s.adapter)
+		}
 		if evs, err := s.store.Events(r.Context()); err == nil {
 			for i := len(evs) - 1; i >= 0; i-- {
 				if evs[i].DeskID == m.ID {
@@ -544,6 +547,22 @@ func (s *server) handleSyncBlueprint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderBOAfter(w, r, res, id, "blueprint")
+}
+
+// The AI vendors tab (M16, D-067).
+
+func (s *server) handleSaveVendors(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	_ = r.ParseForm()
+	id := r.PathValue("id")
+	res, err := s.mut(r).SaveVendorPolicy(r.Context(), id, vendorPolicyFromForm(r.PostForm))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOAfter(w, r, res, id, "vendors")
 }
 
 // ---------- "Needs you" (M15) ----------

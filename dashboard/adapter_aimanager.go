@@ -36,6 +36,8 @@ type AIMAdapter struct {
 	PollEvery     time.Duration // between result polls; default 2s
 	Deadline      time.Duration // whole-turn ceiling; default 660s (> ai-manager's 600s)
 	MaxSessionAge time.Duration // a task's session older than this is rotated; default 25 days
+
+	vendors vendorCache // the gateway's provider list, for the vendors pane (M16)
 }
 
 const (
@@ -121,6 +123,14 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 	reqID := a.RequestIDFor(p.RunID)
 	prompt := RenderPrompt(c)
 	req := ChatRequest{Prompt: prompt, Model: a.Model, AskUser: true, Caller: "gaos"}
+	if p.Vendor != "" && p.Vendor != VendorClaude {
+		// A session lives with the provider that opened it, so a resumed turn
+		// names the vendor too; and GAOS_MODEL is a Claude model, never sent
+		// to another vendor -- the product's own choice is, or none (M16).
+		req.Provider, req.Model = p.Vendor, p.Model
+	} else if p.Model != "" {
+		req.Model = p.Model
+	}
 	if sessionID != "" {
 		req.SessionID = sessionID
 	} else {

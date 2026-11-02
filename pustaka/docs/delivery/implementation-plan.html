@@ -15,8 +15,8 @@
   <p class="eyebrow">Delivery</p>
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
-  committed, and broken into sixteen modules of work you can pick up one at a time.
-  One hundred and seventy-seven tasks: ninety-one done, fifteen standing on fixtures or partly done,
+  committed, and broken into seventeen modules of work you can pick up one at a time.
+  One hundred and eighty-three tasks: ninety-four done, eighteen standing on fixtures or partly done,
   sixty-six not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
@@ -78,7 +78,7 @@
   </div>
 
   <h2 id="scoreboard">Scoreboard</h2>
-  <p>Sixteen modules, sixty-eight sub-modules. The last column is the thing to pick up if you open
+  <p>Seventeen modules, seventy-one sub-modules. The last column is the thing to pick up if you open
   that module today — usually the first task that is not already done, and where the module has one
   task the rest of it waits on, that instead. <code>M1</code> names injection, <code>M6</code>
   authentication and <code>M10</code> the budget zones for exactly that reason, and each says so in
@@ -102,7 +102,8 @@
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
       <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>28</td><td>0</td><td>1</td><td>0</td><td><a href="#register">T-170</a> &mdash; retire the desk projection, now that the task fold replays the board</td></tr>
       <tr data-tags="question ask operator inbox answer needs you m15"><td><a href="#m15-needs-you">M15 &middot; Needs you &mdash; agents ask, the operator answers</a></td><td>3</td><td>7</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>68</b></td><td><b>91</b></td><td><b>15</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="vendor policy claude antigravity product mixed role m16"><td><a href="#m16-vendors">M16 &middot; AI vendors per product</a></td><td>3</td><td>3</td><td>3</td><td>0</td><td>0</td><td><a href="#register">T-178</a> &mdash; merge and deploy the upstream branch</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>71</b></td><td><b>94</b></td><td><b>18</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -146,7 +147,7 @@
   </div>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and seventy-seven tasks in one filterable table. Filter by module number, by domain
+  <p>All one hundred and eighty-three tasks in one filterable table. Filter by module number, by domain
   (<code>domain-d</code>), by status (<code>todo</code>, <code>partial</code>, <code>done</code>), or
   by any word in a task.</p>
   <div class="filterbox">
@@ -336,6 +337,12 @@
       <tr data-tags="question inbox answer sheet badge chip board ui done built m15.3"><td>T-175</td><td>M15.3</td><td>The "Needs you" inbox, the answer sheet (recommended first, the operator's own words as the fourth option, keyboard 1&ndash;4), the topbar count, the board's Needs-you column and badge, all kept live by the stream &mdash; done 2026-11-02 in v0.31.0; TC-334…TC-340</td><td>I-11</td><td>✅</td></tr>
       <tr data-tags="frontend agent design skills emil kowalski done built m15.3"><td>T-176</td><td>M15.3</td><td>A <code>gaos-frontend</code> agent for the dashboard's UI, with Emil Kowalski's <code>emil-design-eng</code>, <code>review-animations</code> and <code>break-ui</code> skills vendored under their MIT licence &mdash; done 2026-11-02: <code>.claude/agents/gaos-frontend.md</code>, <code>.claude/skills/</code></td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="question lifetime expiry session rotation sweep blocked done built m15.2"><td>T-177</td><td>M15.2</td><td>A question lives as long as its session (D-066, answering OQ-31): the answer resumes the asking session past the rotation age, a minute sweep blocks a task whose question outlived it, and the inbox counts down the time left, live &mdash; done 2026-11-02 in v0.32.0; TC-341, TC-342</td><td>I-11, BR-44</td><td>✅</td></tr>
+      <tr data-tags="vendor alias agents.md gemini.md agy ai-cli-common workspace partial built m16.1"><td>T-178</td><td>M16.1</td><td>Vendor aliases in <code>ai-cli-common/workspace</code>: a provisioned folder links <code>AGENTS.md</code>, <code>GEMINI.md</code> and <code>.agents/rules</code> to the Blueprint's <code>CLAUDE.md</code> and <code>.claude/rules</code>, so agy reads the same rules under one digest &mdash; built 2026-11-03 on the upstream branch <code>feat/antigravity-workspace-provisioning</code>; not yet merged or deployed</td><td>I-12</td><td>🟡</td></tr>
+      <tr data-tags="antigravity worker provisioning routes admin token workspace context partial built m16.1"><td>T-179</td><td>M16.1</td><td>ai-antigravity-cli becomes a provisioning worker like ai-claude-cli: the admin routes, the managed root, the workspace context on every job &mdash; built 2026-11-03 on the same branch; deploy needs one managed root per account</td><td>I-12, BR-42</td><td>🟡</td></tr>
+      <tr data-tags="ai-manager provider fan-out pool provision files 409 partial built m16.1"><td>T-180</td><td>M16.1</td><td>ai-manager's workspace admin calls take <code>?provider=antigravity</code> and fan out to every account of the pool, answering 409 when the copies disagree &mdash; built 2026-11-03 on the same branch, with <code>ANTIGRAVITY_WORKSPACE_ADMIN_TOKEN</code></td><td>I-12, BR-39</td><td>🟡</td></tr>
+      <tr data-tags="vendor policy store master taskrun provider schema done built m16.2"><td>T-181</td><td>M16.2</td><td>The vendor policy on the product record, <code>Store.SaveVendorPolicy</code>, <code>TaskRun.provider</code> (<code>13-vendors.sql</code>), and the dispatch that resolves a task's vendor by role and sends it as <code>provider</code> &mdash; done 2026-11-03 in v0.33.0; TC-343…TC-349, TC-353</td><td>I-12, BR-45</td><td>✅</td></tr>
+      <tr data-tags="vendor session workspace sync gate per vendor repair done built m16.2"><td>T-182</td><td>M16.2</td><td>A new session when the vendor changes, a workspace copy per vendor in use, the Blueprint gate over every one of them, and the sync that repairs a pool whose copies disagree &mdash; done 2026-11-03 in v0.33.0; TC-348…TC-354</td><td>BR-39, BR-45</td><td>✅</td></tr>
+      <tr data-tags="vendors tab ui segmented control role toggle model picker board badge done built m16.3"><td>T-183</td><td>M16.3</td><td>The AI vendors tab &mdash; mode, roles, the Antigravity model from the pool's list, each vendor's availability and workspace &mdash; and a vendor badge on every board card, designed by the <code>gaos-frontend</code> agent &mdash; done 2026-11-03 in v0.33.0; TC-355, TC-356</td><td>I-12</td><td>✅</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -1392,6 +1399,32 @@
   <p>A topbar count, a "Needs you" inbox, an answer sheet and a board column, kept current by the
   stream <code>T-110</code> finally built. The UI was designed and reviewed by a dedicated
   <code>gaos-frontend</code> agent working from Emil Kowalski's design-engineering skills.</p>
+
+  <h2 id="m16-vendors">M16 · AI vendors per product</h2>
+  <p>Added on 2026-11-03 with <a href="../product/decision-log.html#d-067">D-067</a>, requirement
+  <a href="../product/brd.html#req-i">I-12</a> and rule <a href="../product/brd.html#rules-gateway">BR-45</a>.
+  Each product chooses whether its tasks run on Claude CLI, on ai-manager's Antigravity pool, or on
+  both by role, and which model the pool runs. Every attempt still goes through the one gateway; what
+  changes is the <code>provider</code> it names, and a task's vendor moves only when a new session opens.</p>
+
+  <h3 id="sub-m16-1">M16.1 — One workspace on every vendor, upstream (T-178…T-180)</h3>
+  <p>The Blueprint writes <code>CLAUDE.md</code> and <code>.claude/rules</code>; agy reads
+  <code>AGENTS.md</code>, <code>GEMINI.md</code> and <code>.agents/rules</code>. Rather than a second
+  layout with a second digest, the agy worker links its names to the same files. ai-manager fans a
+  provisioning call out to every account of the pool, because the accounts live on several hosts and
+  share only sessions. Built and tested on the upstream branch; merging and deploying it is the open step,
+  and until then an Antigravity sync from GAOS fails and names the failure.</p>
+
+  <h3 id="sub-m16-2">M16.2 — The vendor in GAOS (T-181, T-182)</h3>
+  <p>The policy rides on the Product vertex beside the Blueprint draft. The packet's vendor is resolved
+  when it is frozen; the turn sends it, the run records it, and a retry on another vendor opens a new
+  session with reason <code>vendor</code>. The product's workspace is synced to each vendor in use, and
+  the Blueprint gate asks all of them.</p>
+
+  <h3 id="sub-m16-3">M16.3 — The AI vendors tab (T-183)</h3>
+  <p>A segmented control on real radios, a role table that appears in mixed mode, the model picker,
+  and each vendor's availability and workspace status, with motion that answers a pointer and never a
+  keyboard. Board cards carry a quiet <code>CL</code>/<code>AG</code> badge.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

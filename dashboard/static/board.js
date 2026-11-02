@@ -34,6 +34,26 @@ function needsBadge(product, card) {
   return b;
 }
 
+// The vendor the card's next turn goes to (M16), in the card's meta row: a
+// quiet mono tag, lighter than anything else on the card.
+const VENDORS = { claude: ["CL", "Claude CLI"], antigravity: ["AG", "Antigravity"] };
+function vendorBadge(card) {
+  const v = VENDORS[card.vendor];
+  if (!v) return null;
+  const b = document.createElement("span");
+  b.className = "vnd-badge";
+  b.textContent = v[0];
+  b.title = v[1];
+  return b;
+}
+
+function cardFace(product, card, ctx) {
+  const face = ctx.defaultRender(card);
+  const badge = vendorBadge(card);
+  if (badge) (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(badge);
+  return card.status === AWAITING ? [needsBadge(product, card), face] : face;
+}
+
 function themeName() {
   return document.documentElement.getAttribute("data-theme") === "light" ? "sismaya-light" : "sismaya-dark";
 }
@@ -80,7 +100,7 @@ export function mount(host) {
     board = createBoard(host, {
       provider, theme: themeName(), cards: [], columns: [], rows: [],
       catalogs: { en: { "lane.none": "Plan" } },
-      cardTemplate: (card, ctx) => card.status === AWAITING ? [needsBadge(host.dataset.product, card), ctx.defaultRender(card)] : null,
+      cardTemplate: (card, ctx) => cardFace(host.dataset.product, card, ctx),
     });
     board.on("board:provider-error", ({ error, status }) =>
       say(host, status === 409 ? "Refused: the task state machine does not allow that move." : (status || 0) + ": " + error.message));
