@@ -16,8 +16,8 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fifteen modules of work you can pick up one at a time.
-  One hundred and sixty-nine tasks: fifty-seven done, fifteen standing on fixtures, ninety-two
-  not started, and five superseded by the move to ai-manager as the gateway.</p>
+  One hundred and sixty-nine tasks: sixty-seven done, sixteen standing on fixtures or partly done,
+  eighty-one not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
@@ -54,7 +54,7 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Fifty-seven tasks are done. Two of them are <code>M14.0</code>, the documentation of the move to the gateway (2026-11-02). Eleven are the operator surface, five are the schema, and
+    <p>Sixty-seven tasks are done. Twelve of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, and the Blueprint with its schema and its tab. Eleven are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -98,8 +98,8 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>2</td><td>0</td><td>26</td><td>0</td><td><a href="#register">T-144</a> &mdash; the upstream provisioning API everything else waits on</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>57</b></td><td><b>15</b></td><td><b>92</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>12</td><td>1</td><td>15</td><td>0</td><td><a href="#register">T-155</a> &mdash; one workspace per product, now that the upstream can create one</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>67</b></td><td><b>16</b></td><td><b>81</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -299,17 +299,17 @@
       <tr data-tags="hygiene deploy licence tag done m13.2"><td>T-141</td><td>M13.2</td><td>Build the tunnelled stacks from a tag rather than the working tree &mdash; done 2026-08-20; <code>--tag &lt;ref&gt;</code> builds in a detached worktree and prod refuses without it</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="gateway docs decisions brd done m14.0"><td>T-142</td><td>M14.0</td><td>Record the gateway decisions <a href="../product/decision-log.html#d-055">D-055</a>&ndash;<a href="../product/decision-log.html#d-062">D-062</a>, <a href="../product/brd.html#rules-gateway">BR-38&ndash;BR-43</a>, <a href="../product/open-questions.html#oq-25">OQ-25&ndash;OQ-30</a> and BRD &sect;7.7 &mdash; done 2026-11-02</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="gateway docs blueprint qa forward-spec done m14.0"><td>T-143</td><td>M14.0</td><td>Publish <a href="../product/blueprint.html">Blueprint</a>, <a href="../architecture/gateway.html">The gateway</a> and the forward specs <a href="../product/qa-test-plan.html#ni-aim">TC-275&ndash;TC-310</a> &mdash; done 2026-11-02</td><td>&mdash;</td><td>✅</td></tr>
-      <tr data-tags="gateway upstream ai-claude-cli workspace provisioning todo not-built m14.1"><td>T-144</td><td>M14.1</td><td>ai-claude-cli: a managed root, a provisioned registry beside the static one with hot reload, and a boot refusal when a folder above the root holds a <code>CLAUDE.md</code></td><td>A-11, BR-42</td><td>❌</td></tr>
-      <tr data-tags="gateway upstream ai-claude-cli files allowlist todo not-built m14.1"><td>T-145</td><td>M14.1</td><td>ai-claude-cli: <code>POST /v1/workspaces</code> and <code>PUT|GET /v1/workspaces/{id}/files</code> with the allowlist, the caps and all-or-nothing writes</td><td>A-11, BR-42</td><td>❌</td></tr>
-      <tr data-tags="gateway upstream ai-manager provision proxy todo not-built m14.1"><td>T-146</td><td>M14.1</td><td>ai-manager: <code>POST /admin/workspaces/provision</code>, the files proxy, and the recommended cancel route</td><td>A-11, OQ-26</td><td>❌</td></tr>
-      <tr data-tags="gateway client ai-manager http todo not-built m14.2"><td>T-147</td><td>M14.2</td><td>A stdlib ai-manager client with typed errors for <code>409</code>, <code>410</code>, <code>403/423</code>, <code>404</code> and <code>5xx</code> &mdash; <code>dashboard/aimanager.go</code></td><td>D-14</td><td>❌</td></tr>
-      <tr data-tags="gateway adapter submit poll todo not-built m14.2"><td>T-148</td><td>M14.2</td><td>The ai-manager adapter behind the reshaped seam: <code>Submit</code>, <code>Poll</code>, <code>Stop</code>, built only from a <code>Cleared</code> &mdash; <code>dashboard/adapter_aimanager.go</code></td><td>D-14, BR-32</td><td>❌</td></tr>
-      <tr data-tags="gateway handoff reply block run-id todo not-built m14.2"><td>T-149</td><td>M14.2</td><td><code>ExtractHandoff</code>: the last <code>gaos-handoff</code> block, with the run id and the task checked</td><td>D-16, BR-30</td><td>❌</td></tr>
-      <tr data-tags="gateway config smoke cost invocation todo not-built m14.2"><td>T-150</td><td>M14.2</td><td><code>GAOS_AIM_*</code> configuration, a boot smoke test against the gateway, <code>invocation = gateway</code>, cost measured from <code>cost_usd</code></td><td>D-14, BR-37</td><td>❌</td></tr>
-      <tr data-tags="blueprint schema policy knowledge-source version todo not-built m14.3"><td>T-151</td><td>M14.3</td><td><code>Policy</code>, <code>KnowledgeSource</code> and <code>BlueprintVersion</code> in <code>schema/11-blueprint.sql</code> and both stores</td><td>A-8, A-9</td><td>❌</td></tr>
-      <tr data-tags="blueprint render digest publish immutable todo not-built m14.3"><td>T-152</td><td>M14.3</td><td>Deterministic render and digest; publishing stores an immutable version and an unchanged Blueprint publishes nothing</td><td>A-10</td><td>❌</td></tr>
-      <tr data-tags="blueprint back-office tab ui todo not-built m14.3"><td>T-153</td><td>M14.3</td><td>A Blueprint tab in the back office: policies, knowledge sources, publish</td><td>A-8, A-9</td><td>❌</td></tr>
-      <tr data-tags="blueprint egress screen caps todo not-built m14.3"><td>T-154</td><td>M14.3</td><td>The egress pass over every rendered file, and a refused publish over the caps that names the policy</td><td>BR-32, BR-42</td><td>❌</td></tr>
+      <tr data-tags="gateway upstream ai-claude-cli workspace provisioning done built m14.1"><td>T-144</td><td>M14.1</td><td>ai-claude-cli: a managed root, a provisioned registry beside the static one with hot reload, and a boot refusal when a folder above the root holds a <code>CLAUDE.md</code> &mdash; done 2026-11-02, ardi-personal-workspace-ai PR #321, live on prod</td><td>A-11, BR-42</td><td>✅</td></tr>
+      <tr data-tags="gateway upstream ai-claude-cli files allowlist done built m14.1"><td>T-145</td><td>M14.1</td><td>ai-claude-cli: <code>POST /v1/workspaces</code> and <code>PUT|GET /v1/workspaces/{id}/files</code> with the allowlist, the caps and all-or-nothing writes &mdash; done 2026-11-02, PR #321</td><td>A-11, BR-42</td><td>✅</td></tr>
+      <tr data-tags="gateway upstream ai-manager provision proxy done built m14.1"><td>T-146</td><td>M14.1</td><td>ai-manager: <code>POST /admin/workspaces/provision</code>, the files proxy, and the recommended cancel route &mdash; done 2026-11-02, PR #321; the cancel route is still only recommended (OQ-26)</td><td>A-11, OQ-26</td><td>✅</td></tr>
+      <tr data-tags="gateway client ai-manager http done built m14.2"><td>T-147</td><td>M14.2</td><td>A stdlib ai-manager client with typed errors for <code>409</code>, <code>410</code>, <code>403/423</code>, <code>404</code> and <code>5xx</code> &mdash; <code>dashboard/aimanager.go</code> &mdash; done 2026-11-02, <code>dashboard/aimanager.go</code></td><td>D-14</td><td>✅</td></tr>
+      <tr data-tags="gateway adapter submit poll done built m14.2"><td>T-148</td><td>M14.2</td><td>The ai-manager adapter behind the reshaped seam: <code>Submit</code>, <code>Poll</code>, <code>Stop</code>, built only from a <code>Cleared</code> &mdash; <code>dashboard/adapter_aimanager.go</code> &mdash; done 2026-11-02; the runner's seam is unchanged, <code>Dispatch</code> is submit-then-poll and <code>Resume</code> polls the request id</td><td>D-14, BR-32</td><td>✅</td></tr>
+      <tr data-tags="gateway handoff reply block run-id done built m14.2"><td>T-149</td><td>M14.2</td><td><code>ExtractHandoff</code>: the last <code>gaos-handoff</code> block, with the run id and the task checked &mdash; done 2026-11-02, <code>dashboard/handoff_reply.go</code></td><td>D-16, BR-30</td><td>✅</td></tr>
+      <tr data-tags="gateway config smoke cost invocation done built m14.2"><td>T-150</td><td>M14.2</td><td><code>GAOS_AIM_*</code> configuration, a boot smoke test against the gateway, <code>invocation = gateway</code>, cost measured from <code>cost_usd</code> &mdash; done 2026-11-02, <code>GAOS_MODEL_MODE=aimanager</code></td><td>D-14, BR-37</td><td>✅</td></tr>
+      <tr data-tags="blueprint schema policy knowledge-source version done built m14.3"><td>T-151</td><td>M14.3</td><td><code>Policy</code>, <code>KnowledgeSource</code> and <code>BlueprintVersion</code> in <code>schema/11-blueprint.sql</code> and both stores &mdash; done 2026-11-02, <code>schema/11-blueprint.sql</code> proved on a scratch 26.7.2</td><td>A-8, A-9</td><td>✅</td></tr>
+      <tr data-tags="blueprint render digest publish immutable done built m14.3"><td>T-152</td><td>M14.3</td><td>Deterministic render and digest; publishing stores an immutable version and an unchanged Blueprint publishes nothing &mdash; done 2026-11-02, <code>dashboard/blueprint.go</code>; the digest reproduces the production worker's</td><td>A-10</td><td>✅</td></tr>
+      <tr data-tags="blueprint back-office tab ui done built m14.3"><td>T-153</td><td>M14.3</td><td>A Blueprint tab in the back office: policies, knowledge sources, publish &mdash; done 2026-11-02, <code>templates/backoffice.html</code> pane-blueprint</td><td>A-8, A-9</td><td>✅</td></tr>
+      <tr data-tags="blueprint egress screen caps partial m14.3"><td>T-154</td><td>M14.3</td><td>The egress pass over every rendered file, and a refused publish over the caps that names the policy &mdash; the caps and the allowlist refuse at publish and name the policy; the egress pass over the rendered files runs with the sync, M14.4</td><td>BR-32, BR-42</td><td>🟡</td></tr>
       <tr data-tags="workspace provision product id todo not-built m14.4"><td>T-155</td><td>M14.4</td><td>Provision one workspace per product with a derived, never-renamed id</td><td>A-11</td><td>❌</td></tr>
       <tr data-tags="workspace sync drift digest todo not-built m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn</td><td>D-17, BR-39</td><td>❌</td></tr>
       <tr data-tags="workspace graph lease one turn scheduler todo not-built m14.4"><td>T-157</td><td>M14.4</td><td>The graph lease: one live turn per product workspace, read by the scheduler's lease block</td><td>D-18, BR-38</td><td>❌</td></tr>
@@ -1245,6 +1245,11 @@
   later phase has a written target to pass.</p>
 
   <h3 id="sub-m14-1">M14.1 — Upstream provisioning (T-144–T-146)</h3>
+  <p><strong>Done 2026-11-02</strong> — <code>ardi-personal-workspace-ai</code> PR #321, deployed to
+  <code>rnd-v2-vpn</code> with a managed root at <code>/home/sismedika/ai-workspaces</code> and
+  smoke-tested through the public ai-manager: a provisioned workspace was listed for chat with no
+  restart, its rule loaded, a <code>.claude/settings.json</code> write was refused with
+  <code>400</code>, and the workspace was moved to <code>.trash/</code>.</p>
   <p>An external dependency, built in the <code>ardi-personal-workspace-ai</code> repository, not
   here. Measured on 2026-11-02: ai-claude-cli has no API to create a workspace and reads its list
   once at startup; ai-manager can only switch an existing one on or off. The specification is
@@ -1252,6 +1257,12 @@
   <code>gaos-test</code> makes it appear in <code>GET /v1/workspaces</code> without a restart.</p>
 
   <h3 id="sub-m14-2">M14.2 — Client and adapter (T-147–T-150)</h3>
+  <p><strong>Done 2026-11-02.</strong> <a href="../product/qa-test-plan.html#ni-aim">TC-275…TC-284</a>.
+  One deliberate difference from the plan below: the seam keeps its shape for now — <code>Dispatch</code>
+  submits and polls, <code>Resume</code> polls the request id the run record carries, and
+  <code>Stop</code> reports that a gateway turn cannot be cancelled — so the runner works unchanged
+  until <code>M14.5</code> replaces it. A requeue degrades to an orphan for a gateway run, because no
+  process was recorded, which keeps D-054's rule without a kill.</p>
   <p>The adapter seam stays where it is and changes shape: <code>Dispatch</code> and
   <code>Resume</code> become <code>Submit</code> and <code>Poll</code> on a request id, because the
   thing being supervised is now a request rather than a process. Tests run against an
@@ -1259,6 +1270,10 @@
   CLI adapter stays alongside until <code>M14.7</code>.</p>
 
   <h3 id="sub-m14-3">M14.3 — Blueprint (T-151–T-154)</h3>
+  <p><strong>Three of four done 2026-11-02.</strong> <a href="../product/qa-test-plan.html#ni-blueprint">TC-285…TC-290,
+  TC-311, TC-312</a>. Proving <code>11-blueprint.sql</code> on a scratch 26.7.2 found a bug that
+  predates this module: <code>Artifact.kind</code> never allowed <code>handoff</code>, so on ArcadeDB
+  every handoff <code>T-064</code> stored was refused at commit. The same file widens it.</p>
   <p>Three new vertex types and five edges, in a new schema file applied the same idempotent way as
   the other ten. The schema changes two property regexps, and <code>ALTER PROPERTY</code> re-apply
   on ArcadeDB is proved on the scratch database before this ships.</p>

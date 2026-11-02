@@ -295,6 +295,12 @@ func (s *ArcadeStore) AddDiagram(ctx context.Context, id string, g Diagram) (Res
 func (s *ArcadeStore) AddDecision(ctx context.Context, id string, a Decision) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.AddDecision(ctx, id, a) })
 }
+func (s *ArcadeStore) SavePolicy(ctx context.Context, id string, p Policy) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SavePolicy(ctx, id, p) })
+}
+func (s *ArcadeStore) AddKnowledgeSource(ctx context.Context, id string, k KnowledgeSource) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.AddKnowledgeSource(ctx, id, k) })
+}
 func (s *ArcadeStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []PlanTask) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.CreateWorkflow(ctx, d, plan) })
 }
@@ -540,10 +546,19 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	if err != nil {
 		return err
 	}
+	policies, err := jsonList(m.Blueprint.Policies)
+	if err != nil {
+		return err
+	}
+	sources, err := jsonList(m.Blueprint.Sources)
+	if err != nil {
+		return err
+	}
 	props := map[string]any{
 		"code": m.Code, "owner": m.Owner, "priority": m.Priority,
 		"brd": brd, "stories": stories, "diagrams": diagrams,
 		"decisions": decisions, "repos": m.Repos,
+		"policies": policies, "knowledgeSources": sources, // the Blueprint draft, D-058
 	}
 	if m.Stage != "" {
 		props["stage"] = m.Stage
@@ -565,7 +580,7 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 			return err
 		}
 	}
-	return nil
+	return s.writeBlueprintVersion(ctx, tx, m)
 }
 
 // writeDesk persists one desk as the Workflow it is, plus the Task it is
@@ -950,6 +965,9 @@ func (s *ArcadeStore) injectSubgraph(ctx context.Context, m Master) error {
 			return err
 		}
 	}
+	if err := s.injectBlueprint(ctx, tx, m); err != nil {
+		return err
+	}
 	if err := s.upsert(ctx, tx, "Product", m.ID, map[string]any{"lastInjectedAt": nowStamp()}); err != nil {
 		return err
 	}
@@ -1102,10 +1120,12 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Stories   json.RawMessage `json:"stories"`
 		Diagrams  json.RawMessage `json:"diagrams"`
 		Decisions json.RawMessage `json:"decisions"`
+		Policies  json.RawMessage `json:"policies"`
+		Sources   json.RawMessage `json:"knowledgeSources"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, name, repo, goal, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions
+		        brd, stories, diagrams, decisions, policies, knowledgeSources
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1114,6 +1134,10 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
+	versions, err := s.loadBlueprintVersions(ctx)
+	if err != nil {
+		return false, err
+	}
 	m := newProjection()
 	for _, r := range prows {
 		m.products = append(m.products, Product{ID: r.ID, Name: r.Name, Repo: r.Repo, Goal: r.Goal})
@@ -1131,6 +1155,13 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		if err := decodeInto(r.Decisions, &mr.Decisions); err != nil {
 			return false, err
 		}
+		if err := decodeInto(r.Policies, &mr.Blueprint.Policies); err != nil {
+			return false, err
+		}
+		if err := decodeInto(r.Sources, &mr.Blueprint.Sources); err != nil {
+			return false, err
+		}
+		mr.Blueprint.Versions = versions[r.ID]
 		m.masters = append(m.masters, mr)
 	}
 

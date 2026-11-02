@@ -57,6 +57,8 @@ var storeContract = []storeCase{
 	{"AddDecisionRoundTrips", caseAddDecision},
 	{"AddDecisionWithoutATitleIsRejected", caseAddDecisionEmpty},
 	{"InjectReportsTheProjectionItPromised", caseInject},
+	{"PublishBlueprintRoundTrips", casePublishBlueprint},
+	{"SavePolicyWithABadKindIsRejected", caseSavePolicyBadKind},
 	{"EveryMutationEmitsAtLeastOneEvent", caseMutationEmits},
 	{"EventSequenceIsStrictlyIncreasing", caseEventSeq},
 	{"EventsCarryNoPayloadToTheCaller", caseEventsNoPayload},
@@ -748,7 +750,14 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"AddDiagram":         func() (Result, error) { return ro.AddDiagram(ctx, "p-1", Diagram{Title: "t", Src: "s"}) },
 		"AddDecision":        func() (Result, error) { return ro.AddDecision(ctx, "p-1", Decision{Title: "t"}) },
 		"Inject":             func() (Result, error) { return ro.Inject(ctx, "p-1") },
-		"CreateWorkflow":     func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
+		"SavePolicy": func() (Result, error) {
+			return ro.SavePolicy(ctx, "p-1", Policy{Key: "k", Kind: PolicyCoding, Title: "t"})
+		},
+		"AddKnowledgeSource": func() (Result, error) {
+			return ro.AddKnowledgeSource(ctx, "p-1", KnowledgeSource{URL: "https://x.io/r", Ref: "v1"})
+		},
+		"PublishBlueprint": func() (Result, error) { return ro.PublishBlueprint(ctx, "p-1") },
+		"CreateWorkflow":   func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+
@@ -1437,4 +1446,31 @@ func wipeTenant(t *testing.T, arc *Arcade, tenant string) {
 			t.Fatalf("wipe %s for tenant %s: %v", typ, tenant, err)
 		}
 	}
+}
+
+// D-058: a policy and a source in the draft, then a publish -- the version is
+// readable from the store, carries its digest, and the draft is unchanged.
+func casePublishBlueprint(t *testing.T, s Store) {
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	if _, err := s.SavePolicy(ctx, id, Policy{Key: "layers", Kind: PolicyTechnical, Title: "Layering", Body: "handlers -> services"}); err != nil {
+		t.Fatalf("SavePolicy: %v", err)
+	}
+	if _, err := s.AddKnowledgeSource(ctx, id, KnowledgeSource{URL: "https://github.com/acme/go-template", Ref: "v1.4.0", Purpose: "structure"}); err != nil {
+		t.Fatalf("AddKnowledgeSource: %v", err)
+	}
+	r, err := s.PublishBlueprint(ctx, id)
+	if err != nil || len(r.NewEvents) != 1 || r.NewEvents[0].Type != BlueprintPublished {
+		t.Fatalf("PublishBlueprint = %+v %v, want one BlueprintPublished", r.NewEvents, err)
+	}
+	m, _ := s.Master(ctx, id)
+	v, ok := m.Blueprint.Latest()
+	if !ok || v.N != 1 || v.Digest != BlueprintDigest(v.Files) || fileOf(v, ".claude/rules/40-technical-policy.md") == "" {
+		t.Fatalf("the published version came back as %+v", v)
+	}
+}
+
+func caseSavePolicyBadKind(t *testing.T, s Store) {
+	_, err := s.SavePolicy(context.Background(), firstMasterID(t, s), Policy{Key: "x", Kind: "vibes", Title: "x"})
+	assertRejected(t, err, "A policy kind is technical, coding, security, testing or custom.")
 }

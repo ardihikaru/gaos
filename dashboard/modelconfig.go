@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // The master configuration. T-059, requirement D-12, BRD §7.6.1.
@@ -56,12 +57,29 @@ type ModelConfig struct {
 	ContractInSystemPrompt bool
 
 	Egress EgressPolicy
+
+	// AIM is the gateway's settings, read only when Mode is ModeAIM.
+	AIM AIMConfig
+}
+
+// AIMConfig configures the ai-manager gateway (architecture/gateway.html
+// §configuration). Secrets are FILE paths, never values, so they cannot leak
+// through a process listing or a crash dump.
+type AIMConfig struct {
+	URL          string        // GAOS_AIM_URL
+	ChatAuthFile string        // GAOS_AIM_CHAT_AUTH_FILE: {"login_id","secret_key"}
+	AdminKeyFile string        // GAOS_AIM_ADMIN_KEY_FILE: provisioning only (M14.4)
+	Tenant       string        // GAOS_AIM_TENANT: names workspaces gaos-<tenant>-<product>
+	Workspace    string        // GAOS_AIM_WORKSPACE: one shared workspace, until M14.4
+	PollEvery    time.Duration // GAOS_AIM_POLL_MS
+	TurnDeadline time.Duration // GAOS_AIM_TURN_DEADLINE (seconds)
 }
 
 const (
 	ModeOff = "off"
 	ModeCLI = "cli"
 	ModeAPI = "api"
+	ModeAIM = "aimanager" // D-055: one turn per attempt through ai-manager
 )
 
 // The documented defaults, from §7.6.1's own example block.
@@ -108,6 +126,16 @@ func ModelConfigFromEnv() ModelConfig {
 			MaxBytes:     envInt("GAOS_EGRESS_MAX_BYTES", defaultMaxBytes),
 			MaxPartBytes: envInt("GAOS_EGRESS_MAX_PART_BYTES", defaultPartBytes),
 		},
+
+		AIM: AIMConfig{
+			URL:          envOr("GAOS_AIM_URL", ""),
+			ChatAuthFile: envOr("GAOS_AIM_CHAT_AUTH_FILE", ""),
+			AdminKeyFile: envOr("GAOS_AIM_ADMIN_KEY_FILE", ""),
+			Tenant:       envOr("GAOS_AIM_TENANT", envOr("GAOS_ARCADE_TENANT", "local")),
+			Workspace:    envOr("GAOS_AIM_WORKSPACE", ""),
+			PollEvery:    time.Duration(envInt("GAOS_AIM_POLL_MS", 2000)) * time.Millisecond,
+			TurnDeadline: time.Duration(envInt("GAOS_AIM_TURN_DEADLINE", 660)) * time.Second,
+		},
 	}
 	return c
 }
@@ -146,6 +174,9 @@ func selectAdapter(c ModelConfig) (Adapter, error) {
 			ContractInSystemPrompt: c.ContractInSystemPrompt,
 		}, nil
 
+	case ModeAIM:
+		return aimAdapterFor(c)
+
 	case ModeAPI:
 		// T-058. D-036 makes API mode a first-class supported configuration
 		// rather than a hypothetical exit, so this refuses loudly instead of
@@ -154,7 +185,7 @@ func selectAdapter(c ModelConfig) (Adapter, error) {
 		return nil, fmt.Errorf("GAOS_MODEL_MODE=api: the API adapter is T-058 and is not built")
 
 	default:
-		return nil, fmt.Errorf("GAOS_MODEL_MODE=%q: want cli, api or off", c.Mode)
+		return nil, fmt.Errorf("GAOS_MODEL_MODE=%q: want cli, aimanager, api or off", c.Mode)
 	}
 }
 
@@ -196,4 +227,28 @@ func envInt(k string, def int) int {
 		return def
 	}
 	return n
+}
+
+// aimAdapterFor builds the gateway adapter, refusing to start half-configured:
+// a gateway mode with no URL or no login is a deployment error, not a run to
+// fail later.
+func aimAdapterFor(c ModelConfig) (Adapter, error) {
+	if strings.TrimSpace(c.AIM.URL) == "" {
+		return nil, fmt.Errorf("GAOS_MODEL_MODE=aimanager but GAOS_AIM_URL is empty")
+	}
+	if c.AIM.ChatAuthFile == "" {
+		return nil, fmt.Errorf("GAOS_MODEL_MODE=aimanager but GAOS_AIM_CHAT_AUTH_FILE is empty")
+	}
+	creds, err := LoadAIMCredentials(c.AIM.ChatAuthFile, c.AIM.AdminKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &AIMAdapter{
+		Client:   &AIMClient{Base: c.AIM.URL, Creds: creds},
+		Model:    c.Model,
+		Provider: c.Provider,
+		Local:    c.Local,
+		Tenant:   c.AIM.Tenant, Workspace: c.AIM.Workspace,
+		PollEvery: c.AIM.PollEvery, Deadline: c.AIM.TurnDeadline,
+	}, nil
 }

@@ -39,6 +39,10 @@ const (
 	KnowledgeInjected EventType = "KnowledgeInjected"
 	ReadinessEvaluate EventType = "ReadinessEvaluated"
 	ReadinessDropped  EventType = "ReadinessDropped"
+
+	// D-058: a Blueprint version was published. Lands with its fold case and
+	// the data model document §15, per BR-05.
+	BlueprintPublished EventType = "BlueprintPublished"
 )
 
 // planning
