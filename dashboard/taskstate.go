@@ -128,6 +128,10 @@ func canTaskTransition(from, to string) bool {
 //
 // The returned error is an ErrRejected carrying a sentence a handler can put in
 // a toast -- BR-06's "rejection reason" half.
+// canMoveTask asks moveTask's question without writing: the board checks a
+// move before it commits to the TaskMoved that records it.
+func canMoveTask(t TaskRecord, to string) error { return moveTask(&t, to) }
+
 func moveTask(t *TaskRecord, to string) error {
 	if !knownTaskStatus(to) {
 		return reject(fmt.Sprintf("%q is not a task status.", to))

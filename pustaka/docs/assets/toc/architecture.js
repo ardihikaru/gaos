@@ -18,9 +18,9 @@ window.DOCS.nav.push({
         { anchor: "three-layers", title: "Three layers outside the six",
           text: "Since D-055 the model runs in ai-claude-cli behind ai-manager; GAOS shapes each turn with the product, the task and the Blueprint." },
         { anchor: "boot-recovery", title: "What happens when the orchestrator restarts",
-          text: "Tasks claiming to be running are reconciled against a workspace lease and a heartbeat, then adopted, requeued, or failed as orphaned — and, through the gateway, by polling the request id each attempt persisted." },
+          text: "Every turn is recorded with its request id before it is sent; at boot each open turn is polled by that id and adopted if it finished, or orphaned as request-lost, held until its deadline and requeued. The lease-and-heartbeat reconciler it replaced was deleted in v0.29.0." },
         { anchor: "setup-to-autonomy", title: "From an empty record to autonomous work",
-          text: "Six stages from product setup to lesson extraction. Autonomy begins when the scheduler can find a READY task without a human naming it." },
+          text: "Seven stages from product setup to lesson extraction. Autonomy begins when the scheduler can find a READY task without a human naming it." },
         { anchor: "task-split", title: "Splitting work, and choosing who does it",
           text: "A task is atomic when it has one concern, one workspace and at least one acceptance criterion. The routing table maps risk to role and model tier." },
         { anchor: "scoring", title: "Scoring, and when to stop trying",
@@ -65,7 +65,7 @@ window.DOCS.nav.push({
         { anchor: "gateway-additions", title: "What the gateway adds",
           text: "Policy, KnowledgeSource and BlueprintVersion, the Workspace reused one per product, PINNED_TO and HOSTED_IN, six new events, and the floor's types left dormant rather than deleted." },
         { anchor: "not-yet", title: "What is not built yet",
-          text: "The DDL applies clean to a scratch ArcadeDB 26.7.2 and produced two amendments to the model, but neither dev nor prod carries the schema. The dashboard still reads fixtures behind an interface, and the event catalog is already encoded as typed constants so the vocabulary cannot drift." }
+          text: "Both tiers carry the schema and the dashboard reads and writes it; every attempt is a TaskRun turn through ai-manager with its frozen ContextSlice. What is not built is what judges the result: no review of a run's output, no guard that ends a retry loop." }
       ]
     },
     {

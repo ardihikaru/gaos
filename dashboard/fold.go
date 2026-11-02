@@ -428,7 +428,8 @@ func reduce(st FloorState, e Event) FloorState {
 		// Recorded on the timeline, folded into the master record or the tenant
 		// rather than into a desk. Named explicitly rather than left to the
 		// default so that "this event does not move the floor" is a decision
-		// somebody made, not an omission.
+		// somebody made, not an omission. TaskMoved and TaskReordered move a
+		// task, not a desk: taskfold.go folds them into the board (T-164).
 
 	default:
 		// Total. An unknown name -- a stream from a newer build, or a type this

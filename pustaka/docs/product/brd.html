@@ -100,8 +100,8 @@
   business brief, user stories, acceptance criteria, diagrams and an indexed repository — stored
   as a graph in ArcadeDB. The record is scored for completeness before any work is dispatched; the
   planner refuses to plan against a brief that is too thin. Work is decomposed into an acyclic task
-  graph, routed to a role and a model tier by capability and risk rather than cost, executed by
-  detached runners holding workspace leases, scored on five weighted dimensions, retried under
+  graph, routed to a role and a model tier by capability and risk rather than cost, executed one
+  turn at a time in the product's workspace through ai-manager, scored on five weighted dimensions, retried under
   explicit guard limits, and gated by a human where the risk demands it. Everything that happens
   is written to an append-only event stream, which is simultaneously the recovery path, the audit
   trail, and the replay source.</p>
@@ -153,7 +153,7 @@
       <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
       <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
       <tr><td>ArcadeDB schema applied to dev and prod, graph queries</td><td><strong>Built</strong></td><td><code>dashboard/store_arcade.go</code> against the <code>store.go</code> seam; <code>dashboard/arcade.go</code> carries the query path; one conformance suite covers both stores</td></tr>
-      <tr><td>Scheduler, runner, real reviews</td><td><strong>Partly built</strong></td><td>The scheduler decides &mdash; <code>dashboard/scheduler.go</code>, a pure function of the persisted task graph, returning what may start and why the rest may not. The runner supervises detached runs under an exclusive workspace lease and reconciles every claimed run on boot &mdash; <code>dashboard/runner.go</code>, <code>lease.go</code>, <code>reconcile.go</code>, <code>M4.2</code>. Each attempt is recorded as a <code>TaskRun</code> against the <code>ContextSlice</code> it was frozen with, the packet is materialised in the leased workspace, and on 2026-08-23 a real provider tool ran the whole loop for a measured $1.28. What is still missing is judgement: nothing reviews what a run produced, no guard ends a loop, and <code>dashboard/sim.go</code> still moves the floor</td></tr>
+      <tr><td>Scheduler, runner, real reviews</td><td><strong>Partly built</strong></td><td>The scheduler decides &mdash; <code>dashboard/scheduler.go</code>, a pure function of the persisted task graph, returning what may start and why the rest may not. Since v0.29.0 every attempt is one turn through ai-manager, the only gateway (<a href="decision-log.html#d-055">D-055</a>), one live turn per product (<a href="#rules-gateway">BR-38</a>); the turn is recorded as a <code>TaskRun</code> with its request id and the <code>ContextSlice</code> it was frozen with before it is sent, and boot recovery polls every open turn by that id &mdash; <code>dashboard/runner.go</code>, <code>turns.go</code>. Real models have answered those turns (<code>deploy/acceptance/live-aim-run.sh</code>), and after each one the workspace is checked against the pinned Blueprint. The board replays from <code>TaskMoved</code> events (<code>dashboard/taskfold.go</code>). What is still missing is judgement: nothing reviews what a run produced and no guard ends a loop</td></tr>
       <tr><td>Authentication</td><td><strong>Not built</strong></td><td>the back-office login sets a cookie and checks nothing</td></tr>
     </tbody>
   </table>
@@ -272,7 +272,7 @@
     <tbody>
       <tr><td>Product owner</td><td>Sole decision maker; author of the design artifacts</td><td>That the design survives contact with implementation; that the open questions get answered</td></tr>
       <tr><td>Platform operator</td><td>Runs the dev and prod stacks on the private VM; owns the edge configuration on <code>clino</code></td><td>That a stack can be rebuilt and restarted safely, and that dev is never wired to the production database</td></tr>
-      <tr><td>Fleet operator</td><td>Watches Mission Control: approves gates, cancels runs, reads the timeline</td><td>That the floor says <em>why</em> something is not moving — the blocking reason must be visible, not inferred</td></tr>
+      <tr><td>Fleet operator</td><td>Watches Mission Control: approves gates, cancels runs, reads the timeline</td><td>That the board says <em>why</em> something is not moving — the blocking reason must be visible, not inferred</td></tr>
       <tr><td>Record author</td><td>Fills the product master in the back office: brief, stories, criteria, diagrams</td><td>That the readiness score tells them exactly what is missing rather than failing vaguely</td></tr>
     </tbody>
   </table>
@@ -307,7 +307,7 @@
   <table class="tbl">
     <thead><tr><th>Party</th><th>Role</th><th>Exposure</th></tr></thead>
     <tbody>
-      <tr><td>Model providers — Anthropic first, not only</td><td>Anthropic is named throughout the prototype's role map and is the <strong>first adapter</strong>, with the gateway multi-provider by decision (<a href="decision-log.html#d-041">D-041</a>). Reached through a <strong>command-line tool</strong> rather than an HTTP API in the MVP (<a href="#to-be-cli">§7.6</a>, <a href="decision-log.html#d-033">D-033</a>)</td><td>Concentration remains until a second adapter exists (<a href="#risk-register">R-08</a>); no credential configured, no call ever made. The relationship is between the <em>operator</em> and the provider, not GAOS and the provider (<a href="decision-log.html#d-030">D-030</a>) — which removes the resale exposure and adds a terms-of-use one (<a href="#risk-register">R-12</a>). Which CLIs clear the adapter contract, and therefore which providers ship first, is <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
+      <tr><td>Model providers — Anthropic first, not only</td><td>Anthropic is named throughout the prototype's role map and is the <strong>first adapter</strong>, with the gateway multi-provider by decision (<a href="decision-log.html#d-041">D-041</a>). Reached through <strong>ai-manager</strong>, which runs ai-claude-cli in the product's workspace (<a href="#to-be-gateway">§7.7</a>, <a href="decision-log.html#d-055">D-055</a>); the command-line adapter of <a href="#to-be-cli">§7.6</a> (<a href="decision-log.html#d-033">D-033</a>) was retired in v0.29.0</td><td>Concentration remains until a second adapter exists (<a href="#risk-register">R-08</a>); GAOS holds no provider credential, and real calls have been made through the gateway. The relationship is between the <em>operator</em> and the provider, not GAOS and the provider (<a href="decision-log.html#d-030">D-030</a>) — which removes the resale exposure and adds a terms-of-use one (<a href="#risk-register">R-12</a>). Which CLIs clear the adapter contract, and therefore which providers ship first, is <a href="open-questions.html#oq-23">OQ-23</a></td></tr>
       <tr><td>ArcadeDB — pinned at 26.7.2</td><td>The graph, document, event and time-series store — the one component the whole model assumes. The target version is fixed at <strong>26.7.2</strong>, the release already running (<a href="decision-log.html#d-043">D-043</a>)</td><td>Version-coupled: <code>EXTERNAL</code> properties need v26.5.1 or later, which 26.7.2 clears, and the document warns that constraint and index syntax moves between releases — so the pin is load-bearing and an upgrade re-runs the DDL validation</td></tr>
       <tr><td>Hosting: <code>clino</code> + private VM</td><td>Public nginx edge (TLS, certbot) and the WireGuard-reached VM that runs every container</td><td>Shared with other products; GAOS holds product slot <strong>03</strong> and tunnel ports <code>18301</code> / <code>19301</code></td></tr>
     </tbody>
@@ -316,23 +316,32 @@
   <h2 id="as-is-process">6. Current business process (as-is)</h2>
   <p>What actually happens today, end to end, with nothing implied:</p>
   <ol>
-    <li><strong>An operator opens Mission Control</strong> at <code>/app/</code>. The floor, the
-    inspector, the timeline with its replay scrub, the meeting overlay, the back office and the
-    create-workflow wizard all render server-side from Go templates over HTMX.</li>
-    <li><strong>The floor animates a simulation.</strong> Desks advance through planning →
-    architecture → coding → testing → review → deployment because <code>dashboard/sim.go</code>
-    advances them. No task is dispatched, no process is spawned, no model is called.</li>
+    <li><strong>An operator opens Mission Control</strong> at <code>/app/</code>. The home page is
+    the list of products; each product has its record, its Blueprint and a board, and the back
+    office and the create-workflow wizard sit beside them, all rendered server-side from Go
+    templates over HTMX. The engineering floor, its inspector, meeting room and timeline strip, and
+    the simulation that moved them, were deleted in v0.29.0.</li>
+    <li><strong>Work runs as turns through ai-manager.</strong> When the runner is switched on, the
+    scheduler picks a ready task, egress screens its brief, and GAOS records a <code>TaskRun</code>
+    with a request id before sending one turn to ai-manager, which runs it in the product's
+    workspace &mdash; one live turn per product. The reply's handoff moves the task, and after the
+    turn GAOS compares the workspace with the pinned Blueprint; drift refuses the next dispatch.
+    Nothing reviews the result yet.</li>
+    <li><strong>The board moves only when a task does.</strong> Every task status change writes a
+    <code>TaskMoved</code> event, so the board is a fold of the stream like everything else, and
+    the vendored sisflow board reads the same API.</li>
     <li><strong>The back office accepts a login and checks nothing.</strong> Any value opens it. It
     then shows product records, a readiness checklist, a graph projection count and story coverage.
     What it writes is persisted and survives a restart; the world it starts from is still the
     fixtures in <code>dashboard/fixtures.go</code>.</li>
     <li><strong>Events are written to the graph, and the stream is the whole record.</strong>
     <code>dashboard/store_arcade.go</code> appends every event as an <code>Event</code> document
-    before its mutation commits, and rebuilds the floor from ArcadeDB on boot;
-    <code>dashboard/store_mem.go</code> remains the in-memory double the conformance suite runs the
-    same cases against. The 160-entry ring came out in v0.11.0 — the stream is unbounded and
-    append-only as <code>BR-04</code> asks, an event carries the delta a reducer folds rather than a
-    photograph of the floor, and replay is a fold from the nearest snapshot forward.</li>
+    before its mutation commits, and rebuilds state from ArcadeDB on boot, then polls every open
+    turn by its request id; <code>dashboard/store_mem.go</code> remains the in-memory double the
+    conformance suite runs the same cases against. The 160-entry ring came out in v0.11.0 — the
+    stream is unbounded and append-only as <code>BR-04</code> asks, an event carries the delta a
+    reducer folds rather than a photograph of the whole state, and replay is a fold from the nearest
+    snapshot forward.</li>
     <li><strong>The stacks serve four paths from one origin</strong> — <code>/</code> landing,
     <code>/app/</code> Mission Control, <code>/docs/</code> this site, <code>/api/</code> the health
     endpoint — behind a per-product Traefik on the private VM, fronted by nginx on
@@ -388,8 +397,9 @@
   readiness scores 78, which is the <em>Working</em> band, so planning is allowed with gates only on
   risk signals. The operator states an objective and a gate policy. The planner produces an acyclic
   graph of eleven tasks with roles attached. The scheduler finds four tasks whose prerequisites are
-  all satisfied, acquires a workspace lease for each, and dispatches them to detached runners. Each
-  run assembles a context slice from the master record, calls a model, writes a diff, and is scored.
+  all satisfied and dispatches them one turn at a time &mdash; one live turn per product &mdash;
+  through ai-manager into the product's workspace. Each run assembles a context slice from the
+  master record, calls a model, writes a diff, and is scored.
   Nine tasks score above 85 and are accepted. One scores 61 and is retried with a widened context
   slice; the second attempt scores 88. One touches a schema migration, so it carries a security
   reviewer and an approval gate; the operator approves it. The workflow closes, three lessons are
@@ -398,11 +408,11 @@
   <h3 id="to-be-autonomy">7.4 Where autonomy actually begins</h3>
   <p>Autonomy is not a switch. It starts at the moment the scheduler can find a ready task without a
   human naming it, which requires five things to already be true at once: the dependency graph is
-  acyclic, a capable agent exists for the role, a workspace lease can be acquired, the readiness
+  acyclic, a capable agent exists for the role, the product has no live turn (<a href="#rules-gateway">BR-38</a>), the readiness
   gate has passed, and the budget guard is in its normal zone
-  (<a href="#budget-guard">§8.10.1</a>). Miss any one and the floor looks idle for reasons nobody
+  (<a href="#budget-guard">§8.10.1</a>). Miss any one and the board looks idle for reasons nobody
   can explain. <strong>All five must be surfaced in the UI as the blocking reason</strong> — this is
-  a business requirement, not a nicety, because an unexplained idle floor is indistinguishable from
+  a business requirement, not a nicety, because an unexplained idle board is indistinguishable from
   a broken product.</p>
 
   <h3 id="to-be-exceptions">7.5 Exception flows</h3>
@@ -413,7 +423,7 @@
       <tr><td>Unproductive retry</td><td>Identical failure signature twice</td><td>Do not escalate the tier — route to a design review</td><td><code>MeetingStarted</code>, later a <code>Decision</code></td></tr>
       <tr><td>Budget throttle</td><td>Spend reaches the throttle threshold or the paced ceiling, or the token rate ceiling is hit</td><td>Stop dispatching; defer ready tasks with a resume time; let in-flight runs finish</td><td>Resumes by itself when the window advances — <a href="#budget-guard">§8.10.1</a></td></tr>
       <tr><td>Guard exhaustion</td><td>3 retries, or 2 escalations, or the budget cap</td><td>Stop; emit <code>GuardExhausted</code> with a reason code</td><td>Human intervention</td></tr>
-      <tr><td>Orphaned task</td><td>On boot, a task claims to be running but its lease expired or its process is gone</td><td>Release the workspace, emit <code>TaskOrphaned</code>, apply the retry policy</td><td>Requeued or failed</td></tr>
+      <tr><td>Orphaned task</td><td>On boot, a task's turn is polled by its request id and ai-manager no longer knows it</td><td>Emit <code>TaskOrphaned</code> (rule <code>request-lost</code>), hold the product until the turn deadline passes, then requeue it on a new session (<a href="decision-log.html#d-060">D-060</a>)</td><td>Requeued or failed</td></tr>
       <tr><td>Readiness drop</td><td>Drift penalty pushes the effective score below a band boundary</td><td>Emit <code>ReadinessDropped</code>, show it on the product card, re-apply the stricter band's gates immediately</td><td>Stricter gating, not a silent recalculation</td></tr>
       <tr><td>Total collapse</td><td>Final score below 30</td><td>Stop; call a multi-agent design review</td><td>A recorded <code>Decision</code></td></tr>
     </tbody>
@@ -421,11 +431,12 @@
 
   <h3 id="to-be-cli" data-short="7.6 CLI and API modes">7.6 How a task reaches a model — two modes, one contract</h3>
   <div class="adm warn">
-    <p class="adm-title">Superseded by §7.7 on 2026-11-02 — kept because it is what still runs</p>
+    <p class="adm-title">Superseded by §7.7 on 2026-11-02 and deleted in v0.29.0 — kept as the record</p>
     <p>GAOS no longer runs a model tool itself (<a href="decision-log.html#d-055">D-055</a>). This
     section and §7.6.1–§7.6.3 describe the CLI adapter, the packet on disk and the handoff file that
-    the dashboard ships today, and they stay true until
-    <a href="../delivery/implementation-plan.html#m14-gateway">M14</a> replaces them. The successor
+    the dashboard shipped until
+    <a href="../delivery/implementation-plan.html#m14-gateway">M14</a> replaced them; M14.7 deleted
+    them in v0.29.0. The successor
     is <a href="#to-be-gateway">§7.7</a>. Two things carry over unchanged: the handoff is still a
     contract rather than a convention, and the invocation is still recorded and never branched on.</p>
   </div>
@@ -822,7 +833,7 @@ egress:                               <span class="c"># domain L applies in BOTH
       <tr><td><s>D-4</s></td><td><s>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</s> <em>Superseded by D-19, <a href="decision-log.html#d-060">D-060</a></em></td><td>This is the whole of recovery; there is no other path</td><td>Built</td></tr>
       <tr><td>D-5</td><td>Each attempt is its own record with its own model, cost, tokens, exit code and failure signature</td><td>Folding attempts into the task destroys the evidence of the previous one, and model comparison becomes impossible</td><td><strong>Built</strong> — <code>TaskRunRecord</code> in <code>dashboard/model.go</code>, opened before the spawn and closed under the lock that writes <code>RunExited</code> (<code>T-054</code>); <a href="qa-test-plan.html#go-taskrun">TC-247…TC-249</a>. The attempts on record so far were made against a stand-in tool, never a provider</td></tr>
       <tr><td>D-6</td><td>The exact context slice sent to a model is frozen and stored per attempt</td><td>Without it you can see that a task failed but never why the model believed what it believed (P-6)</td><td><strong>Built</strong> — the slice is frozen at the moment the egress pass clears it, keyed by that digest, with <code>USES_CONTEXT</code> on the slice rather than the task (<code>T-055</code>); <code>GET /tasks/{id}/context</code> answers from it and says when it is answering live instead (<code>T-056</code>). <a href="qa-test-plan.html#go-taskrun">TC-250…TC-256</a></td></tr>
-      <tr><td>D-7</td><td>The model gateway supports two interchangeable adapters — a provider's command-line tool spawned as a detached subprocess, and the provider's HTTP API — selected by one deployment-wide setting. Development delivers the CLI adapter first</td><td>Predictable flat-fee spend or exact metered accounting is the operator's call, not the product's — <a href="decision-log.html#d-036">D-036</a>, <a href="#to-be-cli">§7.6</a></td><td><strong>Partly built</strong> &mdash; the CLI adapter exists (<code>dashboard/adapter_cli.go</code>, <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a>) with the boot smoke test and the handoff parser. No scheduler drives it and no real provider has been invoked; the API adapter is <a href="../delivery/implementation-plan.html#sub-m4-4">T-058</a></td></tr>
+      <tr><td><s>D-7</s></td><td><s>The model gateway supports two interchangeable adapters — a provider's command-line tool spawned as a detached subprocess, and the provider's HTTP API — selected by one deployment-wide setting. Development delivers the CLI adapter first</s> <em>Superseded by D-14, <a href="decision-log.html#d-055">D-055</a>; the CLI adapter was deleted in v0.29.0</em></td><td>Predictable flat-fee spend or exact metered accounting is the operator's call, not the product's — <a href="decision-log.html#d-036">D-036</a>, <a href="#to-be-cli">§7.6</a></td><td><strong>Partly built</strong> &mdash; the CLI adapter exists (<code>dashboard/adapter_cli.go</code>, <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a>) with the boot smoke test and the handoff parser. No scheduler drives it and no real provider has been invoked; the API adapter is <a href="../delivery/implementation-plan.html#sub-m4-4">T-058</a></td></tr>
       <tr><td><s>D-8</s></td><td><em>Superseded by D-16, <a href="decision-log.html#d-057">D-057</a>: there is no packet on disk.</em> The frozen slice is materialised as a <em>task packet</em> of files in the leased workspace, and the packet is what is stored as the attempt's evidence</td><td>D-6 must remain true when there is no request body to record</td><td><strong>Built</strong> — <code>MaterialisePacket</code> in <code>dashboard/packet.go</code>, the cleared packet only (<code>T-061</code>); <a href="qa-test-plan.html#go-packet">TC-262</a>, <a href="qa-test-plan.html#go-packet">TC-263</a></td></tr>
       <tr><td>D-9</td><td>Every invocation must produce a <em>handoff document</em> at a declared path in the declared shape; a missing or unparseable one is a failed attempt with the signature <code>handoff-missing</code></td><td>This is the only path by which one agent's reasoning reaches the next. Treating its absence as success would let a chain silently degrade into agents editing files at each other</td><td><strong>Built</strong> — the contract travels in the packet and as a standing system prompt (<code>T-062</code>), and all four ways to fail carry one signature (<code>T-063</code>). Proved against a real provider tool on 2026-08-23: <a href="qa-test-plan.html#sc-live-cli">TC-272</a></td></tr>
       <tr><td>D-10</td><td>The handoff document is stored as an <code>Artifact</code> and reaches the next agent only through <code>USES_CONTEXT</code> on that agent's slice</td><td>Keeps the document as transport and the graph as the record — a document passed outside the graph is a state change that never happened (BR-02)</td><td><strong>Built</strong> — <code>ArtifactRecord</code> keyed by run and cited into the next packet with role <code>lesson</code>, with no second route to it (<code>T-064</code>); <a href="qa-test-plan.html#go-packet">TC-266</a></td></tr>
@@ -832,7 +843,7 @@ egress:                               <span class="c"># domain L applies in BOTH
       <tr><td>D-14</td><td>The model gateway is one adapter, an HTTP client of ai-manager; every attempt records <code>invocation = gateway</code></td><td>Supervising a model process is ai-claude-cli's job, written once for every client — <a href="decision-log.html#d-055">D-055</a>, <a href="decision-log.html#d-062">D-062</a></td><td><strong>Built</strong> — <code>dashboard/adapter_aimanager.go</code>, <code>GAOS_MODEL_MODE=aimanager</code> (<code>T-147</code>…<code>T-150</code>); the CLI adapter remains until M14.7</td></tr>
       <tr><td>D-15</td><td>One ai-manager session per task: a retry resumes it, an escalation, a <code>410</code> or rotation opens a new one</td><td>One turn at a time per session, history re-read every turn, expiry after thirty days — <a href="decision-log.html#d-056">D-056</a></td><td><strong>Built</strong> — <code>dashboard/turns.go</code> (<code>T-160</code>); <a href="qa-test-plan.html#ni-workspace">TC-296</a></td></tr>
       <tr><td>D-16</td><td>The handoff is the last <code>gaos-handoff</code> block in the reply and must echo the current run id; otherwise <code>handoff-missing</code></td><td>GAOS cannot read a file written on another host; D-9's contract must survive the move — <a href="decision-log.html#d-057">D-057</a></td><td><strong>Built</strong> — <code>ExtractHandoff</code> (<code>T-149</code>); <a href="qa-test-plan.html#ni-aim">TC-280, TC-281</a></td></tr>
-      <tr><td>D-17</td><td>Every attempt pins the published Blueprint version it ran under, and the workspace must match it at submit</td><td>The rules an attempt followed are part of its evidence — <a href="decision-log.html#d-058">D-058</a></td><td><strong>Built</strong> before the turn: the drift gate on both routes and <code>PINNED_TO</code> (<a href="qa-test-plan.html#go-workspace">TC-292, TC-294</a>); the after-the-turn check is open</td></tr>
+      <tr><td>D-17</td><td>Every attempt pins the published Blueprint version it ran under, and the workspace must match it at submit</td><td>The rules an attempt followed are part of its evidence — <a href="decision-log.html#d-058">D-058</a></td><td><strong>Built</strong> before the turn: the drift gate on both routes and <code>PINNED_TO</code> (<a href="qa-test-plan.html#go-workspace">TC-292, TC-294</a>); and, since v0.30.0, after it: the workspace digest is re-read and the context the worker reports is compared with the pinned version, and drift refuses the next dispatch as <code>observed-drift</code> (<a href="qa-test-plan.html#go-after-turn">TC-317…TC-319</a>)</td></tr>
       <tr><td>D-18</td><td>At most one live turn per product workspace, held as a lease on the <code>Workspace</code> vertex</td><td>The successor to D-3: one folder per product means two turns would be two full-permission agents in one checkout — <a href="decision-log.html#d-060">D-060</a></td><td><strong>Built</strong> as a graph lease in the scheduler (<code>T-157</code>); <a href="qa-test-plan.html#go-workspace">TC-295</a></td></tr>
       <tr><td>D-19</td><td>Every turn carries a deterministic request id persisted before it is sent; on boot, each open id is polled and adopted, kept, or — if lost — held until the turn deadline and requeued on a new session</td><td>The successor to D-4: there is no process to adopt or kill, only a request to ask about — <a href="decision-log.html#d-060">D-060</a></td><td><strong>Built</strong> — recovery by request id (<code>T-161</code>); <a href="qa-test-plan.html#ni-workspace">TC-297, TC-298</a></td></tr>
     </tbody>
@@ -942,10 +953,10 @@ efficiency    tokens, latency, retries consumed</pre>
       <tr><td><s>I-4</s></td><td><em>Retired with the floor, <a href="decision-log.html#d-060">D-060</a>; meetings stay in the data model, unrendered.</em> The design-review overlay: agenda, participants, confidence, decision</td><td>Meetings are a system state, not an off-screen event</td><td>Built</td></tr>
       <tr><td>I-5</td><td>The back office: product master, requirements, stories, diagrams, knowledge, agents, readiness checklist, graph projection, story coverage</td><td>Where the record author works</td><td>Built</td></tr>
       <tr><td>I-6</td><td>The UI never invents state the graph does not have</td><td>A projection that guesses is worse than a blank</td><td><strong>Built</strong> — an architectural prohibition rather than a feature, and it holds today: <code>static/app.js</code> carries HTMX wiring and keyboard shortcuts and renders no markup at all (<code>T-108</code>)</td></tr>
-      <tr><td>I-7</td><td>The five blocking reasons for an idle desk are displayed explicitly, including "deferred — budget window" with the time it resumes</td><td><a href="#to-be-autonomy">§7.4</a> — an unexplained idle floor reads as a broken product, and a budget pause that looks like a hang is the version of that failure an operator will report as a bug</td><td>Designed</td></tr>
+      <tr><td>I-7</td><td>The five blocking reasons for an idle task are displayed explicitly, including "deferred — budget window" with the time it resumes</td><td><a href="#to-be-autonomy">§7.4</a> — an unexplained idle board reads as a broken product, and a budget pause that looks like a hang is the version of that failure an operator will report as a bug</td><td>Designed</td></tr>
       <tr><td>I-8</td><td><strong>Mission Control is one surface for both audiences — the operator's view and the internal operations view are the same pages with different capabilities granted, separated by role and never by codebase.</strong> Three things are preconditions on any further work here rather than later additions: real authentication, per-tenant scoping so a role sees one tenant's records and not the store, and accessibility. The provider data-handling profile and the egress inventory are displayed here (<a href="#req-l">L-3</a>)</td><td><a href="decision-log.html#d-040">D-040</a>. A second console would fork the only finished thing in the repository, and the fork would drift. Choosing both audiences means the surface is now something external operators sit in front of, which is what turns the three preconditions from aspirations into blockers — <a href="open-questions.html#oq-11">OQ-11</a> becomes a blocking dependency rather than an open question</td><td>Designed — none of the three preconditions is started</td></tr>
-      <tr><td>I-9</td><td>Each product has a kanban board: columns are groups of task statuses, swimlanes are stories (or roles), and every card shows its exact status</td><td>Once GAOS is product and task management, the board is the product's working surface — <a href="decision-log.html#d-061">D-061</a></td><td><strong>Built</strong> — the back office's Board tab (<code>T-162</code>, <code>T-163</code>); <a href="qa-test-plan.html#go-board">TC-304, TC-305</a></td></tr>
-      <tr><td>I-10</td><td>A move on the board is a request to the task state machine; an illegal move returns <code>409</code>, writes no event, and the board rolls back. Columns the scheduler or the budget guard own are never drop targets</td><td>A board that can set a status the state machine forbids is a second source of truth (<a href="#rules-gateway">BR-43</a>). A richer client-side board depends on <a href="open-questions.html#oq-25">OQ-25</a></td><td><strong>Built</strong> — <code>dashboard/board.go</code>; <a href="qa-test-plan.html#go-board">TC-306, TC-307, TC-309</a></td></tr>
+      <tr><td>I-9</td><td>Each product has a kanban board: columns are groups of task statuses, swimlanes are stories (or roles), and every card shows its exact status</td><td>Once GAOS is product and task management, the board is the product's working surface — <a href="decision-log.html#d-061">D-061</a></td><td><strong>Built</strong> — the back office's Board tab (<code>T-162</code>, <code>T-163</code>), replayable from the event stream by the task fold (<code>T-164</code>); <a href="qa-test-plan.html#go-board">TC-304, TC-305</a>, <a href="qa-test-plan.html#go-taskfold">TC-308, TC-316</a></td></tr>
+      <tr><td>I-10</td><td>A move on the board is a request to the task state machine; an illegal move returns <code>409</code>, writes no event, and the board rolls back. Columns the scheduler or the budget guard own are never drop targets</td><td>A board that can set a status the state machine forbids is a second source of truth (<a href="#rules-gateway">BR-43</a>). The richer client-side board is the vendored sisflow board, under its owner's grant (<a href="decision-log.html#d-063">D-063</a>)</td><td><strong>Built</strong> — <code>dashboard/board.go</code>, and the sisflow client over it (<code>T-165</code>), which rolls a refused card back; <a href="qa-test-plan.html#go-board">TC-306, TC-307, TC-309</a>, <a href="qa-test-plan.html#cs-sisflow">TC-310</a></td></tr>
     </tbody>
   </table>
 
@@ -1015,7 +1026,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
     <thead><tr><th>Zone</th><th>What happens</th><th>Events</th><th>How it ends</th></tr></thead>
     <tbody>
       <tr><td><strong>Normal</strong></td><td>Dispatch proceeds. Spend and rate are recorded and shown against the ceiling (J-8)</td><td>—</td><td>—</td></tr>
-      <tr><td><strong>Throttled</strong></td><td>No new dispatch. Ready tasks become <code>deferred</code> with a <code>deferredUntil</code>. In-flight runs finish normally. The floor shows "deferred — budget window" as the blocking reason, not an unexplained idle desk</td><td><code>BudgetThresholdReached</code>, <code>TaskDeferred</code></td><td><strong>By itself.</strong> The window advances, or spend falls back under the ceiling, and deferred tasks requeue — <code>TaskResumed</code>. No human action needed</td></tr>
+      <tr><td><strong>Throttled</strong></td><td>No new dispatch. Ready tasks become <code>deferred</code> with a <code>deferredUntil</code>. In-flight runs finish normally. The board shows "deferred — budget window" as the blocking reason, not an unexplained idle task</td><td><code>BudgetThresholdReached</code>, <code>TaskDeferred</code></td><td><strong>By itself.</strong> The window advances, or spend falls back under the ceiling, and deferred tasks requeue — <code>TaskResumed</code>. No human action needed</td></tr>
       <tr><td><strong>Exhausted</strong></td><td>Dispatch refuses. Existing runs still finish. The workflow is not cancelled and the task graph is not unwound</td><td><code>BudgetCapReached</code>, then <code>GuardExhausted</code> with reason <code>budget-cap</code></td><td><strong>Only deliberately.</strong> The operator raises the cap, or the period rolls over. Continuing is a decision somebody makes, which is the entire point of a cap</td></tr>
     </tbody>
   </table>
@@ -1338,7 +1349,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>A-02</td><td>Escalating a model tier improves the outcome when the failure signature has changed</td><td>No — never observed; it is a reasoned design position</td></tr>
       <tr><td>A-03</td><td>Extracted knowledge measurably reduces retries on a later run of the same product</td><td>No — this is the central business bet and the one measurement that would settle it has never been run</td></tr>
       <tr><td>A-04</td><td>ArcadeDB's documented hybrid-schema, partitioning and <code>EXTERNAL</code> behaviour holds on the version GAOS will deploy</td><td>No — the document itself says to verify before relying on it</td></tr>
-      <tr><td>A-05</td><td>Detached runners with leases and heartbeats are sufficient to survive orchestrator restarts without a distributed lock service</td><td>No — designed, not exercised</td></tr>
+      <tr><td>A-05</td><td>Detached runners with leases and heartbeats are sufficient to survive orchestrator restarts without a distributed lock service</td><td>No — designed, not exercised, and retired in v0.29.0 with the detached runner; recovery now polls each turn's request id (<a href="decision-log.html#d-060">D-060</a>)</td></tr>
       <tr><td>A-06</td><td>Teams will accept a system that refuses to plan against an incomplete brief</td><td>No — a product-adoption assumption with no user contact behind it</td></tr>
       <tr><td>A-07</td><td>A provider's command-line tool can be driven non-interactively by a scheduler, reliably enough and within its terms, to stand in for an API in the MVP</td><td>No — never attempted. Two separate bets: that it works mechanically, and that it is permitted. See <a href="#risk-register">R-12</a></td></tr>
       <tr><td>A-08</td><td>An agent instructed to write a structured handoff document will do so consistently enough that the next agent can rely on it</td><td>No — this is the load-bearing assumption of the whole CLI approach, and the mitigation if it is false is a validator that fails the attempt rather than a chain that degrades quietly (<a href="#rules-commercial">BR-30</a>)</td></tr>
@@ -1416,7 +1427,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td><a href="../architecture/system.html">Architecture — the system</a></td><td>The same design as a docs page, with the repository mapping</td></tr>
       <tr><td><a href="../architecture/graph.html">Architecture — the graph</a></td><td>The schema as a docs page, including what is not built yet</td></tr>
       <tr><td><code>dashboard/events.go</code></td><td>The closed event catalog as Go constants, with "pass 2" names marked</td></tr>
-      <tr><td><code>dashboard/store.go</code>, <code>store_mem.go</code>, <code>store_arcade.go</code>, <code>sim.go</code></td><td>The seam, its two implementations, and the simulation standing in for the runner</td></tr>
+      <tr><td><code>dashboard/store.go</code>, <code>store_mem.go</code>, <code>store_arcade.go</code></td><td>The seam and its two implementations; <code>sim.go</code>, the simulation that stood in for the runner, was deleted in v0.29.0</td></tr>
       <tr><td><code>README.md</code></td><td>The designed-versus-built table and the deployment facts</td></tr>
       <tr><td><code>deploy/STACKS.md</code>, <code>deploy/edge/README.md</code></td><td>Topology, tunnel ports, TLS termination, the constraints in <a href="#scope-constraints">§10.3</a></td></tr>
       <tr><td><a href="../infra/overview.html">Infrastructure — overview</a>, <a href="../infra/environments.html">environments</a>, <a href="../infra/neighbours.html">neighbours</a></td><td>How the two tiers run and how GAOS shares the VM</td></tr>

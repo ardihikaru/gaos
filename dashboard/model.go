@@ -214,6 +214,9 @@ type EventPayload struct {
 	Version int
 	// Session is the gateway session SessionOpened / SessionLost name.
 	Session string
+	// To is the task status a TaskMoved reached (T-164). Reason carries the
+	// same move as "FROM→TO" for a reader; the task fold reads this.
+	To string
 
 	// Desk fields. Which of these a reducer case reads is fixed per event type.
 	Task       string
@@ -884,11 +887,19 @@ type ContextView struct {
 // produced, at that moment" stops being answerable from the present graph the
 // first time a dependency is rewired, and BR-04 makes the stream the record.
 // An audit field, named as one so it does not read as a field nobody uses.
+//
+// Since T-164 it also carries what the task fold needs to rebuild a card
+// (taskfold.go): its story (the board's lane), model, gate and priority. The
+// ordinal is the task's index in the list and the workflow is the event's.
 type PlannedTask struct {
-	ID    string
-	Title string
-	Role  string
-	Deps  []string
+	ID       string
+	Title    string
+	Role     string
+	Deps     []string
+	Story    string
+	Model    string
+	Gate     bool
+	Priority int
 }
 
 type ProductDraft struct {

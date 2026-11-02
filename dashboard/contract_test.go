@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -135,5 +136,48 @@ func TestAnAttemptDoesNotCiteItsOwnHandoff(t *testing.T) {
 			t.Errorf("attempt 1 of t-1 was cited artifact %s, which attempt 1 of t-1 produced; "+
 				"an attempt reading its own output is a loop with extra steps", c.NodeID)
 		}
+	}
+}
+
+// TestAFailedTurnIsCitedAsAFailureNotAHandoff: a failed turn's error text is
+// still its attempt's stored handoff, but the next agent is shown it under
+// failure-previous.md, said to be an error first. A clean turn's handoff is
+// still handoff-previous.md, unlabelled.
+func TestAFailedTurnIsCitedAsAFailureNotAHandoff(t *testing.T) {
+	s := NewMemStore(3)
+	f, a := gatewayOn(t, s)
+	deskID := s.desks[0].ID
+	part := func(p Packet, prefix string) (PacketPart, bool) {
+		for _, x := range p.Parts {
+			if strings.HasPrefix(x.Path, prefix) {
+				return x, true
+			}
+		}
+		return PacketPart{}, false
+	}
+
+	f.submit = http.StatusGone // the session is gone: a failed turn with an error text
+	s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", 1), 1)
+	s.mu.RLock()
+	next := s.freezePacketFor(s.desks[0], "t-2", 1)
+	s.mu.RUnlock()
+	got, ok := part(next, ".gaos/packet/context/failure-previous.md")
+	_, asHandoff := part(next, ".gaos/packet/context/handoff-previous.md")
+	if !ok || asHandoff || !strings.HasPrefix(got.Body, "The previous attempt (run "+runIDFor("t-1", 1)+") failed with `") {
+		t.Fatalf("after a failed turn the next packet holds failure-previous.md %v (body %q) and handoff-previous.md %v; want the error labelled as a failure, never shown as a handoff",
+			ok, got.Body, asHandoff)
+	}
+
+	f.submit = 0
+	completeTurn(f, "t-2", 1, "0.1")
+	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-2", 1), 1); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.RLock()
+	next = s.freezePacketFor(s.desks[0], "t-3", 1)
+	s.mu.RUnlock()
+	got, ok = part(next, ".gaos/packet/context/handoff-previous.md")
+	if _, failed := part(next, ".gaos/packet/context/failure-previous.md"); !ok || failed || strings.HasPrefix(got.Body, "The previous attempt") {
+		t.Fatalf("after a clean turn the next packet holds handoff-previous.md %v and failure-previous.md %v; want the handoff, unlabelled", ok, failed)
 	}
 }

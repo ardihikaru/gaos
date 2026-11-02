@@ -55,8 +55,8 @@
       <tr><td>UI · Mission Control</td><td>A projection of graph state; operator actions</td><td>Invent state the graph does not have</td></tr>
       <tr><td>API gateway</td><td>Auth, tenant scoping, request validation, event fan-out</td><td>Let a tenant boundary be enforced further down only</td></tr>
       <tr><td>Orchestration</td><td>Planner, scheduler, review engine, retry policy</td><td>Hold long-lived state in process memory</td></tr>
-      <tr><td>Execution</td><td>Turn supervision: one live turn per product workspace, a request id per attempt, polling, recovery by deadline. <em>Until M14: detached processes, workspace leases, heartbeats</em></td><td>Lose a turn it submitted, or start a second writer in a workspace</td></tr>
-      <tr><td>Model gateway</td><td>One adapter, an HTTP client of ai-manager; cost and token accounting from its reply. <em>Until M14: the CLI adapter</em></td><td>Leak provider-specific shapes upward, or spawn a tool</td></tr>
+      <tr><td>Execution</td><td>Turn supervision: one live turn per product workspace, a request id per attempt, polling, recovery by deadline. <em>Before v0.29.0: detached processes, workspace leases, heartbeats</em></td><td>Lose a turn it submitted, or start a second writer in a workspace</td></tr>
+      <tr><td>Model gateway</td><td>One adapter, an HTTP client of ai-manager; cost and token accounting from its reply. <em>Before v0.29.0: the CLI adapter</em></td><td>Leak provider-specific shapes upward, or spawn a tool</td></tr>
       <tr><td>ArcadeDB</td><td>Graph, documents, events, full-text, time series</td><td>Be bypassed by a side channel</td></tr>
     </tbody>
   </table>
@@ -71,48 +71,46 @@
 
   <h2 id="boot-recovery">What happens when the orchestrator restarts</h2>
 
-  <p>Because execution does not die with orchestration, a restart finds tasks that claim to be
-  running. The recovery is a reconciliation, not a reset:</p>
+  <p>Because a turn runs in ai-manager and not in the orchestrator, a restart finds tasks that claim
+  to be running. The recovery is a reconciliation, not a reset, and it rests on one ordering rule:
+  every turn is recorded with its request id <em>before</em> it is sent. <code>Reconcile</code> in
+  <code>dashboard/runner.go</code> and <code>recoverTurns</code> in <code>dashboard/turns.go</code>
+  do the rest:</p>
 
   <div class="codeblock">
     <div class="bar"><span class="lang">pseudocode</span><button class="copy">copy</button></div>
-    <pre>for task in tasks where status in (DISPATCHED, RUNNING):
-    lease = task.workspace.leaseUntil
-    beat  = task.lastHeartbeatAt
+    <pre>for run in runs where status in (STARTED, RUNNING) and run.requestId != "":
+    reply = gateway.poll(run.requestId)
+    if reply in (completed, failed):
+        adopt(run)                     <span class="c"># TaskResumed(rule=adopted); finished like a supervised run</span>
+    else:                              <span class="c"># ai-manager no longer knows the request</span>
+        emit TaskOrphaned(rule=request-lost)
+        hold(run.product) until run.startedAt + turn_deadline
+        requeue(run.task)              <span class="c"># TaskResumed(rule=requeued), on a new session</span>
 
-    if lease &gt; now and beat &gt; now - heartbeat_timeout:
-        adopt(task)                    <span class="c"># the process is alive; reattach</span>
-    elif lease &gt; now:
-        kill(task); requeue(task)      <span class="c"># lease held, SUPERVISOR gone -- see below</span>
-    else:
-        emit TaskOrphaned(rule=lease-expired)</pre>
+for task in tasks where status in (DISPATCHED, RUNNING) and no turn was recorded:
+    requeue(task)                      <span class="c"># READY; TaskResumed(rule=requeued)</span></pre>
   </div>
 
-  <p>A task that cannot be proved alive is not assumed alive. The heartbeat and the lease are two
-  independent signals precisely so that a hung process and a dead one are distinguishable.</p>
-
-  <div class="adm warn">
-    <p class="adm-title">The middle branch used to say &ldquo;process gone&rdquo;. It does not know that.</p>
-    <p>It knows the <em>beat</em> is stale, and a stale beat means the <em>supervisor</em> died &mdash;
-    which says nothing whatever about the child, because work is detached precisely so it outlives
-    its supervisor. Requeuing on that basis starts a second run in a workspace that may still have a
-    live one in it: the exact silent corruption the exclusive lease exists to prevent, reached
-    through the recovery routine. So requeue <strong>kills first</strong>. A run that can be proved
-    neither alive nor dead is made dead before its workspace is handed to anybody
-    (<a href="../product/decision-log.html#d-054">D-054</a>). The event this branch emitted was also
-    named <code>TaskFailed</code> here, which is not in the closed catalog &mdash; it is
-    <code>TaskOrphaned</code>, and both corrections landed with the code that made them matter.</p>
-  </div>
+  <p>A turn that cannot be proved finished is not assumed finished, and a lost one is not assumed
+  dead. ai-manager keeps request records in memory, so a request it no longer knows may still be
+  running in the workspace; the product stays held &mdash; the per-product graph lease of
+  <code>BR-38</code> allows one live turn per product &mdash; until the turn deadline has passed,
+  and only then is the task requeued (<a href="../product/decision-log.html#d-060">D-060</a>). The
+  turn is made dead by waiting, because nothing can signal it. A task that claims to be running
+  with no turn behind it never reached the gateway, so nothing anywhere can still be doing its work,
+  and it goes straight back to READY. <a href="gateway.html#recovery">The gateway &sect;recovery</a>
+  has the request-level detail.</p>
 
   <div class="adm note">
-    <p class="adm-title">Through the gateway, there is no process to adopt</p>
-    <p>Once <a href="../delivery/implementation-plan.html#sub-m14-5">M14.5</a> lands, the routine above
-    is replaced by a poll on the request id each attempt persisted before it was sent: a finished
-    request is adopted, a running one is kept, and a lost one — ai-manager keeps request records in
-    memory — holds the workspace until the turn must have ended, then requeues on a new session
-    (<a href="../product/decision-log.html#d-060">D-060</a>). The principle above is unchanged; the
-    turn is made dead by waiting, because nothing can signal it.
-    <a href="gateway.html#recovery">The gateway §recovery</a>.</p>
+    <p class="adm-title">Before v0.29.0 this was a lease-and-heartbeat reconciler</p>
+    <p>Work ran as detached processes under a workspace lease, and recovery compared the lease
+    with the last heartbeat: adopt a live run, kill-then-requeue one whose supervisor had died, and
+    orphan one whose lease had expired. The kill came first because a stale beat says the
+    <em>supervisor</em> died, not the child, and requeuing without it could start a second writer
+    in the same workspace (<a href="../product/decision-log.html#d-054">D-054</a>). M14.7 deleted
+    the detached runner, the lease and the heartbeat; the principle &mdash; never hand a workspace
+    on while something may still be writing in it &mdash; survives as the hold above.</p>
   </div>
 
   <h2 id="setup-to-autonomy">From an empty record to autonomous work</h2>
@@ -135,9 +133,9 @@
 
   <p><strong>Autonomy begins when the scheduler can find a READY task without a human naming
   it.</strong> That requires four things at once: an acyclic dependency graph, a capable agent for
-  the role, an acquirable workspace lease, and a readiness gate that passed. Miss any one and the
-  work queues instead of starting — which is the correct failure, and the one the room-occupancy
-  meters on the floor are there to make visible.</p>
+  the role, a product with no live turn (the graph lease of <code>BR-38</code>), and a readiness gate that passed. Miss any one and the
+  work queues instead of starting — which is the correct failure, and the one the product's board
+  and its blocking reasons are there to make visible.</p>
 
   <h2 id="task-split">Splitting work, and choosing who does it</h2>
 
@@ -260,7 +258,7 @@
     <li>Task state machine</li>
     <li>Product master and readiness scoring</li>
     <li>Planner producing a static task graph</li>
-    <li>Runner with one detached process</li>
+    <li>Runner with one supervised turn (a detached process until v0.29.0)</li>
     <li>Review, scoring and retry policy</li>
     <li>Context assembly</li>
     <li>Approval gates</li>
@@ -273,8 +271,8 @@
     <p>It is the most rewarding to build and the least load-bearing. This repository has done
     exactly that anyway — see the changelog — but for a stated reason: the first thing worth
     proving was the deployment path, and a dashboard is the only component that exercises all of
-    it. Steps 1, 2 and 9 are done and step 5 is half done; what moves the desks on that floor is
-    still a simulation rather than work, and the page says so.</p>
+    it. The engineering floor that first shipped was moved by a simulation; v0.29.0 deleted both,
+    and since then the board moves only when real work, through ai-manager, moves a task.</p>
   </div>
 
   <h2 id="where-this-lives">Where this lives in the repository</h2>
