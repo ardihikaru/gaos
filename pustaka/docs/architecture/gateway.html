@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The gateway — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="arch-gateway">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Architecture</p>
+  <h1>The gateway</h1>
+  <p class="lede">How a task leaves GAOS and comes back. GAOS does not run a model; it asks
+  ai-manager to run one turn inside the product's workspace, and ai-manager hands the turn to
+  ai-claude-cli. This page is the contract between them, the error mapping, the session policy, and
+  the upstream change that makes one workspace per product possible.</p>
+
+  <div class="page-meta"
+       data-tags="architecture, gateway, ai-manager, sessions, workspaces"
+       data-hashtags="gaos, gateway, ai-manager, ai-claude-cli"
+       data-published="2026-11-02"
+       data-updated="2026-11-02"
+       data-version-from="0.23.0"
+       data-version-to=""></div>
+
+  <div class="adm warn">
+    <p class="adm-title">Designed, not built</p>
+    <p>Everything on this page is decided (<a href="../product/decision-log.html#d-055">D-055</a> to
+    <a href="../product/decision-log.html#d-062">D-062</a>) and none of it is code yet. The dashboard
+    still ships the CLI adapter described in <a href="../product/brd.html#to-be-cli">BRD §7.6</a>
+    until <a href="../delivery/implementation-plan.html#m14-gateway">M14</a> replaces it. The
+    upstream endpoints in <a href="#upstream">the last section</a> do not exist in ai-claude-cli or
+    ai-manager today.</p>
+  </div>
+
+  <h2 id="three-layers">Three layers, one job each</h2>
+  <p>The product owner's wording is the specification: <strong>ai-claude-cli works the task with
+  context; ai-manager shapes it with a workspace; GAOS shapes it with the product, the task details
+  and the product's Blueprint.</strong> Each layer has something it alone owns and something it must
+  never do, in the same form as <a href="system.html#layers">the six layers</a>.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Layer</th><th>Owns</th><th>Must never</th></tr></thead>
+    <tbody>
+      <tr><td><strong>GAOS</strong></td><td>The product record, its Blueprint and versions, readiness,
+      the task graph and status machine, the brief, egress screening, the event stream, the durable
+      prompt, reply and handoff of every attempt, the board</td><td>Spawn a model tool; hold a provider
+      credential; send a filesystem path</td></tr>
+      <tr><td><strong>ai-manager</strong></td><td>Authentication, the list of workspaces chat may use,
+      sessions, async request-reply, cost and usage accounting</td><td>Choose a folder from client
+      input; replace a lost session silently</td></tr>
+      <tr><td><strong>ai-claude-cli</strong></td><td>The folder under one managed root, the instruction
+      files allowed in it, running <code>claude</code> with resume, reporting what it observed at
+      startup</td><td>Write outside the managed root, or write a file outside the allowlist</td></tr>
+    </tbody>
+  </table>
+
+  <p>One product has exactly one workspace, with the id <code>gaos-&lt;tenant&gt;-&lt;product
+  code&gt;</code>. The id is derived once, stored on the <code>Workspace</code> vertex, and never
+  renamed, because ai-claude-cli keys stored transcripts by it.</p>
+
+  <h2 id="turn">One turn, end to end</h2>
+  <p>A <em>turn</em> is one prompt and one reply inside one session. Every attempt at a task is one
+  turn. The path below replaces the packet-on-disk and detached-process path; the stages before
+  <em>Submit</em> are the ones that already exist.</p>
+
+  <div class="flow rv">
+    <div class="node"><b>Assemble</b><span>the brief, by traversal</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Screen</b><span>egress, BR-32</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Freeze</b><span>slice + pinned Blueprint</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Submit</b><span><code>POST /v1/chat</code>, async</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Poll</b><span>until a result</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Extract</b><span>the handoff block</span></div>
+  </div>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">turn</span><button class="copy">copy</button></div>
+    <pre>scheduler finds READY task T in product P
+  │  workspace lease for P is free            <span class="c"># BR-38: one live turn per workspace</span>
+  │  P.workspace.syncedDigest == pinned digest <span class="c"># BR-39: else DispatchRefused(blueprint-drift)</span>
+  ▼
+brief   = BuildBrief(T, P.record, cited handoffs, last review)
+cleared = Screen(policy, target, brief)       <span class="c"># the only way to get a Cleared</span>
+run     = TaskRun{requestId: "gaos.&lt;tenant&gt;.&lt;T&gt;.&lt;attempt&gt;", sessionId, blueprintVersion}
+persist run                                    <span class="c"># before the request leaves</span>
+  ▼
+POST /v1/chat   X-Request-ID: run.requestId
+  {"new_session": true, "workspace_id": "gaos-t1-p5", "model": "...", "prompt": RenderPrompt(cleared)}
+  or {"session_id": "...", "prompt": ...}      <span class="c"># a retry resumes, D-056</span>
+→ 202 {request_id, status_url, result_url}     <span class="c"># emit TaskDispatched</span>
+  ▼
+GET /v1/requests/{id}         every GAOS_AIM_POLL_MS   <span class="c"># processing → RunStarted, then Heartbeat</span>
+GET /v1/requests/{id}/result  → 200 {text, session_id, cost_usd, input_tokens, output_tokens, metadata}
+  ▼
+store Prompt, reply Artifact, metadata            <span class="c"># BR-41: the session is transport</span>
+handoff = ExtractHandoff(text)                    <span class="c"># last ```gaos-handoff block, run id must match</span>
+emit RunExited → task REVIEW | BLOCKED | FAILED</pre>
+  </div>
+
+  <p>The request id is deterministic for a reason. ai-manager treats a second POST with the same
+  <code>X-Request-ID</code> as a no-op, so a request whose <code>202</code> was lost can be sent again
+  without starting a second turn. The same id is what recovery polls after a restart.</p>
+
+  <h2 id="error-mapping">What each answer means</h2>
+  <p>ai-manager's errors are precise, and each maps to exactly one outcome. The important property is
+  that <strong>no error is turned into a silent success or a silent fresh start</strong>.</p>
+
+  <table class="tbl">
+    <thead><tr><th>ai-manager answers</th><th>GAOS records</th><th>Task goes to</th></tr></thead>
+    <tbody>
+      <tr><td><code>200</code> with a valid <code>gaos-handoff</code> block</td><td>The handoff's status;
+      cost <code>measured</code> from <code>cost_usd</code></td><td>REVIEW, or BLOCKED if the handoff
+      says so</td></tr>
+      <tr><td><code>200</code>, no block, two disagreeing blocks, or a run id that is not this
+      run's</td><td>Signature <code>handoff-missing</code></td><td>FAILED</td></tr>
+      <tr><td><code>200</code> with <code>metadata.session_warning</code></td><td>Signature
+      <code>turn-unsaved</code>, even if the handoff is valid — the session no longer matches the
+      record</td><td>FAILED</td></tr>
+      <tr><td><code>410</code></td><td>Signature <code>session-lost</code>; <code>SessionLost</code>
+      event</td><td>FAILED; the retry opens a new session</td></tr>
+      <tr><td><code>409</code></td><td>Nothing. Another turn of this session is running — this is busy,
+      not a failure, and no <code>TaskRun</code> is closed</td><td>Stays READY; the scheduler tries
+      again</td></tr>
+      <tr><td><code>403</code> or <code>423</code></td><td><code>DispatchRefused</code>, rule
+      <code>workspace-inactive</code></td><td>Stays READY, blocked with a reason</td></tr>
+      <tr><td><code>502</code>, <code>503</code>, transport error</td><td>Exit class
+      <code>crashed</code></td><td>FAILED</td></tr>
+      <tr><td><code>404</code> on a request GAOS submitted</td><td><code>TaskOrphaned</code>, rule
+      <code>request-lost</code></td><td>See <a href="#recovery">recovery</a></td></tr>
+    </tbody>
+  </table>
+
+  <p>Cost follows <a href="../product/decision-log.html#d-062">D-062</a>: <code>cost_usd</code> is
+  Claude Code's own <code>total_cost_usd</code>, passed through, so it is <code>measured</code>. A
+  missing value, or zero while tokens are above zero, is <code>unavailable</code> and never zero
+  (<a href="../product/brd.html#rules-commercial">BR-37</a>). <code>TaskRun.invocation</code> is
+  <code>gateway</code>, recorded and never branched on.</p>
+
+  <h2 id="sessions">Sessions: one per task</h2>
+  <p>ai-manager keeps a conversation as a <em>session</em>: GAOS sends only the new message, and the
+  worker restores the transcript before every turn. GAOS opens <strong>one session per task</strong>
+  (<a href="../product/decision-log.html#d-056">D-056</a>), not one per product.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Situation</th><th>Session</th><th>Event</th></tr></thead>
+    <tbody>
+      <tr><td>First attempt at a task</td><td>New, in the product's workspace</td><td><code>SessionOpened</code>, reason <code>first</code></td></tr>
+      <tr><td>Retry on the same model</td><td>Resumed — the model sees its failed reply and the review</td><td>—</td></tr>
+      <tr><td>Escalation to another model</td><td>New</td><td><code>SessionOpened</code>, reason <code>escalation</code></td></tr>
+      <tr><td><code>410</code> on resume</td><td>New, on the next attempt</td><td><code>SessionLost</code>, then <code>SessionOpened</code>, reason <code>lost</code></td></tr>
+      <tr><td>Older than <code>GAOS_AIM_SESSION_MAX_AGE</code> (25 days)</td><td>New</td><td><code>SessionOpened</code>, reason <code>rotation</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="adm note">
+    <p class="adm-title">Why not one long session per product</p>
+    <p>ai-manager runs <strong>one turn at a time per session</strong> and answers a second with
+    <code>409</code>, so a product session would queue every task behind every other. Each turn
+    re-reads the whole transcript, so cost would grow with the product's age. And sessions expire
+    thirty days after their last turn, so the product's memory would vanish on a timer. Knowledge that
+    must outlive a task belongs in the <a href="../product/blueprint.html">Blueprint</a>, which every
+    session loads from the workspace, and in earlier handoffs cited into the brief.</p>
+  </div>
+
+  <p><strong>The session is transport, not the record</strong>
+  (<a href="../product/brd.html#rules-gateway">BR-41</a>). For every attempt GAOS stores the rendered
+  prompt, the full reply, the parsed handoff and the <code>metadata</code> ai-manager returned. All of
+  it stays readable after the session expires or answers <code>410</code>.</p>
+
+  <h2 id="recovery">When GAOS restarts mid-turn</h2>
+  <p>There is no process to adopt any more; there is a request id. At boot GAOS polls the id of
+  every <code>TaskRun</code> still marked STARTED or RUNNING.</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">pseudocode</span><button class="copy">copy</button></div>
+    <pre>for run in taskRuns where status in (STARTED, RUNNING) and requestId != "":
+    r = GET /v1/requests/{run.requestId}
+
+    if r.status in (completed, failed):
+        finish(run, result(r))          <span class="c"># adopt: the same Attempt a supervised run gets</span>
+    elif r.status in (pending, processing):
+        keep_polling(run)               <span class="c"># lease held, heartbeats continue</span>
+    else:  <span class="c"># 404 -- ai-manager restarted, or the record aged out</span>
+        emit TaskOrphaned(rule=request-lost)
+        hold lease until run.submittedAt + GAOS_AIM_TURN_DEADLINE
+        requeue(run.task, new_session=true)</pre>
+  </div>
+
+  <p>The last branch is the important one. ai-manager keeps request records in memory, so a
+  <code>404</code> may mean the turn is <em>still running</em> in the worker with nobody listening.
+  Nothing in ai-manager can cancel it (<a href="../product/open-questions.html#oq-26">OQ-26</a>), so
+  GAOS keeps the workspace leased until the turn <em>must</em> have ended —
+  <code>GAOS_AIM_TURN_DEADLINE</code>, default 660 seconds, longer than ai-manager's own 600-second
+  provider timeout — and only then hands the workspace to another turn. This is
+  <a href="../product/decision-log.html#d-054">D-054</a>'s rule kept and its mechanism replaced: a
+  turn that cannot be proved dead is made dead, by waiting rather than by a signal.</p>
+
+  <h2 id="configuration">Configuration</h2>
+  <p>These replace the <code>GAOS_CLI_*</code> settings. Secrets are read from files, never from the
+  environment directly, so they cannot leak through a process listing or a crash dump.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Variable</th><th>Default</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_MODEL_MODE</code></td><td><code>off</code></td><td><code>aimanager</code> selects this gateway</td></tr>
+      <tr><td><code>GAOS_AIM_URL</code></td><td>—</td><td>ai-manager base URL, e.g. <code>https://ai-manager.mfardiansyah.id</code></td></tr>
+      <tr><td><code>GAOS_AIM_CHAT_AUTH_FILE</code></td><td>—</td><td>File holding the Basic login for <code>/v1/*</code></td></tr>
+      <tr><td><code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td>—</td><td>File holding the admin bearer for provisioning and file sync</td></tr>
+      <tr><td><code>GAOS_AIM_POLL_MS</code></td><td><code>2000</code></td><td>Interval between status polls</td></tr>
+      <tr><td><code>GAOS_AIM_TURN_DEADLINE</code></td><td><code>660s</code></td><td>When an unreachable turn is treated as ended</td></tr>
+      <tr><td><code>GAOS_AIM_SESSION_MAX_AGE</code></td><td><code>25d</code></td><td>Age at which a task's session is rotated</td></tr>
+      <tr><td><code>GAOS_MODEL</code></td><td>—</td><td>Passed as <code>model</code>; ai-manager's documented defaults disagree, so always set it</td></tr>
+      <tr><td><code>GAOS_RUNNER</code></td><td>off</td><td>Unchanged: <code>on</code> is the permission to spend money</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="limits">Limits that shape the design</h2>
+  <p>These are ai-manager's and ai-claude-cli's limits, measured from their source and docs on
+  2026-11-02. GAOS has to fit inside them; it cannot configure them.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Limit</th><th>Value</th><th>Consequence for GAOS</th></tr></thead>
+    <tbody>
+      <tr><td>Request body (<code>MAX_REQUEST_KB</code>)</td><td>256 KB</td><td>The brief must fit; the standing Blueprint goes in files, not the prompt</td></tr>
+      <tr><td>Provider timeout</td><td>600 s</td><td>A task must fit in one turn — atomic tasks matter more, not less</td></tr>
+      <tr><td>Worker concurrency</td><td>2 processes</td><td>Parallelism across products is bounded upstream</td></tr>
+      <tr><td>Turns per session</td><td>1 at a time (<code>409</code>)</td><td>One session per task</td></tr>
+      <tr><td>Session retention</td><td>30 days after the last turn</td><td>GAOS stores the record itself</td></tr>
+      <tr><td>Async records</td><td>In memory, 24 h</td><td>Recovery must tolerate <code>404</code> (<a href="../product/open-questions.html#oq-30">OQ-30</a>)</td></tr>
+      <tr><td>Streaming, cancel</td><td>None through ai-manager</td><td>Poll, and wait out a turn that cannot be stopped</td></tr>
+      <tr><td>File upload</td><td>None</td><td>Only the provisioning API below can place files</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="upstream">The upstream change: provisioning a workspace</h2>
+  <p>Measured on 2026-11-02, ai-claude-cli has no API to create a workspace and reads
+  <code>configs/workspaces.json</code> once at startup; ai-manager can only switch an existing one on
+  or off. <a href="../product/decision-log.html#d-059">D-059</a> extends both. This is the
+  specification <a href="../delivery/implementation-plan.html#sub-m14-1">M14.1</a> builds in the
+  <code>ardi-personal-workspace-ai</code> repository.</p>
+
+  <h3 id="upstream-worker">ai-claude-cli (and ai-cli-common)</h3>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><code>WORKSPACES_MANAGED_ROOT</code></td><td>Absolute, exists, not a symlink. <strong>Boot
+      refuses</strong> if the root or any folder above it holds <code>CLAUDE.md</code>,
+      <code>CLAUDE.local.md</code> or <code>.claude/CLAUDE.md</code> — Claude Code would load it into
+      every product</td></tr>
+      <tr><td><code>WORKSPACES_PROVISIONED_FILE</code></td><td>A separate registry. The hand-written
+      <code>workspaces.json</code> is never rewritten</td></tr>
+      <tr><td><code>WORKSPACE_PROVISION_PREFIX</code></td><td>e.g. <code>gaos-</code>; a provisioned id
+      must carry it</td></tr>
+      <tr><td><code>WORKSPACE_ADMIN_TOKEN</code></td><td>Bearer for these routes only; the worker port
+      stays private</td></tr>
+    </tbody>
+  </table>
+
+  <table class="tbl">
+    <thead><tr><th>Route</th><th>Body</th><th>Answers</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /v1/workspaces</code></td><td><code>{id, files?}</code></td><td><code>201</code>
+      manifest; <code>200</code> if it already exists (idempotent); <code>400</code> bad id;
+      <code>409</code> collides with a static id</td></tr>
+      <tr><td><code>PUT /v1/workspaces/{id}/files</code></td><td><code>{files, prune, if_match}</code></td>
+      <td><code>200</code> manifest; <code>412</code> stale <code>if_match</code>; <code>403</code> on a
+      static workspace</td></tr>
+      <tr><td><code>GET /v1/workspaces/{id}/files</code></td><td>—</td><td>Manifest: path, bytes,
+      sha256. Never contents</td></tr>
+      <tr><td><code>DELETE /v1/workspaces/{id}</code></td><td>—</td><td>Deregisters; the folder moves to
+      <code>.trash/</code>, never hard-deleted</td></tr>
+    </tbody>
+  </table>
+
+  <ul>
+    <li><strong>Id</strong>: <code>^[a-z0-9][a-z0-9._-]{0,62}$</code> plus the prefix; the folder is
+    <code>root/id</code>, mode 0750, refused if it is a symlink.</li>
+    <li><strong>Allowlist</strong>: exactly <code>CLAUDE.md</code> and
+    <code>^\.claude/rules/[a-z0-9][a-z0-9._-]{0,80}\.md$</code>. No <code>..</code>, no absolute path,
+    no NUL, valid UTF-8 only; every target and its parent folders are checked with
+    <code>Lstat</code> and refused if they are symlinks.</li>
+    <li><strong>Caps</strong>: 64 KiB per file, 256 KiB in total, 32 files, 512 KiB per request.</li>
+    <li><strong>All or nothing</strong>: every file is staged (<code>O_EXCL</code>, write, fsync)
+    before any is renamed into place, then the folder is fsynced.</li>
+    <li><strong>Hot reload</strong>: the registry is the static file plus the provisioned one, behind
+    a lock; a new workspace is visible to <code>/v1/workspaces</code> and to the next job without a
+    restart.</li>
+  </ul>
+
+  <h3 id="upstream-manager">ai-manager</h3>
+  <table class="tbl">
+    <thead><tr><th>Route (admin bearer)</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /admin/workspaces/provision</code> <code>{id, files, active}</code></td><td>Calls
+      the worker, then adds the id to the chat list. Idempotent; a <code>502</code> says which half
+      succeeded, and repeating the call completes the other</td></tr>
+      <tr><td><code>PUT</code>, <code>GET /admin/workspaces/{id}/files</code></td><td>Proxied to the
+      worker, with a 512 KiB route limit separate from <code>MAX_REQUEST_KB</code></td></tr>
+      <tr><td><code>POST /admin/requests/{id}/cancel</code> <em>(recommended)</em></td><td>Maps a request
+      to its worker job and cancels it — answers <a href="../product/open-questions.html#oq-26">OQ-26</a></td></tr>
+    </tbody>
+  </table>
+
+  <p>Two smaller requests ride along. The workspace note the model receives on the first turn is not
+  refreshed on resume, which makes drift harder to see; and a durable request store would retire most
+  of <a href="#recovery">the deadline branch</a>
+  (<a href="../product/open-questions.html#oq-30">OQ-30</a>).</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

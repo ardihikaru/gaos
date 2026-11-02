@@ -22,7 +22,7 @@
        data-tags="multi-tenant, isolation, conventions"
        data-hashtags="infra, ports, networks, shared"
        data-published="2026-08-04"
-       data-updated="2026-08-04"
+       data-updated="2026-11-02"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -152,6 +152,24 @@
     <code>.env</code> into a product's file hands that product's containers the credentials of every
     other project on the host. Copy the handful of names actually needed, one line at a time.</p>
   </div>
+
+  <h2 id="ai-manager">A neighbour GAOS calls: ai-manager</h2>
+  <p>Every other neighbour on this page is something GAOS must stay apart from. Since
+  <a href="../product/decision-log.html#d-055">D-055</a> one is something it depends on: model work
+  goes to <strong>ai-manager</strong>, which runs it through <strong>ai-claude-cli</strong> in a
+  workspace per product. Both belong to the owner's AI stack, not to GAOS, and GAOS reaches
+  ai-manager over HTTPS at its public address rather than by joining its network — the same
+  boundary rule as everything above, applied to a dependency.</p>
+  <table class="tbl">
+    <thead><tr><th>Service</th><th>What GAOS uses</th><th>Credential</th></tr></thead>
+    <tbody>
+      <tr><td>ai-manager <code>/v1/chat</code>, <code>/v1/requests/*</code>, <code>/v1/workspaces/*</code></td><td>Turns, polling, workspace context</td><td>The ai-stack Basic login, from a file</td></tr>
+      <tr><td>ai-manager <code>/admin/workspaces/*</code></td><td>Provisioning and file sync (once <a href="../delivery/implementation-plan.html#sub-m14-1">M14.1</a> exists)</td><td>The admin bearer, from a file — broader than GAOS needs (<a href="../product/open-questions.html#oq-29">OQ-29</a>)</td></tr>
+      <tr><td>ai-claude-cli</td><td>Nothing directly: its port stays private</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p>Its limits — 256 KB requests, a 600-second turn, two worker processes, one turn per session — are
+  listed in <a href="../architecture/gateway.html#limits">The gateway §limits</a>.</p>
 
   <h2 id="adding">Adding a product</h2>
   <p>The routine work is three steps at the edge, and then nothing at the edge ever again.</p>

@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Fifty-four entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Sixty-two entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -918,6 +918,177 @@
     </tbody>
   </table>
 
+  <h2 id="gateway-decisions" data-short="Gateway, Blueprint, Board">Gateway, Blueprint and Board</h2>
+  <p>Eight decisions taken together on 2026-11-02, and taken as one change because they are one
+  change: GAOS stops being the thing that runs a model and becomes the thing that decides
+  <em>what</em> a model is asked to do, inside <em>which</em> product, against <em>which</em>
+  standing rules. The layering is the product owner's own wording, and every row below is a
+  consequence of it: <strong>ai-claude-cli works the task with context; ai-manager shapes it with a
+  workspace; GAOS shapes it with the product, the task details and the product's Blueprint.</strong>
+  Several earlier rows are superseded in part. None is deleted, and each superseded part names the
+  row that replaces it.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Date</th><th>Decision</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr id="d-055">
+        <td>D-055</td><td>2026-11-02</td>
+        <td><strong>GAOS no longer invokes a model tool. ai-manager is the one gateway, and the work is
+        split across three layers that each own one thing.</strong> <em>Supersedes the spawning half of
+        <a href="#d-033">D-033</a></em> — GAOS does not run <code>claude</code> as a subprocess any
+        more — <em>and narrows <a href="#d-036">D-036</a></em>: the adapter seam stays exactly where
+        it is, but the adapter behind it is an HTTP client of ai-manager, and the CLI/API distinction
+        moves out of GAOS into ai-manager's provider table. <a href="#d-049">D-049</a> stands in
+        substance — Claude Code is still the tool that does the work — but it is now
+        <em>ai-claude-cli's</em> pin to hold, not ours.
+        <strong>Why move it out.</strong> Everything GAOS built to supervise a detached process — the
+        packet on disk, the file lease, the heartbeat goroutine, boot reconciliation that has to kill
+        before it requeues (<a href="#d-054">D-054</a>) — exists in ai-claude-cli already, written once
+        and shared by every client of the AI stack, with a session store GAOS never had. Keeping a
+        second copy here is two places for one class of bug.
+        <strong>What GAOS keeps</strong> is what nobody else can own: the product record, its
+        Blueprint, readiness, the task graph and its state machine, egress screening, the event
+        stream, and the durable record of every attempt.
+        <strong>What it must never do</strong>: spawn a tool, hold a provider credential
+        (<a href="brd.html#rules-commercial">BR-29</a> is untouched), or hand ai-manager a
+        filesystem path (<a href="brd.html#rules-gateway">BR-42</a>).</td>
+        <td>Product-owner ruling, 2026-11-02; <code>ai-manager/docs/claude-sessions.md</code>,
+        <code>workspace-management.md</code>; <a href="../architecture/gateway.html">The gateway</a>;
+        <a href="../delivery/implementation-plan.html#m14-gateway">M14</a></td>
+      </tr>
+      <tr id="d-056">
+        <td>D-056</td><td>2026-11-02</td>
+        <td><strong>One ai-manager session per task, not per product.</strong> A retry of the same
+        task on the same model resumes its session, so the model sees its own failed reply and the
+        review that rejected it. A model escalation, a <code>410</code>, or a session older than
+        <code>GAOS_AIM_SESSION_MAX_AGE</code> opens a new one and emits <code>SessionOpened</code> with
+        the reason.
+        <strong>Why not one long session per product</strong>, which is the obvious reading of
+        "continuous context": ai-manager allows <em>one turn at a time per session</em>
+        (<code>409</code>), so a product session would turn the scheduler's parallelism into a queue;
+        every turn re-reads the whole transcript, so every task would pay for the history of every
+        task before it; and sessions live in a bucket that expires them thirty days after the last
+        turn, so a product's accumulated memory would vanish on a schedule nobody chose.
+        <strong>Where continuity across tasks lives instead</strong>: in the Blueprint
+        (<a href="#d-058">D-058</a>), which every session in the workspace loads, and in earlier
+        handoffs cited into the brief — which is the thesis of <a href="#thesis-decisions">D-001</a>, the graph
+        is the primitive and not the prompt, applied to a transcript.</td>
+        <td><code>ai-manager/docs/claude-sessions.md</code> §Rules, §Expiry, §Things to know;
+        <a href="brd.html#rules-gateway">BR-40</a>, <a href="brd.html#rules-gateway">BR-41</a>;
+        <a href="../architecture/gateway.html#sessions">The gateway §sessions</a></td>
+      </tr>
+      <tr id="d-057">
+        <td>D-057</td><td>2026-11-02</td>
+        <td><strong>The handoff travels in the reply.</strong> <em>Amends
+        <a href="#d-050">D-050</a> and <a href="brd.html#rules-commercial">BR-30</a></em>: "a declared
+        path" becomes "a declared block". GAOS can no longer read a file the model wrote, because the
+        model writes into a folder on another host. So the reply must end with exactly one fenced
+        block tagged <code>gaos-handoff</code>, carrying the same fields the file did; GAOS takes the
+        <strong>last</strong> such block and runs it through the unchanged parser and validator. Two
+        checks are new, and both exist because of <a href="#d-056">D-056</a>: the block must echo the
+        <em>current</em> run id — in a resumed session the model can see, and repeat, the block it
+        wrote for the previous attempt — and two blocks that disagree are a failure, not a choice.
+        <strong>D-050's principle is unchanged</strong>: nothing about the work is read from anything
+        but the handoff, and a reply without a valid one is <code>handoff-missing</code> however
+        confident its prose.</td>
+        <td><code>dashboard/handoff.go</code> (<code>ParseHandoff</code>,
+        <code>validateHandoff</code>); <a href="blueprint.html#reply-contract">Blueprint §reply
+        contract</a>; <a href="qa-test-plan.html#ni-aim">TC-280, TC-281</a></td>
+      </tr>
+      <tr id="d-058">
+        <td>D-058</td><td>2026-11-02</td>
+        <td><strong>Every product has a Blueprint, delivered in two layers, versioned, and pinned per
+        attempt.</strong> The Blueprint is the product's standing technical knowledge: the BRD the
+        record already holds, plus technical and coding policies, plus — recorded now, fetched later —
+        knowledge sources such as a template repository whose structure and interfaces the product
+        must follow.
+        <strong>The standing layer is files in the workspace</strong>: <code>CLAUDE.md</code> and
+        <code>.claude/rules/*.md</code>, which Claude Code loads on every turn <em>including a
+        resumed one</em>, measured by ai-manager. <strong>The per-task layer is the prompt</strong>:
+        the brief, the criteria, the cited handoffs. Splitting them this way is what lets one session
+        per task (<a href="#d-056">D-056</a>) still see one consistent product.
+        <strong>A published version is immutable and content-addressed</strong>; every attempt pins
+        the version it ran under, and a workspace whose files do not match that version refuses
+        dispatch (<a href="brd.html#rules-gateway">BR-39</a>).
+        <strong>The sync is a dispatch path</strong>: those files reach the model, so
+        <a href="brd.html#rules-commercial">BR-32</a>'s egress screen runs on them before they leave,
+        exactly as it does on a task brief.</td>
+        <td><a href="blueprint.html">Blueprint</a>; <code>ai-manager/docs/claude-sessions.md</code>
+        §Resuming and the manifest; <a href="brd.html#req-a">A-8…A-11</a></td>
+      </tr>
+      <tr id="d-059">
+        <td>D-059</td><td>2026-11-02</td>
+        <td><strong>Workspaces are provisioned through an upstream API that GAOS calls, never by an
+        operator editing a file.</strong> Measured on 2026-11-02: ai-claude-cli has <em>no</em> API to
+        create a workspace (its <code>rest-apis.md</code>: "there is no API to add or delete one"), and
+        reads <code>configs/workspaces.json</code> once at startup. ai-manager's
+        <code>/admin/workspaces</code> only switches on a workspace that already exists. "One
+        workspace per product" is therefore not available today, and the product owner chose to
+        extend the upstream rather than make provisioning a manual step.
+        <strong>The shape is fixed by what makes it safe</strong>: the worker creates a folder under
+        one configured managed root, never under a path a client supplies; it writes only an
+        allowlisted set of instruction files; and it refuses to boot if any folder above the root
+        holds a <code>CLAUDE.md</code>, because Claude Code would load it into every product. GAOS
+        holds the ai-manager admin key to call it. That is not a provider credential, so
+        <a href="brd.html#rules-commercial">BR-29</a> holds — but it is broader than GAOS needs, which
+        is <a href="open-questions.html#oq-29">OQ-29</a>.</td>
+        <td><code>ai-claude-cli/rest-apis.md</code> §<code>GET /v1/workspaces/{id}</code>;
+        <code>ai-claude-cli/cmd/app/main.go</code> (<code>workspace.Load</code>);
+        <a href="../architecture/gateway.html#upstream">The gateway §upstream</a>;
+        <a href="../delivery/implementation-plan.html#sub-m14-1">M14.1</a></td>
+      </tr>
+      <tr id="d-060">
+        <td>D-060</td><td>2026-11-02</td>
+        <td><strong>The execution layer is retired. One live turn per product workspace; recovery is a
+        poll by request id with a deadline.</strong> <em>Supersedes the mechanism of
+        <a href="#d-053">D-053</a> and <a href="#d-054">D-054</a>, keeps their principle.</em> The
+        detached process, its run file, the file lease and the kill-then-requeue reconciler go. What
+        replaces them: every turn is submitted with a deterministic <code>X-Request-ID</code>, persisted
+        on the <code>TaskRun</code> before the request is sent, and recovery after a restart is a poll
+        on that id. A completed or failed result is adopted as a normal attempt. A
+        <code>404</code> — ai-manager restarted and lost its in-memory record — cannot be killed, so
+        the workspace stays leased until the turn <em>must</em> have ended
+        (<code>GAOS_AIM_TURN_DEADLINE</code>, longer than ai-manager's own cap) and only then is the
+        task requeued, on a new session. That is "made dead" achieved by waiting rather than by
+        signalling, and it is the same rule: never hand a workspace to a second writer on a hope.
+        <strong>The lease survives as a graph lease</strong>
+        (<a href="brd.html#rules-gateway">BR-38</a>): one product's tasks share one folder, and two
+        sessions in it would be two agents with full permissions editing the same files.</td>
+        <td><code>ai-manager/docs/claude-sessions.md</code> §Async; <code>schema/04-execution.sql</code>
+        (<code>Workspace.leasedBy</code>, <code>leaseUntil</code>);
+        <a href="../architecture/system.html#boot-recovery">The system §boot recovery</a></td>
+      </tr>
+      <tr id="d-061">
+        <td>D-061</td><td>2026-11-02</td>
+        <td><strong>Each product gets a kanban board whose columns are groups of task statuses, and a
+        move on it is a request the state machine may refuse.</strong> The board is a projection, not
+        a second source of truth (<a href="#thesis-decisions">D-001</a>): dragging a card asks for a transition,
+        the existing task state machine decides, and a refused move writes no event and returns
+        <code>409</code>, so the board rolls back
+        (<a href="brd.html#rules-gateway">BR-43</a>). Some columns are owned by something else and are
+        never drag targets — the scheduler owns PENDING to READY, the budget guard owns DEFERRED.
+        <strong>The first board is server-rendered</strong> with the dashboard's existing HTMX. The
+        sisflow board is the richer target and its REST shape was adopted for the API so either front
+        end fits, but its code has no licence file and belongs to another organisation, so vendoring
+        it waits for <a href="open-questions.html#oq-25">OQ-25</a> and the licence assertions
+        <a href="qa-test-plan.html#cs-licences">TC-150/TC-151</a> guard.</td>
+        <td><code>dashboard/taskstate.go</code> (<code>taskTransitions</code>);
+        <code>sisflow-js/web/static/js/sisflow/board/</code>; <a href="brd.html#req-i">I-9, I-10</a></td>
+      </tr>
+      <tr id="d-062">
+        <td>D-062</td><td>2026-11-02</td>
+        <td><strong>An attempt through the gateway records <code>invocation = gateway</code>, and its
+        cost is <code>measured</code> from ai-manager's <code>cost_usd</code>.</strong> <em>Extends
+        <a href="#d-051">D-051</a>.</em> That field is Claude Code's own <code>total_cost_usd</code>,
+        passed through, so it is the same measurement D-051 already trusts — one hop further away.
+        Missing, or zero while tokens are above zero, is <code>unavailable</code> and never zero
+        (<a href="brd.html#rules-commercial">BR-37</a>). The invocation value is recorded and still
+        never branched on (<a href="brd.html#rules-commercial">BR-33</a>).</td>
+        <td><code>ai-manager/internal/server/response.go</code>; <a href="#d-051">D-051</a>;
+        <a href="qa-test-plan.html#ni-aim">TC-282</a></td>
+      </tr>
+    </tbody>
+  </table>
+
   <div class="adm warn">
     <p class="adm-title">What is not in this log</p>
     <p>The commercial <em>shape</em> is decided; several of its parameters are not. The rate-card
@@ -951,6 +1122,12 @@
     retry loop. <strong>A real provider was first invoked from inside GAOS on 2026-08-23</strong>,
     once <code>M4.5</code> gave it a packet on disk and a contract to satisfy. A decision recorded
     here is a commitment about what gets built, never a claim that it was.</p>
+    <p><strong>The eight gateway decisions are the clearest case of that.</strong>
+    <a href="#d-055">D-055</a> to <a href="#d-062">D-062</a> retire code that works — the CLI
+    adapter, the lease, the reconciler that made GAOS's first real model call possible — in favour of
+    an upstream that does not yet have the endpoint GAOS needs
+    (<a href="#d-059">D-059</a>). Until <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>
+    lands, the superseded rows above still describe what runs.</p>
   </div>
 
 </main>
