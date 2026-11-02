@@ -167,4 +167,26 @@
   /* Boot: reflect the theme label, and settle the log scroll. */
   applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
   afterSwap(document.getElementById("inspector"));
+  // The board (M14.6). Native drag and drop, by delegation so it survives
+  // every swap. It renders nothing (I-6): a drop sends the same move request
+  // a card's buttons do, and the server's answer -- the re-rendered board, or
+  // a toast saying why the state machine refused -- is what the page shows.
+  document.addEventListener("dragstart", function (e) {
+    var card = e.target.closest && e.target.closest(".board-card");
+    if (!card) return;
+    e.dataTransfer.setData("text/plain", card.dataset.product + "|" + card.dataset.card);
+    e.dataTransfer.effectAllowed = "move";
+  });
+  document.addEventListener("dragover", function (e) {
+    if (e.target.closest && e.target.closest(".board-col")) e.preventDefault();
+  });
+  document.addEventListener("drop", function (e) {
+    var col = e.target.closest && e.target.closest(".board-col");
+    if (!col || !window.htmx) return;
+    e.preventDefault();
+    var parts = (e.dataTransfer.getData("text/plain") || "").split("|");
+    if (parts.length !== 2) return;
+    htmx.ajax("PUT", "products/" + parts[0] + "/board/cards/" + parts[1] + "/move",
+      { target: "#sink", swap: "innerHTML", values: { column: col.dataset.col } });
+  });
 })();

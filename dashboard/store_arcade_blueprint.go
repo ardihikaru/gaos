@@ -28,6 +28,15 @@ func (s *ArcadeStore) SyncBlueprint(ctx context.Context, id string) (Result, err
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SyncBlueprint(ctx, id) })
 }
 
+// The board reads the projection and moves through mutate, so a move's
+// status change and its event reach the graph in one transaction.
+func (s *ArcadeStore) Board(ctx context.Context, id string) (Board, error) {
+	return s.proj.Board(ctx, id)
+}
+func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMove) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
+}
+
 func blueprintVersionID(productID string, n int) string { return fmt.Sprintf("%s-bp-%d", productID, n) }
 
 // writeBlueprintVersion writes the newest version, once. Older versions were

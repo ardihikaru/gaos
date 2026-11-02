@@ -501,6 +501,8 @@ type ProductCard struct {
 }
 
 type ProductDetail struct {
+	// Board is set for the board tab only (M14.6).
+	Board      *Board
 	ID         string
 	Name       string
 	Goal       string
