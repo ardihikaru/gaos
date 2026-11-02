@@ -67,6 +67,11 @@ const (
 	TaskBlocked    EventType = "TaskBlocked"
 	TaskResumed    EventType = "TaskResumed"
 	TaskOrphaned   EventType = "TaskOrphaned"
+
+	// M14.5, D-056: a turn ran in a new session (Rule: first | escalation |
+	// lost | rotation), and a session the task meant to resume was gone (410).
+	SessionOpened EventType = "SessionOpened"
+	SessionLost   EventType = "SessionLost"
 )
 
 // judgment
