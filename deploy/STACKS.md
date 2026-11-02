@@ -1,5 +1,9 @@
 # The tunnelled stacks — GAOS on real infrastructure
 
+> **Dev retired 2026-11-03 (v0.33.1).** Only prod runs: `10.10.0.2:18301`, gateway mode against
+> ai-manager. The dev stack is down and is not redeployed; its database `gaos_dev` is kept, and
+> `compose.dev.yaml` stays as a record (its static checks in `check-stacks.sh` still run).
+
 `compose.yaml` at the repo root is the **local** stack: one published port, no
 infrastructure, runs anywhere. This file describes the two that run on the
 private VM and are reached from the internet —
