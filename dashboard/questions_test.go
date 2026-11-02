@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // M15, "Needs you" (D-064, BR-44): an agent that ends its turn on a question
@@ -313,5 +314,73 @@ func TestTheInboxAndTheAnswerRouteSpeakJSON(t *testing.T) {
 	}
 	if w := answerPost(t, srv, "/products/"+desk+"/tasks/nope/answer", `{"choice":1}`, true); w.Code != http.StatusNotFound {
 		t.Fatalf("an answer for an unknown task answered %d; want 404", w.Code)
+	}
+}
+
+// D-066: a question is open as long as the session that asked it exists.
+
+func TestAnUnansweredQuestionExpiresWithItsSession(t *testing.T) {
+	s := NewMemStore(1)
+	desk := s.desks[0].ID
+	now := time.Now().Unix()
+	life := int64(QuestionLifetime / time.Second)
+	plantQuestion(s, desk, "wf-exp-old", "Which database?", now-life-1)
+	plantQuestion(s, desk, "wf-exp-new", "Which queue?", now-24*3600)
+	plantQuestion(s, desk, "wf-exp-untimed", "Which cache?", 0)
+
+	r, err := s.ExpireQuestions(t.Context(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := taskStatusOf(s, "wf-exp-old"); got != StatusBlocked {
+		t.Fatalf("a question unanswered past its session left the task %s; want BLOCKED", got)
+	}
+	if len(r.NewEvents) != 1 || r.NewEvents[0].Payload.Rule != MoveQuestionExpired || s.taskPtr("wf-exp-old").BlockReason == "" {
+		t.Fatalf("the expiry wrote %+v; want one TaskMoved with rule question-expired and a block reason", r.NewEvents)
+	}
+	if taskStatusOf(s, "wf-exp-new") != StatusAwaitingInput || taskStatusOf(s, "wf-exp-untimed") != StatusAwaitingInput {
+		t.Fatal("a question still inside its session's lifetime, or with no ask time, was expired")
+	}
+	qs, _ := s.OpenQuestions(t.Context(), "")
+	if len(qs) != 2 {
+		t.Fatalf("the inbox holds %d question(s) after the sweep; want the 2 still open", len(qs))
+	}
+	for _, q := range qs {
+		if q.TaskID == "wf-exp-new" && q.ExpiresAt != q.AskedAt+life {
+			t.Fatalf("an open question expires at %d; want %d, thirty days after it was asked", q.ExpiresAt, q.AskedAt+life)
+		}
+	}
+	if again, _ := s.ExpireQuestions(t.Context(), now); len(again.NewEvents) != 0 {
+		t.Fatalf("a second sweep wrote %d event(s); an expired question expires once", len(again.NewEvents))
+	}
+}
+
+func TestAnAnswerResumesTheAskingSessionPastTheRotationAge(t *testing.T) {
+	s := NewMemStore(1)
+	f, ad := gatewayOn(t, s)
+	id := askedTask(t, s, f, ad, "wf-q-t-10")
+	run := runIDFor(id, 1)
+	old := time.Now().Add(-26 * 24 * time.Hour).Unix() // past the 25-day rotation
+	s.mu.Lock()
+	for i := range s.runs {
+		if s.runs[i].ID == run {
+			s.runs[i].StartedAt = old
+		}
+	}
+	asked := s.runs[0].SessionID
+	sid, why := s.sessionForLocked(id, ad, time.Now().Unix())
+	s.mu.Unlock()
+	if sid != "" || why != SessionRotation {
+		t.Fatalf("an unanswered task's old session gave %q %q; want rotation, as before", sid, why)
+	}
+
+	if _, err := s.AnswerQuestion(t.Context(), s.desks[0].ID, id, 1, ""); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	sid, why = s.sessionForLocked(id, ad, time.Now().Unix())
+	s.mu.Unlock()
+	if sid == "" || sid != asked {
+		t.Fatalf("the answer turn would run in session %q (%s); want the asking session %q, which still exists", sid, why, asked)
 	}
 }

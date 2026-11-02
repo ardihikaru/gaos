@@ -22,6 +22,32 @@ import (
 // a projection of the event stream, so it survives a restart exactly as the
 // timeline does and cannot disagree with it.
 
+// QuestionLifetime is how long a question stays open (D-066, answering OQ-31):
+// as long as the session that asked it still exists. ai-manager keeps a
+// session thirty days after its last turn, and the asking turn IS that
+// session's last turn -- nothing runs in it while the task waits -- so the
+// question and its session end together, thirty days after it was asked. The
+// temp bucket keeps the question record for the same thirty days.
+const QuestionLifetime = 30 * 24 * time.Hour
+
+// MoveQuestionExpired is the TaskMoved rule when a question outlives its
+// session: the task goes to BLOCKED, because an answer now would land in a
+// session that no longer remembers the turn that asked.
+const MoveQuestionExpired = "question-expired"
+
+// questionSweep is how often main.go looks for expired questions. A minute is
+// far finer than a thirty-day lifetime needs, and costs one pass over tasks.
+const questionSweep = time.Minute
+
+// questionExpiresAt is when a question asked at asked closes; 0 when the ask
+// time was never recorded, which never expires rather than expiring at once.
+func questionExpiresAt(asked int64) int64 {
+	if asked <= 0 {
+		return 0
+	}
+	return asked + int64(QuestionLifetime/time.Second)
+}
+
 // QuestionPayload is the event's half of a question: what was asked, by which
 // attempt, and -- on QuestionAnswered -- what the operator chose.
 type QuestionPayload struct {
@@ -46,6 +72,9 @@ type Question struct {
 	TaskTitle string `json:"taskTitle"`
 	Role      string `json:"role"`
 	Answered  bool   `json:"answered"`
+	// ExpiresAt is when the question closes with its session (D-066); 0
+	// when the ask time was not recorded.
+	ExpiresAt int64 `json:"expiresAt"`
 }
 
 // needsNotice is which events count toward the operator's notice count: what
@@ -133,6 +162,7 @@ func (s *MemStore) OpenQuestions(ctx context.Context, productID string) ([]Quest
 		if t := s.taskPtr(q.TaskID); t != nil {
 			q.TaskTitle, q.Role = t.Title, t.Role
 		}
+		q.ExpiresAt = questionExpiresAt(q.AskedAt)
 		out = append(out, q)
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].AskedAt < out[b].AskedAt })
@@ -166,6 +196,57 @@ func (s *MemStore) AnswerQuestion(ctx context.Context, productID, taskID string,
 		ev = append(ev, m)
 	}
 	return s.result(fmt.Sprintf("Answer sent — %s resumes.", taskID), ev...), nil
+}
+
+// ExpireQuestions closes every question that has outlived its session (D-066):
+// the task goes from AWAITING_INPUT to BLOCKED with the reason, written as a
+// TaskMoved with rule question-expired, and leaves the inbox. The closed
+// catalog needs no new name: the question's own record stays as it was --
+// asked, never answered -- and the move says why it stopped waiting.
+//
+// now is passed in, not read, so the sweep is a pure function of the clock it
+// is handed, the scheduler's rule (D-1). Nothing to expire is a zero Result.
+func (s *MemStore) ExpireQuestions(ctx context.Context, now int64) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var ev []Event
+	for i := range s.tasks {
+		t := &s.tasks[i]
+		if t.Status != StatusAwaitingInput {
+			continue
+		}
+		q, ok := s.openQuestionLocked(t.ID)
+		if exp := questionExpiresAt(q.AskedAt); !ok || exp == 0 || now < exp {
+			continue
+		}
+		t.BlockReason = "Its question went unanswered for 30 days and expired with the session that asked it; " +
+			"unblock it to start again in a new session."
+		if e, moved := s.moveTaskLocked(t.ID, StatusBlocked, MoveQuestionExpired); moved {
+			ev = append(ev, e)
+		}
+	}
+	if len(ev) == 0 {
+		return Result{}, nil
+	}
+	return s.result(fmt.Sprintf("%d question(s) expired with their session.", len(ev)), ev...), nil
+}
+
+// answerResumesLocked says whether the next attempt at a task must resume the
+// session that asked, whatever its age: the last attempt asked, the operator
+// answered, and the question -- so the session -- has not expired. Without
+// this, a task whose session was opened 25 days before it asked would rotate
+// to a new session and the answer would reach a model that never saw the
+// question. Caller holds s.mu.
+func (s *MemStore) answerResumesLocked(taskID string, last *TaskRunRecord, now int64) bool {
+	qs := s.questionsLocked()
+	for i := len(qs) - 1; i >= 0; i-- {
+		if qs[i].TaskID != taskID {
+			continue
+		}
+		exp := questionExpiresAt(qs[i].AskedAt)
+		return qs[i].Answered && qs[i].Attempt == last.Attempt && exp > 0 && now < exp
+	}
+	return false
 }
 
 // answerSummary is the answer in one line: the option's label, or the words.

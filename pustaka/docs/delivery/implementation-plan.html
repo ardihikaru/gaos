@@ -16,7 +16,7 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into sixteen modules of work you can pick up one at a time.
-  One hundred and seventy-six tasks: eighty-eight done, seventeen standing on fixtures or partly done,
+  One hundred and seventy-seven tasks: ninety-one done, fifteen standing on fixtures or partly done,
   sixty-six not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
@@ -101,8 +101,8 @@
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
       <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>28</td><td>0</td><td>1</td><td>0</td><td><a href="#register">T-170</a> &mdash; retire the desk projection, now that the task fold replays the board</td></tr>
-      <tr data-tags="question ask operator inbox answer needs you m15"><td><a href="#m15-needs-you">M15 &middot; Needs you &mdash; agents ask, the operator answers</a></td><td>3</td><td>4</td><td>2</td><td>0</td><td>0</td><td><a href="#register">T-171</a> &mdash; merge and deploy the upstream half</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>68</b></td><td><b>88</b></td><td><b>17</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="question ask operator inbox answer needs you m15"><td><a href="#m15-needs-you">M15 &middot; Needs you &mdash; agents ask, the operator answers</a></td><td>3</td><td>7</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>68</b></td><td><b>91</b></td><td><b>15</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -146,7 +146,7 @@
   </div>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and seventy-six tasks in one filterable table. Filter by module number, by domain
+  <p>All one hundred and seventy-seven tasks in one filterable table. Filter by module number, by domain
   (<code>domain-d</code>), by status (<code>todo</code>, <code>partial</code>, <code>done</code>), or
   by any word in a task.</p>
   <div class="filterbox">
@@ -329,12 +329,13 @@
       <tr data-tags="retire home product list tabs done built m14.7"><td>T-168</td><td>M14.7</td><td>The product list as the home page, each product with Blueprint &middot; Board &middot; Timeline &mdash; done 2026-11-02 in v0.29.0: <code>GET /</code> opens on the product master, and each product gained a Timeline tab of its own events (TC-314, TC-315)</td><td>I-9</td><td>✅</td></tr>
       <tr data-tags="retire qa register compose readme done built m14.7"><td>T-169</td><td>M14.7</td><td>Strike the retired test cases, retire the two acceptance scripts, and update compose and the README &mdash; done 2026-11-02 in v0.29.0: forty-four cases struck with their successors, <code>kill-mid-task.sh</code> and <code>live-cli-run.sh</code> deleted; compose already carried no claude mount</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="retire desk projection fold floorstate todo not-built m14.7"><td>T-170</td><td>M14.7</td><td>Retire the desk projection &mdash; the <code>Desk</code> records, the desk fold and its snapshots, and the <code>/tasks/{idx}/…</code> routes &mdash; now that the task fold (<code>T-164</code>) rebuilds the board from the stream; the scheduler's agent seats are read from the desks today and must move first</td><td>I-9</td><td>❌</td></tr>
-      <tr data-tags="question ask operator protocol ai-cli-common worker claude antigravity partial built m15.1"><td>T-171</td><td>M15.1</td><td>The question protocol in the workers: <code>ai-cli-common/question</code> parses one <code>ai-question</code> block (exactly three options, the first recommended), ai-claude-cli adds the protocol to the system prompt and disables <code>AskUserQuestion</code>, ai-antigravity-cli adds it to the preamble, and a job reports its question &mdash; built and tested on the ai-workspace branch <code>feat/ask-user</code>, not yet merged or deployed</td><td>I-11</td><td>🟡</td></tr>
-      <tr data-tags="question answer ai-manager temp bucket resume session partial built m15.1"><td>T-172</td><td>M15.1</td><td>ai-manager keeps questions in the <code>temp</code> bucket, returns them on the reply (<code>finish_reason: awaiting_input</code>), lists them at <code>GET /v1/questions</code>, and answers through <code>POST /v1/questions/{id}/answer</code>, which resumes the session under the caller's request id &mdash; built and tested on <code>feat/ask-user</code>, not yet merged or deployed</td><td>I-11</td><td>🟡</td></tr>
+      <tr data-tags="question ask operator protocol ai-cli-common worker claude antigravity done built m15.1"><td>T-171</td><td>M15.1</td><td>The question protocol in the workers: <code>ai-cli-common/question</code> parses one <code>ai-question</code> block (exactly three options, the first recommended), ai-claude-cli adds the protocol to the system prompt and disables <code>AskUserQuestion</code>, ai-antigravity-cli adds it to the preamble, and a job reports its question &mdash; done 2026-11-02: PR #329, deployed</td><td>I-11</td><td>✅</td></tr>
+      <tr data-tags="question answer ai-manager temp bucket resume session done built m15.1"><td>T-172</td><td>M15.1</td><td>ai-manager keeps questions in the <code>temp</code> bucket, returns them on the reply (<code>finish_reason: awaiting_input</code>), lists them at <code>GET /v1/questions</code>, and answers through <code>POST /v1/questions/{id}/answer</code>, which resumes the session under the caller's request id &mdash; done 2026-11-02: PR #329, deployed</td><td>I-11</td><td>✅</td></tr>
       <tr data-tags="question awaiting_input status event fold store answer packet done built m15.2"><td>T-173</td><td>M15.2</td><td><code>AWAITING_INPUT</code>, <code>QuestionAsked</code> and <code>QuestionAnswered</code>, <code>Store.OpenQuestions</code> and <code>Store.AnswerQuestion</code>, and the answer carried by the next attempt through the answer route and as <code>context/answer.md</code> &mdash; done 2026-11-02 in v0.31.0; TC-321…TC-328</td><td>I-11, BR-44</td><td>✅</td></tr>
       <tr data-tags="question rest api inbox answer route json done built m15.2"><td>T-174</td><td>M15.2</td><td><code>GET /questions</code>, <code>GET /products/{id}/questions</code> and <code>POST /products/{id}/tasks/{taskId}/answer</code>, JSON and HTMX &mdash; done 2026-11-02 in v0.31.0; TC-330</td><td>I-11</td><td>✅</td></tr>
       <tr data-tags="question inbox answer sheet badge chip board ui done built m15.3"><td>T-175</td><td>M15.3</td><td>The "Needs you" inbox, the answer sheet (recommended first, the operator's own words as the fourth option, keyboard 1&ndash;4), the topbar count, the board's Needs-you column and badge, all kept live by the stream &mdash; done 2026-11-02 in v0.31.0; TC-334…TC-340</td><td>I-11</td><td>✅</td></tr>
       <tr data-tags="frontend agent design skills emil kowalski done built m15.3"><td>T-176</td><td>M15.3</td><td>A <code>gaos-frontend</code> agent for the dashboard's UI, with Emil Kowalski's <code>emil-design-eng</code>, <code>review-animations</code> and <code>break-ui</code> skills vendored under their MIT licence &mdash; done 2026-11-02: <code>.claude/agents/gaos-frontend.md</code>, <code>.claude/skills/</code></td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="question lifetime expiry session rotation sweep blocked done built m15.2"><td>T-177</td><td>M15.2</td><td>A question lives as long as its session (D-066, answering OQ-31): the answer resumes the asking session past the rotation age, a minute sweep blocks a task whose question outlived it, and the inbox counts down the time left, live &mdash; done 2026-11-02 in v0.32.0; TC-341, TC-342</td><td>I-11, BR-44</td><td>✅</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -1374,9 +1375,7 @@
   <p>The model ends its reply with one <code>ai-question</code> block. The workers parse it and
   disable Claude Code's own <code>AskUserQuestion</code>, which has nobody to answer it headless;
   ai-manager keeps the question in the <code>temp</code> bucket and turns an answer into the next turn
-  of the same session. Built and tested on the ai-workspace branch <code>feat/ask-user</code>; it is
-  🟡 until that branch is merged and deployed, because GAOS's half is inert against an ai-manager that
-  never returns a question.</p>
+  of the same session. Merged as PR #329 and deployed on 2026-11-02.</p>
 
   <h3 id="sub-m15-2">M15.2 — The waiting task in GAOS (T-173, T-174)</h3>
   <p>A turn whose reply carries a question owes no handoff; it moves its task to
@@ -1385,7 +1384,9 @@
   <code>QuestionAsked</code> and <code>QuestionAnswered</code>, so it survives a restart exactly as the
   timeline does. The answer requeues the task, and the next attempt sends it through ai-manager's
   answer route — falling back to an ordinary turn, with the answer still in its packet, when the
-  question was already answered or has expired.</p>
+  question was already answered or has expired. A question lives as long as the session that asked it
+  (<code>T-177</code>, <a href="../product/decision-log.html#d-066">D-066</a>): thirty days, during
+  which the answer always resumes that session, and after which the task is blocked.</p>
 
   <h3 id="sub-m15-3">M15.3 — The inbox, live (T-175, T-176)</h3>
   <p>A topbar count, a "Needs you" inbox, an answer sheet and a board column, kept current by the

@@ -269,13 +269,17 @@ if digest != pinned digest or metadata.context.workspace != pinned version:
     route refuses — already answered, expired, the store switched off — GAOS sends the turn through
     <code>/v1/chat</code> instead; the answer is in the frozen slice as
     <code>context/answer.md</code> either way.</li>
+    <li>A question is open as long as the session that asked it exists — thirty days from the asking
+    turn (<a href="../product/decision-log.html#d-066">D-066</a>). The answer turn resumes that session
+    even past GAOS's twenty-five-day rotation; at thirty days the task moves to <code>BLOCKED</code>
+    with rule <code>question-expired</code>.</li>
   </ol>
   <table class="tbl">
     <thead><tr><th>Answer-route status</th><th>Meaning</th><th>What GAOS does</th></tr></thead>
     <tbody>
       <tr><td><code>202</code></td><td>Answered; the resume turn is queued under the request id</td><td>Polls <code>/v1/requests/{id}/result</code> as for any turn</td></tr>
       <tr><td><code>409</code></td><td>Answered already, by another request</td><td>Sends the turn through <code>/v1/chat</code></td></tr>
-      <tr><td><code>410</code></td><td>The question expired with the bucket (30 days)</td><td>Same, and the session is likely new (<a href="../product/open-questions.html#oq-31">OQ-31</a>)</td></tr>
+      <tr><td><code>410</code></td><td>The question expired with the bucket (30 days)</td><td>Same; in practice unreachable, because GAOS blocks the task at thirty days (<a href="../product/decision-log.html#d-066">D-066</a>)</td></tr>
       <tr><td><code>404</code>, <code>503</code></td><td>Unknown, or the question store is off</td><td>Same</td></tr>
     </tbody>
   </table>

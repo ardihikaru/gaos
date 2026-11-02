@@ -1145,6 +1145,24 @@
         <td><code>dashboard/broker.go</code>; <a href="qa-test-plan.html#go-broker">TC-331…TC-333</a>;
         closes <a href="../delivery/implementation-plan.html#sub-m9-3">T-110</a></td>
       </tr>
+      <tr id="d-066">
+        <td>D-066</td><td>2026-11-02</td>
+        <td><strong>A question is open as long as the session that asked it exists.</strong>
+        <em>Answers <a href="open-questions.html#oq-31">OQ-31</a>.</em> ai-manager keeps a session thirty
+        days after its last turn, and the asking turn is that session's last — nothing runs in it while
+        the task waits — so the question closes thirty days after it was asked, together with its
+        session and with its record in the <code>temp</code> bucket. Two things follow. Until then an
+        answer always resumes the asking session, even when GAOS's own rotation (twenty-five days from
+        the session's first turn, <a href="#d-056">D-056</a>) would otherwise open a new one: the answer
+        is only meaningful to the model that asked. And at thirty days a sweep, once a minute, moves the
+        task from <code>AWAITING_INPUT</code> to <code>BLOCKED</code> — <code>TaskMoved</code> with rule
+        <code>question-expired</code> and the reason on the task — so a question nobody can answer any
+        more never looks answerable; unblocking it starts again in a new session. No event is added:
+        the catalog stays closed (BR-05). The inbox shows the time left, re-ticked live, rather than a
+        stale tag after an arbitrary week.</td>
+        <td>Product-owner ruling, 2026-11-02; <a href="qa-test-plan.html#go-questions">TC-341, TC-342</a>;
+        <code>dashboard/questions.go</code></td>
+      </tr>
     </tbody>
   </table>
 
