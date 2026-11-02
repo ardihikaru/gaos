@@ -36,6 +36,43 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-24-0">v0.24.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The first three phases of M14,
+      the same day they were written down. The upstream can now create a workspace, GAOS can run a turn
+      through ai-manager, and a product has a Blueprint an operator can write and publish. What it does
+      not do yet is put that Blueprint in front of a model: that is M14.4.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>workspace provisioning upstream</b>
+        (<code>ardi-personal-workspace-ai</code> PR #321, live on prod). ai-claude-cli creates a
+        workspace under one managed root and writes only <code>CLAUDE.md</code> and
+        <code>.claude/rules/*.md</code>; ai-manager's <code>POST /admin/workspaces/provision</code> does
+        that and enables it for chat in one call. It was smoke-tested on prod: listed with no restart,
+        its rule loaded, a <code>.claude/settings.json</code> write refused.</li>
+        <li><span class="chg add">Added</span> <b>the ai-manager adapter</b>,
+        <code>GAOS_MODEL_MODE=aimanager</code>. One async turn per attempt with a deterministic
+        <code>X-Request-ID</code>; the handoff is the last <code>gaos-handoff</code> block of the reply
+        and must echo the run id; <code>410</code>, a session warning, <code>409</code>, <code>5xx</code>
+        and lost requests each map to one outcome; cost is <code>measured</code> from
+        <code>cost_usd</code>. <a href="product/qa-test-plan.html#ni-aim">TC-275…TC-284</a>.</li>
+        <li><span class="chg add">Added</span> <b>the Blueprint.</b> Policies and knowledge sources in
+        the record, a deterministic render whose digest reproduces the production worker's, immutable
+        published versions (an unchanged publish does nothing), a Blueprint tab in the back office, and
+        <code>schema/11-blueprint.sql</code>: three types, five edges, the gateway's
+        <code>TaskRun</code> properties, <code>invocation = gateway</code>.
+        <code>BlueprintPublished</code> joins the catalog and the fold.
+        <a href="product/qa-test-plan.html#ni-blueprint">TC-285…TC-290, TC-311, TC-312</a> — the
+        register is three hundred and twelve cases, two hundred and eighteen of them Go tests.</li>
+        <li><span class="chg fix">Fixed</span> <b>handoff artifacts never reached ArcadeDB.</b>
+        <code>T-064</code> stores every attempt's handoff as an Artifact of kind <code>handoff</code>,
+        and <code>Artifact.kind</code>'s constraint never allowed it, so on the graph store — dev and
+        prod — the write was refused at commit and logged as <em>background write did not reach the
+        graph</em>. Found by running the suite against a scratch database, where
+        <code>TestAnAttemptSurvivesARestart</code> failed on <code>main</code> as well;
+        <code>11-blueprint.sql</code> widens the constraint.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-23-0">v0.23.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A change of shape, written
       down before any of it is built. GAOS stops running a model itself and becomes product and task

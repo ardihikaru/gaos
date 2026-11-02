@@ -5,7 +5,7 @@ the primitive, not the prompt.** State lives in vertices and edges rather than a
 conversation, every change emits an event, and the orchestrator holds nothing —
 kill it mid-run and it rebuilds from the graph.
 
-**Product version 0.23.0** (`pustaka/docs/assets/toc.js`). The graph, the event
+**Product version 0.24.0** (`pustaka/docs/assets/toc.js`). The graph, the event
 store, readiness, the planner, the scheduler and the attempt record are built, and
 GAOS has made real model calls. What judges a result — review, scoring, the retry
 guards — is not built yet. Every page and every file says which is which.
@@ -78,7 +78,9 @@ there have already cost somebody an outage on that box.
 | Task state machine | **built** — `dashboard/state.go`; illegal transitions are refused at the boundary |
 | Scheduler, runner, lease, boot reconciliation | **built** — `dashboard/scheduler.go`, `runner.go`, `lease.go`, `reconcile.go`; to be replaced by the ai-manager gateway (M14) |
 | Attempt record, frozen context slice, packet and handoff | **built** — `dashboard/taskrun.go`, `packet.go`, `handoff.go`; a real Claude Code run completed on 2026-08-23 |
-| ai-manager gateway, Blueprint, kanban per product | **designed** — D-055…D-062, milestone M14; needs an upstream provisioning API first |
+| ai-manager gateway adapter | **built** — `dashboard/adapter_aimanager.go`, `GAOS_MODEL_MODE=aimanager`; the upstream provisioning API is live |
+| Blueprint per product | **built** — policies, knowledge sources, versions, the back-office tab; not yet written into a workspace (M14.4) |
+| One workspace and one live turn per product, kanban per product | **designed** — M14.4–M14.6 |
 | Reviews, scoring, retry guards | **not built** — `dashboard/sim.go` still animates the floor |
 | Authentication | **not built** — the back-office login sets a cookie and checks nothing |
 
@@ -91,13 +93,13 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 178 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 196 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ```
 
 Every test case — implemented or still a forward specification — is registered in
-`pustaka/docs/product/qa-test-plan.html` (310 cases). There is no CI: the product
+`pustaka/docs/product/qa-test-plan.html` (312 cases). There is no CI: the product
 owner runs them (D-025), and a test that is not on that page is one nobody knows
 to run.
 

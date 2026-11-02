@@ -31,13 +31,15 @@ import (
 
 const schemaDir = "schema"
 
-// The counts are the model document's own, from its §01 lede: "25 vertex types,
-// 3 document types, 32 edge types". GaosVertex and GaosEdge are supertypes that
-// everything else EXTENDS and are deliberately outside those numbers.
+// The counts are the model document's own: its §01 lede says "25 vertex types,
+// 3 document types, 32 edge types", and §15 (D-058, 11-blueprint.sql) adds
+// Policy, KnowledgeSource and BlueprintVersion and five edges -- 28 and 37.
+// GaosVertex and GaosEdge are supertypes that everything else EXTENDS and are
+// deliberately outside those numbers.
 const (
-	wantVertexTypes   = 25
+	wantVertexTypes   = 28
 	wantDocumentTypes = 3
-	wantEdgeTypes     = 32
+	wantEdgeTypes     = 37
 )
 
 var (

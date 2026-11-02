@@ -243,10 +243,12 @@ LIMIT 20</pre>
   </div>
 
   <h2 id="gateway-additions">What the gateway adds</h2>
-  <p>Decided on 2026-11-02 and not yet applied. The move to ai-manager as the gateway
+  <p>Decided on 2026-11-02, and <strong>applied in v0.24.0</strong> as
+  <code>dashboard/schema/11-blueprint.sql</code> except the Workspace changes, which land with
+  M14.4. The move to ai-manager as the gateway
   (<a href="../product/decision-log.html#d-055">D-055</a>) gives each product a Blueprint and a
   workspace, and the graph three new vertex types and five new edges — <strong>28 vertex types and
-  37 edges</strong> once <a href="../delivery/implementation-plan.html#sub-m14-3">M14.3</a> lands.</p>
+  37 edges</strong>, 365 DDL statements.</p>
   <table class="tbl">
     <thead><tr><th>Change</th><th>What it records</th></tr></thead>
     <tbody>
