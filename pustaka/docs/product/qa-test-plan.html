@@ -621,8 +621,12 @@
   <h3 id="rr-healthz">rebuild-restart.sh — verification: healthz (TC-038, TC-039)</h3>
   <p><strong>Positive:</strong> <code>curl</code> through the SSH tunnel with the right
   <code>Host:</code> header returns a body containing <code>"ok":true</code> → <code>vok "healthz
-  ok:true"</code>. <strong>Negative:</strong> the dashboard is crash-looping or <code>Host:</code>
-  routing is misconfigured → <code>vbad "healthz did not report ok:true"</code>.</p>
+  ok:true"</code>. Since 2026-11-02 the probe is <strong>polled</strong> every 3 seconds for up to
+  <code>GAOS_HEALTH_WAIT</code> seconds (default 90), and the body is printed with <code>(after Ns)</code>:
+  the dashboard applies its schema over the tunnel to <code>clinodb</code> before it listens, and a single
+  probe straight after <code>up -d</code> reported every healthy deploy as three failures.
+  <strong>Negative:</strong> the dashboard is crash-looping or <code>Host:</code> routing is misconfigured,
+  so the wait runs out → <code>vbad "healthz did not report ok:true"</code>.</p>
 
   <h3 id="rr-routes">rebuild-restart.sh — verification: route status codes (TC-040, TC-041)</h3>
   <p><strong>Positive:</strong> <code>/</code> → 200, <code>/app</code> → 301, <code>/docs</code> →
