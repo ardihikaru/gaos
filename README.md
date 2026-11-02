@@ -5,13 +5,22 @@ the primitive, not the prompt.** State lives in vertices and edges rather than a
 conversation, every change emits an event, and the orchestrator holds nothing —
 kill it mid-run and it rebuilds from the graph.
 
-**This release is v0.1.0 and it is a deployment, not an agent OS.** The design is
-complete and written down; what is built is the operator surface and the path a
-request takes to reach it. Every page and every file says which is which.
+**Product version 0.23.0** (`pustaka/docs/assets/toc.js`). The graph, the event
+store, readiness, the planner, the scheduler and the attempt record are built, and
+GAOS has made real model calls. What judges a result — review, scoring, the retry
+guards — is not built yet. Every page and every file says which is which.
+
+**The direction changed on 2026-11-02, and the code has not caught up.** GAOS is
+becoming product and task management: *ai-claude-cli works the task with context,
+ai-manager shapes it with a workspace, GAOS shapes it with the product, the task
+details and the product's Blueprint.* The dashboard still spawns `claude` itself
+until milestone M14 replaces that with an ai-manager client, a versioned Blueprint
+per product and a kanban per product. Start with `pustaka/docs/architecture/gateway.html`
+and `pustaka/docs/product/blueprint.html`; the decisions are D-055…D-062.
 
 ```
 artifacts/v1/   the design — three self-contained documents, the source of truth
-dashboard/      Mission Control · Go + HTMX · stdlib only · reads fixtures
+dashboard/      Mission Control · Go + HTMX · stdlib only · ArcadeDB or in-memory store
 pustaka/        the documentation site (vendored engine, GAOS content)
 landing-page/   the marketing page (vendored, static)
 deploy/         Dockerfiles, Traefik, the two tunnelled stacks, the edge config
@@ -67,7 +76,10 @@ there have already cost somebody an outage on that box.
 | ArcadeDB schema applied, graph queries | **built** — `dashboard/store_arcade.go` against the `store.go` seam; one conformance suite covers both stores |
 | Append-only event store, the fold, replay | **built** — `dashboard/fold.go`; the stream is unbounded, the reducer is pure/total/order-stable, replay folds from the nearest snapshot through a read-only handle |
 | Task state machine | **built** — `dashboard/state.go`; illegal transitions are refused at the boundary |
-| Scheduler, runner, real reviews | **not built** — `dashboard/sim.go` stands in |
+| Scheduler, runner, lease, boot reconciliation | **built** — `dashboard/scheduler.go`, `runner.go`, `lease.go`, `reconcile.go`; to be replaced by the ai-manager gateway (M14) |
+| Attempt record, frozen context slice, packet and handoff | **built** — `dashboard/taskrun.go`, `packet.go`, `handoff.go`; a real Claude Code run completed on 2026-08-23 |
+| ai-manager gateway, Blueprint, kanban per product | **designed** — D-055…D-062, milestone M14; needs an upstream provisioning API first |
+| Reviews, scoring, retry guards | **not built** — `dashboard/sim.go` still animates the floor |
 | Authentication | **not built** — the back-office login sets a cookie and checks nothing |
 
 The event catalog in `dashboard/events.go` is the closed list from the model
@@ -79,10 +91,15 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 70 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 178 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ```
+
+Every test case — implemented or still a forward specification — is registered in
+`pustaka/docs/product/qa-test-plan.html` (310 cases). There is no CI: the product
+owner runs them (D-025), and a test that is not on that page is one nobody knows
+to run.
 
 The dashboard tests deliberately target what fails *silently*: a computed style
 losing its `template.CSS` type (`html/template` emits the literal `ZgotmplZ` and

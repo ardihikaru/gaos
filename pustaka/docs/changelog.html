@@ -36,6 +36,54 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-23-0">v0.23.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A change of shape, written
+      down before any of it is built. GAOS stops running a model itself and becomes product and task
+      management: ai-claude-cli works the task with context, ai-manager shapes it with a workspace,
+      and GAOS shapes it with the product, the task details and the product's Blueprint. Nothing in
+      the dashboard changes in this release — the CLI adapter still runs — and every page that
+      describes the new shape says so at the top.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>eight decisions.</b>
+        <a href="product/decision-log.html#d-055">D-055</a> makes ai-manager the one gateway;
+        <a href="product/decision-log.html#d-056">D-056</a> one session per task, not per product;
+        <a href="product/decision-log.html#d-057">D-057</a> the handoff in the reply as a
+        <code>gaos-handoff</code> block; <a href="product/decision-log.html#d-058">D-058</a> a
+        versioned Blueprint per product, standing in the workspace and pinned per attempt;
+        <a href="product/decision-log.html#d-059">D-059</a> workspace provisioning through an upstream
+        API, because ai-claude-cli has none today; <a href="product/decision-log.html#d-060">D-060</a>
+        the execution layer retired for one live turn per workspace and recovery by request id;
+        <a href="product/decision-log.html#d-061">D-061</a> a kanban per product whose moves are
+        requests; <a href="product/decision-log.html#d-062">D-062</a> cost measured through the
+        gateway.</li>
+        <li><span class="chg add">Added</span> <b>two pages.</b>
+        <a href="product/blueprint.html">Blueprint</a> — what a product's standing knowledge holds,
+        what lands in its workspace, versions and pinning, the brief, and the reply contract — and
+        <a href="architecture/gateway.html">The gateway</a> — the three layers, one turn end to end,
+        the error mapping, the session policy, recovery, and the upstream specification.</li>
+        <li><span class="chg add">Added</span> <b>the rules and the questions.</b>
+        <a href="product/brd.html#rules-gateway">BR-38…BR-43</a>, BRD §7.7, requirements A-8…A-11,
+        D-14…D-19 and I-9…I-10, two risks, and
+        <a href="product/open-questions.html#oq-25">OQ-25…OQ-30</a> — the sisflow licence, cancelling
+        a turn, where product code lives, how a knowledge source reaches the model, a scoped token,
+        and request records lost on an ai-manager restart.</li>
+        <li><span class="chg add">Added</span> <b>M14 · Gateway, Blueprint &amp; Board</b> in the
+        <a href="delivery/implementation-plan.html#m14-gateway">implementation plan</a>,
+        <code>T-142</code>…<code>T-169</code>, and thirty-six forward specifications in the
+        <a href="product/qa-test-plan.html#ni-aim">QA register</a>, <code>TC-275</code>…<code>TC-310</code>,
+        all <em>Not implemented</em> — the register now holds three hundred and ten cases. The
+        proposed schema is §15 of the data model document, outside the downloadable DDL until it
+        lands with its events.</li>
+        <li><span class="chg change">Changed</span> <b>what is superseded, struck rather than
+        deleted.</b> BRD §7.6 and requirements D-2, D-3, D-4, D-8, D-12, I-1 and I-4; tasks
+        <code>T-057</code>, <code>T-058</code>, <code>T-067</code>, <code>T-093</code> and
+        <code>T-094</code>, now ⊘; and the done tasks the gateway will retire, which keep their ✅
+        and name their successor. <a href="product/open-questions.html#oq-22">OQ-22</a> and
+        <a href="product/open-questions.html#oq-24">OQ-24</a> are narrowed.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-22-1">v0.22.1 <time datetime="2026-08-23">2026-08-23</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A boot that applied a schema
       change said nothing about it. Found while confirming the v0.22.0 deploy had carried

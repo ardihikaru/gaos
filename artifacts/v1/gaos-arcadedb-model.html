@@ -205,6 +205,9 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
   <a href="#storage"><i>13</i>Storage &amp; tenancy</a>
   <a href="#wiring"><i>14</i>Wiring to the UI</a>
 
+  <h3>Proposed</h3>
+  <a href="#gateway-additions"><i>15</i>Gateway, Blueprint &amp; Board</a>
+
   <button class="dl" id="dlBtn"><span>download</span>gaos-schema.sql — every DDL block on this page</button>
 </nav>
 
@@ -1263,6 +1266,114 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <b>The check that proves the model is wired correctly.</b> Take any badge on the Mission Control floor and walk it back: badge → projection → event → vertex property → the write that set it → the API call that caused it. If you cannot complete that walk for every visible element, something on screen is decorative — and decorative state is the failure mode this whole architecture exists to prevent.
   </div>
 </section>
+
+<!-- ============================================================ -->
+<section id="gateway-additions">
+  <h2><span class="num">15</span> Proposed · Gateway, Blueprint and Board</h2>
+  <p class="lede">Decided on 2026-11-02 (D-055 to D-062) and not yet applied. Nothing below is in <code>dashboard/schema/</code>, and the download button deliberately leaves it out: under BR-05 these types and events land here, in <code>dashboard/events.go</code> and in the fold together, in the change that first writes them — <code>M14.3</code> to <code>M14.6</code>.</p>
+
+  <h4>New vertex types · 25 become 28</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Policy</td><td>One section of a product's Blueprint: technical, coding, security, testing or custom.</td><td class="mono">id, productId, key, kind, title, body, order, scope</td></tr>
+      <tr><td class="mono">KnowledgeSource</td><td>A repository the product must follow, pinned. Recorded, not yet fetched.</td><td class="mono">id, productId, kind, url, ref, purpose, note</td></tr>
+      <tr><td class="mono">BlueprintVersion</td><td>An immutable, content-addressed publication of a Blueprint.</td><td class="mono">id, productId, n, digest, files, bodyRef, publishedAt</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Changed types</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Change</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Workspace</td><td>Gains <span class="mono">workspaceId</span> (unique), <span class="mono">gateway</span>, <span class="mono">provisionedAt</span>, <span class="mono">syncedVersion</span>, <span class="mono">syncedDigest</span>, <span class="mono">syncedAt</span>, <span class="mono">activeTurn</span>; <span class="mono">state</span> becomes <span class="mono">PROVISIONING|ACTIVE|DRIFTED|INACTIVE|RETIRED</span>; <span class="mono">path</span> stops being mandatory</td><td>One per product, named by id on another host (BR-42); <span class="mono">leasedBy</span>/<span class="mono">leaseUntil</span> become the graph lease (BR-38)</td></tr>
+      <tr><td class="mono">TaskRun</td><td>Gains <span class="mono">requestId</span>, <span class="mono">sessionId</span>, <span class="mono">workspaceId</span>, <span class="mono">blueprintVersion</span>, <span class="mono">finishReason</span>, <span class="mono">replyRef</span>; <span class="mono">invocation</span> accepts <span class="mono">gateway</span></td><td>Recovery polls the request id (D-060); the session is transport and the reply is stored (BR-41)</td></tr>
+      <tr><td class="mono">Task</td><td>Gains <span class="mono">rank</span></td><td>Card order within a board column</td></tr>
+      <tr><td class="mono">ContextSlice</td><td>No schema change; it now freezes the per-task brief, and cites the Blueprint by version</td><td>The standing layer lives in the workspace (D-058)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>New edge types · 32 become 37</h4>
+  <table>
+    <thead><tr><th class="mono">Edge</th><th class="mono">From → To</th><th>Card.</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">HAS_POLICY</td><td class="mono">Product → Policy</td><td>1 → n</td><td>ordered by Policy.order</td></tr>
+      <tr><td class="mono">HAS_KNOWLEDGE_SOURCE</td><td class="mono">Product → KnowledgeSource</td><td>1 → n</td><td>—</td></tr>
+      <tr><td class="mono">HAS_BLUEPRINT_VERSION</td><td class="mono">Product → BlueprintVersion</td><td>1 → n</td><td>append-only</td></tr>
+      <tr><td class="mono">PINNED_TO</td><td class="mono">TaskRun → BlueprintVersion</td><td>n → 1</td><td>the rules this attempt ran under</td></tr>
+      <tr><td class="mono">HOSTED_IN</td><td class="mono">Product → Workspace</td><td>1 → 1</td><td>one workspace per product</td></tr>
+    </tbody>
+  </table>
+  <p>Each new edge gets the endpoint uniqueness index D-045 established, and each new vertex the identity index D-047 did.</p>
+
+  <div class="code">
+    <div class="bar"><b>11-blueprint.sql — proposed, not applied</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Policy</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> Policy.productId <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Policy.key       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Policy.kind      <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
+                 regexp <span class="s">'technical|coding|security|testing|custom'</span>);
+<span class="k">CREATE PROPERTY</span> Policy.title     <span class="s">STRING</span> (notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> Policy.body      <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Policy.order     <span class="s">INTEGER</span> (min 0);
+<span class="k">CREATE PROPERTY</span> Policy.scope     <span class="s">STRING</span>;   <span class="c">-- optional glob, unused in v1</span>
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">KnowledgeSource</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> KnowledgeSource.productId <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> KnowledgeSource.kind      <span class="s">STRING</span> (mandatory <span class="k">true</span>, regexp <span class="s">'git-repo'</span>);
+<span class="k">CREATE PROPERTY</span> KnowledgeSource.url       <span class="s">STRING</span> (mandatory <span class="k">true</span>, regexp <span class="s">'https://[^@\s]+'</span>);
+<span class="k">CREATE PROPERTY</span> KnowledgeSource.ref       <span class="s">STRING</span> (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);  <span class="c">-- tag or SHA, never a branch</span>
+<span class="k">CREATE PROPERTY</span> KnowledgeSource.purpose   <span class="s">STRING</span> (regexp <span class="s">'style|structure|interfaces|reference'</span>);
+
+<span class="k">CREATE VERTEX TYPE</span> <span class="t">BlueprintVersion</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
+<span class="k">CREATE PROPERTY</span> BlueprintVersion.productId   <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> BlueprintVersion.n           <span class="s">INTEGER</span>  (mandatory <span class="k">true</span>, min 1);
+<span class="k">CREATE PROPERTY</span> BlueprintVersion.digest      <span class="s">STRING</span>   (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
+<span class="k">CREATE PROPERTY</span> BlueprintVersion.files       <span class="s">LIST</span>;     <span class="c">-- [{path, sha256, bytes}]</span>
+<span class="k">CREATE PROPERTY</span> BlueprintVersion.bodyRef     <span class="s">STRING</span>;   <span class="c">-- external payload, principle 5</span>
+<span class="k">CREATE PROPERTY</span> BlueprintVersion.publishedAt <span class="s">DATETIME</span> (mandatory <span class="k">true</span>);
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> BlueprintVersion (productId, n)      <span class="k">UNIQUE</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> BlueprintVersion (productId, digest) <span class="k">UNIQUE</span>;
+
+<span class="k">CREATE PROPERTY</span> Workspace.workspaceId  <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Workspace.syncedDigest <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Workspace.activeTurn   <span class="s">STRING</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> Workspace (workspaceId) <span class="k">UNIQUE_HASH</span>;
+<span class="k">CREATE PROPERTY</span> TaskRun.requestId <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> TaskRun.sessionId <span class="s">STRING</span>;
+<span class="k">CREATE INDEX IF NOT EXISTS ON</span> TaskRun (requestId) <span class="k">UNIQUE_HASH</span>;
+<span class="c">-- Two regexps change (TaskRun.invocation, Workspace.state) and Workspace.path
+-- loses mandatory. ALTER PROPERTY is not yet proved to re-apply idempotently on
+-- 26.7.2; scratch.sh proves it before this file ships (M14.3).</span></pre>
+  </div>
+
+  <h4>New events · the closed catalog grows by six</h4>
+  <table>
+    <thead><tr><th class="mono">Event</th><th>Group</th><th class="mono">Payload</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">BlueprintPublished</td><td>master</td><td class="mono">version, digest, files</td></tr>
+      <tr><td class="mono">WorkspaceProvisioned</td><td>master</td><td class="mono">workspaceId</td></tr>
+      <tr><td class="mono">BlueprintSynced</td><td>master</td><td class="mono">version, digest, workspaceId</td></tr>
+      <tr><td class="mono">SessionOpened</td><td>execution</td><td class="mono">taskId, sessionId, reason: first|escalation|lost|rotation</td></tr>
+      <tr><td class="mono">SessionLost</td><td>execution</td><td class="mono">taskId, sessionId</td></tr>
+      <tr><td class="mono">TaskReordered</td><td>planning</td><td class="mono">taskId, rank</td></tr>
+    </tbody>
+  </table>
+  <p>Reused rather than added: policy edits are <span class="mono">RecordUpdated</span>; a refused sync is <span class="mono">DispatchRefused</span> with rule <span class="mono">egress-blueprint</span>, and a drifted workspace the same event with <span class="mono">blueprint-drift</span>; a lost request is <span class="mono">TaskOrphaned</span> with rule <span class="mono">request-lost</span>.</p>
+
+  <h4>Dormant, never deleted</h4>
+  <p><span class="mono">Agent</span>, <span class="mono">Room</span>, <span class="mono">CalendarSlot</span> and <span class="mono">Meeting</span> with their edges stay in the schema with nothing writing to them once the floor is retired; <span class="mono">MeetingStarted</span>, <span class="mono">ProposalRecorded</span>, <span class="mono">MeetingClosed</span> and <span class="mono">FloorOpened</span> stay declared so a stream written before the change still folds. <span class="mono">Repository</span>, <span class="mono">File</span>, <span class="mono">Function</span> and <span class="mono">Commit</span> wait for knowledge sources to be indexed (OQ-28).</p>
+
+  <h4>Two new invariants</h4>
+  <table>
+    <thead><tr><th>Invariant</th><th>Enforced by</th><th>Detection query</th></tr></thead>
+    <tbody>
+      <tr><td>At most one live turn per product workspace.</td><td>The dispatch transaction, via Workspace.activeTurn</td><td class="mono">TaskRun status in (STARTED, RUNNING), grouped by workspaceId, having count &gt; 1</td></tr>
+      <tr><td>An attempt ran under the Blueprint it pinned.</td><td>Dispatch (synced digest) and finish (observed context)</td><td class="mono">TaskRun -PINNED_TO-&gt; BlueprintVersion where digest ≠ the workspace's syncedDigest at dispatch</td></tr>
+    </tbody>
+  </table>
+</section>
+
 
 <footer class="doc">
   GAOS · data model companion to the architecture document and the Mission Control prototype. Schema statements follow the ArcadeDB SQL dialect; verify constraint and index syntax against your target version before running them in anger.

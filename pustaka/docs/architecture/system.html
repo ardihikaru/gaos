@@ -22,7 +22,7 @@
        data-tags="architecture, orchestration, agents, events"
        data-hashtags="gaos, graph, orchestration, replay"
        data-published="2026-08-07"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -55,11 +55,19 @@
       <tr><td>UI · Mission Control</td><td>A projection of graph state; operator actions</td><td>Invent state the graph does not have</td></tr>
       <tr><td>API gateway</td><td>Auth, tenant scoping, request validation, event fan-out</td><td>Let a tenant boundary be enforced further down only</td></tr>
       <tr><td>Orchestration</td><td>Planner, scheduler, review engine, retry policy</td><td>Hold long-lived state in process memory</td></tr>
-      <tr><td>Execution</td><td>Detached processes, workspace leases, heartbeats</td><td>Die with the orchestrator</td></tr>
-      <tr><td>Model gateway</td><td>Adapters, routing, cost and token accounting</td><td>Leak provider-specific shapes upward</td></tr>
+      <tr><td>Execution</td><td>Turn supervision: one live turn per product workspace, a request id per attempt, polling, recovery by deadline. <em>Until M14: detached processes, workspace leases, heartbeats</em></td><td>Lose a turn it submitted, or start a second writer in a workspace</td></tr>
+      <tr><td>Model gateway</td><td>One adapter, an HTTP client of ai-manager; cost and token accounting from its reply. <em>Until M14: the CLI adapter</em></td><td>Leak provider-specific shapes upward, or spawn a tool</td></tr>
       <tr><td>ArcadeDB</td><td>Graph, documents, events, full-text, time series</td><td>Be bypassed by a side channel</td></tr>
     </tbody>
   </table>
+
+  <h2 id="three-layers">Three layers outside the six</h2>
+  <p>Since <a href="../product/decision-log.html#d-055">D-055</a> the model is not run by any of the
+  six layers above. GAOS hands one turn at a time to ai-manager, which runs it through ai-claude-cli
+  in the product's workspace. <strong>ai-claude-cli works the task with context; ai-manager shapes it
+  with a workspace; GAOS shapes it with the product, the task details and the product's
+  Blueprint.</strong> The contract between them is <a href="gateway.html">The gateway</a>; what GAOS
+  writes into the workspace is the <a href="../product/blueprint.html">Blueprint</a>.</p>
 
   <h2 id="boot-recovery">What happens when the orchestrator restarts</h2>
 
@@ -96,18 +104,30 @@
     <code>TaskOrphaned</code>, and both corrections landed with the code that made them matter.</p>
   </div>
 
+  <div class="adm note">
+    <p class="adm-title">Through the gateway, there is no process to adopt</p>
+    <p>Once <a href="../delivery/implementation-plan.html#sub-m14-5">M14.5</a> lands, the routine above
+    is replaced by a poll on the request id each attempt persisted before it was sent: a finished
+    request is adopted, a running one is kept, and a lost one — ai-manager keeps request records in
+    memory — holds the workspace until the turn must have ended, then requeues on a new session
+    (<a href="../product/decision-log.html#d-060">D-060</a>). The principle above is unchanged; the
+    turn is made dead by waiting, because nothing can signal it.
+    <a href="gateway.html#recovery">The gateway §recovery</a>.</p>
+  </div>
+
   <h2 id="setup-to-autonomy">From an empty record to autonomous work</h2>
 
-  <p>Six stages. The interesting boundary is stage four, where the last human instruction runs
+  <p>Seven stages, since the Blueprint became one. The interesting boundary is stage four, where the last human instruction runs
   out.</p>
 
   <table class="tbl">
     <thead><tr><th>Stage</th><th>Human</th><th>System</th><th>Writes to the graph</th></tr></thead>
     <tbody>
       <tr><td>Product setup</td><td>Fills the record</td><td>—</td><td>Product, Requirement, Issue, AcceptanceCriterion, Artifact</td></tr>
+      <tr><td>Blueprint</td><td>Writes policies, names knowledge sources, publishes</td><td>Provisions the workspace, syncs the files</td><td>Policy, KnowledgeSource, BlueprintVersion, Workspace</td></tr>
       <tr><td>Readiness check</td><td>—</td><td>Scores the rubric</td><td>Product.readinessScore, ReadinessEvaluated</td></tr>
       <tr><td>Workflow creation</td><td>States an objective</td><td>Planner expands it</td><td>Workflow, Task, DEPENDS_ON, IMPLEMENTS</td></tr>
-      <tr><td>Execution</td><td>—</td><td>Scheduler, runner, reviewer</td><td>TaskRun, ContextSlice, Review, Event</td></tr>
+      <tr><td>Execution</td><td>Moves cards on the board, or nothing</td><td>Scheduler, one turn per workspace, reviewer</td><td>TaskRun -PINNED_TO-&gt; BlueprintVersion, ContextSlice, Review, Event</td></tr>
       <tr><td>Gate</td><td>Approves, or does not</td><td>Holds</td><td>Approval, Event</td></tr>
       <tr><td>Close</td><td>—</td><td>Extracts the lesson</td><td>Knowledge, Decision, Event</td></tr>
     </tbody>
@@ -270,6 +290,8 @@
       <tr><td><code>dashboard/store.go</code></td><td>The seam both stores implement &mdash; unchanged since it was written</td></tr>
       <tr><td><code>dashboard/store_arcade.go</code></td><td>The ArcadeDB store: reads and writes the graph</td></tr>
       <tr><td><code>dashboard/arcade.go</code></td><td>The ArcadeDB client &mdash; ready probe, query, command, transaction</td></tr>
+      <tr><td><code>dashboard/adapter.go</code></td><td>The model-gateway seam; reshaped to <code>Submit</code>/<code>Poll</code> by <a href="../delivery/implementation-plan.html#sub-m14-2">M14.2</a></td></tr>
+      <tr><td><a href="gateway.html">The gateway</a>, <a href="../product/blueprint.html">Blueprint</a></td><td>The contract with ai-manager and ai-claude-cli, and what GAOS writes into a product's workspace</td></tr>
     </tbody>
   </table>
 
