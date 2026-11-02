@@ -56,6 +56,10 @@
         scheduled task was dispatched as attempt 1, so a retry would have reused the first request id and
         been answered with the old result; the runner refused a packet with no local folder, so dev could
         not run a gateway turn; and recovery's adopt branch never collected the run it adopted.</li>
+        <li><span class="chg fix">Fixed</span> <b>false alarms on every deploy.</b>
+        <code>rebuild-restart.sh</code> probed health once, straight after <code>up -d</code>, while the
+        dashboard was still applying its schema over the tunnel; it now polls for up to 90 seconds
+        (<a href="product/qa-test-plan.html#rr-healthz">TC-038/TC-039</a>).</li>
       </ul>
     </section>
 

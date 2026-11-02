@@ -295,8 +295,22 @@ esac
 
 echo
 echo "== healthz through the tunnel =="
-HEALTH="$(ssh -o ConnectTimeout=8 clino "curl -sS -H 'Host: $HOST' http://$TUNNEL:$PORT/api/healthz" 2>&1)"
-echo "    $HEALTH"
+# POLLED, not probed once. The dashboard applies its schema before it listens,
+# and since the database moved to clinodb (2026-11-02) that is 365 statements
+# over the tunnel -- seconds, not milliseconds. A single probe straight after
+# `up -d` reported a healthy deploy as three failures every time. Up to
+# GAOS_HEALTH_WAIT seconds (default 90); a dashboard still down after that is
+# a real failure, and says so below.
+HEALTH=""
+waited=0
+while :; do
+  HEALTH="$(ssh -o ConnectTimeout=8 clino "curl -sS -m 5 -H 'Host: $HOST' http://$TUNNEL:$PORT/api/healthz" 2>&1)"
+  case "$HEALTH" in *'"ok":true'*) break ;; esac
+  [ "$waited" -ge "${GAOS_HEALTH_WAIT:-90}" ] && break
+  sleep 3
+  waited=$((waited + 3))
+done
+echo "    $HEALTH  (after ${waited}s)"
 case "$HEALTH" in
   *'"ok":true'*) vok "healthz ok:true" ;;
   *) vbad "healthz did not report ok:true" ;;
