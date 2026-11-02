@@ -62,5 +62,35 @@
      on nearly every action, so no handler has to remember them one at a time. */}}
 {{define "oob-chrome"}}
 {{template "stat-strip" .}}
+{{template "needs-oob-chip" .}}
 {{template "toast" .}}
+{{end}}
+
+{{/* "Needs you" (M15). The chip lives in the back-office sheet's head, not the
+     topbar: signed in, the sheet covers the whole page, topbar included, and
+     signed out there is nothing to count. Hidden at zero: a chip that says
+     "0 need you" all day teaches the eye to skip it. It does not animate when
+     the count moves -- it is re-sent on every mutation, so any entrance would
+     replay on every click.
+
+     The sheet is a swap unit and an oob element inside another is ambiguous,
+     so the chip itself carries no hx-swap-oob. Its slot is refreshed by
+     selector from oob-chrome and from GET /ui/needs, and only for a session:
+     signed out, the slot is not in the page. */}}
+{{define "needs-chip"}}
+<button type="button" class="needs-chip" id="needsChip" {{if not .Needs}}hidden{{end}}
+        hx-get="ui/bo/inbox" hx-target="#sink" hx-swap="innerHTML"
+        aria-label="{{num .Needs}} agent{{pluralS .Needs}} {{if eq .Needs 1}}needs{{else}}need{{end}} your answer"
+        title="{{num .Needs}} agent{{pluralS .Needs}} waiting on you — open the inbox">
+  <i aria-hidden="true"></i><b>{{num .Needs}}</b><span class="nc-words"> {{if eq .Needs 1}}needs{{else}}need{{end}} you</span>
+</button>
+{{end}}
+
+{{define "needs-oob-chip"}}{{if .SignedIn}}<div hx-swap-oob="innerHTML:#needsSlot">{{template "needs-chip" .}}</div>{{end}}{{end}}
+
+{{/* GET /ui/needs: what the live channel re-fetches on a question hint -- the
+     chip and the nav count, both by selector. */}}
+{{define "needs-oob"}}
+{{template "needs-oob-chip" .}}
+{{if .SignedIn}}<div hx-swap-oob="innerHTML:#navNeedsCount">{{num .Needs}}</div>{{end}}
 {{end}}

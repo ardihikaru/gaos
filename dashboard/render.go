@@ -134,12 +134,28 @@ var funcs = template.FuncMap{
 	"join":      func(sep string, v []string) string { return strings.Join(v, sep) },
 	"add":       func(a, b int) int { return a + b },
 	"pluralS":   pluralS,
+	"num":       thousands,
 	"clip":      clip,
 	"confPct":   func(v float64) int { return int(v*100 + 0.5) },
 	// styleWidth exists so a template can size a bar without the caller having
 	// to build a template.CSS. It is the only func that produces CSS, and it
 	// takes a number, so there is nothing to inject.
 	"styleWidth": func(v float64) template.CSS { return pctStyle("width", v) },
+}
+
+// thousands writes 1284 as "1,284". The chip's count is the only caller; a
+// count that can reach four digits should not be read digit by digit.
+func thousands(n int) string {
+	s := fmt.Sprint(n)
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	if neg {
+		s = "-" + s
+	}
+	return s
 }
 
 func pluralS(n int) string {
@@ -203,7 +219,12 @@ func (w gzWriter) WriteHeader(code int) {
 
 func gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") || r.Header.Get("Range") != "" {
+		// The live stream is never compressed. gzWriter is not an http.Flusher,
+		// so wrapping it made handleStream answer 501 to every browser (they all
+		// send Accept-Encoding: gzip); and a compressed stream would sit in the
+		// gzip buffer instead of reaching the page. Found in M15.
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") || r.Header.Get("Range") != "" ||
+			r.URL.Path == "/events/stream" || strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
 			next.ServeHTTP(w, r)
 			return
 		}

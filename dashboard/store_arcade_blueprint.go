@@ -37,6 +37,15 @@ func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMov
 	return s.mutate(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
 }
 
+// Questions are a projection of the event stream (questions.go); an answer is
+// an event and a task move, so it goes through mutate like a board move.
+func (s *ArcadeStore) OpenQuestions(ctx context.Context, id string) ([]Question, error) {
+	return s.proj.OpenQuestions(ctx, id)
+}
+func (s *ArcadeStore) AnswerQuestion(ctx context.Context, id, taskID string, choice int, text string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerQuestion(ctx, id, taskID, choice, text) })
+}
+
 func blueprintVersionID(productID string, n int) string { return fmt.Sprintf("%s-bp-%d", productID, n) }
 
 // writeBlueprintVersion writes the newest version, once. Older versions were

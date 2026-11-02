@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and twenty cases, positive and negative, across the four deploy automations and the
+  three hundred and forty cases, positive and negative, across the four deploy automations and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and twenty cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and forty cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -409,6 +409,26 @@
       <tr data-tags="blueprint observed context parent claude.md missing rule agent drift br-39 t-156 positive implemented go test unit dashboard"><td>TC-318</td><td>dashboard (go test)</td><td>Positive</td><td>A parent <code>CLAUDE.md</code>, a missing rule, a rule GAOS did not render or an agent in the observed context is drift (<code>TestAnObservedContextGAOSDidNotWriteIsDrift</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint observed context matching no drift t-156 negative implemented go test unit dashboard"><td>TC-319</td><td>dashboard (go test)</td><td>Negative</td><td>A matching observed context, or none at all, does not block the product (<code>TestAMatchingObservedContextIsNotDrift</code>)</td><td>Implemented</td></tr>
       <tr data-tags="handoff lesson failed turn failure-previous packet label positive negative implemented go test unit dashboard"><td>TC-320</td><td>dashboard (go test)</td><td>Positive</td><td>A failed turn's error reaches the next agent as <code>failure-previous.md</code>, labelled; a clean turn's handoff is still <code>handoff-previous.md</code> (<code>TestAFailedTurnIsCitedAsAFailureNotAHandoff</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question asked awaiting_input inbox artifact notice positive implemented go test unit dashboard m15"><td>TC-321</td><td>dashboard (go test)</td><td>Positive</td><td>A turn that ends on a question leaves its task <code>AWAITING_INPUT</code>, not failed, with the question in the inbox, on a <code>QuestionAsked</code>, as an artifact and as a notice (<code>TestAQuestionTurnWaitsOnTheOperator</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question answer ready requeue toast closed positive implemented go test unit dashboard m15"><td>TC-322</td><td>dashboard (go test)</td><td>Positive</td><td>An answer in the operator's own words puts the task back in <code>READY</code>, empties the inbox, and a second answer is refused (<code>TestAnAnswerPutsTheTaskBackInTheQueue</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question answer invalid choice blank refused negative implemented go test unit dashboard m15"><td>TC-323</td><td>dashboard (go test)</td><td>Negative</td><td>Choice 0, choice 5, an empty fourth answer and an answer through another product are refused and write nothing (<code>TestAnInvalidAnswerIsRefusedAndChangesNothing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question answer resume session answer route packet answer.md positive implemented go test unit dashboard m15"><td>TC-324</td><td>dashboard (go test)</td><td>Positive</td><td>The next attempt carries the answer in its packet and sends the turn once, through ai-manager's answer route under its own request id, with the reply contract (<code>TestTheNextTurnResumesThroughTheAnswerRoute</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question answer route 409 410 503 fallback chat negative implemented go test unit dashboard m15"><td>TC-325</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>409</code>, <code>410</code> or <code>503</code> from the answer route does not strand the turn: it is sent once through <code>/v1/chat</code> (<code>TestARefusedAnswerRouteFallsBackToAnOrdinaryTurn</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question malformed two options handoff-missing negative implemented go test unit dashboard m15"><td>TC-326</td><td>dashboard (go test)</td><td>Negative</td><td>A question with two options is not a question: with no handoff the turn fails <code>handoff-missing</code> and nothing reaches the inbox (<code>TestAMalformedQuestionIsNotAQuestion</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question board needs-you column drag cancel br-44 negative implemented go test unit dashboard m15"><td>TC-327</td><td>dashboard (go test)</td><td>Negative</td><td>A waiting card cannot be dragged to ready, review or done, nor into Needs you; it can be canceled, and its question leaves the inbox (<code>TestAWaitingCardMovesOnlyByAnAnswerOrACancel</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question gateway client answer route 409 410 404 errors positive implemented go test unit dashboard m15"><td>TC-328</td><td>dashboard (go test)</td><td>Positive</td><td>The gateway client maps the answer route's <code>202</code>, <code>409</code>, <code>410</code> and <code>404</code> to success and three typed errors (<code>TestTheGatewayClientMapsTheAnswerRoute</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question schema ddl task status artifact kind alter 12-questions negative implemented go test unit dashboard m15"><td>TC-329</td><td>dashboard (go test)</td><td>Negative</td><td><code>12-questions.sql</code> widens <code>Task.status</code> to exactly what <code>04-execution.sql</code> creates, and <code>Artifact.kind</code> admits <code>question</code> (<code>TestTheQuestionDDLWidensWhatTheCreateDeclares</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question rest api inbox answer 200 401 409 404 422 positive negative implemented go test unit dashboard m15"><td>TC-330</td><td>dashboard (go test)</td><td>Positive</td><td><code>GET …/questions</code> lists the waiting task; the answer route answers <code>401</code>, <code>422</code>, <code>200</code>, then <code>409</code> and <code>404</code> (<code>TestTheInboxAndTheAnswerRouteSpeakJSON</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="sse broker fan-out slow subscriber dropped non-blocking negative implemented go test unit dashboard m15 d-065"><td>TC-331</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing never blocks on a subscriber that does not read; the slow one is dropped, the reading one kept, and ending twice is harmless (<code>TestTheBrokerFansOutAndDropsASlowSubscriber</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="sse broker live store projection replay publishes positive negative implemented go test unit dashboard m15 d-065"><td>TC-332</td><td>dashboard (go test)</td><td>Positive</td><td>An emitted event reaches the live store's broker, and a bare projection has none, so a replay cannot re-announce the past (<code>TestOnlyTheLiveStorePublishes</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="sse stream events hint question 401 headers positive implemented go test unit dashboard m15 d-065"><td>TC-333</td><td>dashboard (go test)</td><td>Positive</td><td><code>GET /events/stream</code> refuses without the session, answers <code>text/event-stream</code> unbuffered, and sends a <code>question</code> hint naming the type and task but not the question (<code>TestTheStreamSendsAHintForAQuestion</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="inbox needs you rows oldest first stale waiting filter positive implemented go test unit dashboard m15 ui"><td>TC-334</td><td>dashboard (go test)</td><td>Positive</td><td>The inbox lists every waiting agent oldest first, with how long it has waited, one stale tag past seven days, the question's first line only, and a product filter (<code>TestTheInboxListsEveryWaitingAgentOldestFirst</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="inbox empty state no agent waiting negative implemented go test unit dashboard m15 ui"><td>TC-335</td><td>dashboard (go test)</td><td>Negative</td><td>An empty inbox says no agent is waiting (<code>TestAnEmptyInboxSaysNoAgentIsWaiting</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="chip count needs you session signed out oob positive negative implemented go test unit dashboard m15 ui"><td>TC-336</td><td>dashboard (go test)</td><td>Positive</td><td>The Needs-you chip counts waiting agents for a session only, sits in the back-office sheet's head, and drops with an answer (<code>TestTheChipCountsWaitingAgentsOnlyForASession</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="answer sheet recommended preselected other free text 401 422 positive negative implemented go test unit dashboard m15 ui"><td>TC-337</td><td>dashboard (go test)</td><td>Positive</td><td>The answer sheet preselects the recommended option, offers the operator's own words as a fourth, posts relatively, and refuses a task not waiting (422) or no session (401) (<code>TestTheAnswerSheetPreselectsTheRecommendation</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="answer htmx rerender inbox board toast 422 positive negative implemented go test unit dashboard m15 ui"><td>TC-338</td><td>dashboard (go test)</td><td>Positive</td><td>An answer re-renders the view it came from — inbox or board — and a second one comes back as a 422 toast (<code>TestAnAnswerReRendersTheViewItCameFrom</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="board needs you column badge answer sheet positive implemented go test unit dashboard m15 ui"><td>TC-339</td><td>dashboard (go test)</td><td>Positive</td><td>The board has a Needs-you column and a waiting card carries a badge that opens its answer sheet (<code>TestTheBoardBadgesAWaitingCard</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="sse stream gzip middleware flush uncompressed negative implemented go test unit dashboard m15 d-065"><td>TC-340</td><td>dashboard (go test)</td><td>Negative</td><td>The live stream behind the gzip middleware answers 200 uncompressed with the retry hint first — compressed, no browser could flush it (<code>TestTheLiveStreamIsNotGzipped</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1293,6 +1313,8 @@
   planner's task graph (M3.2), recall (M7.3) and the budget guard (M10.3).
   <code>BlueprintPublished</code> joined the catalog in v0.24.0 already emitted, never owed: the
   driver saves a policy and publishes a Blueprint, so the name lands with something that writes it.
+  <code>QuestionAsked</code> and <code>QuestionAnswered</code> joined in v0.31.0 the same way: the
+  runner driver also supervises a turn that asks and answers it, so both names land written.
   <strong>The whole execution group came off that list on 2026-08-22</strong>, which is what this
   case is for: the driver now runs one real supervision <em>and</em> one boot recovery — since v0.29.0 a
   gateway turn against the fake ai-manager and a request the gateway answers 404 for, past its
@@ -2246,8 +2268,8 @@
   the Board tab renders a card (<code>the Board tab rendered %d without a card; a template error here is
   a 500 no store test sees</code>), a product with no tasks answers an empty array rather than
   <code>null</code> (<code>a product with no tasks answered %s; cards must be an empty array, not
-  null</code> — found on dev, where the fresh database had no tasks), the columns are the eight declared ones in order (<code>columns are
-  %s; want the eight declared ones in order</code>), every card sits in a declared lane (<code>card %s
+  null</code> — found on dev, where the fresh database had no tasks), the columns are the nine declared ones in order — Needs you, M15, sits between Working and Review
+  (<code>columns are %s; want the nine declared ones in order</code>), every card sits in a declared lane (<code>card %s
   sits in lane %q, which the board does not declare</code>), and every task appears exactly once with a
   plan lane (<code>the board has %d cards for %d tasks (lanes %v); want every task exactly once and a
   plan lane</code>).
@@ -2350,6 +2372,120 @@
   <strong>Negative:</strong> after a clean turn it is the handoff, unlabelled — <code>after a clean turn
   the next packet holds handoff-previous.md %v and failure-previous.md %v; want the handoff,
   unlabelled</code>.</p>
+
+
+  <h3 id="go-questions">dashboard — an agent asks, the operator answers (TC-321…TC-330)</h3>
+  <p>M15, in <code>dashboard/questions_test.go</code>, against the fake ai-manager, which now also
+  serves <code>POST /v1/questions/{id}/answer</code> and records every answer it receives. A scripted
+  asking turn replies with <code>finish_reason: awaiting_input</code> and a three-option question
+  (<a href="decision-log.html#d-064">D-064</a>, <a href="brd.html#rules-gateway">BR-44</a>).
+  <strong>TC-321, positive</strong> (<code>TestAQuestionTurnWaitsOnTheOperator</code>): the task waits
+  (<code>a turn that ended on a question left the task %s; want AWAITING_INPUT</code>), the run is not
+  failed (<code>an asking turn was recorded as failed (%s); a question is not a missing handoff</code>),
+  the inbox holds it (<code>the inbox holds %+v; want the one question with its three options, the
+  recommended first</code>), a <code>QuestionAsked</code> carries it (<code>no QuestionAsked carries the
+  question; the inbox would not survive a restart</code>), it is an artifact (<code>the question was not
+  kept as an artifact of the attempt that asked it</code>) and a notice (<code>a waiting question did not
+  count toward the operator's notices</code>).
+  <strong>TC-322, positive</strong> (<code>TestAnAnswerPutsTheTaskBackInTheQueue</code>): an answer in
+  the operator's own words requeues the task (<code>an answered task is %s; want READY, back in the
+  queue</code>), toasts the outcome (<code>the toast says %q; want the outcome, that the task
+  resumes</code>), empties the inbox (<code>the inbox still holds %d question(s) after the answer</code>),
+  and a second answer is refused (<code>a second answer returned %v; want ErrRejected, the question is
+  closed</code>).
+  <strong>TC-323, negative</strong> (<code>TestAnInvalidAnswerIsRefusedAndChangesNothing</code>):
+  choices 0 and 5 and a blank fourth answer — <code>choice %d with text %q returned %v; want
+  ErrRejected</code>; another product's id — <code>an answer through another product returned %v; want
+  ErrNotFound</code>; and none of them writes — <code>a refused answer wrote an event or moved the
+  task</code>.
+  <strong>TC-324, positive</strong> (<code>TestTheNextTurnResumesThroughTheAnswerRoute</code>): the
+  next packet carries the answer (<code>the next packet carries answer %+v; want the operator's choice 2
+  for q-%s</code>) and its <code>context/answer.md</code> part (<code>the answer part reads %q; want the
+  chosen option and the operator's note</code>); the turn goes once through the answer route
+  (<code>the answer route received %+v; want one answer under the attempt's request id, carrying the
+  reply contract</code>), never also through chat (<code>the answered turn was also posted to /v1/chat;
+  one turn was started twice</code>), and ends in review (<code>the resumed turn left the task %s; want
+  REVIEW</code>).
+  <strong>TC-325, negative</strong> (<code>TestARefusedAnswerRouteFallsBackToAnOrdinaryTurn</code>): for
+  each of <code>409</code>, <code>410</code> and <code>503</code> — <code>a %d from the answer route
+  stranded the turn; want it sent once through /v1/chat</code> and <code>after a %d the fallback turn
+  left the task %s; want REVIEW</code>.
+  <strong>TC-326, negative</strong> (<code>TestAMalformedQuestionIsNotAQuestion</code>): two options
+  and no handoff — <code>a two-option question with no handoff left the task %s; want FAILED
+  (handoff-missing)</code>, and <code>a malformed question reached the inbox</code>.
+  <strong>TC-327, negative</strong> (<code>TestAWaitingCardMovesOnlyByAnAnswerOrACancel</code>):
+  <code>dragging a waiting card to %s returned %v; want ErrRejected</code> for ready, review and done;
+  cancel is allowed (<code>canceling a waiting task failed: %v</code>) and takes the question with it
+  (<code>a canceled task's question is still in the inbox</code>); and nothing may be dropped into the
+  column (<code>a card can be dropped into Needs you; only an agent may put it there</code>).
+  <strong>TC-328, positive</strong> (<code>TestTheGatewayClientMapsTheAnswerRoute</code>):
+  <code>a 202 from the answer route returned %v</code>, and <code>a %d from the answer route returned %v;
+  want %v</code> for <code>409</code>→<code>ErrQuestionAnswered</code>,
+  <code>410</code>→<code>ErrQuestionExpired</code>, <code>404</code>→<code>ErrRequestUnknown</code>.
+  <strong>TC-329, negative</strong> (<code>TestTheQuestionDDLWidensWhatTheCreateDeclares</code>): an old
+  database and a new one must accept the same statuses — <code>12-questions.sql widens Task.status to %q
+  but 04-execution.sql creates %q; an old database and a new one would accept different
+  statuses</code> — and <code>Artifact.kind does not admit 'question'; the asking attempt's artifact
+  would be refused at commit</code>.
+  <strong>TC-330, positive and negative</strong> (<code>TestTheInboxAndTheAnswerRouteSpeakJSON</code>):
+  <code>GET questions answered %d %s; want 200 with the one waiting task, titled</code>; then
+  <code>an answer without the back-office session answered %d; want 401</code>, <code>an empty own-words
+  answer answered %d %s; want 422</code>, <code>a valid answer answered %d %s; want 200 with the
+  QuestionAnswered event</code>, <code>a second answer answered %d; want 409, the task is no longer
+  waiting</code> and <code>an answer for an unknown task answered %d; want 404</code>.</p>
+
+  <h3 id="go-broker">dashboard — the live channel (TC-331…TC-333)</h3>
+  <p>M15, in <code>dashboard/broker_test.go</code> (<a href="decision-log.html#d-065">D-065</a>,
+  <code>T-110</code>). Run with <code>-race</code> as well as without.
+  <strong>TC-331, negative</strong> (<code>TestTheBrokerFansOutAndDropsASlowSubscriber</code>): a
+  subscriber that never reads must not stall the publisher — <code>Publish blocked on a subscriber that
+  does not read; one stalled tab would hold the store's lock</code> — and is the one dropped
+  (<code>%d subscribers remain; want 1 -- the slow one is dropped, the reading one kept</code>); ending a
+  subscription twice is harmless (<code>%d subscribers remain after both ended; want 0</code>).
+  <strong>TC-332, positive and negative</strong> (<code>TestOnlyTheLiveStorePublishes</code>): an emit
+  reaches the broker (<code>the broker delivered %s; want the TaskMoved just emitted</code>,
+  <code>an emitted event never reached the live channel</code>), and <code>a bare projection has a
+  broker; a replay or a fold would re-announce the past as live</code>.
+  <strong>TC-333, positive</strong> (<code>TestTheStreamSendsAHintForAQuestion</code>): without the
+  cookie — <code>the stream without the back-office session answered %v %v; want 401</code>; with it —
+  <code>the stream answered Content-Type %q, X-Accel-Buffering %q; want text/event-stream and no</code>;
+  an asking turn produces a hint without the question's content — <code>the question hint reads %s; want
+  the type and the task, and not the question's content</code> — or <code>the stream ended without a
+  question hint: %v</code>.</p>
+
+  <h3 id="go-needs-ui">dashboard — the inbox, the chip and the answer sheet (TC-334…TC-340)</h3>
+  <p>M15, in <code>dashboard/needs_test.go</code>, rendering the real templates through the routes
+  with planted questions. <strong>TC-334, positive</strong>
+  (<code>TestTheInboxListsEveryWaitingAgentOldestFirst</code>): <code>GET /ui/bo/inbox answered %d
+  without the inbox view; buildBO has no inbox case</code>; <code>the inbox rows are missing or out of
+  order (old at %d, new at %d); want both, oldest first</code>; <code>a row does not say how long it has
+  waited, with the absolute time in its title</code>; <code>%d rows are tagged stale; want 1, the one
+  older than seven days</code>; <code>a row shows more than the question's first line</code>; and
+  <code>the inbox filtered to one product still lists another product's agent</code>.
+  <strong>TC-335, negative</strong> (<code>TestAnEmptyInboxSaysNoAgentIsWaiting</code>): <code>an empty
+  inbox answered %d without its empty state</code>.
+  <strong>TC-336, positive and negative</strong> (<code>TestTheChipCountsWaitingAgentsOnlyForASession</code>):
+  <code>GET /ui/needs signed in = %q; want a visible chip naming 2 agents and the nav count</code>;
+  <code>GET /ui/needs signed out = %q; want neither the chip nor the count</code>; <code>the back-office
+  sheet's head has no slot for the chip; signed in, the sheet hides the topbar</code>; <code>an answer's
+  response (%d) did not carry the chip down to 1</code>.
+  <strong>TC-337, positive and negative</strong> (<code>TestTheAnswerSheetPreselectsTheRecommendation</code>):
+  <code>GET the answer sheet answered %d without a modal dialog</code>; <code>option 1 is not preselected
+  and labelled Recommended, alone</code>; <code>the sheet has no fourth answer in the operator's own
+  words</code>; <code>the sheet does not post to the answer route with a relative URL</code>; <code>a
+  sheet for a task that is not waiting answered %d; want 422 and a toast saying so</code>; <code>the
+  answer sheet without a session answered %d; want 401</code>.
+  <strong>TC-338, positive and negative</strong> (<code>TestAnAnswerReRendersTheViewItCameFrom</code>):
+  <code>an answer from the inbox answered %d without the inbox and the outcome toast</code>; <code>an
+  answer from the board answered %d without the board; the operator was moved off it</code>; <code>a
+  second answer through the form answered %d; want 422 with the refusal as a toast</code>.
+  <strong>TC-339, positive</strong> (<code>TestTheBoardBadgesAWaitingCard</code>): <code>the board has no
+  Needs you column</code>; <code>a waiting card carries no Needs you badge that opens its answer
+  sheet</code>.
+  <strong>TC-340, negative</strong> (<code>TestTheLiveStreamIsNotGzipped</code>): found by driving a real
+  browser — every browser asks for gzip, and the gzip writer cannot flush, so the stream answered 501.
+  <code>the stream behind the gzip middleware answered %d, encoding %q; want 200 uncompressed</code>;
+  <code>the stream's first line is %q; want the retry hint, readable as sent</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

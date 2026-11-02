@@ -112,6 +112,7 @@
       <tr data-tags="technical knowledge source template repository clone licence pin blueprint new"><td><a href="#oq-28">OQ-28</a></td><td>Technical</td><td>How does a knowledge source repository reach the model — cloned, summarised, or indexed — and whose licence governs it?</td><td>A-9, D-058</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="technical admin key token least privilege ai-manager security new"><td><a href="#oq-29">OQ-29</a></td><td>Technical</td><td>Should GAOS hold a token scoped to its own workspaces instead of ai-manager's admin bearer?</td><td>D-059, BR-29</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="operations ai-manager restart async request records lost recovery new"><td><a href="#oq-30">OQ-30</a></td><td>Operations</td><td>ai-manager keeps async request records in memory. Is the deadline rule enough, or should ai-manager persist them?</td><td>D-060, recovery</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="operations question answer wait expiry stale session temp bucket new"><td><a href="#oq-31">OQ-31</a></td><td>Operations</td><td>How long may an agent's question wait for the operator before it expires, and what happens to the task then?</td><td>I-11, BR-44, D-064</td><td>Open — raised 2026-11-02</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -712,6 +713,16 @@
   wait until the turn must have ended, then requeue — but the finished turn's result is lost, and paid
   for. A durable request store upstream would turn the <code>404</code> branch into an ordinary
   adoption.</p>
+
+  <h3 id="oq-31">OQ-31 · How long may a question wait?</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-064">D-064</a> lets a task wait in
+  <code>AWAITING_INPUT</code> with no deadline. Three clocks run underneath it and none of them is
+  the operator's: ai-manager's <code>temp</code> bucket deletes the question thirty days after it was
+  asked, the session expires thirty days after its last turn, and GAOS rotates a task's session at
+  twenty-five. An answer after any of them still reaches the agent — it is in the next packet as
+  <code>context/answer.md</code> — but in a new session that remembers none of the turn that asked.
+  Today the inbox only marks a question stale after seven days. Whether a question should expire, be
+  re-asked, or fail its task after some period is the operator's call and is not made.</p>
 
   <h2 id="oq-operations">Operations</h2>
 

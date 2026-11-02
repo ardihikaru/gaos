@@ -80,6 +80,11 @@ const (
 	// lost | rotation), and a session the task meant to resume was gone (410).
 	SessionOpened EventType = "SessionOpened"
 	SessionLost   EventType = "SessionLost"
+
+	// M15, D-064: a turn ended on a question for the operator, and the
+	// operator answered it. The payload's Question carries both halves.
+	QuestionAsked    EventType = "QuestionAsked"
+	QuestionAnswered EventType = "QuestionAnswered"
 )
 
 // judgment

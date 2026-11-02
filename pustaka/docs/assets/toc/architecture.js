@@ -87,6 +87,8 @@ window.DOCS.nav.push({
           text: "Poll every open request id; adopt a finished one, keep polling a running one, and hold the lease past the deadline for a lost one." },
         { anchor: "configuration", title: "Configuration",
           text: "GAOS_AIM_URL, the auth files, poll interval, turn deadline and session age replace the GAOS_CLI settings." },
+        { anchor: "questions", title: "When the agent needs the operator",
+          text: "Asking ends the turn: one ai-question block with three options, the first recommended; the task waits in AWAITING_INPUT and the answer resumes the session through ai-manager's answer route, falling back to an ordinary turn." },
         { anchor: "limits", title: "Limits that shape the design",
           text: "256 KB requests, a 600 second turn cap, two worker processes, one turn per session, 30-day sessions, in-memory async records." },
         { anchor: "upstream", title: "The upstream change: provisioning a workspace",

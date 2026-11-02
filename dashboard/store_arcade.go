@@ -149,6 +149,10 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 
 func (s *ArcadeStore) Kind() string { return "arcadedb" }
 
+// Live is the projection's broker: every event the projection emits is one
+// the graph is about to receive, so the hint and the record leave together.
+func (s *ArcadeStore) Live() *Broker { return s.proj.Live() }
+
 // Ready issues the probe against the database, which is exactly what store.go
 // said this method would do when the ArcadeDB store landed -- and the reason
 // handleHealth needed no change to report it.
@@ -1460,7 +1464,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		e := Event{Seq: r.Seq, Type: EventType(r.Type), DeskID: r.Entity,
 			Text: pw.Text, Kind: pw.Kind, T: pw.Clock, Payload: pw.Delta}
-		if e.Kind == KindWarn || e.Kind == KindFail || e.Type == ApprovalRequested {
+		if needsNotice(e) {
 			m.notifs++
 		}
 		m.events = append(m.events, e)
@@ -1505,6 +1509,13 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		})
 	}
 
+	// The loaded projection is the live store from here on, so it gets the
+	// broker -- the one already handed to listeners, if there was one.
+	if s.proj != nil && s.proj.live != nil {
+		m.live = s.proj.live
+	} else {
+		m.live = NewBroker()
+	}
 	s.proj = m
 	return true, nil
 }

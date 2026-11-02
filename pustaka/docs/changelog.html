@@ -36,6 +36,39 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-31-0">v0.31.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Agents ask, the operator
+      answers. M15 — and the live channel the store was cut for.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>questions from agents</b> (D-064, I-11): a turn may end
+        with one question — three options, the one the agent recommends first, and the operator's own words
+        as a fourth. The task waits in the new status <code>AWAITING_INPUT</code>, which holds no lease and
+        is never scheduled (BR-44); <code>QuestionAsked</code> and <code>QuestionAnswered</code> join the
+        execution group of the closed catalog, and <code>12-questions.sql</code> widens
+        <code>Task.status</code> and <code>Artifact.kind</code> in place on boot. The answer resumes the
+        session that asked through ai-manager's new answer route, and falls back to an ordinary turn —
+        with the answer still in the packet as <code>context/answer.md</code> — when that route refuses
+        (TC-321…TC-330). Upstream in ai-cli-common, ai-claude-cli, ai-antigravity-cli and ai-manager.</li>
+        <li><span class="chg add">Added</span> <b>the "Needs you" inbox</b>: a live count in the back
+        office, an inbox of waiting agents oldest first, an answer sheet with the recommendation
+        preselected and keys 1–4, and a Needs-you column and badge on the board (TC-334…TC-339).</li>
+        <li><span class="chg add">Added</span> <b>the live channel</b> (D-065, T-110):
+        <code>GET /events/stream</code> sends a hint per event — never HTML — and the page re-fetches what
+        changed. A slow listener is dropped rather than waited for, and replay never publishes
+        (TC-331…TC-333, TC-340).</li>
+        <li><span class="chg add">Added</span> <b>REST</b>: <code>GET /questions</code>,
+        <code>GET /products/{id}/questions</code>, <code>POST /products/{id}/tasks/{taskId}/answer</code>.</li>
+        <li><span class="chg fix">Fixed</span> <b>refusal toasts</b> never appeared: htmx 2 drops a 4xx
+        response by default, so every <code>422</code> toast and the <code>401</code> sign-in sheet were
+        discarded. They are swapped now.</li>
+        <li><span class="chg change">Changed</span> the board has nine columns — Needs you sits between
+        Working and Review — and a <code>gaos-frontend</code> agent with Emil Kowalski's design skills
+        (MIT) now owns the dashboard's UI. The QA register is three hundred and forty cases, two hundred
+        and twenty-seven of them Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-30-0">v0.30.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The board replays from its
       events and has its richer client, and the Blueprint is checked again after every turn. M14 is

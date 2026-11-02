@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GAOS · Products</title>
 <meta name="color-scheme" content="dark light">
+<!-- htmx 2 swaps nothing on a 4xx by default. Every refusal here is a 4xx whose
+     body IS the answer -- the toast saying why (fail(), 404/409/422) or the
+     sign-in sheet (requireBO, 401) -- and every request targets the hidden
+     #sink, so swapping a 4xx is always safe. A 5xx is still an error. -->
+<meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[234]..","swap":true},{"code":"...","swap":false,"error":true}]}'>
 
 <!-- MOUNT POINT. This is the only place the prefix appears, and it is why every
      other URL in every template is relative. Traefik strips /app on the way in
@@ -36,6 +41,7 @@
 <link rel="stylesheet" href="static/app.css">
 <script src="static/htmx.min.js" defer></script>
 <script src="static/app.js" defer></script>
+<script src="static/live.js" defer></script>
 </head>
 <body>
 
@@ -57,6 +63,7 @@
 {{template "login-sheet" .}}
 {{template "bo-sheet" .}}
 {{template "cw-modal" .}}
+{{template "answer-modal" .}}
 {{template "toast" .}}
 
 <!-- Every request in this application targets #sink and returns nothing for it:
