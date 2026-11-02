@@ -82,7 +82,12 @@ type Packet struct {
 	// asked (M15), which the gateway adapter sends through ai-manager's answer
 	// route. Not part of the digest either: the answer reaches the model as
 	// the packet's answer part, which is.
-	Answer    *PacketAnswer
+	Answer *PacketAnswer
+	// Vendor and Model are where the turn goes (M16, BR-45): the product's
+	// vendor for the task's role, and the model to ask that vendor for ("" =
+	// its default). Not part of the digest, for the reason SessionID is not.
+	Vendor    string
+	Model     string
 	DeskID    string
 	Workspace string
 	Parts     []PacketPart

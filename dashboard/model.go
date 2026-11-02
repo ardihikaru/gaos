@@ -359,10 +359,16 @@ type Master struct {
 	// Workspace is the product's ai-manager workspace and what it holds
 	// (M14.4, workspace.go). Zero until the first sync.
 	Workspace ProductWorkspace
+
+	// Vendors is which AI vendors run the product's tasks (M16, vendors.go).
+	// The zero value is Claude only.
+	Vendors VendorPolicy
 }
 
 func (m Master) Clone() Master {
 	c := m
+	c.Vendors = m.Vendors.Clone()
+	c.Workspace = m.Workspace.Clone()
 	c.Repos = append([]string(nil), m.Repos...)
 	c.BRD.Goals = append([]string(nil), m.BRD.Goals...)
 	c.BRD.Scope = append([]string(nil), m.BRD.Scope...)
@@ -767,6 +773,9 @@ type TaskRunRecord struct {
 	BlueprintVersion int
 	RequestID        string
 	SessionID        string
+	// Provider is the vendor the attempt was sent to (M16): claude or
+	// antigravity. "" on a run recorded before M16, which went to Claude.
+	Provider string
 }
 
 func (r TaskRunRecord) Clone() TaskRunRecord { return r }

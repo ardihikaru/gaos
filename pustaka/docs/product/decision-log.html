@@ -1163,6 +1163,31 @@
         <td>Product-owner ruling, 2026-11-02; <a href="qa-test-plan.html#go-questions">TC-341, TC-342</a>;
         <code>dashboard/questions.go</code></td>
       </tr>
+      <tr id="d-067">
+        <td>D-067</td><td>2026-11-03</td>
+        <td><strong>A product chooses its AI vendors; a task's vendor changes only with a new session.</strong>
+        Every product carries a vendor policy: <em>Claude CLI only</em> (the default, and what every
+        product ran on before), <em>Antigravity only</em> (ai-manager's round-robin pool of
+        ai-antigravity-cli accounts), or <em>mixed by role</em>, where each role is mapped to one of
+        the two; the product also picks the Antigravity model from the list the gateway offers. This
+        is a choice of <em>vendor</em> per product, not of execution mode per task — every attempt
+        still goes through the one gateway (<a href="#d-055">D-055</a>), and
+        <a href="brd.html#mode-config">§7.6.1</a>'s refusal of a per-task mode override stands. The
+        vendor is resolved when the packet is frozen and sent as <code>provider</code>; the run
+        records it (<code>TaskRun.provider</code>). Because ai-manager keeps a session with the
+        provider that opened it, a retry whose vendor changed opens a new session with reason
+        <code>vendor</code> rather than resuming (<a href="#d-056">D-056</a>,
+        <a href="brd.html#rules-gateway">BR-45</a>), and a policy edit never moves a turn in flight.
+        The product's one workspace id is provisioned on every vendor the policy uses: ai-manager fans
+        an Antigravity provisioning call out to every account in the pool, and the agy worker links
+        <code>AGENTS.md</code>, <code>GEMINI.md</code> and <code>.agents/rules</code> to the same
+        <code>CLAUDE.md</code> and <code>.claude/rules</code> the Blueprint writes, so the digest is
+        one formula on both. <a href="brd.html#rules-gateway">BR-39</a>'s gate asks every vendor in
+        use. Escalation stays inside one vendor's own tiers (<a href="brd.html#rules-gateway">BR-36</a>);
+        it never crosses to the other vendor, and nothing falls back silently.</td>
+        <td>Product-owner request, 2026-11-03; <a href="qa-test-plan.html#go-vendors">TC-343…TC-356</a>;
+        <code>dashboard/vendors.go</code>; extends <a href="#d-041">D-041</a></td>
+      </tr>
     </tbody>
   </table>
 

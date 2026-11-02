@@ -368,7 +368,7 @@ func TestAnAnswerResumesTheAskingSessionPastTheRotationAge(t *testing.T) {
 		}
 	}
 	asked := s.runs[0].SessionID
-	sid, why := s.sessionForLocked(id, ad, time.Now().Unix())
+	sid, why := s.sessionForLocked(id, ad, VendorClaude, "", time.Now().Unix())
 	s.mu.Unlock()
 	if sid != "" || why != SessionRotation {
 		t.Fatalf("an unanswered task's old session gave %q %q; want rotation, as before", sid, why)
@@ -378,7 +378,7 @@ func TestAnAnswerResumesTheAskingSessionPastTheRotationAge(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.mu.Lock()
-	sid, why = s.sessionForLocked(id, ad, time.Now().Unix())
+	sid, why = s.sessionForLocked(id, ad, VendorClaude, "", time.Now().Unix())
 	s.mu.Unlock()
 	if sid == "" || sid != asked {
 		t.Fatalf("the answer turn would run in session %q (%s); want the asking session %q, which still exists", sid, why, asked)

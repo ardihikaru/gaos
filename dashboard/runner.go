@@ -114,7 +114,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	pinned, _ := s.blueprintGate(deskID) // BR-39: the version this attempt runs under
 	s.startRun(TaskRunRecord{
 		ID: runID, TaskID: taskID, DeskID: deskID, Attempt: attempt,
-		Status: RunStatusStarted, Model: ad.Name(), Invocation: ad.Mode(),
+		Status: RunStatusStarted, Model: ad.Name(), Invocation: ad.Mode(), Provider: runProvider(ad, c.Packet()),
 		StartedAt: now, SliceDigest: slice.Digest, BlueprintVersion: pinned, RequestID: requestID,
 		// No CostBasis yet, and deliberately not "estimated". A run that has
 		// spent nothing has no basis to record; BR-31 is about never aggregating
@@ -480,8 +480,9 @@ func (s *MemStore) clearFor(d Dispatch, attempt int) (Cleared, EgressVerdict, er
 		return Cleared{}, EgressVerdict{}, nil
 	}
 	pkt := s.freezePacketFor(s.desks[idx], d.TaskID, attempt)
+	pkt.Vendor, pkt.Model = s.vendorForLocked(d.DeskID, pkt.Role)
 	if ta, ok := s.adapter.(TurnAdapter); ok {
-		pkt.SessionID, pkt.SessionReason = s.sessionForLocked(d.TaskID, ta, time.Now().Unix())
+		pkt.SessionID, pkt.SessionReason = s.sessionForLocked(d.TaskID, ta, pkt.Vendor, pkt.Model, time.Now().Unix())
 	}
 	pol, tgt := s.egress, s.target
 	s.mu.RUnlock()

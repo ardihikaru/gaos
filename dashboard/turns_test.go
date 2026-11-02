@@ -100,7 +100,7 @@ func TestALostRequestIsOrphanedHeldUntilTheDeadlineThenRequeued(t *testing.T) {
 	}
 	r := waitForRun(t, s, run, RunStatusOrphaned)
 	s.mu.RLock()
-	_, reason := s.sessionForLocked("t-lost", ad, time.Now().Unix())
+	_, reason := s.sessionForLocked("t-lost", ad, VendorClaude, "", time.Now().Unix())
 	s.mu.RUnlock()
 	if taskStatusOf(s, "t-lost") != StatusReady || r.FailureSignature != SigRequestLost || reason != SessionLostReason {
 		t.Fatalf("after the deadline the task is %s, the run %+v, next session reason %q; want READY, request-lost, and a new session", taskStatusOf(s, "t-lost"), r, reason)

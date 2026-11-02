@@ -40,18 +40,26 @@ func askTurn(f *fakeAIM, qid string) {
 // task's session the way the scheduler's own route would.
 func clearedFor(t *testing.T, s *MemStore, desk, task string, attempt int, parts ...PacketPart) Cleared {
 	t.Helper()
+	return clearedForRole(t, s, desk, task, "", attempt, parts...)
+}
+
+// clearedForRole is clearedFor for a task of role, whose vendor the product's
+// policy resolves the way the scheduler's route does (M16).
+func clearedForRole(t *testing.T, s *MemStore, desk, task, role string, attempt int, parts ...PacketPart) Cleared {
+	t.Helper()
 	s.mu.RLock()
 	ta, _ := s.adapter.(TurnAdapter)
+	vendor, model := s.vendorForLocked(desk, role)
 	var sid, reason string
 	if ta != nil {
-		sid, reason = s.sessionForLocked(task, ta, time.Now().Unix())
+		sid, reason = s.sessionForLocked(task, ta, vendor, model, time.Now().Unix())
 	}
 	s.mu.RUnlock()
 	if len(parts) == 0 {
 		parts = []PacketPart{{Path: ".gaos/packet/task.md", Kind: KindTask, Body: "# " + task}}
 	}
 	c, _, err := Screen(EgressPolicy{}, Target{Provider: "anthropic"}, Packet{TaskID: task, RunID: runIDFor(task, attempt),
-		DeskID: desk, SessionID: sid, SessionReason: reason, Parts: parts})
+		DeskID: desk, Role: role, Vendor: vendor, Model: model, SessionID: sid, SessionReason: reason, Parts: parts})
 	if err != nil {
 		t.Fatal(err)
 	}

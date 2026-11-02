@@ -121,6 +121,8 @@ type ProductDetail struct {
 	Band     string
 	CanPlan  bool
 	Diagrams []DiagramView
+	// Vendors is set for the AI vendors tab only (M16).
+	Vendors *VendorsPane
 }
 
 type DiagramView struct {
