@@ -758,6 +758,7 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		},
 		"PublishBlueprint": func() (Result, error) { return ro.PublishBlueprint(ctx, "p-1") },
 		"SyncBlueprint":    func() (Result, error) { return ro.SyncBlueprint(ctx, "p-1") },
+		"MoveCard":         func() (Result, error) { return ro.MoveCard(ctx, "p-1", "t-1", CardMove{Column: ColCanceled}) },
 		"CreateWorkflow":   func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {

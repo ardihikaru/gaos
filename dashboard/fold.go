@@ -422,7 +422,7 @@ func reduce(st FloorState, e Event) FloorState {
 
 	case KnowledgeExtracted, KnowledgeInjected, KnowledgeReused,
 		ProductCreated, RecordUpdated, ReadinessEvaluate, ReadinessDropped, BlueprintPublished,
-		WorkspaceProvisioned, BlueprintSynced, SessionOpened, SessionLost,
+		WorkspaceProvisioned, BlueprintSynced, SessionOpened, SessionLost, TaskMoved, TaskReordered,
 		DecisionSuperseded, DependencyRewired,
 		BudgetThresholdReached, BudgetCapReached:
 		// Recorded on the timeline, folded into the master record or the tenant

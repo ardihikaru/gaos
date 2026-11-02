@@ -20,6 +20,7 @@ var catalog = map[EventType]bool{
 	ProductCreated: true, RecordUpdated: true, KnowledgeInjected: true,
 	ReadinessEvaluate: true, ReadinessDropped: true, BlueprintPublished: true,
 	WorkspaceProvisioned: true, BlueprintSynced: true, SessionOpened: true, SessionLost: true,
+	TaskMoved: true, TaskReordered: true,
 	// planning
 	WorkflowCreated: true, TaskPlanned: true, DependencyRewired: true, WorkflowCanceled: true,
 	// execution
@@ -251,6 +252,26 @@ func drive(t *testing.T, s *MemStore) {
 			t.Fatalf("cancel a gated desk on the last stage: %v", err)
 		}
 		break
+	}
+	// M14.6: a reorder and a cancel on the board, so TaskReordered and
+	// TaskMoved are on the stream.
+	s.mu.RLock()
+	var boardTask, boardDesk string
+	for _, tk := range s.tasks {
+		if tk.Status == StatusPending {
+			boardTask, boardDesk = tk.ID, tk.DeskID
+			break
+		}
+	}
+	s.mu.RUnlock()
+	if boardTask == "" {
+		t.Fatal("drive found no pending task to move on the board")
+	}
+	if _, err := s.MoveCard(ctx, boardDesk, boardTask, CardMove{Column: ColBacklog, Index: 0}); err != nil {
+		t.Fatalf("reorder: %v", err)
+	}
+	if _, err := s.MoveCard(ctx, boardDesk, boardTask, CardMove{Column: ColCanceled}); err != nil {
+		t.Fatalf("cancel: %v", err)
 	}
 }
 

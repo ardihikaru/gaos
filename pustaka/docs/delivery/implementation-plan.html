@@ -16,8 +16,8 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fifteen modules of work you can pick up one at a time.
-  One hundred and sixty-nine tasks: seventy-four done, sixteen standing on fixtures or partly done,
-  seventy-four not started, and five superseded by the move to ai-manager as the gateway.</p>
+  One hundred and sixty-nine tasks: seventy-six done, seventeen standing on fixtures or partly done,
+  seventy-one not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
@@ -54,7 +54,7 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Seventy-four tasks are done. Nineteen of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, one workspace per product with its sync, its drift gate and the graph lease, and turns with a session per task and recovery by request id. Eleven are the operator surface, five are the schema, and
+    <p>Seventy-six tasks are done. Twenty-one of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, one workspace per product with its sync, its drift gate and the graph lease, turns with a session per task and recovery by request id, and a board per product. Eleven are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -98,8 +98,8 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>19</td><td>1</td><td>8</td><td>0</td><td><a href="#register">T-162</a> &mdash; the board: its projection and the legal-move table</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>74</b></td><td><b>16</b></td><td><b>74</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>21</td><td>2</td><td>5</td><td>0</td><td><a href="#register">T-166</a> &mdash; retire the CLI execution layer</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>76</b></td><td><b>17</b></td><td><b>71</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -317,9 +317,9 @@
       <tr data-tags="turn submit poll durable record done built m14.5"><td>T-159</td><td>M14.5</td><td>Submit, poll and finish a turn; store the prompt, the reply and the metadata &mdash; <code>dashboard/turns.go</code> &mdash; done 2026-11-02: a turn needs no local folder, its request id is recorded on the TaskRun before it is sent, and its prompt and reply are stored as artifacts; TC-299</td><td>D-19, BR-41</td><td>✅</td></tr>
       <tr data-tags="turn session policy resume escalation done built m14.5"><td>T-160</td><td>M14.5</td><td>One session per task: resume on retry, a new one on escalation, <code>410</code> or rotation &mdash; done 2026-11-02: attempts are numbered per task so request ids never repeat; a retry resumes the session, escalation, loss and age open a new one; TC-296</td><td>D-15, BR-40</td><td>✅</td></tr>
       <tr data-tags="turn recovery request-id deadline acceptance done built m14.5"><td>T-161</td><td>M14.5</td><td>Boot recovery by request id with the turn deadline, and <code>deploy/acceptance/live-aim-run.sh</code> &mdash; done 2026-11-02: boot recovery polls every open request id (TC-297), a lost one holds its product until the deadline (TC-298); <code>live-aim-run.sh</code> passed against the real gateway, TC-300…TC-303</td><td>D-19</td><td>✅</td></tr>
-      <tr data-tags="board kanban projection legal move todo not-built m14.6"><td>T-162</td><td>M14.6</td><td>The board projection and the legal-move table, with routes keyed by task id &mdash; <code>dashboard/board.go</code></td><td>I-9, I-10</td><td>❌</td></tr>
-      <tr data-tags="board kanban htmx drag todo not-built m14.6"><td>T-163</td><td>M14.6</td><td>A server-rendered board per product, with native drag posting the same move API</td><td>I-9, BR-43</td><td>❌</td></tr>
-      <tr data-tags="board fold replay reorder todo not-built m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code></td><td>I-9, BR-05</td><td>❌</td></tr>
+      <tr data-tags="board kanban projection legal move done built m14.6"><td>T-162</td><td>M14.6</td><td>The board projection and the legal-move table, with routes keyed by task id &mdash; <code>dashboard/board.go</code> &mdash; done 2026-11-02, <code>dashboard/board.go</code>; the JSON is the sisflow provider's shape; TC-304, TC-306, TC-307</td><td>I-9, I-10</td><td>✅</td></tr>
+      <tr data-tags="board kanban htmx drag done built m14.6"><td>T-163</td><td>M14.6</td><td>A server-rendered board per product, with native drag posting the same move API &mdash; done 2026-11-02: the back office's Board tab, buttons for the legal moves only, drag and drop through the same route; TC-305</td><td>I-9, BR-43</td><td>✅</td></tr>
+      <tr data-tags="board fold replay reorder partial m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code> &mdash; <code>TaskMoved</code> and <code>TaskReordered</code> landed; the fold that rebuilds task statuses from the stream does not exist yet, because the runner's events name a desk, not a task (TC-308)</td><td>I-9, BR-05</td><td>🟡</td></tr>
       <tr data-tags="board sisflow vendor licence todo not-built m14.6"><td>T-165</td><td>M14.6</td><td>Vendor the sisflow board on the same API &mdash; waits on <a href="../product/open-questions.html#oq-25">OQ-25</a></td><td>I-10</td><td>❌</td></tr>
       <tr data-tags="retire cli adapter lease reconcile packet todo not-built m14.7"><td>T-166</td><td>M14.7</td><td>Delete the CLI adapter, the version pin, the packet on disk, the file lease, the reconciler and the detached runner</td><td>D-14</td><td>❌</td></tr>
       <tr data-tags="retire floor sim simulator todo not-built m14.7"><td>T-167</td><td>M14.7</td><td>Delete <code>sim.go</code>, the floor, its routes and its <code>Store</code> methods (absorbs <code>T-067</code>)</td><td>I-9</td><td>❌</td></tr>
@@ -1310,6 +1310,13 @@
   money, so the owner runs it (<a href="../product/decision-log.html#qa-decisions">D-025</a>).</p>
 
   <h3 id="sub-m14-6">M14.6 — Board (T-162–T-165)</h3>
+  <p><strong>Two done, one partial, one waiting, 2026-11-02.</strong>
+  <a href="../product/qa-test-plan.html#go-board">TC-304…TC-307, TC-309</a>. One choice differs from the
+  plan below: a board move writes <code>TaskMoved</code> (action, from, to) rather than reusing
+  <code>ApprovalGranted</code>, <code>RetryRequested</code> and the rest, because those move a desk in
+  the fold, and a replayed floor would then disagree with the live one. A running task cannot be
+  canceled from the board until the gateway can stop a turn (OQ-26). <code>T-165</code> waits on
+  <a href="../product/open-questions.html#oq-25">OQ-25</a>.</p>
   <p>The board's API takes the sisflow REST provider's shape — <code>GET …/board</code>,
   <code>PUT …/cards/{id}/move</code> — so the server-rendered board ships first and the richer one
   can replace its front end without touching the server. Moves are requests; the state machine

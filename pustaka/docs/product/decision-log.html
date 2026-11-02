@@ -1070,7 +1070,12 @@
         sisflow board is the richer target and its REST shape was adopted for the API so either front
         end fits, but its code has no licence file and belongs to another organisation, so vendoring
         it waits for <a href="open-questions.html#oq-25">OQ-25</a> and the licence assertions
-        <a href="qa-test-plan.html#cs-licences">TC-150/TC-151</a> guard.</td>
+        <a href="qa-test-plan.html#cs-licences">TC-150/TC-151</a> guard.
+        <strong>Amended at build time, 2026-11-02:</strong> a move writes one new event,
+        <code>TaskMoved</code> (its action, from, to), rather than reusing <code>ApprovalGranted</code>,
+        <code>RetryRequested</code> and the other judgment events this row first named. Those move a desk in
+        the fold, and a board move that changed the replayed floor but not the live one would be the
+        divergence the fold tests exist to catch.</td>
         <td><code>dashboard/taskstate.go</code> (<code>taskTransitions</code>);
         <code>sisflow-js/web/static/js/sisflow/board/</code>; <a href="brd.html#req-i">I-9, I-10</a></td>
       </tr>

@@ -36,6 +36,25 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-28-0">v0.28.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A board per product. M14.6.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the Board tab</b>: eight columns grouping task statuses,
+        a lane per story and one for the plan, each card with buttons for the moves allowed now, and drag
+        and drop through the same route. A move is a request: approve, redo, retry, unblock, cancel, a
+        reorder, or a dispatch — which applies every gate the scheduler does, and needs the runner on.
+        Anything else answers <code>409</code> with the reason and writes nothing (BR-43).</li>
+        <li><span class="chg add">Added</span> <b>the board API</b> in the sisflow REST provider's shape —
+        <code>GET …/board</code>, <code>PUT …/cards/{id}/move</code> — so a client-side board can replace
+        the server-rendered one without server changes, once <a href="product/open-questions.html#oq-25">OQ-25</a>
+        allows vendoring it.</li>
+        <li><span class="chg add">Added</span> <code>TaskMoved</code> and <code>TaskReordered</code>, and
+        <code>Task.rank</code> (366 DDL statements). <code>TaskMoved</code> replaces the reuse of judgment
+        events D-061 first named, which would have moved a desk in the fold.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-27-0">v0.27.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A turn is now a first-class
       thing: a session per task, recovered by its request id, its transcript kept. M14.5 — and the first

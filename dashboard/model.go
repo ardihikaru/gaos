@@ -673,6 +673,10 @@ type TaskRecord struct {
 	LeaseUntil  int64
 	LastBeatAt  int64
 	Attempt     int
+	// Rank orders cards inside a board column (M14.6). Separate from Ordinal
+	// on purpose: Ordinal is plan order and the scheduler sorts by it, and a
+	// card dragged up a column must not silently change what runs first.
+	Rank int
 }
 
 // Clone deep-copies a task record. Same argument as Desk.Clone: Deps is a slice,
