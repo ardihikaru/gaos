@@ -71,12 +71,17 @@ type Packet struct {
 	// inside the contract's prose; the gateway adapter renders its own
 	// contract (the handoff travels in the reply, D-057) and validates the
 	// echoed run id, so it needs them as values rather than as text.
-	RunID     string
-	Role      string
-	DeskID    string
-	Workspace string
-	Parts     []PacketPart
-	Cites     []Citation
+	RunID string
+	Role  string
+	// SessionID is the session this attempt resumes ("" = open a new one),
+	// and SessionReason why a new one opens (D-056). Not part of the digest:
+	// they say where the turn runs, not what the model is given.
+	SessionID     string
+	SessionReason string
+	DeskID        string
+	Workspace     string
+	Parts         []PacketPart
+	Cites         []Citation
 }
 
 func (p Packet) Clone() Packet {

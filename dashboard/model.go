@@ -212,6 +212,8 @@ type EventPayload struct {
 	// Blueprint. BlueprintPublished carries the version number here, and the
 	// digest identifying what it contains in Digest below.
 	Version int
+	// Session is the gateway session SessionOpened / SessionLost name.
+	Session string
 
 	// Desk fields. Which of these a reducer case reads is fixed per event type.
 	Task       string
@@ -847,6 +849,13 @@ type ArtifactRecord struct {
 
 // ArtifactHandoff is the Artifact.kind for a handoff document.
 const ArtifactHandoff = "handoff"
+
+// The turn's own transcript, stored per attempt because the session that
+// carried it expires (BR-41): what was sent, and everything that came back.
+const (
+	ArtifactPrompt = "prompt"
+	ArtifactReply  = "reply"
+)
 
 // ContextView is what the inspector and GET /tasks/{id}/context are answered
 // with. T-056.

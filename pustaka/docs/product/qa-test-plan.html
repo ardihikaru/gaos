@@ -17,8 +17,8 @@
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
   three hundred and thirteen cases, positive and negative, across the five deploy automations and the
-  two Go test packages that actually run today — twenty-one of them the first of the gateway's forward
-  specifications, now running — fifteen more forward specifications for the rest of that move, plus
+  two Go test packages that actually run today — twenty-nine of them the gateway's forward specifications,
+  now running — seven more for the board, plus
   the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -383,14 +383,14 @@
       <tr data-tags="workspace sync egress credential refused br-32 negative implemented go test unit dashboard"><td>TC-293</td><td>dashboard (go test)</td><td>Negative</td><td>A credential in a policy refuses the sync, and the fake gateway receives nothing (<code>TestACredentialInAPolicyRefusesTheSyncAndNothingReachesTheGateway</code>)</td><td>Implemented</td></tr>
       <tr data-tags="workspace attempt record pin slice session request reopen positive implemented go test unit dashboard"><td>TC-294</td><td>dashboard (go test)</td><td>Positive</td><td>The attempt record carries the pinned version, the slice digest, the session id and the request id, across a store reopen (<code>TestTheAttemptRecordPinsTheBlueprintAndTheGatewayIDsAcrossAReopen</code>)</td><td>Implemented</td></tr>
       <tr data-tags="workspace graph lease one turn br-38 negative implemented go test unit dashboard"><td>TC-295</td><td>dashboard (go test)</td><td>Negative</td><td>While a turn is live, a second ready task in the same product is blocked with the lease reason (<code>TestASecondTaskInAProductWithALiveTurnIsBlocked</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="turn session resume retry escalation d-056 positive not-implemented"><td>TC-296</td><td>dashboard (go test)</td><td>Positive</td><td>A retry resumes the task's session; an escalation opens a new one with <code>SessionOpened</code> reason <code>escalation</code></td><td>Not implemented</td></tr>
-      <tr data-tags="turn recovery adopt completed request positive not-implemented"><td>TC-297</td><td>dashboard (go test)</td><td>Positive</td><td>After a restart, a completed request is adopted into the same attempt a supervised run would have produced</td><td>Not implemented</td></tr>
-      <tr data-tags="turn recovery 404 request-lost deadline requeue d-060 negative not-implemented"><td>TC-298</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>404</code> on recovery emits <code>TaskOrphaned</code> rule <code>request-lost</code>, holds the lease until the deadline, then requeues on a new session</td><td>Not implemented</td></tr>
-      <tr data-tags="turn durable prompt reply after 410 br-41 positive not-implemented"><td>TC-299</td><td>dashboard (go test)</td><td>Positive</td><td>The prompt and the reply stay readable after the fake gateway answers <code>410</code></td><td>Not implemented</td></tr>
-      <tr data-tags="live-aim-run acceptance gateway smoke provision positive not-implemented"><td>TC-300</td><td>live-aim-run.sh</td><td>Positive</td><td>A real gateway is reachable, the boot smoke test passes, and the product's workspace is provisioned</td><td>Not implemented</td></tr>
-      <tr data-tags="live-aim-run acceptance readiness blueprint publish sync positive not-implemented"><td>TC-301</td><td>live-aim-run.sh</td><td>Positive</td><td>A record written through the back office scores above the planning floor, and its Blueprint publishes and syncs</td><td>Not implemented</td></tr>
-      <tr data-tags="live-aim-run acceptance egress refusal br-32 negative not-implemented"><td>TC-302</td><td>live-aim-run.sh</td><td>Negative</td><td>A dispatch the egress pass refused is reported as a refusal with its reason, not read as success</td><td>Not implemented</td></tr>
-      <tr data-tags="live-aim-run acceptance real model handoff block digest positive not-implemented"><td>TC-303</td><td>live-aim-run.sh</td><td>Positive</td><td>A real model's reply carries a <code>gaos-handoff</code> block GAOS parses to an outcome, under the pinned digest</td><td>Not implemented</td></tr>
+      <tr data-tags="turn session resume retry escalation d-056 positive implemented go test unit dashboard"><td>TC-296</td><td>dashboard (go test)</td><td>Positive</td><td>A retry resumes the task's session; an escalation opens a new one with <code>SessionOpened</code> reason <code>escalation</code> (<code>TestARetryResumesTheTasksSessionAndAnEscalationOpensANewOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="turn recovery adopt completed request positive implemented go test unit dashboard"><td>TC-297</td><td>dashboard (go test)</td><td>Positive</td><td>After a restart, a completed request is adopted into the same attempt a supervised run would have produced (<code>TestRecoveryAdoptsACompletedRequest</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="turn recovery 404 request-lost deadline requeue d-060 negative implemented go test unit dashboard"><td>TC-298</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>404</code> on recovery emits <code>TaskOrphaned</code> rule <code>request-lost</code>, holds the lease until the deadline, then requeues on a new session (<code>TestALostRequestIsOrphanedHeldUntilTheDeadlineThenRequeued</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="turn durable prompt reply after 410 br-41 positive implemented go test unit dashboard"><td>TC-299</td><td>dashboard (go test)</td><td>Positive</td><td>The prompt and the reply stay readable after the fake gateway answers <code>410</code> (<code>TestThePromptAndReplyOutliveTheSession</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance gateway smoke provision positive implemented"><td>TC-300</td><td>live-aim-run.sh</td><td>Positive</td><td>A real gateway is reachable, the boot smoke test passes, and the product's workspace is provisioned</td><td>Implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance readiness blueprint publish sync positive implemented"><td>TC-301</td><td>live-aim-run.sh</td><td>Positive</td><td>A record written through the back office scores above the planning floor, and its Blueprint publishes and syncs</td><td>Implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance egress refusal br-32 negative implemented"><td>TC-302</td><td>live-aim-run.sh</td><td>Negative</td><td>A dispatch the egress pass refused is reported as a refusal with its reason, not read as success</td><td>Implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance real model handoff block digest positive implemented"><td>TC-303</td><td>live-aim-run.sh</td><td>Positive</td><td>A real model's reply carries a <code>gaos-handoff</code> block GAOS parses to an outcome, under the pinned digest</td><td>Implemented</td></tr>
       <tr data-tags="board kanban projection columns lanes positive not-implemented"><td>TC-304</td><td>dashboard (go test)</td><td>Positive</td><td>The board has the declared columns, every task exactly once, and one lane per story</td><td>Not implemented</td></tr>
       <tr data-tags="board kanban legal move events positive not-implemented"><td>TC-305</td><td>dashboard (go test)</td><td>Positive</td><td>Each legal move produces its events and its status</td><td>Not implemented</td></tr>
       <tr data-tags="board kanban illegal move 409 no event br-43 negative not-implemented"><td>TC-306</td><td>dashboard (go test)</td><td>Negative</td><td>Every move outside the legal-move table answers <code>409</code> and writes no event</td><td>Not implemented</td></tr>
@@ -2120,6 +2120,52 @@
   <code>a database this user can neither create nor read booted with %v; want the refusal naming
   both</code>.</p>
 
+  <h3 id="ni-workspace">dashboard — sessions per task, recovery by request id, the transcript (TC-296…TC-299)</h3>
+  <p>M14.5, in <code>dashboard/turns_test.go</code>; the anchor keeps its <code>ni-</code> name because
+  links to it predate the code. Every turn here runs with <strong>no folder on this host</strong>, which
+  is what a gateway turn no longer needs.
+  <strong>TC-296, positive</strong> (<code>TestARetryResumesTheTasksSessionAndAnEscalationOpensANewOne</code>):
+  attempt 1 opens a session and attempt 2 resumes it — <code>attempt 1 sent %+v and the retry %+v; a
+  retry on the same model must resume the task's session (D-056)</code> — and after the configured model
+  changes, the next attempt opens a new one with <code>SessionOpened</code> rule <code>escalation</code>:
+  <code>after an escalation the turn sent %+v and SessionOpened was %v; want a new session opened with
+  reason escalation</code>.
+  <strong>TC-297, positive</strong> (<code>TestRecoveryAdoptsACompletedRequest</code>): a run left RUNNING
+  with a request id the fake has a result for is finished by boot recovery without a new turn —
+  <code>the recovered turn closed as %+v; want the completed attempt a supervised run would have
+  produced</code>, <code>recovery sent %d new turn(s); it must poll the request it already has</code>.
+  <strong>TC-299, positive</strong> (<code>TestThePromptAndReplyOutliveTheSession</code>): after a
+  <code>410</code> (<code>the 410 gave %d SessionLost event(s), want 1</code>) the first attempt's
+  <code>prompt</code> and <code>reply</code> artifacts are still in the store — <code>after the session was
+  lost the store holds prompt %+v and reply %+v; both must outlive it (BR-41)</code>.</p>
+  <p><strong>TC-298, negative</strong> (<code>TestALostRequestIsOrphanedHeldUntilTheDeadlineThenRequeued</code>):
+  a request the gateway answers <code>404</code> for is <code>TaskOrphaned</code> rule
+  <code>request-lost</code> while the task stays RUNNING, holding its product — <code>a lost request gave
+  %v with the task %s; want TaskOrphaned rule %s and the product still held (D-060)</code> — and only
+  after the turn deadline is it READY, its run <code>request-lost</code>, its next session a new one:
+  <code>after the deadline the task is %s, the run %+v, next session reason %q; want READY,
+  request-lost, and a new session</code>. Writing this case found the session policy naming that reason
+  <code>first</code>: a lost request never learned its session id, and the empty-session branch was
+  checked before the failure.</p>
+
+  <h3 id="ni-live-aim">live-aim-run.sh — the first turn through the gateway (TC-300…TC-303)</h3>
+  <p><code>deploy/acceptance/live-aim-run.sh</code>, the successor of <a href="#sc-live-cli">live-cli-run.sh</a>.
+  It spends one turn, so it does nothing without <code>GAOS_LIVE_OK=1</code> and the three
+  <code>GAOS_AIM_*</code> settings (<a href="decision-log.html#d-025">D-025</a>: the owner runs it). First
+  run 2026-11-02 against ai-manager on <code>rnd-v2-vpn</code>: every line below printed <code>ok</code>.
+  <strong>TC-300, positive:</strong> <code>ok dashboard ready in gateway mode — the boot smoke test found
+  ai-manager's claude provider</code>, else <code>FAIL the dashboard did not come up in gateway mode</code>.
+  <strong>TC-301, positive:</strong> <code>ok readiness 69 — above the planning floor of 45 (BR-07)</code>
+  and <code>ok Blueprint version 2 is in the workspace gaos-acceptance-p-5. — provisioned and written
+  through ai-manager</code>, else <code>FAIL the Blueprint did not reach the workspace</code>.
+  <strong>TC-302, negative:</strong> a coding policy carrying an AWS key id is published and its sync
+  refused — <code>ok a Blueprint carrying a credential was refused before the sync, and the refusal is on
+  the timeline (BR-32)</code>, else <code>FAIL a Blueprint carrying a credential was not reported as
+  refused</code>. <strong>TC-303, positive:</strong> one real turn — <code>ok SessionOpened — the turn ran
+  in a new session in gaos-acceptance-p-5</code> and <code>ok the reply's gaos-handoff block parsed: run
+  wf-6-t-1-a1 exited ran, outcome complete</code>, else <code>FAIL GAOS recorded a failed attempt</code>;
+  a refusal as drift would print <code>FAIL the dispatch was refused as drift</code>.</p>
+
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
@@ -2140,7 +2186,7 @@
   <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
 
   <div class="adm note">
-    <p class="adm-title">The gateway forward specifications (TC-296…TC-310 still waiting)</p>
+    <p class="adm-title">The gateway forward specifications (TC-304…TC-310 still waiting)</p>
     <p>Thirty-six cases were written on 2026-11-02, before any of the code they test, for
     <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>: the move to ai-manager as the
     one gateway, the Blueprint, and a board per product
@@ -2153,39 +2199,10 @@
     <code>httptest</code> fake ai-manager that scripts a reply per request id and counts the POSTs it
     receives; none spawns a binary and none spends money. Only
     <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.
-    <strong>TC-275…TC-290 run as of v0.24.0 and TC-291…TC-295 as of v0.25.0</strong>, moved up to
-    <a href="#ni-aim">the adapter</a>, <a href="#ni-blueprint">the Blueprint</a> and
-    <a href="#go-workspace">the workspace</a> sections; the fifteen below wait for
-    <code>M14.5</code> and <code>M14.6</code>.</p>
+    <strong>TC-275…TC-290 run as of v0.24.0, TC-291…TC-295 as of v0.25.0 and TC-296…TC-303 as of
+    v0.27.0</strong>, moved up to the implemented scenarios; the seven below are the board,
+    <code>M14.6</code>.</p>
   </div>
-
-  <h3 id="ni-workspace">Sessions and recovery through the gateway (TC-296…TC-299)</h3>
-  <p>M14.5. TC-291…TC-295 of this section run as of v0.25.0 and moved to
-  <a href="#go-workspace">the workspace scenarios</a>; these four need the session per task and the
-  request-id recovery that replace the detached runner.
-  <strong>TC-296, positive:</strong> a retry on the same model sends <code>session_id</code> rather
-  than <code>new_session</code>; an escalation sends <code>new_session</code> and emits
-  <code>SessionOpened</code> with reason <code>escalation</code>.
-  <strong>TC-297, positive:</strong> with a <code>TaskRun</code> left RUNNING and the fake holding a
-  completed result for its request id, recovery finishes it into the same attempt a supervised run
-  would have produced. <strong>TC-299, positive:</strong> after the fake answers <code>410</code> for
-  a session, the earlier attempt's prompt and reply are still readable from the store.
-  <strong>TC-298, negative:</strong> with the fake answering <code>404</code> for an open request,
-  recovery emits <code>TaskOrphaned</code> with rule <code>request-lost</code>, keeps the workspace
-  leased until <code>submittedAt + GAOS_AIM_TURN_DEADLINE</code>, and only then requeues the task — on
-  a new session.</p>
-
-  <h3 id="ni-live-aim">live-aim-run.sh — the first turn through the gateway (TC-300…TC-303)</h3>
-  <p>The successor to <a href="#sc-live-cli">live-cli-run.sh</a>, run by the product owner because
-  it spends money (<a href="decision-log.html#d-025">D-025</a>). <strong>TC-300, positive:</strong>
-  the gateway answers its health check, the dashboard boots in <code>aimanager</code> mode, and the
-  product's workspace is provisioned and listed by <code>GET /v1/workspaces</code>.
-  <strong>TC-301, positive:</strong> a record written through the back office scores above the
-  planning floor, and its Blueprint publishes and syncs to the workspace with the published digest.
-  <strong>TC-303, positive:</strong> a real model's reply carries a <code>gaos-handoff</code> block
-  that GAOS parses to an outcome rather than a signature, on an attempt pinned to that digest.
-  <strong>TC-302, negative:</strong> a dispatch the egress pass refused is reported as a refusal with
-  its reason, rather than read as success from the HTTP <code>200</code> of the route.</p>
 
   <h3 id="ni-board">The board (TC-304…TC-310)</h3>
   <p><strong>Given</strong> a product with a planned workflow, <strong>then (TC-304,

@@ -114,7 +114,13 @@ func runIDFor(taskID string, attempt int) string {
 // evidence in the one record the whole audit story rests on.
 func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, c Cleared, attempt int) (Attempt, error) {
 	ws := c.Workspace()
-	if ws == "" {
+	// A turn needs no folder on this host (M14.5): the workspace that matters
+	// is the product's, on the worker, and one live turn per product is the
+	// graph lease the scheduler reads (BR-38). The lockfile, the run record and
+	// the packet on disk below exist for a local process, and only happen when
+	// there is a local folder to put them in.
+	ta, isTurn := ad.(TurnAdapter)
+	if ws == "" && !isTurn {
 		return Attempt{}, fmt.Errorf("supervise: the cleared packet has no workspace")
 	}
 	taskID := c.Packet().TaskID
@@ -124,38 +130,47 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	runID := runIDFor(taskID, attempt)
 	now := time.Now().Unix()
 
-	if err := AcquireLease(ws, Lease{
-		TaskID: taskID, RunID: runID, Holder: hostHolder(),
-		StartedAt: now, LeaseUntil: now + leaseTTL,
-	}); err != nil {
-		return Attempt{}, err
-	}
-	// The lease is released on every path out of here, including a panic in the
-	// adapter: a workspace left leased by a run that is over is a desk nothing
-	// can ever schedule again, and it would take a restart plus a reconciler to
-	// notice.
-	defer func() { _ = ReleaseLease(ws, runID) }()
+	var files []string
+	if ws != "" {
+		if err := AcquireLease(ws, Lease{
+			TaskID: taskID, RunID: runID, Holder: hostHolder(),
+			StartedAt: now, LeaseUntil: now + leaseTTL,
+		}); err != nil {
+			return Attempt{}, err
+		}
+		// The lease is released on every path out of here, including a panic in the
+		// adapter: a workspace left leased by a run that is over is a desk nothing
+		// can ever schedule again, and it would take a restart plus a reconciler to
+		// notice.
+		defer func() { _ = ReleaseLease(ws, runID) }()
 
-	if err := WriteRunRecord(ws, RunRecord{
-		RunID: runID, TaskID: taskID, Attempt: attempt, Workspace: ws,
-		Digest: c.Digest(), Model: ad.Name(), StartedAt: now,
-	}); err != nil {
-		return Attempt{}, err
-	}
+		if err := WriteRunRecord(ws, RunRecord{
+			RunID: runID, TaskID: taskID, Attempt: attempt, Workspace: ws,
+			Digest: c.Digest(), Model: ad.Name(), StartedAt: now,
+		}); err != nil {
+			return Attempt{}, err
+		}
 
-	// The packet, as files, in the leased workspace. T-061, requirement D-8.
-	//
-	// After the lease and before anything else touches the directory, because
-	// the lease is what makes this workspace ours to write into -- materialising
-	// first would mean two orchestrators racing to write one packet, which is
-	// the exact corruption D-3 exists to prevent.
-	//
-	// In the runner rather than in the adapter, and that is BR-33: both modes
-	// freeze the same packet and materialise it the same way, so a reviewer
-	// cannot tell from the workspace which one ran.
-	files, err := MaterialisePacket(c)
-	if err != nil {
-		return Attempt{}, err
+		// The packet, as files, in the leased workspace. T-061, requirement D-8.
+		//
+		// After the lease and before anything else touches the directory, because
+		// the lease is what makes this workspace ours to write into -- materialising
+		// first would mean two orchestrators racing to write one packet, which is
+		// the exact corruption D-3 exists to prevent.
+		//
+		// In the runner rather than in the adapter, and that is BR-33: both modes
+		// freeze the same packet and materialise it the same way, so a reviewer
+		// cannot tell from the workspace which one ran.
+		var err error
+		if files, err = MaterialisePacket(c); err != nil {
+			return Attempt{}, err
+		}
+	}
+	requestID := ""
+	if isTurn {
+		// Recorded BEFORE the turn is sent: it is the only thing a restarted
+		// orchestrator can recover the turn by (D-060).
+		requestID = ta.RequestIDFor(runID)
 	}
 
 	// The graph's record of this attempt, and the slice it is about to be given.
@@ -173,7 +188,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	s.startRun(TaskRunRecord{
 		ID: runID, TaskID: taskID, DeskID: deskID, Attempt: attempt,
 		Status: RunStatusStarted, Model: ad.Name(), Invocation: ad.Mode(),
-		StartedAt: now, SliceDigest: slice.Digest, BlueprintVersion: pinned,
+		StartedAt: now, SliceDigest: slice.Digest, BlueprintVersion: pinned, RequestID: requestID,
 		// No CostBasis yet, and deliberately not "estimated". A run that has
 		// spent nothing has no basis to record; BR-31 is about never aggregating
 		// a measured number with a guessed one, and a default here would seed
@@ -203,6 +218,9 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 
 	att, err := ad.Dispatch(ctx, c)
 	close(done)
+	if err == nil {
+		s.sessionEvents(deskID, c, att)
+	}
 
 	if err != nil {
 		s.finishRun(deskID, taskID, runID, Attempt{Digest: c.Digest()}, err)
@@ -244,6 +262,17 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	// attempts leave two documents. The workspace copy is not the record: the
 	// lease is released moments from now and the next attempt truncates the file
 	// before it starts.
+	// The turn's transcript, per attempt (BR-41): the session that carried it
+	// expires, and what was asked and answered is the record, not transport.
+	for kind, body := range map[string]string{ArtifactPrompt: att.Prompt, ArtifactReply: att.Reply} {
+		if body != "" {
+			s.recordHandoff(ArtifactRecord{
+				ID: runID + "-" + kind, Kind: kind, Title: kind + " of " + runID,
+				TaskID: taskID, DeskID: deskID, RunID: runID,
+				Attempt: attemptOfRun(s.runs, runID), Body: body, CreatedAt: time.Now().Unix(),
+			})
+		}
+	}
 	if att.HandoffRaw != "" {
 		s.recordHandoff(ArtifactRecord{
 			ID: runID + "-handoff", Kind: ArtifactHandoff,
@@ -415,6 +444,9 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 		return decision
 	}
 	for _, d := range decision.Ready {
+		s.mu.RLock()
+		attempt := s.nextAttemptLocked(d.TaskID)
+		s.mu.RUnlock()
 		// BR-39 before the egress pass: a product whose workspace does not hold
 		// its published Blueprint is refused as drift, with the same event an
 		// egress refusal writes, and stays blocked until a sync releases it.
@@ -425,7 +457,7 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 			s.refuseDispatch(d, *drift)
 			continue
 		}
-		c, v, err := s.clearFor(d)
+		c, v, err := s.clearFor(d, attempt)
 		if err != nil {
 			// A refusal on this path used to be a `continue`, and that was a bug
 			// found by running it: the scheduler would decline to dispatch, over
@@ -456,7 +488,7 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 
 		dispatch, task := d, d.TaskID
 		go func() {
-			if _, err := s.superviseRun(context.WithoutCancel(ctx), ad, dispatch.DeskID, c, 1); err != nil {
+			if _, err := s.superviseRun(context.WithoutCancel(ctx), ad, dispatch.DeskID, c, attempt); err != nil {
 				// The run never started. Put the task back rather than leaving
 				// it DISPATCHED forever, which would make the next boot
 				// reconcile a run that does not exist.
@@ -474,14 +506,17 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 // the boolean, because the two failures are different facts: a desk that has
 // gone away is nothing to report, and a packet the egress pass refused is a
 // state change L-5 requires on the timeline.
-func (s *MemStore) clearFor(d Dispatch) (Cleared, EgressVerdict, error) {
+func (s *MemStore) clearFor(d Dispatch, attempt int) (Cleared, EgressVerdict, error) {
 	s.mu.RLock()
 	idx := s.deskIdxByID(d.DeskID)
 	if idx < 0 {
 		s.mu.RUnlock()
 		return Cleared{}, EgressVerdict{}, nil
 	}
-	pkt := s.freezePacketFor(s.desks[idx], d.TaskID, 1)
+	pkt := s.freezePacketFor(s.desks[idx], d.TaskID, attempt)
+	if ta, ok := s.adapter.(TurnAdapter); ok {
+		pkt.SessionID, pkt.SessionReason = s.sessionForLocked(d.TaskID, ta, time.Now().Unix())
+	}
 	pol, tgt := s.egress, s.target
 	s.mu.RUnlock()
 
@@ -593,8 +628,16 @@ func (s *MemStore) Reconcile(ctx context.Context) (Result, error) {
 	ad := s.adapter
 	s.mu.RUnlock()
 
+	// Gateway turns are recovered by request id, not by lease (D-060).
 	var ev []Event
+	taken := map[string]bool{}
+	if ta, ok := ad.(TurnAdapter); ok {
+		taken, ev = s.recoverTurns(ctx, ad, ta)
+	}
 	for _, d := range decisions {
+		if taken[d.TaskID] {
+			continue
+		}
 		c := byID[d.TaskID]
 		switch s.resolveAction(d, ad, c) {
 		case ReconcileAdopt:
