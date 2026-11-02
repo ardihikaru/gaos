@@ -69,14 +69,6 @@
       });
       return;
     }
-
-    if (t.dataset.nav) {
-      var cur = document.querySelector(".desk.focus");
-      var idx = cur ? parseInt(cur.dataset.idx, 10) : 0;
-      var next = t.dataset.nav === "next" ? idx + 1 : idx - 1;
-      if (window.htmx) htmx.ajax("GET", "ui/desk/" + Math.max(0, next), { target: "#sink", swap: "innerHTML" });
-      return;
-    }
   });
 
   /* The story checkboxes are hidden inputs behind a styled label, so the
@@ -91,54 +83,27 @@
     var tag = (e.target.tagName || "").toUpperCase();
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
-    var cur = document.querySelector(".desk.focus");
-    var idx = cur ? parseInt(cur.dataset.idx, 10) : 0;
-
-    if (e.key === "ArrowRight" && window.htmx) htmx.ajax("GET", "ui/desk/" + (idx + 1), { target: "#sink", swap: "innerHTML" });
-    if (e.key === "ArrowLeft" && window.htmx) htmx.ajax("GET", "ui/desk/" + Math.max(0, idx - 1), { target: "#sink", swap: "innerHTML" });
-    if (e.key === " ") { e.preventDefault(); var p = document.getElementById("playBtn"); if (p) p.click(); }
     if (e.key === "/") { e.preventDefault(); var s = document.getElementById("search"); if (s) s.focus(); }
-    if ((e.key === "m" || e.key === "M") && window.htmx) htmx.ajax("POST", "ui/desk/" + idx + "/review", { target: "#sink", swap: "innerHTML" });
     if (e.key === "t" || e.key === "T") toggleTheme();
   });
 
   /* ---------- search ----------
-     A client-side jump, exactly as in the prototype. Server-side search over
-     the graph is a real feature and belongs with the graph, not here. */
+     A client-side filter over the product cards. Server-side search over the
+     graph is a real feature and belongs with the graph, not here. */
   document.addEventListener("input", function (e) {
     if (e.target.id !== "search") return;
     var q = e.target.value.trim().toLowerCase();
-    if (!q) return;
-    var hit = Array.prototype.find.call(document.querySelectorAll(".desk"), function (d) {
-      return d.textContent.toLowerCase().indexOf(q) >= 0;
+    document.querySelectorAll(".mcard").forEach(function (c) {
+      c.hidden = q !== "" && c.textContent.toLowerCase().indexOf(q) < 0;
     });
-    if (hit && window.htmx) htmx.ajax("GET", "ui/desk/" + hit.dataset.idx, { target: "#sink", swap: "innerHTML" });
   });
 
   /* ---------- post-swap housekeeping ----------
-     Three things the server cannot know: where the carousel is scrolled, where
-     the timeline is scrolled, and how long ago the toast appeared. */
+     The one thing the server cannot know: how long ago the toast appeared. */
   var toastTimer = null;
 
   function afterSwap(target) {
     if (!target || !target.id) return;
-
-    if (target.id === "carousel") {
-      var f = target.querySelector(".desk.focus");
-      if (f && f.scrollIntoView) {
-        f.scrollIntoView(RM ? { inline: "center", block: "nearest" }
-                            : { behavior: "smooth", inline: "center", block: "nearest" });
-      }
-    }
-
-    if (target.id === "tlRow") {
-      var track = document.getElementById("track");
-      /* Only chase the tail while live. Scrubbing to an old event and then
-         being yanked back to the newest one is the single most annoying thing
-         a timeline can do. */
-      var chip = document.getElementById("modeChip");
-      if (track && chip && chip.classList.contains("live")) track.scrollLeft = track.scrollWidth;
-    }
 
     if (target.id === "toast") {
       clearTimeout(toastTimer);
@@ -150,11 +115,6 @@
       }
     }
 
-    if (target.id === "iLogs" || target.id === "inspector") {
-      var logs = document.getElementById("iLogs");
-      if (logs) logs.scrollTop = logs.scrollHeight;
-    }
-
     /* Sheet visibility is the SERVER's answer, carried in the hidden attribute
        of the swapped element. The client only closes them (data-close-sheet);
        it never decides to open one, so there is one source of truth for
@@ -164,9 +124,8 @@
   document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); });
   document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); });
 
-  /* Boot: reflect the theme label, and settle the log scroll. */
+  /* Boot: reflect the theme label. */
   applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
-  afterSwap(document.getElementById("inspector"));
   // The board (M14.6). Native drag and drop, by delegation so it survives
   // every swap. It renders nothing (I-6): a drop sends the same move request
   // a card's buttons do, and the server's answer -- the re-rendered board, or

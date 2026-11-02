@@ -34,27 +34,14 @@ import (
 
 // ModelConfig is §7.6.1's file, as a value.
 type ModelConfig struct {
-	// Mode is cli | api | off. "off" is not in the document because the
-	// document describes a system with a runner; this repository has none yet,
-	// and an unconfigured adapter is the honest default rather than a broken
-	// one. It is also what every existing deployment gets on upgrade.
+	// Mode is aimanager | api | off. "off" is the honest default -- an
+	// unconfigured adapter, the local stack -- and what every deployment gets
+	// on upgrade. "cli" was retired in M14.7 and is refused with the reason.
 	Mode string
 
-	Command    string // providers.<p>.cli.command
-	Pin        string // providers.<p>.cli.pin
-	Model      string // the tier this deployment routes to
-	Provider   string
-	Local      bool // true when the model runs on the operator's own host (L-6)
-	SessionEnv []string
-
-	// PermissionMode is passed to a CLI tool that has one. See the field on
-	// CLIAdapter for why a non-interactive agent needs it and why the bound is
-	// the workspace lease rather than the flag.
-	PermissionMode string
-
-	// ContractInSystemPrompt repeats the handoff contract as a standing
-	// instruction. See the field on CLIAdapter for the measurement behind it.
-	ContractInSystemPrompt bool
+	Model    string // passed to the gateway as the model; ai-manager's documented defaults disagree
+	Provider string
+	Local    bool // true when the model runs on the operator's own host (L-6)
 
 	Egress EgressPolicy
 
@@ -78,44 +65,24 @@ type AIMConfig struct {
 
 const (
 	ModeOff = "off"
-	ModeCLI = "cli"
+	ModeCLI = "cli" // retired in M14.7; selectAdapter refuses it with the reason
 	ModeAPI = "api"
 	ModeAIM = "aimanager" // D-055: one turn per attempt through ai-manager
 )
 
 // The documented defaults, from §7.6.1's own example block.
 const (
-	defaultPin        = ">=2.0.0 <3.0.0"
-	defaultMaxBytes   = 256 << 10
-	defaultPartBytes  = 64 << 10
-	defaultCLICommand = "claude"
+	defaultMaxBytes  = 256 << 10
+	defaultPartBytes = 64 << 10
 )
 
 // ModelConfigFromEnv reads the configuration once, at boot.
 func ModelConfigFromEnv() ModelConfig {
 	c := ModelConfig{
 		Mode:     strings.ToLower(envOr("GAOS_MODEL_MODE", ModeOff)),
-		Command:  envOr("GAOS_CLI_COMMAND", defaultCLICommand),
-		Pin:      envOr("GAOS_CLI_PIN", defaultPin),
 		Model:    envOr("GAOS_MODEL", ""),
 		Provider: envOr("GAOS_PROVIDER", "anthropic"),
 		Local:    envBool("GAOS_MODEL_LOCAL", false),
-
-		// Named, never inherited. See isolatedEnv in adapter_cli.go: an adapter
-		// that hands the child the whole environment makes the frozen slice a
-		// lie about what the model received (D-051).
-		SessionEnv: envList("GAOS_CLI_SESSION_ENV", nil),
-
-		// acceptEdits by default: the tool may edit inside the workspace it was
-		// pointed at and nothing else. Set it empty for a tool that has no such
-		// flag. The choice is measured -- without it, Claude Code 2.x run with
-		// -p declines every write, including the handoff document it was told
-		// to produce, and the attempt fails for a reason unrelated to the work.
-		PermissionMode: envOr("GAOS_CLI_PERMISSION_MODE", "acceptEdits"),
-
-		// On by default, and measured rather than assumed: see
-		// CLIAdapter.ContractInSystemPrompt for the run that decided it.
-		ContractInSystemPrompt: envBool("GAOS_CLI_CONTRACT_SYSTEM_PROMPT", true),
 
 		Egress: EgressPolicy{
 			// nil Redact arms every detector. See the field comment in
@@ -157,24 +124,11 @@ func selectAdapter(c ModelConfig) (Adapter, error) {
 		return nil, nil
 
 	case ModeCLI:
-		pin, err := ParsePin(c.Pin)
-		if err != nil {
-			return nil, fmt.Errorf("GAOS_CLI_PIN: %w", err)
-		}
-		if strings.TrimSpace(c.Command) == "" {
-			return nil, fmt.Errorf("GAOS_MODEL_MODE=cli but GAOS_CLI_COMMAND is empty")
-		}
-		return &CLIAdapter{
-			Argv:           strings.Fields(c.Command),
-			Pin:            pin,
-			Model:          c.Model,
-			Provider:       c.Provider,
-			Local:          c.Local,
-			SessionEnv:     c.SessionEnv,
-			PermissionMode: c.PermissionMode,
-
-			ContractInSystemPrompt: c.ContractInSystemPrompt,
-		}, nil
+		// Retired in M14.7 (D-055, D-060): GAOS no longer runs a model tool
+		// itself. Refused loudly rather than mapped to the gateway, because an
+		// operator who asked for one and got the other has had where their
+		// code goes changed without being told.
+		return nil, fmt.Errorf("GAOS_MODEL_MODE=cli was retired in v0.29.0 (D-055): GAOS no longer spawns a model tool; use GAOS_MODEL_MODE=aimanager")
 
 	case ModeAIM:
 		return aimAdapterFor(c)
@@ -187,7 +141,7 @@ func selectAdapter(c ModelConfig) (Adapter, error) {
 		return nil, fmt.Errorf("GAOS_MODEL_MODE=api: the API adapter is T-058 and is not built")
 
 	default:
-		return nil, fmt.Errorf("GAOS_MODEL_MODE=%q: want cli, aimanager, api or off", c.Mode)
+		return nil, fmt.Errorf("GAOS_MODEL_MODE=%q: want aimanager, api or off", c.Mode)
 	}
 }
 

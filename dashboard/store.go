@@ -69,9 +69,6 @@ type Store interface {
 
 	Events(ctx context.Context) ([]Event, error)
 
-	// Focus moves the inspector without changing any domain state.
-	Focus(ctx context.Context, idx int) (Result, error)
-
 	// Replay folds the floor back to the state at an event. The argument is an
 	// event Seq; passing -1 returns to live.
 	//
@@ -95,11 +92,6 @@ type Store interface {
 	ApproveTask(ctx context.Context, idx int) (Result, error)
 	RetryTask(ctx context.Context, idx int) (Result, error)
 	CancelTask(ctx context.Context, idx int) (Result, error)
-	CallReview(ctx context.Context, idx int) (Result, error)
-	CloseMeeting(ctx context.Context) (Result, error)
-	ClearNotifications(ctx context.Context) (Result, error)
-	SetPaused(ctx context.Context, paused bool) (Result, error)
-	SetSpeed(ctx context.Context, speed int) (Result, error)
 
 	// ---- product master ----
 	CreateProduct(ctx context.Context, d ProductDraft) (Result, error)
@@ -224,20 +216,7 @@ func (readOnly) RetryTask(context.Context, int) (Result, error) {
 func (readOnly) CancelTask(context.Context, int) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
-func (readOnly) CallReview(context.Context, int) (Result, error) {
-	return Result{}, reject(replayRefusal)
-}
-func (readOnly) CloseMeeting(context.Context) (Result, error) { return Result{}, reject(replayRefusal) }
-func (readOnly) SetPaused(context.Context, bool) (Result, error) {
-	return Result{}, reject(replayRefusal)
-}
-func (readOnly) SetSpeed(context.Context, int) (Result, error) {
-	return Result{}, reject(replayRefusal)
-}
 
-func (readOnly) ClearNotifications(context.Context) (Result, error) {
-	return Result{}, reject(replayRefusal)
-}
 func (readOnly) CreateProduct(context.Context, ProductDraft) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }

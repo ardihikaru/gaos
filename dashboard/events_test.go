@@ -2,10 +2,9 @@ package main
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // catalog is the closed list from artifacts/v1/gaos-arcadedb-model.html §08,
@@ -307,22 +306,11 @@ func driveEgress(t *testing.T, s *MemStore) {
 	s.mu.Lock()
 	s.egress = EgressPolicy{AllowPaths: []string{"src/**"}}
 	s.target = Target{Provider: "anthropic"}
-	s.workspaceRoot = t.TempDir()
-	ws := s.workspaceFor(s.desks[idx])
 	s.mu.Unlock()
-
-	for rel, body := range map[string]string{
+	withRepo(s, map[string]string{
 		"src/keep.go":  "package keep\n",
 		"docs/drop.md": "notes nobody reviewed before they were sent\n",
-	} {
-		full := filepath.Join(ws, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
+	})
 	if _, err := s.DispatchTask(ctx, idx); err != nil {
 		t.Fatalf("a redacted slice refused the dispatch: %v", err)
 	}
@@ -332,7 +320,7 @@ func driveEgress(t *testing.T, s *MemStore) {
 	s.mu.Lock()
 	s.egress = EgressPolicy{LocalOnly: true}
 	s.target = Target{Provider: "anthropic", Local: false}
-	s.workspaceRoot = ""
+	s.repoParts = nil
 	s.mu.Unlock()
 
 	if _, err := s.DispatchTask(ctx, idx); err != nil {
@@ -420,48 +408,44 @@ func lastReadiness(t *testing.T, s *MemStore, id string) int {
 	return 0
 }
 
-// driveRunner supervises one run against the stand-in tool, so the catalog test
-// sees the three names T-050 and T-052 took off the owed list.
+// driveRunner supervises one turn against the fake gateway, so the catalog
+// test sees the names the runner writes: RunStarted, Heartbeat (the final beat
+// always writes), RunExited and SessionOpened.
 //
 // It has to be here rather than asserted in the abstract: TC-144 asks whether a
-// name is EMITTED, and a name is only emitted if something emits it. A test
-// that removed the three from the owed map without also running a supervisor
-// would be recording an intention.
+// name is EMITTED, and a name is only emitted if something emits it.
 func driveRunner(t *testing.T, s *MemStore) {
 	t.Helper()
-	a, ws := fakeCLI(t, "complete", "0")
-	if _, err := s.superviseRun(t.Context(), a, s.desks[0].ID, clearedFor(t, ws), 1); err != nil {
-		t.Fatalf("supervising one run against the fake tool failed: %v", err)
+	f, ad := gatewayOn(t, s)
+	desk := s.desks[0].ID
+	completeTurn(f, "wf-drive-t-1", 1, "0.1")
+	if _, err := s.superviseRun(t.Context(), ad, desk, clearedFor(t, s, desk, "wf-drive-t-1", 1), 1); err != nil {
+		t.Fatalf("supervising one turn against the fake gateway failed: %v", err)
 	}
 }
 
-// driveRecovery plants one task that claims to be running over a lease that has
-// long expired, and reconciles it. That is the only way TaskOrphaned is ever
-// written: no live supervisor witnesses an orphan, because an orphan is a run
-// whose supervisor is gone, so the event exists only on the boot path.
+// driveRecovery plants one task whose turn the gateway no longer knows, and
+// reconciles it. That is the only way TaskOrphaned is ever written: no live
+// supervisor witnesses an orphan, so the event exists only on the boot path
+// (D-060). The deadline is short so the requeue (TaskResumed) lands too.
 func driveRecovery(t *testing.T, s *MemStore) {
 	t.Helper()
-	root := t.TempDir()
+	f, ad := gatewayOn(t, s)
+	ad.Deadline = 50 * time.Millisecond
+	f.status, f.reply = http.StatusNotFound, `{"error":"unknown request"}`
 	deskID := s.desks[0].ID
-	ws := filepath.Join(root, deskID)
-	if err := os.MkdirAll(ws, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := AcquireLease(ws, Lease{
-		TaskID: "wf-1-t-9", RunID: "wf-1-t-9-a1", StartedAt: 1, LeaseUntil: 2,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
+	run := runIDFor("wf-1-t-9", 1)
 	s.mu.Lock()
-	s.workspaceRoot = root
 	s.tasks = append(s.tasks, TaskRecord{
 		ID: "wf-1-t-9", WorkflowID: "wf-1", DeskID: deskID,
-		Title: "a run nobody was watching", Role: "backend", Status: StatusRunning,
+		Title: "a turn nobody was watching", Role: "backend", Status: StatusRunning,
 	})
+	s.runs = append(s.runs, TaskRunRecord{ID: run, TaskID: "wf-1-t-9", DeskID: deskID, Attempt: 1,
+		Status: RunStatusRunning, RequestID: ad.RequestIDFor(run), StartedAt: time.Now().Unix()})
 	s.mu.Unlock()
 
 	if _, err := s.Reconcile(t.Context()); err != nil {
 		t.Fatalf("boot reconciliation failed: %v", err)
 	}
+	waitForRun(t, s, run, RunStatusOrphaned)
 }

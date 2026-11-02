@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-313`; the
-   next free number is `TC-314`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-315`; the
+   next free number is `TC-316`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it —
    do not delete it and do not renumber anything after it. `TC-076` is the worked
    example: BR-07 made planning an empty record illegal, so the case that asserted
@@ -50,22 +50,23 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "three hundred and thirteen", so
+   changing all four or none. They are currently all "three hundred and fifteen", so
    `grep -rn "three hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
    finds every one. Retired rows still count: the register is every ID ever issued,
-   and `TC-076` is one of the three hundred and thirteen. Older changelog notes keep their own
+   and `TC-076` is one of the three hundred and fifteen. Older changelog notes keep their own
    numbers; they are release records and stay as written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All three hundred and thirteen cases…")
+   - the register intro on the same page ("All three hundred and fifteen cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
-     the Go unit-test count, currently "two hundred and thirty-three"
+     the Go unit-test count, currently "two hundred and one"
 
    Do **not** change the older counts in `pustaka/docs/changelog.html` — the
    "fifty-three" in the v0.3.0 note, the "one hundred and eight" in v0.6.0 and
    v0.8.0, the "one hundred and twelve" in v0.9.0, the "one hundred and thirty"
    in v0.10.0, the "one hundred and forty-eight" in v0.11.0, the "two hundred"
-   in v0.15.0, the "three hundred and ten" in v0.23.0, and the "three hundred and twelve" in v0.24.0. Those are release notes, and each records what was true at that
+   in v0.15.0, the "three hundred and ten" in v0.23.0, the "three hundred and twelve" in v0.24.0, and the "three hundred and
+   fifteen" and "two hundred and one" in v0.29.0. Those are release notes, and each records what was true at that
    release.
 
 4. **Release hygiene**, if the change is user-visible: add to
@@ -98,11 +99,11 @@ in `dashboard/graph_test.go`, `taskstate_test.go`, `scheduler_test.go`,
 `lease_test.go`, `runner_test.go` and `reconcile_test.go`; `TC-243`…`TC-246` are
 `deploy/kill-mid-task.sh`; `TC-247`…`TC-258` are the attempt record and the
 frozen context slice in `dashboard/taskrun_test.go`, `TC-259`…`TC-267` the task
-packet and the handoff contract in `dashboard/packet_test.go`, and
-`TC-268`…`TC-273` the live model call in `deploy/acceptance/live-cli-run.sh`,
+packet and the handoff contract (since v0.29.0 the reply contract, `dashboard/contract_test.go`), and
+`TC-268`…`TC-273` the live model call in the deleted `deploy/acceptance/live-cli-run.sh`,
 and `TC-274` the schema-apply counts in `dashboard/store_conformance_test.go` — **one row per `func Test…`**,
 because that is the unit `go test -run` can select. The register currently covers
-233 Go tests: 211 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
+201 Go tests: 179 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
 its row and its `h3`; the gap that used to be here is closed and must not reopen.
 
 `TC-275`…`TC-290` became Go tests in v0.24.0 (`aimanager_test.go`, `blueprint_test.go`; their
@@ -118,10 +119,15 @@ phase lands, the test it writes **takes the forward-spec ID that describes it** 
 flip the row to `Implemented`, name the `func Test…` on it, move the `h3` up under
 `#implemented`, and replace the asserted value with the test's exact `t.Fatalf`.
 A test that matches no forward spec gets the next free ID as usual; a forward spec
-the code makes obsolete is retired, never reused. M14.7 retires the CLI execution
-layer: the rows that covered it (`TC-180`…`TC-192`, `TC-200`, `TC-220`…`TC-246`,
-`TC-261`…`TC-273`, audited one by one) are struck as `Retired` with their
-successor named, and the four counts do not change.
+the code makes obsolete is retired, never reused. M14.7 (v0.29.0) retired the CLI
+execution layer and the floor UI: forty-four rows (`TC-180`…`TC-184`, `TC-186`…`TC-190`,
+`TC-192`, `TC-220`…`TC-226`, `TC-231`…`TC-246`, `TC-262`…`TC-273`) are struck as `Retired`
+with their successor named. The rest of that range survived, re-based on the fake gateway
+(`gateway_fixture_test.go`) and keeping their IDs: `TC-185`, `TC-191`, `TC-193`, `TC-197`,
+`TC-200`, `TC-227`…`TC-230`, `TC-247`…`TC-261`, `TC-266`, `TC-267`. `TC-314`/`TC-315` are the
+home page and the per-product Timeline (`home_test.go`, section `go-home`). The simulator is
+test-only now (`sim_test.go`): it still feeds the fold and catalog tests, and is not a
+`func Test…` itself.
 
 The store conformance suite is one `func Test…` per implementation over a shared
 table, so a new case in `storeContract` does **not** get its own `TC` — it is

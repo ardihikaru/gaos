@@ -1,10 +1,6 @@
 package main
 
-import (
-	"context"
-	"errors"
-	"os/exec"
-)
+import "context"
 
 // The model gateway seam. M4.4, requirement D-7, rule BR-33.
 //
@@ -132,7 +128,7 @@ type Adapter interface {
 	// Name identifies the tool for a log line and /healthz. Not a routing key.
 	Name() string
 
-	// Mode is InvocationCLI or InvocationAPI, for the record.
+	// Mode is InvocationGateway (or, once T-058 lands, InvocationAPI), for the record.
 	Mode() string
 
 	// Target is what the egress pass needs to answer L-6's no-egress question.
@@ -182,14 +178,13 @@ type Adapter interface {
 	Stop(r RunRecord) error
 }
 
-// RunRecord is what a run left behind for whoever picks it up next. Written to
-// the workspace before the child is handed to the supervisor, and read back by
-// an orchestrator that was not running when it was written.
+// RunRecord is what recovery hands an adapter for a turn this process did not
+// start. Since M14.7 it is built from the TaskRun in the graph -- there is no
+// file on this host -- and the gateway adapter reads the request id from it.
 //
-// Detail is deliberately opaque above the adapter. The CLI adapter puts a pid,
-// a process-group id and a process start time in it; the HTTP adapter (T-058)
-// will put something else entirely -- a request id, a poll URL. NOTHING ABOVE
-// THE ADAPTER READS IT, which is what keeps BR-33 true when a second mode
+// Detail is deliberately opaque above the adapter. The gateway puts its
+// request id in it; the HTTP adapter (T-058) will put something else -- a poll
+// URL. NOTHING ABOVE THE ADAPTER READS IT, which is what keeps BR-33 true when a second mode
 // arrives: a reconciler that understood pids would be a reconciler that only
 // worked for one mode.
 type RunRecord struct {
@@ -202,28 +197,4 @@ type RunRecord struct {
 	StartedAt int64             `json:"startedAt"`
 	LogRef    string            `json:"logRef"`
 	Detail    map[string]string `json:"detail"`
-}
-
-// RunRecordPath is where it lives, relative to the workspace, beside the lease.
-const RunRecordPath = ".gaos/run/RUN.json"
-
-// classifyExit is the whole of the exit code's authority.
-//
-// Deliberately tiny, deliberately in its own function, and deliberately the
-// only place in the package that reads an *exec.ExitError. If a second reader
-// of exit status ever appears, it will be visible in a grep for this name.
-func classifyExit(err error) (string, int) {
-	if err == nil {
-		return ExitRan, 0
-	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
-		if ee.ExitCode() < 0 {
-			return ExitCrashed, -1 // signalled: killed, or the timeout fired
-		}
-		return ExitRan, ee.ExitCode()
-	}
-	// Could not start: binary missing, workspace gone, context deadline before
-	// the process existed.
-	return ExitCrashed, -1
 }

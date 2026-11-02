@@ -3,10 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"math/rand/v2"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -163,10 +160,12 @@ type MemStore struct {
 	// it writes to a database.
 	onWrite func(Result)
 
-	// workspaceRoot is where a run's files live, one directory per desk. Empty
-	// in every deployment today, which means a packet carries the record and
-	// no repository files -- a smaller egress, screened by the same pass.
-	workspaceRoot string
+	// repoParts is where repository files would enter a packet: M1.2's index,
+	// or a Blueprint knowledge source once OQ-28 says how one is read. nil in
+	// every deployment, so a packet carries the record and the brief alone.
+	// GAOS reads no folder on this host since M14.7 (BR-42), and the seam is
+	// kept so the allowlist half of the egress pass still has a caller.
+	repoParts func(deskID string) []PacketPart
 }
 
 // setEgressForTest overrides the deployment's egress policy.
@@ -251,8 +250,7 @@ func newProjection() *MemStore {
 		// configuration still screens. An egress policy that defaulted to
 		// nothing would make BR-32 true only for deployments that remembered
 		// to configure it, which is the same as not being true.
-		egress:        ModelConfigFromEnv().Egress,
-		workspaceRoot: envOr("GAOS_WORKSPACE_ROOT", ""),
+		egress: ModelConfigFromEnv().Egress,
 	}
 }
 
@@ -532,15 +530,6 @@ func (s *MemStore) productName(id string) string {
 		}
 	}
 	return id
-}
-
-func (s *MemStore) productGoal(id string) string {
-	for _, p := range s.products {
-		if p.ID == id {
-			return p.Goal
-		}
-	}
-	return ""
 }
 
 func (s *MemStore) stats() Stats {
@@ -846,24 +835,6 @@ func (s *MemStore) Runs(ctx context.Context, taskID string) ([]TaskRunRecord, er
 	return s.runsFor(taskID), nil
 }
 
-// ---------- navigation ----------
-
-func (s *MemStore) Focus(ctx context.Context, idx int) (Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.desks) == 0 {
-		return s.result(""), nil
-	}
-	if idx < 0 {
-		idx = 0
-	}
-	if idx >= len(s.desks) {
-		idx = len(s.desks) - 1
-	}
-	s.focusIdx = idx
-	return s.result(""), nil
-}
-
 func (s *MemStore) Replay(ctx context.Context, eventSeq int) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -885,36 +856,6 @@ func (s *MemStore) Replay(ctx context.Context, eventSeq int) (Result, error) {
 	if hit := s.deskIdxByID(s.events[at].DeskID); hit >= 0 {
 		s.focusIdx = hit
 	}
-	return s.result(""), nil
-}
-
-func (s *MemStore) ClearNotifications(ctx context.Context) (Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.notifs = 0
-	for i, d := range s.desks {
-		if d.ApprovalRequired || d.State == StateBlocked {
-			s.focusIdx = i
-			break
-		}
-	}
-	return s.result(""), nil
-}
-
-func (s *MemStore) SetPaused(ctx context.Context, paused bool) (Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.paused = paused
-	return s.result(""), nil
-}
-
-func (s *MemStore) SetSpeed(ctx context.Context, speed int) (Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if speed != 1 && speed != 2 && speed != 4 {
-		return Result{}, reject("speed must be 1, 2 or 4")
-	}
-	s.speed = speed
 	return s.result(""), nil
 }
 
@@ -1310,7 +1251,10 @@ func (s *MemStore) latestHandoffFor(deskID, taskID string, attempt int) (Artifac
 		found bool
 	)
 	for _, a := range s.artifacts {
-		if a.DeskID != deskID {
+		// Handoffs only. The prompt and the reply are artifacts too (BR-41),
+		// and the newest artifact of an attempt is its reply -- citing that
+		// as the lesson hands the next agent a transcript, not a handoff.
+		if a.DeskID != deskID || a.Kind != ArtifactHandoff {
 			continue
 		}
 		if a.TaskID == taskID && a.Attempt >= attempt {
@@ -1343,11 +1287,10 @@ func (s *MemStore) latestHandoffFor(deskID, taskID string, attempt int) (Artifac
 // instruction.
 func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	pkt := Packet{
-		TaskID:    taskID,
-		RunID:     runIDFor(taskID, attempt),
-		Role:      s.roleFor(d),
-		DeskID:    d.ID,
-		Workspace: s.workspaceFor(d),
+		TaskID: taskID,
+		RunID:  runIDFor(taskID, attempt),
+		Role:   s.roleFor(d),
+		DeskID: d.ID,
 	}
 	add := func(path, kind, body string) {
 		if strings.TrimSpace(body) != "" {
@@ -1377,9 +1320,9 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// work GAOS cannot see is an attempt that did not happen (BR-30).
 	add(".gaos/packet/task.md", KindTask,
 		"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+
-			"\n\n## Definition of done\nThe work above, AND the handoff document at "+
-			HandoffPath+" — see .gaos/packet/handoff.md for its exact shape. "+
-			"A run that does the work and writes no document is recorded as failed.\n")
+			"\n\n## Definition of done\nThe work above, AND the handoff: one gaos-handoff block at the end "+
+			"of your reply — see .gaos/packet/handoff.md for its exact shape. "+
+			"A reply that does the work and carries no block is recorded as failed.\n")
 
 	// The contract, T-062. In the packet rather than bolted onto the instruction
 	// at spawn time, and that placement is the requirement rather than a
@@ -1387,7 +1330,7 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// what it was given, so it belongs inside the frozen slice and inside the
 	// digest. A replay can then prove both halves.
 	add(".gaos/packet/handoff.md", KindContract,
-		handoffContract(taskID, runIDFor(taskID, attempt), s.roleFor(d)))
+		gatewayContract(taskID, runIDFor(taskID, attempt), s.roleFor(d)))
 
 	// What the previous attempt handed over, T-064. It reaches this agent HERE
 	// and nowhere else -- as a cited part of its own frozen slice, not by
@@ -1436,29 +1379,18 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	}
 	add(recordPath, KindContext, ctxb.String())
 
-	// The repository half, and the reason the allowlist exists at all.
-	//
-	// §8.12.1 is blunt about which class matters: indexed code is "the single
-	// largest egress and the one buyers care about", and the finding under the
-	// table says egress is "source code, chosen automatically by a traversal,
-	// including files nobody reviewed before they were sent".
-	//
-	// The traversal that chooses it is M1.2's repository index, which does not
-	// exist. What does exist is a workspace directory, so the packet carries
-	// the files in it -- real bytes, screened against the real allowlist. When
-	// M1.2 lands it replaces this walk and the egress pass does not change,
-	// because the pass screens PacketParts and does not care who chose them.
-	repo := readWorkspace(pkt.Workspace)
-	pkt.Parts = append(pkt.Parts, repo...)
-	for _, part := range repo {
-		// No vertex id: M1.2's repository index is what would give a file one,
-		// and it does not exist. The citation is still worth keeping -- it is the
-		// difference between "code was sent" and "we no longer know what code was
-		// sent" -- and ArcadeStore writes an edge only for a citation that names a
-		// vertex, so an unnamed one records the fact without dangling an edge.
-		cite("", "", CiteCode, part.Path, part.Body)
+	// The repository half. Every part is still screened against the
+	// allowlist, and sorted so the digest does not depend on who supplied it.
+	if s.repoParts != nil {
+		repo := s.repoParts(d.ID)
+		sort.Slice(repo, func(i, j int) bool { return repo[i].Path < repo[j].Path })
+		pkt.Parts = append(pkt.Parts, repo...)
+		for _, part := range repo {
+			// No vertex id: nothing indexes a file yet, and ArcadeStore writes
+			// an edge only for a citation that names a vertex.
+			cite("", "", CiteCode, part.Path, part.Body)
+		}
 	}
-
 	return pkt
 }
 
@@ -1471,93 +1403,6 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 // assembler, not for billing. The one that bills is TaskRun.tokensIn, which is
 // measured from the tool's own report and carries a basis (BR-31).
 func tokenEstimate(body string) int { return (len(body) + 3) / 4 }
-
-// workspaceReadLimits bound what a dispatch will read off disk. A workspace is
-// somebody's repository and may contain a node_modules; walking it without a
-// ceiling turns one button press into an unbounded read.
-//
-// They are not a security control -- the egress policy is -- they are a
-// liveness one, and the distinction matters: a file skipped here is skipped
-// SILENTLY, so these numbers are deliberately far above any real slice and far
-// below anything that would hang the request.
-const (
-	maxWorkspaceFiles = 2000
-	maxWorkspaceBytes = 32 << 20
-)
-
-// readWorkspace reads the operator's files as KindRepo parts.
-//
-// Returns nil for an unset or unreadable workspace, which is every deployment
-// today: GAOS_WORKSPACE_ROOT is unset, so a dispatch screens the record alone.
-// That is a smaller egress rather than an unscreened one -- the pass runs
-// either way, which is what BR-32 actually asks for.
-func readWorkspace(root string) []PacketPart {
-	if root == "" {
-		return nil
-	}
-	var (
-		parts []PacketPart
-		total int
-	)
-	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		name := d.Name()
-		if d.IsDir() {
-			// .git is history, not source, and .gaos is the packet we just
-			// wrote -- feeding either back in would be egress of our own
-			// making.
-			if name == ".git" || name == ".gaos" || name == "node_modules" || name == "vendor" {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if len(parts) >= maxWorkspaceFiles || total >= maxWorkspaceBytes {
-			return fs.SkipAll
-		}
-		rel, rerr := filepath.Rel(root, p)
-		if rerr != nil {
-			return nil
-		}
-		b, rerr := os.ReadFile(p)
-		if rerr != nil {
-			return nil
-		}
-		total += len(b)
-		parts = append(parts, PacketPart{
-			Path: filepath.ToSlash(rel), Kind: KindRepo, Body: string(b),
-		})
-		return nil
-	})
-
-	// Sorted, because WalkDir's order is the filesystem's and the digest must
-	// not depend on it. Screen sorts its own output; this keeps the PACKET
-	// stable too, so two freezes of one workspace are the same packet.
-	sort.Slice(parts, func(i, j int) bool { return parts[i].Path < parts[j].Path })
-	return parts
-}
-
-// workspaceFor is where a run would happen: one directory per desk under the
-// configured root.
-//
-// GAOS_WORKSPACE_ROOT is unset in every deployment today, so this is usually
-// empty and a dispatch screens the record alone. One directory per desk rather
-// than one shared one because T-051's exclusive lease is per workspace, and a
-// layout that has to change when the lease lands is a layout that will not.
-//
-// Assumes the lock is held.
-func (s *MemStore) workspaceFor(d Desk) string { return s.workspaceForDesk(d.ID) }
-
-// workspaceForDesk is the same answer from the id alone. The scheduler works
-// from TaskRecords and never holds a Desk, and passing it a synthetic one just
-// to satisfy a signature would be a lie about what the function reads.
-func (s *MemStore) workspaceForDesk(deskID string) string {
-	if s.workspaceRoot == "" {
-		return ""
-	}
-	return filepath.Join(s.workspaceRoot, deskID)
-}
 
 func (s *MemStore) RetryTask(ctx context.Context, idx int) (Result, error) {
 	s.mu.Lock()
@@ -1622,92 +1467,7 @@ func (s *MemStore) CancelTask(ctx context.Context, idx int) (Result, error) {
 		// one, and D-020's closed catalog already has the name for it.
 		ev = append(ev, s.emit(WorkflowCanceled, d.ID, "Workflow "+d.WorkflowID+" canceled", KindFail, deskPayload(*d)))
 	}
-	return s.result("Task canceled. The workspace lease is released.", ev...), nil
-}
-
-func (s *MemStore) CallReview(ctx context.Context, idx int) (Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if idx < 0 || idx >= len(s.desks) {
-		return Result{}, ErrNotFound
-	}
-	if s.meetingIdx >= 0 {
-		return Result{}, reject("A review is already in session.")
-	}
-	if s.replayAtSeq != liveMode {
-		return Result{}, reject("The floor is in replay. Return to live first.")
-	}
-	d := &s.desks[idx]
-	if d.State == StateIdle || d.State == StateMeeting {
-		return Result{}, reject("There is no running task to review here.")
-	}
-	ev := s.startMeeting(idx, "Operator called a review on "+taskIDOf(*d))
-	return s.result("Review called. The room is filling.", ev...), nil
-}
-
-func (s *MemStore) CloseMeeting(ctx context.Context) (Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.meetingIdx < 0 {
-		return Result{}, reject("No review is in session.")
-	}
-	ev := s.closeMeeting()
-	return s.result("Decision recorded. ADR-014 written.", ev...), nil
-}
-
-// startMeeting seats up to five agents: the architect, security and QA always,
-// plus whoever is already on the desk. Assumes the lock is held.
-func (s *MemStore) startMeeting(idx int, reason string) []Event {
-	d := &s.desks[idx]
-	seen := map[string]bool{}
-	var participants []string
-	for _, id := range append([]string{"a-1", "a-7", "a-5"}, d.Agents...) {
-		if !seen[id] && len(participants) < 5 {
-			seen[id] = true
-			participants = append(participants, id)
-		}
-	}
-	s.mustSetState(d, StateMeeting)
-	d.Meeting = &Meeting{Reason: reason, Participants: participants, Conf: 38}
-	s.meetingIdx = idx
-	p := deskPayload(*d)
-	p.Meeting = d.Meeting
-	return []Event{s.emit(MeetingStarted, d.ID, reason, KindMeet, p)}
-}
-
-// closeMeeting applies the decision: an ADR is written, the model is escalated
-// one tier, and the retry counter resets because the task is now a different
-// task. Assumes the lock is held.
-func (s *MemStore) closeMeeting() []Event {
-	idx := s.meetingIdx
-	s.meetingIdx = -1
-	if idx < 0 || idx >= len(s.desks) {
-		return nil
-	}
-	d := &s.desks[idx]
-	var ev []Event
-
-	// The room's own record, before the decision is applied: the proposal that
-	// was on the table and then the decision taken on it. ProposalRecorded and
-	// DecisionRecorded are two different facts and the catalog names them
-	// separately -- a meeting that recorded a decision nobody proposed is not a
-	// meeting anybody can audit.
-	meet := deskPayload(*d)
-	meet.Meeting = d.Meeting
-	ev = append(ev, s.emit(ProposalRecorded, d.ID, "Proposal on the table · move rounding into the pricing service", KindMeet, meet))
-	ev = append(ev, s.emit(DecisionRecorded, d.ID, "ADR-014 accepted · 2 action items created", KindKnow, meet))
-
-	s.mustSetState(d, StateActive)
-	d.Esc++
-	d.Retry = 0
-	d.Progress = 8
-	d.Scored, d.Score, d.ScoreParts = false, 0, nil
-	d.Task = "Apply ADR-014: move rounding into the pricing service"
-	d.Meeting = nil
-	s.log(d, "meeting decision applied · model upgraded to claude-opus-5", "p")
-	ev = append(ev, s.emit(ModelEscalated, d.ID, "Retry running on a stronger model after the review", KindKnow, deskPayload(*d)))
-	ev = append(ev, s.emit(MeetingClosed, d.ID, "Design review closed", KindMeet, deskPayload(*d)))
-	return ev
+	return s.result("Task canceled. The product is free for its next turn.", ev...), nil
 }
 
 // advance moves a workflow to the next stage, or completes it. Assumes the lock
@@ -2175,26 +1935,11 @@ func (s *MemStore) tasksFor(deskID string) []TaskRecord {
 // report, and inventing a throttled one here would put a refusal in the
 // timeline that no limit produced.
 //
-// The lease read happens AFTER the lock is dropped, and that is not tidiness.
-// leaseStateOf touches the filesystem, and holding a read lock over the store
-// while stat-ing somebody else's repository would let one slow disk stall every
-// reader on the floor. The two halves cannot disagree in a way that matters:
-// the worst case is a lease taken between them, which makes the scheduler
-// refuse a task it could have run, and refusing to dispatch is the safe
-// direction.
+// The lease is the graph lease (BR-38): one DISPATCHED or RUNNING task holds
+// its product, and the scheduler reads it from the tasks themselves.
 func (s *MemStore) schedulerInput(now int64) SchedulerInput {
 	in := s.schedulerInputLocked(now)
 
-	seen := map[string]bool{}
-	for _, ws := range in.Workspaces {
-		if seen[ws] {
-			continue
-		}
-		seen[ws] = true
-		if l, held := leaseStateOf(ws, now); held {
-			in.Leases = append(in.Leases, l)
-		}
-	}
 	return in
 }
 
@@ -2203,10 +1948,9 @@ func (s *MemStore) schedulerInputLocked(now int64) SchedulerInput {
 	defer s.mu.RUnlock()
 
 	in := SchedulerInput{
-		Readiness:  make(map[string]int, len(s.masters)),
-		Workspaces: make(map[string]string, len(s.tasks)),
-		Budget:     BudgetNormal,
-		Now:        now,
+		Readiness: make(map[string]int, len(s.masters)),
+		Budget:    BudgetNormal,
+		Now:       now,
 	}
 	for _, t := range s.tasks {
 		in.Tasks = append(in.Tasks, TaskNode{
@@ -2215,9 +1959,6 @@ func (s *MemStore) schedulerInputLocked(now int64) SchedulerInput {
 			Deps:     append([]string(nil), t.Deps...),
 			Priority: t.Priority, Ordinal: t.Ordinal, Gate: t.Gate,
 		})
-		if ws := s.workspaceForDesk(t.DeskID); ws != "" {
-			in.Workspaces[t.ID] = ws
-		}
 	}
 	for i := range s.masters {
 		in.Readiness[s.masters[i].ID] = s.masters[i].ReadinessScore()

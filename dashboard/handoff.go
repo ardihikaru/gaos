@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -50,10 +48,6 @@ const (
 	HandoffPartial  = "partial"
 )
 
-// HandoffPath is where the document must be, relative to the workspace. It is
-// declared and empty before the invocation starts, per the §7.6 packet layout.
-const HandoffPath = ".gaos/handoff/OUTPUT.md"
-
 type HandoffCriterion struct {
 	ID       string
 	Met      bool
@@ -98,21 +92,6 @@ func (h Handoff) Met() bool {
 		}
 	}
 	return len(h.Criteria) > 0
-}
-
-// ReadHandoff is the one function in this file that touches a disk.
-//
-// Absent, no front matter, unparseable, or missing a mandatory field: all four
-// are ONE failure with ONE signature (BR-30). They are one failure because they
-// are one failure to the retry loop -- a second signature would split a class
-// the guard treats as a single thing, and the guard is what makes the loop
-// terminate.
-func ReadHandoff(workspace string) (Handoff, error) {
-	b, err := os.ReadFile(filepath.Join(workspace, HandoffPath))
-	if err != nil {
-		return Handoff{}, fmt.Errorf("%s: %w", SigHandoffMissing, err)
-	}
-	return ParseHandoff(b)
 }
 
 // ParseHandoff reads the front matter of the declared shape.

@@ -16,8 +16,9 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and thirteen cases, positive and negative, across the five deploy automations and the
-  two Go test packages that actually run today — thirty-four of the gateway's thirty-six forward
+  three hundred and fifteen cases, positive and negative, across the four deploy automations and the
+  two Go test packages that actually run today — forty-four of them retired with the CLI execution
+  layer in v0.29.0 and struck rather than deleted — thirty-four of the gateway's thirty-six forward
   specifications now running — two still waiting, plus
   the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
@@ -75,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and thirteen cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and fifteen cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -267,27 +268,27 @@
       <tr data-tags="go test unit dashboard handoff prose front matter br-30 negative"><td>TC-177</td><td>dashboard (go test)</td><td>Negative</td><td>A document that is prose where front matter belongs fails with the signature <code>handoff-missing</code> (<code>TestProseWithNoFrontMatterIsHandoffMissing</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard handoff missing field status vocabulary negative"><td>TC-178</td><td>dashboard (go test)</td><td>Negative</td><td>A handoff missing a mandatory field, or carrying a status outside <code>complete|blocked|partial</code>, is the same one failure (<code>TestAHandoffMissingAMandatoryFieldIsHandoffMissing</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard handoff usage optional unavailable br-37 positive"><td>TC-179</td><td>dashboard (go test)</td><td>Positive</td><td>A document that omits the usage block entirely is legal and reports no usage rather than a zero (<code>TestAHandoffWithNoUsageBlockIsLegalAndReportsNothing</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard handoff absent file signature br-30 negative"><td>TC-180</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace with no handoff document at all fails with the same signature as an unparseable one (<code>TestAnAbsentHandoffFileIsHandoffMissing</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard smoke version parser pin d-049 positive"><td>TC-181</td><td>dashboard (go test)</td><td>Positive</td><td>The captured <code>--version</code> output of the pinned tool parses to 2.1.238 (<code>TestTheVersionParserReadsTheCapturedOutput</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard smoke version unparseable zero negative"><td>TC-182</td><td>dashboard (go test)</td><td>Negative</td><td>Output with no dotted triple is an error, never a zero version that would read as drift or silently pass (<code>TestAnUnparseableVersionIsARefusalNotAZero</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard smoke pin grammar inclusive exclusive negative"><td>TC-183</td><td>dashboard (go test)</td><td>Negative</td><td><code>&gt;=</code> is inclusive and <code>&lt;</code> exclusive at both edges, and a pin using any other operator is refused (<code>TestThePinPermitsTheMeasuredVersionAndRefusesTheNeighbours</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard smoke boot drift refuse d-049 negative"><td>TC-184</td><td>dashboard (go test)</td><td>Negative</td><td>A tool outside the pin refuses the boot, and the refusal names the tool, the version and the pin (<code>TestTheBootSmokeTestRefusesOnDrift</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard smoke unconfigured adapter mode off positive"><td>TC-185</td><td>dashboard (go test)</td><td>Positive</td><td>Mode <code>off</code> and an empty configuration both build no adapter and boot; a broken pin and mode <code>api</code> both refuse (<code>TestAnUnconfiguredAdapterIsAValidState</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter exit code handoff d-050 negative"><td>TC-186</td><td>dashboard (go test)</td><td>Negative</td><td>A tool that exits 0 having written <code>status: blocked</code> reports the outcome blocked, read from the document and never from the exit code (<code>TestTheAdapterNeverReadsTheOutcomeFromTheExitCode</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter handoff-missing signature br-30 negative"><td>TC-187</td><td>dashboard (go test)</td><td>Negative</td><td>Exit 0 with no handoff written, and exit 0 with an unparseable one, are both a failed attempt with the signature <code>handoff-missing</code> (<code>TestAMissingHandoffIsAFailedAttemptWithItsSignature</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter crash handoff read d-050 positive"><td>TC-188</td><td>dashboard (go test)</td><td>Positive</td><td>A non-zero exit still reads the handoff the run left behind, because the document is the authority whatever the process did (<code>TestACrashStillReadsTheHandoffItLeftBehind</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter workspace isolated environment d-051 positive"><td>TC-189</td><td>dashboard (go test)</td><td>Positive</td><td>The tool runs with the workspace as its working directory and an environment built from named variables, inheriting nothing else (<code>TestTheAdapterRunsTheToolInTheWorkspaceWithAnIsolatedEnvironment</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter cost measured unavailable d-051 br-37 positive"><td>TC-190</td><td>dashboard (go test)</td><td>Positive</td><td>Cost and tokens come from the tool's own JSON report as <code>measured</code>, cache reads included; a silent tool reports <code>unavailable</code>, never zero (<code>TestTheAdapterReadsCostAndTokensFromTheToolsOwnReport</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter cleared packet br-32 negative"><td>TC-191</td><td>dashboard (go test)</td><td>Negative</td><td>The adapter refuses a zero-value <code>Cleared</code> — the belt behind the type discipline's braces (<code>TestTheAdapterRefusesAPacketTheEgressPassNeverCleared</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard adapter smoke exec pin positive"><td>TC-192</td><td>dashboard (go test)</td><td>Positive</td><td>The smoke test runs the real binary and passes on the pinned version, then refuses when the pin cannot be satisfied (<code>TestTheSmokeTestRunsTheRealBinaryAndComparesThePin</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff absent file signature br-30 negative retired struck"><td>TC-180</td><td>dashboard (go test)</td><td>Negative</td><td><s>A workspace with no handoff document at all fails with the same signature as an unparseable one (<code>TestAnAbsentHandoffFileIsHandoffMissing</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no handoff file to be absent: the handoff travels in the reply (D-057). Replaced by <a href="#register">TC-281</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard smoke version parser pin d-049 positive retired struck"><td>TC-181</td><td>dashboard (go test)</td><td>Positive</td><td><s>The captured <code>--version</code> output of the pinned tool parses to 2.1.238 (<code>TestTheVersionParserReadsTheCapturedOutput</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no tool on this host to read a version from; the boot smoke test asks the gateway instead. Replaced by <a href="#register">TC-283</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard smoke version unparseable zero negative retired struck"><td>TC-182</td><td>dashboard (go test)</td><td>Negative</td><td><s>Output with no dotted triple is an error, never a zero version that would read as drift or silently pass (<code>TestAnUnparseableVersionIsARefusalNotAZero</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the version parser went with the CLI adapter. Replaced by <a href="#register">TC-283</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard smoke pin grammar inclusive exclusive negative retired struck"><td>TC-183</td><td>dashboard (go test)</td><td>Negative</td><td><s><code>&gt;=</code> is inclusive and <code>&lt;</code> exclusive at both edges, and a pin using any other operator is refused (<code>TestThePinPermitsTheMeasuredVersionAndRefusesTheNeighbours</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the version pin went with the CLI adapter; ai-manager owns which claude it runs. Replaced by <a href="#register">TC-283</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard smoke boot drift refuse d-049 negative retired struck"><td>TC-184</td><td>dashboard (go test)</td><td>Negative</td><td><s>A tool outside the pin refuses the boot, and the refusal names the tool, the version and the pin (<code>TestTheBootSmokeTestRefusesOnDrift</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the pinned-tool smoke test went with the CLI adapter. Replaced by <a href="#register">TC-283</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard smoke unconfigured adapter mode off positive"><td>TC-185</td><td>dashboard (go test)</td><td>Positive</td><td>Mode <code>off</code> and an empty configuration both build no adapter and boot; the retired mode <code>cli</code>, gateway mode with no URL, and mode <code>api</code> all refuse (<code>TestAnUnconfiguredAdapterIsAValidState</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter exit code handoff d-050 negative retired struck"><td>TC-186</td><td>dashboard (go test)</td><td>Negative</td><td><s>A tool that exits 0 having written <code>status: blocked</code> reports the outcome blocked, read from the document and never from the exit code (<code>TestTheAdapterNeverReadsTheOutcomeFromTheExitCode</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): no process exit code exists to be misread; the outcome is read from the reply's handoff block. Replaced by <a href="#register">TC-280</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard adapter handoff-missing signature br-30 negative retired struck"><td>TC-187</td><td>dashboard (go test)</td><td>Negative</td><td><s>Exit 0 with no handoff written, and exit 0 with an unparseable one, are both a failed attempt with the signature <code>handoff-missing</code> (<code>TestAMissingHandoffIsAFailedAttemptWithItsSignature</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the handoff file is gone; a reply with no readable block is the same failure. Replaced by <a href="#register">TC-281</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard adapter crash handoff read d-050 positive retired struck"><td>TC-188</td><td>dashboard (go test)</td><td>Positive</td><td><s>A non-zero exit still reads the handoff the run left behind, because the document is the authority whatever the process did (<code>TestACrashStillReadsTheHandoffItLeftBehind</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no process to crash after writing; a turn either answers or is a gateway failure. Replaced by <a href="#register">TC-280</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard adapter workspace isolated environment d-051 positive retired struck"><td>TC-189</td><td>dashboard (go test)</td><td>Positive</td><td><s>The tool runs with the workspace as its working directory and an environment built from named variables, inheriting nothing else (<code>TestTheAdapterRunsTheToolInTheWorkspaceWithAnIsolatedEnvironment</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060). There is no child process and no host environment to inherit: the turn runs upstream in the product's workspace. No successor; the property no longer exists.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard adapter cost measured unavailable d-051 br-37 positive retired struck"><td>TC-190</td><td>dashboard (go test)</td><td>Positive</td><td><s>Cost and tokens come from the tool's own JSON report as <code>measured</code>, cache reads included; a silent tool reports <code>unavailable</code>, never zero (<code>TestTheAdapterReadsCostAndTokensFromTheToolsOwnReport</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the tool's own cost report is now the gateway's <code>cost_usd</code>. Replaced by <a href="#register">TC-275</a>, <a href="#register">TC-282</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard adapter cleared packet br-32 negative"><td>TC-191</td><td>dashboard (go test)</td><td>Negative</td><td>The gateway adapter refuses a zero-value <code>Cleared</code> and sends the gateway nothing — the belt behind the type discipline's braces (<code>TestTheAdapterRefusesAPacketTheEgressPassNeverCleared</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard adapter smoke exec pin positive retired struck"><td>TC-192</td><td>dashboard (go test)</td><td>Positive</td><td><s>The smoke test runs the real binary and passes on the pinned version, then refuses when the pin cannot be satisfied (<code>TestTheSmokeTestRunsTheRealBinaryAndComparesThePin</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the exec half of the pinned smoke test went with the binary. Replaced by <a href="#register">TC-283</a>.</td><td>Retired</td></tr>
       <tr data-tags="go test unit dashboard adapter invocation mode br-33 ast negative"><td>TC-193</td><td>dashboard (go test)</td><td>Negative</td><td>No file above the adapter compares or switches on the invocation mode, checked by walking the package's syntax tree (<code>TestNothingAboveTheAdapterBranchesOnTheInvocationMode</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch task-dispatched digest positive"><td>TC-194</td><td>dashboard (go test)</td><td>Positive</td><td>A dispatch whose slice clears emits <code>TaskDispatched</code> carrying the digest and byte count of what was sent (<code>TestDispatchEmitsTaskDispatchedWhenTheSliceClears</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch refusal result not error l-5 negative"><td>TC-195</td><td>dashboard (go test)</td><td>Negative</td><td>A refused dispatch returns a result with a toast rather than a rejection, so the events it wrote reach the response that renders them (<code>TestARefusedDispatchIsAnEventNotAnError</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch refusal blocked attention br-32 negative"><td>TC-196</td><td>dashboard (go test)</td><td>Negative</td><td>A refused dispatch blocks the desk with its reason, raises the attention count, and carries the machine-readable rule on the payload (<code>TestARefusedDispatchBlocksTheDeskAndSaysWhy</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard dispatch context-redacted timeline l-5 positive"><td>TC-197</td><td>dashboard (go test)</td><td>Positive</td><td>A slice cut down by the allowlist emits <code>ContextRedacted</code> with its count and still goes on to dispatch (<code>TestARedactedSliceStillDispatchesAndSaysSoOnTheTimeline</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch context-redacted timeline l-5 positive"><td>TC-197</td><td>dashboard (go test)</td><td>Positive</td><td>A slice cut down by the allowlist — repository parts supplied through the store's repository seam — emits <code>ContextRedacted</code> with its count and still goes on to dispatch (<code>TestARedactedSliceStillDispatchesAndSaysSoOnTheTimeline</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch fold determinism new events positive"><td>TC-198</td><td>dashboard (go test)</td><td>Positive</td><td>The two new event types fold to the same floor twice, and the fold agrees with the live desk about the refusal (<code>TestTheRefusalAndTheRedactionFoldTheSameWayTwice</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard dispatch replay read-only handle t-099 negative"><td>TC-199</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only handle refuses a dispatch, so a floor parked in the past cannot send a slice assembled from a historical record (<code>TestDispatchIsRefusedInReplay</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard dispatch workspace credential r-11 end-to-end negative"><td>TC-200</td><td>dashboard (go test)</td><td>Negative</td><td>A real credential in a real workspace file refuses the dispatch, emits nothing that carries the key, and never reaches <code>TaskDispatched</code> (<code>TestACredentialInTheWorkspaceRefusesTheDispatch</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard dispatch workspace credential r-11 end-to-end negative"><td>TC-200</td><td>dashboard (go test)</td><td>Negative</td><td>A real credential in a repository file refuses the dispatch, emits nothing that carries the key, and never reaches <code>TaskDispatched</code> (<code>TestACredentialInTheWorkspaceRefusesTheDispatch</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard planner task graph dag fan-out fan-in t-042 positive"><td>TC-201</td><td>dashboard (go test)</td><td>Positive</td><td>Two picked stories become two independent branches off the architect, and the security review waits on every verifier (<code>TestThePlannerProducesADAGWithFanOutAndFanIn</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard planner task graph topological order depends_on t-042 positive"><td>TC-202</td><td>dashboard (go test)</td><td>Positive</td><td>Every prerequisite is placed before the task that waits on it in the topological order (<code>TestEveryDependencyPointsAtATaskEarlierInTheTopologicalOrder</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard planner task graph cycle rejection t-042 negative"><td>TC-203</td><td>dashboard (go test)</td><td>Negative</td><td>A caller-supplied plan whose dependencies loop is refused, names every task in the cycle, and writes nothing (<code>TestThePlannerRefusesAPlanWhoseDependenciesFormACycle</code>)</td><td>Implemented</td></tr>
@@ -307,60 +308,60 @@
       <tr data-tags="go test unit dashboard scheduler readiness planning floor br-07 negative"><td>TC-217</td><td>dashboard (go test)</td><td>Negative</td><td>A task exactly at the floor dispatches and one below it does not, so BR-07 holds after the record decays as well as before the plan (<code>TestNothingIsDispatchedBelowReadinessFortyFive</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler lease workspace agent exclusivity d-3 negative"><td>TC-218</td><td>dashboard (go test)</td><td>Negative</td><td>Two ready tasks are never handed the same workspace or the same agent inside one pass (<code>TestTwoReadyTasksAreNeverHandedTheSameAgentOrWorkspace</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler agent seating determinism rng d-1 positive"><td>TC-219</td><td>dashboard (go test)</td><td>Positive</td><td>Advancing a stage seats the same agent regardless of the store's seed, so two replicas cannot disagree about who is busy (<code>TestAgentSeatingIsDeterministic</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease workspace exclusivity o_excl d-3 t-051 negative"><td>TC-220</td><td>dashboard (go test)</td><td>Negative</td><td>A second run is refused a workspace that is already leased, the refusal names the holder, and the losing acquire writes nothing (<code>TestASecondLeaseOnALiveWorkspaceIsRefused</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease expiry break d-2 d-053 negative"><td>TC-221</td><td>dashboard (go test)</td><td>Negative</td><td>An expired lease is still refused by <code>AcquireLease</code> and only <code>BreakLease</code> clears it, because expiry describes the supervisor and not the detached child (<code>TestAnExpiredLeaseIsStillNotTakenByAcquire</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease reacquire idempotent positive"><td>TC-222</td><td>dashboard (go test)</td><td>Positive</td><td>A run re-acquiring its own lease succeeds and refreshes the expiry rather than deadlocking against itself (<code>TestReAcquiringYourOwnLeaseSucceeds</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease heartbeat renewal holder d-3 t-052 negative"><td>TC-223</td><td>dashboard (go test)</td><td>Negative</td><td>A renewal extends only the expiry and only for the run holding the lease; a run that does not hold it is refused (<code>TestAHeartbeatExtendsTheLeaseAndOnlyForTheRunThatHoldsIt</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease release holder idempotent negative"><td>TC-224</td><td>dashboard (go test)</td><td>Negative</td><td>Only the holder may release a lease, and releasing one that is already gone is not an error (<code>TestReleaseGivesTheWorkspaceBackAndOnlyToItsHolder</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease corrupt unreadable fail-safe negative"><td>TC-225</td><td>dashboard (go test)</td><td>Negative</td><td>A truncated lockfile reads as held rather than as absent, and the scheduler reaches the same conclusion (<code>TestAnUnreadableLeaseIsTreatedAsHeldRatherThanAsAbsent</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard lease round trip intervals d-053 positive"><td>TC-226</td><td>dashboard (go test)</td><td>Positive</td><td>The lease round-trips through the file for a process that never held it, and the beat/stale/expiry ladder is ordered as declared (<code>TestTheLeaseFileSurvivesTheProcessThatWroteIt</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner runstarted runexited cost d-051 t-050 positive"><td>TC-227</td><td>dashboard (go test)</td><td>Positive</td><td>A supervised run writes <code>RunStarted</code>, a <code>Heartbeat</code> and <code>RunExited</code> in that order, and the tool's own cost figure reaches the desk (<code>TestARunEmitsRunStartedAndRunExitedAroundTheWorkItSupervised</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner invented evidence lease refused negative"><td>TC-228</td><td>dashboard (go test)</td><td>Negative</td><td>A run refused the workspace lease emits nothing at all, because a <code>RunStarted</code> from a process that never started is invented evidence (<code>TestARunThatCouldNotStartEmitsNoRunStarted</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard lease workspace exclusivity o_excl d-3 t-051 negative retired struck"><td>TC-220</td><td>dashboard (go test)</td><td>Negative</td><td><s>A second run is refused a workspace that is already leased, the refusal names the holder, and the losing acquire writes nothing (<code>TestASecondLeaseOnALiveWorkspaceIsRefused</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the file lease is gone; one live turn per product is the graph lease (BR-38). Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard lease expiry break d-2 d-053 negative retired struck"><td>TC-221</td><td>dashboard (go test)</td><td>Negative</td><td><s>An expired lease is still refused by <code>AcquireLease</code> and only <code>BreakLease</code> clears it, because expiry describes the supervisor and not the detached child (<code>TestAnExpiredLeaseIsStillNotTakenByAcquire</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the file lease is gone. Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard lease reacquire idempotent positive retired struck"><td>TC-222</td><td>dashboard (go test)</td><td>Positive</td><td><s>A run re-acquiring its own lease succeeds and refreshes the expiry rather than deadlocking against itself (<code>TestReAcquiringYourOwnLeaseSucceeds</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the file lease is gone. Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard lease heartbeat renewal holder d-3 t-052 negative retired struck"><td>TC-223</td><td>dashboard (go test)</td><td>Negative</td><td><s>A renewal extends only the expiry and only for the run holding the lease; a run that does not hold it is refused (<code>TestAHeartbeatExtendsTheLeaseAndOnlyForTheRunThatHoldsIt</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the file lease is gone; the beat renews nothing. Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard lease release holder idempotent negative retired struck"><td>TC-224</td><td>dashboard (go test)</td><td>Negative</td><td><s>Only the holder may release a lease, and releasing one that is already gone is not an error (<code>TestReleaseGivesTheWorkspaceBackAndOnlyToItsHolder</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the file lease is gone. Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard lease corrupt unreadable fail-safe negative retired struck"><td>TC-225</td><td>dashboard (go test)</td><td>Negative</td><td><s>A truncated lockfile reads as held rather than as absent, and the scheduler reaches the same conclusion (<code>TestAnUnreadableLeaseIsTreatedAsHeldRatherThanAsAbsent</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no lockfile to be unreadable. Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard lease round trip intervals d-053 positive retired struck"><td>TC-226</td><td>dashboard (go test)</td><td>Positive</td><td><s>The lease round-trips through the file for a process that never held it, and the beat/stale/expiry ladder is ordered as declared (<code>TestTheLeaseFileSurvivesTheProcessThatWroteIt</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no lease file to survive anything; the request id in the graph is what survives a restart. Replaced by <a href="#register">TC-297</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard runner runstarted runexited cost d-051 t-050 positive"><td>TC-227</td><td>dashboard (go test)</td><td>Positive</td><td>A supervised turn writes <code>RunStarted</code>, a <code>Heartbeat</code> and <code>RunExited</code> in that order, and the gateway's measured cost reaches the desk (<code>TestARunEmitsRunStartedAndRunExitedAroundTheWorkItSupervised</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner invented evidence lease refused negative"><td>TC-228</td><td>dashboard (go test)</td><td>Negative</td><td>A brief that names no task is never submitted and writes no event at all, because a <code>RunStarted</code> for a turn nobody sent is invented evidence (<code>TestARunThatCouldNotStartEmitsNoRunStarted</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard runner heartbeat cadence d-053 br-02 positive"><td>TC-229</td><td>dashboard (go test)</td><td>Positive</td><td>Twelve minutes of beats writes twenty-four field updates and three <code>Heartbeat</code> events, with both endpoints always written (<code>TestTheHeartbeatWritesTheBeatMoreOftenThanItWritesAnEvent</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner adoption resume br-33 d-051 positive"><td>TC-230</td><td>dashboard (go test)</td><td>Positive</td><td>An adopted run and a supervised one produce the same <code>Attempt</code>, cost included, because both assemble it from the same evidence on disk (<code>TestAnAdoptedRunAndASupervisedRunProduceTheSameAttempt</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner handoff truncation retry br-30 negative"><td>TC-231</td><td>dashboard (go test)</td><td>Negative</td><td>A handoff left by an earlier attempt is not read as this one's; a run that wrote nothing reports <code>handoff-missing</code> rather than the stale success (<code>TestAHandoffFromThePreviousAttemptIsNotReadAsThisOnes</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner detached withoutcancel d-2 positive"><td>TC-232</td><td>dashboard (go test)</td><td>Positive</td><td>Cancelling the caller's context mid-run does not kill the child, which is D-2 on the graceful-shutdown path that used to violate it (<code>TestTheDetachedChildIsNotKilledByTheOrchestratorsContext</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner lease release cleanup d-3 positive"><td>TC-233</td><td>dashboard (go test)</td><td>Positive</td><td>The lease is released whether the run completed or produced no handoff at all (<code>TestTheRunReleasesItsLeaseWhateverHappens</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner workspace root guard negative"><td>TC-234</td><td>dashboard (go test)</td><td>Negative</td><td>A run with no workspace is refused before anything is leased or spawned (<code>TestTheRunnerRefusesToSpawnWithoutAWorkspaceRoot</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard runner money guard testing provider negative"><td>TC-235</td><td>dashboard (go test)</td><td>Negative</td><td>A test binary may exec only a tool under <code>testdata</code>, and <code>Dispatch</code> is checked to still carry the guard (<code>TestNoTestEverReachesTheRealProviderCommand</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile adopt requeue orphan d-4 t-053 positive"><td>TC-236</td><td>dashboard (go test)</td><td>Positive</td><td>The three recovery branches match the architecture page's pseudocode, each carrying a machine-readable rule and a reason (<code>TestTheThreeRecoveryBranches</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile scope dispatched running d-4 negative"><td>TC-237</td><td>dashboard (go test)</td><td>Negative</td><td>Only <code>DISPATCHED</code> and <code>RUNNING</code> are reconciled; the other eight statuses are left alone (<code>TestTheReconcilerLooksAtEveryTaskClaimingToBeDispatchedOrRunningAndNoOthers</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile purity ast imports negative"><td>TC-238</td><td>dashboard (go test)</td><td>Negative</td><td><code>reconcile.go</code> may import only <code>fmt</code> and <code>sort</code> and may declare no method (<code>TestReconciliationIsPureAndDoesNotReadTheClock</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile catalog closed rule d-052 br-05 positive"><td>TC-239</td><td>dashboard (go test)</td><td>Positive</td><td>Adopt and requeue share <code>TaskResumed</code> and are distinguishable only by the payload's rule, so the catalog stays closed (<code>TestAdoptAndRequeueReuseTheCatalogNamesAndDifferOnlyInTheRule</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile requeue kill d-054 d-3 negative"><td>TC-240</td><td>dashboard (go test)</td><td>Negative</td><td>A requeue with nothing able to kill the previous run degrades to an orphan rather than handing the workspace on (<code>TestARequeueThatCannotKillDegradesToAnOrphan</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile adopt lease d-2 positive"><td>TC-241</td><td>dashboard (go test)</td><td>Positive</td><td>An adopted run keeps its lease, its <code>RUNNING</code> status and its desk; nothing is killed and nothing restarted (<code>TestAnAdoptedRunIsNotKilledAndNotRestarted</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconcile orphan workspace release br-7.5 positive"><td>TC-242</td><td>dashboard (go test)</td><td>Positive</td><td>An orphaned run releases its workspace, so the expiry that made it an orphan does not go on making it one (<code>TestOrphanReleasesTheWorkspaceSoSomethingCanUseItAgain</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 positive"><td>TC-243</td><td>kill-mid-task.sh</td><td>Positive</td><td>After <code>SIGKILL</code> to the orchestrator the child process is still alive</td><td>Implemented</td></tr>
-      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 negative"><td>TC-244</td><td>kill-mid-task.sh</td><td>Negative</td><td>The child died with its orchestrator, which is D-2 broken</td><td>Implemented</td></tr>
-      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 positive"><td>TC-245</td><td>kill-mid-task.sh</td><td>Positive</td><td>The restarted orchestrator reconciles before it listens and adopts the surviving run</td><td>Implemented</td></tr>
-      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 negative"><td>TC-246</td><td>kill-mid-task.sh</td><td>Negative</td><td>No adoption in the timeline — a held lease with a fresh beat was requeued or orphaned instead</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner adoption resume br-33 d-051 positive"><td>TC-230</td><td>dashboard (go test)</td><td>Positive</td><td>A turn recovered by its request id and a supervised one produce the same <code>Attempt</code>, cost included, because both are read by the same poll (<code>TestAnAdoptedRunAndASupervisedRunProduceTheSameAttempt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner handoff truncation retry br-30 negative retired struck"><td>TC-231</td><td>dashboard (go test)</td><td>Negative</td><td><s>A handoff left by an earlier attempt is not read as this one's; a run that wrote nothing reports <code>handoff-missing</code> rather than the stale success (<code>TestAHandoffFromThePreviousAttemptIsNotReadAsThisOnes</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): no handoff file is left behind by an earlier attempt; a block naming another run is refused instead. Replaced by <a href="#register">TC-281</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard runner detached withoutcancel d-2 positive retired struck"><td>TC-232</td><td>dashboard (go test)</td><td>Positive</td><td><s>Cancelling the caller's context mid-run does not kill the child, which is D-2 on the graceful-shutdown path that used to violate it (<code>TestTheDetachedChildIsNotKilledByTheOrchestratorsContext</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no child process; a turn runs upstream and outlives the orchestrator by construction. Replaced by <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard runner lease release cleanup d-3 positive retired struck"><td>TC-233</td><td>dashboard (go test)</td><td>Positive</td><td><s>The lease is released whether the run completed or produced no handoff at all (<code>TestTheRunReleasesItsLeaseWhateverHappens</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no lease for a run to release. Replaced by <a href="#register">TC-295</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard runner workspace root guard negative retired struck"><td>TC-234</td><td>dashboard (go test)</td><td>Negative</td><td><s>A run with no workspace is refused before anything is leased or spawned (<code>TestTheRunnerRefusesToSpawnWithoutAWorkspaceRoot</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): a turn needs no folder on this host; the workspace is the product's, upstream. Replaced by <a href="#register">TC-291</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard runner money guard testing provider negative retired struck"><td>TC-235</td><td>dashboard (go test)</td><td>Negative</td><td><s>A test binary may exec only a tool under <code>testdata</code>, and <code>Dispatch</code> is checked to still carry the guard (<code>TestNoTestEverReachesTheRealProviderCommand</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no provider command to reach; every test talks to an <code>httptest</code> fake gateway. Replaced by <a href="#register">TC-275</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile adopt requeue orphan d-4 t-053 positive retired struck"><td>TC-236</td><td>dashboard (go test)</td><td>Positive</td><td><s>The three recovery branches match the architecture page's pseudocode, each carrying a machine-readable rule and a reason (<code>TestTheThreeRecoveryBranches</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the three lease-and-beat branches became poll-by-request-id: adopt, keep polling, or orphan by deadline. Replaced by <a href="#register">TC-297</a>, <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile scope dispatched running d-4 negative retired struck"><td>TC-237</td><td>dashboard (go test)</td><td>Negative</td><td><s>Only <code>DISPATCHED</code> and <code>RUNNING</code> are reconciled; the other eight statuses are left alone (<code>TestTheReconcilerLooksAtEveryTaskClaimingToBeDispatchedOrRunningAndNoOthers</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): reconcile.go is gone; recovery polls every open turn and requeues a claimed task with none. Replaced by <a href="#register">TC-297</a>, <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile purity ast imports negative retired struck"><td>TC-238</td><td>dashboard (go test)</td><td>Negative</td><td><s><code>reconcile.go</code> may import only <code>fmt</code> and <code>sort</code> and may declare no method (<code>TestReconciliationIsPureAndDoesNotReadTheClock</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): reconcile.go is gone. Replaced by <a href="#register">TC-297</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile catalog closed rule d-052 br-05 positive retired struck"><td>TC-239</td><td>dashboard (go test)</td><td>Positive</td><td><s>Adopt and requeue share <code>TaskResumed</code> and are distinguishable only by the payload's rule, so the catalog stays closed (<code>TestAdoptAndRequeueReuseTheCatalogNamesAndDifferOnlyInTheRule</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the adopt and requeue rules are now asserted on the recovery path itself. Replaced by <a href="#register">TC-297</a>, <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile requeue kill d-054 d-3 negative retired struck"><td>TC-240</td><td>dashboard (go test)</td><td>Negative</td><td><s>A requeue with nothing able to kill the previous run degrades to an orphan rather than handing the workspace on (<code>TestARequeueThatCannotKillDegradesToAnOrphan</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): nothing is killed any more (OQ-26: the gateway cannot cancel); a lost turn holds its product until its deadline. Replaced by <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile adopt lease d-2 positive retired struck"><td>TC-241</td><td>dashboard (go test)</td><td>Positive</td><td><s>An adopted run keeps its lease, its <code>RUNNING</code> status and its desk; nothing is killed and nothing restarted (<code>TestAnAdoptedRunIsNotKilledAndNotRestarted</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no lease for adoption to keep. Replaced by <a href="#register">TC-297</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard reconcile orphan workspace release br-7.5 positive retired struck"><td>TC-242</td><td>dashboard (go test)</td><td>Positive</td><td><s>An orphaned run releases its workspace, so the expiry that made it an orphan does not go on making it one (<code>TestOrphanReleasesTheWorkspaceSoSomethingCanUseItAgain</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no workspace lease to release. Replaced by <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 positive retired struck"><td>TC-243</td><td>kill-mid-task.sh</td><td>Positive</td><td><s>After <code>SIGKILL</code> to the orchestrator the child process is still alive</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no child process to outlive the orchestrator. Replaced by <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 detached d-2 negative retired struck"><td>TC-244</td><td>kill-mid-task.sh</td><td>Negative</td><td><s>The child died with its orchestrator, which is D-2 broken</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no child process to outlive the orchestrator. Replaced by <a href="#register">TC-298</a>.</td><td>Retired</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 positive retired struck"><td>TC-245</td><td>kill-mid-task.sh</td><td>Positive</td><td><s>The restarted orchestrator reconciles before it listens and adopts the surviving run</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): lease-based adoption became adoption by request id. Replaced by <a href="#register">TC-297</a>.</td><td>Retired</td></tr>
+      <tr data-tags="kill-mid-task acceptance step-5 adoption reconciliation d-4 negative retired struck"><td>TC-246</td><td>kill-mid-task.sh</td><td>Negative</td><td><s>No adoption in the timeline — a held lease with a fresh beat was requeued or orphaned instead</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): lease-based adoption became adoption by request id. Replaced by <a href="#register">TC-297</a>.</td><td>Retired</td></tr>
       <tr data-tags="go test unit dashboard taskrun attempt d-5 br-22 positive"><td>TC-247</td><td>dashboard (go test)</td><td>Positive</td><td>Two attempts on one task leave two <code>TaskRun</code> records with different ids, and the first one's evidence is still there after the second (<code>TestEachAttemptGetsItsOwnRunRecord</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard taskrun cost tokens exit signature d-5 positive"><td>TC-248</td><td>dashboard (go test)</td><td>Positive</td><td>A finished attempt records the cost, the tokens, the invocation mode, the log reference and a duration that reads forwards (<code>TestAFinishedRunRecordsWhatItCostAndWhatItLeftBehind</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard taskrun cost basis br-31 negative"><td>TC-249</td><td>dashboard (go test)</td><td>Negative</td><td>A run that never reached the adapter writes no attempt at all, rather than one carrying the DDL's default cost basis (<code>TestARunThatCouldNotStartIsNotRecordedAsMeasured</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard taskrun cost tokens exit signature d-5 positive"><td>TC-248</td><td>dashboard (go test)</td><td>Positive</td><td>A finished attempt records the cost, the tokens, the invocation mode, the request id, the stored reply and a duration that reads forwards (<code>TestAFinishedRunRecordsWhatItCostAndWhatItLeftBehind</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard taskrun cost basis br-31 negative"><td>TC-249</td><td>dashboard (go test)</td><td>Negative</td><td>A turn the gateway refused at submit is one failed attempt with a signature, never one carrying a <code>measured</code> cost basis (<code>TestARunThatCouldNotStartIsNotRecordedAsMeasured</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard contextslice frozen dispatch d-6 br-23 positive"><td>TC-250</td><td>dashboard (go test)</td><td>Positive</td><td>A dispatch that clears the egress pass freezes a <code>ContextSlice</code> under the digest its event published, with rendered text and at least one role-bearing citation (<code>TestTheSliceIsFrozenWhenTheDispatchClears</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard contextslice citation redaction egress br-32 negative"><td>TC-251</td><td>dashboard (go test)</td><td>Negative</td><td>A citation whose packet part the egress pass redacted does not survive into the cleared packet (<code>TestARedactedPartTakesItsCitationsWithIt</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard contextslice digest identity h-4 positive"><td>TC-252</td><td>dashboard (go test)</td><td>Positive</td><td>Two attempts given byte-identical context share one <code>ContextSlice</code>, and it records the attempt that created it (<code>TestTwoAttemptsGivenTheSameContextShareOneSlice</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard context route frozen d-6 positive"><td>TC-253</td><td>dashboard (go test)</td><td>Positive</td><td><code>GET /tasks/{id}/context</code> answers live before anything has run and from the frozen slice afterwards, with the digest the attempt was given (<code>TestTaskContextAnswersFromTheFrozenSliceOnceSomethingHasRun</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard context frozen evidence d-6 negative"><td>TC-254</td><td>dashboard (go test)</td><td>Negative</td><td>Editing the master record after an attempt must not move the frozen slice's digest or its chips (<code>TestTheFrozenSliceDoesNotChangeWhenTheRecordDoes</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard reconciliation orphan taskrun d-4 positive"><td>TC-255</td><td>dashboard (go test)</td><td>Positive</td><td>Boot reconciliation closes the attempt it gave up on — status <code>ORPHANED</code> with an end time, not left asserting <code>RUNNING</code> (<code>TestBootReconciliationClosesTheAttemptItRecovered</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard reconciliation orphan taskrun d-4 positive"><td>TC-255</td><td>dashboard (go test)</td><td>Positive</td><td>Boot recovery closes the attempt whose request the gateway no longer knows, once its deadline has passed — status <code>ORPHANED</code> with an end time, not left asserting <code>RUNNING</code> (<code>TestBootReconciliationClosesTheAttemptItRecovered</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb restart contextslice br-01 positive"><td>TC-256</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant still answers with the frozen slice, its digest and every citation (<code>TestTheFrozenSliceSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb restart taskrun br-22 positive"><td>TC-257</td><td>dashboard (go test)</td><td>Positive</td><td>A reopened store holds the attempt with its status, model, cost, basis and the slice it names (<code>TestAnAttemptSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard replay read-only handle br-20 negative"><td>TC-258</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only handle passes both new reads through and still refuses a dispatch (<code>TestTheReadOnlyHandleStillAnswersRunsAndContext</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard handoff contract parser br-30 positive"><td>TC-259</td><td>dashboard (go test)</td><td>Positive</td><td>The example document inside the handoff contract parses, so a model that copies it faithfully passes rather than fails (<code>TestTheContractsOwnExampleParses</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard handoff contract ids d-9 positive"><td>TC-260</td><td>dashboard (go test)</td><td>Positive</td><td>The contract names the path, the task, the run, the role and the failure signature, rather than describing fields the model must guess (<code>TestTheContractNamesTheRunTheDocumentMustCarry</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard packet contract frozen slice d-6 positive"><td>TC-261</td><td>dashboard (go test)</td><td>Positive</td><td>The contract travels in the frozen packet and reaches the tool's instruction, so what a run was asked for is inside the digest (<code>TestAFrozenPacketCarriesTheContract</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard packet materialise workspace d-8 positive"><td>TC-262</td><td>dashboard (go test)</td><td>Positive</td><td>The cleared packet is written as files in the leased workspace and the handoff document is declared empty beside it (<code>TestMaterialiseWritesThePacketAndDeclaresTheHandoff</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard packet materialise redaction egress br-32 negative"><td>TC-263</td><td>dashboard (go test)</td><td>Negative</td><td>A part the egress pass redacted is never written into the workspace the tool can read (<code>TestMaterialiseNeverWritesARedactedPart</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard packet path escape workspace negative"><td>TC-264</td><td>dashboard (go test)</td><td>Negative</td><td>A packet path that resolves outside the workspace is refused at the boundary that writes, not only at the one that screens (<code>TestTheWriterRefusesAPathThatLeavesTheWorkspace</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard handoff missing signature br-30 negative"><td>TC-265</td><td>dashboard (go test)</td><td>Negative</td><td>A run that writes no document fails the attempt with <code>handoff-missing</code>, on the attempt record as well as the outcome (<code>TestARunWithNoHandoffFailsWithTheSignature</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard artifact handoff uses-context d-10 positive"><td>TC-266</td><td>dashboard (go test)</td><td>Positive</td><td>The document one attempt produced is stored as an <code>Artifact</code> and cited into the next packet with role <code>lesson</code> (<code>TestTheHandoffIsStoredForTheNextAgent</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff contract parser br-30 positive"><td>TC-259</td><td>dashboard (go test)</td><td>Positive</td><td>The example block inside the reply contract parses through <code>ExtractHandoff</code>, so a model that copies it faithfully passes rather than fails (<code>TestTheContractsOwnExampleParses</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff contract ids d-9 positive"><td>TC-260</td><td>dashboard (go test)</td><td>Positive</td><td>The contract names the block's fence, the task, the run, the role and the failure signature, rather than describing fields the model must guess (<code>TestTheContractNamesTheRunTheDocumentMustCarry</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet contract frozen slice d-6 positive"><td>TC-261</td><td>dashboard (go test)</td><td>Positive</td><td>The contract travels in the frozen packet and reaches the prompt sent to the gateway, so what a turn was asked for is inside the digest (<code>TestAFrozenPacketCarriesTheContract</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet materialise workspace d-8 positive retired struck"><td>TC-262</td><td>dashboard (go test)</td><td>Positive</td><td><s>The cleared packet is written as files in the leased workspace and the handoff document is declared empty beside it (<code>TestMaterialiseWritesThePacketAndDeclaresTheHandoff</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the packet is no longer written to a folder; the cleared brief is the prompt. Replaced by <a href="#register">TC-261</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard packet materialise redaction egress br-32 negative retired struck"><td>TC-263</td><td>dashboard (go test)</td><td>Negative</td><td><s>A part the egress pass redacted is never written into the workspace the tool can read (<code>TestMaterialiseNeverWritesARedactedPart</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): nothing is written to a folder for a redacted part to reach. Replaced by <a href="#register">TC-197</a>, <a href="#register">TC-251</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard packet path escape workspace negative retired struck"><td>TC-264</td><td>dashboard (go test)</td><td>Negative</td><td><s>A packet path that resolves outside the workspace is refused at the boundary that writes, not only at the one that screens (<code>TestTheWriterRefusesAPathThatLeavesTheWorkspace</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the packet writer is gone; GAOS names a workspace id, never a path (BR-42). Replaced by <a href="#register">TC-286</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard handoff missing signature br-30 negative retired struck"><td>TC-265</td><td>dashboard (go test)</td><td>Negative</td><td><s>A run that writes no document fails the attempt with <code>handoff-missing</code>, on the attempt record as well as the outcome (<code>TestARunWithNoHandoffFailsWithTheSignature</code>)</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the file contract is gone; a reply with no block fails the same way. Replaced by <a href="#register">TC-281</a>.</td><td>Retired</td></tr>
+      <tr data-tags="go test unit dashboard artifact handoff uses-context d-10 positive"><td>TC-266</td><td>dashboard (go test)</td><td>Positive</td><td>The handoff block one attempt replied with is stored as an <code>Artifact</code> of kind <code>handoff</code> and cited into the next packet with role <code>lesson</code> — never the prompt or the reply stored beside it (<code>TestTheHandoffIsStoredForTheNextAgent</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard artifact handoff self citation negative"><td>TC-267</td><td>dashboard (go test)</td><td>Negative</td><td>An attempt is never cited the handoff it produced itself (<code>TestAnAttemptDoesNotCiteItsOwnHandoff</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="live-cli-run acceptance real model boot smoke pin positive"><td>TC-268</td><td>live-cli-run.sh</td><td>Positive</td><td>A real provider tool is present, inside the version pin, and the dashboard boots against it</td><td>Implemented</td></tr>
-      <tr data-tags="live-cli-run acceptance readiness planner br-07 positive"><td>TC-269</td><td>live-cli-run.sh</td><td>Positive</td><td>A record written through the back office scores above the planning floor and the planner accepts it</td><td>Implemented</td></tr>
-      <tr data-tags="live-cli-run acceptance egress refusal br-32 negative"><td>TC-270</td><td>live-cli-run.sh</td><td>Negative</td><td>A dispatch the egress pass refused is reported as a refusal with its reason, rather than read as success from the 200</td><td>Implemented</td></tr>
-      <tr data-tags="live-cli-run acceptance packet materialise d-8 positive"><td>TC-271</td><td>live-cli-run.sh</td><td>Positive</td><td>The packet is on disk in the leased worktree before the tool is given it</td><td>Implemented</td></tr>
-      <tr data-tags="live-cli-run acceptance handoff contract real model br-30 positive"><td>TC-272</td><td>live-cli-run.sh</td><td>Positive</td><td>A real model, given only the packet, writes a handoff document GAOS parses to an outcome rather than a signature</td><td>Implemented</td></tr>
-      <tr data-tags="live-cli-run acceptance real work worktree negative"><td>TC-273</td><td>live-cli-run.sh</td><td>Negative</td><td>The deliverable the packet asked for is absent from the worktree, or does not mention what the packet asked about</td><td>Implemented</td></tr>
+      <tr data-tags="live-cli-run acceptance real model boot smoke pin positive retired struck"><td>TC-268</td><td>live-cli-run.sh</td><td>Positive</td><td><s>A real provider tool is present, inside the version pin, and the dashboard boots against it</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no provider tool on this host; the live check is now a turn through the gateway. Replaced by <a href="#register">TC-300</a>.</td><td>Retired</td></tr>
+      <tr data-tags="live-cli-run acceptance readiness planner br-07 positive retired struck"><td>TC-269</td><td>live-cli-run.sh</td><td>Positive</td><td><s>A record written through the back office scores above the planning floor and the planner accepts it</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the CLI live run is gone. Replaced by <a href="#register">TC-301</a>.</td><td>Retired</td></tr>
+      <tr data-tags="live-cli-run acceptance egress refusal br-32 negative retired struck"><td>TC-270</td><td>live-cli-run.sh</td><td>Negative</td><td><s>A dispatch the egress pass refused is reported as a refusal with its reason, rather than read as success from the 200</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the CLI live run is gone. Replaced by <a href="#register">TC-302</a>.</td><td>Retired</td></tr>
+      <tr data-tags="live-cli-run acceptance packet materialise d-8 positive retired struck"><td>TC-271</td><td>live-cli-run.sh</td><td>Positive</td><td><s>The packet is on disk in the leased worktree before the tool is given it</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no packet on disk. Replaced by <a href="#register">TC-303</a>.</td><td>Retired</td></tr>
+      <tr data-tags="live-cli-run acceptance handoff contract real model br-30 positive retired struck"><td>TC-272</td><td>live-cli-run.sh</td><td>Positive</td><td><s>A real model, given only the packet, writes a handoff document GAOS parses to an outcome rather than a signature</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): the CLI live run is gone. Replaced by <a href="#register">TC-303</a>.</td><td>Retired</td></tr>
+      <tr data-tags="live-cli-run acceptance real work worktree negative retired struck"><td>TC-273</td><td>live-cli-run.sh</td><td>Negative</td><td><s>The deliverable the packet asked for is absent from the worktree, or does not mention what the packet asked about</s> &mdash; retired 2026-11-02 in v0.29.0 (M14.7, D-060): there is no worktree deliverable; deliverables travel in the reply until OQ-27. Replaced by <a href="#register">TC-303</a>.</td><td>Retired</td></tr>
       <tr data-tags="go test unit dashboard schema apply counts boot log arcadedb positive"><td>TC-274</td><td>dashboard (go test)</td><td>Positive</td><td>The store records what the schema apply did, and two applies of one embedded DDL count the same total (<code>TestTheStoreRecordsWhatTheSchemaApplyDid</code>)</td><td>Implemented</td></tr>
       <tr data-tags="gateway adapter sync turn session tokens cost measured positive implemented go test unit dashboard"><td>TC-275</td><td>dashboard (go test)</td><td>Positive</td><td>A turn through a fake ai-manager records the session id, the tokens and a <code>measured</code> cost on the attempt (<code>TestAGatewayTurnRecordsTheSessionTokensAndAMeasuredCost</code>)</td><td>Implemented</td></tr>
       <tr data-tags="gateway adapter 410 session-lost br-40 negative implemented go test unit dashboard"><td>TC-276</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>410</code> on resume fails the attempt with <code>session-lost</code>, and no new session is opened in its place (<code>TestA410OnResumeIsSessionLostAndOpensNoSessionInItsPlace</code>)</td><td>Implemented</td></tr>
@@ -401,6 +402,8 @@
       <tr data-tags="blueprint arcadedb restart persistence go test unit dashboard positive implemented"><td>TC-311</td><td>dashboard (go test)</td><td>Positive</td><td>A policy, a knowledge source and a published Blueprint version come back from a reopened ArcadeDB store (<code>TestTheBlueprintSurvivesARestart</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint back-office tab template render publish session go test unit dashboard positive implemented"><td>TC-312</td><td>dashboard (go test)</td><td>Positive</td><td>The back-office Blueprint tab renders, saves a policy and publishes version 1, and refuses a publish without a session (<code>TestTheBlueprintTabRendersAndPublishes</code>)</td><td>Implemented</td></tr>
       <tr data-tags="arcadedb least privilege user create database boot schema go test unit dashboard positive implemented"><td>TC-313</td><td>dashboard (go test)</td><td>Positive</td><td>A user who may read its database but not create it boots, and one who can do neither is refused with both reasons (<code>TestALeastPrivilegeUserBootsAgainstADatabaseItCannotCreate</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard home page product list sign in floor retired t-168 positive"><td>TC-314</td><td>dashboard (go test)</td><td>Positive</td><td>Signed in, <code>GET /</code> opens on the product list with no floor and no ticker; signed out, on the sign-in sheet with the product master closed (<code>TestTheHomePageIsTheProductListAndSignedOutItAsksForASignIn</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard timeline product events tab t-168 negative"><td>TC-315</td><td>dashboard (go test)</td><td>Negative</td><td>A product's Timeline tab shows the event just written for it and not the one written for another product (<code>TestAProductsTimelineShowsItsOwnEventsAndNoOtherProducts</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -665,16 +668,17 @@
   <h3 id="go-routes">dashboard — routes and rendering (TC-054, TC-055, TC-056, TC-057)</h3>
   <p>The file's own header explains why these exist: a dashboard has almost no assertions of its
   own, so a wrong template renders a page that looks fine. <strong>Positive (TC-054):</strong>
-  <code>TestEveryRouteAnswers</code> walks 33 method/path cases with a back-office cookie — the
-  floor fragments, the documented surface, the back office, the wizard — and the negative half of the
-  same table asks for <code>GET /products/nope</code> and requires a 404; a mismatch prints
+  <code>TestEveryRouteAnswers</code> walks 32 method/path cases with a back-office cookie — the
+  documented surface (whose desk routes answer JSON since v0.29.0), the back office and every product
+  tab, the wizard — and the negative half of the same table asks for <code>GET /products/nope</code>
+  and five routes of the retired floor, and requires a 404 for each; a mismatch prints
   <code>%s %s = %d, want %d</code> followed by <code>body: %s</code>.
-  <strong>Negative (TC-055):</strong> four surfaces are fetched and the body must not contain
+  <strong>Negative (TC-055):</strong> three surfaces are fetched and the body must not contain
   <code>template error</code> — <code>%s rendered a template error</code>.
   <strong>Negative (TC-056):</strong> the style-attribute trap.
   <code>html/template</code> refuses to interpolate a plain string into a <code>style=""</code>
   context and substitutes the literal <code>ZgotmplZ</code>; the page still renders and has silently
-  lost every colour, width and role tint, so seven surfaces are checked and the failure is
+  lost every colour, width and role tint, so five surfaces are checked and the failure is
   <code>%s emitted ZgotmplZ -- a computed style lost its template.CSS type</code>.
   <strong>Negative (TC-057):</strong> <code>X-Forwarded-Prefix</code> is attacker-controlled on an
   unproxied request and its value lands in browser-visible output. Three valid values must produce
@@ -851,82 +855,87 @@
   <strong>Positive (TC-179):</strong> the usage block is optional and its absence is not a zero —
   <code>the absent usage block parsed as %+v, want nil; nil is what makes the basis unavailable
   rather than a zero somebody invented</code>.
-  <strong>Negative (TC-180):</strong> <code>a workspace with no handoff document read successfully;
-  BR-30 says a missing one is a failed attempt, never a silent pass</code>.</p>
+  <s><strong>Negative (TC-180):</strong> <code>a workspace with no handoff document read successfully;
+  BR-30 says a missing one is a failed attempt, never a silent pass</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-281</a>.</em></p>
 
   <h3 id="go-smoke">dashboard — the version pin and the boot smoke test (TC-181…TC-185)</h3>
   <p><a href="decision-log.html#d-049">D-049</a> pins the first supported adapter at
   <code>@anthropic-ai/claude-code@2.1.238</code> and leaves one obligation: <em>"the pin is worthless
   without the boot smoke test §7.6.3 already promises, and that lands with T-057 rather than before
   it."</em> The comparison is pure and tested against captured output; the exec half is TC-192.
-  <strong>Positive (TC-181):</strong> <code>ParseVersion(%q) = %v, want %v; this is the captured
+  <s><strong>Positive (TC-181):</strong> <code>ParseVersion(%q) = %v, want %v; this is the captured
   output of the version D-049 pins, and the parser reading it wrong is how a correct install refuses
-  to boot</code>.
-  <strong>Negative (TC-182):</strong> <code>ParseVersion(%q) returned %v with no error; a zero
+  to boot</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-283</a>.</em>
+  <s><strong>Negative (TC-182):</strong> <code>ParseVersion(%q) returned %v with no error; a zero
   version compares as below the pin, which sends the operator hunting a drift that is really a
-  changed banner — and against a pin with no minimum it would silently pass</code>.
-  <strong>Negative (TC-183):</strong> both edges, and the closed grammar —
+  changed banner — and against a pin with no minimum it would silently pass</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-283</a>.</em>
+  <s><strong>Negative (TC-183):</strong> both edges, and the closed grammar —
   <code>pin %q permits %v = %v, want %v; &gt;= is inclusive and &lt; is exclusive, and a pin that got
   either edge wrong would look right for every version except the two that matter</code>, with
   <code>ParsePin(%q) succeeded; the grammar is &gt;=x.y.z and &lt;x.y.z and nothing else, because an
-  operator guessing which one ~ implements has pinned something other than what they meant</code>.
-  <strong>Negative (TC-184):</strong> <code>a tool reporting %v against pin %q started the dashboard;
+  operator guessing which one ~ implements has pinned something other than what they meant</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-283</a>.</em>
+  <s><strong>Negative (TC-184):</strong> <code>a tool reporting %v against pin %q started the dashboard;
   §7.6.3 pins the CLI because flags and output formats move with no deprecation window, and an
   adapter on an unmeasured version produces wrong evidence rather than an error</code>, and the
   refusal must name all three of the tool, the version and the pin, <code>or the operator cannot
-  tell a drift from a missing binary</code>.
-  <strong>Positive (TC-185):</strong> an unconfigured adapter is a valid state, because every
-  deployment is in it today — <code>an empty ModelConfig gave (%v, %v), want (nil, nil); an upgrade
-  that refused to boot until a new variable was set would take every running dashboard down</code> —
-  while a broken pin and an unbuilt API mode both refuse: <code>an unparseable pin built an adapter
-  anyway; an adapter with no working pin is the boot smoke test switched off without anyone deciding
-  to</code>.</p>
+  tell a drift from a missing binary</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-283</a>.</em>
+  <strong>Positive (TC-185):</strong> an unconfigured adapter is a valid state —
+  <code>an empty ModelConfig gave (%v, %v), want (nil, nil); an upgrade that refused to boot until a
+  new variable was set would take every running dashboard down</code> — while the retired mode, a
+  half-configured gateway and an unbuilt API mode all refuse. Since v0.29.0 the case lives in
+  <code>adapter_guard_test.go</code>: <code>GAOS_MODEL_MODE=cli gave %v; the CLI path was retired
+  (D-055) and must refuse the boot saying so</code>, <code>gateway mode with no URL built an adapter;
+  a half-configured gateway is a deployment error, not a run to fail later</code>, and <code>mode api
+  built an adapter; T-058 is not built, and an operator who asked for a metered adapter must not
+  silently get another</code>.</p>
 
-  <h3 id="go-adapter">dashboard — the CLI adapter (TC-186…TC-193)</h3>
+  <h3 id="go-adapter">dashboard — the CLI adapter, and the seam guards that outlived it (TC-186…TC-193)</h3>
   <p><code>T-057</code>, run against a stand-in tool in <code>testdata/fakecli</code> rather than a
   real provider: no network call, no credential and no cost in <code>go test</code>. The fake exists
   to reproduce the finding behind <a href="decision-log.html#d-050">D-050</a>, which is the one that
   makes this seam's shape necessary.
-  <strong>Negative (TC-186):</strong> the measurement was that Claude Code separates a crash from a
+  <s><strong>Negative (TC-186):</strong> the measurement was that Claude Code separates a crash from a
   completed run but <em>not a refusal from a success</em>. So the fake exits <strong>0</strong>
   having written <code>status: blocked</code>, and the adapter must still say blocked —
   <code>the tool exited %d and wrote status %q, and the attempt reports outcome %q — D-050: the exit
   code may classify crash versus ran and nothing else, because Claude Code exits 0 with
-  terminal_reason: completed for a task it could not do</code>.
-  <strong>Negative (TC-187):</strong> exit 0 with nothing written, and exit 0 with prose written, are
+  terminal_reason: completed for a task it could not do</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-280</a>.</em>
+  <s><strong>Negative (TC-187):</strong> exit 0 with nothing written, and exit 0 with prose written, are
   one failure — <code>the tool exited 0 and wrote no handoff document, and the attempt came back as
   %q with signature %q; BR-30 says missing or unparseable is a failed attempt with the signature
   handoff-missing, never a silent pass</code>, and <code>splitting the class would give the guard two
-  counters where BR-17 specifies one</code>.
-  <strong>Positive (TC-188):</strong> the document is read even after a bad exit —
+  counters where BR-17 specifies one</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-281</a>.</em>
+  <s><strong>Positive (TC-188):</strong> the document is read even after a bad exit —
   <code>a non-zero exit skipped the handoff read; the document is the authority whatever the process
-  did, and a run killed after writing it still said what happened</code>.
-  <strong>Positive (TC-189):</strong> <a href="decision-log.html#d-051">D-051</a>'s closing
+  did, and a run killed after writing it still said what happened</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-280</a>.</em>
+  <s><strong>Positive (TC-189):</strong> <a href="decision-log.html#d-051">D-051</a>'s closing
   measurement was that a default invocation inherited the host's configuration and roughly 24k
   cache-read tokens. So the child's environment is built rather than inherited —
   <code>the child inherited a host variable nobody named; D-051 measured 24k cache-read tokens
   arriving this way, which makes the frozen slice a lie about what the model received</code> — and
-  the named session variables must still arrive, or <code>the tool cannot find its own session</code>.
-  <strong>Positive (TC-190):</strong> cost comes from the tool's own report —
+  the named session variables must still arrive, or <code>the tool cannot find its own session</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7).</em>
+  <s><strong>Positive (TC-190):</strong> cost comes from the tool's own report —
   <code>the tool reported total_cost_usd and the attempt carries %v/%q; D-051 says the first adapter
   reports, so the basis is measured from the first run</code> — cache reads included, because
   <code>the cache-read count is real spend the operator was billed for, and dropping it
   under-reports every run</code>; and a silent tool gives <code>%q, want %q; BR-37 and D-044 forbid
-  an unpriceable figure being reported as zero or dressed up as an estimate</code>.
-  <strong>Negative (TC-191):</strong> <code>the adapter dispatched a zero-value Cleared; BR-32 says
+  an unpriceable figure being reported as zero or dressed up as an estimate</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-275</a> and <a href="#register">TC-282</a>.</em>
+  <strong>Negative (TC-191):</strong> since v0.29.0 against the gateway adapter, in
+  <code>adapter_guard_test.go</code> — <code>the adapter dispatched a zero-value Cleared; BR-32 says
   nothing reaches a model provider without passing the egress check first, and a type is only most
-  of that guarantee</code>.
-  <strong>Positive (TC-192):</strong> the exec half of the smoke test, both ways —
+  of that guarantee</code>, and the fake gateway must have received nothing: <code>a zero-value
+  Cleared reached the gateway as %d request(s)</code>.
+  <s><strong>Positive (TC-192):</strong> the exec half of the smoke test, both ways —
   <code>a tool outside the pin passed the boot smoke test; the pin is inert without it, which is
-  exactly what D-049 said the obligation was</code>.
+  exactly what D-049 said the obligation was</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-283</a>.</em>
   <strong>Negative (TC-193):</strong> <a href="brd.html#rules-commercial">BR-33</a> made checkable
   rather than trusted, by the same syntax-tree walk TC-175 uses:
   <code>%s:%d branches on the invocation mode outside the adapter; BR-33 says the mode may be
   recorded and never branched on, and TaskRun.invocation exists so that prohibition can be checked
   rather than trusted</code>. Since v0.24.0 the walk also treats <code>InvocationGateway</code> as a
-  mode constant, and exempts the gateway adapter's own two files
-  (<code>adapter_aimanager.go</code>, <code>aimanager_test.go</code>) as part of the seam, as
-  <code>adapter_cli.go</code> always was.</p>
+  mode constant. Since v0.29.0 it lives in <code>adapter_guard_test.go</code> and exempts exactly the
+  seam — <code>adapter.go</code>, <code>adapter_aimanager.go</code>, <code>modelconfig.go</code> and
+  the two test files that drive it.</p>
 
   <h3 id="go-dispatch">dashboard — the dispatch route and its two events (TC-194…TC-200)</h3>
   <p><code>T-127</code>. <a href="brd.html#req-l">L-5</a> requires that redactions and refusals
@@ -951,7 +960,8 @@
   <code>dashboard/state_test.go</code> changed: <code>idle → blocked</code> was asserted illegal with
   the reason <em>"nothing is running, so nothing can be blocked"</em>, and BR-32 created the
   counter-example. The row is inverted rather than deleted.
-  <strong>Positive (TC-197):</strong> <code>a slice with a part cut dispatched without a
+  <strong>Positive (TC-197):</strong> the repository parts come through the same seam as TC-200's —
+  <code>a slice with a part cut dispatched without a
   ContextRedacted: %v; L-5 exists because an invisible filter is indistinguishable from a broken
   one</code>.
   <strong>Positive (TC-198):</strong> two brand-new event types are the likeliest place for the
@@ -961,8 +971,11 @@
   <strong>Negative (TC-199):</strong> <code>the read-only handle dispatched a task; the floor is
   parked in the past, and a dispatch from there would send a slice assembled out of a historical
   record</code>.
-  <strong>Negative (TC-200):</strong> the end-to-end version of R-11, with a real key in a real file
-  on a real disk — <code>a workspace carrying a credential was dispatched; BR-32 says a detection
+  <strong>Negative (TC-200):</strong> the end-to-end version of R-11, with a real key in a repository
+  file. Since v0.29.0 GAOS reads no folder on its host, so the file reaches the packet through the
+  store's repository seam (<code>repoParts</code>, where M1.2's index and the Blueprint's knowledge
+  sources will plug in) rather than off a disk; the pass it meets is the same —
+  <code>a workspace carrying a credential was dispatched; BR-32 says a detection
   refuses the dispatch, and the safety score in domain E cannot recall a sent slice</code>, and
   <code>the refusal pill contains the credential; the event stream is append-only and rendered to a
   browser, so this writes the key permanently into the record that exists to prove it never
@@ -1126,11 +1139,13 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty cases, each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-one cases, each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
-  the simulation, which is one store's private business.
+  the simulation, which is one store's private business — and since v0.29.0 a test-only one, in
+  <code>sim_test.go</code>. The speed, pause and focus cases left the table with the floor controls
+  they tested, which are no longer on the interface.
   <strong>Positive (TC-124) and (TC-125):</strong> the same table runs twice. Both stores start from
   the same fixtures, so a case that passes against one and fails against the other is a real
   disagreement rather than a difference in seed data. Every rejection is compared against its exact
@@ -1261,8 +1276,9 @@
   <code>BlueprintPublished</code> joined the catalog in v0.24.0 already emitted, never owed: the
   driver saves a policy and publishes a Blueprint, so the name lands with something that writes it.
   <strong>The whole execution group came off that list on 2026-08-22</strong>, which is what this
-  case is for: the driver now runs one real supervision against the stand-in tool <em>and</em> one
-  boot reconciliation over an expired lease, because a name is only <em>emitted</em> if something
+  case is for: the driver now runs one real supervision <em>and</em> one boot recovery — since v0.29.0 a
+  gateway turn against the fake ai-manager and a request the gateway answers 404 for, past its
+  deadline — because a name is only <em>emitted</em> if something
   emits it and a test that just deleted four rows from the map would be recording an intention.
   <code>TaskOrphaned</code> needed the second driver rather than the first, and the reason is the
   point: no live supervisor ever witnesses an orphan, because an orphan is a run whose supervisor is
@@ -1614,7 +1630,11 @@
   dispatch that seated a different agent on every replay would make the fold disagree with the run,
   and D-1 extends that to two replicas</code>.</p>
 
-  <h3 id="go-lease">dashboard — the exclusive workspace lease (TC-220…TC-226)</h3>
+  <h3 id="go-lease">dashboard — the exclusive workspace lease (TC-220…TC-226) — retired in v0.29.0</h3>
+  <div class="adm warn">
+    <p class="adm-title">Retired in v0.29.0 (M14.7)</p>
+    <p>The code these cases tested was deleted when GAOS stopped running a model tool itself (<a href="decision-log.html#d-055">D-055</a>, <a href="decision-log.html#d-060">D-060</a>). Every row is struck in the register with its successor — <a href="#register">TC-295</a> holds one live turn per product in the graph. The prose below is kept as the record of what they asserted at v0.28.0, and nothing in the repository runs it.</p>
+  </div>
   <p><code>T-051</code>. <a href="brd.html#req-d">D-3</a> asks for an exclusive workspace lease with
   an expiry, and names the failure it is written against: <em>"two runs in one workspace corrupt each
   other silently."</em> That failure is not loud — two agents editing one checkout do not crash, they
@@ -1671,8 +1691,11 @@
   twenty-minute run writes five pills rather than forty into a stream that is append-only and
   rendered in full</code>.</p>
 
-  <h3 id="go-runner">dashboard — the detached runner and its heartbeat (TC-227…TC-235)</h3>
-  <p><code>T-050</code> and <code>T-052</code>. <a href="brd.html#req-d">D-2</a> asks that work run in
+  <h3 id="go-runner">dashboard — the supervisor and its heartbeat (TC-227…TC-235)</h3>
+  <p><strong>Since v0.29.0</strong> the supervisor runs gateway turns only, and the four cases that
+  survived — TC-227…TC-230, in a new <code>dashboard/runner_test.go</code> — drive the fake ai-manager
+  rather than a stand-in binary. What follows from here to TC-232 is the record of the detached runner.
+  <code>T-050</code> and <code>T-052</code>. <a href="brd.html#req-d">D-2</a> asks that work run in
   detached processes that survive the orchestrator, <em>"an orchestrator restart must not kill a paid
   model call in flight"</em>, and until this landed the code did the opposite on the one path an
   operator actually uses: <code>Dispatch</code> built its context from the caller's, <code>serve()</code>
@@ -1681,22 +1704,23 @@
   already fine by accident — the Go runtime never runs and <code>Setpgid</code> means no terminal
   signal arrives — so the <em>ungraceful</em> path satisfied D-2 and the <em>graceful</em> one
   violated it, which is the wrong way round.
-  <strong>Positive (TC-232):</strong> <code>context.WithoutCancel</code> is the fix, and this is the
+  <s><strong>Positive (TC-232):</strong> <code>context.WithoutCancel</code> is the fix, and this is the
   assertion on it — <code>the child reported %q after its caller's context was cancelled; D-2 says
   work runs in detached processes that survive the orchestrator, and an orchestrator restart must not
   kill a paid model call in flight</code>. The full property, killing the orchestrator
   <em>process</em>, cannot be a Go test: the test binary is the parent of everything it spawns and
   <code>go test</code> reaps the tree on exit, so the harness undoes the thing under test. That is a
-  shell script and it belongs with <code>T-053</code>.
-  <strong>Positive (TC-227):</strong> the three names that came off the owed list, in order —
-  <code>the run wrote %v, want %v; RunStarted before the work and RunExited after it is the shape a
-  replay reads a run's duration from</code> — and the money reaching the record, because
-  <a href="decision-log.html#d-051">D-051</a> asks for measured cost from the first run:
-  <code>the run cost money and the desk still reads zero; a cost nothing recorded is a cost the
-  budget guard will never see</code>.
+  shell script and it belongs with <code>T-053</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-298</a>.</em>
+  <strong>Positive (TC-227):</strong> the three names, in order, around one gateway turn —
+  <code>the turn wrote %v, want %v; RunStarted before the work and RunExited after it is the shape a
+  replay reads a run's duration from</code> (<code>SessionOpened</code> is left out of the comparison:
+  the session is transport, BR-41) — and the money reaching the record:
+  <code>the attempt's basis is %q and the desk reads %.2f; D-062 measures the gateway's cost_usd, and
+  a cost nothing recorded is a cost the budget guard will never see</code>.
   <strong>Negative (TC-228):</strong> the discipline <code>dashboard/events.go</code> states, checked
-  rather than trusted — <code>a run that never started wrote %v; a RunStarted from a process that
-  never started is invented evidence, and events.go says so in as many words</code>.
+  rather than trusted. A brief that names no task is refused before anything is recorded or sent —
+  <code>a turn that never started wrote %v and sent %d request(s); a RunStarted for a turn nobody
+  sent is invented evidence</code>.
   <strong>Positive (TC-229):</strong> <a href="decision-log.html#d-053">D-053</a> made checkable, and
   against the pure half so it does not take twelve minutes to run:
   <code>the same twelve minutes wrote %d Heartbeat events, want 3; D-053 separates the cadences so a
@@ -1704,25 +1728,24 @@
   and rendered in full</code>. Both endpoints always write, because
   <code>a run with no opening beat has no start for a replay to measure silence from</code>.
   <strong>Positive (TC-230):</strong> <a href="brd.html#rules-commercial">BR-33</a> as a comparison
-  rather than a promise. An adopting orchestrator cannot <code>cmd.Wait()</code> on a process it did
-  not fork, so <code>Resume</code> is a second entry point — and a second entry point is a second
-  place to drift: <code>an adopted run produced %+v and a supervised one %+v; BR-33 asks that nothing
-  above the seam be able to tell them apart, and a scoring difference between the two would be one
-  nobody could explain</code>. It works only because the log is a file:
-  <code>the adopted run's basis is %q, want measured; the cost lives in a file rather than in the
-  dead orchestrator's memory precisely so this works</code>.
-  <strong>Negative (TC-231):</strong> <code>handoff.go</code> has said since it was written that the
+  rather than a promise. Recovery polls a request this process did not submit, so <code>Resume</code>
+  is a second entry point — and a second place to drift: <code>an adopted turn produced %+v and a
+  supervised one %+v; BR-33 asks that nothing above the seam be able to tell them apart</code>. The
+  prompt is the one honest difference and is blanked before the comparison: the adopting process did
+  not send it. And <code>the adopted turn's basis is %q, want measured; the cost travels with the
+  request's result precisely so this works</code>.
+  <s><strong>Negative (TC-231):</strong> <code>handoff.go</code> has said since it was written that the
   document <em>"is declared and empty before the invocation starts"</em>, and nothing did it. A retry
   in a reused workspace would read the previous attempt's document —
   <code>a run that wrote no handoff reported %q, want %q; the previous attempt's document was still
   on disk and was read as this one's</code>, and the direction of that mistake is the worst available:
   <code>the attempt's outcome is %q; a stale document made a run that produced nothing look like one
-  that succeeded</code>.
-  <strong>Positive (TC-233):</strong> <code>the lease survived a %s run (held=%v err=%v); the
-  workspace can never be scheduled again and nothing short of a restart would notice</code>.
-  <strong>Negative (TC-234):</strong> <code>a run was supervised with no workspace; there would be
-  nothing to lease and nothing to be exclusive about</code>.
-  <strong>Negative (TC-235):</strong> the money guard. Five configuration guards stand in front of a
+  that succeeded</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-281</a>.</em>
+  <s><strong>Positive (TC-233):</strong> <code>the lease survived a %s run (held=%v err=%v); the
+  workspace can never be scheduled again and nothing short of a restart would notice</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-295</a>.</em>
+  <s><strong>Negative (TC-234):</strong> <code>a run was supervised with no workspace; there would be
+  nothing to lease and nothing to be exclusive about</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-291</a>.</em>
+  <s><strong>Negative (TC-235):</strong> the money guard. Five configuration guards stand in front of a
   paid call — <code>GAOS_MODEL_MODE</code> defaults to off, only <code>serve()</code> builds a real
   adapter, <code>GAOS_WORKSPACE_ROOT</code> is unset, <code>GAOS_RUNNER</code> is off — and every one
   can be switched on by a developer with a good reason who then runs <code>go test ./...</code>. So
@@ -1731,9 +1754,13 @@
   not block the stand-in, because <code>a guard that blocks them is a guard somebody will delete</code>.
   The case also parses <code>adapter_cli.go</code> to check the guard is still <em>on</em> the spawn
   path, because <code>every test in this package would still pass without it, because they all drive
-  the fake, and the deletion would only surface as a bill</code>.</p>
+  the fake, and the deletion would only surface as a bill</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-275</a>.</em></p>
 
-  <h3 id="go-reconcile">dashboard — boot reconciliation (TC-236…TC-242)</h3>
+  <h3 id="go-reconcile">dashboard — boot reconciliation (TC-236…TC-242) — retired in v0.29.0</h3>
+  <div class="adm warn">
+    <p class="adm-title">Retired in v0.29.0 (M14.7)</p>
+    <p>The code these cases tested was deleted when GAOS stopped running a model tool itself (<a href="decision-log.html#d-055">D-055</a>, <a href="decision-log.html#d-060">D-060</a>). Every row is struck in the register with its successor — <a href="#register">TC-297</a> adopts a turn by its request id and <a href="#register">TC-298</a> orphans and requeues a lost one by its deadline. The prose below is kept as the record of what they asserted at v0.28.0, and nothing in the repository runs it.</p>
+  </div>
   <p><code>T-053</code>. <a href="brd.html#req-d">D-4</a> does not hedge:
   <em>"On boot, reconcile every task claiming to be dispatched or running against its lease and
   heartbeat: adopt, requeue, or fail as orphaned. This is the whole of recovery; there is no other
@@ -1774,7 +1801,11 @@
   <code>an orphaned run kept its lease; the workspace can never be scheduled again, and the expiry
   that made it an orphan would go on making it one forever</code>.</p>
 
-  <h3 id="sc-kill-mid-task">kill-mid-task.sh — build-order step 5 (TC-243…TC-246)</h3>
+  <h3 id="sc-kill-mid-task">kill-mid-task.sh — build-order step 5 (TC-243…TC-246) — retired in v0.29.0</h3>
+  <div class="adm warn">
+    <p class="adm-title">Retired in v0.29.0 (M14.7)</p>
+    <p>The code these cases tested was deleted when GAOS stopped running a model tool itself (<a href="decision-log.html#d-055">D-055</a>, <a href="decision-log.html#d-060">D-060</a>). Every row is struck in the register with its successor — <a href="#register">TC-297</a> and <a href="#register">TC-298</a>: a turn runs upstream, so nothing on this host can die with it. The prose below is kept as the record of what they asserted at v0.28.0, and nothing in the repository runs it.</p>
+  </div>
   <p>The acceptance test the whole of <a href="../delivery/implementation-plan.html#sub-m4-2">M4.2</a>
   exists to satisfy: <em>"Kill the orchestrator mid-task; the work survives and is re-adopted."</em>
   <strong>It cannot be a Go test, and pretending otherwise would be worse than not having it.</strong>
@@ -1802,7 +1833,8 @@
 
   <h3 id="go-taskrun">dashboard — one record per attempt, and the slice it was given (TC-247…TC-258)</h3>
   <p><code>T-054</code>, <code>T-055</code> and <code>T-056</code>, in
-  <code>dashboard/taskrun_test.go</code>. The thing these guard is not a feature but a claim:
+  <code>dashboard/taskrun_test.go</code>, driven since v0.29.0 by the fake ai-manager
+  (<code>gateway_fixture_test.go</code>) rather than a stand-in binary. The thing these guard is not a feature but a claim:
   <a href="brd.html#req-d">D-6</a> says the slice sent to a model is <em>frozen and stored per
   attempt</em>, and the failure mode is not a crash — it is a route that keeps answering, plausibly,
   with a slice it recomputed from a record that has since moved on.
@@ -1815,11 +1847,16 @@
   <code>the record holds cost %.4f / %d in / %d out and the attempt reported %.4f / %d / %d; a figure
   that does not survive the write is a figure the budget guard will never see</code>, plus
   <code>the record says invocation %q, adapter mode is %q; D-13 requires it recorded precisely so
-  the prohibition on branching can be checked rather than trusted</code>.
+  the prohibition on branching can be checked rather than trusted</code>; the log reference became the
+  request id and the stored reply — <code>the record names no turn or keeps no reply; BR-25 keeps the
+  output out of the vertex and BR-41 keeps it in GAOS, so the artifact is the only way back to
+  it</code>.
   <strong>Negative (TC-249):</strong> the tempting mistake, since <code>04-execution.sql</code>
-  defaults <code>costBasis</code> to <code>estimated</code> —
-  <code>a run that never began left %d record(s); the record is written after the lease is held,
-  because an attempt nobody could make is not an attempt</code>.
+  defaults <code>costBasis</code> to <code>estimated</code>. The gateway refuses the submit, so no
+  turn ran — <code>a refused submit came back as an error (%v); it is a failed attempt with a
+  signature</code>, and <code>a turn the gateway refused was recorded as %+v; want one failed attempt
+  whose cost is not measured, because nothing was, and BR-31 forbids aggregating it with figures that
+  were</code>.
   <strong>Positive (TC-250):</strong> the freeze happens on the operator's route too, with no runner
   behind it — <code>nothing was frozen for digest %s; D-6 stores the slice, and a slice reassembled
   later answers a different question convincingly</code>, and every citation must carry a role,
@@ -1840,7 +1877,8 @@
   <strong>Negative (TC-254):</strong> the case that says why freezing is worth the storage —
   <code>the frozen slice's digest moved from %q to %q when the record was edited; a slice that
   follows the record is not evidence of anything</code>.
-  <strong>Positive (TC-255):</strong> recovery closes what it gave up on —
+  <strong>Positive (TC-255):</strong> recovery closes what it gave up on — a request the gateway
+  answers <code>404</code> for, past its deadline —
   <code>the recovered attempt is still %q, want %q; a run the reconciler gave up on and left marked
   RUNNING is the graph asserting a process nobody believes in</code>.
   <strong>Positive (TC-256, TC-257):</strong> the ArcadeDB half, which cannot be written against the
@@ -1865,8 +1903,11 @@
     <code>dashboard/schema/RECONCILIATION.md</code> records it.</p>
   </div>
 
-  <h3 id="go-packet">dashboard — the packet on disk and the contract in it (TC-259…TC-267)</h3>
-  <p><code>T-061</code>…<code>T-064</code>, in <code>dashboard/packet_test.go</code>. Until these
+  <h3 id="go-packet">dashboard — the reply contract, and the handoff kept for the next agent (TC-259…TC-267)</h3>
+  <p><strong>Since v0.29.0</strong> the five cases that survived live in
+  <code>dashboard/contract_test.go</code> and test the reply contract of
+  <a href="decision-log.html#d-057">D-057</a>; the packet on disk (TC-262…TC-265) went with the CLI
+  adapter. <code>T-061</code>…<code>T-064</code>, originally in <code>dashboard/packet_test.go</code>. Until these
   existed a real provider tool could be spawned and <em>could not possibly succeed</em>: it was
   handed a working directory with nothing in it and an instruction that never said what to produce,
   so it would do the work, exit 0, and fail the attempt with <code>handoff-missing</code> every
@@ -1874,32 +1915,43 @@
   <strong>Positive (TC-259):</strong> the case that would have caught the whole feature being
   useless — <code>the contract's own example does not parse: %v; a model that copies it faithfully
   fails the attempt, and the contract is the only instruction it got</code>. The contract and the
-  parser are two files written at different times, and nothing else makes them agree.
+  parser are two files written at different times, and nothing else makes them agree. The example is
+  now wrapped in its <code>gaos-handoff</code> fence and read through <code>ExtractHandoff</code>,
+  exactly as a reply would be.
   <strong>Positive (TC-260):</strong> <code>the contract never mentions %q; a model cannot satisfy a
   requirement nobody stated</code>.
-  <strong>Positive (TC-261):</strong> <code>the frozen packet has no contract part; every real
-  invocation would do the work, exit 0 and fail with handoff-missing, because nothing ever told it
-  what to write</code>.
-  <strong>Positive (TC-262):</strong> <code>%s is not on disk: %v; cmd.Dir points at this directory
+  <strong>Positive (TC-261):</strong> <code>the frozen packet has no contract part; every turn would
+  do the work and fail with handoff-missing, because nothing ever told it what to write</code>, and
+  the contract must survive into what is sent: <code>the prompt sent to the gateway never mentions
+  the handoff block; the contract is in the packet and not in what the packet is turned into</code>.
+  <s><strong>Positive (TC-262):</strong> <code>%s is not on disk: %v; cmd.Dir points at this directory
   and the tool has nothing to read</code>, and the declared document must be empty, because
-  <code>the declared handoff is %d bytes (err %v), want an empty file</code>.
-  <strong>Negative (TC-263):</strong> the security half — <code>a redacted part was written into the
+  <code>the declared handoff is %d bytes (err %v), want an empty file</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-261</a>.</em>
+  <s><strong>Negative (TC-263):</strong> the security half — <code>a redacted part was written into the
   workspace the tool reads; the egress pass refused it at the front door and the packet writer let
-  it in the back</code>.
-  <strong>Negative (TC-264):</strong> <code>path %q resolved to %q instead of being refused; the
+  it in the back</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-197</a> and <a href="#register">TC-251</a>.</em>
+  <s><strong>Negative (TC-264):</strong> <code>path %q resolved to %q instead of being refused; the
   workspace is a lease and anything outside it belongs to somebody else</code>. Asserted at
   <code>insideWorkspace</code> rather than through <code>MaterialisePacket</code>, because driving it
   from the top would mean forging a <code>Cleared</code> and
   <a href="#go-egress">TC-175</a> walks the syntax tree to forbid that — a guard that caught this
-  test being written the easy way.
-  <strong>Negative (TC-265):</strong> <code>a run that wrote no handoff came back with failure %q,
-  want %q; BR-30 makes the document mandatory and the exit code says only that the process ran</code>.
-  <strong>Positive (TC-266):</strong> <code>the next packet does not cite %s; a document the next
-  agent cannot be shown to have received is not a handoff, it is a file</code>.
+  test being written the easy way.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-286</a>.</em>
+  <s><strong>Negative (TC-265):</strong> <code>a run that wrote no handoff came back with failure %q,
+  want %q; BR-30 makes the document mandatory and the exit code says only that the process ran</code>.</s> <em>Retired in v0.29.0 with the CLI execution layer (M14.7); see <a href="#register">TC-281</a>.</em>
+  <strong>Positive (TC-266):</strong> <code>the turn replied with a handoff and the store holds none
+  for the next attempt; the session is transport, the artifact is the record</code>, and
+  <code>the next packet does not cite %s; a document the next agent cannot be shown to have received
+  is not a handoff</code>. Porting it found a bug: since v0.27.0 the prompt and the reply are stored
+  as artifacts beside the handoff, and the lookup took the newest artifact of any kind, so the next
+  agent was cited the previous turn's <em>reply</em> as its lesson. It now takes handoffs only.
   <strong>Negative (TC-267):</strong> <code>attempt 1 of t-1 was cited artifact %s, which attempt 1
   of t-1 produced; an attempt reading its own output is a loop with extra steps</code>.</p>
 
-  <h3 id="sc-live-cli">live-cli-run.sh — the first real model call (TC-268…TC-273)</h3>
+  <h3 id="sc-live-cli">live-cli-run.sh — the first real model call (TC-268…TC-273) — retired in v0.29.0</h3>
+  <div class="adm warn">
+    <p class="adm-title">Retired in v0.29.0 (M14.7)</p>
+    <p>The code these cases tested was deleted when GAOS stopped running a model tool itself (<a href="decision-log.html#d-055">D-055</a>, <a href="decision-log.html#d-060">D-060</a>). Every row is struck in the register with its successor — <a href="#register">TC-300</a>…<a href="#register">TC-303</a>, <code>live-aim-run.sh</code>. The prose below is kept as the record of what they asserted at v0.28.0, and nothing in the repository runs it.</p>
+  </div>
   <p>The only script in this repository that spends money, and the only check anywhere that can
   answer the question the CLI approach rests on: <em>does a real provider tool, handed GAOS's packet
   and nothing else, produce a document GAOS can read?</em> A fake tool told to write a document
@@ -2200,6 +2252,24 @@
   <strong>TC-309, negative</strong> (<code>TestTheReplayHandleRefusesEveryMove</code>): <code>the
   read-only handle moved a card (%v); replay must not write (BR-20)</code>; the conformance suite's
   read-only case refuses <code>MoveCard</code> too.</p>
+
+  <h3 id="go-home">dashboard — the product list is the home page (TC-314, TC-315)</h3>
+  <p><code>T-167</code> and <code>T-168</code>, in <code>dashboard/home_test.go</code>. M14.7 retired
+  the engineering floor — the desk carousel, the inspector, the meeting room, the timeline strip and
+  their controls — together with the CLI execution layer it animated, and the simulator that drove it
+  now runs only inside the tests (<code>sim_test.go</code>). What replaced it is the product master,
+  which was always there as a sheet over the floor.
+  <strong>Positive (TC-314):</strong> signed in, <code>GET /</code> opens on the product list —
+  <code>signed in, the home page did not open on the product list naming %q; the product master is
+  the home page (T-168)</code> — with nothing of the floor left on it: <code>the home page still
+  carries the engineering floor or its ticker; the floor UI was retired in M14.7</code>. Signed out,
+  the same page is the sign-in sheet: <code>signed out, the home page did not show the sign-in sheet
+  with the product master closed</code>.
+  <strong>Negative (TC-315):</strong> each product's page has a Timeline tab beside its Board and
+  Blueprint, and it is that product's stream and no other's. A story is added to two products and the
+  first one's tab is read — <code>the Timeline tab of %s does not show %q, the event of the story just
+  added to it</code>, and <code>the Timeline tab of %s shows %q, an event of %s; a product's timeline
+  is its own</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
