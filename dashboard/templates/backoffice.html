@@ -174,6 +174,7 @@
   <button role="tab" aria-selected="{{eq .Tab "board"}}" hx-get="products/{{.ID}}?tab=board" hx-target="#sink" hx-swap="innerHTML">Board</button>
   <button role="tab" aria-selected="{{eq .Tab "timeline"}}" hx-get="products/{{.ID}}?tab=timeline" hx-target="#sink" hx-swap="innerHTML">Timeline<span class="n">{{len .Timeline}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "blueprint"}}" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint<span class="n">{{len .Master.Blueprint.Policies}}</span></button>
+  <button role="tab" aria-selected="{{eq .Tab "vendors"}}" hx-get="products/{{.ID}}?tab=vendors" hx-target="#sink" hx-swap="innerHTML">AI vendors</button>
 </div>
 
 <div class="panel-grid">
@@ -182,6 +183,7 @@
     {{else if eq .Tab "diagrams"}}{{template "pane-diagrams" .}}
     {{else if eq .Tab "knowledge"}}{{template "pane-knowledge" .}}
     {{else if eq .Tab "blueprint"}}{{template "pane-blueprint" .}}
+    {{else if eq .Tab "vendors"}}{{template "pane-vendors" .}}
     {{else if eq .Tab "board"}}{{template "pane-board" .}}
     {{else if eq .Tab "timeline"}}{{template "pane-timeline" .}}
     {{else}}{{template "pane-brd" .}}{{end}}
@@ -377,7 +379,7 @@
       <div class="board-card{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" draggable="true" data-card="{{.ID}}" data-product="{{$id}}" style="border:1px solid var(--line);border-radius:4px;padding:6px;margin-bottom:6px;background:var(--panel)">
         {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
         <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
-        <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}</div>
+        <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
         {{$card := .ID}}{{range .Moves}}
         <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
         {{end}}
@@ -391,6 +393,8 @@
   {{end}}{{end}}
 </div>
 {{end}}
+
+{{define "vendor-badge"}}<span class="vnd-badge" title="{{if eq . "antigravity"}}Antigravity{{else}}Claude CLI{{end}}">{{if eq . "antigravity"}}AG{{else}}CL{{end}}</span>{{end}}
 
 {{define "pane-timeline"}}
 <div class="block">
@@ -486,6 +490,94 @@
   <div class="field"><label for="ksNote">Note</label><input id="ksNote" name="note" placeholder="the folder layout and the error package to reuse"></div>
   <button class="btn btn-primary" type="submit">Add source</button>
 </form>
+{{end}}
+
+{{define "pane-vendors"}}
+{{$id := .ID}}
+{{with .Vendors}}{{$v := .}}
+<form class="block vnd" id="vendorsForm" hx-put="products/{{$id}}/vendors" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Which AI runs this product's tasks</h4>
+
+  <fieldset class="vnd-seg" data-mode="{{.Mode}}">
+    <legend class="sr-only">Vendor policy</legend>
+    <label class="vnd-seg-opt">
+      <input type="radio" name="mode" value="claude"{{if eq .Mode "claude"}} checked{{end}}>
+      <b>Claude CLI</b>
+      <span>Every task runs on the Claude CLI.</span>
+    </label>
+    <label class="vnd-seg-opt">
+      <input type="radio" name="mode" value="antigravity"{{if eq .Mode "antigravity"}} checked{{end}}>
+      <b>Antigravity</b>
+      <span>Every task runs on the agy account pool, round-robin through ai-manager.</span>
+    </label>
+    <label class="vnd-seg-opt">
+      <input type="radio" name="mode" value="mixed"{{if eq .Mode "mixed"}} checked{{end}}>
+      <b>Mixed by role</b>
+      <span>Each role runs on the vendor you pick for it.</span>
+    </label>
+  </fieldset>
+
+  <fieldset class="vnd-roles">
+    <legend>Vendor per role</legend>
+    {{range .Roles}}
+    <div class="vnd-role">
+      <em class="vnd-chip" style="{{.Style}}" aria-hidden="true">{{.Short}}</em>
+      <span class="vnd-role-label" id="vr-{{.Role}}">{{.Label}}</span>
+      <span class="vnd-pick" role="radiogroup" aria-labelledby="vr-{{.Role}}">
+        <label><input type="radio" name="role.{{.Role}}" value="claude"{{if ne .Vendor "antigravity"}} checked{{end}}><span>Claude</span></label>
+        <label><input type="radio" name="role.{{.Role}}" value="antigravity"{{if eq .Vendor "antigravity"}} checked{{end}}><span>Antigravity</span></label>
+      </span>
+    </div>
+    {{end}}
+  </fieldset>
+
+  <div class="vnd-agy">
+    <div class="field">
+      <label for="vAgyModel">Antigravity model</label>
+      {{$found := false}}
+      <select id="vAgyModel" name="agyModel">
+        <option value=""{{if not .AgyModel}} selected{{end}}>default{{with .AgyDefault}} ({{.}}){{end}}</option>
+        {{range .AgyModels}}{{if eq . $v.AgyModel}}{{$found = true}}{{end}}
+        <option value="{{.}}"{{if eq . $v.AgyModel}} selected{{end}}>{{.}}</option>
+        {{end}}
+        {{if and .AgyModel (not $found)}}<option value="{{.AgyModel}}" selected>{{.AgyModel}}{{if .AgyModels}} (no longer offered){{end}}</option>{{end}}
+      </select>
+      <div class="help">Every account in the pool runs this model. Default lets ai-manager choose.</div>
+    </div>
+    {{range .Vendors}}{{if and (eq .Name "antigravity") .Known (not .Available)}}
+    <p class="vnd-note warn" role="status">Antigravity is unavailable right now. You can still save; its turns fail, and are retried, until a pool account answers.</p>
+    {{end}}{{end}}
+  </div>
+
+  {{with .CatalogErr}}<p class="vnd-note">{{.}} Availability and the model list are unknown.</p>{{end}}
+
+  <footer class="vnd-foot">
+    <p>Changes apply to each task's next new session; turns in flight finish where they started.</p>
+    <button class="btn btn-primary" type="submit">Save</button>
+  </footer>
+</form>
+
+<div class="block">
+  <h4>Vendors{{if .Published}} <span class="sp mono">Blueprint v{{.Published}} published</span>{{end}}</h4>
+  {{$nudge := false}}
+  {{range .Vendors}}
+  <div class="proj vnd-row{{if .InUse}} in-use{{end}}">
+    <span>{{.Label}}{{if .InUse}} <i class="vnd-use">in use</i>{{end}}</span>
+    <b>
+      <span class="vnd-dot {{if not .Known}}unknown{{else if .Available}}ok{{else}}down{{end}}"></span>{{if not .Known}}unknown{{else if .Available}}available{{else}}unavailable{{end}}
+      {{if $v.Gateway}} · <span class="{{if .Current}}vnd-current{{else if .InUse}}vnd-stale{{end}}" title="{{if .Current}}holds the published Blueprint{{else if .Holds}}holds an older Blueprint{{else}}its workspace copy has no Blueprint{{end}}">{{if .Holds}}holds v{{.Holds}}{{else}}not synced{{end}}</span>{{end}}
+    </b>
+  </div>
+  {{if and $v.Gateway .InUse (not .Current) $v.Published}}{{$nudge = true}}{{end}}
+  {{end}}
+  {{if $nudge}}
+  <div class="vnd-note warn">
+    {{range .Vendors}}{{if and .InUse (not .Current)}}<p>{{.Label}} {{if .Holds}}holds v{{.Holds}}{{else}}has no Blueprint{{end}}; v{{$v.Published}} is published, so none of this product's tasks are dispatched until it is synced (BR-39).</p>{{end}}{{end}}
+    <button class="btn vnd-link" type="button" hx-get="products/{{$id}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Sync to workspace on the Blueprint tab ›</button>
+  </div>
+  {{end}}
+</div>
+{{end}}
 {{end}}
 
 {{define "bo-rollup"}}

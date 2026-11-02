@@ -546,12 +546,17 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	if err != nil {
 		return err
 	}
+	vendors, err := jsonMap(m.Vendors)
+	if err != nil {
+		return err
+	}
 	props := map[string]any{
 		"code": m.Code, "owner": m.Owner, "priority": m.Priority,
 		"brd": brd, "stories": stories, "diagrams": diagrams,
 		"decisions": decisions, "repos": m.Repos,
 		"policies": policies, "knowledgeSources": sources, // the Blueprint draft, D-058
-		"workspace": workspace, // the product's ai-manager workspace and what it holds, M14.4
+		"workspace":    workspace, // the product's ai-manager workspace and what it holds, M14.4
+		"vendorPolicy": vendors,   // which AI vendors run its tasks, M16
 	}
 	if m.Stage != "" {
 		props["stage"] = m.Stage
@@ -778,6 +783,9 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 		}
 		if r.SessionID != "" {
 			props["sessionId"] = r.SessionID
+		}
+		if r.Provider != "" {
+			props["provider"] = r.Provider // M16, 13-vendors.sql
 		}
 		if r.BlueprintVersion > 0 {
 			props["blueprintVersion"] = r.BlueprintVersion
@@ -1134,10 +1142,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Policies  json.RawMessage `json:"policies"`
 		Sources   json.RawMessage `json:"knowledgeSources"`
 		Workspace json.RawMessage `json:"workspace"`
+		Vendors   json.RawMessage `json:"vendorPolicy"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, name, repo, goal, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace
+		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1176,6 +1185,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		mr.Blueprint.Versions = versions[r.ID]
 		if len(r.Workspace) > 0 && string(r.Workspace) != "null" {
 			if err := decodeInto(r.Workspace, &mr.Workspace); err != nil {
+				return false, err
+			}
+		}
+		if len(r.Vendors) > 0 && string(r.Vendors) != "null" {
+			if err := decodeInto(r.Vendors, &mr.Vendors); err != nil {
 				return false, err
 			}
 		}
@@ -1402,11 +1416,12 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		RequestID   string  `json:"requestId"`
 		SessionID   string  `json:"sessionId"`
 		Pinned      int     `json:"blueprintVersion"`
+		Provider    string  `json:"provider"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, taskId, deskId, attempt, status, model, invocation, startedAt, endedAt,
 		        exitCode, tokensIn, tokensOut, costUsd, costBasis, failureSignature, logRef,
-		        requestId, sessionId, blueprintVersion,
+		        requestId, sessionId, blueprintVersion, provider,
 		        first(out('ASSEMBLED').digest) AS sliceDigest
 		 FROM TaskRun WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rrows); err != nil {
@@ -1421,6 +1436,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			CostUSD: r.CostUSD, CostBasis: r.CostBasis,
 			FailureSignature: r.Signature, LogRef: r.LogRef, SliceDigest: r.SliceDigest,
 			RequestID: r.RequestID, SessionID: r.SessionID, BlueprintVersion: r.Pinned,
+			Provider: r.Provider,
 		})
 	}
 

@@ -36,6 +36,28 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-33-0">v0.33.0 <time datetime="2026-11-03">2026-11-03</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Each product chooses its AI
+      vendors. M16.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a vendor policy per product</b> (D-067, I-12, BR-45):
+        Claude CLI only — the default, and what every product already ran on — Antigravity only, or mixed
+        by role, with the Antigravity model picked from the pool's own list. The turn names its vendor as
+        <code>provider</code> (a Claude turn's body is unchanged), the run records it as
+        <code>TaskRun.provider</code> (<code>13-vendors.sql</code>, applied on boot), and a retry whose
+        vendor changed opens a new session with reason <code>vendor</code> (TC-343…TC-349, TC-353).</li>
+        <li><span class="chg add">Added</span> <b>one workspace on every vendor</b>: the Blueprint sync
+        writes each vendor the policy uses, the gate asks all of them, and a pool whose accounts disagree
+        is repaired by the next sync (TC-350…TC-352, TC-354). Upstream in ai-cli-common,
+        ai-antigravity-cli and ai-manager, on a branch not yet deployed — until it is, an Antigravity sync
+        fails and says so, and Claude-only products are unaffected.</li>
+        <li><span class="chg add">Added</span> <b>the AI vendors tab</b> and a vendor badge on every board
+        card (TC-355, TC-356). The QA register is three hundred and fifty-six cases, two hundred and
+        forty-three of them Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-32-0">v0.32.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A question lives as long as the
       session that asked it.</p>

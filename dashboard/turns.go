@@ -41,6 +41,8 @@ const (
 	SessionEscalation = "escalation"
 	SessionLostReason = "lost"
 	SessionRotation   = "rotation"
+	// SessionVendor: the task's vendor changed since its last turn (M16).
+	SessionVendor = "vendor"
 )
 
 const defaultSessionMaxAge = 25 * 24 * time.Hour
@@ -87,7 +89,12 @@ func (s *MemStore) nextAttemptLocked(taskID string) int {
 // sessionForLocked decides which session the next attempt at taskID runs in:
 // the task's last session when it may be resumed, otherwise none and the
 // reason a new one is about to open. Caller holds s.mu.
-func (s *MemStore) sessionForLocked(taskID string, ta TurnAdapter, now int64) (string, string) {
+//
+// vendor and model are where this attempt goes (M16): a task whose last turn
+// went to another vendor opens a new session, because a session lives with
+// the provider that created it (BR-45); model is the vendor's own model, ""
+// for the adapter's configured one.
+func (s *MemStore) sessionForLocked(taskID string, ta TurnAdapter, vendor, model string, now int64) (string, string) {
 	var last *TaskRunRecord
 	for i := range s.runs {
 		r := &s.runs[i]
@@ -106,7 +113,14 @@ func (s *MemStore) sessionForLocked(taskID string, ta TurnAdapter, now int64) (s
 		return "", SessionLostReason // BR-40: never resumed after it was lost
 	case last.SessionID == "":
 		return "", SessionFirst
-	case ta.ConfiguredModel() != "" && last.Model != "" && !strings.HasPrefix(last.Model, ta.ConfiguredModel()):
+	case vendor != "" && runVendor(*last) != vendor:
+		return "", SessionVendor
+	}
+	want := model
+	if want == "" && vendor != VendorAntigravity {
+		want = ta.ConfiguredModel() // GAOS_MODEL is a Claude model
+	}
+	if want != "" && last.Model != "" && !strings.HasPrefix(last.Model, want) {
 		return "", SessionEscalation
 	}
 	opened := last.StartedAt

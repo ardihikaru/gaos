@@ -105,6 +105,9 @@ type Store interface {
 	// the draft into an immutable version — and does nothing when the render is
 	// unchanged, so one digest never names two versions.
 	SavePolicy(ctx context.Context, productID string, p Policy) (Result, error)
+	// SaveVendorPolicy replaces which AI vendors run the product's tasks
+	// (M16, D-067). It takes effect at each task's next new session.
+	SaveVendorPolicy(ctx context.Context, productID string, p VendorPolicy) (Result, error)
 	AddKnowledgeSource(ctx context.Context, productID string, k KnowledgeSource) (Result, error)
 	PublishBlueprint(ctx context.Context, productID string) (Result, error)
 	// SyncBlueprint writes the latest published version into the product's

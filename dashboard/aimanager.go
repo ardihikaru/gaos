@@ -76,7 +76,10 @@ type AIMClient struct {
 
 // ChatRequest is the body of POST /v1/chat that GAOS sends.
 type ChatRequest struct {
-	Prompt      string `json:"prompt"`
+	Prompt string `json:"prompt"`
+	// Provider is the vendor (M16): "" for Claude, which ai-manager pins
+	// sessions to by default, so a Claude turn's body is what it was before.
+	Provider    string `json:"provider,omitempty"`
 	Model       string `json:"model,omitempty"`
 	NewSession  bool   `json:"new_session,omitempty"`
 	SessionID   string `json:"session_id,omitempty"`
@@ -221,8 +224,25 @@ func statusError(status int, body []byte) error {
 	return fmt.Errorf("%w: %s", base, e.Error)
 }
 
-// Providers lists the providers ai-manager has, for the boot smoke test.
+// Providers lists the providers ai-manager has available, for the boot smoke
+// test.
 func (c *AIMClient) Providers(ctx context.Context) ([]string, error) {
+	all, err := c.ProviderInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, x := range all {
+		if x.Available {
+			out = append(out, x.Name)
+		}
+	}
+	return out, nil
+}
+
+// ProviderInfo is GET /v1/providers in full: every provider, available or
+// not, with the models it accepts (M16: the vendors pane's model picker).
+func (c *AIMClient) ProviderInfo(ctx context.Context) ([]VendorInfo, error) {
 	status, body, err := c.do(ctx, http.MethodGet, "/v1/providers", "", nil)
 	if err != nil {
 		return nil, err
@@ -232,18 +252,18 @@ func (c *AIMClient) Providers(ctx context.Context) ([]string, error) {
 	}
 	var p struct {
 		Providers []struct {
-			Name      string `json:"name"`
-			Available bool   `json:"available"`
+			Name         string   `json:"name"`
+			Available    bool     `json:"available"`
+			DefaultModel string   `json:"default_model"`
+			Models       []string `json:"models"`
 		} `json:"providers"`
 	}
 	if json.Unmarshal(body, &p) != nil {
 		return nil, fmt.Errorf("ai-manager /v1/providers: unexpected reply")
 	}
-	var out []string
+	out := make([]VendorInfo, 0, len(p.Providers))
 	for _, x := range p.Providers {
-		if x.Available {
-			out = append(out, x.Name)
-		}
+		out = append(out, VendorInfo{Name: x.Name, Available: x.Available, DefaultModel: x.DefaultModel, Models: x.Models})
 	}
 	return out, nil
 }
