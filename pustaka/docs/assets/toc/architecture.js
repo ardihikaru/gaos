@@ -15,8 +15,10 @@ window.DOCS.nav.push({
           text: "State lives in the graph, so killing the orchestrator loses nothing. Every change emits an event, because an event that was never written is a state change that never happened." },
         { anchor: "layers", title: "Six layers, and what each may never do",
           text: "UI, gateway, orchestration, execution, model gateway and ArcadeDB, each with an explicit prohibition drawn from a way the layering has been broken before." },
+        { anchor: "three-layers", title: "Three layers outside the six",
+          text: "Since D-055 the model runs in ai-claude-cli behind ai-manager; GAOS shapes each turn with the product, the task and the Blueprint." },
         { anchor: "boot-recovery", title: "What happens when the orchestrator restarts",
-          text: "Tasks claiming to be running are reconciled against a workspace lease and a heartbeat, then adopted, requeued, or failed as orphaned." },
+          text: "Tasks claiming to be running are reconciled against a workspace lease and a heartbeat, then adopted, requeued, or failed as orphaned — and, through the gateway, by polling the request id each attempt persisted." },
         { anchor: "setup-to-autonomy", title: "From an empty record to autonomous work",
           text: "Six stages from product setup to lesson extraction. Autonomy begins when the scheduler can find a READY task without a human naming it." },
         { anchor: "task-split", title: "Splitting work, and choosing who does it",
@@ -60,8 +62,35 @@ window.DOCS.nav.push({
           text: "Ninety days of full-fidelity events, downsampled samples, logs by reference, and everything else kept indefinitely because the audit trail is the product." },
         { anchor: "connection", title: "Connecting to it here",
           text: "Two instances reached by container DNS on a shared network, and the readiness probe that answers 204 rather than 200." },
+        { anchor: "gateway-additions", title: "What the gateway adds",
+          text: "Policy, KnowledgeSource and BlueprintVersion, the Workspace reused one per product, PINNED_TO and HOSTED_IN, six new events, and the floor's types left dormant rather than deleted." },
         { anchor: "not-yet", title: "What is not built yet",
           text: "The DDL applies clean to a scratch ArcadeDB 26.7.2 and produced two amendments to the model, but neither dev nor prod carries the schema. The dashboard still reads fixtures behind an interface, and the event catalog is already encoded as typed constants so the vocabulary cannot drift." }
+      ]
+    },
+    {
+      id: "arch-gateway",
+      file: "architecture/gateway.html",
+      title: "The gateway",
+      desc: "How a task leaves GAOS and comes back through ai-manager and ai-claude-cli: three layers, one turn end to end, the error mapping, one session per task, recovery by request id, and the upstream provisioning API.",
+      tags: ["architecture", "gateway", "ai-manager", "ai-claude-cli", "sessions", "workspaces", "recovery"],
+      sections: [
+        { anchor: "three-layers", title: "Three layers, one job each",
+          text: "ai-claude-cli works the task with context, ai-manager shapes it with a workspace, GAOS shapes it with the product, the task and the Blueprint." },
+        { anchor: "turn", title: "One turn, end to end",
+          text: "Assemble, screen, freeze, submit asynchronously with a deterministic request id, poll, extract the handoff." },
+        { anchor: "error-mapping", title: "What each answer means",
+          text: "410 is session-lost, a session warning is turn-unsaved, 409 is busy rather than failed, a 404 on a submitted request is an orphan." },
+        { anchor: "sessions", title: "Sessions: one per task",
+          text: "Retries resume, escalation, loss and rotation open a new session; the session is transport and GAOS keeps the record." },
+        { anchor: "recovery", title: "When GAOS restarts mid-turn",
+          text: "Poll every open request id; adopt a finished one, keep polling a running one, and hold the lease past the deadline for a lost one." },
+        { anchor: "configuration", title: "Configuration",
+          text: "GAOS_AIM_URL, the auth files, poll interval, turn deadline and session age replace the GAOS_CLI settings." },
+        { anchor: "limits", title: "Limits that shape the design",
+          text: "256 KB requests, a 600 second turn cap, two worker processes, one turn per session, 30-day sessions, in-memory async records." },
+        { anchor: "upstream", title: "The upstream change: provisioning a workspace",
+          text: "A managed root, an instruction-file allowlist, all-or-nothing writes and hot reload in ai-claude-cli; a provision route in ai-manager." }
       ]
     }
     /* pustaka:insert — `pustaka new` adds entries above this marker */

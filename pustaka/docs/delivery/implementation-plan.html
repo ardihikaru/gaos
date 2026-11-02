@@ -15,15 +15,15 @@
   <p class="eyebrow">Delivery</p>
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
-  committed, and broken into fourteen modules of work you can pick up one at a time.
-  One hundred and forty-one tasks: fifty-five done, eighteen standing on fixtures, sixty-eight
-  not started.</p>
+  committed, and broken into fifteen modules of work you can pick up one at a time.
+  One hundred and sixty-nine tasks: fifty-seven done, fifteen standing on fixtures, ninety-two
+  not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -42,6 +42,9 @@
       <tr><td>🟡</td><td>Exists, but only over fixtures or the simulator. The shape is right and the
       requirement is not met.</td></tr>
       <tr><td>❌</td><td>Not started.</td></tr>
+      <tr><td>⊘</td><td>Superseded before it was finished, and struck rather than deleted; the row
+      names its successor. A task that was <em>done</em> and is now superseded keeps its ✅ —
+      it was delivered — and carries the successor in its text instead.</td></tr>
     </tbody>
   </table>
   <p>The middle flag is not padding. The BRD itself marks <code>C-6</code>,
@@ -51,7 +54,7 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Fifty-five tasks are done. Eleven of them are the operator surface, five are the schema, and
+    <p>Fifty-seven tasks are done. Two of them are <code>M14.0</code>, the documentation of the move to the gateway (2026-11-02). Eleven are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -73,29 +76,30 @@
   </div>
 
   <h2 id="scoreboard">Scoreboard</h2>
-  <p>Fourteen modules, fifty-seven sub-modules. The last column is the thing to pick up if you open
+  <p>Fifteen modules, sixty-five sub-modules. The last column is the thing to pick up if you open
   that module today — usually the first task that is not already done, and where the module has one
   task the rest of it waits on, that instead. <code>M1</code> names injection, <code>M6</code>
   authentication and <code>M10</code> the budget zones for exactly that reason, and each says so in
   its own section.</p>
   <table class="tbl">
-    <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>Next</th></tr></thead>
+    <thead><tr><th>Module</th><th>Sub</th><th>✅</th><th>🟡</th><th>❌</th><th>⊘</th><th>Next</th></tr></thead>
     <tbody>
-      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td><a href="#register">T-014</a> &mdash; the five names still owed to the review engine, the planner and memory</td></tr>
-      <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>2</td><td>5</td><td>4</td><td><a href="#register">T-026</a> &mdash; the count <code>Inject()</code> reports, and <code>MemStore</code> writing nothing</td></tr>
-      <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
-      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>13</td><td>1</td><td>6</td><td><a href="#register">T-058</a> &mdash; the API adapter, indistinguishable above the seam</td></tr>
-      <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
-      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>1</td><td>7</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
-      <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>2</td><td>5</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
-      <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>5</td><td>1</td><td>0</td><td><a href="#register">T-101</a> &mdash; the three replay scopes below the floor</td></tr>
-      <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>6</td><td>0</td><td>3</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
-      <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
-      <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
-      <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
-      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>57</b></td><td><b>55</b></td><td><b>18</b></td><td><b>68</b></td><td>&mdash;</td></tr>
+      <tr data-tags="foundations schema arcadedb event fold reducer"><td><a href="#m0-foundations">M0 &middot; Foundations &mdash; schema, event store, state machine</a></td><td>5</td><td>17</td><td>1</td><td>0</td><td>0</td><td><a href="#register">T-014</a> &mdash; the five names still owed to the review engine, the planner and memory</td></tr>
+      <tr data-tags="domain-a product master record inject repository"><td><a href="#m1-product-master">M1 &middot; Product master &amp; knowledge ingestion</a></td><td>4</td><td>2</td><td>5</td><td>4</td><td>0</td><td><a href="#register">T-026</a> &mdash; the count <code>Inject()</code> reports, and <code>MemStore</code> writing nothing</td></tr>
+      <tr data-tags="domain-b readiness rubric band drift"><td><a href="#m2-readiness">M2 &middot; Readiness gating</a></td><td>5</td><td>3</td><td>1</td><td>5</td><td>0</td><td><a href="#register">T-031</a> &mdash; scoring on a schedule, which needs M4</td></tr>
+      <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td>0</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>13</td><td>0</td><td>4</td><td>3</td><td><a href="#m14-gateway">M14</a> &mdash; the rest of execution moves behind the gateway</td></tr>
+      <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td>0</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
+      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>1</td><td>7</td><td>0</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>0</td><td>5</td><td>2</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
+      <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>5</td><td>1</td><td>0</td><td>0</td><td><a href="#register">T-101</a> &mdash; the three replay scopes below the floor</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>6</td><td>0</td><td>3</td><td>0</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
+      <tr data-tags="domain-j tenancy tenant budget cost quota deferral"><td><a href="#m10-tenancy">M10 &middot; Tenancy, capacity &amp; cost control</a></td><td>3</td><td>0</td><td>0</td><td>12</td><td>0</td><td><a href="#register">T-119</a> &mdash; the three budget zones</td></tr>
+      <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
+      <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
+      <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>2</td><td>0</td><td>26</td><td>0</td><td><a href="#register">T-144</a> &mdash; the upstream provisioning API everything else waits on</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>57</b></td><td><b>15</b></td><td><b>92</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -126,7 +130,10 @@
   <p>Three modules sit outside that spine and can be worked in parallel with any of it: M10 must
   land before the first run in API mode, M11 before the first byte of source code leaves the
   machine, and M12 is the proof layer that only becomes testable once M0 exists. M13 was small and
-  went on 2026-08-20; it is complete.</p>
+  went on 2026-08-20; it is complete. M14, added on 2026-11-02, does not reorder the spine: it replaces the
+  <em>mechanism</em> of steps 5 and 7 — a request to ai-manager instead of a detached process, a brief
+  and a Blueprint instead of a packet on disk — and keeps every "done when" those steps already
+  state.</p>
   <div class="adm note">
     <p class="adm-title">Two hard prerequisites</p>
     <p><a href="../product/brd.html#rules-commercial">BR-32</a> puts M11.2 before the first real
@@ -136,7 +143,7 @@
   </div>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and forty-one tasks in one filterable table. Filter by module number, by domain
+  <p>All one hundred and sixty-nine tasks in one filterable table. Filter by module number, by domain
   (<code>domain-d</code>), by status (<code>todo</code>, <code>partial</code>, <code>done</code>), or
   by any word in a task.</p>
   <div class="filterbox">
@@ -198,24 +205,24 @@
       <tr data-tags="domain-c planning planner workflow wizard routing todo not-built m3.5"><td>T-047</td><td>M3.5</td><td>Survive a restart mid-wizard; the draft round-trips through hidden form fields with no server session</td><td>C-6</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-048</td><td>M4.1</td><td>Make the scheduler a pure function of the graph &mdash; <code>dashboard/scheduler.go</code>, imports limited to <code>fmt</code>, <code>sort</code> and <code>strings</code>, the clock passed in as a value, and the five blocking reasons of §7.4 returned per task</td><td>D-1</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.1"><td>T-049</td><td>M4.1</td><td>Prove two replicas computing it independently reach the same answer &mdash; the second replica is handed the same graph in a shuffled row order, plus an AST test that closes the import list</td><td>D-1</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator &mdash; <code>context.WithoutCancel</code> plus <code>Setpgid</code>, logs to files and a <code>RUN.json</code> written before the supervisor sees the child, so an adopting orchestrator can recover the outcome <em>and</em> the cost</td><td>D-2</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run &mdash; <code>dashboard/lease.go</code>, an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code>; an expired lease is reported and never taken, and breaking one has its own name</td><td>D-3</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease &mdash; the beat renews every 30s and the <code>Heartbeat</code> event is written every 300s, which is <a href="../product/decision-log.html#d-053">D-053</a></td><td>D-3</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running &mdash; <code>dashboard/reconcile.go</code> as a pure function of the lease and the beat, held to the scheduler's import allowlist; <code>dashboard/runner.go</code> acts on it before the listener is up, so a failure fails the boot. Requeue kills first, which is <a href="../product/decision-log.html#d-054">D-054</a></td><td>D-4</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2 superseded"><td>T-050</td><td>M4.2</td><td>Run work in detached processes that survive the orchestrator &mdash; <code>context.WithoutCancel</code> plus <code>Setpgid</code>, logs to files and a <code>RUN.json</code> written before the supervisor sees the child, so an adopting orchestrator can recover the outcome <em>and</em> the cost &mdash; <em>superseded by T-159: the turn is ai-claude-cli's process, not ours (<a href="../product/decision-log.html#d-060">D-060</a>)</em></td><td>D-2</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2 superseded"><td>T-051</td><td>M4.2</td><td>Hold an exclusive workspace lease with an expiry per run &mdash; <code>dashboard/lease.go</code>, an <code>O_EXCL</code> lockfile at <code>.gaos/run/LEASE.json</code>; an expired lease is reported and never taken, and breaking one has its own name &mdash; <em>superseded by T-157: the lease moves from a lockfile to the <code>Workspace</code> vertex, one live turn per product</em></td><td>D-3</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2 superseded"><td>T-052</td><td>M4.2</td><td>Heartbeat a running lease &mdash; the beat renews every 30s and the <code>Heartbeat</code> event is written every 300s, which is <a href="../product/decision-log.html#d-053">D-053</a> &mdash; <em>superseded by T-159: the beat comes from the poll loop</em></td><td>D-3</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.2 superseded"><td>T-053</td><td>M4.2</td><td>Reconcile on boot: adopt, requeue or orphan every task claiming to be dispatched or running &mdash; <code>dashboard/reconcile.go</code> as a pure function of the lease and the beat, held to the scheduler's import allowlist; <code>dashboard/runner.go</code> acts on it before the listener is up, so a failure fails the boot. Requeue kills first, which is <a href="../product/decision-log.html#d-054">D-054</a> &mdash; <em>superseded by T-161: recovery polls a request id instead of killing a process</em></td><td>D-4</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-054</td><td>M4.3</td><td>Record each attempt as its own <code>TaskRun</code> with model, cost, tokens, exit code and failure signature &mdash; <code>TaskRunRecord</code> in <code>dashboard/model.go</code>, opened by <code>superviseRun</code> once the lease is held and closed by <code>finishRun</code> under the lock that writes <code>RunExited</code>; boot reconciliation marks what it recovered <code>KILLED</code> or <code>ORPHANED</code>. The cost basis is whatever the attempt measured and never a default (<code>BR-31</code>)</td><td>D-5, BR-22</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-055</td><td>M4.3</td><td>Freeze and store the exact context slice per attempt, with <code>USES_CONTEXT</code> hanging off the slice &mdash; <code>SliceRecord</code> keyed by the egress pass's digest, its provenance assembled in <code>freezePacketFor</code> and cut by <code>Screen</code> along with the parts it belonged to, written as a <code>ContextSlice</code> vertex with <code>ASSEMBLED</code> and <code>USES_CONTEXT</code> edges</td><td>D-6, BR-23</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.3"><td>T-056</td><td>M4.3</td><td>Serve <code>GET /tasks/{id}/context</code> from the frozen slice &mdash; <code>Store.TaskContext</code> replaced <code>ContextSlice</code> on the seam so the answer carries <code>Frozen</code>; with nothing run the live assembly is still returned and says so, which is the honest half of the same requirement</td><td>D-6</td><td>✅</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost partial fixtures m4.4"><td>T-057</td><td>M4.4</td><td>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess &mdash; <code>dashboard/adapter_cli.go</code>, with the boot smoke test <a href="../product/decision-log.html#d-049">D-049</a> owed, the handoff parser <a href="../product/decision-log.html#d-050">D-050</a> requires and cost read per <a href="../product/decision-log.html#d-051">D-051</a>. Exercised against a stand-in tool in <code>testdata/fakecli</code>; no scheduler calls it and no real provider has been invoked</td><td>D-7</td><td>🟡</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-058</td><td>M4.4</td><td>Build the API adapter, indistinguishable from the CLI one above the seam</td><td>D-7</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost fixtures m4.4 superseded"><td>T-057</td><td>M4.4</td><td><s>Build the CLI adapter: a provider command-line tool spawned as a detached subprocess &mdash; <code>dashboard/adapter_cli.go</code>, with the boot smoke test <a href="../product/decision-log.html#d-049">D-049</a> owed, the handoff parser <a href="../product/decision-log.html#d-050">D-050</a> requires and cost read per <a href="../product/decision-log.html#d-051">D-051</a>. Exercised against a stand-in tool in <code>testdata/fakecli</code>; no scheduler calls it and no real provider has been invoked</s> &mdash; <em>superseded: GAOS no longer spawns a tool &mdash; <code>T-148</code>, the ai-manager adapter, replaces it (<a href="../product/decision-log.html#d-055">D-055</a>)</em></td><td>D-7</td><td>⊘</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost not-built m4.4 superseded"><td>T-058</td><td>M4.4</td><td><s>Build the API adapter, indistinguishable from the CLI one above the seam</s> &mdash; <em>superseded: the CLI/API choice is ai-manager's provider table now; <code>T-148</code> is the one adapter</em></td><td>D-7</td><td>⊘</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-059</td><td>M4.4</td><td>Select the adapter from one deployment-wide setting in the master configuration, never per task</td><td>D-12</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.4"><td>T-060</td><td>M4.4</td><td>Record <code>TaskRun.invocation</code>, and let no component above the adapter branch on it</td><td>D-13, BR-33</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-061</td><td>M4.5</td><td>Materialise the frozen slice as a task packet of files in the leased workspace &mdash; <code>MaterialisePacket</code> in <code>dashboard/packet.go</code>, called by the runner after the lease and before the spawn; the <em>cleared</em> packet only, and never a <code>KindRepo</code> part, which came off that disk in the first place</td><td>D-8</td><td>✅</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5 superseded"><td>T-061</td><td>M4.5</td><td>Materialise the frozen slice as a task packet of files in the leased workspace &mdash; <code>MaterialisePacket</code> in <code>dashboard/packet.go</code>, called by the runner after the lease and before the spawn; the <em>cleared</em> packet only, and never a <code>KindRepo</code> part, which came off that disk in the first place &mdash; <em>superseded by T-158: there is no packet on disk; the brief is the prompt (<a href="../product/decision-log.html#d-057">D-057</a>)</em></td><td>D-8</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-062</td><td>M4.5</td><td>Require a handoff document at the declared path in the declared shape on every invocation &mdash; <code>handoffContract</code> travels in the packet as <code>.gaos/packet/handoff.md</code>, names the run's own ids, and is repeated as a standing system prompt because a real run proved once that the tail of a long input is not an instruction</td><td>D-9, BR-30</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-063</td><td>M4.5</td><td>Fail the attempt with the signature <code>handoff-missing</code> when it is absent or unparseable &mdash; one signature for all four ways, on the <code>TaskRun</code> as well as the outcome (<a href="../product/qa-test-plan.html#go-packet">TC-265</a>)</td><td>D-9, BR-30</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost done built m4.5"><td>T-064</td><td>M4.5</td><td>Store the handoff as an <code>Artifact</code> reachable only through <code>USES_CONTEXT</code> &mdash; <code>ArtifactRecord</code> keyed by run, cited into the next packet with role <code>lesson</code>, and no <code>HAS_ARTIFACT</code> edge beside it, because D-10 is about there being exactly one route</td><td>D-10</td><td>✅</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.6"><td>T-065</td><td>M4.6</td><td>Carry a basis, <code>measured</code> or <code>estimated</code>, on every recorded cost</td><td>D-11, BR-31</td><td>❌</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.6"><td>T-066</td><td>M4.6</td><td>Keep the distinction alive through every aggregation</td><td>D-11, BR-31</td><td>❌</td></tr>
-      <tr data-tags="domain-d execution scheduler runner adapter handoff cost todo not-built m4.7"><td>T-067</td><td>M4.7</td><td>Delete <code>dashboard/sim.go</code> once the scheduler and runner are real, as the file itself instructs</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="domain-d execution scheduler runner adapter handoff cost not-built m4.7 superseded"><td>T-067</td><td>M4.7</td><td><s>Delete <code>dashboard/sim.go</code> once the scheduler and runner are real, as the file itself instructs</s> &mdash; <em>superseded: absorbed into <code>T-167</code>, which retires the floor <code>sim.go</code> drives</em></td><td>&mdash;</td><td>⊘</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature partial fixtures m5.1"><td>T-068</td><td>M5.1</td><td>Score <code>0.45&middot;correctness + 0.20&middot;completeness + 0.15&middot;safety + 0.10&middot;quality + 0.10&middot;efficiency</code> &mdash; the weights are in <code>fixtures.go</code>, the inputs are invented by the simulator</td><td>BR-13</td><td>🟡</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.1"><td>T-069</td><td>M5.1</td><td>Derive correctness from real test runs, rule checks and a reviewer verdict against acceptance criteria</td><td>BR-13</td><td>❌</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature todo not-built m5.2"><td>T-070</td><td>M5.2</td><td>Evaluate safety before anything else and stop below 60 regardless of the total</td><td>BR-14</td><td>❌</td></tr>
@@ -241,8 +248,8 @@
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-090</td><td>M7.1</td><td>Write <code>Knowledge</code> back to the product on every completed workflow</td><td>G-1</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-091</td><td>M7.1</td><td>Carry decisions as ADRs into every later prompt, with supersession tracked</td><td>G-2</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-092</td><td>M7.1</td><td>Emit <code>DecisionSuperseded</code></td><td>G-2</td><td>❌</td></tr>
-      <tr data-tags="domain-g memory knowledge adr meeting contradiction partial fixtures m7.2"><td>T-093</td><td>M7.2</td><td>Make a multi-agent meeting a first-class record &mdash; the overlay renders a scripted fixture</td><td>G-3</td><td>🟡</td></tr>
-      <tr data-tags="domain-g memory knowledge adr meeting contradiction partial fixtures m7.2"><td>T-094</td><td>M7.2</td><td>Emit <code>ProposalRecorded</code> with a confidence &mdash; <code>MemStore.CloseMeeting</code> emits it beside <code>DecisionRecorded</code>, because a meeting that recorded a decision nobody proposed is not one anybody can audit; the proposal it names is a scripted fixture and the confidence is the overlay's, not a participant's</td><td>G-3</td><td>🟡</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction fixtures m7.2 superseded"><td>T-093</td><td>M7.2</td><td><s>Make a multi-agent meeting a first-class record &mdash; the overlay renders a scripted fixture</s> &mdash; <em>superseded: the meeting overlay is retired with the floor (<a href="../product/decision-log.html#d-061">D-061</a>); meetings stay in the data model</em></td><td>G-3</td><td>⊘</td></tr>
+      <tr data-tags="domain-g memory knowledge adr meeting contradiction fixtures m7.2 superseded"><td>T-094</td><td>M7.2</td><td><s>Emit <code>ProposalRecorded</code> with a confidence &mdash; <code>MemStore.CloseMeeting</code> emits it beside <code>DecisionRecorded</code>, because a meeting that recorded a decision nobody proposed is not one anybody can audit; the proposal it names is a scripted fixture and the confidence is the overlay's, not a participant's</s> &mdash; <em>superseded: retired with <code>T-093</code>; the event stays declared so old streams fold</em></td><td>G-3</td><td>⊘</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-095</td><td>M7.3</td><td>Recall knowledge during planning by tag and reuse count, and emit <code>KnowledgeReused</code></td><td>G-4</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.3"><td>T-096</td><td>M7.3</td><td>Detect contradictions: a decision conflicting with a requirement, a criterion no test maps to</td><td>G-5</td><td>❌</td></tr>
       <tr data-tags="domain-h replay audit fold timeline done built m8.1"><td>T-097</td><td>M8.1</td><td>Reconstruct state at any past moment as a fold from the nearest snapshot forward</td><td>H-1</td><td>✅</td></tr>
@@ -251,10 +258,10 @@
       <tr data-tags="domain-h replay audit fold timeline done built m8.2"><td>T-100</td><td>M8.2</td><td>Treat snapshots as an optimisation and never as a source of truth</td><td>BR-21</td><td>✅</td></tr>
       <tr data-tags="domain-h replay audit fold timeline partial fixtures m8.3"><td>T-101</td><td>M8.3</td><td>Support all four replay scopes: workflow, task, meeting, and a comparison between two runs</td><td>H-4</td><td>🟡</td></tr>
       <tr data-tags="domain-h replay audit fold timeline done built m8.4"><td>T-102</td><td>M8.4</td><td>Operator timeline with a replay scrub &mdash; <code>handlers_floor.go</code>, <code>templates/timeline.html</code></td><td>H-5</td><td>✅</td></tr>
-      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-103</td><td>M9.1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>I-1</td><td>✅</td></tr>
-      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-104</td><td>M9.1</td><td>The inspector: task, role, model, retries, escalations, cost, score breakdown, context slice</td><td>I-2</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1 superseded"><td>T-103</td><td>M9.1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room &mdash; <em>superseded by T-163: the board per product replaces the floor (<a href="../product/decision-log.html#d-061">D-061</a>)</em></td><td>I-1</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1 superseded"><td>T-104</td><td>M9.1</td><td>The inspector: task, role, model, retries, escalations, cost, score breakdown, context slice &mdash; <em>superseded by T-163: the card and its run history replace the inspector</em></td><td>I-2</td><td>✅</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-105</td><td>M9.1</td><td>The event timeline with scrub-to-replay and speed control</td><td>I-3</td><td>✅</td></tr>
-      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-106</td><td>M9.1</td><td>The design-review overlay: agenda, participants, confidence, decision</td><td>I-4</td><td>✅</td></tr>
+      <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1 superseded"><td>T-106</td><td>M9.1</td><td>The design-review overlay: agenda, participants, confidence, decision &mdash; <em>superseded by T-167: meetings stay in the data model, unrendered</em></td><td>I-4</td><td>✅</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.1"><td>T-107</td><td>M9.1</td><td>The back office: record, requirements, stories, diagrams, knowledge, agents, readiness</td><td>I-5</td><td>✅</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui done built m9.2"><td>T-108</td><td>M9.2</td><td>The UI invents no state the graph does not have &mdash; <code>static/app.js</code> renders no markup</td><td>I-6</td><td>✅</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui todo not-built m9.3"><td>T-109</td><td>M9.3</td><td>Display the five blocking reasons for an idle desk, including <em>deferred &mdash; budget window</em></td><td>I-7</td><td>❌</td></tr>
@@ -290,6 +297,34 @@
       <tr data-tags="hygiene deploy licence tag done m13.1"><td>T-139</td><td>M13.1</td><td>Correct the citations of <code>test/stacks_test.go</code> &mdash; both compose files now name <code>deploy/check-stacks.sh</code>, which is where the assertions actually live</td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="hygiene deploy licence tag done m13.1"><td>T-140</td><td>M13.1</td><td>Vendor the upstream licence texts for the fonts and the charting library beside the assets &mdash; done 2026-08-20, fetched from upstream and asserted by <code>check-stacks.sh</code></td><td>&mdash;</td><td>✅</td></tr>
       <tr data-tags="hygiene deploy licence tag done m13.2"><td>T-141</td><td>M13.2</td><td>Build the tunnelled stacks from a tag rather than the working tree &mdash; done 2026-08-20; <code>--tag &lt;ref&gt;</code> builds in a detached worktree and prod refuses without it</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="gateway docs decisions brd done m14.0"><td>T-142</td><td>M14.0</td><td>Record the gateway decisions <a href="../product/decision-log.html#d-055">D-055</a>&ndash;<a href="../product/decision-log.html#d-062">D-062</a>, <a href="../product/brd.html#rules-gateway">BR-38&ndash;BR-43</a>, <a href="../product/open-questions.html#oq-25">OQ-25&ndash;OQ-30</a> and BRD &sect;7.7 &mdash; done 2026-11-02</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="gateway docs blueprint qa forward-spec done m14.0"><td>T-143</td><td>M14.0</td><td>Publish <a href="../product/blueprint.html">Blueprint</a>, <a href="../architecture/gateway.html">The gateway</a> and the forward specs <a href="../product/qa-test-plan.html#ni-aim">TC-275&ndash;TC-310</a> &mdash; done 2026-11-02</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="gateway upstream ai-claude-cli workspace provisioning todo not-built m14.1"><td>T-144</td><td>M14.1</td><td>ai-claude-cli: a managed root, a provisioned registry beside the static one with hot reload, and a boot refusal when a folder above the root holds a <code>CLAUDE.md</code></td><td>A-11, BR-42</td><td>❌</td></tr>
+      <tr data-tags="gateway upstream ai-claude-cli files allowlist todo not-built m14.1"><td>T-145</td><td>M14.1</td><td>ai-claude-cli: <code>POST /v1/workspaces</code> and <code>PUT|GET /v1/workspaces/{id}/files</code> with the allowlist, the caps and all-or-nothing writes</td><td>A-11, BR-42</td><td>❌</td></tr>
+      <tr data-tags="gateway upstream ai-manager provision proxy todo not-built m14.1"><td>T-146</td><td>M14.1</td><td>ai-manager: <code>POST /admin/workspaces/provision</code>, the files proxy, and the recommended cancel route</td><td>A-11, OQ-26</td><td>❌</td></tr>
+      <tr data-tags="gateway client ai-manager http todo not-built m14.2"><td>T-147</td><td>M14.2</td><td>A stdlib ai-manager client with typed errors for <code>409</code>, <code>410</code>, <code>403/423</code>, <code>404</code> and <code>5xx</code> &mdash; <code>dashboard/aimanager.go</code></td><td>D-14</td><td>❌</td></tr>
+      <tr data-tags="gateway adapter submit poll todo not-built m14.2"><td>T-148</td><td>M14.2</td><td>The ai-manager adapter behind the reshaped seam: <code>Submit</code>, <code>Poll</code>, <code>Stop</code>, built only from a <code>Cleared</code> &mdash; <code>dashboard/adapter_aimanager.go</code></td><td>D-14, BR-32</td><td>❌</td></tr>
+      <tr data-tags="gateway handoff reply block run-id todo not-built m14.2"><td>T-149</td><td>M14.2</td><td><code>ExtractHandoff</code>: the last <code>gaos-handoff</code> block, with the run id and the task checked</td><td>D-16, BR-30</td><td>❌</td></tr>
+      <tr data-tags="gateway config smoke cost invocation todo not-built m14.2"><td>T-150</td><td>M14.2</td><td><code>GAOS_AIM_*</code> configuration, a boot smoke test against the gateway, <code>invocation = gateway</code>, cost measured from <code>cost_usd</code></td><td>D-14, BR-37</td><td>❌</td></tr>
+      <tr data-tags="blueprint schema policy knowledge-source version todo not-built m14.3"><td>T-151</td><td>M14.3</td><td><code>Policy</code>, <code>KnowledgeSource</code> and <code>BlueprintVersion</code> in <code>schema/11-blueprint.sql</code> and both stores</td><td>A-8, A-9</td><td>❌</td></tr>
+      <tr data-tags="blueprint render digest publish immutable todo not-built m14.3"><td>T-152</td><td>M14.3</td><td>Deterministic render and digest; publishing stores an immutable version and an unchanged Blueprint publishes nothing</td><td>A-10</td><td>❌</td></tr>
+      <tr data-tags="blueprint back-office tab ui todo not-built m14.3"><td>T-153</td><td>M14.3</td><td>A Blueprint tab in the back office: policies, knowledge sources, publish</td><td>A-8, A-9</td><td>❌</td></tr>
+      <tr data-tags="blueprint egress screen caps todo not-built m14.3"><td>T-154</td><td>M14.3</td><td>The egress pass over every rendered file, and a refused publish over the caps that names the policy</td><td>BR-32, BR-42</td><td>❌</td></tr>
+      <tr data-tags="workspace provision product id todo not-built m14.4"><td>T-155</td><td>M14.4</td><td>Provision one workspace per product with a derived, never-renamed id</td><td>A-11</td><td>❌</td></tr>
+      <tr data-tags="workspace sync drift digest todo not-built m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn</td><td>D-17, BR-39</td><td>❌</td></tr>
+      <tr data-tags="workspace graph lease one turn scheduler todo not-built m14.4"><td>T-157</td><td>M14.4</td><td>The graph lease: one live turn per product workspace, read by the scheduler's lease block</td><td>D-18, BR-38</td><td>❌</td></tr>
+      <tr data-tags="turn brief prompt slice todo not-built m14.5"><td>T-158</td><td>M14.5</td><td><code>BuildBrief</code> and <code>RenderPrompt</code>; the context slice freezes the brief &mdash; <code>dashboard/brief.go</code></td><td>D-6, D-17</td><td>❌</td></tr>
+      <tr data-tags="turn submit poll durable record todo not-built m14.5"><td>T-159</td><td>M14.5</td><td>Submit, poll and finish a turn; store the prompt, the reply and the metadata &mdash; <code>dashboard/turns.go</code></td><td>D-19, BR-41</td><td>❌</td></tr>
+      <tr data-tags="turn session policy resume escalation todo not-built m14.5"><td>T-160</td><td>M14.5</td><td>One session per task: resume on retry, a new one on escalation, <code>410</code> or rotation</td><td>D-15, BR-40</td><td>❌</td></tr>
+      <tr data-tags="turn recovery request-id deadline acceptance todo not-built m14.5"><td>T-161</td><td>M14.5</td><td>Boot recovery by request id with the turn deadline, and <code>deploy/acceptance/live-aim-run.sh</code></td><td>D-19</td><td>❌</td></tr>
+      <tr data-tags="board kanban projection legal move todo not-built m14.6"><td>T-162</td><td>M14.6</td><td>The board projection and the legal-move table, with routes keyed by task id &mdash; <code>dashboard/board.go</code></td><td>I-9, I-10</td><td>❌</td></tr>
+      <tr data-tags="board kanban htmx drag todo not-built m14.6"><td>T-163</td><td>M14.6</td><td>A server-rendered board per product, with native drag posting the same move API</td><td>I-9, BR-43</td><td>❌</td></tr>
+      <tr data-tags="board fold replay reorder todo not-built m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code></td><td>I-9, BR-05</td><td>❌</td></tr>
+      <tr data-tags="board sisflow vendor licence todo not-built m14.6"><td>T-165</td><td>M14.6</td><td>Vendor the sisflow board on the same API &mdash; waits on <a href="../product/open-questions.html#oq-25">OQ-25</a></td><td>I-10</td><td>❌</td></tr>
+      <tr data-tags="retire cli adapter lease reconcile packet todo not-built m14.7"><td>T-166</td><td>M14.7</td><td>Delete the CLI adapter, the version pin, the packet on disk, the file lease, the reconciler and the detached runner</td><td>D-14</td><td>❌</td></tr>
+      <tr data-tags="retire floor sim simulator todo not-built m14.7"><td>T-167</td><td>M14.7</td><td>Delete <code>sim.go</code>, the floor, its routes and its <code>Store</code> methods (absorbs <code>T-067</code>)</td><td>I-9</td><td>❌</td></tr>
+      <tr data-tags="retire home product list tabs todo not-built m14.7"><td>T-168</td><td>M14.7</td><td>The product list as the home page, each product with Blueprint &middot; Board &middot; Timeline</td><td>I-9</td><td>❌</td></tr>
+      <tr data-tags="retire qa register compose readme todo not-built m14.7"><td>T-169</td><td>M14.7</td><td>Strike the retired test cases, retire the two acceptance scripts, and update compose and the README</td><td>&mdash;</td><td>❌</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -642,6 +677,11 @@
   is <a href="#sub-m4-2">M4.2</a>.</p>
 
   <h3 id="sub-m4-2">M4.2 — Runner, lease and reconciliation (T-050–T-053)</h3>
+  <div class="adm note">
+    <p class="adm-title">Superseded on 2026-11-02</p>
+    <p>What this sub-module built is done and still runs, but its mechanism — a detached process, a lockfile lease, kill-then-requeue — is retired by <a href="../product/decision-log.html#d-060">D-060</a>: the turn is ai-claude-cli's process now, the lease moves onto the <code>Workspace</code> vertex, and recovery polls a request id. Successor: <a href="#sub-m14-4">M14.4</a> and <a href="#sub-m14-5">M14.5</a>.</p>
+  </div>
+
   <p>Work runs in detached processes that survive the orchestrator (<code>D-2</code>), each holding
   an exclusive workspace lease with an expiry and a heartbeat (<code>D-3</code>). On boot, every
   task claiming to be dispatched or running is reconciled against its lease and heartbeat and is
@@ -739,6 +779,11 @@
   the case that decision predicted rather than a new one. The DDL applies 324 statements.</p>
 
   <h3 id="sub-m4-4">M4.4 — The model gateway (T-057–T-060)</h3>
+  <div class="adm note">
+    <p class="adm-title">Superseded on 2026-11-02</p>
+    <p>GAOS no longer spawns a tool (<a href="../product/decision-log.html#d-055">D-055</a>). <code>T-057</code> and <code>T-058</code> are struck; one ai-manager adapter replaces both, behind the same seam. Successor: <a href="#sub-m14-2">M14.2</a>.</p>
+  </div>
+
   <p><strong>Partly built, on 2026-08-22.</strong> <code>T-057</code> is 🟡 rather than ✅ and the
   distinction is the honest one: <code>dashboard/adapter_cli.go</code> exists, spawns a pinned tool
   in its own process group with the workspace as its working directory, refuses the boot when the
@@ -762,6 +807,11 @@
   it.</p>
 
   <h3 id="sub-m4-5">M4.5 — Packet and handoff (T-061–T-064)</h3>
+  <div class="adm note">
+    <p class="adm-title">Superseded on 2026-11-02</p>
+    <p>There is no packet on disk and no handoff file through the gateway; the brief is the prompt and the handoff travels in the reply (<a href="../product/decision-log.html#d-057">D-057</a>). <code>T-062</code>–<code>T-064</code> carry over: the contract, its single failure signature and the handoff as an artifact are unchanged. Successor: <a href="#sub-m14-5">M14.5</a>.</p>
+  </div>
+
   <p><strong>Done, on 2026-08-23, and this is the module that made a real model call possible.</strong>
   Until it landed a provider tool could be spawned and <em>could not possibly succeed</em>: it was
   handed a working directory with nothing in it and an instruction that never said what to produce.
@@ -813,6 +863,11 @@
   sub-module.</p>
 
   <h3 id="sub-m4-7">M4.7 — Retiring the simulator (T-067)</h3>
+  <div class="adm note">
+    <p class="adm-title">Superseded on 2026-11-02</p>
+    <p><code>T-067</code> is absorbed: <code>sim.go</code> goes with the floor it drives. Successor: <a href="#sub-m14-7">M14.7</a> (<code>T-167</code>).</p>
+  </div>
+
   <p><code>dashboard/sim.go</code> ends with its own deletion instruction: <em>when the scheduler and
   the runner are real, this file is deleted and nothing else changes</em>. That claim is worth
   testing rather than trusting — every field the simulator mutates is meant to be a field the
@@ -910,6 +965,11 @@
   simulator, from a script.</p>
 
   <h3 id="sub-m7-2">M7.2 — Meetings (T-093–T-094)</h3>
+  <div class="adm note">
+    <p class="adm-title">Superseded on 2026-11-02</p>
+    <p>The meeting overlay is retired with the floor (<a href="../product/decision-log.html#d-061">D-061</a>). Successor: none — meetings stay in the data model, unrendered.</p>
+  </div>
+
   <p><code>G-3</code> makes a multi-agent meeting a first-class record: agenda, participants,
   proposals with confidence, and the decision it produced. The overlay renders all of that from
   <code>meetingScript</code> in <code>dashboard/fixtures.go</code> — a scripted design review — so
@@ -984,6 +1044,11 @@
   standing on.</p>
 
   <h3 id="sub-m9-1">M9.1 — The five views (T-103–T-107)</h3>
+  <div class="adm note">
+    <p class="adm-title">Superseded on 2026-11-02</p>
+    <p>The floor, the inspector and the meeting overlay give way to a product list and a board per product (<a href="../product/decision-log.html#d-061">D-061</a>). The timeline and the back office stay. Successor: <a href="#sub-m14-6">M14.6</a> and <code>T-168</code>.</p>
+  </div>
+
   <p><code>I-1</code>…<code>I-5</code> are all done and all covered:
   the floor with occupancy per room, the inspector with retries, escalations, cost and the score
   breakdown, the event timeline with scrub-to-replay, the design-review overlay, and the back
@@ -1158,6 +1223,69 @@
   forwarded to the inner run, whose script is the tag's own copy of this file and may predate the
   flag — which is exactly what lets <code>--tag</code> build a ref older than the feature itself.
   <a href="../product/qa-test-plan.html#rr-provenance">TC-152…TC-155</a>.</p>
+
+  <h2 id="m14-gateway">M14 · Gateway, Blueprint &amp; Board</h2>
+  <p>Added on 2026-11-02 with <a href="../product/decision-log.html#d-055">D-055</a> to
+  <a href="../product/decision-log.html#d-062">D-062</a>. GAOS stops running a model and keeps what
+  only it can own: the product, its Blueprint, and the task graph — with a board per product to work
+  it from. The layering is the product owner's: <strong>ai-claude-cli works the task with context,
+  ai-manager shapes it with a workspace, GAOS shapes it with the product, the task details and the
+  Blueprint.</strong> The full design is <a href="../architecture/gateway.html">The gateway</a> and
+  <a href="../product/blueprint.html">Blueprint</a>.</p>
+  <p>The order inside the module is fixed by one dependency. Nothing reaches a workspace until the
+  upstream can create one, so <code>M14.1</code> gates <code>M14.4</code> onwards;
+  <code>M14.2</code> and <code>M14.3</code> can be built against a fake ai-manager in parallel with
+  it. <code>M14.7</code> deletes code that works, and so goes last, once its successors have run
+  against dev.</p>
+
+  <h3 id="sub-m14-0">M14.0 — Docs (T-142–T-143)</h3>
+  <p>Done 2026-11-02, as the first change of the module: the decisions, the rules, the questions,
+  the two new pages and thirty-six forward specifications in the
+  <a href="../product/qa-test-plan.html#ni-aim">QA register</a> landed before any code, so every
+  later phase has a written target to pass.</p>
+
+  <h3 id="sub-m14-1">M14.1 — Upstream provisioning (T-144–T-146)</h3>
+  <p>An external dependency, built in the <code>ardi-personal-workspace-ai</code> repository, not
+  here. Measured on 2026-11-02: ai-claude-cli has no API to create a workspace and reads its list
+  once at startup; ai-manager can only switch an existing one on or off. The specification is
+  <a href="../architecture/gateway.html#upstream">The gateway §upstream</a>. Done when provisioning
+  <code>gaos-test</code> makes it appear in <code>GET /v1/workspaces</code> without a restart.</p>
+
+  <h3 id="sub-m14-2">M14.2 — Client and adapter (T-147–T-150)</h3>
+  <p>The adapter seam stays where it is and changes shape: <code>Dispatch</code> and
+  <code>Resume</code> become <code>Submit</code> and <code>Poll</code> on a request id, because the
+  thing being supervised is now a request rather than a process. Tests run against an
+  <code>httptest</code> fake ai-manager that scripts a reply per request id, not a fake binary. The
+  CLI adapter stays alongside until <code>M14.7</code>.</p>
+
+  <h3 id="sub-m14-3">M14.3 — Blueprint (T-151–T-154)</h3>
+  <p>Three new vertex types and five edges, in a new schema file applied the same idempotent way as
+  the other ten. The schema changes two property regexps, and <code>ALTER PROPERTY</code> re-apply
+  on ArcadeDB is proved on the scratch database before this ships.</p>
+
+  <h3 id="sub-m14-4">M14.4 — Workspace and sync (T-155–T-157)</h3>
+  <p>Needs <code>M14.1</code>. The lease survives as a property of the product's
+  <code>Workspace</code> vertex — <code>leasedBy</code> and <code>leaseUntil</code> already exist in
+  <code>schema/04-execution.sql</code> — because one folder per product means two turns would be two
+  full-permission agents in one checkout.</p>
+
+  <h3 id="sub-m14-5">M14.5 — Turns and recovery (T-158–T-161)</h3>
+  <p>The successor to <code>M4.2</code>. What carries over intact from <code>runner.go</code> is the
+  part that was never about a process: <code>RunOnce</code>, the egress refusal, and finishing a run
+  into the attempt record. The acceptance script replaces <code>live-cli-run.sh</code> and spends
+  money, so the owner runs it (<a href="../product/decision-log.html#qa-decisions">D-025</a>).</p>
+
+  <h3 id="sub-m14-6">M14.6 — Board (T-162–T-165)</h3>
+  <p>The board's API takes the sisflow REST provider's shape — <code>GET …/board</code>,
+  <code>PUT …/cards/{id}/move</code> — so the server-rendered board ships first and the richer one
+  can replace its front end without touching the server. Moves are requests; the state machine
+  decides (<a href="../product/brd.html#rules-gateway">BR-43</a>). The fold projects desks today, so
+  a board that replays needs a task fold, which is <code>T-164</code>.</p>
+
+  <h3 id="sub-m14-7">M14.7 — Retirement (T-166–T-169)</h3>
+  <p>Deletes the execution layer and the floor once their successors have run against dev. The test
+  cases that covered them are struck in the QA register and point at their replacements; none is
+  deleted, and the register's count does not change.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

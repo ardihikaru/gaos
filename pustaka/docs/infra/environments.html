@@ -21,7 +21,7 @@
        data-tags="deployment, compose, dev, production, verification"
        data-hashtags="docker, traefik, wireguard, arcadedb"
        data-published="2026-08-07"
-       data-updated="2026-08-07"
+       data-updated="2026-11-02"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -185,6 +185,25 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
     out. Do not copy a value out of another project's compose file: a secret in version control is
     not a secret.</p>
   </div>
+
+  <h2 id="model-gateway">The model gateway, per tier</h2>
+  <p>Once <a href="../delivery/implementation-plan.html#sub-m14-2">M14.2</a> lands, a tier that runs
+  real work sets <code>GAOS_MODEL_MODE=aimanager</code> and points at ai-manager. The two secrets are
+  files mounted into the dashboard container, never environment values and never committed;
+  <code>check-stacks.sh</code>'s committed-secret check (<a href="../product/qa-test-plan.html#cs-secrets">TC-013</a>)
+  applies to them as to every other credential.</p>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Dev</th><th>Prod</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_AIM_URL</code></td><td colspan="2"><code>https://ai-manager.mfardiansyah.id</code></td></tr>
+      <tr><td><code>GAOS_AIM_CHAT_AUTH_FILE</code>, <code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td colspan="2">Mounted secret files, one pair per tier</td></tr>
+      <tr><td>Workspace ids</td><td><code>gaos-&lt;dev tenant&gt;-*</code></td><td><code>gaos-&lt;prod tenant&gt;-*</code></td></tr>
+      <tr><td><code>GAOS_RUNNER</code></td><td><code>on</code> only while acceptance runs</td><td>The owner's decision — it is the permission to spend</td></tr>
+    </tbody>
+  </table>
+  <p>The tenant is part of the workspace id, so the two tiers can never share a product's workspace
+  even though they share one ai-manager. The full list of variables is in
+  <a href="../architecture/gateway.html#configuration">The gateway §configuration</a>.</p>
 
   <h2 id="verify">Verifying over the tunnel</h2>
 
