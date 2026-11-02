@@ -16,8 +16,9 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  two hundred and seventy-four cases, positive and negative, across the five deploy automations and the
-  two Go test packages that actually run today, plus the two business acceptance tests
+  three hundred and ten cases, positive and negative, across the five deploy automations and the
+  two Go test packages that actually run today, thirty-six forward specifications for the move to
+  ai-manager as the gateway, plus the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
   Since <a href="decision-log.html#d-039">D-039</a> this register is also the project's definition of
@@ -28,7 +29,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -73,7 +74,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All two hundred and seventy-four cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and ten cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -360,6 +361,42 @@
       <tr data-tags="live-cli-run acceptance handoff contract real model br-30 positive"><td>TC-272</td><td>live-cli-run.sh</td><td>Positive</td><td>A real model, given only the packet, writes a handoff document GAOS parses to an outcome rather than a signature</td><td>Implemented</td></tr>
       <tr data-tags="live-cli-run acceptance real work worktree negative"><td>TC-273</td><td>live-cli-run.sh</td><td>Negative</td><td>The deliverable the packet asked for is absent from the worktree, or does not mention what the packet asked about</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema apply counts boot log arcadedb positive"><td>TC-274</td><td>dashboard (go test)</td><td>Positive</td><td>The store records what the schema apply did, and two applies of one embedded DDL count the same total (<code>TestTheStoreRecordsWhatTheSchemaApplyDid</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway adapter sync turn session tokens cost measured positive not-implemented"><td>TC-275</td><td>dashboard (go test)</td><td>Positive</td><td>A turn through a fake ai-manager records the session id, the tokens and a <code>measured</code> cost on the attempt</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway adapter 410 session-lost br-40 negative not-implemented"><td>TC-276</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>410</code> on resume fails the attempt with <code>session-lost</code>, and no new session is opened in its place</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway adapter session_warning turn-unsaved br-40 negative not-implemented"><td>TC-277</td><td>dashboard (go test)</td><td>Negative</td><td>A reply carrying <code>metadata.session_warning</code> fails as <code>turn-unsaved</code>, even with a valid handoff block</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway adapter 409 busy not failure negative not-implemented"><td>TC-278</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>409</code> is busy rather than failed: no <code>TaskRun</code> is closed and the task stays READY</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway adapter async request-id idempotent poll positive not-implemented"><td>TC-279</td><td>dashboard (go test)</td><td>Positive</td><td>Submit answers <code>202</code>, polling reaches the result, and resubmitting the same <code>X-Request-ID</code> starts no second turn</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway handoff reply block last extract d-057 positive not-implemented"><td>TC-280</td><td>dashboard (go test)</td><td>Positive</td><td><code>ExtractHandoff</code> takes the last <code>gaos-handoff</code> block and keeps the prose before it as the reply</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway handoff reply block missing run-id mismatch br-30 negative not-implemented"><td>TC-281</td><td>dashboard (go test)</td><td>Negative</td><td>No block, two blocks with different run ids, or a run id that is not this run's, is <code>handoff-missing</code></td><td>Not implemented</td></tr>
+      <tr data-tags="gateway cost unavailable zero br-37 d-062 negative not-implemented"><td>TC-282</td><td>dashboard (go test)</td><td>Negative</td><td>A missing <code>cost_usd</code>, or zero with tokens above zero, is <code>unavailable</code> and never zero</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway smoke boot unreachable provider negative not-implemented"><td>TC-283</td><td>dashboard (go test)</td><td>Negative</td><td>The boot smoke test refuses to start when the gateway is unreachable or lists no <code>claude</code> provider</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway admin key secret redaction log event negative not-implemented"><td>TC-284</td><td>dashboard (go test)</td><td>Negative</td><td>The admin key never appears in an attempt, an event, a log line or an error message</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint render deterministic digest both stores positive not-implemented"><td>TC-285</td><td>dashboard (go test)</td><td>Positive</td><td>The same Blueprint renders to the same bytes and the same digest, in either store</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint caps allowlist publish refused br-42 negative not-implemented"><td>TC-286</td><td>dashboard (go test)</td><td>Negative</td><td>A render over the caps, or onto a path outside the allowlist, refuses the publish and names the policy</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint version immutable draft positive not-implemented"><td>TC-287</td><td>dashboard (go test)</td><td>Positive</td><td>A published version is immutable: editing a policy afterwards changes the draft only</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint publish unchanged no-op event negative not-implemented"><td>TC-288</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing an unchanged Blueprint creates no version and emits no event</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint knowledge source pinned ref render positive not-implemented"><td>TC-289</td><td>dashboard (go test)</td><td>Positive</td><td>A knowledge source is rendered with its pinned ref and its purpose</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint knowledge source url https credentials negative not-implemented"><td>TC-290</td><td>dashboard (go test)</td><td>Negative</td><td>A knowledge source with a non-<code>https</code> URL, or one carrying credentials, is refused</td><td>Not implemented</td></tr>
+      <tr data-tags="workspace provision idempotent id derived positive not-implemented"><td>TC-291</td><td>dashboard (go test)</td><td>Positive</td><td>Provisioning is idempotent and derives <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>; a second call emits nothing</td><td>Not implemented</td></tr>
+      <tr data-tags="workspace drift blueprint-drift dispatch refused br-39 negative not-implemented"><td>TC-292</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace whose synced digest is not the pinned one refuses dispatch with <code>blueprint-drift</code>, and no turn is sent</td><td>Not implemented</td></tr>
+      <tr data-tags="workspace sync egress credential refused br-32 negative not-implemented"><td>TC-293</td><td>dashboard (go test)</td><td>Negative</td><td>A credential in a policy refuses the sync, and the fake gateway receives nothing</td><td>Not implemented</td></tr>
+      <tr data-tags="workspace attempt record pin slice session request reopen positive not-implemented"><td>TC-294</td><td>dashboard (go test)</td><td>Positive</td><td>The attempt record carries the pinned version, the slice digest, the session id and the request id, across a store reopen</td><td>Not implemented</td></tr>
+      <tr data-tags="workspace graph lease one turn br-38 negative not-implemented"><td>TC-295</td><td>dashboard (go test)</td><td>Negative</td><td>While a turn is live, a second ready task in the same product is blocked with the lease reason</td><td>Not implemented</td></tr>
+      <tr data-tags="turn session resume retry escalation d-056 positive not-implemented"><td>TC-296</td><td>dashboard (go test)</td><td>Positive</td><td>A retry resumes the task's session; an escalation opens a new one with <code>SessionOpened</code> reason <code>escalation</code></td><td>Not implemented</td></tr>
+      <tr data-tags="turn recovery adopt completed request positive not-implemented"><td>TC-297</td><td>dashboard (go test)</td><td>Positive</td><td>After a restart, a completed request is adopted into the same attempt a supervised run would have produced</td><td>Not implemented</td></tr>
+      <tr data-tags="turn recovery 404 request-lost deadline requeue d-060 negative not-implemented"><td>TC-298</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>404</code> on recovery emits <code>TaskOrphaned</code> rule <code>request-lost</code>, holds the lease until the deadline, then requeues on a new session</td><td>Not implemented</td></tr>
+      <tr data-tags="turn durable prompt reply after 410 br-41 positive not-implemented"><td>TC-299</td><td>dashboard (go test)</td><td>Positive</td><td>The prompt and the reply stay readable after the fake gateway answers <code>410</code></td><td>Not implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance gateway smoke provision positive not-implemented"><td>TC-300</td><td>live-aim-run.sh</td><td>Positive</td><td>A real gateway is reachable, the boot smoke test passes, and the product's workspace is provisioned</td><td>Not implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance readiness blueprint publish sync positive not-implemented"><td>TC-301</td><td>live-aim-run.sh</td><td>Positive</td><td>A record written through the back office scores above the planning floor, and its Blueprint publishes and syncs</td><td>Not implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance egress refusal br-32 negative not-implemented"><td>TC-302</td><td>live-aim-run.sh</td><td>Negative</td><td>A dispatch the egress pass refused is reported as a refusal with its reason, not read as success</td><td>Not implemented</td></tr>
+      <tr data-tags="live-aim-run acceptance real model handoff block digest positive not-implemented"><td>TC-303</td><td>live-aim-run.sh</td><td>Positive</td><td>A real model's reply carries a <code>gaos-handoff</code> block GAOS parses to an outcome, under the pinned digest</td><td>Not implemented</td></tr>
+      <tr data-tags="board kanban projection columns lanes positive not-implemented"><td>TC-304</td><td>dashboard (go test)</td><td>Positive</td><td>The board has the declared columns, every task exactly once, and one lane per story</td><td>Not implemented</td></tr>
+      <tr data-tags="board kanban legal move events positive not-implemented"><td>TC-305</td><td>dashboard (go test)</td><td>Positive</td><td>Each legal move produces its events and its status</td><td>Not implemented</td></tr>
+      <tr data-tags="board kanban illegal move 409 no event br-43 negative not-implemented"><td>TC-306</td><td>dashboard (go test)</td><td>Negative</td><td>Every move outside the legal-move table answers <code>409</code> and writes no event</td><td>Not implemented</td></tr>
+      <tr data-tags="board kanban lane create delete 409 negative not-implemented"><td>TC-307</td><td>dashboard (go test)</td><td>Negative</td><td>A lane change, a card create and a card delete each answer <code>409</code></td><td>Not implemented</td></tr>
+      <tr data-tags="board task fold replay positive not-implemented"><td>TC-308</td><td>dashboard (go test)</td><td>Positive</td><td>A fold over the events reproduces the board</td><td>Not implemented</td></tr>
+      <tr data-tags="board replay read-only refuses move br-20 negative not-implemented"><td>TC-309</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only replay handle refuses every move</td><td>Not implemented</td></tr>
+      <tr data-tags="check-stacks licence sisflow vendored br-27 negative not-implemented"><td>TC-310</td><td>check-stacks.sh</td><td>Negative</td><td>A vendored sisflow board without its licence beside it fails the deploy pre-flight</td><td>Not implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1936,10 +1973,128 @@
   is a pure function of it (<code>D-1</code>) — but nothing dispatches from either yet, and an
   acceptance test needs the whole loop rather than the first link of it.</p>
 
+  <p>Since 2026-11-02 this section also holds the thirty-six forward specifications for
+  <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>, below; they are ordinary register
+  rows rather than BRD acceptance tests, and each section moves up when its code lands.</p>
+
   <p>The third has moved. <a href="#im-fold">The fold test</a> ran for the first time on 2026-08-17
   and now lives with the implemented scenarios, which is what closing
   <a href="../delivery/implementation-plan.html#m0-foundations">M0.3</a> and
   <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
+
+  <div class="adm note">
+    <p class="adm-title">The gateway forward specifications (TC-275…TC-310)</p>
+    <p>Thirty-six cases written on 2026-11-02, before any of the code they test, for
+    <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>: the move to ai-manager as the
+    one gateway, the Blueprint, and a board per product
+    (<a href="decision-log.html#d-055">D-055</a>…<a href="decision-log.html#d-062">D-062</a>). There is
+    no script or test to quote yet, so what is fixed here is the <em>asserted value</em> — the failure
+    signature, the event, the status code — in <code>code</code>. Each <code>h3</code> moves to
+    <a href="#implemented">the implemented scenarios</a> in the commit that makes its cases run, and
+    from then on quotes the test's exact <code>t.Fatalf</code> or the script's exact
+    <code>ok</code>/<code>FAIL</code> line, like every other section. The Go tests run against an
+    <code>httptest</code> fake ai-manager that scripts a reply per request id and counts the POSTs it
+    receives; none spawns a binary and none spends money. Only
+    <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.</p>
+  </div>
+
+  <h3 id="ni-aim">The ai-manager adapter and the reply handoff (TC-275…TC-284)</h3>
+  <p><strong>Given</strong> the fake gateway scripted to answer a turn with <code>200</code>,
+  <code>session_id</code>, <code>input_tokens</code>, <code>output_tokens</code>, a positive
+  <code>cost_usd</code> and a reply ending in one valid <code>gaos-handoff</code> block,
+  <strong>then (TC-275, positive)</strong> the attempt records that session id and those tokens, and
+  its cost basis is <code>measured</code> with <code>invocation</code> <code>gateway</code>.
+  <strong>TC-279, positive:</strong> scripted to answer <code>202</code> and then
+  <code>processing</code> twice before the result, the adapter polls to one attempt, and a second
+  <code>Submit</code> with the same <code>X-Request-ID</code> leaves the fake's POST count for that id
+  at one. <strong>TC-280, positive:</strong> a reply with prose, an earlier fenced block of another
+  language and a final <code>gaos-handoff</code> block yields the final block as the handoff and the
+  whole text as the reply.</p>
+  <p>The negative half is the error mapping in
+  <a href="../architecture/gateway.html#error-mapping">The gateway §error mapping</a>, one case per
+  row. <strong>TC-276:</strong> a <code>410</code> on resume fails the attempt with signature
+  <code>session-lost</code>, and the fake records no <code>new_session</code> request in its place.
+  <strong>TC-277:</strong> a <code>200</code> carrying <code>metadata.session_warning</code> fails as
+  <code>turn-unsaved</code> though its handoff block is valid. <strong>TC-278:</strong> a
+  <code>409</code> closes no <code>TaskRun</code>, emits no <code>RunExited</code>, and leaves the task
+  READY. <strong>TC-281:</strong> three replies — no block, two blocks with different run ids, one
+  block whose <code>run</code> is the previous attempt's — each give <code>handoff-missing</code>.
+  <strong>TC-282:</strong> <code>cost_usd</code> absent, and <code>cost_usd: 0</code> with
+  <code>output_tokens: 900</code>, each give basis <code>unavailable</code> and never a zero cost.
+  <strong>TC-283:</strong> the boot smoke test returns an error when the fake is down and when its
+  <code>/v1/providers</code> lists no <code>claude</code>. <strong>TC-284:</strong> with the admin key
+  set to a marker string, the marker appears in none of the attempt, the events, the captured log or
+  any returned error.</p>
+
+  <h3 id="ni-blueprint">The Blueprint: render, publish, pin (TC-285…TC-290)</h3>
+  <p><strong>Given</strong> a product with a BRD, two policies and one knowledge source,
+  <strong>then (TC-285, positive)</strong> rendering it twice — and once under each store — yields
+  byte-identical files and one digest. <strong>TC-287, positive:</strong> after publishing version 1,
+  editing a policy leaves version 1's files and digest unchanged and changes only the draft.
+  <strong>TC-289, positive:</strong> the knowledge source appears in
+  <code>.claude/rules/70-knowledge-sources.md</code> with its URL, its pinned ref and its purpose.</p>
+  <p><strong>TC-286, negative:</strong> a policy whose body exceeds 64 KiB, and a custom policy whose
+  key would render outside <code>^\.claude/rules/[a-z0-9][a-z0-9._-]{0,80}\.md$</code>, each refuse the
+  publish with an error that names the policy's key, and create no version.
+  <strong>TC-288, negative:</strong> publishing twice with nothing changed creates one version and
+  one <code>BlueprintPublished</code>, not two. <strong>TC-290, negative:</strong> knowledge sources
+  with <code>http://</code> and with <code>https://user:token@host/…</code> are each refused when
+  added.</p>
+
+  <h3 id="ni-workspace">The workspace, the sync and the turn (TC-291…TC-299)</h3>
+  <p><strong>Given</strong> a product in tenant <code>t1</code> with code <code>p5</code>,
+  <strong>then (TC-291, positive)</strong> provisioning asks the fake for
+  <code>gaos-t1-p5</code>, emits one <code>WorkspaceProvisioned</code>, and a second provision emits
+  nothing. <strong>TC-294, positive:</strong> after one turn, the attempt carries the pinned
+  <code>BlueprintVersion</code>, the slice digest, the session id and the request id, and still does
+  after the store is reopened. <strong>TC-296, positive:</strong> a retry on the same model sends
+  <code>session_id</code> rather than <code>new_session</code>; an escalation sends
+  <code>new_session</code> and emits <code>SessionOpened</code> with reason <code>escalation</code>.
+  <strong>TC-297, positive:</strong> with a <code>TaskRun</code> left RUNNING and the fake holding a
+  completed result for its request id, recovery finishes it into the same attempt a supervised run
+  would have produced. <strong>TC-299, positive:</strong> after the fake answers <code>410</code> for
+  a session, the earlier attempt's prompt and reply are still readable from the store.</p>
+  <p><strong>TC-292, negative:</strong> with the workspace's synced digest set to anything but the
+  pinned one, dispatch emits <code>DispatchRefused</code> with rule <code>blueprint-drift</code> and
+  the fake receives no chat request. <strong>TC-293, negative:</strong> a policy containing a
+  credential the egress detectors know refuses the sync with <code>DispatchRefused</code> rule
+  <code>egress-blueprint</code>, and the fake receives no file write. <strong>TC-295,
+  negative:</strong> while one task's turn is live, a second READY task in the same product is
+  reported blocked with the lease reason and is not submitted (<a href="brd.html#rules-gateway">BR-38</a>).
+  <strong>TC-298, negative:</strong> with the fake answering <code>404</code> for an open request,
+  recovery emits <code>TaskOrphaned</code> with rule <code>request-lost</code>, keeps the workspace
+  leased until <code>submittedAt + GAOS_AIM_TURN_DEADLINE</code>, and only then requeues the task — on
+  a new session.</p>
+
+  <h3 id="ni-live-aim">live-aim-run.sh — the first turn through the gateway (TC-300…TC-303)</h3>
+  <p>The successor to <a href="#sc-live-cli">live-cli-run.sh</a>, run by the product owner because
+  it spends money (<a href="decision-log.html#d-025">D-025</a>). <strong>TC-300, positive:</strong>
+  the gateway answers its health check, the dashboard boots in <code>aimanager</code> mode, and the
+  product's workspace is provisioned and listed by <code>GET /v1/workspaces</code>.
+  <strong>TC-301, positive:</strong> a record written through the back office scores above the
+  planning floor, and its Blueprint publishes and syncs to the workspace with the published digest.
+  <strong>TC-303, positive:</strong> a real model's reply carries a <code>gaos-handoff</code> block
+  that GAOS parses to an outcome rather than a signature, on an attempt pinned to that digest.
+  <strong>TC-302, negative:</strong> a dispatch the egress pass refused is reported as a refusal with
+  its reason, rather than read as success from the HTTP <code>200</code> of the route.</p>
+
+  <h3 id="ni-board">The board (TC-304…TC-310)</h3>
+  <p><strong>Given</strong> a product with a planned workflow, <strong>then (TC-304,
+  positive)</strong> <code>GET /products/{id}/board</code> returns the eight declared columns, every
+  task exactly once, and one lane per story plus <code>plan</code>. <strong>TC-305, positive:</strong>
+  each move in the legal-move table — ready to working, review to done, review to ready, failed to
+  ready, blocked to ready, to canceled, and a reorder — produces its events and the status the state
+  machine allows. <strong>TC-308, positive:</strong> folding the events reproduces the board the
+  store reports.</p>
+  <p><strong>TC-306, negative:</strong> every move outside the table — PENDING to READY, DONE to
+  anywhere, anything into or out of DEFERRED, into working from any column but ready — answers
+  <code>409</code> with a reason and writes no event (<a href="brd.html#rules-gateway">BR-43</a>).
+  <strong>TC-307, negative:</strong> a lane change, a card create and a card delete each answer
+  <code>409</code>. <strong>TC-309, negative:</strong> under replay the read-only handle refuses every
+  move. <strong>TC-310, negative:</strong> only if the sisflow board is vendored
+  (<a href="open-questions.html#oq-25">OQ-25</a>) — <code>check-stacks.sh</code> fails the deploy when
+  its files are present without their licence beside them, as
+  <a href="#cs-licences">TC-150/TC-151</a> already do for the fonts and the charting library.</p>
 
   <h3 id="ni-unsatisfiable">The unsatisfiable task (TC-048, TC-049)</h3>
   <p><strong>Given</strong> a task whose acceptance criterion contradicts a domain rule (the shape

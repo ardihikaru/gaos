@@ -14,18 +14,19 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Twenty-four decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Thirty decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Eighteen are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
-  database version, and which CLI ships first. Three of the six still open exist <em>because</em>
-  those answers were given.</p>
+  database version, and which CLI ships first. Of the twelve still open, six arrived on 2026-11-02
+  with the move to ai-manager as the gateway — each one a thing that move makes GAOS depend on
+  without yet controlling.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -59,6 +60,16 @@
     (<a href="decision-log.html#d-036">D-036</a>).</p>
   </div>
 
+  <div class="adm tip">
+    <p class="adm-title">What the 2026-11-02 block changed</p>
+    <p>GAOS stopped running a model itself. ai-manager is now the one gateway, ai-claude-cli does the
+    work inside one workspace per product, and GAOS keeps the product, its Blueprint and the task
+    graph (<a href="decision-log.html#d-055">D-055</a>…<a href="decision-log.html#d-062">D-062</a>).
+    That narrows two questions — <a href="#oq-22">OQ-22</a>, because the gateway reports a measured
+    cost, and <a href="#oq-24">OQ-24</a>, because the workspace now holds only the Blueprint — and
+    opens six: <a href="#oq-25">OQ-25</a> to <a href="#oq-30">OQ-30</a>.</p>
+  </div>
+
   <h2 id="index">The register</h2>
   <p>All twenty-four in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
@@ -89,12 +100,18 @@
       <tr data-tags="technical tenancy database isolation shared hybrid repository interface configurable answered"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Answered → <a href="decision-log.html#d-042">D-042</a></td></tr>
       <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a></td></tr>
       <tr data-tags="technical arcadedb version ddl dialect external pin 26.7.2 answered"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Answered → <a href="decision-log.html#d-043">D-043</a></td></tr>
-      <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a>, <a href="decision-log.html#d-051">D-051</a></td></tr>
+      <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a>, <a href="decision-log.html#d-051">D-051</a>, <a href="decision-log.html#d-062">D-062</a></td></tr>
       <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Answered → <a href="decision-log.html#d-049">D-049</a>, <a href="decision-log.html#d-050">D-050</a></td></tr>
-      <tr data-tags="technical egress allowlist workspace cli reads packet l-4 br-32 new"><td><a href="#oq-24">OQ-24</a></td><td>Technical</td><td>In CLI mode the tool has a working directory, so the egress allowlist bounds what GAOS <em>sends</em> and not what the model can <em>open</em>. Is the workspace itself in scope for L-4, and if so, how?</td><td>L-4, BR-32, D-8</td><td>Open — raised by measurement 2026-08-23</td></tr>
+      <tr data-tags="technical egress allowlist workspace cli reads packet l-4 br-32 new"><td><a href="#oq-24">OQ-24</a></td><td>Technical</td><td>In CLI mode the tool has a working directory, so the egress allowlist bounds what GAOS <em>sends</em> and not what the model can <em>open</em>. Is the workspace itself in scope for L-4, and if so, how?</td><td>L-4, BR-32, D-8</td><td>Open — narrowed by <a href="decision-log.html#d-058">D-058</a></td></tr>
       <tr data-tags="operations cadence review evaluation acceptance tests answered"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
       <tr data-tags="operations ha availability replication backup single-node narrowed"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required, and for whom?</td><td>R-09</td><td>Open — narrowed by <a href="decision-log.html#d-031">D-031</a></td></tr>
       <tr data-tags="operations budget cap spend guard defer pacing answered"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Answered → <a href="decision-log.html#d-037">D-037</a></td></tr>
+      <tr data-tags="technical kanban board sisflow licence ownership vendoring br-27 new"><td><a href="#oq-25">OQ-25</a></td><td>Technical</td><td>May the sisflow board — another organisation's code with no licence file — be vendored into an Apache-2.0 repository, and on what terms?</td><td>I-10, D-061, TC-150</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="technical cancel stop turn in-flight ai-manager upstream new"><td><a href="#oq-26">OQ-26</a></td><td>Technical</td><td>How is a turn already running in ai-claude-cli cancelled, when ai-manager exposes no cancel?</td><td>D-060, task cancel, BR-38</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="technical workspace repository code worktree concurrency product new"><td><a href="#oq-27">OQ-27</a></td><td>Technical</td><td>Where does a product's actual code live inside its workspace, and may one workspace ever run more than one turn at a time?</td><td>BR-38, BR-42, D-058</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="technical knowledge source template repository clone licence pin blueprint new"><td><a href="#oq-28">OQ-28</a></td><td>Technical</td><td>How does a knowledge source repository reach the model — cloned, summarised, or indexed — and whose licence governs it?</td><td>A-9, D-058</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="technical admin key token least privilege ai-manager security new"><td><a href="#oq-29">OQ-29</a></td><td>Technical</td><td>Should GAOS hold a token scoped to its own workspaces instead of ai-manager's admin bearer?</td><td>D-059, BR-29</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="operations ai-manager restart async request records lost recovery new"><td><a href="#oq-30">OQ-30</a></td><td>Operations</td><td>ai-manager keeps async request records in memory. Is the deadline rule enough, or should ai-manager persist them?</td><td>D-060, recovery</td><td>Open — raised 2026-11-02</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -616,6 +633,80 @@
   rather than being resolved by whoever writes the next paragraph of documentation. What is not open
   is that the pass itself works: the same run had a dispatch refused earlier, correctly, because
   <code>dashboard/egress.go</code> trips its own <code>env-assignment</code> detector.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-058">D-058</a>, 2026-11-02.</strong> Through the
+  gateway the workspace holds only what GAOS wrote into it — the Blueprint files, each screened by the
+  same pass before it is sent — so for now the workspace and the screened set are the same set. The
+  question returns the moment a product's repository is placed in the workspace, which is
+  <a href="#oq-27">OQ-27</a>: everything above applies to it unchanged.</p>
+
+  <h3 id="oq-25">OQ-25 · May the sisflow board be vendored?</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-061">D-061</a> gives every product a
+  kanban, and the best-fitting implementation is the sisflow board — plain ES modules, no build step,
+  a REST provider whose shape GAOS adopted for its own API. It is Sismedika's code. The repository has
+  no <code>LICENSE</code> file, and its third-party notice calls sisflow "original … copyright: project
+  owner". GAOS is Apache-2.0 (<a href="decision-log.html#d-035">D-035</a>), and
+  <a href="qa-test-plan.html#cs-licences">TC-150/TC-151</a> refuse any vendored asset without its
+  licence beside it.</p>
+  <ul>
+    <li><strong>A licence grant</strong> from the owner, under Apache-2.0 or a compatible permissive
+    licence, committed beside the vendored files. Clean, and the board ships as designed.</li>
+    <li><strong>Load it, do not vendor it</strong> — served from the owner's own host. Avoids
+    redistribution and adds a runtime dependency on another organisation's server.</li>
+    <li><strong>Stay with the server-rendered board.</strong> No question to answer; a plainer board.
+    This is what ships first either way.</li>
+  </ul>
+  <p><strong>Blocks:</strong> <a href="brd.html#req-i">I-10</a>'s richer board and
+  <a href="../delivery/implementation-plan.html#sub-m14-6">T-165</a>. Nothing else.</p>
+
+  <h3 id="oq-26">OQ-26 · How is an in-flight turn cancelled?</h3>
+  <p><strong>Why it is open:</strong> ai-claude-cli can cancel a job (<code>POST
+  /v1/jobs/{id}/cancel</code>), but its port is private, and ai-manager exposes no cancel and does not
+  return the job id. So cancelling a task whose turn is running can only stop GAOS from
+  <em>accepting</em> the result; the model keeps working, and spending, until its turn ends.
+  <a href="decision-log.html#d-060">D-060</a> makes that safe by holding the workspace lease, and slow
+  for the same reason.</p>
+  <ul>
+    <li><strong>Upstream route</strong> <code>POST /admin/requests/{id}/cancel</code> mapping a request
+    to its job. Recommended in <a href="../architecture/gateway.html#upstream-manager">the gateway
+    spec</a>.</li>
+    <li><strong>Accept it.</strong> Cancel becomes "discard at turn end", and the board says so.</li>
+  </ul>
+
+  <h3 id="oq-27">OQ-27 · Where does the product's code live, and how many turns per workspace?</h3>
+  <p><strong>Why it is open:</strong> the provisioning API in <a href="decision-log.html#d-059">D-059</a>
+  writes instruction files only. A task that must change a real codebase needs that codebase in the
+  workspace — a clone, a worktree, a mount — and none of those is specified. Once it is there, a second
+  question follows: one workspace per product means every task shares one checkout, so
+  <a href="brd.html#rules-gateway">BR-38</a> allows one live turn per product. Worktrees would lift that
+  and multiply the folders the worker must manage.</p>
+  <p><strong>Blocks:</strong> any task whose deliverable is a code change rather than a reply; the
+  reopening of <a href="#oq-24">OQ-24</a>.</p>
+
+  <h3 id="oq-28">OQ-28 · How does a knowledge source reach the model?</h3>
+  <p><strong>Why it is open:</strong> a Blueprint can name a template repository the product must follow
+  (<a href="brd.html#req-a">A-9</a>), pinned by tag or SHA. The first version lists it in a rules file and
+  stops there. Three ways forward, with different costs: <strong>clone it read-only into the
+  workspace</strong> (most faithful; needs an upstream capability, disk, and a licence check per
+  repository), <strong>summarise it into a policy</strong> once (cheap per turn; the summary can drift
+  from the source), or <strong>index it into the graph</strong> as <code>Repository</code>,
+  <code>File</code> and <code>Function</code> vertices that already exist in the schema and are cited
+  into briefs (most in keeping with <a href="decision-log.html#thesis-decisions">D-001</a>; the most work). The
+  licence of the attached repository governs what may be copied from it, and GAOS cannot assume it.</p>
+
+  <h3 id="oq-29">OQ-29 · A scoped token instead of the admin key</h3>
+  <p><strong>Why it is open:</strong> to provision and sync workspaces GAOS needs ai-manager's admin
+  bearer, which also lists, deactivates and deletes <em>every</em> caller's sessions and workspaces.
+  That is not a provider credential, so <a href="brd.html#rules-commercial">BR-29</a> holds, but it is a
+  far broader power than GAOS uses. A token scoped to workspaces carrying the <code>gaos-</code> prefix
+  would bound the damage of a leaked GAOS secret to GAOS's own products.</p>
+
+  <h3 id="oq-30">OQ-30 · Request records lost on an ai-manager restart</h3>
+  <p><strong>Why it is open:</strong> ai-manager's async records live in memory for 24 hours. If it
+  restarts while a turn is running, GAOS's poll gets <code>404</code> and cannot tell a finished turn
+  from a running one. <a href="decision-log.html#d-060">D-060</a>'s deadline rule makes that safe —
+  wait until the turn must have ended, then requeue — but the finished turn's result is lost, and paid
+  for. A durable request store upstream would turn the <code>404</code> branch into an ordinary
+  adoption.</p>
 
   <h2 id="oq-operations">Operations</h2>
 

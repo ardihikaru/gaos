@@ -22,7 +22,7 @@
        data-tags="database, schema, graph, arcadedb, events"
        data-hashtags="arcadedb, graph, schema, events"
        data-published="2026-08-07"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -241,6 +241,27 @@ LIMIT 20</pre>
     instances on 2026-08-07. A health check written against 200 reports every healthy database as
     unreachable, and you go looking at the network for an hour.</p>
   </div>
+
+  <h2 id="gateway-additions">What the gateway adds</h2>
+  <p>Decided on 2026-11-02 and not yet applied. The move to ai-manager as the gateway
+  (<a href="../product/decision-log.html#d-055">D-055</a>) gives each product a Blueprint and a
+  workspace, and the graph three new vertex types and five new edges — <strong>28 vertex types and
+  37 edges</strong> once <a href="../delivery/implementation-plan.html#sub-m14-3">M14.3</a> lands.</p>
+  <table class="tbl">
+    <thead><tr><th>Change</th><th>What it records</th></tr></thead>
+    <tbody>
+      <tr><td><code>Policy</code>, <code>KnowledgeSource</code></td><td>The technical and coding sections of a Blueprint, and the repositories it must follow</td></tr>
+      <tr><td><code>BlueprintVersion</code></td><td>An immutable, content-addressed publication; <code>TaskRun -PINNED_TO-&gt;</code> it</td></tr>
+      <tr><td><code>Workspace</code>, reused</td><td>One per product, by id (<code>HOSTED_IN</code>); its <code>leasedBy</code> and <code>leaseUntil</code> become one live turn per workspace</td></tr>
+      <tr><td><code>TaskRun</code></td><td>The request id recovery polls, the session id, the pinned version, the stored reply</td></tr>
+      <tr><td>Six events</td><td><code>BlueprintPublished</code>, <code>WorkspaceProvisioned</code>, <code>BlueprintSynced</code>, <code>SessionOpened</code>, <code>SessionLost</code>, <code>TaskReordered</code></td></tr>
+    </tbody>
+  </table>
+  <p><code>Agent</code>, <code>Room</code>, <code>CalendarSlot</code> and <code>Meeting</code> go
+  dormant with the floor: nothing writes them, and nothing deletes them, so an old stream still
+  folds. The full proposal, with draft DDL and two new invariants, is §15 of
+  <code>artifacts/v1/gaos-arcadedb-model.html</code>; under <code>BR-05</code> it lands in
+  <code>dashboard/schema/</code>, <code>dashboard/events.go</code> and the fold together.</p>
 
   <h2 id="not-yet">What is not built yet</h2>
 

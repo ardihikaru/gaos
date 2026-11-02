@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Blueprint — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="blueprint">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>Blueprint</h1>
+  <p class="lede">A product's Blueprint is everything a model must know about the product before it
+  is told about a task: the business requirements, the technical and coding policies, and the
+  repositories whose patterns it must follow. GAOS writes it into the product's workspace, versions
+  it, and pins every attempt to the version it ran under.</p>
+
+  <div class="page-meta"
+       data-tags="blueprint, product, policies, workspace, versioning"
+       data-hashtags="gaos, blueprint, brd, policy"
+       data-published="2026-11-02"
+       data-updated="2026-11-02"
+       data-version-from="0.23.0"
+       data-version-to=""></div>
+
+  <div class="adm warn">
+    <p class="adm-title">Designed, not built</p>
+    <p>Decided by <a href="decision-log.html#d-058">D-058</a>; built by
+    <a href="../delivery/implementation-plan.html#sub-m14-3">M14.3</a> and
+    <a href="../delivery/implementation-plan.html#sub-m14-4">M14.4</a>. Today the dashboard holds the
+    BRD part only, and nothing reaches a workspace.</p>
+  </div>
+
+  <h2 id="what-it-is">What a Blueprint is, and is not</h2>
+  <p>The product record already answers <em>what</em> the product must do: problem, goals, scope,
+  rules, stories, acceptance criteria, decisions. It does not answer <em>how</em> the product is
+  built — which language conventions, which folder layout, which error-handling style, which shared
+  library must be reused rather than rewritten. Without that, two tasks on one product produce code
+  that works and does not belong together.</p>
+  <p>The Blueprint is both halves, as one versioned unit. It is <strong>standing</strong> knowledge:
+  it is true for every task of the product, and it changes deliberately. What is true for one task
+  only — its acceptance criteria, the handoffs it depends on, why its last attempt was rejected —
+  is the <a href="#the-brief">brief</a>, and travels separately.</p>
+
+  <h2 id="sections">The sections</h2>
+  <table class="tbl">
+    <thead><tr><th>Section</th><th>Holds</th><th>Source</th><th>Scored by readiness</th></tr></thead>
+    <tbody>
+      <tr><td>BRD</td><td>Problem, goals, scope, out of scope, domain rules, metrics; story index;
+      decisions</td><td>The existing product record (<code>Master</code>)</td><td>Yes — the rubric is
+      unchanged</td></tr>
+      <tr><td>Technical policy</td><td>Architecture constraints, allowed dependencies, data and API
+      conventions, deployment targets</td><td>New <code>Policy</code>, kind
+      <code>technical</code></td><td>No</td></tr>
+      <tr><td>Coding policy</td><td>Language style, folder structure, naming, error handling, testing
+      rules, what "done" means for a change</td><td>New <code>Policy</code>, kind
+      <code>coding</code></td><td>No</td></tr>
+      <tr><td>Other policies</td><td>Security, testing, or anything the product needs</td><td><code>Policy</code>,
+      kind <code>security</code>, <code>testing</code> or <code>custom</code></td><td>No</td></tr>
+      <tr><td>Knowledge sources</td><td>Repositories to follow: a template, a shared library, a
+      reference implementation</td><td>New <code>KnowledgeSource</code></td><td>No</td></tr>
+    </tbody>
+  </table>
+  <p>A <code>Policy</code> is <code>{key, kind, title, body, order, scope}</code>. <code>body</code>
+  is Markdown. <code>scope</code> is an optional file glob for later, when a rule should load only
+  for the files it governs; the first version writes every rule unscoped, so every rule always
+  loads.</p>
+
+  <h2 id="knowledge-sources">Knowledge sources</h2>
+  <p>A knowledge source is a repository the product must learn from — for a Go service, a Go
+  template repository that fixes the layout, the interfaces and the reusable functions. It is recorded
+  as <code>{kind: git-repo, url, ref, purpose, note}</code>:</p>
+  <ul>
+    <li><code>url</code> is <code>https</code> only and may not contain credentials.</li>
+    <li><code>ref</code> is a tag or a commit SHA, never a branch: an attempt must be reproducible, and
+    a branch is a moving target.</li>
+    <li><code>purpose</code> is one of <code>style</code>, <code>structure</code>,
+    <code>interfaces</code>, <code>reference</code>, so the model knows whether to copy, conform to,
+    call, or merely consult it.</li>
+  </ul>
+  <p>The first version <strong>records and lists</strong> knowledge sources; it does not fetch them.
+  Placing a repository inside the workspace needs an upstream capability beyond the instruction-file
+  allowlist, and raises questions of licence and size that are not yet answered
+  (<a href="open-questions.html#oq-28">OQ-28</a>).</p>
+
+  <h2 id="layout">What lands in the workspace</h2>
+  <p>Claude Code loads <code>CLAUDE.md</code> and <code>.claude/rules/*.md</code> from its working
+  folder on every turn, <em>including a resumed one</em> — ai-manager measured this. That makes the
+  workspace the right place for standing knowledge and the prompt the wrong one: the prompt is capped
+  at 256 KB, and is fixed at the start of a session.</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">workspace</span><button class="copy">copy</button></div>
+    <pre>gaos-t1-p5/
+├── CLAUDE.md                       <span class="c"># product, goal, "managed by GAOS — blueprint v7, do not edit", rule index</span>
+└── .claude/rules/
+    ├── 00-gaos-contract.md         <span class="c"># the reply contract below — survives resume</span>
+    ├── 10-brd.md                   <span class="c"># problem, goals, scope, out of scope, rules, metrics</span>
+    ├── 20-stories.md               <span class="c"># index only; full criteria travel in the brief</span>
+    ├── 30-decisions.md
+    ├── 40-technical-policy.md
+    ├── 50-coding-policy.md
+    ├── 60-security-policy.md       <span class="c"># 6x: one file per further policy, by order</span>
+    └── 70-knowledge-sources.md     <span class="c"># url, pinned ref, purpose, note</span></pre>
+  </div>
+
+  <p>Rendering is deterministic: the same Blueprint produces byte-identical files in either store, so
+  the digest of the file set identifies the version. Every file is screened by the egress pass before
+  it is sent (<a href="brd.html#rules-commercial">BR-32</a>) — a credential pasted into a policy is
+  refused exactly as one in a task brief would be. Only the allowlisted paths above can be written
+  (<a href="brd.html#rules-gateway">BR-42</a>), within 64 KiB per file and 256 KiB in total.</p>
+
+  <h2 id="versioning">Versions and pinning</h2>
+  <p>Editing a policy changes a draft. <strong>Publishing</strong> renders the draft, computes its
+  digest, and stores an immutable <code>BlueprintVersion</code> <code>{n, digest, files,
+  publishedAt}</code>. Publishing an unchanged Blueprint does nothing — no event, no new number —
+  because two versions with one digest would make "which version did this attempt run under"
+  ambiguous.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Step</th><th>Writes</th><th>Event</th></tr></thead>
+    <tbody>
+      <tr><td>Edit a policy or source</td><td>The draft</td><td><code>RecordUpdated</code></td></tr>
+      <tr><td>Publish</td><td><code>BlueprintVersion</code></td><td><code>BlueprintPublished</code></td></tr>
+      <tr><td>Provision (once per product)</td><td><code>Workspace</code>, <code>HOSTED_IN</code></td><td><code>WorkspaceProvisioned</code></td></tr>
+      <tr><td>Sync — when the workspace is idle</td><td><code>Workspace.syncedDigest</code></td><td><code>BlueprintSynced</code></td></tr>
+      <tr><td>Dispatch</td><td><code>TaskRun -PINNED_TO-&gt; BlueprintVersion</code></td><td><code>TaskDispatched</code></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>A drifted workspace refuses dispatch</strong>
+  (<a href="brd.html#rules-gateway">BR-39</a>). At submit, the workspace's synced digest must equal
+  the pinned version's digest; otherwise the dispatch is refused with rule
+  <code>blueprint-drift</code>. After the turn, the context ai-claude-cli reports it observed is
+  compared with the manifest: an extra <code>CLAUDE.md</code> from a parent folder, or a missing rule,
+  is drift too. This is how GAOS knows the model saw the Blueprint the record says it saw, rather than
+  assuming it.</p>
+
+  <h2 id="the-brief">The brief: the per-task layer</h2>
+  <p>The brief is the prompt. It carries only what is specific to this attempt:</p>
+  <ul>
+    <li>the task — title, role, the story it implements, its acceptance criteria in full;</li>
+    <li>the handoffs of the tasks it depends on, cited by id;</li>
+    <li>on a retry, the review that rejected the previous attempt;</li>
+    <li>the run id, and a one-paragraph restatement of the reply contract.</li>
+  </ul>
+  <p>The brief is what <code>ContextSlice</code> now freezes: its digest is the digest the egress pass
+  cleared, and its citations are recorded per attempt, as before. The Blueprint is cited by version,
+  not copied into the slice.</p>
+
+  <h2 id="reply-contract">The reply contract</h2>
+  <p>The model writes into a folder on another host, so GAOS can no longer read a handoff file. The
+  handoff travels in the reply instead (<a href="decision-log.html#d-057">D-057</a>). The reply ends
+  with exactly one fenced block tagged <code>gaos-handoff</code>:</p>
+
+  <div class="codeblock">
+    <div class="bar"><span class="lang">reply</span><button class="copy">copy</button></div>
+    <pre>…the model's working notes, kept as the reply artifact…
+
+```gaos-handoff
+task: T-ab12
+run: gaos.t1.T-ab12.2
+role: implement
+status: complete            <span class="c"># complete | blocked | partial</span>
+criteria:
+  - id: AC-1
+    met: true
+    evidence: "handler returns 409 on an illegal move"
+artifacts:
+  - kind: file
+    ref: "internal/board/move.go"
+blockers: []
+next_role: verify
+must_know:
+  - "the move table lives in one place; do not duplicate it in the UI"
+```</pre>
+  </div>
+
+  <p>GAOS takes the <strong>last</strong> <code>gaos-handoff</code> block and runs it through the same
+  parser and validator the file used. Three checks are added. <code>run</code> must be the current
+  run id — in a resumed session the model can see, and repeat, the block it wrote last time. Two
+  blocks with different run ids are a failure, not a choice. And <code>task</code> must be the task
+  the brief named. A reply that fails any of these is <code>handoff-missing</code>, however good its
+  prose (<a href="brd.html#rules-commercial">BR-30</a>).</p>
+
+  <h2 id="limits">Limits and open edges</h2>
+  <ul>
+    <li><strong>The model can edit the files.</strong> Claude Code runs with full permissions in the
+    workspace. The contract forbids it, the banner says so, and every sync re-asserts the digest — but
+    a model that rewrites <code>CLAUDE.md</code> mid-turn will be caught after the turn, not prevented
+    during it.</li>
+    <li><strong>No product code lives in the workspace yet.</strong> Only instruction files can be
+    written. A task that must change a real repository needs one placed in the workspace, which is
+    <a href="open-questions.html#oq-27">OQ-27</a>; until then deliverables travel in the reply.</li>
+    <li><strong>Knowledge sources are listed, not read.</strong>
+    <a href="open-questions.html#oq-28">OQ-28</a>.</li>
+  </ul>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -23,7 +23,7 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -420,6 +420,15 @@
   </table>
 
   <h3 id="to-be-cli" data-short="7.6 CLI and API modes">7.6 How a task reaches a model — two modes, one contract</h3>
+  <div class="adm warn">
+    <p class="adm-title">Superseded by §7.7 on 2026-11-02 — kept because it is what still runs</p>
+    <p>GAOS no longer runs a model tool itself (<a href="decision-log.html#d-055">D-055</a>). This
+    section and §7.6.1–§7.6.3 describe the CLI adapter, the packet on disk and the handoff file that
+    the dashboard ships today, and they stay true until
+    <a href="../delivery/implementation-plan.html#m14-gateway">M14</a> replaces them. The successor
+    is <a href="#to-be-gateway">§7.7</a>. Two things carry over unchanged: the handoff is still a
+    contract rather than a convention, and the invocation is still recorded and never branched on.</p>
+  </div>
   <p>The design says "model gateway · adapters, routing, cost and token accounting" and does not say
   how the gateway talks to a provider. It is now decided that there are
   <strong>two supported ways, and they are interchangeable</strong>
@@ -671,6 +680,57 @@ egress:                               <span class="c"># domain L applies in BOTH
     <em>recorded</em> without ever being <em>branched on</em>.</p>
   </div>
 
+  <h3 id="to-be-gateway" data-short="7.7 Through the gateway">7.7 How a task reaches a model — through the gateway</h3>
+  <p>GAOS stops being the thing that runs a model. It becomes the thing that decides what a model is
+  asked to do, inside which product, under which standing rules
+  (<a href="decision-log.html#d-055">D-055</a>). The product owner's layering is the whole design:
+  <strong>ai-claude-cli works the task with context; ai-manager shapes it with a workspace; GAOS
+  shapes it with the product, the task details and the product's Blueprint.</strong></p>
+  <ul>
+    <li><strong>One product, one workspace.</strong> ai-manager's workspace is a folder on the worker
+    that Claude Code runs in. GAOS provisions one per product through an upstream API
+    (<a href="decision-log.html#d-059">D-059</a>) and names it by id, never by path
+    (<a href="#rules-gateway">BR-42</a>).</li>
+    <li><strong>The Blueprint is the standing layer.</strong> The product's BRD, technical and coding
+    policies and knowledge sources are rendered into <code>CLAUDE.md</code> and
+    <code>.claude/rules/</code>, which Claude Code loads on every turn. A published version is
+    immutable, and every attempt pins one (<a href="decision-log.html#d-058">D-058</a>,
+    <a href="blueprint.html">Blueprint</a>).</li>
+    <li><strong>The brief is the per-task layer.</strong> The prompt carries the task, its criteria,
+    the cited handoffs and the last review — and nothing that is true for the whole product.</li>
+    <li><strong>One session per task.</strong> A retry resumes it; an escalation, a lost session or
+    age opens a new one (<a href="decision-log.html#d-056">D-056</a>). The session is transport: GAOS
+    stores the prompt, the reply and the handoff itself (<a href="#rules-gateway">BR-41</a>).</li>
+    <li><strong>The handoff travels in the reply</strong>, as one fenced <code>gaos-handoff</code>
+    block that must echo the current run id (<a href="decision-log.html#d-057">D-057</a>).</li>
+    <li><strong>One live turn per workspace</strong>, and recovery is a poll by request id with a
+    deadline rather than a process to adopt or kill (<a href="decision-log.html#d-060">D-060</a>,
+    <a href="#rules-gateway">BR-38</a>).</li>
+  </ul>
+
+  <div class="flow rv">
+    <div class="node"><b>Assemble</b><span>the brief, by traversal</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Screen</b><span>egress, BR-32</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Freeze</b><span>slice + pinned Blueprint</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Submit</b><span>one turn, async</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Poll</b><span>until a result</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Extract</b><span>the handoff block</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Score</b><span>review, then accept or retry</span></div>
+  </div>
+
+  <p>What this removes from GAOS is everything that existed to supervise a process: the packet on
+  disk, the file lease, the detached runner, the kill-then-requeue reconciler, the version pin of a
+  tool GAOS no longer runs. What it keeps is everything nobody else can own — the record, the
+  Blueprint, readiness, the task graph and its state machine, egress screening, the event stream and
+  the evidence of every attempt. The full contract, error mapping and upstream specification:
+  <a href="../architecture/gateway.html">The gateway</a>.</p>
+
   <h2 id="business-requirements">8. Business requirements</h2>
   <p>Twelve domains. Each requirement is <strong>Designed</strong> (specified in an artifact, not
   implemented), <strong>Built</strong> (running in this repository), <strong>Decided</strong> (a
@@ -689,6 +749,10 @@ egress:                               <span class="c"># domain L applies in BOTH
       <tr><td>A-5</td><td>Index a linked repository into files and functions, and identify the entrypoint</td><td>Impact analysis from a diff is a traversal, and it needs the code in the graph</td><td>Designed</td></tr>
       <tr><td>A-6</td><td>Injection parses the record into vertices and edges and rescores it in one operation</td><td>A record that is edited but not injected is a lie the planner will believe</td><td>Designed</td></tr>
       <tr><td>A-7</td><td>Back-office surface for all of the above</td><td>The record author is a human with a browser</td><td><strong>Built</strong> — <code>dashboard/handlers_bo.go</code>, and what it writes survives a restart as the record document (<code>T-028</code>, <code>T-029</code>)</td></tr>
+      <tr><td>A-8</td><td>Each product carries a <em>Blueprint</em>: its BRD plus technical, coding and further policies, as ordered Markdown sections</td><td>The record says what the product must do; without how it is built, two tasks on one product produce code that works and does not belong together — <a href="decision-log.html#d-058">D-058</a></td><td>Decided</td></tr>
+      <tr><td>A-9</td><td>A Blueprint may name knowledge sources — repositories to follow, pinned by tag or SHA, each with a purpose (style, structure, interfaces, reference)</td><td>A Go product should follow a Go template's layout and reuse its interfaces rather than reinvent them. Recorded now; how it reaches the model is <a href="open-questions.html#oq-28">OQ-28</a></td><td>Decided</td></tr>
+      <tr><td>A-10</td><td>Publishing a Blueprint creates an immutable, content-addressed version; an unchanged Blueprint publishes nothing</td><td>"Which rules did this attempt run under" must have one answer, forever</td><td>Decided</td></tr>
+      <tr><td>A-11</td><td>Each product has exactly one ai-manager workspace, provisioned by GAOS and kept in sync with the latest published Blueprint</td><td>Standing knowledge must reach every session of the product without travelling in every prompt — <a href="decision-log.html#d-059">D-059</a></td><td>Decided — needs the upstream API (<a href="../delivery/implementation-plan.html#sub-m14-1">M14.1</a>)</td></tr>
     </tbody>
   </table>
 
@@ -753,18 +817,24 @@ egress:                               <span class="c"># domain L applies in BOTH
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
       <tr><td>D-1</td><td>The scheduler is a pure function of the graph — two replicas computing it independently reach the same answer</td><td>Leader election then protects against duplicate dispatch, not divergent state; restart becomes uninteresting</td><td>Built</td></tr>
-      <tr><td>D-2</td><td>Work runs in detached processes that survive the orchestrator</td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Built</td></tr>
-      <tr><td>D-3</td><td>Each run holds an exclusive workspace lease with an expiry, and heartbeats</td><td>Two runs in one workspace corrupt each other silently</td><td>Built</td></tr>
-      <tr><td>D-4</td><td>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</td><td>This is the whole of recovery; there is no other path</td><td>Built</td></tr>
+      <tr><td><s>D-2</s></td><td><s>Work runs in detached processes that survive the orchestrator</s> <em>Superseded by D-18, <a href="decision-log.html#d-060">D-060</a></em></td><td>An orchestrator restart must not kill a paid model call in flight</td><td>Built</td></tr>
+      <tr><td><s>D-3</s></td><td><s>Each run holds an exclusive workspace lease with an expiry, and heartbeats</s> <em>Superseded by D-18, <a href="decision-log.html#d-060">D-060</a></em></td><td>Two runs in one workspace corrupt each other silently</td><td>Built</td></tr>
+      <tr><td><s>D-4</s></td><td><s>On boot, reconcile every task claiming to be dispatched or running against its lease and heartbeat: adopt, requeue, or fail as orphaned</s> <em>Superseded by D-19, <a href="decision-log.html#d-060">D-060</a></em></td><td>This is the whole of recovery; there is no other path</td><td>Built</td></tr>
       <tr><td>D-5</td><td>Each attempt is its own record with its own model, cost, tokens, exit code and failure signature</td><td>Folding attempts into the task destroys the evidence of the previous one, and model comparison becomes impossible</td><td><strong>Built</strong> — <code>TaskRunRecord</code> in <code>dashboard/model.go</code>, opened before the spawn and closed under the lock that writes <code>RunExited</code> (<code>T-054</code>); <a href="qa-test-plan.html#go-taskrun">TC-247…TC-249</a>. The attempts on record so far were made against a stand-in tool, never a provider</td></tr>
       <tr><td>D-6</td><td>The exact context slice sent to a model is frozen and stored per attempt</td><td>Without it you can see that a task failed but never why the model believed what it believed (P-6)</td><td><strong>Built</strong> — the slice is frozen at the moment the egress pass clears it, keyed by that digest, with <code>USES_CONTEXT</code> on the slice rather than the task (<code>T-055</code>); <code>GET /tasks/{id}/context</code> answers from it and says when it is answering live instead (<code>T-056</code>). <a href="qa-test-plan.html#go-taskrun">TC-250…TC-256</a></td></tr>
       <tr><td>D-7</td><td>The model gateway supports two interchangeable adapters — a provider's command-line tool spawned as a detached subprocess, and the provider's HTTP API — selected by one deployment-wide setting. Development delivers the CLI adapter first</td><td>Predictable flat-fee spend or exact metered accounting is the operator's call, not the product's — <a href="decision-log.html#d-036">D-036</a>, <a href="#to-be-cli">§7.6</a></td><td><strong>Partly built</strong> &mdash; the CLI adapter exists (<code>dashboard/adapter_cli.go</code>, <a href="../delivery/implementation-plan.html#sub-m4-4">T-057</a>) with the boot smoke test and the handoff parser. No scheduler drives it and no real provider has been invoked; the API adapter is <a href="../delivery/implementation-plan.html#sub-m4-4">T-058</a></td></tr>
-      <tr><td>D-8</td><td>The frozen slice is materialised as a <em>task packet</em> of files in the leased workspace, and the packet is what is stored as the attempt's evidence</td><td>D-6 must remain true when there is no request body to record</td><td><strong>Built</strong> — <code>MaterialisePacket</code> in <code>dashboard/packet.go</code>, the cleared packet only (<code>T-061</code>); <a href="qa-test-plan.html#go-packet">TC-262</a>, <a href="qa-test-plan.html#go-packet">TC-263</a></td></tr>
+      <tr><td><s>D-8</s></td><td><em>Superseded by D-16, <a href="decision-log.html#d-057">D-057</a>: there is no packet on disk.</em> The frozen slice is materialised as a <em>task packet</em> of files in the leased workspace, and the packet is what is stored as the attempt's evidence</td><td>D-6 must remain true when there is no request body to record</td><td><strong>Built</strong> — <code>MaterialisePacket</code> in <code>dashboard/packet.go</code>, the cleared packet only (<code>T-061</code>); <a href="qa-test-plan.html#go-packet">TC-262</a>, <a href="qa-test-plan.html#go-packet">TC-263</a></td></tr>
       <tr><td>D-9</td><td>Every invocation must produce a <em>handoff document</em> at a declared path in the declared shape; a missing or unparseable one is a failed attempt with the signature <code>handoff-missing</code></td><td>This is the only path by which one agent's reasoning reaches the next. Treating its absence as success would let a chain silently degrade into agents editing files at each other</td><td><strong>Built</strong> — the contract travels in the packet and as a standing system prompt (<code>T-062</code>), and all four ways to fail carry one signature (<code>T-063</code>). Proved against a real provider tool on 2026-08-23: <a href="qa-test-plan.html#sc-live-cli">TC-272</a></td></tr>
       <tr><td>D-10</td><td>The handoff document is stored as an <code>Artifact</code> and reaches the next agent only through <code>USES_CONTEXT</code> on that agent's slice</td><td>Keeps the document as transport and the graph as the record — a document passed outside the graph is a state change that never happened (BR-02)</td><td><strong>Built</strong> — <code>ArtifactRecord</code> keyed by run and cited into the next packet with role <code>lesson</code>, with no second route to it (<code>T-064</code>); <a href="qa-test-plan.html#go-packet">TC-266</a></td></tr>
       <tr><td>D-11</td><td>Every recorded cost carries a basis — <code>measured</code> or <code>estimated</code> — and the two are never aggregated without the distinction surviving</td><td>A CLI may report no usage at all; a budget cap computed from silent guesses is not a cap. How the estimate is produced, and what happens when it cannot be, is <a href="decision-log.html#d-044">D-044</a></td><td>Designed</td></tr>
-      <tr><td>D-12</td><td>The execution mode is one deployment-wide setting in a single configuration file (<a href="#mode-config">§7.6.1</a>), never a per-task choice, and <code>auto</code> falls back between adapters only by emitting an event that says it did</td><td>Two attempts at the same task must stay comparable, or the model-comparison replay scope in H-4 compares the tool rather than the model</td><td>Designed</td></tr>
+      <tr><td><s>D-12</s></td><td><em>Superseded by D-14: the mode is ai-manager's provider table, not GAOS's.</em> The execution mode is one deployment-wide setting in a single configuration file (<a href="#mode-config">§7.6.1</a>), never a per-task choice, and <code>auto</code> falls back between adapters only by emitting an event that says it did</td><td>Two attempts at the same task must stay comparable, or the model-comparison replay scope in H-4 compares the tool rather than the model</td><td>Designed</td></tr>
       <tr><td>D-13</td><td>Each attempt records which adapter ran, as <code>TaskRun.invocation</code>. No component above the adapter may branch on it</td><td>The mode has to be visible in the evidence and invisible in the logic — recording it is what lets the prohibition in <a href="#rules-commercial">BR-33</a> be checked rather than trusted</td><td>Designed</td></tr>
+      <tr><td>D-14</td><td>The model gateway is one adapter, an HTTP client of ai-manager; every attempt records <code>invocation = gateway</code></td><td>Supervising a model process is ai-claude-cli's job, written once for every client — <a href="decision-log.html#d-055">D-055</a>, <a href="decision-log.html#d-062">D-062</a></td><td>Decided</td></tr>
+      <tr><td>D-15</td><td>One ai-manager session per task: a retry resumes it, an escalation, a <code>410</code> or rotation opens a new one</td><td>One turn at a time per session, history re-read every turn, expiry after thirty days — <a href="decision-log.html#d-056">D-056</a></td><td>Decided</td></tr>
+      <tr><td>D-16</td><td>The handoff is the last <code>gaos-handoff</code> block in the reply and must echo the current run id; otherwise <code>handoff-missing</code></td><td>GAOS cannot read a file written on another host; D-9's contract must survive the move — <a href="decision-log.html#d-057">D-057</a></td><td>Decided</td></tr>
+      <tr><td>D-17</td><td>Every attempt pins the published Blueprint version it ran under, and the workspace must match it at submit</td><td>The rules an attempt followed are part of its evidence — <a href="decision-log.html#d-058">D-058</a></td><td>Decided</td></tr>
+      <tr><td>D-18</td><td>At most one live turn per product workspace, held as a lease on the <code>Workspace</code> vertex</td><td>The successor to D-3: one folder per product means two turns would be two full-permission agents in one checkout — <a href="decision-log.html#d-060">D-060</a></td><td>Decided</td></tr>
+      <tr><td>D-19</td><td>Every turn carries a deterministic request id persisted before it is sent; on boot, each open id is polled and adopted, kept, or — if lost — held until the turn deadline and requeued on a new session</td><td>The successor to D-4: there is no process to adopt or kill, only a request to ask about — <a href="decision-log.html#d-060">D-060</a></td><td>Decided</td></tr>
     </tbody>
   </table>
   <div class="adm note">
@@ -866,14 +936,16 @@ efficiency    tokens, latency, retries consumed</pre>
   <table class="tbl">
     <thead><tr><th>ID</th><th>Requirement</th><th>Business need</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>I-1</td><td>The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>An operator must see the whole fleet in one glance</td><td>Built</td></tr>
+      <tr><td><s>I-1</s></td><td><em>Superseded by I-9, <a href="decision-log.html#d-061">D-061</a>.</em> The floor: one desk per workflow, colour-coded by state, with occupancy per room</td><td>An operator must see the whole fleet in one glance</td><td>Built</td></tr>
       <tr><td>I-2</td><td>The inspector: current task, role, model, retries, escalations, cost so far, score breakdown, the context slice, the runner log</td><td>Every number an operator would otherwise ask for</td><td>Built</td></tr>
       <tr><td>I-3</td><td>The event timeline with scrub-to-replay and speed control</td><td>Understanding <em>when</em> something went wrong precedes understanding why</td><td>Built</td></tr>
-      <tr><td>I-4</td><td>The design-review overlay: agenda, participants, confidence, decision</td><td>Meetings are a system state, not an off-screen event</td><td>Built</td></tr>
+      <tr><td><s>I-4</s></td><td><em>Retired with the floor, <a href="decision-log.html#d-060">D-060</a>; meetings stay in the data model, unrendered.</em> The design-review overlay: agenda, participants, confidence, decision</td><td>Meetings are a system state, not an off-screen event</td><td>Built</td></tr>
       <tr><td>I-5</td><td>The back office: product master, requirements, stories, diagrams, knowledge, agents, readiness checklist, graph projection, story coverage</td><td>Where the record author works</td><td>Built</td></tr>
       <tr><td>I-6</td><td>The UI never invents state the graph does not have</td><td>A projection that guesses is worse than a blank</td><td><strong>Built</strong> — an architectural prohibition rather than a feature, and it holds today: <code>static/app.js</code> carries HTMX wiring and keyboard shortcuts and renders no markup at all (<code>T-108</code>)</td></tr>
       <tr><td>I-7</td><td>The five blocking reasons for an idle desk are displayed explicitly, including "deferred — budget window" with the time it resumes</td><td><a href="#to-be-autonomy">§7.4</a> — an unexplained idle floor reads as a broken product, and a budget pause that looks like a hang is the version of that failure an operator will report as a bug</td><td>Designed</td></tr>
       <tr><td>I-8</td><td><strong>Mission Control is one surface for both audiences — the operator's view and the internal operations view are the same pages with different capabilities granted, separated by role and never by codebase.</strong> Three things are preconditions on any further work here rather than later additions: real authentication, per-tenant scoping so a role sees one tenant's records and not the store, and accessibility. The provider data-handling profile and the egress inventory are displayed here (<a href="#req-l">L-3</a>)</td><td><a href="decision-log.html#d-040">D-040</a>. A second console would fork the only finished thing in the repository, and the fork would drift. Choosing both audiences means the surface is now something external operators sit in front of, which is what turns the three preconditions from aspirations into blockers — <a href="open-questions.html#oq-11">OQ-11</a> becomes a blocking dependency rather than an open question</td><td>Designed — none of the three preconditions is started</td></tr>
+      <tr><td>I-9</td><td>Each product has a kanban board: columns are groups of task statuses, swimlanes are stories (or roles), and every card shows its exact status</td><td>Once GAOS is product and task management, the board is the product's working surface — <a href="decision-log.html#d-061">D-061</a></td><td>Decided</td></tr>
+      <tr><td>I-10</td><td>A move on the board is a request to the task state machine; an illegal move returns <code>409</code>, writes no event, and the board rolls back. Columns the scheduler or the budget guard own are never drop targets</td><td>A board that can set a status the state machine forbids is a second source of truth (<a href="#rules-gateway">BR-43</a>). A richer client-side board depends on <a href="open-questions.html#oq-25">OQ-25</a></td><td>Decided</td></tr>
     </tbody>
   </table>
 
@@ -1183,14 +1255,27 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-27</td><td>The open repository is a complete working system on its own. No private submodule may be required to install, run, plan, execute, review or replay — absence degrades a capability and never breaks the product. <em>(K-2, <a href="decision-log.html#d-026">D-026</a>)</em></td></tr>
       <tr><td>BR-28</td><td>No safety control, termination guard, budget cap or audit record is ever sold — not in a submodule, not behind a support tier. Fixes land in the open repository for everyone; what a support subscription buys is attention, never correctness. <em>(<a href="decision-log.html#d-031">D-031</a>)</em></td></tr>
       <tr><td>BR-29</td><td>GAOS never holds a provider credential belonging to anyone else and is never in the billing path. The operator's account pays for every token. <em>(K-7, <a href="decision-log.html#d-030">D-030</a>)</em></td></tr>
-      <tr><td>BR-30</td><td>Every invocation produces a handoff document in the declared shape at the declared path. A missing or unparseable one is a failed attempt with the signature <code>handoff-missing</code> — never a silent pass. <em>(D-9, <a href="decision-log.html#d-033">D-033</a>)</em></td></tr>
+      <tr><td>BR-30</td><td>Every invocation produces a handoff document in the declared shape at the declared path. A missing or unparseable one is a failed attempt with the signature <code>handoff-missing</code> — never a silent pass. <em>(D-9, <a href="decision-log.html#d-033">D-033</a>)</em> <em>Amended by <a href="decision-log.html#d-057">D-057</a>: through the gateway the declared path is a declared block — the last <code>gaos-handoff</code> block of the reply.</em></td></tr>
       <tr><td>BR-31</td><td>Every cost figure carries its basis, <code>measured</code> or <code>estimated</code>, and the distinction survives every aggregation. <em>(D-11, <a href="decision-log.html#d-032">D-032</a>)</em></td></tr>
-      <tr><td>BR-32</td><td>Nothing reaches a model provider without passing the pre-dispatch egress check first. A detection refuses the dispatch; it does not report the leak afterwards. <em>(L-4, <a href="decision-log.html#d-034">D-034</a>)</em></td></tr>
-      <tr><td>BR-33</td><td>The execution mode may be recorded and never branched on. Every component above the adapter behaves identically whether a subprocess or an HTTP request produced the result. <em>(D-13, <a href="decision-log.html#d-036">D-036</a>)</em></td></tr>
+      <tr><td>BR-32</td><td>Nothing reaches a model provider without passing the pre-dispatch egress check first. A detection refuses the dispatch; it does not report the leak afterwards. <em>(L-4, <a href="decision-log.html#d-034">D-034</a>)</em> <em>Extended by <a href="decision-log.html#d-058">D-058</a>: a Blueprint sync is a dispatch path, and its files are screened the same way.</em></td></tr>
+      <tr><td>BR-33</td><td>The execution mode may be recorded and never branched on. Every component above the adapter behaves identically whether a subprocess or an HTTP request produced the result. <em>(D-13, <a href="decision-log.html#d-036">D-036</a>)</em> <em>Amended by <a href="decision-log.html#d-062">D-062</a>: <code>gateway</code> joins the recorded values, under the same prohibition.</em></td></tr>
       <tr><td>BR-34</td><td>Deferral is not failure. A task deferred for budget consumes no retry, no escalation and no failure signature, and keeps its place in the graph. <em>(J-12, <a href="decision-log.html#d-037">D-037</a>)</em></td></tr>
       <tr><td>BR-35</td><td>A limit that only warns is not a limit. The budget guard refuses to dispatch at the cap — and never kills a run already in flight, because that forfeits money already spent. <em>(J-9, J-13, <a href="decision-log.html#d-037">D-037</a>)</em></td></tr>
       <tr><td>BR-36</td><td>The escalation ladder is defined in the gateway's own normalised tiers, never in vendor model names. Every provider maps into those tiers, because "one model tier above" (<a href="#rules-scoring">BR-15</a>) has no meaning across vendors otherwise. <em>(D-7, <a href="decision-log.html#d-041">D-041</a>)</em></td></tr>
       <tr><td>BR-37</td><td>A cost that cannot be priced is reported as <strong>unavailable, never as zero</strong>. The estimator refuses an unknown model rather than guessing at it, and the refusal is visible to the operator — because after <a href="decision-log.html#d-037">D-037</a> a zero is a figure the budget guard will let through. <em>(D-11, <a href="decision-log.html#d-044">D-044</a>)</em></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rules-gateway">9.6 Gateway, Blueprint and board</h3>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-38</td><td>At most one turn is live in a product's workspace at any moment. A second ready task in the same product waits, blocked with the reason, rather than starting. <em>(D-18, <a href="decision-log.html#d-060">D-060</a>)</em></td></tr>
+      <tr><td>BR-39</td><td>Every attempt pins a published Blueprint version. A workspace whose synced files do not match that version refuses dispatch with <code>blueprint-drift</code>, and so does one whose observed context shows instructions GAOS did not write. <em>(D-17, <a href="decision-log.html#d-058">D-058</a>)</em></td></tr>
+      <tr><td>BR-40</td><td>A lost session is never silently replaced. A <code>410</code> is the failure <code>session-lost</code>, a turn the gateway did not save is <code>turn-unsaved</code>, and either way the next attempt opens a new session and says so. <em>(D-15, <a href="decision-log.html#d-056">D-056</a>)</em></td></tr>
+      <tr><td>BR-41</td><td>The session is transport, not the record. The prompt, the reply, the parsed handoff and the gateway's metadata are stored by GAOS for every attempt, and remain readable after the session expires. <em>(D-15, BR-02)</em></td></tr>
+      <tr><td>BR-42</td><td>GAOS names a workspace by id and never by path, and writes only allowlisted instruction files into it. <em>(A-11, <a href="decision-log.html#d-059">D-059</a>)</em></td></tr>
+      <tr><td>BR-43</td><td>A move on the board is a request. The task state machine decides, and a refused move writes nothing. <em>(I-10, <a href="decision-log.html#d-061">D-061</a>)</em></td></tr>
     </tbody>
   </table>
 
@@ -1277,6 +1362,8 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>R-10</td><td>Open-core boundary erosion: a capability needed by everyone drifts into a paid submodule, or a submodule quietly becomes required</td><td>The failure mode that ends open-core projects. It destroys the trust that is the entire acquisition strategy in K-3</td><td>Guarded structurally: <a href="#rules-commercial">BR-27</a> and <a href="#rules-commercial">BR-28</a> make the boundary a rule with a published scope (<a href="decision-log.html#d-038">D-038</a>: the paid half is automation of what the free half must keep doing manually), not a judgment call made release by release</td></tr>
       <tr><td>R-11</td><td>Egress of source code to a model provider is automatic, continuous, and widens on every retry</td><td>The one way GAOS can harm a user badly without any component failing: correct behaviour, unreviewed content, irreversible send</td><td>Open, and <em>materially reduced</em> on 2026-08-22. L-4's pre-dispatch check is the load-bearing part — the safety score in domain E is post-hoc and cannot recall a sent slice — and it is now built and enforced by a type rather than by call order (<a href="../delivery/implementation-plan.html#sub-m11-2">T-126</a>, <a href="../delivery/implementation-plan.html#sub-m11-2">T-127</a>, <a href="#rules-commercial">BR-32</a>). <strong>The risk does not close</strong>: the detectors are a finite list and a secret in an unusual shape still passes, the widening-on-retry behaviour is unbuilt rather than mitigated because there is no retry loop yet, and the product-level no-egress mode <a href="#req-l">L-6</a> asks for is <a href="../delivery/implementation-plan.html#sub-m11-2">T-128</a></td></tr>
       <tr><td>R-12</td><td>Driving an interactive provider CLI from a scheduler may sit outside the terms of the subscription it runs under, and CLI interfaces are neither versioned nor documented for programmatic use</td><td>An operator could have their provider account restricted by using GAOS as designed, and a tool update could break execution with no notice and no deprecation window</td><td>Open, and not solvable in code — but no longer a single point of failure. <a href="decision-log.html#d-036">D-036</a> makes the API adapter a first-class supported mode rather than a hypothetical exit, so an operator who cannot or should not drive a CLI has a switch rather than a fork (<a href="#mode-config">§7.6.1</a>). Remaining mitigations: the operator confirms their own provider terms at configuration time, and supported CLIs are pinned with a boot smoke test that refuses to start on drift (<a href="open-questions.html#oq-23">OQ-23</a>)</td></tr>
+      <tr><td>R-13</td><td>Execution now depends on two services GAOS does not own — ai-manager and ai-claude-cli — and on an upstream API that does not exist yet</td><td>A change or outage upstream stops every product's work; until the provisioning API ships, one workspace per product is not possible at all</td><td>Open, accepted by <a href="decision-log.html#d-055">D-055</a>. The upstream is the owner's own stack, specified in <a href="../architecture/gateway.html#upstream">The gateway</a> and tracked as <a href="../delivery/implementation-plan.html#sub-m14-1">M14.1</a>. GAOS keeps the record, so an outage pauses work and loses none</td></tr>
+      <tr><td>R-14</td><td>The model runs with full permissions inside the workspace and can rewrite the Blueprint files it was given</td><td>An attempt could run under rules the record says it never saw</td><td>Detected, not prevented: every sync re-asserts the digest, the observed context is compared with the manifest, and drift refuses the next dispatch (<a href="#rules-gateway">BR-39</a>)</td></tr>
     </tbody>
   </table>
 
@@ -1310,6 +1397,13 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
     <li><strong>The external-auditor package</strong> — evidence bundles, tamper-evidence, long
     retention, read-only outside credentials. <a href="decision-log.html#d-028">D-028</a>: out of
     scope for the core, and the leading candidate for the first commercial submodule.</li>
+    <li><strong>Running a model tool inside GAOS.</strong> Since <a href="decision-log.html#d-055">D-055</a>
+    that is ai-claude-cli's job; GAOS keeps no subprocess, packet on disk or tool version pin.</li>
+    <li><strong>The engineering floor, rooms and meetings as a UI.</strong> Retired in favour of a
+    product list and a board per product (<a href="decision-log.html#d-061">D-061</a>). The meeting
+    vertices and events stay in the data model, so old streams still fold.</li>
+    <li><strong>More than one live turn per workspace</strong>, until
+    <a href="open-questions.html#oq-27">OQ-27</a> decides where a product's code lives.</li>
   </ul>
 
   <h2 id="references">13. References</h2>
@@ -1342,9 +1436,12 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   version, and what the estimator does when it cannot price a model. Three more landed on
   2026-08-21, and they are the first in this log settled by measurement rather than by ruling: which
   provider CLI ships first, that a task's outcome is never read from a process exit code, and that
-  cost is taken from the tool wherever it reports one. They are maintained as their own page so that
-  answering an open question has an obvious destination.</p>
-  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-051)</a></strong></p>
+  cost is taken from the tool wherever it reports one. Three more on 2026-08-22 settled the
+  heartbeat, the lease and kill-then-requeue. Eight landed together on 2026-11-02 and change the
+  product's shape: ai-manager becomes the one gateway, each product gets a Blueprint and a workspace,
+  each task a session, and the execution layer GAOS built is retired. Sixty-two in all, maintained as
+  their own page so that answering an open question has an obvious destination.</p>
+  <p><strong>→ <a href="decision-log.html">Decision log (D-001…D-062)</a></strong></p>
 
   <h2 id="business-milestones">15. Business milestones</h2>
   <p>Real dates only, taken from git history.</p>
@@ -1370,7 +1467,8 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <li><s>Task state machine rejecting illegal transitions at the boundary (step 2)</s> — done 2026-08-17, <code>dashboard/state.go</code>; every write to a desk's state goes through it and an illegal move returns a reason rather than a bare failure</li>
       <li><s>Readiness scoring running on ingestion, with the planner refusing below 45 (step 3)</s> — done 2026-08-20. The twelve-signal rubric replaced the seven-boolean stand-in, and below 45 the planner returns the missing list instead of a plan. The seeded records now span the bands honestly: 95, 87, 79, 69, and a draft at 35 that is refused</li>
       <li><s>The four new event names, the <code>deferred</code> task state and the two <code>TaskRun</code> properties landed together in the data model, <code>dashboard/events.go</code> and the fold — before anything depends on them</s> — done 2026-08-17, in one change as required. <code>TaskResumed</code> turned out to be the fourth name and already existed, so three were new</li>
-      <li>The first CLI adapter, the task packet and the handoff-document validator (<a href="#to-be-cli">§7.6</a>)</li>
+      <li><s>The first CLI adapter, the task packet and the handoff-document validator (<a href="#to-be-cli">§7.6</a>)</s> — done 2026-08-23, and superseded on 2026-11-02 by the gateway (<a href="#to-be-gateway">§7.7</a>)</li>
+      <li>The upstream provisioning API in ai-claude-cli and ai-manager, then the ai-manager adapter, the Blueprint, and a board per product — <a href="../delivery/implementation-plan.html#m14-gateway">M14</a></li>
       <li>The budget guard: three zones, pacing and deferral, before the first run in API mode (<a href="#budget-guard">§8.10.1</a>)</li>
       <li>First real model call, behind a budget cap that actually exists and a pre-dispatch egress check that actually runs</li>
       <li>The unsatisfiable-task test passing — the second of §4.1's three acceptance tests, still blocked on domains C, D and E</li>
@@ -1438,6 +1536,12 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>Execution mode</td><td>Whether the gateway reaches a provider by spawning its command-line tool (<code>cli</code>) or calling its HTTP API (<code>api</code>). One deployment-wide setting; recorded per attempt, never branched on.</td></tr>
       <tr><td>Pacing</td><td>Smoothing spend across a budget period, so the ceiling in force at any moment tracks how much of the period has elapsed. Prevents a month's budget being spent in an afternoon.</td></tr>
       <tr><td>Deferral</td><td>A ready task held back because the budget guard is throttled. It keeps its place in the graph, resumes automatically, and counts as neither a retry nor a failure.</td></tr>
+      <tr><td>Blueprint</td><td>A product's standing knowledge — its BRD, technical and coding policies and knowledge sources — rendered into its workspace and versioned. See <a href="blueprint.html">Blueprint</a>.</td></tr>
+      <tr><td>Brief</td><td>The per-task layer of what a model is given: the task, its criteria, cited handoffs and the last review. It is the prompt, and what the context slice freezes.</td></tr>
+      <tr><td>Gateway</td><td>ai-manager, the one service GAOS sends model work to. It owns sessions and workspaces; ai-claude-cli behind it runs the model.</td></tr>
+      <tr><td>Product workspace</td><td>The one folder on the worker that every session of a product runs in, named <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>.</td></tr>
+      <tr><td>Session</td><td>ai-manager's stored conversation. GAOS opens one per task and treats it as transport, never as the record.</td></tr>
+      <tr><td>Turn</td><td>One prompt and one reply inside a session — one attempt at a task.</td></tr>
       <tr><td>Egress</td><td>Data leaving the operator's host. In GAOS it means the context slice: product record excerpts and source code, selected by traversal, sent to a model provider on every attempt.</td></tr>
     </tbody>
   </table>
@@ -1487,7 +1591,10 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <a href="open-questions.html#oq-23">OQ-23</a>, was settled on 2026-08-21 by running the tool
   against the contract rather than by ruling on it. Each remaining one carries the options available
   and the reason it cannot be answered from evidence.</p>
-  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-23)</a></strong></p>
+  <p>Since then <a href="open-questions.html#oq-24">OQ-24</a> was raised by measurement, and on
+  2026-11-02 the move to the gateway raised six more, <a href="open-questions.html#oq-25">OQ-25</a> to
+  <a href="open-questions.html#oq-30">OQ-30</a> — thirty in all, eighteen answered.</p>
+  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-30)</a></strong></p>
 
 </main>
 </div>

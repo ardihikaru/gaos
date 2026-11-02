@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-274`; the
-   next free number is `TC-275`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-310`; the
+   next free number is `TC-311`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it —
    do not delete it and do not renumber anything after it. `TC-076` is the worked
    example: BR-07 made planning an empty record illegal, so the case that asserted
@@ -50,13 +50,13 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "two hundred and seventy-four", so
-   `grep -rn "two hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
+   changing all four or none. They are currently all "three hundred and ten", so
+   `grep -rn "three hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
    finds every one. Retired rows still count: the register is every ID ever issued,
-   and `TC-076` is one of the two hundred and seventy-four. Older changelog notes keep their own
+   and `TC-076` is one of the three hundred and ten. Older changelog notes keep their own
    numbers; they are release records and stay as written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All two hundred and seventy-four cases…")
+   - the register intro on the same page ("All three hundred and ten cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
      the Go unit-test count, currently "two hundred"
@@ -64,8 +64,8 @@ every check identical are exempt.
    Do **not** change the older counts in `pustaka/docs/changelog.html` — the
    "fifty-three" in the v0.3.0 note, the "one hundred and eight" in v0.6.0 and
    v0.8.0, the "one hundred and twelve" in v0.9.0, the "one hundred and thirty"
-   in v0.10.0, the "one hundred and forty-eight" in v0.11.0, and the "two hundred"
-   in v0.15.0. Those are release notes, and each records what was true at that
+   in v0.10.0, the "one hundred and forty-eight" in v0.11.0, the "two hundred"
+   in v0.15.0, and the "three hundred and ten" in v0.23.0. Those are release notes, and each records what was true at that
    release.
 
 4. **Release hygiene**, if the change is user-visible: add to
@@ -104,6 +104,19 @@ and `TC-274` the schema-apply counts in `dashboard/store_conformance_test.go` �
 because that is the unit `go test -run` can select. The register currently covers
 200 Go tests: 178 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
 its row and its `h3`; the gap that used to be here is closed and must not reopen.
+
+`TC-275`…`TC-310` are **forward specifications** for milestone M14 (the ai-manager
+gateway, the Blueprint, the board — D-055…D-062), all `Not implemented`, with their
+prose under `<h2 id="not-implemented">` (`ni-aim`, `ni-blueprint`, `ni-workspace`,
+`ni-live-aim`, `ni-board`). They were written before the code on purpose. When a
+phase lands, the test it writes **takes the forward-spec ID that describes it** —
+flip the row to `Implemented`, name the `func Test…` on it, move the `h3` up under
+`#implemented`, and replace the asserted value with the test's exact `t.Fatalf`.
+A test that matches no forward spec gets the next free ID as usual; a forward spec
+the code makes obsolete is retired, never reused. M14.7 retires the CLI execution
+layer: the rows that covered it (`TC-180`…`TC-192`, `TC-200`, `TC-220`…`TC-246`,
+`TC-261`…`TC-273`, audited one by one) are struck as `Retired` with their
+successor named, and the four counts do not change.
 
 The store conformance suite is one `func Test…` per implementation over a shared
 table, so a new case in `storeContract` does **not** get its own `TC` — it is

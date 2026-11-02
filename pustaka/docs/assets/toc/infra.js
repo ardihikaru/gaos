@@ -47,6 +47,8 @@ window.DOCS.nav.push({
           text: "Run the stack checks, build, then start. Development first. There is no bootstrap step yet because no schema is applied in this release." },
         { anchor: "access", title: "Where to reach it, and where the credentials are",
           text: "Public URLs per tier and four gitignored env files split per service, so the docs container never holds the database password." },
+        { anchor: "model-gateway", title: "The model gateway, per tier",
+          text: "GAOS_MODEL_MODE=aimanager, the ai-manager URL, two secret files per tier, and why the tenant in the workspace id keeps the tiers apart." },
         { anchor: "verify", title: "Verifying over the tunnel",
           text: "Check nothing is bound beyond the tunnel, curl the health endpoint from the edge with a Host header, and confirm the base href survived the prefix strip." }
       ]
@@ -66,6 +68,8 @@ window.DOCS.nav.push({
           text: "Each product gets a wildcard namespace and one line in the edge map. Wildcards match a single level, so every namespace needs its own record and certificate SAN." },
         { anchor: "boundaries", title: "What is shared and what is not",
           text: "Databases are shared infrastructure joined as external networks; only the services that need a database join one, so a product cannot reach its neighbours' data." },
+        { anchor: "ai-manager", title: "A neighbour GAOS calls: ai-manager",
+          text: "The one dependency among the neighbours: turns, polling and provisioning over HTTPS, its two credentials, and ai-claude-cli kept private." },
         { anchor: "adding", title: "Adding a product",
           text: "Claim the next port, add a DNS record and a certificate SAN, add one line to the edge map, then everything else is the stack's own business." }
       ]
