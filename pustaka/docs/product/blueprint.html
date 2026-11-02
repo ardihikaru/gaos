@@ -139,10 +139,15 @@
   <p><strong>A drifted workspace refuses dispatch</strong>
   (<a href="brd.html#rules-gateway">BR-39</a>). At submit, the workspace's synced digest must equal
   the pinned version's digest; otherwise the dispatch is refused with rule
-  <code>blueprint-drift</code>. After the turn, the context ai-claude-cli reports it observed is
-  compared with the manifest: an extra <code>CLAUDE.md</code> from a parent folder, or a missing rule,
-  is drift too. This is how GAOS knows the model saw the Blueprint the record says it saw, rather than
-  assuming it.</p>
+  <code>blueprint-drift</code>. After the turn (since v0.30.0), GAOS asks the workspace for its digest
+  again, and compares the context the worker reports it offered the model
+  (<code>metadata.context.workspace</code>) with the pinned version: a rewritten file, any
+  <code>CLAUDE.md</code> but the workspace's own (one from a parent folder, say), a rule the version
+  did not render, a rule it rendered that is missing, or an agent, skill or command is drift too. That
+  drift leaves the attempt's own outcome alone and refuses the <em>next</em> dispatch, with rule
+  <code>observed-drift</code>, until a sync (<a href="qa-test-plan.html#go-after-turn">TC-317…TC-319</a>).
+  This is how GAOS knows the model saw the Blueprint the record says it saw, rather than assuming
+  it.</p>
 
   <h2 id="the-brief">The brief: the per-task layer</h2>
   <p>The brief is the prompt. It carries only what is specific to this attempt:</p>

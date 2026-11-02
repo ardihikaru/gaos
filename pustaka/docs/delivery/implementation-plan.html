@@ -16,8 +16,8 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fifteen modules of work you can pick up one at a time.
-  One hundred and sixty-nine tasks: seventy-six done, seventeen standing on fixtures or partly done,
-  seventy-one not started, and five superseded by the move to ai-manager as the gateway.</p>
+  One hundred and seventy tasks: eighty-three done, fifteen standing on fixtures or partly done,
+  sixty-seven not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
@@ -48,13 +48,14 @@
     </tbody>
   </table>
   <p>The middle flag is not padding. The BRD itself marks <code>C-6</code>,
-  <code>F-5</code> and <code>H-5</code> as <em>Built (against fixtures)</em>, and
-  <code>dashboard/sim.go</code> implements the whole of Domain E's scoring policy without ever
-  calling a model. Forcing those into ✅ or ❌ would make this page lie in one direction or the
+  <code>F-5</code> and <code>H-5</code> as <em>Built (against fixtures)</em>, and until v0.29.0
+  <code>dashboard/sim.go</code> implemented the whole of Domain E's scoring policy without ever
+  calling a model &mdash; its shape survives only in <code>sim_test.go</code>, the generator the
+  fold tests draw streams from. Forcing those into ✅ or ❌ would make this page lie in one direction or the
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Seventy-six tasks are done. Twenty-one of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, one workspace per product with its sync, its drift gate and the graph lease, turns with a session per task and recovery by request id, and a board per product. Eleven are the operator surface, five are the schema, and
+    <p>Eighty-three tasks are done. Twenty-eight of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, one workspace per product with its sync, its drift gate and the graph lease, turns with a session per task and recovery by request id, a board per product with its task fold and the vendored sisflow client, the Blueprint check after the turn, and the retirement of the CLI layer and the floor. Eleven are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -65,11 +66,12 @@
     <code>M4.2</code>, both on 2026-08-22 — three the attempt record and the frozen context slice
     (<code>M4.3</code>), and four the packet on disk and the handoff contract in it
     (<code>M4.5</code>), both on 2026-08-23.
-    <strong>A real model call has now been made</strong>: on 2026-08-23 a Claude Code run spawned by
-    the scheduler was given the packet, wrote the handoff document, and had it read to
-    <em>outcome complete</em> for a measured $1.28. What is still missing is everything that judges
-    the result — nothing reviews what a run produced, no guard ends a loop, and the floor
-    that renders above the graph is still moved by a simulation rather than by work. That inversion
+    <strong>Real model calls have been made</strong>: first on 2026-08-23, when a Claude Code run
+    spawned by the scheduler was given the packet, wrote the handoff document, and had it read to
+    <em>outcome complete</em> for a measured $1.28; and since M14, through ai-manager, the only
+    gateway since v0.29.0 deleted the CLI path, the floor and the simulator. What is still missing is
+    everything that judges the result — nothing reviews what a run produced and no guard ends a
+    loop. That inversion
     is deliberate and logged as
     <a href="../product/decision-log.html#delivery-decisions">D-019</a>
     — it is also why the remaining order matters.</p>
@@ -98,8 +100,8 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>25</td><td>2</td><td>1</td><td>0</td><td><a href="#register">T-164</a> &mdash; the task fold that lets the board replay (TC-308)</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>76</b></td><td><b>17</b></td><td><b>71</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>28</td><td>0</td><td>1</td><td>0</td><td><a href="#register">T-170</a> &mdash; retire the desk projection, now that the task fold replays the board</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>83</b></td><td><b>15</b></td><td><b>67</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -143,7 +145,7 @@
   </div>
 
   <h2 id="register">The register</h2>
-  <p>All one hundred and sixty-nine tasks in one filterable table. Filter by module number, by domain
+  <p>All one hundred and seventy tasks in one filterable table. Filter by module number, by domain
   (<code>domain-d</code>), by status (<code>todo</code>, <code>partial</code>, <code>done</code>), or
   by any word in a task.</p>
   <div class="filterbox">
@@ -311,7 +313,7 @@
       <tr data-tags="blueprint back-office tab ui done built m14.3"><td>T-153</td><td>M14.3</td><td>A Blueprint tab in the back office: policies, knowledge sources, publish &mdash; done 2026-11-02, <code>templates/backoffice.html</code> pane-blueprint</td><td>A-8, A-9</td><td>✅</td></tr>
       <tr data-tags="blueprint egress screen caps done built m14.3"><td>T-154</td><td>M14.3</td><td>The egress pass over every rendered file, and a refused publish over the caps that names the policy &mdash; done 2026-11-02: caps and allowlist at publish, the egress pass at sync (<code>DispatchRefused</code> rule <code>egress-blueprint</code>); TC-293</td><td>BR-32, BR-42</td><td>✅</td></tr>
       <tr data-tags="workspace provision product id done built m14.4"><td>T-155</td><td>M14.4</td><td>Provision one workspace per product with a derived, never-renamed id &mdash; done 2026-11-02, <code>dashboard/workspace.go</code>, through <code>POST /admin/workspaces/provision</code>; TC-291</td><td>A-11</td><td>✅</td></tr>
-      <tr data-tags="workspace sync drift digest partial m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn &mdash; the sync and the pre-dispatch drift gate are done (TC-292); comparing the context the worker observed after the turn is not</td><td>D-17, BR-39</td><td>🟡</td></tr>
+      <tr data-tags="workspace sync drift digest observed after turn done built m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn &mdash; done: the sync and the pre-dispatch gate in v0.25.0 (TC-292), and in v0.30.0 the check after the turn, which re-reads the workspace digest and compares the context the worker reports with the pinned version, refusing the next dispatch as <code>observed-drift</code> (TC-317…TC-319)</td><td>D-17, BR-39</td><td>✅</td></tr>
       <tr data-tags="workspace graph lease one turn scheduler done built m14.4"><td>T-157</td><td>M14.4</td><td>The graph lease: one live turn per product workspace, read by the scheduler's lease block &mdash; done 2026-11-02: a DISPATCHED or RUNNING task holds its product in <code>Schedule</code>, folder or no folder; TC-295</td><td>D-18, BR-38</td><td>✅</td></tr>
       <tr data-tags="turn brief prompt slice done built m14.5"><td>T-158</td><td>M14.5</td><td><code>BuildBrief</code> and <code>RenderPrompt</code>; the context slice freezes the brief &mdash; <code>dashboard/brief.go</code> &mdash; done 2026-11-02: the brief is the cleared packet rendered with the reply contract in place of the file contract (<code>RenderPrompt</code>); the slice freezes it</td><td>D-6, D-17</td><td>✅</td></tr>
       <tr data-tags="turn submit poll durable record done built m14.5"><td>T-159</td><td>M14.5</td><td>Submit, poll and finish a turn; store the prompt, the reply and the metadata &mdash; <code>dashboard/turns.go</code> &mdash; done 2026-11-02: a turn needs no local folder, its request id is recorded on the TaskRun before it is sent, and its prompt and reply are stored as artifacts; TC-299</td><td>D-19, BR-41</td><td>✅</td></tr>
@@ -319,12 +321,13 @@
       <tr data-tags="turn recovery request-id deadline acceptance done built m14.5"><td>T-161</td><td>M14.5</td><td>Boot recovery by request id with the turn deadline, and <code>deploy/acceptance/live-aim-run.sh</code> &mdash; done 2026-11-02: boot recovery polls every open request id (TC-297), a lost one holds its product until the deadline (TC-298); <code>live-aim-run.sh</code> passed against the real gateway, TC-300…TC-303</td><td>D-19</td><td>✅</td></tr>
       <tr data-tags="board kanban projection legal move done built m14.6"><td>T-162</td><td>M14.6</td><td>The board projection and the legal-move table, with routes keyed by task id &mdash; <code>dashboard/board.go</code> &mdash; done 2026-11-02, <code>dashboard/board.go</code>; the JSON is the sisflow provider's shape; TC-304, TC-306, TC-307</td><td>I-9, I-10</td><td>✅</td></tr>
       <tr data-tags="board kanban htmx drag done built m14.6"><td>T-163</td><td>M14.6</td><td>A server-rendered board per product, with native drag posting the same move API &mdash; done 2026-11-02: the back office's Board tab, buttons for the legal moves only, drag and drop through the same route; TC-305</td><td>I-9, BR-43</td><td>✅</td></tr>
-      <tr data-tags="board fold replay reorder partial m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code> &mdash; <code>TaskMoved</code> and <code>TaskReordered</code> landed; the fold that rebuilds task statuses from the stream does not exist yet, because the runner's events name a desk, not a task (TC-308)</td><td>I-9, BR-05</td><td>🟡</td></tr>
-      <tr data-tags="board sisflow vendor licence todo not-built m14.6"><td>T-165</td><td>M14.6</td><td>Vendor the sisflow board on the same API &mdash; waits on <a href="../product/open-questions.html#oq-25">OQ-25</a></td><td>I-10</td><td>❌</td></tr>
+      <tr data-tags="board fold replay reorder done built m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code> &mdash; done in v0.30.0: every task status change writes a <code>TaskMoved</code> naming the task and its actor, and <code>dashboard/taskfold.go</code> rebuilds the board from the stream (TC-308, TC-316)</td><td>I-9, BR-05</td><td>✅</td></tr>
+      <tr data-tags="board sisflow vendor licence done built m14.6"><td>T-165</td><td>M14.6</td><td>Vendor the sisflow board on the same API &mdash; done in v0.30.0 under the owner's Apache-2.0 grant (<a href="../product/decision-log.html#d-063">D-063</a>, answering <a href="../product/open-questions.html#oq-25">OQ-25</a>), mounted over the server-rendered board, with <code>check-stacks.sh</code> refusing it without its licence (TC-310)</td><td>I-10</td><td>✅</td></tr>
       <tr data-tags="retire cli adapter lease reconcile packet done built m14.7"><td>T-166</td><td>M14.7</td><td>Delete the CLI adapter, the version pin, the packet on disk, the file lease, the reconciler and the detached runner &mdash; done 2026-11-02 in v0.29.0: <code>adapter_cli.go</code>, <code>smoke.go</code>, <code>packet.go</code>, <code>lease.go</code>, <code>reconcile.go</code> and the fake binary are gone; the supervisor runs gateway turns only and recovery polls by request id; <code>GAOS_MODEL_MODE=cli</code> refuses the boot with the reason</td><td>D-14</td><td>✅</td></tr>
       <tr data-tags="retire floor sim simulator done built m14.7"><td>T-167</td><td>M14.7</td><td>Delete <code>sim.go</code>, the floor, its routes and its <code>Store</code> methods (absorbs <code>T-067</code>) &mdash; done 2026-11-02 in v0.29.0: the floor templates, routes and handlers are gone, and focus, pause, speed, the bell and the review controls left the <code>Store</code> interface. The simulator left the build and survives only as <code>sim_test.go</code>, the generator the fold and catalog tests draw long streams from. The desk projection stays until the task fold (<code>T-164</code>), and its <code>/tasks/{idx}/…</code> routes answer JSON</td><td>I-9</td><td>✅</td></tr>
       <tr data-tags="retire home product list tabs done built m14.7"><td>T-168</td><td>M14.7</td><td>The product list as the home page, each product with Blueprint &middot; Board &middot; Timeline &mdash; done 2026-11-02 in v0.29.0: <code>GET /</code> opens on the product master, and each product gained a Timeline tab of its own events (TC-314, TC-315)</td><td>I-9</td><td>✅</td></tr>
       <tr data-tags="retire qa register compose readme done built m14.7"><td>T-169</td><td>M14.7</td><td>Strike the retired test cases, retire the two acceptance scripts, and update compose and the README &mdash; done 2026-11-02 in v0.29.0: forty-four cases struck with their successors, <code>kill-mid-task.sh</code> and <code>live-cli-run.sh</code> deleted; compose already carried no claude mount</td><td>&mdash;</td><td>✅</td></tr>
+      <tr data-tags="retire desk projection fold floorstate todo not-built m14.7"><td>T-170</td><td>M14.7</td><td>Retire the desk projection &mdash; the <code>Desk</code> records, the desk fold and its snapshots, and the <code>/tasks/{idx}/…</code> routes &mdash; now that the task fold (<code>T-164</code>) rebuilds the board from the stream; the scheduler's agent seats are read from the desks today and must move first</td><td>I-9</td><td>❌</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -338,7 +341,7 @@
   seventeen done, and the one that is not is not blocked on this module. Two invariants live here
   and nowhere else: state lives in the graph (<code>BR-01</code>) and every change emits an event
   (<code>BR-02</code>). Since <code>M0.2</code> closed both hold — the graph is authoritative, every
-  mutation writes an event before it commits, and a restart rebuilds the floor from ArcadeDB rather
+  mutation writes an event before it commits, and a restart rebuilds state from ArcadeDB rather
   than from the fixtures. Since <code>M0.3</code> they hold <em>well</em>: the stream is the whole
   record rather than a window over its tail, an event carries the delta a reducer folds rather than
   a photograph of the floor, and <code>M0.5</code> means a transition nobody declared is refused at
@@ -396,9 +399,10 @@
   <p>Two things this deliberately did not do. The event stream is still the 160-entry window
   <code>Events()</code> has always returned, because <code>Replay(eventIdx)</code> addresses that
   slice and both stores must agree on what it is — unbounding it is <code>T-013</code>. And the
-  floor still moves by simulation rather than by work, which is <code>M4</code>. The simulation runs
-  only under <code>MemStore</code>: <code>ArcadeStore</code> holds real state and a floor that moved
-  on its own would be writing events nobody asked for.</p>
+  floor still moved by simulation rather than by work, which was <code>M4</code>. The simulation ran
+  only under <code>MemStore</code>: <code>ArcadeStore</code> held real state and a floor that moved
+  on its own would have been writing events nobody asked for. Both the floor and the simulation were
+  deleted in v0.29.0.</p>
 
   <h3 id="sub-m0-3">M0.3 — Event store and the fold (T-009–T-013)</h3>
   <p><strong>Done, on 2026-08-17.</strong> An <code>Event</code> used to carry a deep copy of the
@@ -645,11 +649,13 @@
   <h2 id="m4-execution">M4 · Execution</h2>
   <p>Domain D, requirements <code>D-1</code>…<code>D-13</code> — the largest module by requirement
   count and by task count. Twenty tasks, thirteen done and one partial. The half that decides and
-  supervises work is real — the scheduler, the detached runner, the lease, boot reconciliation, and
-  since 2026-08-23 the attempt record and the frozen context slice. The half that does the work is
-  not: <code>dashboard/sim.go</code>, a 1400&nbsp;ms ticker, still moves desks through states and
-  emits catalog events without ever calling a model, and <code>T-067</code> is the task that deletes
-  it once there is nothing left for it to stand in for.</p>
+  supervises work is real — the scheduler, and since 2026-08-23 the attempt record and the frozen
+  context slice. The detached runner, the lease and the lease-based boot reconciliation built here
+  ran until v0.29.0, when <a href="#sub-m14-7">M14.7</a> replaced them with one turn per product
+  through ai-manager and recovery by request id. <code>dashboard/sim.go</code>, the 1400&nbsp;ms
+  ticker that moved desks through states without ever calling a model, went with them; only
+  <code>sim_test.go</code> remains, as a test-stream generator, and <code>T-067</code> was absorbed
+  into <code>T-167</code>.</p>
 
   <h3 id="sub-m4-1">M4.1 — The scheduler (T-048–T-049)</h3>
   <p><code>D-1</code> asked for something stronger than a working scheduler: a <em>pure function of
@@ -679,7 +685,7 @@
   <h3 id="sub-m4-2">M4.2 — Runner, lease and reconciliation (T-050–T-053)</h3>
   <div class="adm note">
     <p class="adm-title">Superseded on 2026-11-02</p>
-    <p>What this sub-module built is done and still runs, but its mechanism — a detached process, a lockfile lease, kill-then-requeue — is retired by <a href="../product/decision-log.html#d-060">D-060</a>: the turn is ai-claude-cli's process now, the lease moves onto the <code>Workspace</code> vertex, and recovery polls a request id. Successor: <a href="#sub-m14-4">M14.4</a> and <a href="#sub-m14-5">M14.5</a>.</p>
+    <p>What this sub-module built was done and ran until v0.29.0, when M14.7 deleted it; its mechanism — a detached process, a lockfile lease, kill-then-requeue — is retired by <a href="../product/decision-log.html#d-060">D-060</a>: the turn is ai-claude-cli's process now, the lease moves onto the <code>Workspace</code> vertex, and recovery polls a request id. Successor: <a href="#sub-m14-4">M14.4</a> and <a href="#sub-m14-5">M14.5</a>.</p>
   </div>
 
   <p>Work runs in detached processes that survive the orchestrator (<code>D-2</code>), each holding
@@ -882,7 +888,8 @@
   <h3 id="sub-m5-1">M5.1 — The score (T-068–T-069)</h3>
   <p><code>final = 0.45&middot;correctness + 0.20&middot;completeness + 0.15&middot;safety +
   0.10&middot;quality + 0.10&middot;efficiency</code> (<code>BR-13</code>). The weights are already
-  in <code>dashboard/fixtures.go</code> and applied by <code>sim.go</code>, over invented inputs.
+  in <code>dashboard/fixtures.go</code>, and were applied by <code>sim.go</code> over invented inputs
+  until v0.29.0; only the test-stream generator <code>sim_test.go</code> applies them now.
   The real work is the first term: correctness from tests that actually ran, rule checks that
   actually evaluated, and a reviewer verdict against the acceptance criteria.</p>
 
@@ -894,7 +901,8 @@
   <h3 id="sub-m5-3">M5.3 — Score bands (T-072–T-073)</h3>
   <p>85–100 accept; 70–84 accept and spawn a cleanup task; 50–69 iterate with a widened context
   slice at the same tier; 30–49 escalate a tier and re-run; 0–29 stop and call a design review.
-  <code>sim.go review()</code> already implements this shape, which is why the sub-module is 🟡 —
+  <code>sim.go review()</code> implemented this shape until v0.29.0 and <code>sim_test.go</code> keeps
+  it for the test streams, which is why the sub-module is 🟡 —
   what it lacks is a real cleanup task and a slice that actually widens.</p>
 
   <h3 id="sub-m5-4">M5.4 — The failure signature (T-074–T-075)</h3>
@@ -934,11 +942,12 @@
   <code>MemStore.CancelTask</code> emits <code>ApprovalRejected</code> when the desk it cancels was
   holding a merge gate, beside the <code>ApprovalGranted</code> and <code>ApprovalRequested</code>
   that were already written. What is missing is the record it should hang on, and a gate that a
-  policy rather than <code>sim.go</code> decided to raise.</p>
+  policy rather than a simulator decided to raise.</p>
 
   <h3 id="sub-m6-3">M6.3 — Operator controls (T-086)</h3>
-  <p><code>F-5</code> is done. <code>dashboard/handlers_floor.go</code> serves approve, retry and
-  cancel from the inspector, each with a real guard behind it —
+  <p><code>F-5</code> is done. <code>dashboard/handlers_floor.go</code> served approve, retry and
+  cancel from the inspector until v0.29.0 deleted both; the same routes now answer JSON from
+  <code>dashboard/handlers_tasks.go</code>, each with a real guard behind it —
   <code>TestApproveRequiresAGate</code> and <code>TestCancelReleasesTheDesk</code> cover the
   rejections.</p>
 
@@ -961,8 +970,9 @@
   <p>Every completed workflow writes <code>Knowledge</code> back to the product — lessons, decisions,
   failure patterns (<code>G-1</code>). Decisions are ADRs carried into every later prompt with
   supersession tracked (<code>G-2</code>), which is what <code>DecisionSuperseded</code> is reserved
-  for. <code>KnowledgeExtracted</code> and <code>DecisionRecorded</code> are emitted today by the
-  simulator, from a script.</p>
+  for. Both were emitted by the simulator, from a script, until v0.29.0 deleted it; today
+  <code>KnowledgeExtracted</code> is written only as a placeholder when a workflow completes, and
+  <code>DecisionRecorded</code> only by the test-stream generator.</p>
 
   <h3 id="sub-m7-2">M7.2 — Meetings (T-093–T-094)</h3>
   <div class="adm note">
@@ -1031,7 +1041,8 @@
 
   <h3 id="sub-m8-4">M8.4 — The timeline (T-102)</h3>
   <p><code>H-5</code> is done: the operator timeline with a replay scrub and speed control, in
-  <code>dashboard/handlers_floor.go</code> and <code>templates/timeline.html</code>, with
+  <code>dashboard/handlers_floor.go</code> and <code>templates/timeline.html</code> until v0.29.0
+  deleted the timeline strip with the floor (<code>/replay/{workflow}</code> still answers), with
   <code>TestReplayFreezesTheFloor</code> and
   <code>TestTheEventStreamIsUnboundedAndKeepsGenesis</code> behind it. A pill addresses its moment
   by event <code>seq</code> rather than by position, so a link stays pointed at the moment the
@@ -1066,7 +1077,7 @@
   explicitly, including <em>deferred — budget window</em> with the time it resumes — which cannot
   be shown before M10.3 produces it. Two infrastructure items sit here too:
   <code>store_mem.go</code>'s <code>emit()</code> was cut as the SSE seam and the broker was never
-  built, so the floor polls every 1400&nbsp;ms; and the embedded static assets are unfingerprinted,
+  built, so the floor polled every 1400&nbsp;ms until v0.29.0 deleted it; and the embedded static assets are unfingerprinted,
   noted as pass 2 in <code>main.go</code>.</p>
 
   <h2 id="m10-tenancy">M10 · Tenancy, capacity &amp; cost control</h2>
@@ -1279,7 +1290,7 @@
   on ArcadeDB is proved on the scratch database before this ships.</p>
 
   <h3 id="sub-m14-4">M14.4 — Workspace and sync (T-155–T-157)</h3>
-  <p><strong>Done 2026-11-02, but for one check.</strong> <a href="../product/qa-test-plan.html#go-workspace">TC-291…TC-295</a>.
+  <p><strong>Done 2026-11-02.</strong> <a href="../product/qa-test-plan.html#go-workspace">TC-291…TC-295</a>.
   A published Blueprint now reaches the product's workspace through the Blueprint tab's <em>Sync to
   workspace</em>, screened by the egress pass on the way (finishing <code>T-154</code>); a dispatch
   whose workspace does not hold the published version is refused as <code>blueprint-drift</code> on
@@ -1288,8 +1299,10 @@
   product's workspace is recorded on the record document rather than on the <code>Workspace</code>
   vertex, whose mandatory <code>path</code> GAOS no longer has (BR-42); and the lease is the graph's
   own — a DISPATCHED or RUNNING task holds its product — rather than a property written to that
-  vertex. Still open in <code>T-156</code>: comparing what the worker reports it loaded after a turn
-  with the manifest.</p>
+  vertex. The last check, comparing what the worker reports it loaded after a turn with the
+  manifest, landed in v0.30.0: GAOS re-reads the workspace digest and compares
+  <code>metadata.context.workspace</code> with the pinned version, and drift refuses the next dispatch
+  as <code>observed-drift</code> (<a href="../product/qa-test-plan.html#go-after-turn">TC-317…TC-319</a>).</p>
   <p>Needs <code>M14.1</code>. The lease survives as a property of the product's
   <code>Workspace</code> vertex — <code>leasedBy</code> and <code>leaseUntil</code> already exist in
   <code>schema/04-execution.sql</code> — because one folder per product means two turns would be two
@@ -1310,27 +1323,34 @@
   money, so the owner runs it (<a href="../product/decision-log.html#qa-decisions">D-025</a>).</p>
 
   <h3 id="sub-m14-6">M14.6 — Board (T-162–T-165)</h3>
-  <p><strong>Two done, one partial, one waiting, 2026-11-02.</strong>
-  <a href="../product/qa-test-plan.html#go-board">TC-304…TC-307, TC-309</a>. One choice differs from the
+  <p><strong>Done 2026-11-02</strong> — the board in v0.28.0, the task fold and the vendored client in
+  v0.30.0. <a href="../product/qa-test-plan.html#go-board">TC-304…TC-307, TC-309</a>,
+  <a href="../product/qa-test-plan.html#go-taskfold">TC-308, TC-316</a>,
+  <a href="../product/qa-test-plan.html#cs-sisflow">TC-310</a>. One choice differs from the
   plan below: a board move writes <code>TaskMoved</code> (action, from, to) rather than reusing
   <code>ApprovalGranted</code>, <code>RetryRequested</code> and the rest, because those move a desk in
   the fold, and a replayed floor would then disagree with the live one. A running task cannot be
-  canceled from the board until the gateway can stop a turn (OQ-26). <code>T-165</code> waits on
-  <a href="../product/open-questions.html#oq-25">OQ-25</a>.</p>
+  canceled from the board until the gateway can stop a turn (OQ-26). <code>T-165</code> waited on
+  <a href="../product/open-questions.html#oq-25">OQ-25</a>, which the owner answered with an Apache-2.0
+  grant (<a href="../product/decision-log.html#d-063">D-063</a>): the sisflow board now mounts over the
+  server-rendered one, which stays for a page without JavaScript.</p>
   <p>The board's API takes the sisflow REST provider's shape — <code>GET …/board</code>,
   <code>PUT …/cards/{id}/move</code> — so the server-rendered board ships first and the richer one
   can replace its front end without touching the server. Moves are requests; the state machine
   decides (<a href="../product/brd.html#rules-gateway">BR-43</a>). The fold projects desks today, so
-  a board that replays needs a task fold, which is <code>T-164</code>.</p>
+  a board that replays needs a task fold, which is <code>T-164</code> &mdash; landed in v0.30.0 as
+  <code>dashboard/taskfold.go</code>, with every task status change written as a
+  <code>TaskMoved</code> naming the task.</p>
 
-  <h3 id="sub-m14-7">M14.7 — Retirement (T-166–T-169)</h3>
+  <h3 id="sub-m14-7">M14.7 — Retirement (T-166–T-170)</h3>
   <p>Deletes the execution layer and the floor once their successors have run against dev. The test
   cases that covered them are struck in the QA register and point at their replacements; none is
   deleted, and retiring them does not change the register's count. <strong>Done in v0.29.0.</strong>
   Forty-four cases were struck; the ones whose guarantee outlived the CLI were re-based on the fake gateway and kept their IDs; two new ones
   (TC-314, TC-315) cover the home page, which is why the count rose from 313 to 315. Porting T-064's
   test found a live bug: since M14.5 the next agent was cited the previous turn's <em>reply</em> as its
-  lesson rather than its handoff.</p>
+  lesson rather than its handoff. <code>T-170</code>, retiring the desk projection the board no longer
+  needs, was added in v0.30.0 once the task fold existed, and is not started.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

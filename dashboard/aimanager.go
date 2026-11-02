@@ -97,6 +97,18 @@ type ChatReply struct {
 	Metadata     json.RawMessage `json:"metadata"`
 }
 
+// ObservedContext reports metadata.context.workspace: what the worker's
+// workspace offered Claude Code for this turn. Nil when the reply has none.
+func (r ChatReply) ObservedContext() *ObservedContext {
+	var m struct {
+		C struct {
+			W *ObservedContext `json:"workspace"`
+		} `json:"context"`
+	}
+	json.Unmarshal(r.Metadata, &m)
+	return m.C.W
+}
+
 // SessionWarning reports metadata.session_warning: the turn was not saved.
 func (r ChatReply) SessionWarning() string {
 	var m struct {

@@ -15,12 +15,12 @@
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
   <p class="lede">Thirty decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Eighteen are
+  the options actually available, the trade-off each one carries, and what it blocks. Nineteen are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
-  database version, and which CLI ships first. Of the twelve still open, six arrived on 2026-11-02
-  with the move to ai-manager as the gateway — each one a thing that move makes GAOS depend on
-  without yet controlling.</p>
+  database version, which CLI ships first, and whether the sisflow board may be vendored. Of the eleven
+  still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
+  that move makes GAOS depend on without yet controlling.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
@@ -106,7 +106,7 @@
       <tr data-tags="operations cadence review evaluation acceptance tests answered"><td><a href="#oq-13">OQ-13</a></td><td>Operations</td><td>Who runs the three acceptance tests, how often, and what happens when one fails?</td><td>§4.1</td><td>Answered → <a href="decision-log.html#d-025">D-025</a></td></tr>
       <tr data-tags="operations ha availability replication backup single-node narrowed"><td><a href="#oq-16">OQ-16</a></td><td>Operations</td><td>Is high availability required, and for whom?</td><td>R-09</td><td>Open — narrowed by <a href="decision-log.html#d-031">D-031</a></td></tr>
       <tr data-tags="operations budget cap spend guard defer pacing answered"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Answered → <a href="decision-log.html#d-037">D-037</a></td></tr>
-      <tr data-tags="technical kanban board sisflow licence ownership vendoring br-27 new"><td><a href="#oq-25">OQ-25</a></td><td>Technical</td><td>May the sisflow board — another organisation's code with no licence file — be vendored into an Apache-2.0 repository, and on what terms?</td><td>I-10, D-061, TC-150</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="technical kanban board sisflow licence ownership vendoring br-27 new"><td><a href="#oq-25">OQ-25</a></td><td>Technical</td><td>May the sisflow board — another organisation's code with no licence file — be vendored into an Apache-2.0 repository, and on what terms?</td><td>I-10, D-061, TC-150</td><td>Answered → <a href="decision-log.html#d-063">D-063</a></td></tr>
       <tr data-tags="technical cancel stop turn in-flight ai-manager upstream new"><td><a href="#oq-26">OQ-26</a></td><td>Technical</td><td>How is a turn already running in ai-claude-cli cancelled, when ai-manager exposes no cancel?</td><td>D-060, task cancel, BR-38</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="technical workspace repository code worktree concurrency product new"><td><a href="#oq-27">OQ-27</a></td><td>Technical</td><td>Where does a product's actual code live inside its workspace, and may one workspace ever run more than one turn at a time?</td><td>BR-38, BR-42, D-058</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="technical knowledge source template repository clone licence pin blueprint new"><td><a href="#oq-28">OQ-28</a></td><td>Technical</td><td>How does a knowledge source repository reach the model — cloned, summarised, or indexed — and whose licence governs it?</td><td>A-9, D-058</td><td>Open — raised 2026-11-02</td></tr>
@@ -657,6 +657,11 @@
   </ul>
   <p><strong>Blocks:</strong> <a href="brd.html#req-i">I-10</a>'s richer board and
   <a href="../delivery/implementation-plan.html#sub-m14-6">T-165</a>. Nothing else.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-063">D-063</a> on 2026-11-02: <strong>a
+  licence grant</strong>. The owner granted Apache-2.0 for sisflow, so the board is vendored into the
+  dashboard with <code>LICENSE-sisflow.txt</code> and a <code>NOTICE-sisflow.txt</code> recording the
+  grant beside it, and <a href="qa-test-plan.html#cs-sisflow">TC-310</a> refuses the deploy if either
+  goes missing. The server-rendered board stays as the fallback for a page without JavaScript.</p>
 
   <h3 id="oq-26">OQ-26 · How is an in-flight turn cancelled?</h3>
   <p><strong>Why it is open:</strong> ai-claude-cli can cancel a job (<code>POST

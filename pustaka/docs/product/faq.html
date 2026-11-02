@@ -22,18 +22,19 @@
        data-tags="faq, commercial, pricing, licensing, self-hosting, support, data-handling"
        data-hashtags="faq, product, pricing, open-source"
        data-published="2026-08-08"
-       data-updated="2026-08-23"
+       data-updated="2026-11-02"
        data-version-from="0.4.0"
        data-version-to=""></div>
 
   <div class="adm warn">
     <p class="adm-title">Read this one first: GAOS does not work yet</p>
     <p>Every answer below describes a product whose design is complete and whose engine is only
-    partly built. As of v0.22.0 what runs is the operator interface, the graph store underneath it,
-    the scheduler, the detached runner with its lease and boot reconciliation, the task packet and the
-    handoff contract, the documentation and the deployment. <strong>One real model call has been
-    made</strong>, on 2026-08-23, and it did the work it was given. What does not exist is everything
-    that judges the result, so nothing runs unattended yet. The
+    partly built. As of v0.30.0 what runs is the operator interface with a board per product, the
+    graph store underneath it, the scheduler, the Blueprint and one workspace per product, model
+    turns through ai-manager with recovery by request id, the reply contract, the documentation and
+    the deployment. <strong>Real models have been called</strong> through that gateway and did the
+    work they were given. What does not exist is everything that judges the result, so nothing runs
+    unattended yet. The
     repository's own README keeps a designed-versus-built table and this site repeats it on
     <a href="brd.html#current-state">§2.1 of the BRD</a>. Nothing here is a promise about a delivery
     date, because there is no roadmap with dates on it. If you are evaluating GAOS to use next month,
@@ -212,8 +213,8 @@
     <li><strong>Throttled</strong>, by default at 80% of the cap or when you are running ahead of
     pace or over a token-per-hour ceiling. GAOS stops <em>starting</em> new work and
     <strong>defers</strong> it with a resume time — the tasks keep their place, nothing fails, and
-    they start again by themselves when the window moves on. Your floor shows "deferred — budget
-    window" rather than looking mysteriously idle.</li>
+    they start again by themselves when the window moves on. The product's board shows "deferred —
+    budget window" rather than looking mysteriously idle.</li>
     <li><strong>Exhausted</strong> at 100%: nothing new is dispatched until you deliberately raise
     the cap or the period rolls over. Work already running is always allowed to finish, because
     killing it would throw away what it already cost you.</li>
@@ -278,16 +279,18 @@
   <h2 id="project">The project itself</h2>
 
   <h3 id="q-status">What actually works today?</h3>
-  <p>Mission Control (rendering a simulation, not a fleet), the documentation site, the landing page,
-  and both deployment tiers end to end. The graph is real: the DDL applies on the pinned ArcadeDB
-  version, both tiers carry it, and <code>dashboard/store_arcade.go</code> reads and writes it, so a
-  restart rebuilds the floor from the database rather than from the fixtures. The scheduler decides
-  as a pure function of the task graph and the runner supervises detached work under a workspace
-  lease, reconciling every claimed run on boot. What is <em>not</em> built is the reason those exist:
-  a real model call now runs end to end — on 2026-08-23 an agent was given a packet, did the
-  work in a leased worktree and wrote the handoff document GAOS reads, for a measured $1.28. What is
-  <em>not</em> built is the judgement around it: <strong>nothing reviews what a run produced</strong>,
-  no guard ends a retry loop, the floor is still moved by a simulation rather than by work, and
+  <p>Mission Control, the documentation site, the landing page, and both deployment tiers end to
+  end. Its home page is the list of products, and each product has a board whose cards move only
+  when a task does: every task status change is written as an event and the board replays from
+  them. The graph is real: the DDL applies on the pinned ArcadeDB version, both tiers carry it, and
+  <code>dashboard/store_arcade.go</code> reads and writes it, so a restart rebuilds state from the
+  database rather than from fixtures. The scheduler decides as a pure function of the task graph.
+  Each product has a Blueprint and one workspace, and model work runs only through ai-manager, one
+  live turn per product: every turn is recorded with a request id before it is sent, and a restart
+  polls each open turn by that id rather than guessing. Real models have answered those turns. After
+  each turn GAOS checks that the workspace still holds the pinned Blueprint, and refuses the next
+  dispatch if it does not. What is <em>not</em> built is the judgement around the work:
+  <strong>nothing reviews what a run produced</strong>, no guard ends a retry loop, and
   authentication is absent — the back-office login accepts any value and checks nothing. The
   <a href="brd.html#current-state">designed-versus-built table</a> is maintained honestly and is the
   thing to read before forming an opinion.</p>

@@ -117,6 +117,18 @@ const (
 	MoveCancel   = "cancel"
 )
 
+// The other actors that move a task, named in TaskMoved's Rule (T-164). The
+// board's actions above are the operator's; these are the machine's. Recovery
+// reuses RuleAdopted and RuleRequeued from turns.go.
+const (
+	MoveSchedule     = "schedule"      // the scheduler: PENDING -> READY -> DISPATCHED
+	MoveStart        = "start"         // the runner: DISPATCHED -> RUNNING
+	MoveExit         = "exit"          // the runner: RUNNING -> REVIEW | BLOCKED | FAILED
+	MoveRefused      = "refused"       // a dispatch the egress pass or the drift gate refused
+	MoveNotStarted   = "not-started"   // a dispatched turn that never reached the gateway
+	MoveDriftRelease = "drift-release" // a sync released what Blueprint drift had blocked
+)
+
 // legalMove is the table (D-061). It answers the action a move means, or the
 // reason it is refused. The state machine is still asked afterwards: this
 // table says what an operator may REQUEST, taskTransitions what may happen.
@@ -168,6 +180,14 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	if m == nil {
 		return Board{}, ErrNotFound
 	}
+	return boardOf(productID, m, s.tasks), nil
+}
+
+// boardOf is the projection itself, pure: the master's stories are the lanes
+// and the product's tasks are the cards. The live board passes the store's
+// tasks and the task fold's test passes the folded ones (TC-308), so the two
+// are compared through one function rather than two that could drift apart.
+func boardOf(productID string, m *Master, tasks []TaskRecord) Board {
 	// Cards is never nil: a product with no tasks answers "cards": [], not
 	// null, which a client board iterating it would fall over on.
 	b := Board{ProductID: productID, Columns: boardColumns, Cards: []BoardCard{}}
@@ -175,7 +195,7 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	for _, st := range m.Stories {
 		b.Rows = append(b.Rows, BoardRow{ID: st.ID, Label: st.ID + " · " + st.Want})
 	}
-	for _, t := range s.tasks {
+	for _, t := range tasks {
 		if t.DeskID != productID {
 			continue
 		}
@@ -193,7 +213,7 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 		}
 		return a.Rank < c.Rank
 	})
-	return b, nil
+	return b
 }
 
 // MoveCard is a move on the board: a request (BR-43). A refusal writes no
@@ -230,12 +250,11 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 	}
 	to := map[string]string{MoveApprove: StatusDone, MoveRedo: StatusReady, MoveRetry: StatusReady,
 		MoveUnblock: StatusReady, MoveCancel: StatusCanceled}[action]
-	if err := moveTask(&s.tasks[i], to); err != nil {
+	if err := canMoveTask(t, to); err != nil {
 		s.mu.Unlock()
-		return Result{}, reject(err.Error())
+		return Result{}, err
 	}
-	e := s.emit(TaskMoved, productID, fmt.Sprintf("%s: %s (%s → %s)", taskID, action, t.Status, to), KindInfo,
-		EventPayload{Task: taskID, Rule: action, Reason: t.Status + "→" + to})
+	e, _ := s.moveTaskLocked(taskID, to, action)
 	r := s.result(fmt.Sprintf("%s: %s.", taskID, action), e)
 	s.mu.Unlock()
 	return r, nil
@@ -245,29 +264,43 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 // column. Caller holds s.mu.
 func (s *MemStore) reorderLocked(productID string, t TaskRecord, index int) Result {
 	col := columnOf(t.Status)
-	var idx []int
-	for k := range s.tasks {
-		if s.tasks[k].DeskID == productID && columnOf(s.tasks[k].Status) == col && s.tasks[k].ID != t.ID {
-			idx = append(idx, k)
-		}
-	}
-	sort.SliceStable(idx, func(a, b int) bool { return s.tasks[idx[a]].Rank < s.tasks[idx[b]].Rank })
-	if index < 0 || index > len(idx) {
-		index = len(idx)
-	}
-	var self int
-	for k := range s.tasks {
-		if s.tasks[k].ID == t.ID {
-			self = k
-		}
-	}
-	order := append(append(append([]int(nil), idx[:index]...), self), idx[index:]...)
-	for rank, k := range order {
-		s.tasks[k].Rank = rank
-	}
+	index = reorderColumn(s.tasks, productID, t.ID, index)
 	e := s.emit(TaskReordered, productID, fmt.Sprintf("%s moved to position %d in %s", t.ID, index+1, col), KindInfo,
 		EventPayload{Task: t.ID, Version: index, Rule: col})
 	return s.result("Card moved.", e)
+}
+
+// reorderColumn places the task at index inside its column and renumbers the
+// column's ranks from zero. It answers the index it used, clamped. Pure over
+// the slice it is given: the live board calls it on the store's tasks and the
+// task fold replays TaskReordered through it, so a replayed column is ranked
+// by the same rule as the live one (T-164).
+func reorderColumn(tasks []TaskRecord, productID, taskID string, index int) int {
+	self := -1
+	for k := range tasks {
+		if tasks[k].ID == taskID && tasks[k].DeskID == productID {
+			self = k
+		}
+	}
+	if self < 0 {
+		return index
+	}
+	col := columnOf(tasks[self].Status)
+	var idx []int
+	for k := range tasks {
+		if tasks[k].DeskID == productID && columnOf(tasks[k].Status) == col && k != self {
+			idx = append(idx, k)
+		}
+	}
+	sort.SliceStable(idx, func(a, b int) bool { return tasks[idx[a]].Rank < tasks[idx[b]].Rank })
+	if index < 0 || index > len(idx) {
+		index = len(idx)
+	}
+	order := append(append(append([]int(nil), idx[:index]...), self), idx[index:]...)
+	for rank, k := range order {
+		tasks[k].Rank = rank
+	}
+	return index
 }
 
 // dispatchNow is the board's "ready → working": the scheduler's own route for
@@ -301,14 +334,12 @@ func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (R
 		return Result{}, reject(v.Reason)
 	}
 	s.mu.Lock()
-	s.moveTaskLocked(taskID, StatusDispatched)
-	e := s.emit(TaskMoved, productID, fmt.Sprintf("%s: dispatch (READY → DISPATCHED)", taskID), KindInfo,
-		EventPayload{Task: taskID, Rule: MoveDispatch, Reason: StatusReady + "→" + StatusDispatched})
+	e, _ := s.moveTaskLocked(taskID, StatusDispatched, MoveDispatch)
 	r := s.result(taskID+": dispatched.", e)
 	s.mu.Unlock()
 	go func() {
 		if _, err := s.superviseRun(context.WithoutCancel(ctx), ad, productID, c, attempt); err != nil {
-			s.moveTaskByID(taskID, StatusReady)
+			s.moveTaskByID(taskID, StatusReady, MoveNotStarted)
 		}
 	}()
 	return r, nil

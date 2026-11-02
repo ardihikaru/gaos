@@ -1,0 +1,16 @@
+sisflow board
+Copyright (c) the sisflow project owner.
+
+Licensed under the Apache License, Version 2.0 (LICENSE-sisflow.txt beside
+this file). The owner granted this licence for GAOS on 2026-11-02; the grant
+is recorded as D-063 in GAOS's decision log (pustaka/docs/product/
+decision-log.html#d-063), which answers OQ-25.
+
+Vendored unmodified from sisflow-js, commit 9ebe079:
+  web/static/js/sisflow/board/**      -> board/
+  web/static/js/sisflow/core/events.js, core/history.js -> core/
+  web/static/js/sisflow/theme/themes.js                 -> theme/
+  web/static/css/sisflow-board.css                      -> sisflow-board.css
+
+The board uses no third-party code: zrender, which sisflow's diagram engine
+vendors, is not part of the board and is not included here.

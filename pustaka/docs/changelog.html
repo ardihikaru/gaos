@@ -36,6 +36,37 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-30-0">v0.30.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The board replays from its
+      events and has its richer client, and the Blueprint is checked again after every turn. M14 is
+      done.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a task fold</b> (T-164): every task status change now
+        writes a <code>TaskMoved</code> naming the task — whoever made it, the board, the scheduler, the
+        runner, recovery or a drift release — with <code>Rule</code> naming the actor and <code>To</code>
+        the status reached, and <code>TaskPlanned</code> carries each card's story, model, gate and
+        priority. <code>foldTasks</code> rebuilds a product's board from the stream alone (TC-308,
+        TC-316). No new event type: the catalog stays closed (BR-05).</li>
+        <li><span class="chg add">Added</span> <b>the sisflow board</b> on the Board tab (T-165), vendored
+        under its owner's Apache-2.0 grant (D-063, answering OQ-25) with its licence and NOTICE beside
+        it. It loads and moves through the same board API; a refused move rolls the card back and says
+        so. The server-rendered board stays for a page without JavaScript, and
+        <code>check-stacks.sh</code> refuses a deploy that ships the board without its licence (TC-310).</li>
+        <li><span class="chg add">Added</span> <b>the Blueprint check after the turn</b> (T-156, BR-39):
+        GAOS asks the workspace for its digest again and compares the context the worker reports with
+        the pinned version. A rewritten file, a <code>CLAUDE.md</code> GAOS did not write, a rule it did
+        not render or one missing refuses the next dispatch — <code>DispatchRefused</code> rule
+        <code>observed-drift</code> — until a sync (TC-317…TC-319). The work's own outcome is untouched.</li>
+        <li><span class="chg change">Changed</span> <b>a failed turn's error reaches the next agent
+        labelled</b>: still stored as that attempt's handoff and still cited as the lesson, but shown as
+        <code>failure-previous.md</code>, opening by saying it is an error and not a handoff (TC-320).</li>
+        <li><span class="chg change">Changed</span> <b>the architecture pages, the BRD and the FAQ</b> no
+        longer describe the floor, the simulator or the detached runner as current. The QA register is
+        three hundred and twenty cases, two hundred and seven of them Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-29-0">v0.29.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS no longer runs a model
       tool, and no longer draws a floor. M14.7 — the last of M14 but the task fold and the vendored

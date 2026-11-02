@@ -215,7 +215,7 @@ func (a *AIMAdapter) attemptFrom(c Cleared, r ChatReply) Attempt {
 	}
 	att := Attempt{Invocation: InvocationGateway, Model: model, Digest: c.Digest(), ExitClass: ExitRan,
 		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, SessionID: r.SessionID,
-		Reply: r.Text}
+		Reply: r.Text, Observed: r.ObservedContext()}
 	att.CostUSD, att.CostBasis = gatewayCost(r)
 	h, raw, err := ExtractHandoff(r.Text, p.TaskID, p.RunID)
 	att.HandoffRaw = raw

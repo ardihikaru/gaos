@@ -27,8 +27,8 @@
        data-version-from="0.23.0"
        data-version-to=""></div>
 
-  <div class="adm warn">
-    <p class="adm-title">Partly built, as of v0.24.0</p>
+  <div class="adm note">
+    <p class="adm-title">Built, as of v0.30.0</p>
     <p>Decided by <a href="../product/decision-log.html#d-055">D-055</a> to
     <a href="../product/decision-log.html#d-062">D-062</a>. <strong>Built:</strong> the upstream
     provisioning API (<a href="#upstream">last section</a>, live on prod since 2026-11-02), and the
@@ -36,10 +36,11 @@
     (<code>GAOS_MODEL_MODE=aimanager</code>), and since v0.25.0 one workspace per product with its
     sync, the drift gate and one live turn per product, and since v0.27.0 a session per task and recovery
     by request id (<a href="../delivery/implementation-plan.html#sub-m14-5">M14.5</a>), proved by one
-    real turn through <code>live-aim-run.sh</code>. <strong>Not yet:</strong> the board (M14.6) and the
-    retirement of the CLI path (M14.7). Until then a gateway turn
-    always opens a new session, and the CLI adapter of <a href="../product/brd.html#to-be-cli">BRD
-    §7.6</a> is still the default.</p>
+    real turn through <code>live-aim-run.sh</code>. Since v0.28.0 the board (M14.6); since v0.29.0
+    this is the only path, because M14.7 deleted the CLI adapter of
+    <a href="../product/brd.html#to-be-cli">BRD §7.6</a>, the packet on disk and the detached
+    runner; and since v0.30.0 the context the worker observed is compared with the pinned Blueprint
+    after every turn (<code>T-156</code>).</p>
   </div>
 
   <h2 id="three-layers">Three layers, one job each</h2>
@@ -70,8 +71,8 @@
 
   <h2 id="turn">One turn, end to end</h2>
   <p>A <em>turn</em> is one prompt and one reply inside one session. Every attempt at a task is one
-  turn. The path below replaces the packet-on-disk and detached-process path; the stages before
-  <em>Submit</em> are the ones that already exist.</p>
+  turn. The path below replaced the packet-on-disk and detached-process path in v0.29.0; the stages
+  before <em>Submit</em> are the ones that path already had.</p>
 
   <div class="flow rv">
     <div class="node"><b>Assemble</b><span>the brief, by traversal</span></div>
@@ -108,12 +109,25 @@ GET /v1/requests/{id}/result  → 200 {text, session_id, cost_usd, input_tokens,
   ▼
 store Prompt, reply Artifact, metadata            <span class="c"># BR-41: the session is transport</span>
 handoff = ExtractHandoff(text)                    <span class="c"># last ```gaos-handoff block, run id must match</span>
-emit RunExited → task REVIEW | BLOCKED | FAILED</pre>
+emit RunExited → task REVIEW | BLOCKED | FAILED
+  ▼
+digest  = workspace digest of P, read again      <span class="c"># BR-39, after the turn (T-156)</span>
+if digest != pinned digest or metadata.context.workspace != pinned version:
+    emit DispatchRefused(rule=observed-drift)     <span class="c"># this turn is judged as usual</span>
+    refuse the next dispatch in P until a sync  <span class="c"># the drift gate above</span></pre>
   </div>
 
   <p>The request id is deterministic for a reason. ai-manager treats a second POST with the same
   <code>X-Request-ID</code> as a no-op, so a request whose <code>202</code> was lost can be sent again
   without starting a second turn. The same id is what recovery polls after a restart.</p>
+
+  <p>The last step exists because a turn can change the workspace it ran in: a model may rewrite its
+  own <code>CLAUDE.md</code>. So after every turn GAOS asks for the workspace digest again and
+  compares the context the worker reports in <code>metadata.context.workspace</code> with the pinned
+  Blueprint version. Drift leaves the finished attempt's outcome alone; it records a
+  <code>DispatchRefused</code> with rule <code>observed-drift</code> and refuses the next dispatch in
+  that product until a sync puts the published Blueprint back (<code>BR-39</code>). Drift is
+  detected, not prevented.</p>
 
   <h2 id="error-mapping">What each answer means</h2>
   <p>ai-manager's errors are precise, and each maps to exactly one outcome. The important property is
