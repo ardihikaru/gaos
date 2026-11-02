@@ -554,11 +554,16 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	if err != nil {
 		return err
 	}
+	workspace, err := jsonMap(m.Workspace)
+	if err != nil {
+		return err
+	}
 	props := map[string]any{
 		"code": m.Code, "owner": m.Owner, "priority": m.Priority,
 		"brd": brd, "stories": stories, "diagrams": diagrams,
 		"decisions": decisions, "repos": m.Repos,
 		"policies": policies, "knowledgeSources": sources, // the Blueprint draft, D-058
+		"workspace": workspace, // the product's ai-manager workspace and what it holds, M14.4
 	}
 	if m.Stage != "" {
 		props["stage"] = m.Stage
@@ -778,6 +783,17 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 		if r.EndedAt > 0 {
 			props["endedAt"] = unixStamp(r.EndedAt)
 		}
+		// The gateway's evidence (11-blueprint.sql), written only when present so
+		// a CLI run's row carries nothing it never had.
+		if r.RequestID != "" {
+			props["requestId"] = r.RequestID
+		}
+		if r.SessionID != "" {
+			props["sessionId"] = r.SessionID
+		}
+		if r.BlueprintVersion > 0 {
+			props["blueprintVersion"] = r.BlueprintVersion
+		}
 		// Cost and its basis travel together or not at all. BR-31 forbids
 		// aggregating a measured figure with a guessed one, and a costUsd
 		// written beside the DDL's default basis of "estimated" would be a
@@ -791,6 +807,13 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 		// The task may be a desk display id rather than a planned Task vertex --
 		// the operator-triggered dispatch route has no graph task behind it -- so
 		// the edge is optional in exactly the way injectSubgraph's are.
+		if r.BlueprintVersion > 0 {
+			// BR-39: the rules this attempt ran under, as an edge an auditor can walk.
+			if err := s.optional(s.edge(ctx, tx, "PINNED_TO", "TaskRun", r.ID,
+				"BlueprintVersion", blueprintVersionID(r.DeskID, r.BlueprintVersion))); err != nil {
+				return err
+			}
+		}
 		if err := s.optional(s.edge(ctx, tx, "HAS_RUN", "Task", r.TaskID, "TaskRun", r.ID)); err != nil {
 			return err
 		}
@@ -1122,10 +1145,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Decisions json.RawMessage `json:"decisions"`
 		Policies  json.RawMessage `json:"policies"`
 		Sources   json.RawMessage `json:"knowledgeSources"`
+		Workspace json.RawMessage `json:"workspace"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, name, repo, goal, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions, policies, knowledgeSources
+		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1162,6 +1186,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			return false, err
 		}
 		mr.Blueprint.Versions = versions[r.ID]
+		if len(r.Workspace) > 0 && string(r.Workspace) != "null" {
+			if err := decodeInto(r.Workspace, &mr.Workspace); err != nil {
+				return false, err
+			}
+		}
 		m.masters = append(m.masters, mr)
 	}
 
@@ -1381,10 +1410,14 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Signature   string  `json:"failureSignature"`
 		LogRef      string  `json:"logRef"`
 		SliceDigest string  `json:"sliceDigest"`
+		RequestID   string  `json:"requestId"`
+		SessionID   string  `json:"sessionId"`
+		Pinned      int     `json:"blueprintVersion"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, taskId, deskId, attempt, status, model, invocation, startedAt, endedAt,
 		        exitCode, tokensIn, tokensOut, costUsd, costBasis, failureSignature, logRef,
+		        requestId, sessionId, blueprintVersion,
 		        first(out('ASSEMBLED').digest) AS sliceDigest
 		 FROM TaskRun WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rrows); err != nil {
@@ -1398,6 +1431,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			ExitCode: r.ExitCode, TokensIn: r.TokensIn, TokensOut: r.TokensOut,
 			CostUSD: r.CostUSD, CostBasis: r.CostBasis,
 			FailureSignature: r.Signature, LogRef: r.LogRef, SliceDigest: r.SliceDigest,
+			RequestID: r.RequestID, SessionID: r.SessionID, BlueprintVersion: r.Pinned,
 		})
 	}
 

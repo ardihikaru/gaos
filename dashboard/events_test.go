@@ -18,6 +18,7 @@ var catalog = map[EventType]bool{
 	// master
 	ProductCreated: true, RecordUpdated: true, KnowledgeInjected: true,
 	ReadinessEvaluate: true, ReadinessDropped: true, BlueprintPublished: true,
+	WorkspaceProvisioned: true, BlueprintSynced: true,
 	// planning
 	WorkflowCreated: true, TaskPlanned: true, DependencyRewired: true, WorkflowCanceled: true,
 	// execution
@@ -140,6 +141,15 @@ func drive(t *testing.T, s *MemStore) {
 	if _, err := s.PublishBlueprint(ctx, id); err != nil {
 		t.Fatalf("PublishBlueprint: %v", err)
 	}
+	// M14.4: sync it through a fake gateway, so WorkspaceProvisioned and
+	// BlueprintSynced are on the stream; then detach, so the rest of the
+	// drive runs with no adapter as before.
+	_, gw := newFakeAIM(t)
+	s.SetAdapter(gw)
+	if _, err := s.SyncBlueprint(ctx, id); err != nil {
+		t.Fatalf("SyncBlueprint: %v", err)
+	}
+	s.SetAdapter(nil)
 	// Two criteria, not one. AddStory defaults a new story to "must", and BR-07's
 	// rubric forfeits the whole criteria-coverage signal when any must story is
 	// thinner than that -- which would drop this record below the planning floor

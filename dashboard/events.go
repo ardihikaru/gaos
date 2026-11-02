@@ -43,6 +43,11 @@ const (
 	// D-058: a Blueprint version was published. Lands with its fold case and
 	// the data model document §15, per BR-05.
 	BlueprintPublished EventType = "BlueprintPublished"
+
+	// M14.4: the product's workspace was created on the worker, and a
+	// published version was written into it. Same BR-05 rule.
+	WorkspaceProvisioned EventType = "WorkspaceProvisioned"
+	BlueprintSynced      EventType = "BlueprintSynced"
 )
 
 // planning

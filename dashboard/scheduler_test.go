@@ -341,8 +341,12 @@ func TestTwoReadyTasksAreNeverHandedTheSameAgentOrWorkspace(t *testing.T) {
 		t.Errorf("the second task reported %+v, want a lease block naming the workspace", b)
 	}
 
-	// Distinct workspaces, and now both may run -- on distinct agents.
-	in.Workspaces["t-b"] = "/ws/p-1-b"
+	// Distinct products, and now both may run -- on distinct agents. (Distinct
+	// workspaces of ONE product used to be enough; BR-38 made the product the
+	// unit, since one product has one workspace through the gateway.)
+	in.Tasks[1].DeskID = "p-2"
+	in.Readiness["p-2"] = 80
+	in.Workspaces["t-b"] = "/ws/p-2"
 	got = Schedule(in)
 	if len(got.Ready) != 2 {
 		t.Fatalf("%d of 2 independent tasks were dispatched", len(got.Ready))

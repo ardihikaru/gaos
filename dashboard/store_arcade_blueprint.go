@@ -21,6 +21,13 @@ func (s *ArcadeStore) PublishBlueprint(ctx context.Context, id string) (Result, 
 	return s.mutate(ctx, func() (Result, error) { return s.proj.PublishBlueprint(ctx, id) })
 }
 
+// SyncBlueprint persists what the sync recorded: the workspace on the record
+// document, and the events. The network call runs inside mutate, so two syncs
+// of one product cannot interleave.
+func (s *ArcadeStore) SyncBlueprint(ctx context.Context, id string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SyncBlueprint(ctx, id) })
+}
+
 func blueprintVersionID(productID string, n int) string { return fmt.Sprintf("%s-bp-%d", productID, n) }
 
 // writeBlueprintVersion writes the newest version, once. Older versions were

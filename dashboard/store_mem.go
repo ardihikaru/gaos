@@ -980,6 +980,12 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 
 	pkt := s.freezePacket(*d, 1)
 	cleared, v, err := Screen(s.egress, s.target, pkt)
+	// BR-39, the operator's route: drift refuses exactly as the scheduler's
+	// does, through the same refusal branch below, so the timeline cannot tell
+	// which route met it.
+	if _, drift := s.blueprintGate(d.ID); drift != nil {
+		cleared, v, err = Cleared{}, *drift, &EgressRefusal{Rule: drift.Rule, Reason: drift.Reason}
+	}
 
 	var ev []Event
 
@@ -1198,6 +1204,12 @@ func (s *MemStore) closeRun(runID string, att Attempt, runErr error) {
 		}
 		if att.Invocation != "" {
 			r.Invocation = att.Invocation
+		}
+		if att.RequestID != "" {
+			r.RequestID = att.RequestID
+		}
+		if att.SessionID != "" {
+			r.SessionID = att.SessionID
 		}
 		if runErr != nil {
 			// The process never produced an exit status. ExitCrashed already

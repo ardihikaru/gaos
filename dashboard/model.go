@@ -341,6 +341,10 @@ type Master struct {
 	// policies and knowledge sources a human drafts here, and the versions
 	// published from them. blueprint.go.
 	Blueprint Blueprint
+
+	// Workspace is the product's ai-manager workspace and what it holds
+	// (M14.4, workspace.go). Zero until the first sync.
+	Workspace ProductWorkspace
 }
 
 func (m Master) Clone() Master {
@@ -738,6 +742,14 @@ type TaskRunRecord struct {
 	FailureSignature string
 	LogRef           string
 	SliceDigest      string // the ContextSlice this attempt was given: the ASSEMBLED edge
+
+	// Through the gateway (D-060, BR-39): the Blueprint version the attempt
+	// pinned (0 = none), the request id recovery polls, and the session the
+	// turn ran in. The session is transport (BR-41); recording its id is what
+	// lets a retry resume it (D-056, M14.5).
+	BlueprintVersion int
+	RequestID        string
+	SessionID        string
 }
 
 func (r TaskRunRecord) Clone() TaskRunRecord { return r }
