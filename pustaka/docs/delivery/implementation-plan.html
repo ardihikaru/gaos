@@ -16,8 +16,8 @@
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
   committed, and broken into fifteen modules of work you can pick up one at a time.
-  One hundred and sixty-nine tasks: seventy done, sixteen standing on fixtures or partly done,
-  seventy-eight not started, and five superseded by the move to ai-manager as the gateway.</p>
+  One hundred and sixty-nine tasks: seventy-four done, sixteen standing on fixtures or partly done,
+  seventy-four not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
@@ -54,7 +54,7 @@
   other.</p>
   <div class="adm warn">
     <p class="adm-title">What ✅ does not mean</p>
-    <p>Seventy tasks are done. Fifteen of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, and one workspace per product with its sync, its drift gate and the graph lease. Eleven are the operator surface, five are the schema, and
+    <p>Seventy-four tasks are done. Nineteen of them are <code>M14</code>, all on 2026-11-02: the documentation of the move to the gateway, the upstream provisioning API (live on prod), the ai-manager client and adapter, the Blueprint with its schema and its tab, one workspace per product with its sync, its drift gate and the graph lease, and turns with a session per task and recovery by request id. Eleven are the operator surface, five are the schema, and
     three are the store seam that now reads and writes it — <code>M0.2</code> closed on 2026-08-17,
     so a restart no longer returns the fixtures. The rest are the foundations that landed with it:
     five the event store and its reducer, four replay, two the closed catalog, two the state
@@ -98,8 +98,8 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>15</td><td>1</td><td>12</td><td>0</td><td><a href="#register">T-158</a> &mdash; the brief, then sessions per task and recovery by request id</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>70</b></td><td><b>16</b></td><td><b>78</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>19</td><td>1</td><td>8</td><td>0</td><td><a href="#register">T-162</a> &mdash; the board: its projection and the legal-move table</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>74</b></td><td><b>16</b></td><td><b>74</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -313,10 +313,10 @@
       <tr data-tags="workspace provision product id done built m14.4"><td>T-155</td><td>M14.4</td><td>Provision one workspace per product with a derived, never-renamed id &mdash; done 2026-11-02, <code>dashboard/workspace.go</code>, through <code>POST /admin/workspaces/provision</code>; TC-291</td><td>A-11</td><td>✅</td></tr>
       <tr data-tags="workspace sync drift digest partial m14.4"><td>T-156</td><td>M14.4</td><td>Sync the published Blueprint when the workspace is idle; refuse dispatch on drift, before and after the turn &mdash; the sync and the pre-dispatch drift gate are done (TC-292); comparing the context the worker observed after the turn is not</td><td>D-17, BR-39</td><td>🟡</td></tr>
       <tr data-tags="workspace graph lease one turn scheduler done built m14.4"><td>T-157</td><td>M14.4</td><td>The graph lease: one live turn per product workspace, read by the scheduler's lease block &mdash; done 2026-11-02: a DISPATCHED or RUNNING task holds its product in <code>Schedule</code>, folder or no folder; TC-295</td><td>D-18, BR-38</td><td>✅</td></tr>
-      <tr data-tags="turn brief prompt slice todo not-built m14.5"><td>T-158</td><td>M14.5</td><td><code>BuildBrief</code> and <code>RenderPrompt</code>; the context slice freezes the brief &mdash; <code>dashboard/brief.go</code></td><td>D-6, D-17</td><td>❌</td></tr>
-      <tr data-tags="turn submit poll durable record todo not-built m14.5"><td>T-159</td><td>M14.5</td><td>Submit, poll and finish a turn; store the prompt, the reply and the metadata &mdash; <code>dashboard/turns.go</code></td><td>D-19, BR-41</td><td>❌</td></tr>
-      <tr data-tags="turn session policy resume escalation todo not-built m14.5"><td>T-160</td><td>M14.5</td><td>One session per task: resume on retry, a new one on escalation, <code>410</code> or rotation</td><td>D-15, BR-40</td><td>❌</td></tr>
-      <tr data-tags="turn recovery request-id deadline acceptance todo not-built m14.5"><td>T-161</td><td>M14.5</td><td>Boot recovery by request id with the turn deadline, and <code>deploy/acceptance/live-aim-run.sh</code></td><td>D-19</td><td>❌</td></tr>
+      <tr data-tags="turn brief prompt slice done built m14.5"><td>T-158</td><td>M14.5</td><td><code>BuildBrief</code> and <code>RenderPrompt</code>; the context slice freezes the brief &mdash; <code>dashboard/brief.go</code> &mdash; done 2026-11-02: the brief is the cleared packet rendered with the reply contract in place of the file contract (<code>RenderPrompt</code>); the slice freezes it</td><td>D-6, D-17</td><td>✅</td></tr>
+      <tr data-tags="turn submit poll durable record done built m14.5"><td>T-159</td><td>M14.5</td><td>Submit, poll and finish a turn; store the prompt, the reply and the metadata &mdash; <code>dashboard/turns.go</code> &mdash; done 2026-11-02: a turn needs no local folder, its request id is recorded on the TaskRun before it is sent, and its prompt and reply are stored as artifacts; TC-299</td><td>D-19, BR-41</td><td>✅</td></tr>
+      <tr data-tags="turn session policy resume escalation done built m14.5"><td>T-160</td><td>M14.5</td><td>One session per task: resume on retry, a new one on escalation, <code>410</code> or rotation &mdash; done 2026-11-02: attempts are numbered per task so request ids never repeat; a retry resumes the session, escalation, loss and age open a new one; TC-296</td><td>D-15, BR-40</td><td>✅</td></tr>
+      <tr data-tags="turn recovery request-id deadline acceptance done built m14.5"><td>T-161</td><td>M14.5</td><td>Boot recovery by request id with the turn deadline, and <code>deploy/acceptance/live-aim-run.sh</code> &mdash; done 2026-11-02: boot recovery polls every open request id (TC-297), a lost one holds its product until the deadline (TC-298); <code>live-aim-run.sh</code> passed against the real gateway, TC-300…TC-303</td><td>D-19</td><td>✅</td></tr>
       <tr data-tags="board kanban projection legal move todo not-built m14.6"><td>T-162</td><td>M14.6</td><td>The board projection and the legal-move table, with routes keyed by task id &mdash; <code>dashboard/board.go</code></td><td>I-9, I-10</td><td>❌</td></tr>
       <tr data-tags="board kanban htmx drag todo not-built m14.6"><td>T-163</td><td>M14.6</td><td>A server-rendered board per product, with native drag posting the same move API</td><td>I-9, BR-43</td><td>❌</td></tr>
       <tr data-tags="board fold replay reorder todo not-built m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code></td><td>I-9, BR-05</td><td>❌</td></tr>
@@ -1296,6 +1296,14 @@
   full-permission agents in one checkout.</p>
 
   <h3 id="sub-m14-5">M14.5 — Turns and recovery (T-158–T-161)</h3>
+  <p><strong>Done 2026-11-02.</strong> <a href="../product/qa-test-plan.html#ni-workspace">TC-296…TC-303</a>,
+  the last four by <code>live-aim-run.sh</code> against the real gateway (one turn, <code>outcome
+  complete</code>). Building it found three things the CLI path had been hiding. The scheduler dispatched
+  every task as attempt 1, so a second attempt would have reused the first one's request id and been
+  handed its old answer. The runner refused a packet with no local workspace folder, so dev — which has
+  none — could not run a gateway turn at all. And boot recovery's adopt branch marked a run RUNNING and
+  never collected it: nothing in the package called <code>Adapter.Resume</code>. Attempts are now
+  numbered per task, a turn needs no folder, and recovery polls the request id to the end.</p>
   <p>The successor to <code>M4.2</code>. What carries over intact from <code>runner.go</code> is the
   part that was never about a process: <code>RunOnce</code>, the egress refusal, and finishing a run
   into the attempt record. The acceptance script replaces <code>live-cli-run.sh</code> and spends

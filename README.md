@@ -5,7 +5,7 @@ the primitive, not the prompt.** State lives in vertices and edges rather than a
 conversation, every change emits an event, and the orchestrator holds nothing —
 kill it mid-run and it rebuilds from the graph.
 
-**Product version 0.26.0** (`pustaka/docs/assets/toc.js`). The graph, the event
+**Product version 0.27.0** (`pustaka/docs/assets/toc.js`). The graph, the event
 store, readiness, the planner, the scheduler and the attempt record are built, and
 GAOS has made real model calls. What judges a result — review, scoring, the retry
 guards — is not built yet. Every page and every file says which is which.
@@ -81,7 +81,8 @@ there have already cost somebody an outage on that box.
 | ai-manager gateway adapter | **built** — `dashboard/adapter_aimanager.go`, `GAOS_MODEL_MODE=aimanager`; the upstream provisioning API is live |
 | Blueprint per product | **built** — policies, knowledge sources, versions, the back-office tab, synced into the product's workspace |
 | One workspace and one live turn per product | **built** — drift gate before dispatch, graph lease in the scheduler (M14.4) |
-| Sessions per task, request-id recovery, kanban per product | **designed** — M14.5–M14.6 |
+| Sessions per task, request-id recovery | **built** — `dashboard/turns.go`; one real turn passed through `live-aim-run.sh` |
+| Kanban per product | **designed** — M14.6 |
 | Reviews, scoring, retry guards | **not built** — `dashboard/sim.go` still animates the floor |
 | Authentication | **not built** — the back-office login sets a cookie and checks nothing |
 
@@ -94,7 +95,7 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 202 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 206 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ```

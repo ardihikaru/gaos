@@ -34,8 +34,9 @@ type AIMAdapter struct {
 	Tenant    string
 	Workspace string
 
-	PollEvery time.Duration // between result polls; default 2s
-	Deadline  time.Duration // whole-turn ceiling; default 660s (> ai-manager's 600s)
+	PollEvery     time.Duration // between result polls; default 2s
+	Deadline      time.Duration // whole-turn ceiling; default 660s (> ai-manager's 600s)
+	MaxSessionAge time.Duration // a task's session older than this is rotated; default 25 days
 }
 
 const (
@@ -108,11 +109,11 @@ func RenderPrompt(c Cleared) string {
 
 // Dispatch runs one turn: persist the request id, submit, poll to a result.
 func (a *AIMAdapter) Dispatch(ctx context.Context, c Cleared) (Attempt, error) {
-	return a.turn(ctx, c, "")
+	return a.turn(ctx, c, c.Packet().SessionID)
 }
 
-// turn is Dispatch with an optional session to resume (D-056; the runner
-// passes "" until M14.5 records sessions per task).
+// turn is Dispatch with an optional session to resume (D-056): the runner
+// puts the task's resumable session on the packet, or "" for a new one.
 func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Attempt, error) {
 	if c.empty() {
 		return Attempt{}, reject("refusing to dispatch a packet the egress pass never cleared")
@@ -124,7 +125,8 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 			return Attempt{}, err
 		}
 	}
-	req := ChatRequest{Prompt: RenderPrompt(c), Model: a.Model}
+	prompt := RenderPrompt(c)
+	req := ChatRequest{Prompt: prompt, Model: a.Model}
 	if sessionID != "" {
 		req.SessionID = sessionID
 	} else {
@@ -132,11 +134,14 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 	}
 	if err := a.Client.Submit(ctx, reqID, req); err != nil {
 		if att, ok := a.answered(c, err); ok {
+			att.Prompt, att.RequestID = prompt, reqID
 			return att, nil
 		}
 		return Attempt{}, err
 	}
-	return a.poll(ctx, c, reqID)
+	att, err := a.poll(ctx, c, reqID)
+	att.Prompt = prompt
+	return att, err
 }
 
 // Resume polls a turn this process did not start, by the request id the run
@@ -191,7 +196,11 @@ func (a *AIMAdapter) answered(c Cleared, err error) (Attempt, bool) {
 	switch {
 	case errors.Is(err, ErrSessionGone):
 		return a.failed(c, ExitRan, SigSessionLost, err.Error()), true
-	case errors.Is(err, ErrGatewayTransient), errors.Is(err, ErrRequestUnknown):
+	case errors.Is(err, ErrRequestUnknown):
+		// Not a crash of the work: the gateway lost track of it, and the turn
+		// may still be running. Recovery holds the product (D-060).
+		return a.failed(c, ExitCrashed, SigRequestLost, err.Error()), true
+	case errors.Is(err, ErrGatewayTransient):
 		return a.failed(c, ExitCrashed, SigGatewayFailed, err.Error()), true
 	}
 	return Attempt{}, false
@@ -211,7 +220,8 @@ func (a *AIMAdapter) attemptFrom(c Cleared, r ChatReply) Attempt {
 		model = a.Model
 	}
 	att := Attempt{Invocation: InvocationGateway, Model: model, Digest: c.Digest(), ExitClass: ExitRan,
-		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, LogRef: a.writeReply(c, r.Text), SessionID: r.SessionID}
+		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, LogRef: a.writeReply(c, r.Text), SessionID: r.SessionID,
+		Reply: r.Text}
 	att.CostUSD, att.CostBasis = gatewayCost(r)
 	h, raw, err := ExtractHandoff(r.Text, p.TaskID, p.RunID)
 	att.HandoffRaw = raw

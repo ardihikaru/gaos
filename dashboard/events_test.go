@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ var catalog = map[EventType]bool{
 	// master
 	ProductCreated: true, RecordUpdated: true, KnowledgeInjected: true,
 	ReadinessEvaluate: true, ReadinessDropped: true, BlueprintPublished: true,
-	WorkspaceProvisioned: true, BlueprintSynced: true,
+	WorkspaceProvisioned: true, BlueprintSynced: true, SessionOpened: true, SessionLost: true,
 	// planning
 	WorkflowCreated: true, TaskPlanned: true, DependencyRewired: true, WorkflowCanceled: true,
 	// execution
@@ -144,10 +145,29 @@ func drive(t *testing.T, s *MemStore) {
 	// M14.4: sync it through a fake gateway, so WorkspaceProvisioned and
 	// BlueprintSynced are on the stream; then detach, so the rest of the
 	// drive runs with no adapter as before.
-	_, gw := newFakeAIM(t)
+	fake, gw := newFakeAIM(t)
 	s.SetAdapter(gw)
 	if _, err := s.SyncBlueprint(ctx, id); err != nil {
 		t.Fatalf("SyncBlueprint: %v", err)
+	}
+	// M14.5: a first turn opens a session (SessionOpened), and a resumed turn
+	// the gateway answers 410 loses it (SessionLost).
+	turnPacket := func(run, session string) Cleared {
+		c, _, err := Screen(EgressPolicy{}, Target{Provider: "anthropic"}, Packet{TaskID: "t-drive", RunID: run, DeskID: id,
+			SessionID: session, Parts: []PacketPart{{Path: ".gaos/packet/task.md", Kind: KindTask, Body: "# t-drive"}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	fake.reply = chatReply(handoffBlock("t-drive", "t-drive-a1"), "0.1", "")
+	first, err := s.superviseRun(ctx, gw, id, turnPacket("t-drive-a1", ""), 1)
+	if err != nil {
+		t.Fatalf("first turn: %v", err)
+	}
+	fake.submit = http.StatusGone
+	if _, err := s.superviseRun(ctx, gw, id, turnPacket("t-drive-a2", first.SessionID), 2); err != nil {
+		t.Fatalf("resumed turn: %v", err)
 	}
 	s.SetAdapter(nil)
 	// Two criteria, not one. AddStory defaults a new story to "must", and BR-07's
