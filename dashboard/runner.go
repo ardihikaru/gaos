@@ -211,6 +211,19 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 		})
 	}
 
+	// M15: a turn that ended on a question. Its record is the question
+	// artifact and the QuestionAsked event below; the task waits on the
+	// operator in AWAITING_INPUT.
+	var asked *QuestionPayload
+	if runErr == nil && att.Outcome() == OutcomeAsked {
+		asked = questionFromReply(att.Question, runID, attemptOfRun(s.runs, runID))
+		s.recordHandoff(ArtifactRecord{
+			ID: runID + "-question", Kind: ArtifactQuestion, Title: "question from " + runID,
+			TaskID: taskID, DeskID: deskID, RunID: runID,
+			Attempt: asked.Attempt, Body: questionBody(*asked), CreatedAt: time.Now().Unix(),
+		})
+	}
+
 	p := EventPayload{Digest: att.Digest}
 	text := fmt.Sprintf("run %s exited %s, outcome %s", runID, att.ExitClass, att.Outcome())
 	kind := exitKind(att)
@@ -238,12 +251,18 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	switch {
 	case runErr != nil, att.Failure != "":
 		to = StatusFailed
+	case asked != nil:
+		to = StatusAwaitingInput
 	case att.Outcome() == HandoffBlocked:
 		to = StatusBlocked
 	}
 	var out []Event
 	if m, ok := s.moveTaskLocked(taskID, to, MoveExit); ok {
 		out = append(out, m)
+	}
+	if asked != nil {
+		out = append(out, s.emit(QuestionAsked, deskID, fmt.Sprintf("%s asks: %s", taskID, asked.Question),
+			KindWarn, EventPayload{Task: taskID, Question: asked}))
 	}
 
 	if i := s.deskIdxByID(deskID); i >= 0 {

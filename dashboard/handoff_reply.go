@@ -143,6 +143,15 @@ describe what you actually did:
 - Each criterion is one line: - id: <id>   met: true|false   evidence: "..."
 - Write exactly one %s block. Prose before it is kept for the human reading
   the timeline; nothing after it is read.
+
+## When only the operator can decide
+
+If you reach a decision that is the operator's to make -- a product choice, a
+trade-off the records do not settle -- and guessing would waste the work, stop
+and ask instead: end your reply with ONE ai-question block (the format is in
+your instructions) INSTEAD of the handoff. Offer exactly three options, the one
+you recommend first; the operator may also answer in their own words. The task
+waits until they answer, and your next turn starts with their answer.
 `
 
 // handoffExample is a COMPLETE document rather than a schema, and it is flush

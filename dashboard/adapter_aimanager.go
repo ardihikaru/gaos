@@ -120,13 +120,13 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 	p := c.Packet()
 	reqID := a.RequestIDFor(p.RunID)
 	prompt := RenderPrompt(c)
-	req := ChatRequest{Prompt: prompt, Model: a.Model}
+	req := ChatRequest{Prompt: prompt, Model: a.Model, AskUser: true, Caller: "gaos"}
 	if sessionID != "" {
 		req.SessionID = sessionID
 	} else {
 		req.NewSession, req.WorkspaceID = true, a.WorkspaceFor(p.DeskID)
 	}
-	if err := a.Client.Submit(ctx, reqID, req); err != nil {
+	if err := a.submit(ctx, reqID, req, p.Answer); err != nil {
 		if att, ok := a.answered(c, err); ok {
 			att.Prompt, att.RequestID = prompt, reqID
 			return att, nil
@@ -136,6 +136,27 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 	att, err := a.poll(ctx, c, reqID)
 	att.Prompt = prompt
 	return att, err
+}
+
+// submit starts the turn. A turn that carries the operator's answer goes
+// through ai-manager's answer route, which marks the question answered and
+// resumes the session that asked it (M15). When that route refuses for any
+// reason -- already answered by another request (409), expired (410), unknown
+// (404), or the question store switched off or down (503) -- the turn is sent
+// as an ordinary one: the answer is in the packet either way, so the agent
+// still reads it, and only the bucket's record of who answered is left as it
+// was. Falling back is safe even if the answer route did start the turn and
+// only its reply was lost: the request id is the same, and ai-manager treats a
+// repeated id as the request it already holds.
+func (a *AIMAdapter) submit(ctx context.Context, reqID string, req ChatRequest, ans *PacketAnswer) error {
+	if ans != nil && ans.QuestionID != "" && req.SessionID != "" {
+		err := a.Client.SubmitAnswer(ctx, ans.QuestionID, reqID,
+			AnswerRequest{Choice: ans.Choice, Text: ans.Text, Prompt: req.Prompt})
+		if err == nil || ctx.Err() != nil {
+			return err
+		}
+	}
+	return a.Client.Submit(ctx, reqID, req)
 }
 
 // Resume polls a turn this process did not start, by the request id the run
@@ -222,6 +243,14 @@ func (a *AIMAdapter) attemptFrom(c Cleared, r ChatReply) Attempt {
 	switch {
 	case r.SessionWarning() != "":
 		att.Failure = SigTurnUnsaved // BR-40: the session no longer matches the record
+	case r.Question != nil && len(r.Question.Options) == 3:
+		// M15: the agent stopped to ask. No handoff is owed, and one that came
+		// anyway is kept as evidence but does not decide where the task goes.
+		q := *r.Question
+		att.Question = &q
+		if err == nil {
+			att.Handoff = &h
+		}
 	case err != nil:
 		att.Failure = SigHandoffMissing
 	default:

@@ -763,7 +763,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <tbody>
       <tr><td class="mono">master</td><td class="mono">ProductCreated · RecordUpdated · KnowledgeInjected · ReadinessEvaluated · ReadinessDropped</td></tr>
       <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned · DependencyRewired · WorkflowCanceled</td></tr>
-      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned</td></tr>
+      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered</td></tr>
       <tr><td class="mono">judgment</td><td class="mono">ReviewCompleted · RetryRequested · ModelEscalated · SafetyVeto · GuardExhausted</td></tr>
       <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
       <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
@@ -1400,6 +1400,16 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
       <tr><td class="mono">TaskReordered</td><td>planning</td><td class="mono">taskId, rank</td></tr>
     </tbody>
   </table>
+  <h4>M15 · two more events, one more status (D-064)</h4>
+  <table>
+    <thead><tr><th class="mono">Event</th><th>Group</th><th class="mono">Payload</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">QuestionAsked</td><td>execution</td><td class="mono">taskId, question{id, runId, attempt, question, context, options[3], askedAt}</td></tr>
+      <tr><td class="mono">QuestionAnswered</td><td>execution</td><td class="mono">taskId, question{… , choice 1..4, text, answeredAt}</td></tr>
+    </tbody>
+  </table>
+  <p>An agent that needs the operator's decision ends its turn on a question; the task waits in <span class="mono">Task.status = 'AWAITING_INPUT'</span> until the answer requeues it. The question is also stored as an <span class="mono">Artifact</span> of kind <span class="mono">question</span> on the attempt that asked. There is no Question vertex: the inbox is a projection of the two events. Applied as <span class="mono">dashboard/schema/12-questions.sql</span>, which widens <span class="mono">Task.status</span> and <span class="mono">Artifact.kind</span> in place.</p>
+
   <p>Reused rather than added: policy edits are <span class="mono">RecordUpdated</span>; a refused sync is <span class="mono">DispatchRefused</span> with rule <span class="mono">egress-blueprint</span>, and a drifted workspace the same event with <span class="mono">blueprint-drift</span>; a lost request is <span class="mono">TaskOrphaned</span> with rule <span class="mono">request-lost</span>.</p>
 
   <h4>Dormant, never deleted</h4>
