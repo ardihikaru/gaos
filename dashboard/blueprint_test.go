@@ -195,6 +195,11 @@ func TestTheBlueprintTabRendersAndPublishes(t *testing.T) {
 	if m, _ := st.Master(context.Background(), "p-1"); len(m.Blueprint.Versions) != 1 {
 		t.Fatalf("the store holds %d versions after publishing through the tab, want 1", len(m.Blueprint.Versions))
 	}
+	// No gateway is configured in this server, so a sync is refused with the
+	// reason rather than pretending there is a workspace to write to.
+	if w := do(t, s, "POST", "/products/p-1/blueprint/sync", nil, boCookies()...); !strings.Contains(w.Body.String(), "No gateway is configured") {
+		t.Fatalf("syncing with no gateway = %d; want the refusal naming GAOS_MODEL_MODE=aimanager", w.Code)
+	}
 	if w := do(t, s, "POST", "/products/p-1/blueprint/publish", nil); w.Code != 401 {
 		t.Fatalf("publishing without a back-office session = %d, want 401", w.Code)
 	}

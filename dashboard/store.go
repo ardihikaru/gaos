@@ -115,6 +115,11 @@ type Store interface {
 	SavePolicy(ctx context.Context, productID string, p Policy) (Result, error)
 	AddKnowledgeSource(ctx context.Context, productID string, k KnowledgeSource) (Result, error)
 	PublishBlueprint(ctx context.Context, productID string) (Result, error)
+	// SyncBlueprint writes the latest published version into the product's
+	// workspace, provisioning it first if needed (M14.4). Rejected without a
+	// workspace gateway, without a published version, or when the egress
+	// pass refuses the files.
+	SyncBlueprint(ctx context.Context, productID string) (Result, error)
 	Inject(ctx context.Context, productID string) (Result, error)
 
 	// ---- planning ----
@@ -250,6 +255,9 @@ func (readOnly) AddKnowledgeSource(context.Context, string, KnowledgeSource) (Re
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) PublishBlueprint(context.Context, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SyncBlueprint(context.Context, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) Inject(context.Context, string) (Result, error) {

@@ -169,10 +169,11 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 	// will have moved on.
 	s.mu.Lock()
 	slice := s.recordSlice(c, taskID, deskID, attempt)
+	pinned, _ := s.blueprintGate(deskID) // BR-39: the version this attempt runs under
 	s.startRun(TaskRunRecord{
 		ID: runID, TaskID: taskID, DeskID: deskID, Attempt: attempt,
 		Status: RunStatusStarted, Model: ad.Name(), Invocation: ad.Mode(),
-		StartedAt: now, SliceDigest: slice.Digest,
+		StartedAt: now, SliceDigest: slice.Digest, BlueprintVersion: pinned,
 		// No CostBasis yet, and deliberately not "estimated". A run that has
 		// spent nothing has no basis to record; BR-31 is about never aggregating
 		// a measured number with a guessed one, and a default here would seed
@@ -414,6 +415,16 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 		return decision
 	}
 	for _, d := range decision.Ready {
+		// BR-39 before the egress pass: a product whose workspace does not hold
+		// its published Blueprint is refused as drift, with the same event an
+		// egress refusal writes, and stays blocked until a sync releases it.
+		s.mu.RLock()
+		_, drift := s.blueprintGate(d.DeskID)
+		s.mu.RUnlock()
+		if drift != nil {
+			s.refuseDispatch(d, *drift)
+			continue
+		}
 		c, v, err := s.clearFor(d)
 		if err != nil {
 			// A refusal on this path used to be a `continue`, and that was a bug

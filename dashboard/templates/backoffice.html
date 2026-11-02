@@ -362,7 +362,11 @@
   {{else}}
     <div class="proj"><span>Published</span><b>nothing yet</b></div>
   {{end}}
+  {{with .Master.Workspace}}{{if .ID}}
+    <div class="proj"><span>Workspace</span><b class="mono">{{.ID}}{{if .SyncedVersion}} · holds v{{.SyncedVersion}}{{else}} · empty{{end}}</b></div>
+  {{end}}{{end}}
   <button class="btn btn-primary" style="margin-top:8px" hx-post="products/{{.ID}}/blueprint/publish" hx-target="#sink" hx-swap="innerHTML">Publish blueprint</button>
+  <button class="btn" style="margin-top:8px" hx-post="products/{{.ID}}/blueprint/sync" hx-target="#sink" hx-swap="innerHTML">Sync to workspace</button>
 </div>
 <div class="block">
   <h4>Policies</h4>

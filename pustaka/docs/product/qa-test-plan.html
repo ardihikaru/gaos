@@ -17,8 +17,8 @@
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
   three hundred and twelve cases, positive and negative, across the five deploy automations and the
-  two Go test packages that actually run today — sixteen of them the first of the gateway's forward
-  specifications, now running — twenty more forward specifications for the rest of that move, plus
+  two Go test packages that actually run today — twenty-one of them the first of the gateway's forward
+  specifications, now running — fifteen more forward specifications for the rest of that move, plus
   the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
@@ -378,11 +378,11 @@
       <tr data-tags="blueprint publish unchanged no-op event negative implemented go test unit dashboard"><td>TC-288</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing an unchanged Blueprint creates no version and emits no event (<code>TestPublishingAnUnchangedBlueprintDoesNothing</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint knowledge source pinned ref render positive implemented go test unit dashboard"><td>TC-289</td><td>dashboard (go test)</td><td>Positive</td><td>A knowledge source is rendered with its pinned ref and its purpose (<code>TestAKnowledgeSourceIsRenderedPinned</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint knowledge source url https credentials negative implemented go test unit dashboard"><td>TC-290</td><td>dashboard (go test)</td><td>Negative</td><td>A knowledge source with a non-<code>https</code> URL, or one carrying credentials, is refused (<code>TestAKnowledgeSourceThatIsNotHTTPSOrCarriesCredentialsIsRefused</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="workspace provision idempotent id derived positive not-implemented"><td>TC-291</td><td>dashboard (go test)</td><td>Positive</td><td>Provisioning is idempotent and derives <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>; a second call emits nothing</td><td>Not implemented</td></tr>
-      <tr data-tags="workspace drift blueprint-drift dispatch refused br-39 negative not-implemented"><td>TC-292</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace whose synced digest is not the pinned one refuses dispatch with <code>blueprint-drift</code>, and no turn is sent</td><td>Not implemented</td></tr>
-      <tr data-tags="workspace sync egress credential refused br-32 negative not-implemented"><td>TC-293</td><td>dashboard (go test)</td><td>Negative</td><td>A credential in a policy refuses the sync, and the fake gateway receives nothing</td><td>Not implemented</td></tr>
-      <tr data-tags="workspace attempt record pin slice session request reopen positive not-implemented"><td>TC-294</td><td>dashboard (go test)</td><td>Positive</td><td>The attempt record carries the pinned version, the slice digest, the session id and the request id, across a store reopen</td><td>Not implemented</td></tr>
-      <tr data-tags="workspace graph lease one turn br-38 negative not-implemented"><td>TC-295</td><td>dashboard (go test)</td><td>Negative</td><td>While a turn is live, a second ready task in the same product is blocked with the lease reason</td><td>Not implemented</td></tr>
+      <tr data-tags="workspace provision idempotent id derived positive implemented go test unit dashboard"><td>TC-291</td><td>dashboard (go test)</td><td>Positive</td><td>Provisioning is idempotent and derives <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>; a second call emits nothing (<code>TestProvisioningIsIdempotentAndTheWorkspaceIDIsDerived</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="workspace drift blueprint-drift dispatch refused br-39 negative implemented go test unit dashboard"><td>TC-292</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace whose synced digest is not the published one refuses dispatch with <code>blueprint-drift</code>, no turn is sent, and a sync releases the product (<code>TestADriftedWorkspaceRefusesTheDispatchAndASyncReleasesIt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="workspace sync egress credential refused br-32 negative implemented go test unit dashboard"><td>TC-293</td><td>dashboard (go test)</td><td>Negative</td><td>A credential in a policy refuses the sync, and the fake gateway receives nothing (<code>TestACredentialInAPolicyRefusesTheSyncAndNothingReachesTheGateway</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="workspace attempt record pin slice session request reopen positive implemented go test unit dashboard"><td>TC-294</td><td>dashboard (go test)</td><td>Positive</td><td>The attempt record carries the pinned version, the slice digest, the session id and the request id, across a store reopen (<code>TestTheAttemptRecordPinsTheBlueprintAndTheGatewayIDsAcrossAReopen</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="workspace graph lease one turn br-38 negative implemented go test unit dashboard"><td>TC-295</td><td>dashboard (go test)</td><td>Negative</td><td>While a turn is live, a second ready task in the same product is blocked with the lease reason (<code>TestASecondTaskInAProductWithALiveTurnIsBlocked</code>)</td><td>Implemented</td></tr>
       <tr data-tags="turn session resume retry escalation d-056 positive not-implemented"><td>TC-296</td><td>dashboard (go test)</td><td>Positive</td><td>A retry resumes the task's session; an escalation opens a new one with <code>SessionOpened</code> reason <code>escalation</code></td><td>Not implemented</td></tr>
       <tr data-tags="turn recovery adopt completed request positive not-implemented"><td>TC-297</td><td>dashboard (go test)</td><td>Positive</td><td>After a restart, a completed request is adopted into the same attempt a supervised run would have produced</td><td>Not implemented</td></tr>
       <tr data-tags="turn recovery 404 request-lost deadline requeue d-060 negative not-implemented"><td>TC-298</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>404</code> on recovery emits <code>TaskOrphaned</code> rule <code>request-lost</code>, holds the lease until the deadline, then requeues on a new session</td><td>Not implemented</td></tr>
@@ -1591,7 +1591,9 @@
   <code>%d tasks were dispatched into one workspace; D-3 exists because "two runs in one workspace
   corrupt each other silently"</code>, and the seat as well as the workspace:
   <code>both tasks were seated on %s; one agent cannot carry two runs, and the conflict would surface
-  as a lease failure rather than as a decision</code>.
+  as a lease failure rather than as a decision</code>. Since v0.25.0 the "both may run" half uses two
+  products rather than two workspaces of one: BR-38 made the product the unit, so two workspaces of
+  one product no longer license two runs.
   <strong>Positive (TC-219):</strong> the last <code>rng</code> on a scheduling path, removed.
   <code>advance()</code> reseated with <code>cand[s.rng.IntN(len(cand))]</code>, which was survivable
   while one process owned the floor and stops being survivable at D-1 —
@@ -2008,7 +2010,7 @@
   (<code>TestA409IsBusyNotAFailedAttempt</code>): the adapter returns <code>ErrTurnRunning</code> and
   no attempt at all — <code>a 409 gave %+v %v, want ErrTurnRunning and no attempt at all</code>.
   What the runner then does with a busy answer (no <code>TaskRun</code> closed, the task left READY)
-  is <code>M14.5</code>'s and is asserted with <a href="#ni-workspace">TC-295</a>.
+  is <code>M14.5</code>'s; one turn per product is asserted with <a href="#go-workspace">TC-295</a>.
   <strong>TC-281</strong> (<code>TestARepliedHandoffForAnotherRunIsHandoffMissing</code>): no block,
   two blocks for different runs, the previous run's block, and another task's block each give
   <code>%s: err = %v, want %s</code> with <code>handoff-missing</code>. <strong>TC-282</strong>
@@ -2053,13 +2055,48 @@
   and publishes version 1 (<code>GET the Blueprint tab = %d; want 200 with the publish
   button</code>, <code>publish through the tab = %d; want the pane to show version 1</code>), and
   refuses a publish without a session: <code>publishing without a back-office session = %d, want
-  401</code>. It exists because the first version of the pane called a <code>(value, bool)</code>
+  401</code>. Since v0.25.0 it also syncs with no gateway configured and expects the refusal:
+  <code>syncing with no gateway = %d; want the refusal naming GAOS_MODEL_MODE=aimanager</code>. It exists because the first version of the pane called a <code>(value, bool)</code>
   method, which <code>html/template</code> cannot — a 500 that every store-level test passed straight
   over.</p>
   <p>The conformance table gained <code>PublishBlueprintRoundTrips</code> and
   <code>SavePolicyWithABadKindIsRejected</code>, and the read-only case now refuses the three new
   mutations; those run under <a href="#go-store-seam">TC-124/TC-125</a> rather than rows of their
   own.</p>
+
+  <h3 id="go-workspace">dashboard — one workspace per product, the sync, the drift gate (TC-291…TC-295)</h3>
+  <p>M14.4, in <code>dashboard/workspace_test.go</code>, against the fake ai-manager, which now also
+  answers the provisioning routes, keeps files per workspace and computes the worker's digest.
+  <strong>TC-291, positive</strong> (<code>TestProvisioningIsIdempotentAndTheWorkspaceIDIsDerived</code>):
+  the first sync emits one <code>WorkspaceProvisioned</code> and one <code>BlueprintSynced</code>
+  (<code>the first sync gave %v %v; want one WorkspaceProvisioned and one BlueprintSynced</code>), the
+  workspace is <code>gaos-t1-&lt;product&gt;</code> (<code>the workspace is %q (worker has %d
+  workspace(s)); want %s, derived from tenant and product</code>), and a second sync neither provisions
+  again nor rewrites unchanged files (<code>a second sync provisioned again or rewrote unchanged files
+  (%d writes); both must be no-ops</code>).
+  <strong>TC-294, positive</strong> (<code>TestTheAttemptRecordPinsTheBlueprintAndTheGatewayIDsAcrossAReopen</code>,
+  ArcadeDB only): a supervised gateway attempt, read back from a reopened store, carries version 1,
+  its request id, its session id, its slice digest and invocation <code>gateway</code> —
+  <code>the reopened attempt is %+v; want pinned to version 1 with its request id, session id, slice
+  digest and invocation gateway</code>; <code>PINNED_TO</code> is the edge behind the version.</p>
+  <p><strong>TC-292, negative</strong> (<code>TestADriftedWorkspaceRefusesTheDispatchAndASyncReleasesIt</code>):
+  with a published Blueprint the workspace does not hold, the operator's dispatch writes one
+  <code>DispatchRefused</code> with rule <code>blueprint-drift</code> — <code>dispatching with an
+  unsynced Blueprint gave %v %v; want one DispatchRefused rule %s (BR-39)</code> — and sends nothing
+  (<code>a drifted dispatch still sent %d turn(s) to the gateway</code>); after a sync the gate pins
+  version 1 and the block is released (<code>after the sync the gate says pin %d drift %+v, block
+  reason %q; want version 1, no drift, released</code>). The scheduler's route goes through the same
+  gate and the same refusal.
+  <strong>TC-293, negative</strong> (<code>TestACredentialInAPolicyRefusesTheSyncAndNothingReachesTheGateway</code>,
+  T-154): a policy holding an AWS key id publishes, and its sync is refused before any write —
+  <code>a Blueprint carrying a credential synced with %v %v; want DispatchRefused rule %s
+  (BR-32)</code>, <code>the gateway received %d write(s) of a Blueprint the egress pass
+  refused</code>. The refusal is a result with its event, not an error, so the graph store persists it.
+  <strong>TC-295, negative</strong> (<code>TestASecondTaskInAProductWithALiveTurnIsBlocked</code>): the
+  graph lease — a DISPATCHED or RUNNING task holds its product whether or not a workspace folder exists
+  here — <code>t-b reported %+v; with t-a running in the same product it must be blocked by the graph
+  lease (BR-38)</code>, while another product's task still runs (<code>dispatched %+v; another
+  product's task must still run</code>).</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
@@ -2081,7 +2118,7 @@
   <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
 
   <div class="adm note">
-    <p class="adm-title">The gateway forward specifications (TC-291…TC-310 still waiting)</p>
+    <p class="adm-title">The gateway forward specifications (TC-296…TC-310 still waiting)</p>
     <p>Thirty-six cases were written on 2026-11-02, before any of the code they test, for
     <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>: the move to ai-manager as the
     one gateway, the Blueprint, and a board per product
@@ -2094,31 +2131,23 @@
     <code>httptest</code> fake ai-manager that scripts a reply per request id and counts the POSTs it
     receives; none spawns a binary and none spends money. Only
     <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.
-    <strong>TC-275…TC-290 run as of v0.24.0</strong> and moved up to
-    <a href="#ni-aim">the adapter</a> and <a href="#ni-blueprint">the Blueprint</a> sections; the
-    twenty below wait for <code>M14.4</code>…<code>M14.6</code>.</p>
+    <strong>TC-275…TC-290 run as of v0.24.0 and TC-291…TC-295 as of v0.25.0</strong>, moved up to
+    <a href="#ni-aim">the adapter</a>, <a href="#ni-blueprint">the Blueprint</a> and
+    <a href="#go-workspace">the workspace</a> sections; the fifteen below wait for
+    <code>M14.5</code> and <code>M14.6</code>.</p>
   </div>
 
-  <h3 id="ni-workspace">The workspace, the sync and the turn (TC-291…TC-299)</h3>
-  <p><strong>Given</strong> a product in tenant <code>t1</code> with code <code>p5</code>,
-  <strong>then (TC-291, positive)</strong> provisioning asks the fake for
-  <code>gaos-t1-p5</code>, emits one <code>WorkspaceProvisioned</code>, and a second provision emits
-  nothing. <strong>TC-294, positive:</strong> after one turn, the attempt carries the pinned
-  <code>BlueprintVersion</code>, the slice digest, the session id and the request id, and still does
-  after the store is reopened. <strong>TC-296, positive:</strong> a retry on the same model sends
-  <code>session_id</code> rather than <code>new_session</code>; an escalation sends
-  <code>new_session</code> and emits <code>SessionOpened</code> with reason <code>escalation</code>.
+  <h3 id="ni-workspace">Sessions and recovery through the gateway (TC-296…TC-299)</h3>
+  <p>M14.5. TC-291…TC-295 of this section run as of v0.25.0 and moved to
+  <a href="#go-workspace">the workspace scenarios</a>; these four need the session per task and the
+  request-id recovery that replace the detached runner.
+  <strong>TC-296, positive:</strong> a retry on the same model sends <code>session_id</code> rather
+  than <code>new_session</code>; an escalation sends <code>new_session</code> and emits
+  <code>SessionOpened</code> with reason <code>escalation</code>.
   <strong>TC-297, positive:</strong> with a <code>TaskRun</code> left RUNNING and the fake holding a
   completed result for its request id, recovery finishes it into the same attempt a supervised run
   would have produced. <strong>TC-299, positive:</strong> after the fake answers <code>410</code> for
-  a session, the earlier attempt's prompt and reply are still readable from the store.</p>
-  <p><strong>TC-292, negative:</strong> with the workspace's synced digest set to anything but the
-  pinned one, dispatch emits <code>DispatchRefused</code> with rule <code>blueprint-drift</code> and
-  the fake receives no chat request. <strong>TC-293, negative:</strong> a policy containing a
-  credential the egress detectors know refuses the sync with <code>DispatchRefused</code> rule
-  <code>egress-blueprint</code>, and the fake receives no file write. <strong>TC-295,
-  negative:</strong> while one task's turn is live, a second READY task in the same product is
-  reported blocked with the lease reason and is not submitted (<a href="brd.html#rules-gateway">BR-38</a>).
+  a session, the earlier attempt's prompt and reply are still readable from the store.
   <strong>TC-298, negative:</strong> with the fake answering <code>404</code> for an open request,
   recovery emits <code>TaskOrphaned</code> with rule <code>request-lost</code>, keeps the workspace
   leased until <code>submittedAt + GAOS_AIM_TURN_DEADLINE</code>, and only then requeues the task — on

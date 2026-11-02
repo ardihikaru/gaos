@@ -101,6 +101,10 @@ type Attempt struct {
 	CostBasis string
 
 	LogRef string // where the raw tool output was stored
+
+	// Through the gateway only; empty for the CLI. Recorded, never branched on.
+	RequestID string
+	SessionID string
 }
 
 // Outcome is what happened to the WORK.

@@ -513,3 +513,16 @@ func (s *server) handlePublishBlueprint(w http.ResponseWriter, r *http.Request) 
 	}
 	s.renderBOAfter(w, r, res, id, "blueprint")
 }
+
+func (s *server) handleSyncBlueprint(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id := r.PathValue("id")
+	res, err := s.mut(r).SyncBlueprint(r.Context(), id)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOAfter(w, r, res, id, "blueprint")
+}
