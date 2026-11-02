@@ -1395,7 +1395,7 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
       <tr><td class="mono">BlueprintPublished</td><td>master</td><td class="mono">version, digest, files</td></tr>
       <tr><td class="mono">WorkspaceProvisioned</td><td>master</td><td class="mono">workspaceId</td></tr>
       <tr><td class="mono">BlueprintSynced</td><td>master</td><td class="mono">version, digest, workspaceId</td></tr>
-      <tr><td class="mono">SessionOpened</td><td>execution</td><td class="mono">taskId, sessionId, reason: first|escalation|lost|rotation</td></tr>
+      <tr><td class="mono">SessionOpened</td><td>execution</td><td class="mono">taskId, sessionId, reason: first|escalation|lost|rotation|vendor</td></tr>
       <tr><td class="mono">SessionLost</td><td>execution</td><td class="mono">taskId, sessionId</td></tr>
       <tr><td class="mono">TaskReordered</td><td>planning</td><td class="mono">taskId, rank</td></tr>
     </tbody>
@@ -1409,6 +1409,9 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
     </tbody>
   </table>
   <p>An agent that needs the operator's decision ends its turn on a question; the task waits in <span class="mono">Task.status = 'AWAITING_INPUT'</span> until the answer requeues it. The question is also stored as an <span class="mono">Artifact</span> of kind <span class="mono">question</span> on the attempt that asked. There is no Question vertex: the inbox is a projection of the two events. Applied as <span class="mono">dashboard/schema/12-questions.sql</span>, which widens <span class="mono">Task.status</span> and <span class="mono">Artifact.kind</span> in place.</p>
+
+  <h4>M16 · a vendor per product, no new event (D-067)</h4>
+  <p>A product chooses which of the gateway's session vendors runs its tasks — <span class="mono">claude</span>, <span class="mono">antigravity</span>, or both by role — as <span class="mono">Product.vendorPolicy</span>, a document beside the Blueprint draft (<span class="mono">{mode, roles{role: vendor}, agyModel}</span>; schema-less where humans write, D-009). The vendor each attempt went to is <span class="mono">TaskRun.provider</span>, declared by <span class="mono">dashboard/schema/13-vendors.sql</span> with <span class="mono">regexp 'claude|antigravity'</span>; a run written before M16 has none and went to Claude. A retry whose vendor changed opens a new session, and <span class="mono">SessionOpened</span> says so with reason <span class="mono">vendor</span>. What each vendor's copy of the workspace holds rides on <span class="mono">Product.workspace</span>, Claude's in the fields it always had and the others under <span class="mono">Others{vendor: {Version, Digest, At}}</span>. Editing the policy is <span class="mono">RecordUpdated</span>; the catalog stays closed (BR-05).</p>
 
   <p>Reused rather than added: policy edits are <span class="mono">RecordUpdated</span>; a refused sync is <span class="mono">DispatchRefused</span> with rule <span class="mono">egress-blueprint</span>, and a drifted workspace the same event with <span class="mono">blueprint-drift</span>; a lost request is <span class="mono">TaskOrphaned</span> with rule <span class="mono">request-lost</span>.</p>
 

@@ -177,6 +177,7 @@ if digest != pinned digest or metadata.context.workspace != pinned version:
       <tr><td>Escalation to another model</td><td>New</td><td><code>SessionOpened</code>, reason <code>escalation</code></td></tr>
       <tr><td><code>410</code> on resume</td><td>New, on the next attempt</td><td><code>SessionLost</code>, then <code>SessionOpened</code>, reason <code>lost</code></td></tr>
       <tr><td>Older than <code>GAOS_AIM_SESSION_MAX_AGE</code> (25 days)</td><td>New</td><td><code>SessionOpened</code>, reason <code>rotation</code></td></tr>
+      <tr><td>The product's policy now sends the task's role to the other vendor</td><td>New, on that vendor — a session lives with the provider that opened it</td><td><code>SessionOpened</code>, reason <code>vendor</code></td></tr>
     </tbody>
   </table>
 
@@ -284,6 +285,27 @@ if digest != pinned digest or metadata.context.workspace != pinned version:
     </tbody>
   </table>
 
+  <h2 id="vendors">Which vendor runs a turn</h2>
+  <p>ai-manager has two session vendors: <code>claude</code> (ai-claude-cli) and
+  <code>antigravity</code>, a round-robin pool of ai-antigravity-cli accounts on several hosts that
+  fails over only between its own accounts. Each product's vendor policy
+  (<a href="../product/decision-log.html#d-067">D-067</a>) — Claude CLI only, Antigravity only, or
+  mixed by role — decides which one a task's turn names, and the product picks the Antigravity model
+  from the <code>models</code> that <code>GET /v1/providers</code> lists.</p>
+  <table class="tbl">
+    <thead><tr><th>Vendor</th><th>The turn sends</th><th>The workspace</th></tr></thead>
+    <tbody>
+      <tr><td>Claude CLI</td><td>no <code>provider</code> (ai-manager's session default) and <code>GAOS_MODEL</code> — the body every turn had before M16</td><td>Admin calls with no <code>?provider</code>, as before</td></tr>
+      <tr><td>Antigravity</td><td><code>provider: antigravity</code> on the first turn <em>and</em> on every resume, and the product's model or none</td><td>Admin calls with <code>?provider=antigravity</code>, fanned out to every account; agy reads the same files through <code>AGENTS.md</code>, <code>GEMINI.md</code> and <code>.agents/rules</code> links</td></tr>
+    </tbody>
+  </table>
+  <p>The run records the vendor (<code>TaskRun.provider</code>), so a retry knows where its session
+  lives; a retry whose vendor changed opens a new one (<a href="../product/brd.html#rules-gateway">BR-45</a>).
+  The Blueprint gate asks every vendor the policy uses. When the pool's copies disagree ai-manager
+  answers <code>409</code>, and GAOS's sync repairs it: provision, which creates the missing copies and
+  leaves the rest, then one pruning write without <code>if_match</code>. Nothing falls back between
+  vendors: a failed Antigravity turn fails and is retried on Antigravity.</p>
+
   <h2 id="limits">Limits that shape the design</h2>
   <p>These are ai-manager's and ai-claude-cli's limits, measured from their source and docs on
   2026-11-02. GAOS has to fit inside them; it cannot configure them.</p>
@@ -366,6 +388,10 @@ if digest != pinned digest or metadata.context.workspace != pinned version:
       succeeded, and repeating the call completes the other</td></tr>
       <tr><td><code>PUT</code>, <code>GET /admin/workspaces/{id}/files</code></td><td>Proxied to the
       worker, with a 512 KiB route limit separate from <code>MAX_REQUEST_KB</code></td></tr>
+      <tr><td>Any of the three with <code>?provider=antigravity</code> (M16)</td><td>Sent to every account of
+      the pool, blocked ones included, with <code>ANTIGRAVITY_WORKSPACE_ADMIN_TOKEN</code>; every reply carries
+      a <code>members</code> map. <code>GET</code> is <code>200</code> only when every account holds one digest,
+      <code>404</code> when none has the workspace, and <code>409</code> when they disagree</td></tr>
       <tr><td><code>POST /admin/requests/{id}/cancel</code> <em>(recommended)</em></td><td>Maps a request
       to its worker job and cancels it — answers <a href="../product/open-questions.html#oq-26">OQ-26</a></td></tr>
     </tbody>

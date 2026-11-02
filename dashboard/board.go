@@ -44,6 +44,9 @@ type BoardCard struct {
 	Status string `json:"status"` // the exact status; a column groups several
 	Role   string `json:"role"`
 	Rank   int    `json:"rank"`
+	// Vendor is where the card's next turn goes under the product's policy
+	// (M16): claude or antigravity.
+	Vendor string `json:"vendor"`
 	// Moves are the columns this card may be moved to now, for a client
 	// that renders only legal actions. The server checks again either way.
 	Moves []string `json:"moves"`
@@ -209,7 +212,7 @@ func boardOf(productID string, m *Master, tasks []TaskRecord) Board {
 			continue
 		}
 		b.Cards = append(b.Cards, BoardCard{ID: t.ID, Label: t.Title, Column: columnOf(t.Status), Row: laneOf(t),
-			Status: t.Status, Role: t.Role, Rank: t.Rank, Moves: legalMoves(t)})
+			Status: t.Status, Role: t.Role, Rank: t.Rank, Vendor: m.Vendors.VendorFor(t.Role), Moves: legalMoves(t)})
 	}
 	order := map[string]int{}
 	for i, c := range boardColumns {

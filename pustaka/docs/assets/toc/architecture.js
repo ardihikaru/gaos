@@ -72,7 +72,7 @@ window.DOCS.nav.push({
       id: "arch-gateway",
       file: "architecture/gateway.html",
       title: "The gateway",
-      desc: "How a task leaves GAOS and comes back through ai-manager and ai-claude-cli: three layers, one turn end to end, the error mapping, one session per task, recovery by request id, and the upstream provisioning API.",
+      desc: "How a task leaves GAOS and comes back through ai-manager and ai-claude-cli: three layers, one turn end to end, the error mapping, one session per task, recovery by request id, which vendor runs a turn, and the upstream provisioning API.",
       tags: ["architecture", "gateway", "ai-manager", "ai-claude-cli", "sessions", "workspaces", "recovery"],
       sections: [
         { anchor: "three-layers", title: "Three layers, one job each",
@@ -89,6 +89,8 @@ window.DOCS.nav.push({
           text: "GAOS_AIM_URL, the auth files, poll interval, turn deadline and session age replace the GAOS_CLI settings." },
         { anchor: "questions", title: "When the agent needs the operator",
           text: "Asking ends the turn: one ai-question block with three options, the first recommended; the task waits in AWAITING_INPUT and the answer resumes the session through ai-manager's answer route, falling back to an ordinary turn." },
+        { anchor: "vendors", title: "Which vendor runs a turn",
+          text: "Claude CLI or the Antigravity pool, per product and by role: the provider and model the turn names, a workspace copy on every vendor in use, the 409 a disagreeing pool answers, and no fallback between vendors." },
         { anchor: "limits", title: "Limits that shape the design",
           text: "256 KB requests, a 600 second turn cap, two worker processes, one turn per session, 30-day sessions, in-memory async records." },
         { anchor: "upstream", title: "The upstream change: provisioning a workspace",

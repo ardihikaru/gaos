@@ -331,6 +331,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /products/{id}/blueprint/sources", s.handleAddSource)
 	mux.HandleFunc("POST /products/{id}/blueprint/publish", s.handlePublishBlueprint)
 	mux.HandleFunc("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
+	mux.HandleFunc("PUT /products/{id}/vendors", s.handleSaveVendors)
 	mux.HandleFunc("GET /products/{id}/board", s.handleBoard)
 	mux.HandleFunc("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	mux.HandleFunc("POST /products/{id}/board/cards", s.handleCardRefused)

@@ -931,8 +931,9 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 
 	attempt := s.nextAttemptLocked(taskIDOf(*d))
 	pkt := s.freezePacket(*d, attempt)
+	pkt.Vendor, pkt.Model = s.vendorForLocked(d.ID, pkt.Role)
 	if ta, ok := s.adapter.(TurnAdapter); ok {
-		pkt.SessionID, pkt.SessionReason = s.sessionForLocked(taskIDOf(*d), ta, time.Now().Unix())
+		pkt.SessionID, pkt.SessionReason = s.sessionForLocked(taskIDOf(*d), ta, pkt.Vendor, pkt.Model, time.Now().Unix())
 	}
 	cleared, v, err := Screen(s.egress, s.target, pkt)
 	// BR-39, the operator's route: drift refuses exactly as the scheduler's

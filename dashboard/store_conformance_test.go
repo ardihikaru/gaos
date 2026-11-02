@@ -59,6 +59,7 @@ var storeContract = []storeCase{
 	{"InjectReportsTheProjectionItPromised", caseInject},
 	{"PublishBlueprintRoundTrips", casePublishBlueprint},
 	{"SavePolicyWithABadKindIsRejected", caseSavePolicyBadKind},
+	{"SaveVendorPolicyRoundTripsAndABadOneIsRejected", caseSaveVendorPolicy},
 	{"EveryMutationEmitsAtLeastOneEvent", caseMutationEmits},
 	{"EventSequenceIsStrictlyIncreasing", caseEventSeq},
 	{"EventsCarryNoPayloadToTheCaller", caseEventsNoPayload},
@@ -745,6 +746,9 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"SavePolicy": func() (Result, error) {
 			return ro.SavePolicy(ctx, "p-1", Policy{Key: "k", Kind: PolicyCoding, Title: "t"})
 		},
+		"SaveVendorPolicy": func() (Result, error) {
+			return ro.SaveVendorPolicy(ctx, "p-1", VendorPolicy{Mode: VendorModeAntigravity})
+		},
 		"AddKnowledgeSource": func() (Result, error) {
 			return ro.AddKnowledgeSource(ctx, "p-1", KnowledgeSource{URL: "https://x.io/r", Ref: "v1"})
 		},
@@ -1407,6 +1411,24 @@ func casePublishBlueprint(t *testing.T, s Store) {
 	if !ok || v.N != 1 || v.Digest != BlueprintDigest(v.Files) || fileOf(v, ".claude/rules/40-technical-policy.md") == "" {
 		t.Fatalf("the published version came back as %+v", v)
 	}
+}
+
+// M16: the vendor policy is a record edit -- it comes back as saved, emits
+// RecordUpdated, and a mode outside the three is refused.
+func caseSaveVendorPolicy(t *testing.T, s Store) {
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	p := VendorPolicy{Mode: VendorModeMixed, Roles: map[string]string{"backend": VendorAntigravity}, AgyModel: "gemini-3.8-flash-low"}
+	r, err := s.SaveVendorPolicy(ctx, id, p)
+	if err != nil || len(r.NewEvents) != 1 || r.NewEvents[0].Type != RecordUpdated {
+		t.Fatalf("SaveVendorPolicy = %+v %v, want one RecordUpdated", r.NewEvents, err)
+	}
+	m, _ := s.Master(ctx, id)
+	if m.Vendors.Mode != VendorModeMixed || m.Vendors.VendorFor("backend") != VendorAntigravity || m.Vendors.AgyModel != p.AgyModel {
+		t.Fatalf("the vendor policy came back as %+v, want %+v", m.Vendors, p)
+	}
+	_, err = s.SaveVendorPolicy(ctx, id, VendorPolicy{Mode: "openai"})
+	assertRejected(t, err, `The vendor mode must be claude, antigravity or mixed, not "openai".`)
 }
 
 func caseSavePolicyBadKind(t *testing.T, s Store) {

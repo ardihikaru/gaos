@@ -27,6 +27,51 @@ type ProductWorkspace struct {
 	SyncedVersion int    // the BlueprintVersion.N the workspace holds; 0 = none
 	SyncedDigest  string // that version's digest, as the worker reported it
 	SyncedAt      int64
+
+	// Others is what the copy on each vendor other than Claude holds (M16):
+	// one workspace id, provisioned on every vendor the product's policy
+	// uses. Claude's copy stays in the three fields above, where every record
+	// written before M16 has it.
+	Others map[string]WorkspaceSync
+}
+
+// WorkspaceSync is what one vendor's copy of the workspace holds.
+type WorkspaceSync struct {
+	Version int
+	Digest  string
+	At      int64
+}
+
+// Holds reports what vendor's copy of the workspace holds.
+func (w ProductWorkspace) Holds(vendor string) WorkspaceSync {
+	if vendor == VendorClaude || vendor == "" {
+		return WorkspaceSync{Version: w.SyncedVersion, Digest: w.SyncedDigest, At: w.SyncedAt}
+	}
+	return w.Others[vendor]
+}
+
+// setHolds records what vendor's copy now holds.
+func (w *ProductWorkspace) setHolds(vendor string, h WorkspaceSync) {
+	if vendor == VendorClaude || vendor == "" {
+		w.SyncedVersion, w.SyncedDigest, w.SyncedAt = h.Version, h.Digest, h.At
+		return
+	}
+	if w.Others == nil {
+		w.Others = map[string]WorkspaceSync{}
+	}
+	w.Others[vendor] = h
+}
+
+// Clone deep-copies the per-vendor map.
+func (w ProductWorkspace) Clone() ProductWorkspace {
+	c := w
+	if w.Others != nil {
+		c.Others = make(map[string]WorkspaceSync, len(w.Others))
+		for k, v := range w.Others {
+			c.Others[k] = v
+		}
+	}
+	return c
 }
 
 // WorkspaceGateway is what an adapter offers when model work runs in a
@@ -35,12 +80,12 @@ type ProductWorkspace struct {
 // workspace to keep in step simply does not implement it.
 type WorkspaceGateway interface {
 	WorkspaceFor(productID string) string
-	// SyncWorkspace makes the workspace hold exactly files, provisioning it
-	// first if needed, and returns the digest the worker now reports.
-	SyncWorkspace(ctx context.Context, workspaceID string, files []BlueprintFile) (digest string, provisioned bool, err error)
-	// WorkspaceDigest is the digest the worker reports for the workspace now,
-	// read after a turn to catch a model that rewrote its own instructions.
-	WorkspaceDigest(ctx context.Context, workspaceID string) (string, error)
+	// SyncWorkspace makes vendor's copy of the workspace hold exactly files,
+	// provisioning it first if needed, and returns the digest it now reports.
+	SyncWorkspace(ctx context.Context, vendor, workspaceID string, files []BlueprintFile) (digest string, provisioned bool, err error)
+	// WorkspaceDigest is the digest vendor's copy reports now, read after a
+	// turn to catch a model that rewrote its own instructions.
+	WorkspaceDigest(ctx context.Context, vendor, workspaceID string) (string, error)
 }
 
 // Drift and refusal rules, beside egress's own (D-052 made DispatchRefused
@@ -56,28 +101,36 @@ const (
 )
 
 // WorkspaceDigest implements WorkspaceGateway for ai-manager.
-func (a *AIMAdapter) WorkspaceDigest(ctx context.Context, id string) (string, error) {
-	m, err := a.Client.Files(ctx, id)
+func (a *AIMAdapter) WorkspaceDigest(ctx context.Context, vendor, id string) (string, error) {
+	m, err := a.Client.Files(ctx, vendor, id)
 	return m.Digest, err
 }
 
 // SyncWorkspace implements WorkspaceGateway for ai-manager. Provision when the
 // worker has never heard of the workspace; otherwise replace its files
 // (prune, guarded by if_match) unless it already holds this digest.
-func (a *AIMAdapter) SyncWorkspace(ctx context.Context, id string, files []BlueprintFile) (string, bool, error) {
+func (a *AIMAdapter) SyncWorkspace(ctx context.Context, vendor, id string, files []BlueprintFile) (string, bool, error) {
 	want := BlueprintDigest(files)
 	wire := make([]WorkspaceFile, len(files))
 	for i, f := range files {
 		wire[i] = WorkspaceFile{Path: f.Path, Content: f.Content}
 	}
-	cur, err := a.Client.Files(ctx, id)
+	cur, err := a.Client.Files(ctx, vendor, id)
 	provisioned := false
 	switch {
 	case errors.Is(err, ErrNotProvisioned):
-		cur, err = a.Client.Provision(ctx, id, wire)
+		cur, err = a.Client.Provision(ctx, vendor, id, wire)
 		provisioned = true
+	case errors.Is(err, ErrPoolDisagrees):
+		// Some accounts lack the workspace or hold other files. Provisioning
+		// is idempotent -- it creates the missing copies and leaves the rest
+		// -- and an unconditional pruning write then makes them all equal:
+		// there is no one current digest to make the write conditional on.
+		if _, err = a.Client.Provision(ctx, vendor, id, wire); err == nil {
+			cur, err = a.Client.PutFiles(ctx, vendor, id, wire, true, "")
+		}
 	case err == nil && cur.Digest != want:
-		cur, err = a.Client.PutFiles(ctx, id, wire, true, cur.Digest)
+		cur, err = a.Client.PutFiles(ctx, vendor, id, wire, true, cur.Digest)
 	}
 	if err != nil {
 		return "", provisioned, err
@@ -102,6 +155,10 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 		v, has = m.Blueprint.Latest()
 	}
 	pol, tgt := s.egress, s.target
+	var vendors []string
+	if m != nil {
+		vendors = m.Vendors.Vendors()
+	}
 	s.mu.RUnlock()
 	switch {
 	case m == nil:
@@ -128,10 +185,30 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 		return r, nil
 	}
 
+	// Every vendor the policy dispatches to holds its own copy (M16). One
+	// that fails does not undo one that succeeded: what each holds is a fact
+	// about that vendor, and the gate below asks each of them.
 	wsID := gw.WorkspaceFor(id)
-	digest, provisioned, err := gw.SyncWorkspace(ctx, wsID, v.Files)
-	if err != nil {
-		return Result{}, err
+	type synced struct {
+		vendor, digest string
+		provisioned    bool
+	}
+	var done []synced
+	var failed []string
+	var firstErr error
+	for _, vendor := range vendors {
+		digest, provisioned, err := gw.SyncWorkspace(ctx, vendor, wsID, v.Files)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			failed = append(failed, fmt.Sprintf("%s: %v", vendorLabel(vendor), err))
+			continue
+		}
+		done = append(done, synced{vendor, digest, provisioned})
+	}
+	if len(done) == 0 {
+		return Result{}, firstErr
 	}
 
 	s.mu.Lock()
@@ -142,15 +219,35 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 	}
 	now := time.Now().Unix()
 	var ev []Event
-	if m.Workspace.ID == "" || provisioned {
-		m.Workspace.ID, m.Workspace.ProvisionedAt = wsID, now
-		ev = append(ev, s.emit(WorkspaceProvisioned, id, fmt.Sprintf("%s: workspace %s provisioned", s.productName(id), wsID), KindInfo, EventPayload{}))
+	only := len(vendors) == 1 && vendors[0] == VendorClaude // the message every product had before M16
+	for _, d := range done {
+		on := ""
+		if !only {
+			on = " on " + vendorLabel(d.vendor)
+		}
+		if m.Workspace.ID == "" || d.provisioned {
+			m.Workspace.ID, m.Workspace.ProvisionedAt = wsID, now
+			ev = append(ev, s.emit(WorkspaceProvisioned, id, fmt.Sprintf("%s: workspace %s provisioned%s", s.productName(id), wsID, on), KindInfo, EventPayload{}))
+		}
+		m.Workspace.setHolds(d.vendor, WorkspaceSync{Version: v.N, Digest: d.digest, At: now})
+		ev = append(ev, s.emit(BlueprintSynced, id, fmt.Sprintf("%s: blueprint v%d is in %s%s", s.productName(id), v.N, wsID, on), KindKnow,
+			EventPayload{Version: v.N, Digest: d.digest}))
 	}
-	m.Workspace.SyncedVersion, m.Workspace.SyncedDigest, m.Workspace.SyncedAt = v.N, digest, now
-	ev = append(ev, s.emit(BlueprintSynced, id, fmt.Sprintf("%s: blueprint v%d is in %s", s.productName(id), v.N, wsID), KindKnow,
-		EventPayload{Version: v.N, Digest: digest}))
-	ev = append(ev, s.releaseDriftLocked(id)...)
-	r := s.result(fmt.Sprintf("Blueprint version %d is in the workspace %s.", v.N, wsID), ev...)
+	if _, drift := s.blueprintGate(id); drift == nil {
+		ev = append(ev, s.releaseDriftLocked(id)...)
+	}
+	toast := fmt.Sprintf("Blueprint version %d is in the workspace %s.", v.N, wsID)
+	if !only {
+		var on []string
+		for _, d := range done {
+			on = append(on, vendorLabel(d.vendor))
+		}
+		toast = fmt.Sprintf("Blueprint version %d is in the workspace %s on %s.", v.N, wsID, strings.Join(on, " and "))
+	}
+	if len(failed) > 0 {
+		toast += " Not synced — " + strings.Join(failed, "; ")
+	}
+	r := s.result(toast, ev...)
 	c := m.Clone()
 	r.Master = &c
 	return r, nil
@@ -172,13 +269,23 @@ func (s *MemStore) blueprintGate(deskID string) (int, *EgressVerdict) {
 	if !ok {
 		return 0, nil
 	}
-	if m.Workspace.SyncedDigest != v.Digest {
+	// Every vendor the policy uses, because any of the product's tasks may be
+	// the next one dispatched to it (M16).
+	for _, vendor := range m.Vendors.Vendors() {
+		h := m.Workspace.Holds(vendor)
+		if h.Digest == v.Digest {
+			continue
+		}
 		held := "no Blueprint"
-		if m.Workspace.SyncedVersion > 0 {
-			held = fmt.Sprintf("version %d", m.Workspace.SyncedVersion)
+		if h.Version > 0 {
+			held = fmt.Sprintf("version %d", h.Version)
+		}
+		where := "the workspace"
+		if vendor != VendorClaude {
+			where = "the workspace on " + vendorLabel(vendor)
 		}
 		return 0, &EgressVerdict{Rule: RuleBlueprintDrift, Reason: fmt.Sprintf(
-			"the workspace holds %s and Blueprint version %d is published; sync it before dispatching (BR-39)", held, v.N)}
+			"%s holds %s and Blueprint version %d is published; sync it before dispatching (BR-39)", where, held, v.N)}
 	}
 	return v.N, nil
 }
@@ -301,10 +408,10 @@ func observedDrift(v BlueprintVersion, o *ObservedContext) string {
 func (s *MemStore) checkAfterTurn(ctx context.Context, deskID, runID string, att Attempt) {
 	s.mu.RLock()
 	gw, isGateway := s.adapter.(WorkspaceGateway)
-	pin := 0
+	pin, vendor := 0, VendorClaude
 	for _, r := range s.runs {
 		if r.ID == runID {
-			pin = r.BlueprintVersion
+			pin, vendor = r.BlueprintVersion, runVendor(r)
 		}
 	}
 	var v BlueprintVersion
@@ -326,8 +433,12 @@ func (s *MemStore) checkAfterTurn(ctx context.Context, deskID, runID string, att
 	if wsID != "" {
 		// A worker that cannot be asked is not evidence of drift; the next
 		// sync or the next turn asks again.
-		if d, err := gw.WorkspaceDigest(ctx, wsID); err == nil && d != v.Digest {
-			why, digest = fmt.Sprintf("the workspace %s reports digest %s after run %s, which ran under Blueprint version %d", wsID, d, runID, v.N), d
+		if d, err := gw.WorkspaceDigest(ctx, vendor, wsID); err == nil && d != v.Digest {
+			on := ""
+			if vendor != VendorClaude {
+				on = " on " + vendorLabel(vendor)
+			}
+			why, digest = fmt.Sprintf("the workspace %s%s reports digest %s after run %s, which ran under Blueprint version %d", wsID, on, d, runID, v.N), d
 		}
 	}
 	if why == "" {
@@ -340,7 +451,9 @@ func (s *MemStore) checkAfterTurn(ctx context.Context, deskID, runID string, att
 
 	s.mu.Lock()
 	if m := s.masterPtr(deskID); m != nil {
-		m.Workspace.SyncedDigest = digest // no longer the published one, so blueprintGate refuses
+		h := m.Workspace.Holds(vendor)
+		h.Digest = digest // no longer the published one, so blueprintGate refuses
+		m.Workspace.setHolds(vendor, h)
 	}
 	var e Event
 	if i := s.deskIdxByID(deskID); i >= 0 {
