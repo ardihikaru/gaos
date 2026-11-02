@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -120,11 +119,6 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 	}
 	p := c.Packet()
 	reqID := a.RequestIDFor(p.RunID)
-	if ws := c.Workspace(); ws != "" {
-		if err := stampRunDetail(ws, map[string]string{"requestId": reqID, "gateway": a.Client.Base}); err != nil {
-			return Attempt{}, err
-		}
-	}
 	prompt := RenderPrompt(c)
 	req := ChatRequest{Prompt: prompt, Model: a.Model}
 	if sessionID != "" {
@@ -220,7 +214,7 @@ func (a *AIMAdapter) attemptFrom(c Cleared, r ChatReply) Attempt {
 		model = a.Model
 	}
 	att := Attempt{Invocation: InvocationGateway, Model: model, Digest: c.Digest(), ExitClass: ExitRan,
-		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, LogRef: a.writeReply(c, r.Text), SessionID: r.SessionID,
+		TokensIn: r.InputTokens, TokensOut: r.OutputTokens, SessionID: r.SessionID,
 		Reply: r.Text}
 	att.CostUSD, att.CostBasis = gatewayCost(r)
 	h, raw, err := ExtractHandoff(r.Text, p.TaskID, p.RunID)
@@ -246,22 +240,18 @@ func gatewayCost(r ChatReply) (float64, string) {
 	return *r.CostUSD, CostMeasured
 }
 
-// writeReply keeps the full reply beside the run's other evidence when there
-// is a local workspace, and returns where. The session is transport (BR-41).
-func (a *AIMAdapter) writeReply(c Cleared, text string) string {
-	ws := c.Workspace()
-	if ws == "" {
-		return ""
+// instructionOf renders a packet's parts as one prompt, in a fixed order:
+// the task, the rules, the context, the repository, the contract. Each part is
+// headed by its path, so the model can say which part it is answering.
+func instructionOf(p Packet) string {
+	var b strings.Builder
+	for _, kind := range []string{KindTask, KindRules, KindContext, KindRepo, KindContract} {
+		for _, part := range p.Parts {
+			if part.Kind != kind {
+				continue
+			}
+			fmt.Fprintf(&b, "===== %s =====\n%s\n\n", part.Path, part.Body)
+		}
 	}
-	path, out, errf, err := openRunLogs(ws, c.Digest())
-	if err != nil {
-		return ""
-	}
-	defer out.Close()
-	defer errf.Close()
-	if _, err := out.WriteString(text); err != nil {
-		os.Remove(path)
-		return ""
-	}
-	return path
+	return b.String()
 }

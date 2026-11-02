@@ -159,15 +159,15 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and thirteen positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter and the Blueprint — two forward specifications still waiting on the board, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and fifteen positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter and the Blueprint — two forward specifications still waiting on the board, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All three hundred and thirteen TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and thirty-three unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All three hundred and fifteen TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and one unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
-          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and fifty-six dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
+          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the one hundred and seventy-nine dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
           text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist. Since 2026-11-02 also TC-275 to TC-310: the ai-manager adapter and reply handoff, the Blueprint, the workspace and turns, live-aim-run.sh, and the board." }
       ]

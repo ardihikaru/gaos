@@ -143,16 +143,13 @@ func TestARedactedSliceStillDispatchesAndSaysSoOnTheTimeline(t *testing.T) {
 	s.egress = EgressPolicy{AllowPaths: []string{"src/**"}}
 	idx := idleDesk(t, s)
 
-	// A real workspace with one file inside the allowlist and one outside it.
-	// Real bytes on a real disk, because an egress pass over labels would be
-	// theatre -- §8.12.1's largest class is the file contents themselves.
-	s.mu.Lock()
-	s.workspaceRoot = t.TempDir()
-	ws := s.workspaceFor(s.desks[idx])
-	s.mu.Unlock()
-
-	writeWorkspaceFile(t, ws, "src/keep.go", "package keep\n")
-	writeWorkspaceFile(t, ws, "docs/drop.md", "internal notes nobody reviewed\n")
+	// Repository files, one inside the allowlist and one outside it. Real
+	// bytes, because an egress pass over labels would be theatre -- §8.12.1's
+	// largest class is the file contents themselves.
+	withRepo(s, map[string]string{
+		"src/keep.go":  "package keep\n",
+		"docs/drop.md": "internal notes nobody reviewed\n",
+	})
 
 	res, err := s.DispatchTask(context.Background(), idx)
 	if err != nil {
@@ -240,13 +237,9 @@ func TestACredentialInTheWorkspaceRefusesTheDispatch(t *testing.T) {
 	s.egress = EgressPolicy{} // no path restriction: the credential is the point
 	idx := idleDesk(t, s)
 
-	s.mu.Lock()
-	s.workspaceRoot = t.TempDir()
-	ws := s.workspaceFor(s.desks[idx])
-	s.mu.Unlock()
-
-	writeWorkspaceFile(t, ws, "src/config.go",
-		"package config\n\nconst Key = \"sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAA\"\n")
+	withRepo(s, map[string]string{
+		"src/config.go": "package config\n\nconst Key = \"sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAA\"\n",
+	})
 
 	res, err := s.DispatchTask(context.Background(), idx)
 	if err != nil {

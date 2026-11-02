@@ -68,31 +68,20 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/", 200},
 		{"GET", "/healthz", 200},
 		{"GET", "/static/app.css", 200},
-		{"GET", "/ui/floor", 200},
-		{"GET", "/ui/rail", 200},
-		{"GET", "/ui/inspector", 200},
-		{"GET", "/ui/desk/2", 200},
-		{"GET", "/ui/meeting", 200},
-		{"GET", "/ui/timeline", 200},
 		{"GET", "/events", 200},
 		// Seq 1 is FloorOpened, which every store has from boot. Not 0: the
 		// cursor is an event Seq now and Seq starts at 1.
 		{"GET", "/replay/floor?t=1", 200},
-		{"POST", "/ui/live", 200},
-		{"POST", "/ui/pause", 200},
-		{"POST", "/ui/speed/2", 200},
-		{"POST", "/ui/bell", 200},
+		{"GET", "/replay/floor?t=-1", 200}, // back to live, or every mutation below is refused (BR-20)
 		// Desk 0 is running in the fixtures, so this is the "already in
-		// flight" rejection rather than a dispatch. 422 is what BR-06's
-		// rejection half renders as, and asserting the route ANSWERS is what
-		// this table is for -- the dispatch path's own behaviour is
-		// dispatch_test.go's job.
-		{"POST", "/tasks/0/dispatch", 422},
+		// flight" rejection rather than a dispatch: a 409 with the reason,
+		// since the desk routes answer JSON (M14.7). Asserting the route
+		// ANSWERS is what this table is for -- the dispatch path's own
+		// behaviour is dispatch_test.go's job.
+		{"POST", "/tasks/0/dispatch", 409},
 		{"POST", "/tasks/0/retry", 200},
 		{"POST", "/tasks/0/cancel", 200},
 		{"GET", "/tasks/1/context", 200},
-		{"POST", "/ui/desk/1/review", 200},
-		{"POST", "/ui/meeting/close", 200},
 		{"GET", "/ui/bo", 200},
 		{"GET", "/ui/bo/agents", 200},
 		{"GET", "/ui/bo/stories", 200},
@@ -103,10 +92,21 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/products/p-1?tab=stories", 200},
 		{"GET", "/products/p-1?tab=diagrams", 200},
 		{"GET", "/products/p-1?tab=knowledge", 200},
+		{"GET", "/products/p-1?tab=board", 200},
+		{"GET", "/products/p-1?tab=blueprint", 200},
+		{"GET", "/products/p-1?tab=timeline", 200},
 		{"GET", "/products/p-1/readiness", 200},
 		{"POST", "/products/p-1/inject", 200},
 		{"GET", "/ui/cw", 200},
 		{"GET", "/products/nope", 404},
+
+		// The floor UI, retired in M14.7 (T-167). A route that still answered
+		// would be a floor nobody maintains, writing events nobody asked for.
+		{"GET", "/ui/floor", 404},
+		{"GET", "/ui/inspector", 404},
+		{"GET", "/ui/timeline", 404},
+		{"POST", "/ui/pause", 404},
+		{"POST", "/ui/desk/1/review", 404},
 	}
 	for _, c := range cases {
 		w := do(t, s, c.method, c.path, nil, cs...)
@@ -120,7 +120,7 @@ func TestEveryRouteAnswers(t *testing.T) {
 // wire, and no response may contain the literal ZgotmplZ -- see below.
 func TestNoTemplateErrorEscapesAsSuccess(t *testing.T) {
 	s, _ := newTestServer(t)
-	for _, p := range []string{"/", "/ui/floor", "/ui/inspector", "/ui/timeline"} {
+	for _, p := range []string{"/", "/products/p-1?tab=timeline", "/products/p-1?tab=board"} {
 		w := do(t, s, "GET", p, nil)
 		if strings.Contains(w.Body.String(), "template error") {
 			t.Errorf("%s rendered a template error", p)
@@ -137,8 +137,7 @@ func TestNoZgotmplZ(t *testing.T) {
 	s, _ := newTestServer(t)
 	cs := boCookies()
 	for _, p := range []string{
-		"/", "/ui/floor", "/ui/inspector", "/ui/rail",
-		"/ui/bo/agents", "/products/p-1", "/ui/cw",
+		"/", "/ui/bo/agents", "/products/p-1", "/products/p-1?tab=timeline", "/ui/cw",
 	} {
 		w := do(t, s, "GET", p, nil, cs...)
 		if strings.Contains(w.Body.String(), "ZgotmplZ") {

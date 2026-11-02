@@ -695,12 +695,12 @@ func (t TaskRecord) Clone() TaskRecord {
 // catalog is: a status this build invents is a row the DDL refuses at commit,
 // and finding that out at commit time is finding it out in production.
 const (
-	RunStatusStarted  = "STARTED"  // the lease is held and the record is written; nothing has spawned
-	RunStatusRunning  = "RUNNING"  // a process exists
+	RunStatusStarted  = "STARTED"  // the record is written; the turn is not yet submitted
+	RunStatusRunning  = "RUNNING"  // the turn was submitted
 	RunStatusExited   = "EXITED"   // it ended, well or badly -- the outcome is not read from here
-	RunStatusTimeout  = "TIMEOUT"  // the deadline fired before the process ended
-	RunStatusOrphaned = "ORPHANED" // a restart found it with an expired lease
-	RunStatusKilled   = "KILLED"   // a restart made it dead so its workspace could be handed on
+	RunStatusTimeout  = "TIMEOUT"  // the deadline fired before the turn ended
+	RunStatusOrphaned = "ORPHANED" // a restart found its request unknown to the gateway, past its deadline
+	RunStatusKilled   = "KILLED"   // kept for old records; nothing writes it since M14.7 (OQ-26: no cancel)
 )
 
 // TaskRunRecord is the Go mirror of the TaskRun vertex in 04-execution.sql, one
@@ -713,10 +713,9 @@ const (
 // the task would leave the retry policy reading an average of things that
 // happened separately, and BR-16 routes on whether the signature CHANGED.
 //
-// Not to be confused with RunRecord in adapter.go, which is the RUN.json the
-// supervisor leaves in the workspace for whoever adopts the run. That one is
-// opaque above the adapter and holds pids; this one is the graph's record and
-// holds nothing mode-specific -- BR-33.
+// Not to be confused with RunRecord in adapter.go, which is what recovery hands
+// an adapter. That one is opaque above the adapter; this one is the graph's
+// record and holds nothing mode-specific -- BR-33.
 //
 // Times are unix seconds, matching TaskRecord.LeaseUntil and Event.T: a value
 // the fold and the reconciler both compare, with no monotonic clock reading

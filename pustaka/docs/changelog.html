@@ -36,6 +36,37 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-29-0">v0.29.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS no longer runs a model
+      tool, and no longer draws a floor. M14.7 — the last of M14 but the task fold and the vendored
+      board.</p>
+      <ul>
+        <li><span class="chg remove">Removed</span> <b>the CLI execution layer</b> (D-055, D-060): the
+        CLI adapter, the version pin and its smoke test, the packet written to a folder, the file lease,
+        the lease-based reconciler, the detached runner and the fake <code>claude</code> binary. Every
+        attempt is a gateway turn; recovery polls each open turn by its request id, and a task left
+        claiming DISPATCHED or RUNNING with no turn behind it is requeued.</li>
+        <li><span class="chg change">Changed</span> <b><code>GAOS_MODEL_MODE=cli</code> refuses the
+        boot</b>, saying it was retired and to use <code>aimanager</code>, rather than mapping silently
+        to the gateway — where an operator's code goes must not change unannounced.
+        <code>GAOS_WORKSPACE_ROOT</code> is no longer read: GAOS reads no folder on its host (BR-42).</li>
+        <li><span class="chg remove">Removed</span> <b>the engineering floor</b>: the desk carousel, the
+        inspector, the meeting room, the timeline strip, their routes and controls, and the
+        <code>-sim</code> flag. The simulator survives only inside the tests, as the generator the fold
+        and catalog tests draw long event streams from.</li>
+        <li><span class="chg change">Changed</span> <b>the product list is the home page</b>, and each
+        product has a <b>Timeline</b> tab of its own events beside its Board and Blueprint. The
+        <code>/tasks/{idx}/…</code> desk routes stay until the task fold, and answer JSON.</li>
+        <li><span class="chg fix">Fixed</span> <b>the next agent was cited the previous turn's reply as
+        its lesson</b>, not its handoff: since v0.27.0 the prompt and the reply are stored as artifacts
+        beside the handoff, and the lookup took the newest of any kind. Found while porting T-064's test.</li>
+        <li><span class="chg note">Note</span> <b>the QA register</b>: forty-four cases retired and
+        struck with their successors, the rest re-based on the fake gateway, two added — three hundred
+        and fifteen in all, two hundred and one of them Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-28-0">v0.28.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A board per product. M14.6.</p>
       <ul>

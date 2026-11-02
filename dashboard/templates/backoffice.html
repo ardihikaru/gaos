@@ -7,7 +7,6 @@
       <h2>Back office</h2>
     </div>
     <div class="sp">
-      <button class="btn" data-close-sheet="loginSheet">Back to the floor</button>
     </div>
   </div>
 
@@ -62,7 +61,6 @@
         <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>
       </button>
       <button class="btn" hx-post="auth/logout" hx-target="#sink" hx-swap="innerHTML">Sign out</button>
-      <button class="btn btn-primary" data-close-sheet="boSheet">Back to the floor</button>
     </div>
   </div>
 
@@ -169,6 +167,7 @@
   <button role="tab" aria-selected="{{eq .Tab "diagrams"}}"  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams<span class="n">{{len .Master.Diagrams}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "knowledge"}}" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge<span class="n">{{len .Master.Decisions}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "board"}}" hx-get="products/{{.ID}}?tab=board" hx-target="#sink" hx-swap="innerHTML">Board</button>
+  <button role="tab" aria-selected="{{eq .Tab "timeline"}}" hx-get="products/{{.ID}}?tab=timeline" hx-target="#sink" hx-swap="innerHTML">Timeline<span class="n">{{len .Timeline}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "blueprint"}}" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint<span class="n">{{len .Master.Blueprint.Policies}}</span></button>
 </div>
 
@@ -179,6 +178,7 @@
     {{else if eq .Tab "knowledge"}}{{template "pane-knowledge" .}}
     {{else if eq .Tab "blueprint"}}{{template "pane-blueprint" .}}
     {{else if eq .Tab "board"}}{{template "pane-board" .}}
+    {{else if eq .Tab "timeline"}}{{template "pane-timeline" .}}
     {{else}}{{template "pane-brd" .}}{{end}}
   </div>
 
@@ -380,6 +380,30 @@
   {{else}}
     <p style="margin:0;font-size:13px;color:var(--ink-3)">No tasks yet. Create a workflow from this product's stories and its tasks appear here.</p>
   {{end}}{{end}}
+</div>
+{{end}}
+
+{{define "pane-timeline"}}
+<div class="block">
+  <h4>Timeline — what happened to this product, newest first</h4>
+  <p style="margin:0 0 8px;font-size:13px;color:var(--ink-3)">Every event GAOS wrote for this product: the record, the
+  Blueprint, its workspace, and each turn. The stream is append-only (BR-04); nothing here can be edited.</p>
+  {{if .Timeline}}
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="text-align:left;color:var(--ink-3)"><th style="padding:4px 8px">#</th><th style="padding:4px 8px">Event</th><th style="padding:4px 8px">What</th></tr></thead>
+    <tbody>
+    {{range .Timeline}}
+    <tr class="ev-row {{.Kind}}" style="border-top:1px solid var(--line)">
+      <td class="mono" style="padding:4px 8px;color:var(--ink-3)">{{.Seq}}</td>
+      <td class="mono" style="padding:4px 8px">{{.Type}}</td>
+      <td style="padding:4px 8px">{{.Text}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+    <p style="margin:0;font-size:13px;color:var(--ink-3)">Nothing has happened to this product yet.</p>
+  {{end}}
 </div>
 {{end}}
 

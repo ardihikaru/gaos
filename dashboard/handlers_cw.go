@@ -79,7 +79,10 @@ func (s *server) handleWorkflowCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	v := s.applyResult(r, res)
 	// The modal closes itself: the response replaces it with an empty shell and
-	// swaps the new floor in out of band.
+	// opens the product's board out of band, where the planned tasks now are.
+	if v.SignedIn {
+		v.BO = s.buildBO(r, "products", d.ProductID, "board")
+	}
 	s.rend.RenderWithChrome(w, "cw-closed", v)
 }
 
