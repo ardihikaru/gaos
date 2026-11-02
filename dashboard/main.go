@@ -35,14 +35,13 @@ func main() {
 	fs := flag.NewFlagSet("dashboard", flag.ExitOnError)
 	addr := fs.String("addr", envOr("GAOS_ADDR", ":8080"), "listen address")
 	prod := fs.Bool("prod", false, "parse templates once and skip the filesystem watcher")
-	sim := fs.Bool("sim", true, "run the floor simulation")
-	seed := fs.Uint64("seed", 20260807, "simulation seed; pin it to reproduce a run")
+	seed := fs.Uint64("seed", 20260807, "fixture seed; pin it to reproduce a store")
 	root := fs.String("root", ".", "in dev mode, read templates and static from here")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := serve(*addr, !*prod, *sim, *seed, *root); err != nil {
+	if err := serve(*addr, !*prod, *seed, *root); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -118,7 +117,7 @@ func selectStore(ctx context.Context, arc *Arcade, seed uint64) (Store, error) {
 	return st, nil
 }
 
-func serve(addr string, dev, sim bool, seed uint64, root string) error {
+func serve(addr string, dev bool, seed uint64, root string) error {
 	rend, err := NewRenderer(dev, root)
 	if err != nil {
 		return fmt.Errorf("templates: %w", err)
@@ -247,18 +246,6 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter}
 
-	// The simulation belongs to MemStore and is not on the Store interface, so
-	// it is asked for rather than assumed. ArcadeStore holds real state and has
-	// nothing to simulate -- a floor that moved on its own would be writing
-	// events nobody asked for, into a stream BR-04 says is the record.
-	if sim {
-		if r, ok := store.(interface{ RunSim(context.Context) }); ok {
-			go r.RunSim(ctx)
-		} else {
-			sim = false
-		}
-	}
-
 	h := gzipMiddleware(srv.routes())
 	hs := &http.Server{
 		Addr:              addr,
@@ -277,8 +264,8 @@ func serve(addr string, dev, sim bool, seed uint64, root string) error {
 	if !dev {
 		mode = "prod"
 	}
-	log.Printf("gaos dashboard listening on %s (%s, sim=%v, store=%s, arcade=%s, adapter=%s)",
-		addr, mode, sim, store.Kind(), srv.arc.Describe(), srv.describeAdapter())
+	log.Printf("gaos dashboard listening on %s (%s, store=%s, arcade=%s, adapter=%s)",
+		addr, mode, store.Kind(), srv.arc.Describe(), srv.describeAdapter())
 
 	if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
@@ -295,14 +282,6 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.Handle("GET /static/", s.staticHandler())
 
-	// --- floor ---
-	mux.HandleFunc("GET /ui/floor", s.handleFloor)
-	mux.HandleFunc("GET /ui/rail", s.handleRail)
-	mux.HandleFunc("GET /ui/inspector", s.handleInspector)
-	mux.HandleFunc("GET /ui/desk/{idx}", s.handleSelectDesk)
-	mux.HandleFunc("GET /ui/meeting", s.handleMeeting)
-	mux.HandleFunc("GET /ui/timeline", s.handleTimeline)
-
 	// --- the documented surface (architecture §09). Named now so nothing has
 	// to be renamed when the graph is behind it. ---
 	mux.HandleFunc("GET /events", s.handleEvents)
@@ -312,14 +291,6 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /tasks/{id}/retry", s.handleRetry)
 	mux.HandleFunc("POST /tasks/{id}/cancel", s.handleCancel)
 	mux.HandleFunc("GET /tasks/{id}/context", s.handleTaskContext)
-
-	// --- floor controls ---
-	mux.HandleFunc("POST /ui/live", s.handleGoLive)
-	mux.HandleFunc("POST /ui/pause", s.handlePause)
-	mux.HandleFunc("POST /ui/speed/{n}", s.handleSpeed)
-	mux.HandleFunc("POST /ui/bell", s.handleBell)
-	mux.HandleFunc("POST /ui/desk/{idx}/review", s.handleCallReview)
-	mux.HandleFunc("POST /ui/meeting/close", s.handleCloseMeeting)
 
 	// --- back office ---
 	mux.HandleFunc("POST /auth/login", s.handleLogin)
@@ -412,64 +383,23 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // ---------- shared view assembly ----------
 
 // newView builds the render envelope from one consistent read of the store.
+// The floor it used to carry -- desks, rooms, the inspector, the timeline
+// strip -- was retired in M14.7; what is left is the chrome.
 func (s *server) newView(r *http.Request) (*View, Floor) {
 	f, _ := s.store.Snapshot(r.Context())
 	v := &View{
 		Prefix:   sitePrefix(r),
 		Stats:    f.Stats,
-		FocusIdx: f.FocusIdx,
 		SignedIn: signedIn(r),
 		Tenant:   tenantOf(r),
-	}
-	for i, d := range f.Desks {
-		v.Floor = append(v.Floor, NewDeskView(d, i, f.FocusIdx))
-		v.Products = append(v.Products, ProdRowView{
-			Idx: i, Name: d.Name, Score: scoreText(d),
-			DotStyle: cssVar("background", stateColor(d.State)),
-			Current:  i == f.FocusIdx,
-		})
-	}
-	for _, rm := range f.Rooms {
-		v.Rooms = append(v.Rooms, NewRoomView(rm))
-	}
-	v.Meeting = NewMeetingView(f.Meeting, f.MeetDesk)
-
-	if f.FocusIdx < len(f.Desks) {
-		ctx, _ := s.store.TaskContext(r.Context(), f.FocusIdx)
-		v.Insp = NewInspectorView(f.Desks[f.FocusIdx], f.FocusIdx, ctx)
-	}
-
-	// Addressed by Seq, not by position. The stream is unbounded now (BR-04), so
-	// a pill's position is a function of how much has happened since -- and a
-	// timeline whose links renumber themselves under the operator is a timeline
-	// that sends them to the wrong moment.
-	evs, _ := s.store.Events(r.Context())
-	for _, e := range evs {
-		v.Events = append(v.Events, NewEventView(e, e.Seq, f.Stats.Replay && f.Stats.ReplayAt == e.Seq))
 	}
 	return v, f
 }
 
-func scoreText(d Desk) string {
-	if !d.Scored {
-		return "—"
-	}
-	return fmt.Sprint(d.Score)
-}
-
-// applyResult folds a mutation's Result into a fresh view: the new events go
-// into NewEvents for the beforeend swap, and the toast into the chrome.
+// applyResult folds a mutation's Result into a fresh view: its toast.
 func (s *server) applyResult(r *http.Request, res Result) *View {
 	v, _ := s.newView(r)
 	v.Toast = res.Toast
-	base := len(v.Events) - len(res.NewEvents)
-	for i := range res.NewEvents {
-		idx := base + i
-		if idx < 0 || idx >= len(v.Events) {
-			continue
-		}
-		v.NewEvents = append(v.NewEvents, v.Events[idx])
-	}
 	return v
 }
 

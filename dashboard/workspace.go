@@ -189,5 +189,5 @@ func (s *MemStore) releaseDriftLocked(deskID string) []Event {
 	dk.BlockReason = ""
 	_ = s.setState(dk, StateIdle)
 	return []Event{s.emit(TaskResumed, deskID, fmt.Sprintf("%d task(s) released: the workspace now holds the published Blueprint", n),
-		KindInfo, EventPayload{Rule: RuleBlueprintDrift})}
+		KindInfo, EventPayload{Rule: RuleRequeued})} // the fold makes the desk idle, as above
 }

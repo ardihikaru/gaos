@@ -67,8 +67,6 @@ var storeContract = []storeCase{
 	{"ReadOnlyHandleRefusesEveryMutation", caseReadOnlyHandleRefusesEveryMutation},
 	{"ApproveWithoutAGateIsRejected", caseApproveNoGate},
 	{"CancelReleasesTheDeskAndCancellingTwiceIsRejected", caseCancel},
-	{"SpeedOutsideTheAllowedSetIsRejected", caseSpeed},
-	{"PauseRoundTrips", casePaused},
 	{"ReplayFreezesTheFloorAndMinusOneReturnsToLive", caseReplay},
 	{"ReplayPastTheEndIsNotFound", caseReplayPastEnd},
 	{"PlanWorkflowWritesNothing", casePlanIsPure},
@@ -82,7 +80,6 @@ var storeContract = []storeCase{
 	{"DispatchScreensBeforeItDispatches", caseDispatchScreens},
 	{"DispatchOnADeskAlreadyRunningIsRejected", caseDispatchBusy},
 	{"ARefusedDispatchBlocksTheDeskAndSaysWhy", caseDispatchRefusedBlocks},
-	{"FocusClampsRatherThanFailing", caseFocus},
 }
 
 func TestStoreConformanceMemory(t *testing.T) {
@@ -735,21 +732,16 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 	ro := readOnly{s}
 
 	for name, call := range map[string]func() (Result, error){
-		"DispatchTask":       func() (Result, error) { return ro.DispatchTask(ctx, 0) },
-		"ApproveTask":        func() (Result, error) { return ro.ApproveTask(ctx, 0) },
-		"RetryTask":          func() (Result, error) { return ro.RetryTask(ctx, 0) },
-		"CancelTask":         func() (Result, error) { return ro.CancelTask(ctx, 0) },
-		"CallReview":         func() (Result, error) { return ro.CallReview(ctx, 0) },
-		"CloseMeeting":       func() (Result, error) { return ro.CloseMeeting(ctx) },
-		"SetPaused":          func() (Result, error) { return ro.SetPaused(ctx, true) },
-		"SetSpeed":           func() (Result, error) { return ro.SetSpeed(ctx, 2) },
-		"ClearNotifications": func() (Result, error) { return ro.ClearNotifications(ctx) },
-		"CreateProduct":      func() (Result, error) { return ro.CreateProduct(ctx, ProductDraft{Name: "X"}) },
-		"UpdateBRD":          func() (Result, error) { return ro.UpdateBRD(ctx, "p-1", BRD{}) },
-		"AddStory":           func() (Result, error) { return ro.AddStory(ctx, "p-1", Story{Role: "a", Want: "b"}) },
-		"AddDiagram":         func() (Result, error) { return ro.AddDiagram(ctx, "p-1", Diagram{Title: "t", Src: "s"}) },
-		"AddDecision":        func() (Result, error) { return ro.AddDecision(ctx, "p-1", Decision{Title: "t"}) },
-		"Inject":             func() (Result, error) { return ro.Inject(ctx, "p-1") },
+		"DispatchTask":  func() (Result, error) { return ro.DispatchTask(ctx, 0) },
+		"ApproveTask":   func() (Result, error) { return ro.ApproveTask(ctx, 0) },
+		"RetryTask":     func() (Result, error) { return ro.RetryTask(ctx, 0) },
+		"CancelTask":    func() (Result, error) { return ro.CancelTask(ctx, 0) },
+		"CreateProduct": func() (Result, error) { return ro.CreateProduct(ctx, ProductDraft{Name: "X"}) },
+		"UpdateBRD":     func() (Result, error) { return ro.UpdateBRD(ctx, "p-1", BRD{}) },
+		"AddStory":      func() (Result, error) { return ro.AddStory(ctx, "p-1", Story{Role: "a", Want: "b"}) },
+		"AddDiagram":    func() (Result, error) { return ro.AddDiagram(ctx, "p-1", Diagram{Title: "t", Src: "s"}) },
+		"AddDecision":   func() (Result, error) { return ro.AddDecision(ctx, "p-1", Decision{Title: "t"}) },
+		"Inject":        func() (Result, error) { return ro.Inject(ctx, "p-1") },
 		"SavePolicy": func() (Result, error) {
 			return ro.SavePolicy(ctx, "p-1", Policy{Key: "k", Kind: PolicyCoding, Title: "t"})
 		},
@@ -936,41 +928,6 @@ func caseCancel(t *testing.T, s Store) {
 	}
 	_, err = s.CancelTask(ctx, idx)
 	assertRejected(t, err, "This desk is already idle.")
-}
-
-func caseSpeed(t *testing.T, s Store) {
-	ctx := context.Background()
-	for _, ok := range []int{1, 2, 4} {
-		r, err := s.SetSpeed(ctx, ok)
-		if err != nil {
-			t.Fatalf("SetSpeed(%d): %v", ok, err)
-		}
-		if r.Floor.Stats.Speed != ok {
-			t.Errorf("SetSpeed(%d) left the speed at %d", ok, r.Floor.Stats.Speed)
-		}
-	}
-	for _, bad := range []int{0, 3, -1, 8} {
-		_, err := s.SetSpeed(ctx, bad)
-		assertRejected(t, err, "speed must be 1, 2 or 4")
-	}
-}
-
-func casePaused(t *testing.T, s Store) {
-	ctx := context.Background()
-	r, err := s.SetPaused(ctx, true)
-	if err != nil {
-		t.Fatalf("SetPaused(true): %v", err)
-	}
-	if !r.Floor.Stats.Paused {
-		t.Error("SetPaused(true) did not report a paused floor")
-	}
-	r, err = s.SetPaused(ctx, false)
-	if err != nil {
-		t.Fatalf("SetPaused(false): %v", err)
-	}
-	if r.Floor.Stats.Paused {
-		t.Error("SetPaused(false) did not report a running floor")
-	}
 }
 
 func caseReplay(t *testing.T, s Store) {
@@ -1330,28 +1287,6 @@ func TestTheStoreRecordsWhatTheSchemaApplyDid(t *testing.T) {
 	if stillPresent == 0 {
 		t.Errorf("the second apply reports nothing already declared, which cannot be true of a "+
 			"database the first one just populated with %d statements", applied+present)
-	}
-}
-
-// caseFocus records a deliberate asymmetry: Focus clamps where Desk refuses.
-// Moving the inspector is navigation, not a domain change, and an operator
-// whose click landed one past the end wants the last desk rather than an error
-// toast.
-func caseFocus(t *testing.T, s Store) {
-	ctx := context.Background()
-	f, _ := s.Snapshot(ctx)
-	r, err := s.Focus(ctx, 9999)
-	if err != nil {
-		t.Fatalf("Focus past the end returned an error rather than clamping: %v", err)
-	}
-	if r.Floor.FocusIdx != len(f.Desks)-1 {
-		t.Errorf("Focus(9999) parked on desk %d, want the last one at %d",
-			r.Floor.FocusIdx, len(f.Desks)-1)
-	}
-	if r, err = s.Focus(ctx, -5); err != nil {
-		t.Fatalf("Focus(-5) returned an error rather than clamping: %v", err)
-	} else if r.Floor.FocusIdx != 0 {
-		t.Errorf("Focus(-5) parked on desk %d, want 0", r.Floor.FocusIdx)
 	}
 }
 

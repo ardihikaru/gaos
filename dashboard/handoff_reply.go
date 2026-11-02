@@ -106,9 +106,9 @@ func asFrontMatter(b string) string {
 	return "---\n" + t + "\n---\n"
 }
 
-// gatewayContract is the reply contract, the gateway's counterpart of
-// handoffContract. Same shape, same example, same four ways to fail — only
-// the destination changes from a file to the end of the reply.
+// gatewayContract is the reply contract (D-057). It replaced the file contract
+// of M4.5 with the same shape, the same example and the same four ways to
+// fail; only the destination moved, from a file to the end of the reply.
 func gatewayContract(taskID, runID, role string) string {
 	if role == "" {
 		role = "backend"
@@ -144,3 +144,43 @@ describe what you actually did:
 - Write exactly one %s block. Prose before it is kept for the human reading
   the timeline; nothing after it is read.
 `
+
+// handoffExample is a COMPLETE document rather than a schema, and it is flush
+// left rather than indented.
+//
+// Both of those are the parser's doing. The contract is one closed shape with
+// six keys -- see handoff.go on why it is not YAML -- and the cheapest way to
+// communicate a closed shape is to show one filled in. The indentation matters
+// because handoff.go reads a leading space as "this key belongs to the open
+// block": an example indented for looks, copied faithfully, parses to an empty
+// document and fails validation. That would be a contract that punishes the
+// models that follow it most carefully, so it goes in a fenced block instead.
+//
+// TestTheContractsOwnExampleParses is what keeps the contract and the parser
+// honest about each other.
+func handoffExample(taskID, runID, role string) string {
+	return fmt.Sprintf(`---
+task: %s
+run: %s
+role: %s
+status: complete
+criteria:
+  - id: AC-1   met: true   evidence: "the file or test that proves it"
+artifacts:
+  - path: "src/thing.go"   kind: code
+blockers:
+  - "only when status is blocked: what needs a decision rather than a retry"
+handoff:
+  next_role: qa
+  must_know: "one sentence the next agent would otherwise have to rediscover"
+usage:
+  tokens_in: 0
+  tokens_out: 0
+  basis: measured
+---
+
+Anything after the closing --- is free text and is ignored by the parser.`,
+		taskID, runID, role)
+}
+
+const fence = "```"

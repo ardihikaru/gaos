@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -9,9 +10,9 @@ import (
 // M4.3: T-054 (one TaskRun per attempt), T-055 (the frozen ContextSlice and its
 // USES_CONTEXT provenance) and T-056 (serving the frozen one).
 //
-// Everything here runs against the stand-in tool in testdata/fakecli, under the
-// same rule the rest of the runner tests are held to: nothing makes a network
-// call, reads a credential or spends money.
+// Everything here runs against the fake ai-manager in aimanager_test.go, under
+// the same rule the rest of the runner tests are held to: nothing leaves the
+// host, reads a credential or spends money.
 
 // TestEachAttemptGetsItsOwnRunRecord is D-5 and BR-22 in one assertion. Two
 // attempts on one task, and the first one's evidence must still be there
@@ -19,11 +20,12 @@ import (
 // guard in BR-16 comparing an attempt against itself.
 func TestEachAttemptGetsItsOwnRunRecord(t *testing.T) {
 	s := NewMemStore(3)
-	a, ws := fakeCLI(t, "complete", "0")
+	f, a := gatewayOn(t, s)
 	deskID := s.desks[0].ID
 
 	for attempt := 1; attempt <= 2; attempt++ {
-		if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, ws), attempt); err != nil {
+		completeTurn(f, "t-1", attempt, "0.1")
+		if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", attempt), attempt); err != nil {
 			t.Fatalf("attempt %d: %v", attempt, err)
 		}
 	}
@@ -60,9 +62,11 @@ func TestEachAttemptGetsItsOwnRunRecord(t *testing.T) {
 // D-5: the record is only worth having if the fields on it are filled in.
 func TestAFinishedRunRecordsWhatItCostAndWhatItLeftBehind(t *testing.T) {
 	s := NewMemStore(3)
-	a, ws := fakeCLI(t, "complete", "0")
+	f, a := gatewayOn(t, s)
+	completeTurn(f, "t-1", 1, "0.42")
+	deskID := s.desks[0].ID
 
-	att, err := s.superviseRun(t.Context(), a, s.desks[0].ID, clearedFor(t, ws), 1)
+	att, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", 1), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,35 +96,34 @@ func TestAFinishedRunRecordsWhatItCostAndWhatItLeftBehind(t *testing.T) {
 		t.Errorf("the run ran from %d to %d; a duration that cannot be read is a run nobody can "+
 			"replay the timing of", r.StartedAt, r.EndedAt)
 	}
-	if r.LogRef == "" {
-		t.Error("the record names no log; BR-25 keeps the output out of the vertex, so the " +
-			"reference is the only way back to it")
+	s.mu.RLock()
+	reply := s.artifacts[r.ID+"-reply"]
+	s.mu.RUnlock()
+	if r.RequestID == "" || reply.Body == "" {
+		t.Error("the record names no turn or keeps no reply; BR-25 keeps the output out of the " +
+			"vertex and BR-41 keeps it in GAOS, so the artifact is the only way back to it")
 	}
 }
 
 // TestARunThatCouldNotStartIsNotRecordedAsMeasured is the negative case for
 // BR-31, and it is the one that is tempting to get wrong: the DDL defaults
 // costBasis to "estimated", so writing a zero cost with the default would put a
-// number nobody measured into the same column as ones somebody did.
+// number nobody measured into the same column as ones somebody did. Here the
+// gateway refuses the turn, so nothing was spent and nothing was measured.
 func TestARunThatCouldNotStartIsNotRecordedAsMeasured(t *testing.T) {
 	s := NewMemStore(3)
-	a, ws := fakeCLI(t, "crash", "0")
+	f, a := gatewayOn(t, s)
+	f.submit = http.StatusBadGateway // the gateway refuses the submit: no turn ran
 	deskID := s.desks[0].ID
 
-	// Somebody else holds the lease, so the run never reaches the adapter.
-	if err := AcquireLease(ws, Lease{
-		TaskID: "other", RunID: "other-a1", LeaseUntil: time.Now().Unix() + 300,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, ws), 1); err == nil {
-		t.Fatal("a run started in a workspace somebody else had leased")
+	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", 1), 1); err != nil {
+		t.Fatalf("a refused submit came back as an error (%v); it is a failed attempt with a signature", err)
 	}
 
 	runs, _ := s.Runs(t.Context(), "t-1")
-	if len(runs) != 0 {
-		t.Fatalf("a run that never began left %d record(s); the record is written after the "+
-			"lease is held, because an attempt nobody could make is not an attempt", len(runs))
+	if len(runs) != 1 || runs[0].FailureSignature == "" || runs[0].CostBasis == CostMeasured {
+		t.Fatalf("a turn the gateway refused was recorded as %+v; want one failed attempt whose cost "+
+			"is not measured, because nothing was, and BR-31 forbids aggregating it with figures that were", runs)
 	}
 }
 
@@ -215,11 +218,14 @@ func TestARedactedPartTakesItsCitationsWithIt(t *testing.T) {
 // what H-4's comparison scope will need.
 func TestTwoAttemptsGivenTheSameContextShareOneSlice(t *testing.T) {
 	s := NewMemStore(3)
-	a, ws := fakeCLI(t, "complete", "0")
+	f, a := gatewayOn(t, s)
 	deskID := s.desks[0].ID
 
+	// The same brief twice: clearedFor builds both from one part list, and the
+	// run id is not part of what the digest covers.
 	for attempt := 1; attempt <= 2; attempt++ {
-		if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, ws), attempt); err != nil {
+		completeTurn(f, "t-1", attempt, "0.1")
+		if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", attempt), attempt); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -250,7 +256,8 @@ func TestTwoAttemptsGivenTheSameContextShareOneSlice(t *testing.T) {
 // route stops recomputing the answer the moment there is a real one.
 func TestTaskContextAnswersFromTheFrozenSliceOnceSomethingHasRun(t *testing.T) {
 	s := NewMemStore(3)
-	a, ws := fakeCLI(t, "complete", "0")
+	f, a := gatewayOn(t, s)
+	completeTurn(f, "t-1", 1, "0.1")
 	deskID := s.desks[0].ID
 
 	before, err := s.TaskContext(t.Context(), 0)
@@ -262,7 +269,7 @@ func TestTaskContextAnswersFromTheFrozenSliceOnceSomethingHasRun(t *testing.T) {
 			"evidence to serve and saying otherwise is the failure D-6 describes")
 	}
 
-	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, ws), 1); err != nil {
+	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", 1), 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -290,11 +297,12 @@ func TestTaskContextAnswersFromTheFrozenSliceOnceSomethingHasRun(t *testing.T) {
 // "whatever the record says now".
 func TestTheFrozenSliceDoesNotChangeWhenTheRecordDoes(t *testing.T) {
 	s := NewMemStore(3)
-	a, ws := fakeCLI(t, "complete", "0")
+	f, a := gatewayOn(t, s)
+	completeTurn(f, "t-1", 1, "0.1")
 	deskID := s.desks[0].ID
 	productID := s.desks[0].ID
 
-	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, ws), 1); err != nil {
+	if _, err := s.superviseRun(t.Context(), a, deskID, clearedFor(t, s, deskID, "t-1", 1), 1); err != nil {
 		t.Fatal(err)
 	}
 	frozen, _ := s.TaskContext(t.Context(), 0)
@@ -318,39 +326,33 @@ func TestTheFrozenSliceDoesNotChangeWhenTheRecordDoes(t *testing.T) {
 
 // TestBootReconciliationClosesTheAttemptItRecovered is the recovery half of
 // T-054. A restart that moved the task and left the attempt saying RUNNING
-// would leave the graph asserting a process that nobody believes is alive.
+// would leave the graph asserting a turn that nobody believes is alive. The
+// gateway no longer knows the request and its deadline has passed, so the
+// attempt is closed as orphaned (D-060).
 func TestBootReconciliationClosesTheAttemptItRecovered(t *testing.T) {
 	s := NewMemStore(3)
+	f, a := gatewayOn(t, s)
+	a.Deadline = time.Millisecond
+	f.status, f.reply = http.StatusNotFound, `{"error":"unknown request"}`
 	deskID := s.desks[0].ID
-	ws := t.TempDir()
-	s.workspaceRoot = ws
 
-	// A task that claims to be running, with a lease that expired long ago:
-	// reconcile.go's orphan branch, which is the one that needs no adapter.
 	taskID := "t-orphan"
+	run := runIDFor(taskID, 1)
 	s.mu.Lock()
 	s.tasks = append(s.tasks, TaskRecord{
 		ID: taskID, DeskID: deskID, WorkflowID: "wf-1",
 		Title: "an abandoned task", Role: "backend", Status: StatusRunning,
 	})
 	s.runs = append(s.runs, TaskRunRecord{
-		ID: runIDFor(taskID, 1), TaskID: taskID, DeskID: deskID, Attempt: 1,
-		Status: RunStatusRunning, StartedAt: time.Now().Unix() - 9000,
+		ID: run, TaskID: taskID, DeskID: deskID, Attempt: 1, Status: RunStatusRunning,
+		RequestID: a.RequestIDFor(run), StartedAt: time.Now().Unix() - 9000,
 	})
 	s.mu.Unlock()
-
-	deskWS := s.workspaceForDesk(deskID)
-	past := time.Now().Unix() - 3600
-	if err := AcquireLease(deskWS, Lease{
-		TaskID: taskID, RunID: runIDFor(taskID, 1), Holder: "a process that is gone",
-		StartedAt: past - 600, LeaseUntil: past,
-	}); err != nil {
-		t.Fatal(err)
-	}
 
 	if _, err := s.Reconcile(t.Context()); err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}
+	waitForRun(t, s, run, RunStatusOrphaned)
 
 	runs, _ := s.Runs(t.Context(), taskID)
 	if len(runs) != 1 {
@@ -430,7 +432,8 @@ func TestAnAttemptSurvivesARestart(t *testing.T) {
 	if !ok {
 		t.Fatalf("newArcadeTestStore returned %T, want *ArcadeStore", first)
 	}
-	a, ws := fakeCLI(t, "complete", "0")
+	fa, a := gatewayOn(t, st.proj)
+	completeTurn(fa, "t-1", 1, "0.1")
 
 	// Through the projection directly: the runner is driven by the scheduler in
 	// a deployment, and this test is about what reaches the database, not about
@@ -440,7 +443,7 @@ func TestAnAttemptSurvivesARestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	deskID := f.Desks[0].ID
-	if _, err := st.proj.superviseRun(ctx, a, deskID, clearedFor(t, ws), 1); err != nil {
+	if _, err := st.proj.superviseRun(ctx, a, deskID, clearedFor(t, st.proj, deskID, "t-1", 1), 1); err != nil {
 		t.Fatalf("supervising one run: %v", err)
 	}
 

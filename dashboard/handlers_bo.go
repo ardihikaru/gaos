@@ -287,6 +287,13 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 				d.Board = &b
 			}
 		}
+		if evs, err := s.store.Events(r.Context()); err == nil {
+			for i := len(evs) - 1; i >= 0; i-- {
+				if evs[i].DeskID == m.ID {
+					d.Timeline = append(d.Timeline, evs[i])
+				}
+			}
+		}
 		for _, g := range m.Diagrams {
 			dv := DiagramView{Diagram: g}
 			if g.Kind == "sequence" {

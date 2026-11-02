@@ -98,7 +98,7 @@
       <tr data-tags="domain-l egress redaction deletion residency privacy"><td><a href="#m11-data-protection">M11 &middot; Data protection, egress &amp; residency</a></td><td>4</td><td>2</td><td>0</td><td>7</td><td>0</td><td><a href="#register">T-124</a> &mdash; the egress inventory as a release obligation</td></tr>
       <tr data-tags="nfr non-functional auditability determinism isolation"><td><a href="#m12-non-functional">M12 &middot; Non-functional proofs</a></td><td>2</td><td>1</td><td>1</td><td>4</td><td>0</td><td><a href="#register">T-133</a> &mdash; auditability, once the context slice is frozen</td></tr>
       <tr data-tags="hygiene deploy licence tag"><td><a href="#m13-hygiene">M13 &middot; Repository hygiene</a></td><td>2</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>21</td><td>2</td><td>5</td><td>0</td><td><a href="#register">T-166</a> &mdash; retire the CLI execution layer</td></tr>
+      <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>25</td><td>2</td><td>1</td><td>0</td><td><a href="#register">T-164</a> &mdash; the task fold that lets the board replay (TC-308)</td></tr>
       <tr data-tags="total"><td><b>All modules</b></td><td><b>65</b></td><td><b>76</b></td><td><b>17</b></td><td><b>71</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
@@ -321,10 +321,10 @@
       <tr data-tags="board kanban htmx drag done built m14.6"><td>T-163</td><td>M14.6</td><td>A server-rendered board per product, with native drag posting the same move API &mdash; done 2026-11-02: the back office's Board tab, buttons for the legal moves only, drag and drop through the same route; TC-305</td><td>I-9, BR-43</td><td>✅</td></tr>
       <tr data-tags="board fold replay reorder partial m14.6"><td>T-164</td><td>M14.6</td><td>A task fold so the board replays, and <code>TaskReordered</code> &mdash; <code>TaskMoved</code> and <code>TaskReordered</code> landed; the fold that rebuilds task statuses from the stream does not exist yet, because the runner's events name a desk, not a task (TC-308)</td><td>I-9, BR-05</td><td>🟡</td></tr>
       <tr data-tags="board sisflow vendor licence todo not-built m14.6"><td>T-165</td><td>M14.6</td><td>Vendor the sisflow board on the same API &mdash; waits on <a href="../product/open-questions.html#oq-25">OQ-25</a></td><td>I-10</td><td>❌</td></tr>
-      <tr data-tags="retire cli adapter lease reconcile packet todo not-built m14.7"><td>T-166</td><td>M14.7</td><td>Delete the CLI adapter, the version pin, the packet on disk, the file lease, the reconciler and the detached runner</td><td>D-14</td><td>❌</td></tr>
-      <tr data-tags="retire floor sim simulator todo not-built m14.7"><td>T-167</td><td>M14.7</td><td>Delete <code>sim.go</code>, the floor, its routes and its <code>Store</code> methods (absorbs <code>T-067</code>)</td><td>I-9</td><td>❌</td></tr>
-      <tr data-tags="retire home product list tabs todo not-built m14.7"><td>T-168</td><td>M14.7</td><td>The product list as the home page, each product with Blueprint &middot; Board &middot; Timeline</td><td>I-9</td><td>❌</td></tr>
-      <tr data-tags="retire qa register compose readme todo not-built m14.7"><td>T-169</td><td>M14.7</td><td>Strike the retired test cases, retire the two acceptance scripts, and update compose and the README</td><td>&mdash;</td><td>❌</td></tr>
+      <tr data-tags="retire cli adapter lease reconcile packet done built m14.7"><td>T-166</td><td>M14.7</td><td>Delete the CLI adapter, the version pin, the packet on disk, the file lease, the reconciler and the detached runner &mdash; done 2026-11-02 in v0.29.0: <code>adapter_cli.go</code>, <code>smoke.go</code>, <code>packet.go</code>, <code>lease.go</code>, <code>reconcile.go</code> and the fake binary are gone; the supervisor runs gateway turns only and recovery polls by request id; <code>GAOS_MODEL_MODE=cli</code> refuses the boot with the reason</td><td>D-14</td><td>✅</td></tr>
+      <tr data-tags="retire floor sim simulator done built m14.7"><td>T-167</td><td>M14.7</td><td>Delete <code>sim.go</code>, the floor, its routes and its <code>Store</code> methods (absorbs <code>T-067</code>) &mdash; done 2026-11-02 in v0.29.0: the floor templates, routes and handlers are gone, and focus, pause, speed, the bell and the review controls left the <code>Store</code> interface. The simulator left the build and survives only as <code>sim_test.go</code>, the generator the fold and catalog tests draw long streams from. The desk projection stays until the task fold (<code>T-164</code>), and its <code>/tasks/{idx}/…</code> routes answer JSON</td><td>I-9</td><td>✅</td></tr>
+      <tr data-tags="retire home product list tabs done built m14.7"><td>T-168</td><td>M14.7</td><td>The product list as the home page, each product with Blueprint &middot; Board &middot; Timeline &mdash; done 2026-11-02 in v0.29.0: <code>GET /</code> opens on the product master, and each product gained a Timeline tab of its own events (TC-314, TC-315)</td><td>I-9</td><td>✅</td></tr>
+      <tr data-tags="retire qa register compose readme done built m14.7"><td>T-169</td><td>M14.7</td><td>Strike the retired test cases, retire the two acceptance scripts, and update compose and the README &mdash; done 2026-11-02 in v0.29.0: forty-four cases struck with their successors, <code>kill-mid-task.sh</code> and <code>live-cli-run.sh</code> deleted; compose already carried no claude mount</td><td>&mdash;</td><td>✅</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -1326,7 +1326,11 @@
   <h3 id="sub-m14-7">M14.7 — Retirement (T-166–T-169)</h3>
   <p>Deletes the execution layer and the floor once their successors have run against dev. The test
   cases that covered them are struck in the QA register and point at their replacements; none is
-  deleted, and the register's count does not change.</p>
+  deleted, and retiring them does not change the register's count. <strong>Done in v0.29.0.</strong>
+  Forty-four cases were struck; the ones whose guarantee outlived the CLI were re-based on the fake gateway and kept their IDs; two new ones
+  (TC-314, TC-315) cover the home page, which is why the count rose from 313 to 315. Porting T-064's
+  test found a live bug: since M14.5 the next agent was cited the previous turn's <em>reply</em> as its
+  lesson rather than its handoff.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

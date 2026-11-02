@@ -192,18 +192,8 @@ func (s *ArcadeStore) PlanWorkflow(ctx context.Context, d WorkflowDraft) ([]Plan
 // operator is currently looking. Persisting them would make two operators fight
 // over a single cursor.
 
-func (s *ArcadeStore) Focus(ctx context.Context, i int) (Result, error) { return s.proj.Focus(ctx, i) }
 func (s *ArcadeStore) Replay(ctx context.Context, i int) (Result, error) {
 	return s.proj.Replay(ctx, i)
-}
-func (s *ArcadeStore) SetPaused(ctx context.Context, p bool) (Result, error) {
-	return s.proj.SetPaused(ctx, p)
-}
-func (s *ArcadeStore) SetSpeed(ctx context.Context, n int) (Result, error) {
-	return s.proj.SetSpeed(ctx, n)
-}
-func (s *ArcadeStore) ClearNotifications(ctx context.Context) (Result, error) {
-	return s.proj.ClearNotifications(ctx)
 }
 
 // ---------------------------------------------------------------- mutations
@@ -273,12 +263,6 @@ func (s *ArcadeStore) RetryTask(ctx context.Context, i int) (Result, error) {
 }
 func (s *ArcadeStore) CancelTask(ctx context.Context, i int) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.CancelTask(ctx, i) })
-}
-func (s *ArcadeStore) CallReview(ctx context.Context, i int) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.CallReview(ctx, i) })
-}
-func (s *ArcadeStore) CloseMeeting(ctx context.Context) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseMeeting(ctx) })
 }
 func (s *ArcadeStore) CreateProduct(ctx context.Context, d ProductDraft) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.CreateProduct(ctx, d) })

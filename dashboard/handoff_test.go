@@ -108,15 +108,3 @@ func TestAHandoffWithNoUsageBlockIsLegalAndReportsNothing(t *testing.T) {
 		t.Error("a document with an unmet criterion reports Met() true; the reviewer would score work that did not happen")
 	}
 }
-
-// TestAnAbsentHandoffFileIsHandoffMissing covers the fourth way, the one the
-// D-050 trap actually produces.
-func TestAnAbsentHandoffFileIsHandoffMissing(t *testing.T) {
-	_, err := ReadHandoff(t.TempDir())
-	if err == nil {
-		t.Fatal("a workspace with no handoff document read successfully; BR-30 says a missing one is a failed attempt, never a silent pass")
-	}
-	if !strings.Contains(err.Error(), SigHandoffMissing) {
-		t.Fatalf("the failure reads %q, and must carry the signature %q", err, SigHandoffMissing)
-	}
-}

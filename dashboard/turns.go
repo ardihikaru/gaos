@@ -45,6 +45,15 @@ const (
 
 const defaultSessionMaxAge = 25 * 24 * time.Hour
 
+// The TaskResumed rules recovery writes. Kept after the lease-based reconciler
+// was retired (M14.7) because the fold reads them -- "adopted" changes nothing
+// on the floor, "requeued" makes the desk idle -- and streams written before
+// the retirement carry them.
+const (
+	RuleAdopted  = "adopted"
+	RuleRequeued = "requeued"
+)
+
 func (a *AIMAdapter) ConfiguredModel() string { return a.Model }
 
 func (a *AIMAdapter) TurnDeadline() time.Duration {
@@ -175,7 +184,7 @@ func (s *MemStore) recoverTurns(ctx context.Context, ad Adapter, ta TurnAdapter)
 		s.moveTaskByID(r.TaskID, StatusRunning)
 		s.setRunStatus(r.ID, RunStatusRunning)
 		s.mu.Lock()
-		ev = append(ev, s.emit(TaskResumed, r.DeskID, "adopted the turn "+r.RequestID+" on "+r.TaskID, KindInfo, EventPayload{Rule: ReconcileAdopt}))
+		ev = append(ev, s.emit(TaskResumed, r.DeskID, "adopted the turn "+r.RequestID+" on "+r.TaskID, KindInfo, EventPayload{Rule: RuleAdopted}))
 		s.mu.Unlock()
 		go s.collectTurn(ctx, ad, ta, c, r)
 	}
@@ -191,6 +200,7 @@ func (s *MemStore) collectTurn(ctx context.Context, ad Adapter, ta TurnAdapter, 
 		s.mu.Lock()
 		e := s.emit(TaskOrphaned, r.DeskID, fmt.Sprintf("turn %s on %s is unknown to the gateway; the product stays held until it must have ended", r.RequestID, r.TaskID),
 			KindFail, EventPayload{Rule: SigRequestLost})
+		s.deskStateLocked(r.DeskID, StateBlocked) // what the fold does with TaskOrphaned
 		s.mu.Unlock()
 		s.publish(e)
 		if wait := time.Until(time.Unix(r.StartedAt, 0).Add(ta.TurnDeadline())); wait > 0 {
@@ -203,10 +213,19 @@ func (s *MemStore) collectTurn(ctx context.Context, ad Adapter, ta TurnAdapter, 
 			}
 		}
 		s.moveTaskLocked(r.TaskID, StatusReady)
-		e = s.emit(TaskResumed, r.DeskID, r.TaskID+" requeued: its lost turn has passed its deadline", KindWarn, EventPayload{Rule: SigRequestLost})
+		e = s.emit(TaskResumed, r.DeskID, r.TaskID+" requeued: its lost turn has passed its deadline", KindWarn, EventPayload{Rule: RuleRequeued})
+		s.deskStateLocked(r.DeskID, StateIdle) // what the fold does with requeued
 		s.mu.Unlock()
 		s.publish(e)
 		return
 	}
 	s.finishRun(r.DeskID, r.TaskID, r.ID, att, nil)
+}
+
+// deskStateLocked moves a desk the way the fold will when it replays the event
+// just written, so a replayed floor and the live one agree. Caller holds s.mu.
+func (s *MemStore) deskStateLocked(deskID, state string) {
+	if i := s.deskIdxByID(deskID); i >= 0 {
+		_ = s.setState(&s.desks[i], state)
+	}
 }
