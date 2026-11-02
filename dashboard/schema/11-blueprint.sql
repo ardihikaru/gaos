@@ -59,6 +59,9 @@ CREATE INDEX IF NOT EXISTS ON HOSTED_IN             (`@out`, `@in`) UNIQUE;
 
 -- The gateway's evidence on an attempt (D-060, D-062). The request id is what
 -- recovery polls after a restart, so it is unique per tenant.
+-- M14.6: a card's position inside its board column; plan order stays ordinal.
+CREATE PROPERTY Task.rank INTEGER;
+
 CREATE PROPERTY TaskRun.requestId        STRING;
 CREATE PROPERTY TaskRun.sessionId        STRING;
 CREATE PROPERTY TaskRun.blueprintVersion INTEGER (min 1);

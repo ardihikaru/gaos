@@ -282,6 +282,11 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			Score: m.ReadinessScore(), Band: ReadinessBand(m.ReadinessScore()),
 			CanPlan: m.ReadinessScore() >= PlanFloor,
 		}
+		if tab == "board" {
+			if b, err := s.store.Board(r.Context(), m.ID); err == nil {
+				d.Board = &b
+			}
+		}
 		for _, g := range m.Diagrams {
 			dv := DiagramView{Diagram: g}
 			if g.Kind == "sequence" {

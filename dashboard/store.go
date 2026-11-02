@@ -120,6 +120,11 @@ type Store interface {
 	// workspace gateway, without a published version, or when the egress
 	// pass refuses the files.
 	SyncBlueprint(ctx context.Context, productID string) (Result, error)
+
+	// The board (M14.6, board.go): a projection of the product's tasks, and a
+	// move on it -- a request the task state machine may refuse (BR-43).
+	Board(ctx context.Context, productID string) (Board, error)
+	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
 	Inject(ctx context.Context, productID string) (Result, error)
 
 	// ---- planning ----
@@ -255,6 +260,9 @@ func (readOnly) AddKnowledgeSource(context.Context, string, KnowledgeSource) (Re
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) PublishBlueprint(context.Context, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) MoveCard(context.Context, string, string, CardMove) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SyncBlueprint(context.Context, string) (Result, error) {

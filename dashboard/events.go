@@ -56,6 +56,14 @@ const (
 	TaskPlanned       EventType = "TaskPlanned"
 	DependencyRewired EventType = "DependencyRewired" // needs the planner's task graph -- M3.2
 	WorkflowCanceled  EventType = "WorkflowCanceled"
+
+	// M14.6, D-061: a card moved on the board -- a status change the state
+	// machine allowed (Rule names the action), or a new position inside its
+	// column. Neither moves a desk: the board is a projection of the task
+	// graph, and reusing the desk-moving events would make a replayed floor
+	// disagree with the live one.
+	TaskMoved     EventType = "TaskMoved"
+	TaskReordered EventType = "TaskReordered"
 )
 
 // execution
