@@ -123,6 +123,9 @@ type Store interface {
 	// product's or ("") all, and the answer that puts a task back in the queue.
 	OpenQuestions(ctx context.Context, productID string) ([]Question, error)
 	AnswerQuestion(ctx context.Context, productID, taskID string, choice int, text string) (Result, error)
+	// ExpireQuestions closes the questions that outlived their session
+	// (D-066); main.go sweeps it once a minute.
+	ExpireQuestions(ctx context.Context, now int64) (Result, error)
 
 	// ---- planning ----
 	// PlanWorkflow is pure: it reads the master and returns a task graph without
@@ -250,6 +253,9 @@ func (readOnly) MoveCard(context.Context, string, string, CardMove) (Result, err
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) AnswerQuestion(context.Context, string, string, int, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) ExpireQuestions(context.Context, int64) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SyncBlueprint(context.Context, string) (Result, error) {

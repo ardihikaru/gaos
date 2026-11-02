@@ -52,8 +52,16 @@ func TestTheInboxListsEveryWaitingAgentOldestFirst(t *testing.T) {
 	if !strings.Contains(body, "waiting 12m") || !strings.Contains(body, `title="Asked `) {
 		t.Fatal("a row does not say how long it has waited, with the absolute time in its title")
 	}
-	if strings.Count(body, `class="ir-stale"`) != 1 {
-		t.Fatalf("%d rows are tagged stale; want 1, the one older than seven days", strings.Count(body, `class="ir-stale"`))
+	if !strings.Contains(body, "expires in 21d") || !strings.Contains(body, "expires in 29d") {
+		t.Fatal("a row does not say when its question closes with its session; want expires in 29d and 21d")
+	}
+	if !strings.Contains(body, `data-since="`) || !strings.Contains(body, `data-until="`) {
+		t.Fatal("the waiting and expiry labels carry no datetime for live.js to re-tick; they would freeze at render time")
+	}
+	plantQuestion(s, b, "wf-ui-late", "Which region?", now-28*24*3600)
+	w = do(t, srv, "GET", "/ui/bo/inbox", nil, boCookies()...)
+	if n := strings.Count(w.Body.String(), `class="ir-exp urgent"`); n != 1 {
+		t.Fatalf("%d expiry labels are urgent; want 1, the question with under three days left", n)
 	}
 	if !strings.Contains(body, `<span class="ir-q" dir="auto">Which queue?</span>`) {
 		t.Fatal("a row shows more than the question's first line")

@@ -87,9 +87,11 @@ var taskTransitions = map[string][]string{
 	StatusDone:       {},
 	StatusFailed:     {StatusReady, StatusCanceled},
 	StatusCanceled:   {},
-	// AWAITING_INPUT leaves only by an answer (READY) or by the operator
-	// giving up on the task (CANCELED). No edge to FAILED: nothing was judged.
-	StatusAwaitingInput: {StatusReady, StatusCanceled},
+	// AWAITING_INPUT leaves by an answer (READY), by the operator giving up
+	// on the task (CANCELED), or -- D-066 -- by the question outliving the
+	// session that asked it (BLOCKED, rule question-expired). No edge to
+	// FAILED: nothing was judged.
+	StatusAwaitingInput: {StatusReady, StatusCanceled, StatusBlocked},
 }
 
 // knownTaskStatus reports whether s is one of the ten. Same split as

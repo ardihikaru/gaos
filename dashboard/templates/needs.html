@@ -24,7 +24,7 @@
 <ul class="inbox" aria-labelledby="inboxTitle">
   {{range .Inbox}}
   <li>
-    <button type="button" class="inbox-row{{if .Stale}} stale{{end}}" id="{{.DomID}}" data-answer-open="{{.OpenURL}}" title="{{.Question}}">
+    <button type="button" class="inbox-row{{if .Urgent}} urgent{{end}}" id="{{.DomID}}" data-answer-open="{{.OpenURL}}" title="{{.Question}}">
       <span class="ir-q" dir="auto">{{.Lead}}</span>
       <span class="ir-meta">
         <span class="ir-prod">{{.ProductName}}</span>
@@ -32,8 +32,8 @@
         <span class="ir-role"><i style="{{.RoleStyle}}" aria-hidden="true"></i>{{.RoleLabel}}</span>
       </span>
       <span class="ir-when">
-        {{if .Stale}}<span class="ir-stale">stale</span>{{end}}
-        {{if .AskedISO}}<time datetime="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}
+        {{if .AskedISO}}<time datetime="{{.AskedISO}}" data-since="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}
+        {{if .ExpiresISO}}<time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}" title="Closes with the agent's session; after that the task is blocked and starts again in a new session">{{.Expires}}</time>{{end}}
       </span>
     </button>
   </li>
@@ -68,7 +68,7 @@
   <div class="modal answer" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="answerTitle" aria-describedby="answerMeta">
     <header>
       <div class="answer-head">
-        <span class="eyebrow" id="answerMeta"><span class="am-prod">{{.ProductName}}</span> · <span class="am-task">{{.TaskID}} {{.TaskTitle}}</span> · {{.RoleLabel}} · {{if .AskedISO}}<time datetime="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}</span>
+        <span class="eyebrow" id="answerMeta"><span class="am-prod">{{.ProductName}}</span> · <span class="am-task">{{.TaskID}} {{.TaskTitle}}</span> · {{.RoleLabel}} · {{if .AskedISO}}<time datetime="{{.AskedISO}}" data-since="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}{{if .ExpiresISO}} · <time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}">{{.Expires}}</time>{{end}}</span>
         <h3 id="answerTitle" dir="auto">{{.Lead}}</h3>
       </div>
       <button type="button" class="icon-btn x" aria-label="Close" title="Close (Esc)" data-close-modal="answerModal">✕</button>

@@ -179,7 +179,9 @@ type InboxRow struct {
 	Waiting     string // "waiting 12m"
 	AskedISO    string // datetime attribute; "" when the time was not recorded
 	AskedAbs    string // the absolute time, for title
-	Stale       bool   // waiting longer than staleAfter
+	Expires     string // "expires in 29d": the question closes with its session (D-066)
+	ExpiresISO  string
+	Urgent      bool   // under urgentBefore left
 	OpenURL     string // GET for the answer sheet
 	DomID       string
 }
@@ -200,6 +202,9 @@ type AnswerView struct {
 	Waiting     string
 	AskedISO    string
 	AskedAbs    string
+	Expires     string
+	ExpiresISO  string
+	Urgent      bool
 	Lead        string // the title: the question's first line
 	Rest        string // the rest of the question, if it ran on
 	Context     string

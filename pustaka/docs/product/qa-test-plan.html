@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and forty cases, positive and negative, across the four deploy automations and the
+  three hundred and forty-two cases, positive and negative, across the four deploy automations and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and forty cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and forty-two cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -422,13 +422,15 @@
       <tr data-tags="sse broker fan-out slow subscriber dropped non-blocking negative implemented go test unit dashboard m15 d-065"><td>TC-331</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing never blocks on a subscriber that does not read; the slow one is dropped, the reading one kept, and ending twice is harmless (<code>TestTheBrokerFansOutAndDropsASlowSubscriber</code>)</td><td>Implemented</td></tr>
       <tr data-tags="sse broker live store projection replay publishes positive negative implemented go test unit dashboard m15 d-065"><td>TC-332</td><td>dashboard (go test)</td><td>Positive</td><td>An emitted event reaches the live store's broker, and a bare projection has none, so a replay cannot re-announce the past (<code>TestOnlyTheLiveStorePublishes</code>)</td><td>Implemented</td></tr>
       <tr data-tags="sse stream events hint question 401 headers positive implemented go test unit dashboard m15 d-065"><td>TC-333</td><td>dashboard (go test)</td><td>Positive</td><td><code>GET /events/stream</code> refuses without the session, answers <code>text/event-stream</code> unbuffered, and sends a <code>question</code> hint naming the type and task but not the question (<code>TestTheStreamSendsAHintForAQuestion</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="inbox needs you rows oldest first stale waiting filter positive implemented go test unit dashboard m15 ui"><td>TC-334</td><td>dashboard (go test)</td><td>Positive</td><td>The inbox lists every waiting agent oldest first, with how long it has waited, one stale tag past seven days, the question's first line only, and a product filter (<code>TestTheInboxListsEveryWaitingAgentOldestFirst</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="inbox needs you rows oldest first stale waiting filter positive implemented go test unit dashboard m15 ui"><td>TC-334</td><td>dashboard (go test)</td><td>Positive</td><td>The inbox lists every waiting agent oldest first, with how long it has waited and when its question expires (urgent under three days), both re-tickable live, the question's first line only, and a product filter (<code>TestTheInboxListsEveryWaitingAgentOldestFirst</code>)</td><td>Implemented</td></tr>
       <tr data-tags="inbox empty state no agent waiting negative implemented go test unit dashboard m15 ui"><td>TC-335</td><td>dashboard (go test)</td><td>Negative</td><td>An empty inbox says no agent is waiting (<code>TestAnEmptyInboxSaysNoAgentIsWaiting</code>)</td><td>Implemented</td></tr>
       <tr data-tags="chip count needs you session signed out oob positive negative implemented go test unit dashboard m15 ui"><td>TC-336</td><td>dashboard (go test)</td><td>Positive</td><td>The Needs-you chip counts waiting agents for a session only, sits in the back-office sheet's head, and drops with an answer (<code>TestTheChipCountsWaitingAgentsOnlyForASession</code>)</td><td>Implemented</td></tr>
       <tr data-tags="answer sheet recommended preselected other free text 401 422 positive negative implemented go test unit dashboard m15 ui"><td>TC-337</td><td>dashboard (go test)</td><td>Positive</td><td>The answer sheet preselects the recommended option, offers the operator's own words as a fourth, posts relatively, and refuses a task not waiting (422) or no session (401) (<code>TestTheAnswerSheetPreselectsTheRecommendation</code>)</td><td>Implemented</td></tr>
       <tr data-tags="answer htmx rerender inbox board toast 422 positive negative implemented go test unit dashboard m15 ui"><td>TC-338</td><td>dashboard (go test)</td><td>Positive</td><td>An answer re-renders the view it came from — inbox or board — and a second one comes back as a 422 toast (<code>TestAnAnswerReRendersTheViewItCameFrom</code>)</td><td>Implemented</td></tr>
       <tr data-tags="board needs you column badge answer sheet positive implemented go test unit dashboard m15 ui"><td>TC-339</td><td>dashboard (go test)</td><td>Positive</td><td>The board has a Needs-you column and a waiting card carries a badge that opens its answer sheet (<code>TestTheBoardBadgesAWaitingCard</code>)</td><td>Implemented</td></tr>
       <tr data-tags="sse stream gzip middleware flush uncompressed negative implemented go test unit dashboard m15 d-065"><td>TC-340</td><td>dashboard (go test)</td><td>Negative</td><td>The live stream behind the gzip middleware answers 200 uncompressed with the retry hint first — compressed, no browser could flush it (<code>TestTheLiveStreamIsNotGzipped</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question expiry lifetime session thirty days sweep blocked question-expired positive negative implemented go test unit dashboard m15 d-066"><td>TC-341</td><td>dashboard (go test)</td><td>Positive</td><td>A question unanswered thirty days after it was asked expires with its session: the task goes to <code>BLOCKED</code> once, with rule <code>question-expired</code>; a younger or untimed one stays open (<code>TestAnUnansweredQuestionExpiresWithItsSession</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="question answer session rotation resume asking session 25 days positive implemented go test unit dashboard m15 d-066"><td>TC-342</td><td>dashboard (go test)</td><td>Positive</td><td>An answered question's next turn resumes the asking session past the 25-day rotation; an unanswered task still rotates (<code>TestAnAnswerResumesTheAskingSessionPastTheRotationAge</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -2459,8 +2461,11 @@
   (<code>TestTheInboxListsEveryWaitingAgentOldestFirst</code>): <code>GET /ui/bo/inbox answered %d
   without the inbox view; buildBO has no inbox case</code>; <code>the inbox rows are missing or out of
   order (old at %d, new at %d); want both, oldest first</code>; <code>a row does not say how long it has
-  waited, with the absolute time in its title</code>; <code>%d rows are tagged stale; want 1, the one
-  older than seven days</code>; <code>a row shows more than the question's first line</code>; and
+  waited, with the absolute time in its title</code>; <code>a row does not say when its question closes
+  with its session; want expires in 29d and 21d</code>; <code>the waiting and expiry labels carry no
+  datetime for live.js to re-tick; they would freeze at render time</code>; <code>%d expiry labels are
+  urgent; want 1, the question with under three days left</code> (since v0.32.0, replacing a stale tag
+  after seven days — <a href="decision-log.html#d-066">D-066</a>); <code>a row shows more than the question's first line</code>; and
   <code>the inbox filtered to one product still lists another product's agent</code>.
   <strong>TC-335, negative</strong> (<code>TestAnEmptyInboxSaysNoAgentIsWaiting</code>): <code>an empty
   inbox answered %d without its empty state</code>.
@@ -2486,6 +2491,25 @@
   browser — every browser asks for gzip, and the gzip writer cannot flush, so the stream answered 501.
   <code>the stream behind the gzip middleware answered %d, encoding %q; want 200 uncompressed</code>;
   <code>the stream's first line is %q; want the retry hint, readable as sent</code>.</p>
+
+  <h3 id="go-question-lifetime">dashboard — a question lives as long as its session (TC-341, TC-342)</h3>
+  <p>v0.32.0, in <code>dashboard/questions_test.go</code> (<a href="decision-log.html#d-066">D-066</a>,
+  answering <a href="open-questions.html#oq-31">OQ-31</a>). A question closes thirty days after it was
+  asked, with the session that asked it.
+  <strong>TC-341, positive and negative</strong> (<code>TestAnUnansweredQuestionExpiresWithItsSession</code>):
+  one question past the lifetime, one a day old, one with no ask time. The old one blocks its task
+  (<code>a question unanswered past its session left the task %s; want BLOCKED</code>) with one move
+  that says why (<code>the expiry wrote %+v; want one TaskMoved with rule question-expired and a block
+  reason</code>); the others stay (<code>a question still inside its session's lifetime, or with no ask
+  time, was expired</code>, <code>the inbox holds %d question(s) after the sweep; want the 2 still
+  open</code>); an open one reports its end (<code>an open question expires at %d; want %d, thirty days
+  after it was asked</code>); and the sweep is idempotent (<code>a second sweep wrote %d event(s); an
+  expired question expires once</code>).
+  <strong>TC-342, positive</strong> (<code>TestAnAnswerResumesTheAskingSessionPastTheRotationAge</code>):
+  with the asking run backdated 26 days, an unanswered task still rotates (<code>an unanswered task's old
+  session gave %q %q; want rotation, as before</code>), and once answered the next turn keeps the asking
+  session (<code>the answer turn would run in session %q (%s); want the asking session %q, which still
+  exists</code>).</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
