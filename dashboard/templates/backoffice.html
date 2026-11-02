@@ -361,7 +361,10 @@
   <p style="margin:0 0 8px;font-size:13px;color:var(--ink-3)">A move is a request: the task state machine decides, and a
   refused move changes nothing. Drag a card, or use its buttons — they show only the moves allowed now.</p>
   {{with .Board}}{{if .Cards}}
-  <div style="display:grid;grid-template-columns:repeat(8,minmax(140px,1fr));gap:8px;overflow-x:auto">
+  <link rel="stylesheet" href="static/vendor/sisflow/sisflow-board.css">
+  <p class="board-status mono" style="margin:0 0 6px;font-size:11px;color:var(--ink-3)" aria-live="polite"></p>
+  <div id="board-host" class="sisflow-board-host" data-product="{{$id}}" style="display:none"></div>
+  <div class="board-ssr" style="display:grid;grid-template-columns:repeat(8,minmax(140px,1fr));gap:8px;overflow-x:auto">
     {{range $col := .Columns}}
     <div class="board-col" data-col="{{$col.ID}}" style="min-height:120px;border:1px solid var(--line);border-radius:6px;padding:6px">
       <div class="mono" style="font-size:11px;color:var(--ink-3);margin-bottom:6px">{{$col.Label}}</div>

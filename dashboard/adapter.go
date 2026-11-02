@@ -106,6 +106,10 @@ type Attempt struct {
 	// its log on disk.
 	Prompt string
 	Reply  string
+	// Observed is the context the worker reports it offered the model
+	// (metadata.context.workspace), compared with the pinned Blueprint after
+	// the turn (T-156). Nil when the reply carried none.
+	Observed *ObservedContext
 }
 
 // Outcome is what happened to the WORK.

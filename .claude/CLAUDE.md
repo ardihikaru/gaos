@@ -32,8 +32,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-315`; the
-   next free number is `TC-316`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-320`; the
+   next free number is `TC-321`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it —
    do not delete it and do not renumber anything after it. `TC-076` is the worked
    example: BR-07 made planning an empty record illegal, so the case that asserted
@@ -50,23 +50,24 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The four counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "three hundred and fifteen", so
+   changing all four or none. They are currently all "three hundred and twenty", so
    `grep -rn "three hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
    finds every one. Retired rows still count: the register is every ID ever issued,
-   and `TC-076` is one of the three hundred and fifteen. Older changelog notes keep their own
+   and `TC-076` is one of the three hundred and twenty. Older changelog notes keep their own
    numbers; they are release records and stay as written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All three hundred and fifteen cases…")
+   - the register intro on the same page ("All three hundred and twenty cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
-     the Go unit-test count, currently "two hundred and one"
+     the Go unit-test count, currently "two hundred and seven"
 
    Do **not** change the older counts in `pustaka/docs/changelog.html` — the
    "fifty-three" in the v0.3.0 note, the "one hundred and eight" in v0.6.0 and
    v0.8.0, the "one hundred and twelve" in v0.9.0, the "one hundred and thirty"
    in v0.10.0, the "one hundred and forty-eight" in v0.11.0, the "two hundred"
    in v0.15.0, the "three hundred and ten" in v0.23.0, the "three hundred and twelve" in v0.24.0, and the "three hundred and
-   fifteen" and "two hundred and one" in v0.29.0. Those are release notes, and each records what was true at that
+   fifteen" and "two hundred and one" in v0.29.0, and the "three hundred and twenty" and "two hundred
+   and seven" in v0.30.0. Those are release notes, and each records what was true at that
    release.
 
 4. **Release hygiene**, if the change is user-visible: add to
@@ -103,7 +104,7 @@ packet and the handoff contract (since v0.29.0 the reply contract, `dashboard/co
 `TC-268`…`TC-273` the live model call in the deleted `deploy/acceptance/live-cli-run.sh`,
 and `TC-274` the schema-apply counts in `dashboard/store_conformance_test.go` — **one row per `func Test…`**,
 because that is the unit `go test -run` can select. The register currently covers
-201 Go tests: 179 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
+207 Go tests: 185 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
 its row and its `h3`; the gap that used to be here is closed and must not reopen.
 
 `TC-275`…`TC-290` became Go tests in v0.24.0 (`aimanager_test.go`, `blueprint_test.go`; their
@@ -111,10 +112,13 @@ sections kept the `ni-aim` / `ni-blueprint` anchors), and `TC-311`/`TC-312` are 
 no forward spec described. `TC-291`…`TC-295` became Go tests in v0.25.0 (`workspace_test.go`, section
 `go-workspace`). `TC-296`…`TC-303` became tests in v0.27.0 (`turns_test.go`; `deploy/acceptance/live-aim-run.sh`
 for 300–303). `TC-304`…`TC-307` and `TC-309` became tests in v0.28.0 (`board_test.go`, section `go-board`).
-`TC-308` (a task fold) and `TC-310` (sisflow, OQ-25) are still **forward specifications** for milestone M14 (the ai-manager
-gateway, the Blueprint, the board — D-055…D-062), all `Not implemented`, with their
-prose under `<h2 id="not-implemented">` (`ni-aim`, `ni-blueprint`, `ni-workspace`,
-`ni-live-aim`, `ni-board`). They were written before the code on purpose. When a
+`TC-308` (the task fold, `taskfold_test.go`, section `go-taskfold`) and `TC-310` (the vendored
+sisflow board, `check-stacks.sh`, section `cs-sisflow`) became tests in v0.30.0, which closed the
+last of M14's forward specifications; `ni-board` is gone. v0.30.0 also added `TC-316` (the fold's
+negative), `TC-317`…`TC-319` (the Blueprint check after the turn, `workspace_test.go`, section
+`go-after-turn`) and `TC-320` (a failed turn cited as a failure, `contract_test.go`, section
+`go-failure-lesson`). The rule those forward specs followed still holds for the next ones: they
+were written before the code on purpose, and when a
 phase lands, the test it writes **takes the forward-spec ID that describes it** —
 flip the row to `Implemented`, name the `func Test…` on it, move the `h3` up under
 `#implemented`, and replace the asserted value with the test's exact `t.Fatalf`.

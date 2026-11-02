@@ -57,7 +57,7 @@ func (s *server) handleReplay(w http.ResponseWriter, r *http.Request) {
 }
 
 // deskIdx resolves the {id} path segment of the desk routes below. They are
-// kept as an API until the task fold (TC-308) retires the desk projection;
+// kept as an API until the desk projection is retired (T-170), which the task fold (T-164) made possible;
 // the board's moves, keyed by task id, are what the UI uses.
 func deskIdx(r *http.Request) int {
 	id := r.PathValue("id")
