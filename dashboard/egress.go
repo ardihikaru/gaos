@@ -66,7 +66,13 @@ type PacketPart struct {
 // Cites is the provenance half, and it travels WITH the packet rather than
 // beside it so that the pass can cut both together. See Screen step 2.
 type Packet struct {
-	TaskID    string
+	TaskID string
+	// RunID and Role are what the handoff must echo. They were only ever
+	// inside the contract's prose; the gateway adapter renders its own
+	// contract (the handoff travels in the reply, D-057) and validates the
+	// echoed run id, so it needs them as values rather than as text.
+	RunID     string
+	Role      string
 	DeskID    string
 	Workspace string
 	Parts     []PacketPart

@@ -168,6 +168,7 @@
   <button role="tab" aria-selected="{{eq .Tab "stories"}}"   hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">User stories<span class="n">{{len .Master.Stories}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "diagrams"}}"  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams<span class="n">{{len .Master.Diagrams}}</span></button>
   <button role="tab" aria-selected="{{eq .Tab "knowledge"}}" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge<span class="n">{{len .Master.Decisions}}</span></button>
+  <button role="tab" aria-selected="{{eq .Tab "blueprint"}}" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint<span class="n">{{len .Master.Blueprint.Policies}}</span></button>
 </div>
 
 <div class="panel-grid">
@@ -175,6 +176,7 @@
     {{if eq .Tab "stories"}}{{template "pane-stories" .}}
     {{else if eq .Tab "diagrams"}}{{template "pane-diagrams" .}}
     {{else if eq .Tab "knowledge"}}{{template "pane-knowledge" .}}
+    {{else if eq .Tab "blueprint"}}{{template "pane-blueprint" .}}
     {{else}}{{template "pane-brd" .}}{{end}}
   </div>
 
@@ -347,6 +349,74 @@
   </div>
   <div class="field"><label for="kTitle">Decision</label><input id="kTitle" name="title" placeholder="Rounding lives in the pricing service"></div>
   <button class="btn btn-primary" type="submit">Add decision</button>
+</form>
+{{end}}
+
+{{define "pane-blueprint"}}
+<div class="block">
+  <h4>Blueprint — how this product is built</h4>
+  <p style="margin:0 0 8px;font-size:13px;color:var(--ink-3)">Policies and knowledge sources are a draft until published. A published
+  version is written into the product's workspace as CLAUDE.md and .claude/rules, and every task runs under the version it pinned.</p>
+  {{with .Master.Blueprint.Current}}
+    <div class="proj"><span>Published</span><b class="mono">v{{.N}} · {{slice .Digest 0 12}} · {{len .Files}} files</b></div>
+  {{else}}
+    <div class="proj"><span>Published</span><b>nothing yet</b></div>
+  {{end}}
+  <button class="btn btn-primary" style="margin-top:8px" hx-post="products/{{.ID}}/blueprint/publish" hx-target="#sink" hx-swap="innerHTML">Publish blueprint</button>
+</div>
+<div class="block">
+  <h4>Policies</h4>
+  {{if .Master.Blueprint.Policies}}
+    {{range .Master.Blueprint.Policies}}
+    <div class="proj" style="padding:7px 0">
+      <span style="color:var(--ink);font-family:var(--font-body);font-size:13px">
+        <b class="mono" style="color:var(--know);font-size:11px">{{.Kind}}</b> {{.Title}} <span class="mono" style="color:var(--ink-3)">{{.Key}}</span>
+      </span>
+      <b>{{.Order}}</b>
+    </div>
+    {{end}}
+  {{else}}
+    <p style="margin:0;font-size:13px;color:var(--ink-3)">No policies yet. Start with the coding policy: style, folder layout, error handling, tests.</p>
+  {{end}}
+</div>
+<form class="block" hx-post="products/{{.ID}}/blueprint/policies" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Add or replace a policy</h4>
+  <div class="field row">
+    <div><label for="pKey">Key</label><input id="pKey" name="key" placeholder="go-style"></div>
+    <div><label for="pKind">Kind</label>
+      <select id="pKind" name="kind">
+        <option value="coding">coding</option><option value="technical">technical</option>
+        <option value="security">security</option><option value="testing">testing</option><option value="custom">custom</option>
+      </select></div>
+    <div><label for="pOrder">Order</label><input id="pOrder" name="order" type="number" min="0" value="0"></div>
+  </div>
+  <div class="field"><label for="pTitle">Title</label><input id="pTitle" name="title" placeholder="Go style"></div>
+  <div class="field"><label for="pBody">Policy — Markdown</label><textarea id="pBody" name="body" placeholder="gofmt; wrap errors with %w; no package-level state"></textarea></div>
+  <button class="btn btn-primary" type="submit">Save policy</button>
+</form>
+<div class="block">
+  <h4>Knowledge sources</h4>
+  {{if .Master.Blueprint.Sources}}
+    {{range .Master.Blueprint.Sources}}
+    <div class="proj" style="padding:7px 0"><span class="mono" style="font-size:12px">{{.URL}} @ {{.Ref}}</span><b>{{.Purpose}}</b></div>
+    {{end}}
+  {{else}}
+    <p style="margin:0;font-size:13px;color:var(--ink-3)">None. A template repository here makes every task follow its structure and interfaces.</p>
+  {{end}}
+</div>
+<form class="block" hx-post="products/{{.ID}}/blueprint/sources" hx-target="#sink" hx-swap="innerHTML">
+  <h4>Add a knowledge source</h4>
+  <div class="field"><label for="ksURL">Repository (https)</label><input id="ksURL" name="url" placeholder="https://github.com/acme/go-service-template"></div>
+  <div class="field row">
+    <div><label for="ksRef">Tag or commit</label><input id="ksRef" name="ref" placeholder="v1.4.0"></div>
+    <div><label for="ksPurpose">Purpose</label>
+      <select id="ksPurpose" name="purpose">
+        <option value="structure">structure</option><option value="style">style</option>
+        <option value="interfaces">interfaces</option><option value="reference">reference</option>
+      </select></div>
+  </div>
+  <div class="field"><label for="ksNote">Note</label><input id="ksNote" name="note" placeholder="the folder layout and the error package to reuse"></div>
+  <button class="btn btn-primary" type="submit">Add source</button>
 </form>
 {{end}}
 

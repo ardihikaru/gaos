@@ -28,13 +28,16 @@
        data-version-to=""></div>
 
   <div class="adm warn">
-    <p class="adm-title">Designed, not built</p>
-    <p>Everything on this page is decided (<a href="../product/decision-log.html#d-055">D-055</a> to
-    <a href="../product/decision-log.html#d-062">D-062</a>) and none of it is code yet. The dashboard
-    still ships the CLI adapter described in <a href="../product/brd.html#to-be-cli">BRD §7.6</a>
-    until <a href="../delivery/implementation-plan.html#m14-gateway">M14</a> replaces it. The
-    upstream endpoints in <a href="#upstream">the last section</a> do not exist in ai-claude-cli or
-    ai-manager today.</p>
+    <p class="adm-title">Partly built, as of v0.24.0</p>
+    <p>Decided by <a href="../product/decision-log.html#d-055">D-055</a> to
+    <a href="../product/decision-log.html#d-062">D-062</a>. <strong>Built:</strong> the upstream
+    provisioning API (<a href="#upstream">last section</a>, live on prod since 2026-11-02), and the
+    ai-manager adapter with the reply handoff and the error mapping below
+    (<code>GAOS_MODEL_MODE=aimanager</code>). <strong>Not yet:</strong> one workspace per product,
+    sessions per task, and recovery by request id — <a href="../delivery/implementation-plan.html#sub-m14-4">M14.4</a>
+    and <a href="../delivery/implementation-plan.html#sub-m14-5">M14.5</a>. Until then a gateway turn
+    always opens a new session, and the CLI adapter of <a href="../product/brd.html#to-be-cli">BRD
+    §7.6</a> is still the default.</p>
   </div>
 
   <h2 id="three-layers">Three layers, one job each</h2>

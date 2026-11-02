@@ -17,7 +17,7 @@ import (
 var catalog = map[EventType]bool{
 	// master
 	ProductCreated: true, RecordUpdated: true, KnowledgeInjected: true,
-	ReadinessEvaluate: true, ReadinessDropped: true,
+	ReadinessEvaluate: true, ReadinessDropped: true, BlueprintPublished: true,
 	// planning
 	WorkflowCreated: true, TaskPlanned: true, DependencyRewired: true, WorkflowCanceled: true,
 	// execution
@@ -132,6 +132,13 @@ func drive(t *testing.T, s *MemStore) {
 		Metrics:    []string{"Fold-from-genesis matches fold-from-snapshot"},
 	}); err != nil {
 		t.Fatalf("UpdateBRD: %v", err)
+	}
+	// D-058: a policy and a publish, so BlueprintPublished is on the stream.
+	if _, err := s.SavePolicy(ctx, id, Policy{Key: "go-style", Kind: PolicyCoding, Title: "Go style", Body: "gofmt, no globals"}); err != nil {
+		t.Fatalf("SavePolicy: %v", err)
+	}
+	if _, err := s.PublishBlueprint(ctx, id); err != nil {
+		t.Fatalf("PublishBlueprint: %v", err)
 	}
 	// Two criteria, not one. AddStory defaults a new story to "must", and BR-07's
 	// rubric forfeits the whole criteria-coverage signal when any must story is

@@ -335,6 +335,9 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /products/{id}/diagrams", s.handleAddDiagram)
 	mux.HandleFunc("POST /products/{id}/knowledge", s.handleAddDecision)
 	mux.HandleFunc("POST /products/{id}/inject", s.handleInject)
+	mux.HandleFunc("POST /products/{id}/blueprint/policies", s.handleSavePolicy)
+	mux.HandleFunc("POST /products/{id}/blueprint/sources", s.handleAddSource)
+	mux.HandleFunc("POST /products/{id}/blueprint/publish", s.handlePublishBlueprint)
 	mux.HandleFunc("GET /products/{id}/readiness", s.handleReadiness)
 
 	// --- create workflow ---

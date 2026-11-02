@@ -421,7 +421,7 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Cost = p.Cost
 
 	case KnowledgeExtracted, KnowledgeInjected, KnowledgeReused,
-		ProductCreated, RecordUpdated, ReadinessEvaluate, ReadinessDropped,
+		ProductCreated, RecordUpdated, ReadinessEvaluate, ReadinessDropped, BlueprintPublished,
 		DecisionSuperseded, DependencyRewired,
 		BudgetThresholdReached, BudgetCapReached:
 		// Recorded on the timeline, folded into the master record or the tenant

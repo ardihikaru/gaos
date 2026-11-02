@@ -16,9 +16,10 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and ten cases, positive and negative, across the five deploy automations and the
-  two Go test packages that actually run today, thirty-six forward specifications for the move to
-  ai-manager as the gateway, plus the two business acceptance tests
+  three hundred and twelve cases, positive and negative, across the five deploy automations and the
+  two Go test packages that actually run today — sixteen of them the first of the gateway's forward
+  specifications, now running — twenty more forward specifications for the rest of that move, plus
+  the two business acceptance tests
   <a href="brd.html#evaluation-method">BRD §4.1</a> specifies and nothing has yet executed &mdash;
   the third, the fold test, runs as of v0.11.0 and has moved into the register proper.
   Since <a href="decision-log.html#d-039">D-039</a> this register is also the project's definition of
@@ -74,7 +75,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and ten cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and twelve cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -195,7 +196,7 @@
       <tr data-tags="go test unit pustaka site prefix forged forwarded header negative"><td>TC-106</td><td>pustaka (go test)</td><td>Negative</td><td>Six malformed <code>X-Forwarded-Prefix</code> values are ignored and four valid ones honoured (<code>TestSitePrefix</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit pustaka trim site prefix segment boundary positive"><td>TC-107</td><td>pustaka (go test)</td><td>Positive</td><td><code>trimSitePrefix</code> strips only on a segment boundary and leaves an already site-relative path alone (<code>TestTrimSitePrefix</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit pustaka prefix strip login redirect docs positive"><td>TC-108</td><td>pustaka (go test)</td><td>Positive</td><td>Behind <code>/docs</code> every login redirect, asset base, form action and logout target carries the prefix exactly once (<code>TestAuthBehindPrefixStrip</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard schema ddl arcadedb type counts vertex edge document positive"><td>TC-109</td><td>dashboard (go test)</td><td>Positive</td><td>The DDL under <code>dashboard/schema/</code> declares the 25 vertex, 3 document and 32 edge types the model document counts in its own lede, each exactly once (<code>TestSchemaDeclaresTheDocumentedTypeCounts</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard schema ddl arcadedb type counts vertex edge document positive"><td>TC-109</td><td>dashboard (go test)</td><td>Positive</td><td>The DDL under <code>dashboard/schema/</code> declares the 28 vertex, 3 document and 37 edge types the model document counts — 25/3/32 in its lede, plus §15's Blueprint types since v0.24.0 — each exactly once (<code>TestSchemaDeclaresTheDocumentedTypeCounts</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema edge uniqueness index d-045 negative"><td>TC-110</td><td>dashboard (go test)</td><td>Negative</td><td>An edge type with no <code>UNIQUE</code> index on its endpoints, or a revived <code>CREATE EDGE TYPE … UNIQUE</code>, is refused (<code>TestEveryEdgeTypeCarriesItsUniquenessIndex</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema idempotence if not exists apply negative"><td>TC-111</td><td>dashboard (go test)</td><td>Negative</td><td>A type declaration without <code>IF NOT EXISTS</code> is refused, because it breaks the re-application <code>apply.sh</code> promises (<code>TestEverySchemaDeclarationIsIdempotent</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema files numbered order positive"><td>TC-112</td><td>dashboard (go test)</td><td>Positive</td><td>All ten numbered schema files are present, so the filename order <code>apply.sh</code> relies on has no gap (<code>TestSchemaDirectoryHasEveryNumberedFile</code>)</td><td>Implemented</td></tr>
@@ -361,22 +362,22 @@
       <tr data-tags="live-cli-run acceptance handoff contract real model br-30 positive"><td>TC-272</td><td>live-cli-run.sh</td><td>Positive</td><td>A real model, given only the packet, writes a handoff document GAOS parses to an outcome rather than a signature</td><td>Implemented</td></tr>
       <tr data-tags="live-cli-run acceptance real work worktree negative"><td>TC-273</td><td>live-cli-run.sh</td><td>Negative</td><td>The deliverable the packet asked for is absent from the worktree, or does not mention what the packet asked about</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema apply counts boot log arcadedb positive"><td>TC-274</td><td>dashboard (go test)</td><td>Positive</td><td>The store records what the schema apply did, and two applies of one embedded DDL count the same total (<code>TestTheStoreRecordsWhatTheSchemaApplyDid</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="gateway adapter sync turn session tokens cost measured positive not-implemented"><td>TC-275</td><td>dashboard (go test)</td><td>Positive</td><td>A turn through a fake ai-manager records the session id, the tokens and a <code>measured</code> cost on the attempt</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway adapter 410 session-lost br-40 negative not-implemented"><td>TC-276</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>410</code> on resume fails the attempt with <code>session-lost</code>, and no new session is opened in its place</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway adapter session_warning turn-unsaved br-40 negative not-implemented"><td>TC-277</td><td>dashboard (go test)</td><td>Negative</td><td>A reply carrying <code>metadata.session_warning</code> fails as <code>turn-unsaved</code>, even with a valid handoff block</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway adapter 409 busy not failure negative not-implemented"><td>TC-278</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>409</code> is busy rather than failed: no <code>TaskRun</code> is closed and the task stays READY</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway adapter async request-id idempotent poll positive not-implemented"><td>TC-279</td><td>dashboard (go test)</td><td>Positive</td><td>Submit answers <code>202</code>, polling reaches the result, and resubmitting the same <code>X-Request-ID</code> starts no second turn</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway handoff reply block last extract d-057 positive not-implemented"><td>TC-280</td><td>dashboard (go test)</td><td>Positive</td><td><code>ExtractHandoff</code> takes the last <code>gaos-handoff</code> block and keeps the prose before it as the reply</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway handoff reply block missing run-id mismatch br-30 negative not-implemented"><td>TC-281</td><td>dashboard (go test)</td><td>Negative</td><td>No block, two blocks with different run ids, or a run id that is not this run's, is <code>handoff-missing</code></td><td>Not implemented</td></tr>
-      <tr data-tags="gateway cost unavailable zero br-37 d-062 negative not-implemented"><td>TC-282</td><td>dashboard (go test)</td><td>Negative</td><td>A missing <code>cost_usd</code>, or zero with tokens above zero, is <code>unavailable</code> and never zero</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway smoke boot unreachable provider negative not-implemented"><td>TC-283</td><td>dashboard (go test)</td><td>Negative</td><td>The boot smoke test refuses to start when the gateway is unreachable or lists no <code>claude</code> provider</td><td>Not implemented</td></tr>
-      <tr data-tags="gateway admin key secret redaction log event negative not-implemented"><td>TC-284</td><td>dashboard (go test)</td><td>Negative</td><td>The admin key never appears in an attempt, an event, a log line or an error message</td><td>Not implemented</td></tr>
-      <tr data-tags="blueprint render deterministic digest both stores positive not-implemented"><td>TC-285</td><td>dashboard (go test)</td><td>Positive</td><td>The same Blueprint renders to the same bytes and the same digest, in either store</td><td>Not implemented</td></tr>
-      <tr data-tags="blueprint caps allowlist publish refused br-42 negative not-implemented"><td>TC-286</td><td>dashboard (go test)</td><td>Negative</td><td>A render over the caps, or onto a path outside the allowlist, refuses the publish and names the policy</td><td>Not implemented</td></tr>
-      <tr data-tags="blueprint version immutable draft positive not-implemented"><td>TC-287</td><td>dashboard (go test)</td><td>Positive</td><td>A published version is immutable: editing a policy afterwards changes the draft only</td><td>Not implemented</td></tr>
-      <tr data-tags="blueprint publish unchanged no-op event negative not-implemented"><td>TC-288</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing an unchanged Blueprint creates no version and emits no event</td><td>Not implemented</td></tr>
-      <tr data-tags="blueprint knowledge source pinned ref render positive not-implemented"><td>TC-289</td><td>dashboard (go test)</td><td>Positive</td><td>A knowledge source is rendered with its pinned ref and its purpose</td><td>Not implemented</td></tr>
-      <tr data-tags="blueprint knowledge source url https credentials negative not-implemented"><td>TC-290</td><td>dashboard (go test)</td><td>Negative</td><td>A knowledge source with a non-<code>https</code> URL, or one carrying credentials, is refused</td><td>Not implemented</td></tr>
+      <tr data-tags="gateway adapter sync turn session tokens cost measured positive implemented go test unit dashboard"><td>TC-275</td><td>dashboard (go test)</td><td>Positive</td><td>A turn through a fake ai-manager records the session id, the tokens and a <code>measured</code> cost on the attempt (<code>TestAGatewayTurnRecordsTheSessionTokensAndAMeasuredCost</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway adapter 410 session-lost br-40 negative implemented go test unit dashboard"><td>TC-276</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>410</code> on resume fails the attempt with <code>session-lost</code>, and no new session is opened in its place (<code>TestA410OnResumeIsSessionLostAndOpensNoSessionInItsPlace</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway adapter session_warning turn-unsaved br-40 negative implemented go test unit dashboard"><td>TC-277</td><td>dashboard (go test)</td><td>Negative</td><td>A reply carrying <code>metadata.session_warning</code> fails as <code>turn-unsaved</code>, even with a valid handoff block (<code>TestASessionWarningFailsTheTurnEvenWithAValidHandoff</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway adapter 409 busy not failure negative implemented go test unit dashboard"><td>TC-278</td><td>dashboard (go test)</td><td>Negative</td><td>A <code>409</code> is busy rather than failed: the adapter returns <code>ErrTurnRunning</code> and no attempt at all (<code>TestA409IsBusyNotAFailedAttempt</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway adapter async request-id idempotent poll positive implemented go test unit dashboard"><td>TC-279</td><td>dashboard (go test)</td><td>Positive</td><td>Submit answers <code>202</code>, polling reaches the result, and resubmitting the same <code>X-Request-ID</code> starts no second turn (<code>TestAResubmittedRequestIDStartsNoSecondTurn</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway handoff reply block last extract d-057 positive implemented go test unit dashboard"><td>TC-280</td><td>dashboard (go test)</td><td>Positive</td><td><code>ExtractHandoff</code> takes the last <code>gaos-handoff</code> block and keeps the prose before it as the reply (<code>TestExtractHandoffTakesTheLastBlockAndKeepsTheProse</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway handoff reply block missing run-id mismatch br-30 negative implemented go test unit dashboard"><td>TC-281</td><td>dashboard (go test)</td><td>Negative</td><td>No block, two blocks with different run ids, or a run id that is not this run's, is <code>handoff-missing</code> (<code>TestARepliedHandoffForAnotherRunIsHandoffMissing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway cost unavailable zero br-37 d-062 negative implemented go test unit dashboard"><td>TC-282</td><td>dashboard (go test)</td><td>Negative</td><td>A missing <code>cost_usd</code>, or zero with tokens above zero, is <code>unavailable</code> and never zero (<code>TestAGatewayCostThatIsMissingOrZeroIsUnavailable</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway smoke boot unreachable provider negative implemented go test unit dashboard"><td>TC-283</td><td>dashboard (go test)</td><td>Negative</td><td>The boot smoke test refuses to start when the gateway is unreachable or lists no <code>claude</code> provider (<code>TestTheGatewaySmokeRefusesAnUnreachableGatewayOrNoClaude</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="gateway admin key secret redaction log event negative implemented go test unit dashboard"><td>TC-284</td><td>dashboard (go test)</td><td>Negative</td><td>The admin key never appears in an attempt, an event, a log line or an error message (<code>TestTheGatewayCredentialsNeverReachTheRecord</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint render deterministic digest both stores positive implemented go test unit dashboard"><td>TC-285</td><td>dashboard (go test)</td><td>Positive</td><td>The same Blueprint renders to the same bytes and the same digest, in either store (<code>TestTheBlueprintRendersTheSameBytesEveryTime</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint caps allowlist publish refused br-42 negative implemented go test unit dashboard"><td>TC-286</td><td>dashboard (go test)</td><td>Negative</td><td>A render over the caps, or onto a path outside the allowlist, refuses the publish and names the policy (<code>TestABlueprintOverTheCapsRefusesThePublishAndNamesThePolicy</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint version immutable draft positive implemented go test unit dashboard"><td>TC-287</td><td>dashboard (go test)</td><td>Positive</td><td>A published version is immutable: editing a policy afterwards changes the draft only (<code>TestAPublishedVersionIsImmutable</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint publish unchanged no-op event negative implemented go test unit dashboard"><td>TC-288</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing an unchanged Blueprint creates no version and emits no event (<code>TestPublishingAnUnchangedBlueprintDoesNothing</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint knowledge source pinned ref render positive implemented go test unit dashboard"><td>TC-289</td><td>dashboard (go test)</td><td>Positive</td><td>A knowledge source is rendered with its pinned ref and its purpose (<code>TestAKnowledgeSourceIsRenderedPinned</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint knowledge source url https credentials negative implemented go test unit dashboard"><td>TC-290</td><td>dashboard (go test)</td><td>Negative</td><td>A knowledge source with a non-<code>https</code> URL, or one carrying credentials, is refused (<code>TestAKnowledgeSourceThatIsNotHTTPSOrCarriesCredentialsIsRefused</code>)</td><td>Implemented</td></tr>
       <tr data-tags="workspace provision idempotent id derived positive not-implemented"><td>TC-291</td><td>dashboard (go test)</td><td>Positive</td><td>Provisioning is idempotent and derives <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>; a second call emits nothing</td><td>Not implemented</td></tr>
       <tr data-tags="workspace drift blueprint-drift dispatch refused br-39 negative not-implemented"><td>TC-292</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace whose synced digest is not the pinned one refuses dispatch with <code>blueprint-drift</code>, and no turn is sent</td><td>Not implemented</td></tr>
       <tr data-tags="workspace sync egress credential refused br-32 negative not-implemented"><td>TC-293</td><td>dashboard (go test)</td><td>Negative</td><td>A credential in a policy refuses the sync, and the fake gateway receives nothing</td><td>Not implemented</td></tr>
@@ -397,6 +398,8 @@
       <tr data-tags="board task fold replay positive not-implemented"><td>TC-308</td><td>dashboard (go test)</td><td>Positive</td><td>A fold over the events reproduces the board</td><td>Not implemented</td></tr>
       <tr data-tags="board replay read-only refuses move br-20 negative not-implemented"><td>TC-309</td><td>dashboard (go test)</td><td>Negative</td><td>The read-only replay handle refuses every move</td><td>Not implemented</td></tr>
       <tr data-tags="check-stacks licence sisflow vendored br-27 negative not-implemented"><td>TC-310</td><td>check-stacks.sh</td><td>Negative</td><td>A vendored sisflow board without its licence beside it fails the deploy pre-flight</td><td>Not implemented</td></tr>
+      <tr data-tags="blueprint arcadedb restart persistence go test unit dashboard positive implemented"><td>TC-311</td><td>dashboard (go test)</td><td>Positive</td><td>A policy, a knowledge source and a published Blueprint version come back from a reopened ArcadeDB store (<code>TestTheBlueprintSurvivesARestart</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="blueprint back-office tab template render publish session go test unit dashboard positive implemented"><td>TC-312</td><td>dashboard (go test)</td><td>Positive</td><td>The back-office Blueprint tab renders, saves a policy and publishes version 1, and refuses a publish without a session (<code>TestTheBlueprintTabRendersAndPublishes</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -907,7 +910,10 @@
   rather than trusted, by the same syntax-tree walk TC-175 uses:
   <code>%s:%d branches on the invocation mode outside the adapter; BR-33 says the mode may be
   recorded and never branched on, and TaskRun.invocation exists so that prohibition can be checked
-  rather than trusted</code>.</p>
+  rather than trusted</code>. Since v0.24.0 the walk also treats <code>InvocationGateway</code> as a
+  mode constant, and exempts the gateway adapter's own two files
+  (<code>adapter_aimanager.go</code>, <code>aimanager_test.go</code>) as part of the seam, as
+  <code>adapter_cli.go</code> always was.</p>
 
   <h3 id="go-dispatch">dashboard — the dispatch route and its two events (TC-194…TC-200)</h3>
   <p><code>T-127</code>. <a href="brd.html#req-l">L-5</a> requires that redactions and refusals
@@ -1024,7 +1030,9 @@
   reconciled against ArcadeDB 26.7.2; <code>schema/RECONCILIATION.md</code> records both deviations
   and how to reproduce the measurement. These four cases need no database — they guard the text,
   because the live failures they stand in for are slow and quiet.
-  <strong>Positive (TC-109):</strong> the counts the model document states about itself must hold,
+  <strong>Positive (TC-109):</strong> the counts the model document states about itself must hold
+  — 28, 3 and 37 since <code>11-blueprint.sql</code> added Policy, KnowledgeSource, BlueprintVersion
+  and five edges (§15) —
   or <code>%s types: got %d, want %d (the model document's own count) -- %v</code>; the two
   supertypes are excluded and their absence is fatal on its own
   (<code>supertype %s is not declared; every concrete type EXTENDS it</code>), and a repeated
@@ -1237,6 +1245,8 @@
   <strong>Negative (TC-144):</strong> the declared-but-unwritten names are pinned to the modules that
   owe them — the review engine (M5.2), the six guards (M5.5), the
   planner's task graph (M3.2), recall (M7.3) and the budget guard (M10.3).
+  <code>BlueprintPublished</code> joined the catalog in v0.24.0 already emitted, never owed: the
+  driver saves a policy and publishes a Blueprint, so the name lands with something that writes it.
   <strong>The whole execution group came off that list on 2026-08-22</strong>, which is what this
   case is for: the driver now runs one real supervision against the stand-in tool <em>and</em> one
   boot reconciliation over an expired lease, because a name is only <em>emitted</em> if something
@@ -1909,7 +1919,7 @@
   to confirm it had landed was to query the database by hand. The store keeps them now and
   <code>serve()</code> prints one line:
   <code>schema: 324 statements from the embedded DDL, none failed (128 accepted, 196 already
-  declared)</code>.
+  declared)</code> — 365 statements since v0.24.0 added <code>11-blueprint.sql</code>.
   <strong>Positive (TC-274):</strong> the counts are captured —
   <code>the store reports %d applied and %d present; the DDL is over three hundred statements, so
   both being zero means the counts were thrown away rather than that nothing ran</code> — and the
@@ -1963,6 +1973,94 @@
     <a href="open-questions.html#index">OQ-24</a>.</p>
   </div>
 
+  <h3 id="ni-aim">dashboard — the ai-manager adapter and the reply handoff (TC-275…TC-284)</h3>
+  <p>Written as forward specifications on 2026-11-02 and made to run the same day (M14.2), so the
+  anchor keeps its <code>ni-</code> name: links to it predate the code. Every case runs against an
+  <code>httptest</code> fake ai-manager in <code>dashboard/aimanager_test.go</code> that scripts the
+  answer to each request id and counts the POSTs it receives — no binary is spawned and nothing
+  spends money. The fake signs in as <code>chat-secret-MARKER</code> and holds
+  <code>admin-key-MARKER</code> as its admin key, so a leak is a substring search.</p>
+  <p><strong>TC-275, positive</strong> (<code>TestAGatewayTurnRecordsTheSessionTokensAndAMeasuredCost</code>):
+  a <code>200</code> with 1200/300 tokens, <code>cost_usd: 0.42</code> and one valid block gives
+  outcome <code>complete</code>, those tokens, cost basis <code>measured</code> and invocation
+  <code>gateway</code>, and the request went out as a new session in <code>gaos-t1-p-5</code>
+  carrying the reply contract. It fails with <code>attempt = %+v, want outcome complete with the
+  reply's tokens</code>, <code>cost %v %q invocation %q, want 0.42 measured through the gateway
+  (D-062)</code>, or <code>the turn was sent as %+v; want a new session in the product's workspace
+  with the reply contract</code>.</p>
+  <p><strong>TC-279, positive</strong> (<code>TestAResubmittedRequestIDStartsNoSecondTurn</code>):
+  three <code>202</code>s then the result give one completed attempt; the request id is
+  <code>gaos.t1.r-1</code> for run <code>R-1</code> — deterministic, so a resend is the same request —
+  and <code>Resume</code> polling that id yields the same completed attempt. Fails with
+  <code>request id %q posted %d times; the id must be deterministic so a resend is the same
+  request</code> or <code>polling the request id gave %+v %v, want the same completed attempt</code>.
+  <strong>TC-280, positive</strong> (<code>TestExtractHandoffTakesTheLastBlockAndKeepsTheProse</code>):
+  prose, a <code>go</code> fence and then the handoff block yield the handoff block; a block without
+  its <code>---</code> lines parses too. Fails with <code>extract = %+v %q %v</code> or
+  <code>a block without --- lines: %+v %v</code>.</p>
+  <p>The negative half is <a href="../architecture/gateway.html#error-mapping">the gateway's error
+  mapping</a>, one test per row. <strong>TC-276</strong>
+  (<code>TestA410OnResumeIsSessionLostAndOpensNoSessionInItsPlace</code>): <code>a 410 gave %+v %v,
+  want a failed attempt with %s (BR-40)</code>, and <code>a lost session was silently replaced by a
+  new one: %+v</code> if any request carried <code>new_session</code>. <strong>TC-277</strong>
+  (<code>TestASessionWarningFailsTheTurnEvenWithAValidHandoff</code>): <code>a turn the gateway did
+  not save gave %+v, want %s</code> — <code>turn-unsaved</code>. <strong>TC-278</strong>
+  (<code>TestA409IsBusyNotAFailedAttempt</code>): the adapter returns <code>ErrTurnRunning</code> and
+  no attempt at all — <code>a 409 gave %+v %v, want ErrTurnRunning and no attempt at all</code>.
+  What the runner then does with a busy answer (no <code>TaskRun</code> closed, the task left READY)
+  is <code>M14.5</code>'s and is asserted with <a href="#ni-workspace">TC-295</a>.
+  <strong>TC-281</strong> (<code>TestARepliedHandoffForAnotherRunIsHandoffMissing</code>): no block,
+  two blocks for different runs, the previous run's block, and another task's block each give
+  <code>%s: err = %v, want %s</code> with <code>handoff-missing</code>. <strong>TC-282</strong>
+  (<code>TestAGatewayCostThatIsMissingOrZeroIsUnavailable</code>): <code>case %d: %v %q, want %q and
+  never a priced zero (BR-37)</code>. <strong>TC-283</strong>
+  (<code>TestTheGatewaySmokeRefusesAnUnreachableGatewayOrNoClaude</code>): <code>smoke with no claude
+  provider: %v</code>, and <code>smoke passed against a gateway answering 502</code>.
+  <strong>TC-284</strong> (<code>TestTheGatewayCredentialsNeverReachTheRecord</code>): <code>a
+  credential reached the record: %s</code> over two attempts, an error and a smoke result; and
+  <code>the admin key was sent on a chat route; it is for provisioning only</code>.</p>
+
+  <h3 id="ni-blueprint">dashboard — the Blueprint: render, publish, pin (TC-285…TC-290, TC-311, TC-312)</h3>
+  <p>In <code>dashboard/blueprint_test.go</code>, M14.3. <strong>TC-285, positive</strong>
+  (<code>TestTheBlueprintRendersTheSameBytesEveryTime</code>): two renders of one record are
+  byte-identical (<code>two renders of one Blueprint differ: %s vs %s</code>), every section file is
+  present (<code>the render has no %s; files are %v</code>), and — the load-bearing half —
+  <code>BlueprintDigest</code> reproduces the <code>manifest_digest</code> the <strong>production</strong>
+  ai-claude-cli computed on 2026-11-02 for the same two files,
+  <code>b7326dfe…</code>: <code>BlueprintDigest = %s, the production worker computed %s for the
+  same files</code>. If that ever fails, GAOS and the worker disagree about what a workspace holds and
+  every workspace would read as drifted. <strong>TC-287, positive</strong>
+  (<code>TestAPublishedVersionIsImmutable</code>): <code>editing a policy changed published version
+  1 (%s -&gt; %s)</code>, and <code>the draft is %+v, want the one policy, replaced by key</code>.
+  <strong>TC-289, positive</strong> (<code>TestAKnowledgeSourceIsRenderedPinned</code>):
+  <code>knowledge sources rendered as %q, want the URL with its pinned ref and purpose</code>.</p>
+  <p><strong>TC-286, negative</strong> (<code>TestABlueprintOverTheCapsRefusesThePublishAndNamesThePolicy</code>):
+  a 64 KiB custom policy refuses the render — <code>an oversized policy rendered with err %v, want a
+  refusal naming policy huge</code> — and a key that could not render inside
+  <code>.claude/rules</code> is refused at save: <code>a key that would render outside .claude/rules
+  was accepted: %v</code>. <strong>TC-288, negative</strong>
+  (<code>TestPublishingAnUnchangedBlueprintDoesNothing</code>): <code>an unchanged publish gave %d
+  events and %d versions (%v); want none and still one</code>. <strong>TC-290, negative</strong>
+  (<code>TestAKnowledgeSourceThatIsNotHTTPSOrCarriesCredentialsIsRefused</code>): an
+  <code>http://</code> URL, a URL with <code>user:token@</code>, and a blank ref each give <code>%+v
+  was accepted (%v); it would make an attempt irreproducible or leak a credential</code>.</p>
+  <p>Two cases were added when the code landed, because no forward specification covered them.
+  <strong>TC-311, positive</strong> (<code>TestTheBlueprintSurvivesARestart</code>, ArcadeDB only,
+  skipped without <code>GAOS_ARCADE_TEST_URL</code>): a policy, a source and a published version
+  come back from a reopened store — <code>the reopened store has versions %+v, want the one published
+  (%s)</code>, <code>the draft came back as %+v</code>. <strong>TC-312, positive</strong>
+  (<code>TestTheBlueprintTabRendersAndPublishes</code>): the back-office tab renders, saves a policy
+  and publishes version 1 (<code>GET the Blueprint tab = %d; want 200 with the publish
+  button</code>, <code>publish through the tab = %d; want the pane to show version 1</code>), and
+  refuses a publish without a session: <code>publishing without a back-office session = %d, want
+  401</code>. It exists because the first version of the pane called a <code>(value, bool)</code>
+  method, which <code>html/template</code> cannot — a 500 that every store-level test passed straight
+  over.</p>
+  <p>The conformance table gained <code>PublishBlueprintRoundTrips</code> and
+  <code>SavePolicyWithABadKindIsRejected</code>, and the read-only case now refuses the three new
+  mutations; those run under <a href="#go-store-seam">TC-124/TC-125</a> rather than rows of their
+  own.</p>
+
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
@@ -1983,8 +2081,8 @@
   <a href="../delivery/implementation-plan.html#m8-replay">M8.1</a> was for.</p>
 
   <div class="adm note">
-    <p class="adm-title">The gateway forward specifications (TC-275…TC-310)</p>
-    <p>Thirty-six cases written on 2026-11-02, before any of the code they test, for
+    <p class="adm-title">The gateway forward specifications (TC-291…TC-310 still waiting)</p>
+    <p>Thirty-six cases were written on 2026-11-02, before any of the code they test, for
     <a href="../delivery/implementation-plan.html#m14-gateway">M14</a>: the move to ai-manager as the
     one gateway, the Blueprint, and a board per product
     (<a href="decision-log.html#d-055">D-055</a>…<a href="decision-log.html#d-062">D-062</a>). There is
@@ -1995,51 +2093,11 @@
     <code>ok</code>/<code>FAIL</code> line, like every other section. The Go tests run against an
     <code>httptest</code> fake ai-manager that scripts a reply per request id and counts the POSTs it
     receives; none spawns a binary and none spends money. Only
-    <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.</p>
+    <a href="#ni-live-aim">live-aim-run.sh</a> calls a real model.
+    <strong>TC-275…TC-290 run as of v0.24.0</strong> and moved up to
+    <a href="#ni-aim">the adapter</a> and <a href="#ni-blueprint">the Blueprint</a> sections; the
+    twenty below wait for <code>M14.4</code>…<code>M14.6</code>.</p>
   </div>
-
-  <h3 id="ni-aim">The ai-manager adapter and the reply handoff (TC-275…TC-284)</h3>
-  <p><strong>Given</strong> the fake gateway scripted to answer a turn with <code>200</code>,
-  <code>session_id</code>, <code>input_tokens</code>, <code>output_tokens</code>, a positive
-  <code>cost_usd</code> and a reply ending in one valid <code>gaos-handoff</code> block,
-  <strong>then (TC-275, positive)</strong> the attempt records that session id and those tokens, and
-  its cost basis is <code>measured</code> with <code>invocation</code> <code>gateway</code>.
-  <strong>TC-279, positive:</strong> scripted to answer <code>202</code> and then
-  <code>processing</code> twice before the result, the adapter polls to one attempt, and a second
-  <code>Submit</code> with the same <code>X-Request-ID</code> leaves the fake's POST count for that id
-  at one. <strong>TC-280, positive:</strong> a reply with prose, an earlier fenced block of another
-  language and a final <code>gaos-handoff</code> block yields the final block as the handoff and the
-  whole text as the reply.</p>
-  <p>The negative half is the error mapping in
-  <a href="../architecture/gateway.html#error-mapping">The gateway §error mapping</a>, one case per
-  row. <strong>TC-276:</strong> a <code>410</code> on resume fails the attempt with signature
-  <code>session-lost</code>, and the fake records no <code>new_session</code> request in its place.
-  <strong>TC-277:</strong> a <code>200</code> carrying <code>metadata.session_warning</code> fails as
-  <code>turn-unsaved</code> though its handoff block is valid. <strong>TC-278:</strong> a
-  <code>409</code> closes no <code>TaskRun</code>, emits no <code>RunExited</code>, and leaves the task
-  READY. <strong>TC-281:</strong> three replies — no block, two blocks with different run ids, one
-  block whose <code>run</code> is the previous attempt's — each give <code>handoff-missing</code>.
-  <strong>TC-282:</strong> <code>cost_usd</code> absent, and <code>cost_usd: 0</code> with
-  <code>output_tokens: 900</code>, each give basis <code>unavailable</code> and never a zero cost.
-  <strong>TC-283:</strong> the boot smoke test returns an error when the fake is down and when its
-  <code>/v1/providers</code> lists no <code>claude</code>. <strong>TC-284:</strong> with the admin key
-  set to a marker string, the marker appears in none of the attempt, the events, the captured log or
-  any returned error.</p>
-
-  <h3 id="ni-blueprint">The Blueprint: render, publish, pin (TC-285…TC-290)</h3>
-  <p><strong>Given</strong> a product with a BRD, two policies and one knowledge source,
-  <strong>then (TC-285, positive)</strong> rendering it twice — and once under each store — yields
-  byte-identical files and one digest. <strong>TC-287, positive:</strong> after publishing version 1,
-  editing a policy leaves version 1's files and digest unchanged and changes only the draft.
-  <strong>TC-289, positive:</strong> the knowledge source appears in
-  <code>.claude/rules/70-knowledge-sources.md</code> with its URL, its pinned ref and its purpose.</p>
-  <p><strong>TC-286, negative:</strong> a policy whose body exceeds 64 KiB, and a custom policy whose
-  key would render outside <code>^\.claude/rules/[a-z0-9][a-z0-9._-]{0,80}\.md$</code>, each refuse the
-  publish with an error that names the policy's key, and create no version.
-  <strong>TC-288, negative:</strong> publishing twice with nothing changed creates one version and
-  one <code>BlueprintPublished</code>, not two. <strong>TC-290, negative:</strong> knowledge sources
-  with <code>http://</code> and with <code>https://user:token@host/…</code> are each refused when
-  added.</p>
 
   <h3 id="ni-workspace">The workspace, the sync and the turn (TC-291…TC-299)</h3>
   <p><strong>Given</strong> a product in tenant <code>t1</code> with code <code>p5</code>,

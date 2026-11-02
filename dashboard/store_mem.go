@@ -1328,6 +1328,8 @@ func (s *MemStore) latestHandoffFor(deskID, taskID string, attempt int) (Artifac
 func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	pkt := Packet{
 		TaskID:    taskID,
+		RunID:     runIDFor(taskID, attempt),
+		Role:      s.roleFor(d),
 		DeskID:    d.ID,
 		Workspace: s.workspaceFor(d),
 	}
