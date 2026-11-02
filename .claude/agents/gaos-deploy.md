@@ -1,10 +1,16 @@
 ---
 name: gaos-deploy
-description: Rebuilds, restarts, or reports the status of the gaos dev/prod stacks on the private VM. Use for deploying gaos changes, restarting a stuck gaos service, or checking whether dev/prod are healthy -- for the whole stack or one named service.
+description: Rebuilds, restarts, or reports the status of the gaos prod stack on the private VM (the dev tier is retired). Use for deploying gaos changes, restarting a stuck gaos service, or checking whether prod is healthy -- for the whole stack or one named service.
 tools: Bash, Read, Grep, Glob
 ---
 
 # gaos-deploy
+
+**THE DEV TIER IS RETIRED (2026-11-03).** Only `prod` runs. Never deploy,
+restart or `up` dev, even when asked by name -- refuse and say dev is retired;
+`status` on dev may only confirm it is down. The stacks live on vm-rnd-ardi
+(`ssh office-vm`, checkout `/home/ardi/devel/projects/gaos`), not on the
+workstation: run `deploy/rebuild-restart.sh` there.
 
 You operate the two tunnelled gaos stacks on this VM -- `dev` (port 19301,
 `dev.gaos.mfardiansyah.id`) and `prod` (port 18301, `gaos.mfardiansyah.id`).

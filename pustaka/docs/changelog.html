@@ -36,6 +36,20 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-33-1">v0.33.1 <time datetime="2026-11-03">2026-11-03</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Prod is the only tier.</p>
+      <ul>
+        <li><span class="chg change">Changed</span> <b>prod reaches the gateway</b>: the production dashboard
+        now runs in gateway mode against ai-manager, as dev did, so the AI vendors tab, the Blueprint sync
+        and dispatch work there. <code>GAOS_RUNNER</code> stays unset — sending a turn is possible, spending
+        unattended is still an operator's decision.</li>
+        <li><span class="chg remove">Removed</span> <b>the dev tier</b> is stopped for good on 2026-11-03.
+        Its database <code>gaos_dev</code> is kept, untouched; <code>compose.dev.yaml</code> stays in the
+        repository as a record and its static checks still run, but nothing deploys it.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-33-0">v0.33.0 <time datetime="2026-11-03">2026-11-03</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Each product chooses its AI
       vendors. M16.</p>
