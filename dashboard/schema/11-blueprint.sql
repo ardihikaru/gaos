@@ -75,4 +75,6 @@ ALTER PROPERTY TaskRun.invocation REGEXP 'cli|api|gateway';
 -- the handoff never reached the graph ("background write did not reach the
 -- graph"). TestAnAttemptSurvivesARestart fails on the scratch database without
 -- this line. Widened in place, for the same reason as TaskRun.invocation above.
-ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|upload|handoff';
+-- M14.5 adds 'prompt' and 'reply': a gateway turn's transcript, stored per attempt
+-- because the session that carried it expires (BR-41).
+ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|upload|handoff|prompt|reply';

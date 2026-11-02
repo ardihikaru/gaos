@@ -978,7 +978,11 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 		return Result{}, reject("This desk already has a task in flight.")
 	}
 
-	pkt := s.freezePacket(*d, 1)
+	attempt := s.nextAttemptLocked(taskIDOf(*d))
+	pkt := s.freezePacket(*d, attempt)
+	if ta, ok := s.adapter.(TurnAdapter); ok {
+		pkt.SessionID, pkt.SessionReason = s.sessionForLocked(taskIDOf(*d), ta, time.Now().Unix())
+	}
 	cleared, v, err := Screen(s.egress, s.target, pkt)
 	// BR-39, the operator's route: drift refuses exactly as the scheduler's
 	// does, through the same refusal branch below, so the timeline cannot tell
@@ -1067,7 +1071,7 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 	if s.adapter != nil && runnerEnabled() {
 		ad, deskID, cl := s.adapter, d.ID, cleared
 		run := context.WithoutCancel(ctx)
-		go func() { _, _ = s.superviseRun(run, ad, deskID, cl, 1) }()
+		go func() { _, _ = s.superviseRun(run, ad, deskID, cl, attempt) }()
 	}
 
 	return s.result("Dispatched. The slice cleared the egress pass.", ev...), nil

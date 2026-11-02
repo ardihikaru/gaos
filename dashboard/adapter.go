@@ -105,6 +105,11 @@ type Attempt struct {
 	// Through the gateway only; empty for the CLI. Recorded, never branched on.
 	RequestID string
 	SessionID string
+	// Prompt and Reply are the turn's transcript, kept because the session
+	// that carried them expires (BR-41). Empty for the CLI, whose evidence is
+	// its log on disk.
+	Prompt string
+	Reply  string
 }
 
 // Outcome is what happened to the WORK.

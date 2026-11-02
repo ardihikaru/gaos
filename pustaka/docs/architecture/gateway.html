@@ -34,8 +34,10 @@
     provisioning API (<a href="#upstream">last section</a>, live on prod since 2026-11-02), and the
     ai-manager adapter with the reply handoff and the error mapping below
     (<code>GAOS_MODEL_MODE=aimanager</code>), and since v0.25.0 one workspace per product with its
-    sync, the drift gate and one live turn per product. <strong>Not yet:</strong> sessions per task
-    and recovery by request id — <a href="../delivery/implementation-plan.html#sub-m14-5">M14.5</a>. Until then a gateway turn
+    sync, the drift gate and one live turn per product, and since v0.27.0 a session per task and recovery
+    by request id (<a href="../delivery/implementation-plan.html#sub-m14-5">M14.5</a>), proved by one
+    real turn through <code>live-aim-run.sh</code>. <strong>Not yet:</strong> the board (M14.6) and the
+    retirement of the CLI path (M14.7). Until then a gateway turn
     always opens a new session, and the CLI adapter of <a href="../product/brd.html#to-be-cli">BRD
     §7.6</a> is still the default.</p>
   </div>

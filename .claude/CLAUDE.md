@@ -59,7 +59,7 @@ every check identical are exempt.
    - the register intro on the same page ("All three hundred and thirteen cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
-     the Go unit-test count, currently "two hundred and twenty-four"
+     the Go unit-test count, currently "two hundred and twenty-eight"
 
    Do **not** change the older counts in `pustaka/docs/changelog.html` — the
    "fifty-three" in the v0.3.0 note, the "one hundred and eight" in v0.6.0 and
@@ -102,13 +102,14 @@ packet and the handoff contract in `dashboard/packet_test.go`, and
 `TC-268`…`TC-273` the live model call in `deploy/acceptance/live-cli-run.sh`,
 and `TC-274` the schema-apply counts in `dashboard/store_conformance_test.go` — **one row per `func Test…`**,
 because that is the unit `go test -run` can select. The register currently covers
-224 Go tests: 202 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
+228 Go tests: 206 in `dashboard/`, 22 in `pustaka/`. Adding a test means adding
 its row and its `h3`; the gap that used to be here is closed and must not reopen.
 
 `TC-275`…`TC-290` became Go tests in v0.24.0 (`aimanager_test.go`, `blueprint_test.go`; their
 sections kept the `ni-aim` / `ni-blueprint` anchors), and `TC-311`/`TC-312` are the two Blueprint tests
 no forward spec described. `TC-291`…`TC-295` became Go tests in v0.25.0 (`workspace_test.go`, section
-`go-workspace`). `TC-296`…`TC-310` are still **forward specifications** for milestone M14 (the ai-manager
+`go-workspace`). `TC-296`…`TC-303` became tests in v0.27.0 (`turns_test.go`; `deploy/acceptance/live-aim-run.sh`
+for 300–303). `TC-304`…`TC-310` are still **forward specifications** for milestone M14 (the ai-manager
 gateway, the Blueprint, the board — D-055…D-062), all `Not implemented`, with their
 prose under `<h2 id="not-implemented">` (`ni-aim`, `ni-blueprint`, `ni-workspace`,
 `ni-live-aim`, `ni-board`). They were written before the code on purpose. When a

@@ -36,6 +36,30 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-27-0">v0.27.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A turn is now a first-class
+      thing: a session per task, recovered by its request id, its transcript kept. M14.5 — and the first
+      real turn through the gateway, which came back <code>outcome complete</code>.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a session per task</b> (D-056): a retry resumes it, an
+        escalation, a lost session or one older than <code>GAOS_AIM_SESSION_MAX_AGE</code> opens a new one;
+        <code>SessionOpened</code> and <code>SessionLost</code> join the catalog and the fold.</li>
+        <li><span class="chg add">Added</span> <b>recovery by request id</b> (D-060): every open gateway
+        run is polled at boot and finished into the same attempt a supervised run gets; a request the
+        gateway no longer knows is orphaned as <code>request-lost</code> and holds its product until the
+        turn deadline before it is requeued, on a new session.</li>
+        <li><span class="chg add">Added</span> <b>the transcript</b> (BR-41): each turn's prompt and reply
+        are stored as artifacts, so they outlive the session.</li>
+        <li><span class="chg add">Added</span> <code>deploy/acceptance/live-aim-run.sh</code> — one real
+        turn through ai-manager, against a provisioned workspace; passed on its first run.</li>
+        <li><span class="chg fix">Fixed</span> <b>three things the CLI path was hiding.</b> Every
+        scheduled task was dispatched as attempt 1, so a retry would have reused the first request id and
+        been answered with the old result; the runner refused a packet with no local folder, so dev could
+        not run a gateway turn; and recovery's adopt branch never collected the run it adopted.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-26-0">v0.26.0 <time datetime="2026-11-02">2026-11-02</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The graph moves to the
       production-ready database host, and dev talks to a real model gateway.</p>
