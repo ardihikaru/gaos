@@ -1314,11 +1314,25 @@ func failureLesson(runID, sig, body string) string {
 // correct rather than inconvenient: attempt two really was given a different
 // instruction.
 func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
+	// The task's kind decides the shape of this packet (M17, D-069). A review
+	// gets a packet of its own -- the design and the rubric, and nothing else.
+	kind := TaskKindImplement
+	if t := s.taskByIDLocked(taskID); t != nil {
+		kind = taskKind(t.Kind)
+	}
 	pkt := Packet{
 		TaskID: taskID,
 		RunID:  runIDFor(taskID, attempt),
 		Role:   s.roleFor(d),
 		DeskID: d.ID,
+		Kind:   kind,
+	}
+	// A review runs in the product's own reviewer workspace (M17.5, D-071): a
+	// second root that holds the published Blueprint and none of the author's
+	// files. The kind is known here, so the id is derived once, and the store
+	// and the adapter cannot disagree about where the turn runs.
+	if kind == TaskKindReview {
+		pkt.WorkspaceID = s.reviewerWorkspaceID(d.ID)
 	}
 	add := func(path, kind, body string) {
 		if strings.TrimSpace(body) != "" {
@@ -1346,11 +1360,16 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// section of a long input and read as background by the time the work was
 	// done. Two mentions and a standing system prompt, because an attempt whose
 	// work GAOS cannot see is an attempt that did not happen (BR-30).
-	add(".gaos/packet/task.md", KindTask,
-		"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+
-			"\n\n## Definition of done\nThe work above, AND the handoff: one gaos-handoff block at the end "+
-			"of your reply — see .gaos/packet/handoff.md for its exact shape. "+
-			"A reply that does the work and carries no block is recorded as failed.\n")
+	// A review sees none of this. The brief, the goal and the contract are the
+	// author's side of the desk, and D-069 clause 3 withholds them from the
+	// reviewer: what is withheld is the author's session state.
+	if kind != TaskKindReview {
+		add(".gaos/packet/task.md", KindTask,
+			"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+
+				"\n\n## Definition of done\nThe work above, AND the handoff: one gaos-handoff block at the end "+
+				"of your reply — see .gaos/packet/handoff.md for its exact shape. "+
+				"A reply that does the work and carries no block is recorded as failed.\n")
+	}
 
 	// The contract, T-062. In the packet rather than bolted onto the instruction
 	// at spawn time, and that placement is the requirement rather than a
@@ -1358,7 +1377,7 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// what it was given, so it belongs inside the frozen slice and inside the
 	// digest. A replay can then prove both halves.
 	add(".gaos/packet/handoff.md", KindContract,
-		gatewayContract(taskID, runIDFor(taskID, attempt), s.roleFor(d)))
+		contractsFor(kind, taskID, runIDFor(taskID, attempt), s.roleFor(d)))
 
 	// What the previous attempt handed over, T-064. It reaches this agent HERE
 	// and nowhere else -- as a cited part of its own frozen slice, not by
@@ -1375,24 +1394,30 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// slice, cited, like the handoff below -- and on the packet as well, so the
 	// gateway adapter can send it through the answer route that resumes the
 	// session which asked.
-	if q, ok := s.answerForLocked(taskID, attempt); ok {
-		const path = ".gaos/packet/context/answer.md"
-		body := questionBody(q.QuestionPayload)
-		add(path, KindContext, body)
-		cite("Artifact", q.RunID+"-question", CiteLesson, path, body)
-		if q.Attempt == attempt-1 {
-			pkt.Answer = &PacketAnswer{QuestionID: q.ID, Choice: q.Choice, Text: q.Text}
+	// The operator's answer and the previous stage's handoff are the author's
+	// session state, and a reviewer gets neither (D-069 clause 3). The handoff
+	// chain is desk-scoped on purpose (latestHandoffFor), so without this the
+	// reviewer would inherit the author's handoff by default.
+	if kind != TaskKindReview {
+		if q, ok := s.answerForLocked(taskID, attempt); ok {
+			const path = ".gaos/packet/context/answer.md"
+			body := questionBody(q.QuestionPayload)
+			add(path, KindContext, body)
+			cite("Artifact", q.RunID+"-question", CiteLesson, path, body)
+			if q.Attempt == attempt-1 {
+				pkt.Answer = &PacketAnswer{QuestionID: q.ID, Choice: q.Choice, Text: q.Text}
+			}
 		}
-	}
 
-	if a, ok := s.latestHandoffFor(d.ID, taskID, attempt); ok {
-		path, body := ".gaos/packet/context/handoff-previous.md", a.Body
-		if sig := s.failureOfRunLocked(a.RunID); sig != "" {
-			path = ".gaos/packet/context/failure-previous.md"
-			body = failureLesson(a.RunID, sig, a.Body)
+		if a, ok := s.latestHandoffFor(d.ID, taskID, attempt); ok {
+			path, body := ".gaos/packet/context/handoff-previous.md", a.Body
+			if sig := s.failureOfRunLocked(a.RunID); sig != "" {
+				path = ".gaos/packet/context/failure-previous.md"
+				body = failureLesson(a.RunID, sig, a.Body)
+			}
+			add(path, KindContext, body)
+			cite("Artifact", a.ID, CiteLesson, path, body)
 		}
-		add(path, KindContext, body)
-		cite("Artifact", a.ID, CiteLesson, path, body)
 	}
 
 	m := s.masterPtr(d.ID)
@@ -1415,6 +1440,25 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	}
 	add(rulesPath, KindRules, rules.String())
 
+	// THE REVIEW PACKET. The design and the rubric, and nothing else.
+	//
+	// This is D-069 clause 3 made mechanical: the reviewer's packet carries the
+	// design artifact and the domain rules, and the author's brief, goal,
+	// contract, handoff, failure lesson, operator answer, stories and
+	// acceptance criteria are all withheld.
+	if kind == TaskKindReview {
+		const designPath = ".gaos/packet/design.md"
+		if t := s.taskByIDLocked(taskID); t != nil {
+			if designID := s.gateDesignDepLocked(t); designID != "" {
+				if art, ok := s.designArtifactFor(designID); ok {
+					add(designPath, KindDesign, art.Body)
+					cite("Artifact", art.ID, CiteDesign, designPath, art.Body)
+				}
+			}
+		}
+		return pkt
+	}
+
 	const recordPath = ".gaos/packet/context/record.md"
 	var ctxb strings.Builder
 	for _, st := range m.Stories {
@@ -1430,6 +1474,33 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 		cite("Decision", m.ID+"-"+a.ID, CiteDecision, recordPath, a.Title)
 	}
 	add(recordPath, KindContext, ctxb.String())
+
+	// The implementation task under the gate gets the design it is
+	// implementing and the findings that were made about it, so that the
+	// implementer sees the review that rejected it (D-069 clause 6).
+	//
+	// Both are found by the DEPENDS_ON edge: the design is the artifact of the
+	// design task the review depends on, and the findings are the artifact of
+	// the review task this task depends on. No new field on the task carries
+	// either, because the edge is the gate.
+	if kind == TaskKindImplement {
+		if t := s.taskByIDLocked(taskID); t != nil {
+			if reviewID := s.gateReviewDepLocked(t); reviewID != "" {
+				if art, ok := s.reviewArtifactFor(reviewID); ok {
+					const path = ".gaos/packet/context/findings.md"
+					add(path, KindContext, art.Body)
+					cite("Artifact", art.ID, CiteLesson, path, art.Body)
+				}
+				if designID := s.gateDesignDepLocked(s.taskByIDLocked(reviewID)); designID != "" {
+					if art, ok := s.designArtifactFor(designID); ok {
+						const path = ".gaos/packet/design.md"
+						add(path, KindDesign, art.Body)
+						cite("Artifact", art.ID, CiteDesign, path, art.Body)
+					}
+				}
+			}
+		}
+	}
 
 	// The repository half. Every part is still screened against the
 	// allowlist, and sorted so the digest does not depend on who supplied it.
@@ -1794,49 +1865,65 @@ func (s *MemStore) PlanWorkflow(ctx context.Context, d WorkflowDraft) ([]PlanTas
 	}
 
 	var plan []PlanTask
-	add := func(title, role, story string, deps []string, gate bool) string {
+	// add is the plan builder. The kind says what the task IS: an ordinary
+	// implementation, a design, or a review. M17's gate is the DEPENDS_ON
+	// edge between them, so the kind and the edge are written together here.
+	add := func(title, role, story string, deps []string, gate bool, kind string) string {
 		id := fmt.Sprintf("t-%d", len(plan)+1)
 		model := roles[role].Model
-		if gate {
+		// The reviewer's model is set outright, and NOT through the gate flag:
+		// the gate flag means "a human releases this" and is persisted as
+		// approvalRequired (store_arcade.go:667). A review that cannot follow
+		// the design proves nothing, so a review runs on opus whatever the role
+		// would have used.
+		if gate || kind == TaskKindReview {
 			model = "claude-opus-5"
 		}
 		plan = append(plan, PlanTask{
 			ID: id, Title: title, Role: role, Story: story,
-			Deps: deps, Model: model, Gate: gate,
+			Deps: deps, Model: model, Gate: gate, Kind: kind,
 		})
 		return id
 	}
 	after := func(ids ...string) []string { return ids }
 
-	p1 := add("Read the record and split the goal into tasks", "planner", "", nil, false)
-	arch := add("Confirm boundaries against the diagrams and ADRs", "architect", "", after(p1), false)
+	p1 := add("Read the record and split the goal into tasks", "planner", "", nil, false, TaskKindImplement)
+	arch := add("Confirm boundaries against the diagrams and ADRs", "architect", "", after(p1), false, TaskKindImplement)
 
-	// One implement/verify pair per picked story, each pair hanging off the
-	// architect rather than off the previous pair. That is the fan-out: two
-	// stories are two independent branches, and the scheduler is free to run
-	// both the moment the architect is done.
+	// One design/review/implement/verify chain per picked story, each chain
+	// hanging off the architect rather than off the previous chain. That is the
+	// fan-out: two stories are two independent branches, and the scheduler is
+	// free to run both the moment the architect is done.
+	//
+	// The IMPLEMENT task depends on the REVIEW task, and that edge is the gate
+	// (D-069 clause 7): the scheduler holds a task whose prerequisite is not
+	// DONE, and the gate is what makes the review DONE.
 	var verifiers []string
 	for _, st := range m.Stories {
 		if !picked[st.ID] {
 			continue
 		}
-		impl := add("Implement "+st.Want, "backend", st.ID, after(arch), false)
+		des := add("Design: "+st.Want, "architect", st.ID, after(arch), false, TaskKindDesign)
+		rev := add("Review the design: "+st.Want, "qa", st.ID, after(des), false, TaskKindReview)
+		impl := add("Implement "+st.Want, "backend", st.ID, after(rev), false, TaskKindImplement)
 		ac := "acceptance criteria for " + st.ID
 		if len(st.AC) > 0 {
 			ac = st.AC[0]
 		}
-		verifiers = append(verifiers, add("Verify: "+ac, "qa", st.ID, after(impl), false))
+		verifiers = append(verifiers, add("Verify: "+ac, "qa", st.ID, after(impl), false, TaskKindImplement))
 	}
 	if len(verifiers) == 0 {
-		impl := add("Implement the objective", "backend", "", after(arch), false)
-		verifiers = append(verifiers, add("Write integration tests", "qa", "", after(impl), false))
+		des := add("Design the objective", "architect", "", after(arch), false, TaskKindDesign)
+		rev := add("Review the design", "qa", "", after(des), false, TaskKindReview)
+		impl := add("Implement the objective", "backend", "", after(rev), false, TaskKindImplement)
+		verifiers = append(verifiers, add("Write integration tests", "qa", "", after(impl), false, TaskKindImplement))
 	}
 
 	// And the fan-in. Security waits on every verifier there is, so its
 	// prerequisite count is a property of the record rather than a number
 	// written here.
-	sec := add("Review the security and pricing edge cases", "security", "", verifiers, false)
-	add("Prepare the rollout and record the lesson", "devops", "", after(sec), d.Gate)
+	sec := add("Review the security and pricing edge cases", "security", "", verifiers, false, TaskKindImplement)
+	add("Prepare the rollout and record the lesson", "devops", "", after(sec), d.Gate, TaskKindImplement)
 	return plan, nil
 }
 
@@ -1899,6 +1986,7 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 		s.tasks = append(s.tasks, TaskRecord{
 			ID: t.ID, WorkflowID: wf, DeskID: d.ProductID,
 			Title: t.Title, Role: t.Role, Story: t.Story, Model: t.Model,
+			Kind:   taskKind(t.Kind),
 			Status: StatusPending, Deps: append([]string(nil), t.Deps...),
 			Priority: taskPriority(d.Priority), Ordinal: i, Gate: t.Gate,
 		})
@@ -1932,11 +2020,34 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 			ID: t.ID, Title: t.Title, Role: t.Role,
 			Deps:  append([]string(nil), t.Deps...),
 			Story: t.Story, Model: t.Model, Gate: t.Gate, Priority: taskPriority(d.Priority),
+			Kind: taskKind(t.Kind),
 		})
 	}
 	ev := []Event{
 		s.emit(WorkflowCreated, dk.ID, d.Goal, KindInfo, deskPayload(*dk)),
 		s.emit(TaskPlanned, dk.ID, fmt.Sprintf("%d tasks planned from the product master", len(plan)), KindKnow, planned),
+	}
+
+	// M17: an implementation task under the gate is BLOCKED from the moment the
+	// graph is written, and the reason says why.
+	//
+	// The DEPENDS_ON edge is what HOLDS it -- the scheduler refuses a task
+	// whose prerequisite is not DONE (scheduler.go:363-376). This is what SAYS
+	// so: without it the operator sees a card that is merely waiting, and the
+	// waiting is not the ordinary kind, because what it waits for is a review
+	// nobody has been dispatched to write yet.
+	for i := range s.tasks {
+		t := &s.tasks[i]
+		if taskKind(t.Kind) != TaskKindImplement {
+			continue
+		}
+		if s.gateReviewDepLocked(t) == "" {
+			continue
+		}
+		t.BlockReason = ReasonDesignUnreviewed
+		if m, ok := s.moveTaskLocked(t.ID, StatusBlocked, RuleGateUnwired); ok {
+			ev = append(ev, m)
+		}
 	}
 	s.focusIdx = idx
 	s.replayAtSeq = liveMode

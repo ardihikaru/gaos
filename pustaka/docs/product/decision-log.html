@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Sixty-three entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Seventy-one entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-11-02"
+       data-updated="2026-11-04"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -1187,6 +1187,254 @@
         it never crosses to the other vendor, and nothing falls back silently.</td>
         <td>Product-owner request, 2026-11-03; <a href="qa-test-plan.html#go-vendors">TC-343…TC-356</a>;
         <code>dashboard/vendors.go</code>; extends <a href="#d-041">D-041</a></td>
+      </tr>
+
+      <tr id="d-068">
+        <td>D-068</td><td>2026-11-04</td>
+        <td><strong>A design is reviewed by someone who cannot see the conversation that produced it, and
+        the implementation does not start until that review resolves.</strong> The
+        <em>Elephant-Goldfish Model</em> — the author holds the context and drafts the design; fresh
+        reviewers with no memory of that conversation read the design alone and attack it. GAOS takes it
+        in two layers, and this ruling fixes the one the product runs. <em>Answers nothing yet; it
+        narrows</em> <a href="open-questions.html#oq-32">OQ-32</a>.
+        <br><br>
+        <strong>Superseded in part by <a href="#d-069">D-069</a></strong> (2026-11-04), which
+        <em>answers</em> OQ-32: the isolation mechanism is decided, T-184 becomes the first
+        <em>build</em> task rather than a decision, and clauses 3, 5 and 6 below are refined by
+        it. Read D-068 together with D-069.
+        <br><br>
+        Nine clauses. (1) An implementation task is not dispatched while its design artifact is
+        unreviewed, and never while the review carries an open Blocker. (2) The design artifact is an
+        <code>Artifact</code> of kind <code>design</code>; the review is a <code>Task</code> of kind
+        <code>review</code>, with its own <code>TaskRun</code> and request id, on a fresh session with
+        reason <code>reviewer</code>. (3) The reviewer is fed from GAOS-held state
+        (<a href="brd.html#rules-gateway">BR-41</a>), never from a resumed session: its packet carries
+        the design and the rubric, and not the implement task's brief, its handoffs or the history of
+        failed attempts. This is the deliberate inverse of <a href="#d-056">D-056</a>. (4) The findings
+        travel back: the dispositioned list is attached to the implement task's next packet, so the
+        implementer <a href="#d-056">D-056</a> promises to see actually does. (5) The gate's findings are
+        recorded as a <code>Review</code> vertex with <code>kind = 'design'</code> — a discriminator,
+        because the existing <code>Review</code> vertex belongs to the M5 score-band review engine and
+        the two have incompatible meanings; <code>verdict</code> is <code>ITERATE</code> while a Blocker
+        is open and <code>ACCEPT</code> when none is; the score columns are unused, so the record needs
+        them relaxed or a second vertex type. <em>(Clause 5 is superseded by
+        <a href="#d-069">D-069</a>, which records the gate's findings as an <code>Artifact</code> of kind
+        <code>review</code> and leaves the <code>Review</code> vertex to M5.)</em> (6) The gate is a
+        <code>DEPENDS_ON</code> edge and the
+        existing <code>BLOCKED</code> status — the planner's own mechanism — not a new task status, so
+        the closed <code>Task.status</code> vocabulary stays closed. <em>(Clause 6 is refined by
+        <a href="#d-069">D-069</a>, which also names the scheduler's existing dependency block as the
+        place the gate actually blocks.)</em> (7) A failed review is not a verdict:
+        it consumes none of the three attempt-scoped limits, moves the review task to
+        <code>BLOCKED</code> with reason <code>review-failed</code>, and never wedges the product. (8)
+        Review turns are metered against the same budget caps as any other turn. (9) The term is
+        <em>design gate</em>, distinct from the BRD's existing <em>design review</em>, which is a
+        post-failure meeting: all six of that phrase's occurrences are amended to say which they mean.
+        <br><br>
+        The platform half was <em>specified, not built</em> when this was ruled;
+        <a href="#d-070">D-070</a> records how it was built. <a href="brd.html#rules-design-review">BR-46</a>
+        to BR-50 carry the rules, <a href="../delivery/implementation-plan.html#m17-design-gate">M17</a>
+        carries the work with T-184…T-188, and
+        <a href="qa-test-plan.html#go-designgate">TC-359…TC-365</a> are its forward specifications. Nothing in
+        Go changes in this release: the event catalog is closed
+        (<a href="brd.html#rules-invariants">BR-05</a>).
+        <br><br>
+        The harness half — the same gate applied to changes in this repository — ships now:
+        <code>.claude/rules/</code> is the reviewers' rubric, five
+        <code>gaos-goldfish-*</code> agents are the lenses, and
+        <code>deploy/check-workspace.sh</code> keeps the drift from coming back.</td>
+        <td>Product-owner request, 2026-11-04;
+        <code>docs/designs/egm-design-review.md</code> and its two review rounds;
+        <a href="qa-test-plan.html#cw-workspace">TC-357</a>, <a href="qa-test-plan.html#go-designgate">TC-359…TC-364</a>;
+        extends <a href="#d-056">D-056</a>, <a href="#d-058">D-058</a>, <a href="#d-061">D-061</a></td>
+      </tr>
+
+      <tr id="d-069">
+        <td>D-069</td><td>2026-11-04</td>
+        <td><strong>A platform reviewer is isolated by the packet, not by the workspace. The standing
+        files stay whole, the design travels as a GAOS-held artifact, and what is withheld is the
+        author's session state.</strong> This <strong>answers</strong>
+        <a href="open-questions.html#oq-32">OQ-32</a> and <em>amends</em> <a href="#d-068">D-068</a>,
+        whose clauses 3, 5 and 6 it refines.
+        <br><br>
+        <strong>Clause 1 is superseded in part by <a href="#d-071">D-071</a> (2026-11-04)</strong>:
+        the isolation boundary is the packet <em>and</em> the workspace. The reviewer's workspace is
+        no longer the product's own &mdash; it is the product's own <em>reviewer</em> workspace, a
+        second root holding the same standing files and none of the author's files. Clauses 2 and 3
+        stand: the standing files are still the rubric and stay whole, and the author's session
+        state is still what is withheld.
+        <br><br>
+        Ten clauses. (1) <strong>The isolation boundary is the packet.</strong> A reviewer's packet
+        carries exactly two kinds — <code>design</code> and <code>rules</code> — and not
+        <code>task</code>, <code>context</code>, <code>handoff</code> or <code>contract</code>. The
+        reviewer's <em>workspace</em> is the product's own workspace, holding the published Blueprint
+        whole; the workspace is not a boundary. (2) <strong>The standing files are the rubric, not
+        contamination, and they stay exactly as published.</strong> A reviewer judges a design against
+        the product's domain rules, so a workspace holding the rubric but not the Blueprint would be
+        a drifting workspace under <a href="brd.html#rules-gateway">BR-39</a>, and the Blueprint is
+        the digest-checked published artifact. So the two candidates that reduce the standing files
+        stay inadmissible — and the third is unnecessary, because the reviewer does not need a
+        different workspace, it needs a different packet. (3) <strong>What is withheld is the
+        author's session state, not the product's rules:</strong>
+        <code>handoff-previous.md</code>, <code>failure-previous.md</code> and
+        <code>answer.md</code> — the previous stage's handoff, the failure lesson drawn from it, and
+        the operator's answer to the author's question. Those are how an author's assumptions travel.
+        The product's problem statement, domain rules and out-of-scope list are the <em>constraints</em>
+        the design is judged against, and they travel as <code>rules</code>. (4) <strong>This is the
+        default behaviour today, not a hypothetical.</strong> <code>freezePacketFor</code> is
+        per-desk, not per-task-kind (<code>dashboard/store_mem.go:1316</code>), and
+        <code>latestHandoffFor</code> is desk-scoped on purpose
+        (<code>dashboard/store_mem.go:1248</code>): the next stage at a desk inherits the previous
+        stage's handoff, so a workflow's stages chain. A review is a stage at that desk. Without a
+        change, a reviewer inherits the author's handoff — the exact contamination the gate exists
+        to prevent. (5) <strong>The design travels as a GAOS-held artifact.</strong> A new packet
+        part kind <code>design</code>, at <code>.gaos/packet/design.md</code>, screened outbound like
+        every other part. There is no other route: <code>repoParts</code> is nil in every deployment
+        (<code>dashboard/store_mem.go:168</code>), so a reviewer has no folder to open, and
+        <a href="brd.html#rules-gateway">BR-42</a>'s allowlist admits only <code>CLAUDE.md</code> and
+        <code>.claude/rules/*.md</code>. A design that lives in a repository cannot reach a reviewer
+        in this product. (6) <strong>The findings travel back as context.</strong>
+        <code>.gaos/packet/context/findings.md</code>, a <code>KindContext</code> part, verbatim —
+        the same semantics as the previous handoff. This is D-068's clause 4 made concrete, and it
+        is what makes <a href="#d-056">D-056</a>'s promise — the implementer sees the review that
+        rejected it — true rather than aspirational. (7) <strong>The gate is the planner's own
+        mechanism.</strong> A <code>DEPENDS_ON</code> edge, the existing <code>BLOCKED</code> status,
+        and the scheduler's existing dependency block. No new task status, so the closed
+        <code>Task.status</code> DDL regexp and its vocabulary test stay untouched. (8)
+        <strong>The gate's record is an artifact, not the <code>Review</code> vertex.</strong> This
+        amends D-068's clause 5: the <code>Review</code> vertex belongs to M5's score-band engine —
+        <code>verdict</code> is a closed six-value regexp and <code>finalScore</code> is mandatory
+        (<code>dashboard/schema/06-judgment.sql:14-26</code>) — and a design gate has no score to
+        record and no band to fall in. The gate's live state is the task graph; its findings are an
+        <code>Artifact</code> of kind <code>review</code>. The <code>Review</code> vertex is left as
+        M5 left it, and no schema relaxation is needed. (9) <strong>Three closed vocabularies grow
+        by one value each.</strong> <code>Task</code> gains a <code>kind</code> property with the
+        values <code>implement|design|review</code>, because the packet builder must be able to tell
+        a review task from an implement task; <code>Artifact.kind</code> widens to admit
+        <code>design</code> and <code>review</code>; and the citation roles gain
+        <code>design</code>, so the design artifact is cited by the part that carries it.
+        (10) <strong>A limit, recorded rather than solved.</strong> <code>Screen()</code> is
+        outbound-only: a reply is stored verbatim as an artifact of kind
+        <code>reply</code> (<code>dashboard/runner.go:190-215</code>). A finding that quotes a
+        secret is therefore already in the append-only store by the time the outbound pass refuses
+        the next dispatch. The egress pass is the backstop, not the cure; inbound screening is a
+        separate piece of work and is not claimed here.
+        <br><br>
+        <strong>The content dimension, answered.</strong> The standing files may contain what they
+        already contain: the published Blueprint, whole. The question was framed as though the
+        standing files were a leak, and the code says otherwise — they are the rubric. What may not
+        <em>leave</em> the review is the matched text of anything, and that is already the finding
+        shape: a finding records WHERE a detector fired and never WHAT it matched
+        (<code>dashboard/egress.go:222-238</code>), so a reviewer cites a standing file by path and
+        line the same way it cites the design. The content risk is handled at the sink, not at the
+        source.
+        <br><br>
+        <strong>What this ruling does not close.</strong> The Blueprint renders every decision into
+        the standing files with no bound on their number
+        (<code>dashboard/blueprint_render.go:90</code>), so a workspace's context grows with the
+        decision log. That is a context-cost problem, not an isolation problem — the decisions are
+        product knowledge, not the author's process — and it stays open as its own item rather than
+        being folded into the gate. Nothing in Go changes in this release; the event catalog is
+        closed (<a href="brd.html#rules-invariants">BR-05</a>).</td>
+        <td>Code reading of <code>dashboard/store_mem.go</code>,
+        <code>dashboard/egress.go</code>, <code>dashboard/runner.go</code> and
+        <code>dashboard/schema/</code>, 2026-11-04;
+        <code>docs/designs/egm-design-review.md</code>;
+        <a href="qa-test-plan.html#go-designgate">TC-361</a>, <a href="qa-test-plan.html#go-designgate">TC-365</a>;
+        answers <a href="open-questions.html#oq-32">OQ-32</a>;
+        amends <a href="#d-068">D-068</a>; adds
+        <a href="brd.html#rules-design-review">BR-49</a> and BR-50</td>
+      </tr>
+
+      <tr id="d-070">
+        <td>D-070</td><td>2026-11-04</td>
+        <td><strong>The design gate is built.</strong> M17's five tasks landed: a plan can carry a
+        <em>review</em> task, the reviewer's prompt holds the design and the rubric and nothing else,
+        and the implementation waits for the review to resolve. This ruling records how, and it
+        <em>answers nothing</em> — it implements
+        <a href="#d-069">D-069</a>, which is the decision that made it possible.
+        <br><br>
+        Eight clauses. (1) <strong>The gate is the planner's own
+        <code>DEPENDS_ON</code> edge.</strong> Each story's plan is
+        <code>design → review → implement → verify</code>, and the implementation depends on the
+        review. The edge is the gate: a dependency is satisfied only by <code>DONE</code>, and the
+        gate is what makes the review <code>DONE</code>. (2) <strong>A task carries a kind.</strong>
+        <code>Task.kind</code> is new, with three values — <code>implement|design|review</code> —
+        and it is what the packet builder, the reply contract and the gate all branch on. A task
+        with no kind is an implement task, and an unrecognised kind fails closed rather than open.
+        (3) <strong>The gate is enforced twice over.</strong> A plan whose implementation has no
+        review is refused before the first write, because the plan is an input to a public method and
+        not only the planner's own output; and the operator's dispatch route refuses a task whose
+        prerequisite is not done, because a gate with two doors and one lock is not a gate. The
+        board also refuses to unblock a task the gate is holding. (4) <strong>Two kinds reach
+        <code>DONE</code> on their own verdict.</strong> A design task whose document arrived, and a
+        review task whose verdict cleared. Every other task keeps today's behaviour: its run ends in
+        <code>REVIEW</code> and the operator approves it. (5) <strong>The reviewer's prompt carries
+        the design and the rubric and nothing else</strong> — no brief, no goal, no handoff, no
+        failure lesson, no operator's answer, no stories, no acceptance criteria. The contract part
+        stays in the frozen slice as the evidence of what the model was told, and does not reach
+        the prompt. (6) <strong>The findings travel back</strong>, at
+        <code>.gaos/packet/context/findings.md</code>, and the design goes with them at
+        <code>.gaos/packet/design.md</code>; both are found by the dependency edge, so no new field
+        carries them. (7) <strong>Two contracts.</strong> A design task owes a
+        <code>gaos-design</code> block and a review task a <code>gaos-review</code> block, each in
+        addition to the handoff every invocation owes. A finding is
+        <code>{severity, scope, note}</code>: the scope is a path and an optional line, validated
+        and bounded, and the note is one line that says what is wrong without quoting the text it
+        complains about. The verdict is derived from the findings, never declared. (8) <strong>A
+        failed review is not a verdict</strong> — the review task goes <code>BLOCKED</code> with
+        reason <code>review-failed</code> and consumes no retry, no escalation and no failure
+        signature.
+        <br><br>
+        Two things the milestone did <em>not</em> claim. The standing files in the reviewer's
+        workspace carry the product's stories and its decisions, so the isolation the gate provides
+        is over the packet and not over the context — BR-47 says so now. And BR-48's clearance is
+        <strong>refused</strong>, as BR-48 itself says, until the back office has a real identity
+        to check: M17 implements the dispatch stop and refuses the clearance.
+        <br><br>
+        Seventeen tests in <code>dashboard/designgate_test.go</code>, and the forward
+        specifications TC-359…TC-365 now run, with TC-366…TC-375 beside them. No event name was
+        added (BR-05): the gate speaks in <code>TaskMoved</code>'s rule and in artifacts.</td>
+        <td>Product-owner request, 2026-11-04;
+        <code>docs/designs/m17-design-gate.md</code> and its review round;
+        <a href="qa-test-plan.html#go-designgate">TC-359…TC-375</a>;
+        implements <a href="#d-069">D-069</a>;
+        amends <a href="brd.html#rules-design-review">BR-46</a>, BR-47 and BR-48</td>
+      </tr>
+      <tr id="d-071">
+        <td>D-071</td><td>2026-11-04</td>
+        <td><strong>A reviewer runs in the product's own reviewer workspace, not in the author's.</strong>
+        M17.5 closes the gap <a href="#d-069">D-069</a> left open and named: the isolation
+        boundary is the packet <em>and</em> the workspace. A product now has a second workspace,
+        <code>gaos-&lt;tenant&gt;-&lt;product&gt;-review</code>, holding the published Blueprint
+        byte-identical in its own root, and it is reset before every review turn &mdash; so the
+        reviewer's folder holds the standing files and nothing else: no author file, and no
+        earlier review's leftover.
+        <br><br>
+        Seven clauses. (1) <strong>One reviewer workspace per product</strong>, derived from the
+        tenant and the product, never from the shared override &mdash; which is retired, because one
+        folder for every product would give them one root and one initial context. (2)
+        <strong>The published Blueprint, whole</strong>: a reduced set would be drift under BR-39,
+        so the reviewer's copy is byte-identical to the product's. (3) <strong>The reset is the
+        drift check</strong>: the folder is re-synced with a prune before the turn, and its digest
+        verified, so a review never runs under rules the record says it never saw. (4)
+        <strong>The id travels on the packet</strong>, set where the task's kind is known, so the
+        store and the gateway cannot disagree about where the turn runs. (5) <strong>Drift belongs
+        to the folder the run touched</strong>: a reviewer's turn must not mark the author's
+        workspace drifted and refuse the author's next dispatch. (6) <strong>One live turn per
+        product</strong>, across both folders, so BR-38's text says "a product" now. (7)
+        <strong>The limits are named</strong>: the standing files still carry the product's stories
+        and decisions, and the two folders are siblings under one managed root &mdash; the gateway
+        documents a write boundary, not a read boundary between them.
+        <br><br>
+        Nine tests in <code>dashboard/reviewer_workspace_test.go</code>, and TC-382&hellip;TC-390
+        beside them. No task status, no agent role, no event name and no rule string was added;
+        one optional property, <code>TaskRun.workspace</code>, says which folder a run used.</td>
+        <td>M17.5;
+        <code>docs/designs/m17.5-reviewer-workspace.md</code> and its review round;
+        <a href="qa-test-plan.html#go-reviewer-workspace">TC-382&hellip;TC-390</a>;
+        amends <a href="#d-069">D-069</a>;
+        amends <a href="brd.html#rules-design-review">BR-38</a>, BR-47 and BR-49</td>
       </tr>
     </tbody>
   </table>

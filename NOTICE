@@ -34,6 +34,20 @@ The Go modules in this repository (`dashboard/`, `pustaka/`) depend on the Go
 standard library only and vendor no third-party Go code — neither has a
 `go.sum`. See `README.md`.
 
+  * The Elephant-Goldfish Model ......... Apache License 2.0
+    https://github.com/google/elephant-goldfish-model
+    The design-gate method in `docs/rules/gaos-design-review.md`, its
+    five-lens reviewer structure and its document standards. Not a
+    supported Google product.
+
+  * The Emil Kowalski design skills ...... MIT License
+    https://github.com/emilkowalski/skill
+    `break-ui`, `review-animations` and `emil-design-eng`, vendored under
+    .claude/skills/ at commit f1090bec277140d02ed202440185ad9d02ac1490.
+    `emil-design-eng` is a GAOS-modified edition: the upstream file with its
+    motion, framework and duplicate-craft sections cut, recorded in its
+    SOURCE.md.
+
 The documentation site vendors self-hosted web fonts and one JavaScript library,
 each under its own licence, in `pustaka/docs/assets/`:
 

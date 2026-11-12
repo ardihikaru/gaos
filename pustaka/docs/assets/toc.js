@@ -19,7 +19,7 @@ window.DOCS = {
   },
   product: {
     name: "GAOS",
-    semver: "0.33.1",
+    semver: "0.36.0",
     repo: "https://github.com/ardihikaru/gaos"
   },
   parts: [

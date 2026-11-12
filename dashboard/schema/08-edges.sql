@@ -63,7 +63,7 @@ CREATE PROPERTY MODIFIES.linesRemoved     INTEGER (min 0);
 -- let you tune the assembler with evidence instead of intuition.
 CREATE EDGE TYPE USES_CONTEXT IF NOT EXISTS EXTENDS GaosEdge;
 CREATE PROPERTY USES_CONTEXT.role   STRING (mandatory true, notnull true,
-                 regexp 'requirement|rule|boundary|story|criterion|diagram|decision|lesson|code|diff|policy');
+                 regexp 'requirement|rule|boundary|story|criterion|diagram|decision|lesson|code|diff|policy|design');
 CREATE PROPERTY USES_CONTEXT.weight FLOAT   (min 0, max 1);
 CREATE PROPERTY USES_CONTEXT.tokens INTEGER (min 0);
 

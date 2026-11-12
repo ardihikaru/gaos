@@ -260,6 +260,16 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 		s.mu.Unlock()
 		return s.dispatchNow(ctx, productID, taskID)
 	}
+	// M17: a task the design gate is holding cannot be unblocked by hand
+	// while its review has not resolved. The gate releases it, and it releases
+	// it because the review cleared -- not because somebody moved a card.
+	if action == MoveUnblock {
+		if gated, review := s.gateHoldsLocked(&t); gated {
+			s.mu.Unlock()
+			return Result{}, reject(fmt.Sprintf(
+				"%s is held by the design gate: %s has not resolved", t.ID, review))
+		}
+	}
 	to := map[string]string{MoveApprove: StatusDone, MoveRedo: StatusReady, MoveRetry: StatusReady,
 		MoveUnblock: StatusReady, MoveCancel: StatusCanceled}[action]
 	if err := canMoveTask(t, to); err != nil {
@@ -336,11 +346,22 @@ func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (R
 		s.mu.Unlock()
 		return Result{}, reject(drift.Reason)
 	}
+	// M17: the board's dispatch route applies the lease, the drift gate and
+	// the egress pass, and until now no dependency check at all -- so a card
+	// could be dispatched while its review had not resolved, and the gate would
+	// never run. This is the same rule the scheduler applies
+	// (scheduler.go:363-376), read through the same helper.
+	if waiting := s.unmetDepsLocked(taskID); len(waiting) > 0 {
+		s.mu.Unlock()
+		return Result{}, reject(fmt.Sprintf(
+			"%s waits on %s, and a task whose prerequisite is not done is not dispatched.",
+			taskID, strings.Join(waiting, ", ")))
+	}
 	attempt := s.nextAttemptLocked(taskID)
 	s.mu.Unlock()
 
 	d := Dispatch{TaskID: taskID, DeskID: productID}
-	c, v, err := s.clearFor(d, attempt)
+	c, v, err := s.clearFor(ctx, d, attempt)
 	if err != nil {
 		s.refuseDispatch(d, v)
 		return Result{}, reject(v.Reason)

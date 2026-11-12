@@ -96,6 +96,29 @@ window.DOCS.nav.push({
         { anchor: "upstream", title: "The upstream change: provisioning a workspace",
           text: "A managed root, an instruction-file allowlist, all-or-nothing writes and hot reload in ai-claude-cli; a provision route in ai-manager." }
       ]
+    },
+    {
+      id: "arch-design-gate",
+      file: "architecture/design-gate.html",
+      title: "The design gate",
+      desc: "The review step between a design and its implementation: the agent holding the context drafts the specification, and fresh reviewers with no memory of that conversation read it alone and attack it. Two layers — GAOS's own development loop, built, and the platform's own gate, designed and not built — plus the mechanism that isolates a platform reviewer, the five rules it is bound by, and the honest limit on both.",
+      tags: ["architecture", "design", "review", "agents", "context", "spec-driven-development", "egm"],
+      sections: [
+        { anchor: "the-problem", title: "The problem it answers",
+          text: "Nothing reviewed a design before it was built: the readiness rubric judges a record, the egress pass screens a packet, and the handoff contract judges a reply — all three act on work that already exists. The Elephant-Goldfish Model: the Elephant holds the context, the Goldfish read the document alone." },
+        { anchor: "two-layers", title: "Two layers, one method",
+          text: "The harness, built, where GAOS's own feature-sized changes start as documents and five lenses read them alone against GAOS's own rules; and the platform, designed but not built, where a design task produces an artifact and a review task reviews it." },
+        { anchor: "the-isolation", title: "The isolation, and its honest limit",
+          text: "omitClaudeMd excludes the author's memory by the runtime under Claude Code; everywhere else it is excluded by instruction, and a canary probe is the only evidence — specified with a control run so it can fail, and claiming only that the canary did not reach a report." },
+        { anchor: "the-isolation-mechanism", title: "How a platform reviewer is isolated",
+          text: "D-069 closed OQ-32: the isolation boundary is the packet, not the workspace. The standing files are the rubric and stay whole; the author's handoff, failure lesson and the operator's answer are what is withheld — and they arrive by default today, because a packet is frozen per desk. The design travels as a GAOS-held artifact, the findings travel back as context, and the gate is the planner's own edge and status." },
+        { anchor: "the-rules", title: "The rules it is bound by",
+          text: "BRD §9.7: a design artifact and a review before the first dispatch; a reviewer that sees the design and the rubric and not the brief, the goal, the handoff, the failure lesson, the operator's answer or the acceptance criteria; the isolation boundary at the packet, with the standing files whole; a design that travels only as a GAOS-held artifact; an open Blocker that stops the dispatch, with the clearance refused until the back office has a real identity." },
+        { anchor: "the-cost", title: "What it costs",
+          text: "Five sessions per design and no cap on the harness's spend; parallel in the harness, queued behind a product's single live turn in the platform; two measured numbers, against a baseline of roughly 30% worth acting on." },
+        { anchor: "in-the-repository", title: "Where it lives",
+          text: "The policy, the path-scoped rubric, the runbook skill, the designs and their append-only reports, and the validator that keeps the drift from coming back." }
+      ]
     }
     /* pustaka:insert — `pustaka new` adds entries above this marker */
   ]

@@ -12,13 +12,13 @@ restart or `up` dev, even when asked by name -- refuse and say dev is retired;
 (`ssh office-vm`, checkout `/home/ardi/devel/projects/gaos`), not on the
 workstation: run `deploy/rebuild-restart.sh` there.
 
-You operate the two tunnelled gaos stacks on this VM -- `dev` (port 19301,
-`dev.gaos.mfardiansyah.id`) and `prod` (port 18301, `gaos.mfardiansyah.id`).
-Each stack is four docker compose services: `traefik`, `landing`, `dashboard`,
-`docs`. Neither binds anything but the WireGuard tunnel address, `10.10.0.2`.
-`deploy/STACKS.md` is the topology reference; read it if anything here is
-ambiguous. `deploy/edge/README.md` covers the public edge (`clino`) -- that
-machine has no Docker and is out of scope for you; never touch it.
+You operate the **prod** stack on this VM -- `prod` (port 18301,
+`gaos.mfardiansyah.id`). It is four docker compose services: `traefik`,
+`landing`, `dashboard`, `docs`. None binds anything but the WireGuard tunnel
+address, `10.10.0.2`. `deploy/STACKS.md` is the topology reference; read it if
+anything here is ambiguous. `deploy/edge/README.md` covers the public edge
+(`clino`) -- that machine has no Docker and is out of scope for you; never
+touch it.
 
 ## How you act
 
@@ -29,7 +29,7 @@ distinction, and post-deploy verification (healthz, route codes, the
 `<base href>` check).
 
 ```
-deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--tag <ref> | --from-tree] [--allow-dirty] [--full-verify]
+deploy/rebuild-restart.sh prod <deploy|restart|status> [service] [--tag <ref> | --from-tree] [--allow-dirty] [--full-verify]
 ```
 
 - `deploy` = rebuild + restart (build then `up -d`). `restart` = restart the
@@ -38,8 +38,7 @@ deploy/rebuild-restart.sh <dev|prod> <deploy|restart|status> [service] [--tag <r
 - `service`, if given, is one of `traefik`, `landing`, `dashboard`, `docs` --
   scopes the action to just that container instead of the whole stack.
 - **`--tag <ref>` is required for prod.** It builds from a detached worktree at
-  that ref instead of the working tree. Dev needs no tag and builds from the
-  checkout, which is the point of dev.
+  that ref instead of the working tree.
 - Use `--full-verify` when the caller wants the heavier public-HTTPS and
   X-Forwarded-For trust-list checks too; otherwise the default (tunnel-local
   healthz + routes + base-href) is enough for routine deploys.

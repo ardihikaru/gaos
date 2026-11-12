@@ -238,6 +238,14 @@ func TestTheTaskGraphSurvivesARestart(t *testing.T) {
 			t.Errorf("%s came back as %q/%s/%s, was %q/%s/%s", want.ID,
 				got.Title, got.Role, got.Status, want.Title, want.Role, want.Status)
 		}
+		// The KIND comes back too (M17, D-069). A task that loses its kind on
+		// a reopen is a task the design gate cannot see: the review branch
+		// never runs, and the reviewer is handed the author's brief.
+		if taskKind(got.Kind) != taskKind(want.Kind) {
+			t.Errorf("%s came back with the kind %q, was %q; the kind is what the design "+
+				"gate branches on, and a graph that drops it has no gate in it",
+				want.ID, got.Kind, want.Kind)
+		}
 		if got.WorkflowID != want.WorkflowID || got.Ordinal != want.Ordinal {
 			t.Errorf("%s came back on workflow %q at ordinal %d, was %q at %d; the ordinal is "+
 				"what puts the slice back in plan order, which D-1 needs to be a property of "+
@@ -1062,7 +1070,16 @@ func casePlanWritesGraph(t *testing.T, s Store) {
 	for _, task := range tasks {
 		ids[task.ID] = true
 		deps += len(task.Deps)
-		if task.Status != StatusPending {
+		// Every task lands PENDING, and the one exception is M17's: an
+		// implementation under the design gate lands BLOCKED, with the reason
+		// that says why it is waiting. READY is still the scheduler's word (D-1)
+		// and the planner still has no lease, no capacity and no budget zone to
+		// decide it with.
+		gated := task.BlockReason == ReasonDesignUnreviewed
+		if task.Status == StatusPending {
+			continue
+		}
+		if !gated || task.Status != StatusBlocked {
 			t.Errorf("%s was written as %q; READY is the scheduler's word (D-1) and the "+
 				"planner has no lease, no capacity and no budget zone to decide it with",
 				task.ID, task.Status)

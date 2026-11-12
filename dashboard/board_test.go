@@ -126,10 +126,24 @@ func TestEachLegalMoveProducesItsEventAndStatus(t *testing.T) {
 	}
 
 	// ready -> working dispatches, through the gateway, with the runner on.
+	//
+	// The task dispatched is one with no unmet prerequisite: M17 made the
+	// board's dispatch route refuse a task whose prerequisite is not DONE, the
+	// same rule the scheduler applies, and a review task's dependency is not
+	// met while the review has not run.
 	t.Setenv("GAOS_RUNNER", "on")
 	f, ad := newFakeAIM(t)
 	s.SetAdapter(ad)
-	id := tasks[5].ID
+	id := ""
+	for _, task := range tasks {
+		if len(task.Deps) == 0 {
+			id = task.ID
+			break
+		}
+	}
+	if id == "" {
+		t.Fatal("the plan holds no task without a prerequisite to dispatch")
+	}
 	setStatus(s, id, StatusReady)
 	f.reply = chatReply(handoffBlock(id, runIDFor(id, 1)), "0.1", "")
 	r, err = s.MoveCard(ctx, desk, id, CardMove{Column: ColWorking})

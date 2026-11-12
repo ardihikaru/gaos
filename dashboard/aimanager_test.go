@@ -31,6 +31,8 @@ type fakeAIM struct {
 	submit   int    // POST status; 0 = 202
 	down     bool
 	provider string
+	// adminDown fails every admin call, the way an unreachable worker does.
+	adminDown bool
 
 	// The provisioning half: files per workspace, as the worker would keep
 	// them, and how many writes reached it (TC-293 asserts zero).
@@ -299,6 +301,11 @@ func TestTheGatewayCredentialsNeverReachTheRecord(t *testing.T) {
 // serveAdmin answers the provisioning routes with the worker's manifest shape
 // and its digest formula, so a sync against it proves the real arithmetic.
 func (f *fakeAIM) serveAdmin(w http.ResponseWriter, r *http.Request) {
+	if f.adminDown {
+		w.WriteHeader(http.StatusBadGateway)
+		w.Write([]byte(`{"error":"the worker is unreachable"}`))
+		return
+	}
 	var body struct {
 		ID    string          `json:"id"`
 		Files []WorkspaceFile `json:"files"`

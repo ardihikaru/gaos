@@ -5,7 +5,7 @@ the primitive, not the prompt.** State lives in vertices and edges rather than a
 conversation, every change emits an event, and the orchestrator holds nothing —
 kill it mid-run and it rebuilds from the graph.
 
-**Product version 0.29.0** (`pustaka/docs/assets/toc.js`). The graph, the event
+**Product version 0.36.0** (`pustaka/docs/assets/toc.js`). The graph, the event
 store, readiness, the planner, the scheduler and the attempt record are built, and
 GAOS has made real model calls. What judges a result — review, scoring, the retry
 guards — is not built yet. Every page and every file says which is which.
@@ -24,7 +24,8 @@ artifacts/v1/   the design — three self-contained documents, the source of tru
 dashboard/      the product master · Go + HTMX · stdlib only · ArcadeDB or in-memory store
 pustaka/        the documentation site (vendored engine, GAOS content)
 landing-page/   the marketing page (vendored, static)
-deploy/         Dockerfiles, Traefik, the two tunnelled stacks, the edge config
+deploy/         Dockerfiles, Traefik, the tunnelled stacks, the edge config
+docs/           working documents — the design gate's rules, designs and articles
 compose.yaml    the local stack — one port, no infrastructure
 ```
 
@@ -96,15 +97,25 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 179 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 251 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
+./deploy/check-workspace.sh
 ```
 
+The two Go packages hold 273 tests between them — 251 in `dashboard/` and 22 in
+`pustaka/`.
+
 Every test case — implemented or still a forward specification — is registered in
-`pustaka/docs/product/qa-test-plan.html` (315 cases, 44 of them retired and struck). There is no CI: the product
+`pustaka/docs/product/qa-test-plan.html` (390 cases, 45 of them retired and struck). There is no CI: the product
 owner runs them (D-025), and a test that is not on that page is one nobody knows
 to run.
+
+`check-workspace.sh` is the agent workspace's own invariants: that the paths the
+project rules name exist, that no skill is an orphan, that every count agrees
+with its register, that no rule is forked between two files, and that no
+isolation canary or secret was left behind. It is advisory — the product owner
+runs it — and it is the gate that stops the drift from coming back.
 
 The dashboard tests deliberately target what fails *silently*: a computed style
 losing its `template.CSS` type (`html/template` emits the literal `ZgotmplZ` and

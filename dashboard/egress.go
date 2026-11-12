@@ -45,6 +45,11 @@ const (
 	KindContract = "contract" // .gaos/packet/handoff.md  -- the shape the run must produce
 	KindHandoff  = "handoff"  // .gaos/handoff/OUTPUT.md  -- declared, empty, required
 	KindRepo     = "repo"     // the operator's own files: the largest egress there is
+	// KindDesign is M17's: the design a reviewer is given, at
+	// .gaos/packet/design.md. Screened like every other part -- the pass tests
+	// the kind exactly once, for KindRepo (egress.go:477), and everything else
+	// goes through the content detectors.
+	KindDesign = "design"
 )
 
 // PacketPart is one file the model would be given.
@@ -90,8 +95,18 @@ type Packet struct {
 	Model     string
 	DeskID    string
 	Workspace string
-	Parts     []PacketPart
-	Cites     []Citation
+	// WorkspaceID is the gateway workspace the turn runs in (M17.5). It is
+	// not the path in Workspace — that is the CLI era's field — and it is not
+	// part of the digest: it says where the turn runs, not what the model is
+	// given.
+	WorkspaceID string
+	Parts       []PacketPart
+	Cites       []Citation
+	// Kind is the task's kind (M17): implement, design or review. It is what
+	// the reply contract is chosen by, and the adapter has no other way to
+	// know -- it sees the packet and nothing else. Not part of the digest:
+	// the digest is over the PARTS, and the parts already differ per kind.
+	Kind string
 }
 
 // PacketAnswer is what the answer route needs: the question and the choice.

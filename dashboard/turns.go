@@ -43,6 +43,11 @@ const (
 	SessionRotation   = "rotation"
 	// SessionVendor: the task's vendor changed since its last turn (M16).
 	SessionVendor = "vendor"
+	// SessionReviewer: a review task's first attempt (M17, D-069). A reviewer
+	// must not carry the author's context, and a resumed session is how it
+	// would. A review's RETRY still resumes the review's own session, which
+	// is D-056's normal behaviour within a task.
+	SessionReviewer = "reviewer"
 )
 
 const defaultSessionMaxAge = 25 * 24 * time.Hour
@@ -103,6 +108,8 @@ func (s *MemStore) sessionForLocked(taskID string, ta TurnAdapter, vendor, model
 		}
 	}
 	switch {
+	case last == nil && s.taskIsKindLocked(taskID, TaskKindReview):
+		return "", SessionReviewer
 	case last == nil:
 		return "", SessionFirst
 	// Before the empty-session case: a turn whose request was lost never

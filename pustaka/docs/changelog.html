@@ -36,6 +36,120 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-36-0">v0.36.0 <time datetime="2026-11-04">2026-11-04</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The reviewer gets its own folder. M17.5, shipped.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a reviewer workspace per product</b>:
+        <code>gaos-&lt;tenant&gt;-&lt;product&gt;-review</code> holds the published Blueprint
+        byte-identical in its own root, and it is reset before every review turn &mdash; so the folder
+        holds the standing files and nothing else. A reviewer no longer runs in the author's folder,
+        where the author's files and the author's transcript key were both reachable.
+        <a href="product/decision-log.html#d-071">D-071</a>,
+        <a href="delivery/implementation-plan.html#sub-m17-5">M17.5</a>.</li>
+        <li><span class="chg add">Added</span> <b>a run records the workspace it used</b>, so the drift
+        check after a turn examines the folder that turn touched. A reviewer's turn no longer marks
+        the author's workspace drifted and refuses the author's next dispatch.</li>
+        <li><span class="chg change">Changed</span> <b>BR-38</b> says one live turn per <em>product</em>,
+        across both its workspaces, and <b>BR-47</b> and <b>BR-49</b> say the isolation boundary is
+        the packet <em>and</em> the workspace. The shared-workspace override is retired: every
+        product has its own root and its own initial context.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-35-1">v0.35.1 <time datetime="2026-11-04">2026-11-04</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The taste layer comes back, trimmed for this stack.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the <code>emil-design-eng</code> skill, trimmed</b>:
+        Emil Kowalski's design-engineering philosophy and his review format, vendored under its MIT
+        licence and cut down to the half that fits a server-rendered Go and HTMX dashboard. v0.29.0
+        removed it as 27 KB of React and Tailwind guidance for a stack this repository does not
+        have; the contest the EGM design left open is answered, and the file comes back trimmed.
+        What was cut and why is in its <code>SOURCE.md</code>.</li>
+        <li><span class="chg add">Added</span> <b>a rule for the dashboard's frontend</b>: any session
+        that touches <code>dashboard/templates/</code>, <code>dashboard/static/</code>,
+        <code>dashboard/render.go</code>, <code>dashboard/view.go</code> or
+        <code>dashboard/seq.go</code> loads the design-engineering skill first, then
+        <code>review-animations</code> for anything that moves, then <code>break-ui</code> before a
+        list, form or card is done.</li>
+        <li><span class="chg change">Changed</span> <b>the workspace validator</b>: the trimmed skill
+        is pinned by the SHA-256 its <code>SOURCE.md</code> records, every vendored skill is checked
+        for its licence and its provenance, and the sweep's "the skill stays gone" assertion is
+        inverted into "the skill is present, trimmed, and carries no framework vocabulary".</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-35-0">v0.35.0 <time datetime="2026-11-04">2026-11-04</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The design gate, built. M17, shipped.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the platform design gate</b>: a plan can carry a
+        <em>review</em> task, and the implementation waits for it through the planner's own
+        <code>DEPENDS_ON</code> edge. The reviewer's prompt holds the design and the rubric and
+        nothing else — no brief, no handoff, no failure lesson, no operator's answer, no stories —
+        so the reviewer is genuinely zero-context.
+        <a href="product/decision-log.html#d-070">D-070</a>,
+        <a href="delivery/implementation-plan.html#m17-design-gate">M17</a>.</li>
+        <li><span class="chg add">Added</span> <b>two reply contracts</b>:
+        <code>gaos-design</code>, which carries a design document verbatim, and
+        <code>gaos-review</code>, which carries findings as severity, scope and a one-line note. A
+        finding's scope is a path and an optional line, validated and bounded; the verdict is derived
+        from the findings, never declared.</li>
+        <li><span class="chg add">Added</span> <b>a gate that cannot be walked around</b>: a plan
+        whose implementation has no review is refused before the first write, and the operator's
+        dispatch route refuses a task whose prerequisite is not done. A gate with two doors and one
+        lock is not a gate.</li>
+        <li><span class="chg change">Changed</span> <b>three closed vocabularies grew by one value
+        each</b> — <code>Task.kind</code>, <code>Artifact.kind</code> and the citation roles — and
+        nothing else did. No task status, no agent role and no event name was added: the gate speaks
+        in <code>TaskMoved</code>'s rule and in artifacts.</li>
+        <li><span class="chg change">Changed</span> <b>BR-47 and BR-48 say what they now mean</b>.
+        The reviewer's standing files carry the product's stories and its decisions, so the isolation
+        the gate provides is over the packet and not over the context; and the clearance of an open
+        Blocker is refused, as BR-48 says, until the back office has a real identity to check.</li>
+        <li><span class="chg add">Added</span> <b>seventeen tests</b> and ten register rows:
+        <a href="product/qa-test-plan.html#go-designgate">TC-359&hellip;TC-375</a>.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-34-0">v0.34.0 <time datetime="2026-11-04">2026-11-04</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The design gate. M17, specified.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>the design gate</b>: a feature-sized change starts as a
+        document in <code>docs/designs/</code>, five zero-context reviewer agents read it alone against
+        GAOS's own rules, every finding gets one disposition, and the fixes go into the design rather
+        than into the code. The rubric is <code>.claude/rules/</code>, path-scoped so it loads on
+        demand. <a href="architecture/design-gate.html">The design gate</a>.</li>
+        <li><span class="chg add">Added</span> <b>the platform half, specified and not built</b>:
+        <a href="product/decision-log.html#d-068">D-068</a>,
+        <a href="product/brd.html#rules-design-review">BR-46</a> to BR-50,
+        <a href="delivery/implementation-plan.html#m17-design-gate">M17</a> with T-184…T-188, and seven
+        forward specifications. The mechanism that makes a platform reviewer genuinely zero-context
+        is decided — <a href="product/decision-log.html#d-069">D-069</a> answers
+        <a href="product/open-questions.html#oq-32">OQ-32</a> — and the isolation boundary is the
+        packet, not the workspace. Nothing in the dashboard changes until M17 is built.</li>
+        <li><span class="chg add">Added</span> <b><code>deploy/check-workspace.sh</code></b>, the agent
+        workspace's own invariants: the paths the project rules name exist, no skill is an orphan,
+        every count agrees with its register, no rule is forked between two files, no isolation canary
+        was left behind, and no secret reached the review report store.
+        <a href="product/qa-test-plan.html#cw-workspace">TC-357</a>.</li>
+        <li><span class="chg change">Changed</span> <b>the always-on layer is a quarter of its
+        size</b>: <code>.claude/CLAUDE.md</code> goes from 166 lines to 50, and the QA-register
+        mechanics move to a rule file that loads only when you touch a test or an automation.
+        <code>.claude/CLAUDE.md</code> also stopped naming six files that v0.29.0 deleted.</li>
+        <li><span class="chg remove">Removed</span> <b>the <code>rebuild-restart-prod</code> skill</b>,
+        an orphan that no agent, rule, document or script named — and that told an operator a prod
+        deploy path the script refuses. <b>And the <code>emil-design-eng</code> skill</b>: 27 KB of
+        React, Sonner and Tailwind guidance for a dashboard that is server-rendered Go with HTMX and
+        plain JS. The two stack-agnostic skills stay.</li>
+        <li><span class="chg fix">Fixed</span> <b>four numbers that had drifted</b>: the case count in
+        the QA plan and its ToC, the decision and question counts in their registers and their ToC
+        mirrors, the rule count in the BRD, and the version, test and case counts in the README.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-33-1">v0.33.1 <time datetime="2026-11-03">2026-11-03</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Prod is the only tier.</p>
       <ul>

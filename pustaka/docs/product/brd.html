@@ -23,7 +23,7 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-11-02"
+       data-updated="2026-11-04"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -420,12 +420,12 @@
     <thead><tr><th>Exception</th><th>Trigger</th><th>System response</th><th>Terminates as</th></tr></thead>
     <tbody>
       <tr><td>Safety veto</td><td>Safety dimension scores below 60, whatever the total</td><td>Stop immediately; emit <code>SafetyVeto</code>; queue for a human</td><td>Human queue item</td></tr>
-      <tr><td>Unproductive retry</td><td>Identical failure signature twice</td><td>Do not escalate the tier — route to a design review</td><td><code>MeetingStarted</code>, later a <code>Decision</code></td></tr>
+      <tr><td>Unproductive retry</td><td>Identical failure signature twice</td><td>Do not escalate the tier — route to a design review (a meeting — <a href="#to-be-exceptions">§7.5</a>)</td><td><code>MeetingStarted</code>, later a <code>Decision</code></td></tr>
       <tr><td>Budget throttle</td><td>Spend reaches the throttle threshold or the paced ceiling, or the token rate ceiling is hit</td><td>Stop dispatching; defer ready tasks with a resume time; let in-flight runs finish</td><td>Resumes by itself when the window advances — <a href="#budget-guard">§8.10.1</a></td></tr>
       <tr><td>Guard exhaustion</td><td>3 retries, or 2 escalations, or the budget cap</td><td>Stop; emit <code>GuardExhausted</code> with a reason code</td><td>Human intervention</td></tr>
       <tr><td>Orphaned task</td><td>On boot, a task's turn is polled by its request id and ai-manager no longer knows it</td><td>Emit <code>TaskOrphaned</code> (rule <code>request-lost</code>), hold the product until the turn deadline passes, then requeue it on a new session (<a href="decision-log.html#d-060">D-060</a>)</td><td>Requeued or failed</td></tr>
       <tr><td>Readiness drop</td><td>Drift penalty pushes the effective score below a band boundary</td><td>Emit <code>ReadinessDropped</code>, show it on the product card, re-apply the stricter band's gates immediately</td><td>Stricter gating, not a silent recalculation</td></tr>
-      <tr><td>Total collapse</td><td>Final score below 30</td><td>Stop; call a multi-agent design review</td><td>A recorded <code>Decision</code></td></tr>
+      <tr><td>Total collapse</td><td>Final score below 30</td><td>Stop; call a multi-agent design review (a meeting — <a href="#to-be-exceptions">§7.5</a>)</td><td>A recorded <code>Decision</code></td></tr>
     </tbody>
   </table>
 
@@ -534,7 +534,7 @@
           │
      ┌────┴───────────────┬────────────────────┬─────────────────────┐
      ▼                    ▼                    ▼                     ▼
-  accept ≥85         retry 50–69         escalate 30–49         design review
+  accept ≥85         retry 50–69         escalate 30–49         design review (a meeting)
      │                    │                    │                     │
      │            widen the slice,      one tier up, same       identical signature
      │            same tier             role                    twice → meeting
@@ -705,10 +705,12 @@ egress:                               <span class="c"># domain L applies in BOTH
   <strong>ai-claude-cli works the task with context; ai-manager shapes it with a workspace; GAOS
   shapes it with the product, the task details and the product's Blueprint.</strong></p>
   <ul>
-    <li><strong>One product, one workspace.</strong> ai-manager's workspace is a folder on the worker
-    that Claude Code runs in. GAOS provisions one per product through an upstream API
+    <li><strong>One product, its own workspaces.</strong> ai-manager's workspace is a folder on the
+    worker that Claude Code runs in. GAOS provisions one per product through an upstream API
     (<a href="decision-log.html#d-059">D-059</a>) and names it by id, never by path
-    (<a href="#rules-gateway">BR-42</a>).</li>
+    (<a href="#rules-gateway">BR-42</a>). A product has two: the one its own turns run in, and the
+    one its reviews run in &mdash; the same standing files in a second root, so a reviewer cannot
+    reach the author's files (<a href="decision-log.html#d-071">D-071</a>).</li>
     <li><strong>The Blueprint is the standing layer.</strong> The product's BRD, technical and coding
     policies and knowledge sources are rendered into <code>CLAUDE.md</code> and
     <code>.claude/rules/</code>, which Claude Code loads on every turn. A published version is
@@ -888,7 +890,7 @@ efficiency    tokens, latency, retries consumed</pre>
       <tr><td>70–84</td><td>Accept, spawn a cleanup task</td><td>Same</td><td><code>Review</code>, follow-up <code>Task</code></td></tr>
       <tr><td>50–69</td><td>Iterate with a widened context slice</td><td>Same tier</td><td><code>RetryRequested</code> + reason</td></tr>
       <tr><td>30–49</td><td>Escalate a tier and re-run</td><td>One above</td><td><code>ModelEscalated</code></td></tr>
-      <tr><td>0–29</td><td>Stop; call a design review</td><td>Meeting</td><td><code>MeetingStarted</code>, later <code>Decision</code></td></tr>
+      <tr><td>0–29</td><td>Stop; call a design review (a meeting — <a href="#to-be-exceptions">§7.5</a>)</td><td>Meeting</td><td><code>MeetingStarted</code>, later <code>Decision</code></td></tr>
       <tr><td><strong>safety &lt; 60</strong></td><td><strong>Stop immediately, regardless of total</strong></td><td>—</td><td><code>SafetyVeto</code>, human queue</td></tr>
     </tbody>
   </table>
@@ -908,7 +910,7 @@ efficiency    tokens, latency, retries consumed</pre>
   A <strong>changed signature</strong> means progress: the model fixed one thing and hit the next,
   so retry. An <strong>identical signature twice</strong> means the approach itself is wrong;
   escalating a tier will usually reproduce the same wrong answer more expensively, so it routes to
-  a design review instead.</p>
+  a design review (a meeting — <a href="#to-be-exceptions">§7.5</a>) instead.</p>
 
   <h3 id="req-f">8.6 Domain F — Gates &amp; approvals</h3>
   <table class="tbl">
@@ -1210,7 +1212,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="business-rules">9. Business rules</h2>
-  <p>Thirty-seven rules, each one traceable to an artifact section, to committed code, or to a logged
+  <p>Fifty rules, each one traceable to an artifact section, to committed code, or to a logged
   decision. These are the statements a reviewer — human or agent — can score an implementation
   against. They are the reason domain rules are worth 12 points in the readiness rubric.</p>
 
@@ -1247,7 +1249,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-13</td><td>The final score is fixed at <code>0.45·correctness + 0.20·completeness + 0.15·safety + 0.10·quality + 0.10·efficiency</code>.</td></tr>
       <tr><td>BR-14</td><td>Safety is a veto evaluated before anything else: below 60 the work stops regardless of the total.</td></tr>
       <tr><td>BR-15</td><td>A retry runs one model tier above the last attempt, and a second retry carries a senior reviewer.</td></tr>
-      <tr><td>BR-16</td><td>An identical failure signature twice routes to a design review, not to a tier escalation.</td></tr>
+      <tr><td>BR-16</td><td>An identical failure signature twice routes to a design review (a meeting — <a href="#to-be-exceptions">§7.5</a>), not to a tier escalation.</td></tr>
       <tr><td>BR-17</td><td>The six guard limits are hard: 3 retries, 2 escalations, 2 identical signatures, capped exponential backoff, per-workflow and per-tenant budget caps, and human intervention at 2 escalations or any safety veto.</td></tr>
       <tr><td>BR-18</td><td>Every termination records a reason code. A silent stop is a defect.</td></tr>
       <tr><td>BR-19</td><td>A gated task cannot merge through any path, including the API.</td></tr>
@@ -1290,7 +1292,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <table class="tbl">
     <thead><tr><th>ID</th><th>Rule</th></tr></thead>
     <tbody>
-      <tr><td>BR-38</td><td>At most one turn is live in a product's workspace at any moment. A second ready task in the same product waits, blocked with the reason, rather than starting. <em>(D-18, <a href="decision-log.html#d-060">D-060</a>)</em></td></tr>
+      <tr><td>BR-38</td><td>At most one turn is live in a product at any moment, across all of its workspaces. A second ready task in the same product waits, blocked with the reason, rather than starting. <em>(D-18, <a href="decision-log.html#d-060">D-060</a>, <a href="decision-log.html#d-071">D-071</a>)</em></td></tr>
       <tr><td>BR-39</td><td>Every attempt pins a published Blueprint version. A workspace whose synced files do not match that version refuses dispatch with <code>blueprint-drift</code>, and so does one whose observed context shows instructions GAOS did not write. <em>(D-17, <a href="decision-log.html#d-058">D-058</a>)</em></td></tr>
       <tr><td>BR-40</td><td>A lost session is never silently replaced. A <code>410</code> is the failure <code>session-lost</code>, a turn the gateway did not save is <code>turn-unsaved</code>, and either way the next attempt opens a new session and says so. <em>(D-15, <a href="decision-log.html#d-056">D-056</a>)</em></td></tr>
       <tr><td>BR-41</td><td>The session is transport, not the record. The prompt, the reply, the parsed handoff and the gateway's metadata are stored by GAOS for every attempt, and remain readable after the session expires. <em>(D-15, BR-02)</em></td></tr>
@@ -1298,6 +1300,30 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-43</td><td>A move on the board is a request. The task state machine decides, and a refused move writes nothing. <em>(I-10, <a href="decision-log.html#d-061">D-061</a>)</em></td></tr>
       <tr><td>BR-44</td><td>A task waiting on the operator's answer holds no lease, is never dispatched by the scheduler, and leaves <code>AWAITING_INPUT</code> only by an answer (to <code>READY</code>), a cancel, or — thirty days after it asked, when the session that asked is gone — expiry to <code>BLOCKED</code>. Until then the answer resumes the asking session. Nobody but an agent puts a card there. <em>(I-11, <a href="decision-log.html#d-064">D-064</a>, <a href="decision-log.html#d-066">D-066</a>)</em></td></tr>
       <tr><td>BR-45</td><td>A task's vendor follows its product's vendor policy and is fixed for the life of a session: a retry whose vendor changed opens a new session and says why (<code>vendor</code>), a resumed turn names the vendor that opened it, and nothing falls back to another vendor silently. A product dispatches only when every vendor its policy uses holds the published Blueprint. <em>(I-12, <a href="decision-log.html#d-067">D-067</a>)</em></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rules-design-review">9.7 The design gate</h3>
+  <p>The <em>design gate</em> is the review step between a design and its implementation: a fresh
+  reviewer with no memory of the conversation that produced the design reads the design alone and
+  attacks it. It is not the <em>design review</em> of §7.5 and §8.5 — that is a meeting after a
+  failure, and it records a <code>Decision</code>. The gate runs before anything is built.
+  <a href="decision-log.html#d-068">D-068</a> is the ruling that put the gate in the product, and
+  <a href="decision-log.html#d-069">D-069</a> is the ruling that made it possible: it answers
+  <a href="open-questions.html#oq-32">OQ-32</a> by fixing the isolation boundary at the packet
+  rather than the workspace. The milestone is
+  <a href="../delivery/implementation-plan.html#m17-design-gate">M17</a> and the forward specifications
+  are <a href="qa-test-plan.html#go-designgate">TC-359…TC-379</a>. The rules below are binding on M17 and
+  on any later change to the gate; they are built as of v0.35.0, and
+  <a href="decision-log.html#d-070">D-070</a> records how they landed.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-46</td><td>Every story's implementation task has a design artifact and a review. Neither is optional, and the review happens before the first dispatch. A plan that does not wire the gate is refused, and the operator's dispatch route refuses a task whose review has not resolved. <em>(D-068, D-070)</em></td></tr>
+      <tr><td>BR-47</td><td>A reviewer sees the design artifact and the rubric, and nothing else from the desk: not the brief, not the goal, not the previous handoff, not the failure lesson, not the operator's answer, not the stories or acceptance criteria. It records path and line, never the matched text. It runs in the product's own reviewer workspace, which holds the published Blueprint whole and nothing else, so the reviewer's packet, its standing files and its own folder hold none of the author's files. The two folders are siblings under one managed root, and the gateway documents a write boundary rather than a read boundary between them. The standing files still carry the product's stories and its decisions, so the isolation the gate provides is over the packet and the workspace, not over the standing layer. <em>(D-068, D-069, D-070, <a href="decision-log.html#d-071">D-071</a>)</em></td></tr>
+      <tr><td>BR-48</td><td>An open Blocker stops the dispatch and the task goes to the operator's queue. Only the operator clears it — and the clearance is <strong>refused until the back office has a real identity to check</strong>, because <code>signedIn()</code> today accepts a cookie from any request. A blocking precondition on M17, not an assumption: M17 implements the dispatch stop and refuses the clearance, and the refusal is recorded. <em>(D-068, D-070)</em></td></tr>
+      <tr><td>BR-49</td><td>The isolation boundary is the packet and the workspace. The reviewer's workspace is the product's own reviewer workspace, a second root holding the published Blueprint whole — the standing files are the rubric, and a reduced set would be drift under <a href="#rules-gateway">BR-39</a> — and it is reset before every review turn, so it holds none of the author's files. What is withheld from the packet is the author's session state: the previous handoff, the failure lesson and the operator's answer. <em>(D-069, <a href="decision-log.html#d-071">D-071</a>)</em></td></tr>
+      <tr><td>BR-50</td><td>A design reaches a reviewer only as a GAOS-held artifact in the packet, because there is no other route: GAOS reads no folder, and its allowlist admits only the instruction files. The findings travel back the same way, as context. The gate is the planner's own <code>DEPENDS_ON</code> edge and <code>BLOCKED</code> status, and its record is an artifact — not the score-band <code>Review</code> vertex, which stays with the review engine that owns it. <em>(D-069)</em></td></tr>
     </tbody>
   </table>
 
@@ -1615,8 +1641,9 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   and the reason it cannot be answered from evidence.</p>
   <p>Since then <a href="open-questions.html#oq-24">OQ-24</a> was raised by measurement, and on
   2026-11-02 the move to the gateway raised six more, <a href="open-questions.html#oq-25">OQ-25</a> to
-  <a href="open-questions.html#oq-30">OQ-30</a> — thirty-one in all, nineteen answered.</p>
-  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-30)</a></strong></p>
+  <a href="open-questions.html#oq-30">OQ-30</a>, and on 2026-11-04 the design gate raised one more,
+  <a href="open-questions.html#oq-32">OQ-32</a> — thirty-two in all, twenty-one answered.</p>
+  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-32)</a></strong></p>
 
 </main>
 </div>

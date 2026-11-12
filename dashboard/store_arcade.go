@@ -667,6 +667,11 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 			"approvalRequired": t.Gate, "blockReason": t.BlockReason,
 			"workflowId": t.WorkflowID, "deskId": t.DeskID,
 			"story": t.Story, "ordinal": t.Ordinal, "rank": t.Rank,
+			// The kind is what the design gate branches on (M17, D-069). Without
+			// it a restart erases every task's kind, and the gate is inert on a
+			// restored graph: the review task takes the implement branch and is
+			// handed the author's brief, handoff and operator answer.
+			"kind": t.Kind,
 		}); err != nil {
 			return err
 		}
@@ -786,6 +791,9 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 		}
 		if r.Provider != "" {
 			props["provider"] = r.Provider // M16, 13-vendors.sql
+		}
+		if r.Workspace != "" {
+			props["workspace"] = r.Workspace // M17.5, 15-reviewer-workspace.sql
 		}
 		if r.BlueprintVersion > 0 {
 			props["blueprintVersion"] = r.BlueprintVersion
@@ -1284,10 +1292,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Retry      int    `json:"retryCount"`
 		Esc        int    `json:"escalationCount"`
 		Block      string `json:"blockReason"`
+		Kind       string `json:"kind"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, workflowId, deskId, title, role, story, modelHint, status,
-		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason
+		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind
 		 FROM Task WHERE tenantId = :t AND workflowId IS NOT NULL
 		 ORDER BY workflowId, ordinal`,
 		map[string]any{"t": s.tenant}, &trows); err != nil {
@@ -1313,6 +1322,9 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			Title: r.Title, Role: r.Role, Story: r.Story, Model: r.Model,
 			Status: r.Status, Priority: r.Priority, Ordinal: r.Ordinal, Rank: r.Rank,
 			Gate: r.Gate, Retry: r.Retry, Esc: r.Esc, BlockReason: r.Block,
+			// The kind is normalised on the way in: an absent kind is an
+			// implement task, and an unknown one is refused rather than guessed.
+			Kind: taskKind(r.Kind),
 		}
 		for _, d := range deps {
 			t.Deps = append(t.Deps, d.ID)
@@ -1377,21 +1389,34 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Attempt   int    `json:"attempt"`
 		CreatedAt string `json:"createdAt"`
 	}
-	if err := s.arc.Query(ctx,
-		`SELECT id, kind, title, body, taskId, deskId, runId, attempt, createdAt
-		 FROM Artifact WHERE tenantId = :t AND kind = :k ORDER BY id`,
-		map[string]any{"t": s.tenant, "k": ArtifactHandoff}, &arows); err != nil {
-		return false, err
-	}
-	for _, r := range arows {
-		m.artifacts[r.ID] = ArtifactRecord{
-			ID: r.ID, Kind: r.Kind, Title: r.Title, Body: r.Body,
-			TaskID: r.TaskID, DeskID: r.DeskID, RunID: r.RunID, Attempt: r.Attempt,
-			// The vertex's own createdAt, which is the write time rather than the
-			// moment the document was produced. Close enough for the only thing
-			// that reads it -- "which of these is the latest" -- and honest about
-			// which clock it came from.
-			CreatedAt: parseStamp(r.CreatedAt),
+	// The handoff documents AND the design gate's own two kinds (M17).
+	//
+	// Loading only the handoffs was enough while the handoff was the only
+	// document a task produced. The design artifact and the review record are
+	// documents too, and a restart that dropped them would leave the reviewer
+	// with no design to read and the gate with no record of what it found --
+	// and BR-01 says the state lives in the graph.
+	//
+	// Three queries rather than one with an IN: the single-kind shape is the
+	// one the rest of this file uses, and a bound list is not a shape the rest
+	// of this file has ever asked the database for.
+	for _, kind := range []string{ArtifactHandoff, ArtifactDesign, ArtifactReview} {
+		if err := s.arc.Query(ctx,
+			`SELECT id, kind, title, body, taskId, deskId, runId, attempt, createdAt
+			 FROM Artifact WHERE tenantId = :t AND kind = :k ORDER BY id`,
+			map[string]any{"t": s.tenant, "k": kind}, &arows); err != nil {
+			return false, err
+		}
+		for _, r := range arows {
+			m.artifacts[r.ID] = ArtifactRecord{
+				ID: r.ID, Kind: r.Kind, Title: r.Title, Body: r.Body,
+				TaskID: r.TaskID, DeskID: r.DeskID, RunID: r.RunID, Attempt: r.Attempt,
+				// The vertex's own createdAt, which is the write time rather than the
+				// moment the document was produced. Close enough for the only thing
+				// that reads it -- "which of these is the latest" -- and honest about
+				// which clock it came from.
+				CreatedAt: parseStamp(r.CreatedAt),
+			}
 		}
 	}
 
@@ -1417,11 +1442,12 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		SessionID   string  `json:"sessionId"`
 		Pinned      int     `json:"blueprintVersion"`
 		Provider    string  `json:"provider"`
+		Workspace   string  `json:"workspace"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, taskId, deskId, attempt, status, model, invocation, startedAt, endedAt,
 		        exitCode, tokensIn, tokensOut, costUsd, costBasis, failureSignature, logRef,
-		        requestId, sessionId, blueprintVersion, provider,
+		        requestId, sessionId, blueprintVersion, provider, workspace,
 		        first(out('ASSEMBLED').digest) AS sliceDigest
 		 FROM TaskRun WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rrows); err != nil {
@@ -1436,7 +1462,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			CostUSD: r.CostUSD, CostBasis: r.CostBasis,
 			FailureSignature: r.Signature, LogRef: r.LogRef, SliceDigest: r.SliceDigest,
 			RequestID: r.RequestID, SessionID: r.SessionID, BlueprintVersion: r.Pinned,
-			Provider: r.Provider,
+			Provider: r.Provider, Workspace: r.Workspace,
 		})
 	}
 

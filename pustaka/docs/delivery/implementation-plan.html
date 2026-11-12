@@ -15,15 +15,15 @@
   <p class="eyebrow">Delivery</p>
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
-  committed, and broken into seventeen modules of work you can pick up one at a time.
-  One hundred and eighty-three tasks: ninety-four done, eighteen standing on fixtures or partly done,
-  sixty-six not started, and five superseded by the move to ai-manager as the gateway.</p>
+  committed, and broken into eighteen modules of work you can pick up one at a time.
+  One hundred and eighty-eight tasks: ninety-four done, eighteen standing on fixtures or partly done,
+  seventy-one not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-11-02"
+       data-updated="2026-11-04"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -78,7 +78,7 @@
   </div>
 
   <h2 id="scoreboard">Scoreboard</h2>
-  <p>Seventeen modules, seventy-one sub-modules. The last column is the thing to pick up if you open
+  <p>Nineteen modules, seventy-eight sub-modules. The last column is the thing to pick up if you open
   that module today — usually the first task that is not already done, and where the module has one
   task the rest of it waits on, that instead. <code>M1</code> names injection, <code>M6</code>
   authentication and <code>M10</code> the budget zones for exactly that reason, and each says so in
@@ -103,7 +103,9 @@
       <tr data-tags="gateway blueprint board ai-manager workspace kanban m14"><td><a href="#m14-gateway">M14 &middot; Gateway, Blueprint &amp; Board</a></td><td>8</td><td>28</td><td>0</td><td>1</td><td>0</td><td><a href="#register">T-170</a> &mdash; retire the desk projection, now that the task fold replays the board</td></tr>
       <tr data-tags="question ask operator inbox answer needs you m15"><td><a href="#m15-needs-you">M15 &middot; Needs you &mdash; agents ask, the operator answers</a></td><td>3</td><td>7</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
       <tr data-tags="vendor policy claude antigravity product mixed role m16"><td><a href="#m16-vendors">M16 &middot; AI vendors per product</a></td><td>3</td><td>3</td><td>3</td><td>0</td><td>0</td><td><a href="#register">T-178</a> &mdash; merge and deploy the upstream branch</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>71</b></td><td><b>94</b></td><td><b>18</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="design gate review zero-context m17"><td><a href="#m17-design-gate">M17 &middot; The design gate</a></td><td>4</td><td>5</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
+      <tr data-tags="reviewer workspace isolation review design gate m17.5"><td><a href="#sub-m17-5">M17.5 &middot; The reviewer's own workspace</a></td><td>3</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>78</b></td><td><b>102</b></td><td><b>18</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -343,6 +345,14 @@
       <tr data-tags="vendor policy store master taskrun provider schema done built m16.2"><td>T-181</td><td>M16.2</td><td>The vendor policy on the product record, <code>Store.SaveVendorPolicy</code>, <code>TaskRun.provider</code> (<code>13-vendors.sql</code>), and the dispatch that resolves a task's vendor by role and sends it as <code>provider</code> &mdash; done 2026-11-03 in v0.33.0; TC-343…TC-349, TC-353</td><td>I-12, BR-45</td><td>✅</td></tr>
       <tr data-tags="vendor session workspace sync gate per vendor repair done built m16.2"><td>T-182</td><td>M16.2</td><td>A new session when the vendor changes, a workspace copy per vendor in use, the Blueprint gate over every one of them, and the sync that repairs a pool whose copies disagree &mdash; done 2026-11-03 in v0.33.0; TC-348…TC-354</td><td>BR-39, BR-45</td><td>✅</td></tr>
       <tr data-tags="vendors tab ui segmented control role toggle model picker board badge done built m16.3"><td>T-183</td><td>M16.3</td><td>The AI vendors tab &mdash; mode, roles, the Antigravity model from the pool's list, each vendor's availability and workspace &mdash; and a vendor badge on every board card, designed by the <code>gaos-frontend</code> agent &mdash; done 2026-11-03 in v0.33.0; TC-355, TC-356</td><td>I-12</td><td>✅</td></tr>
+      <tr data-tags="design gate review packet isolation zero-context blueprint workspace m17.1"><td>T-184</td><td>M17.1</td><td>Build the review-shaped packet: the packet builder learns to tell a review task from an implement task, and a review's packet carries exactly <code>design</code> and <code>rules</code> — the author's previous handoff, its failure lesson and the operator's answer are withheld, as they would otherwise be inherited from the desk</td><td>D-069, BR-49</td><td>✅</td></tr>
+      <tr data-tags="design gate review artifact kind schema citation m17.1"><td>T-185</td><td>M17.1</td><td>The design artifact and the kinds: widen <code>Artifact.kind</code> to admit <code>design</code> and <code>review</code>, add <code>Task.kind</code> with the values <code>implement|design|review</code>, and add a <code>design</code> citation role. The <code>Review</code> vertex is left to M5</td><td>D-069, BR-50</td><td>✅</td></tr>
+      <tr data-tags="design gate review runner packet session m17.2"><td>T-186</td><td>M17.2</td><td>The review runner and the reviewer's packet: one review task per design, on a fresh session with reason <code>reviewer</code>, carrying the design artifact at <code>.gaos/packet/design.md</code> and the rubric and nothing else</td><td>D-068, BR-47, BR-49</td><td>✅</td></tr>
+      <tr data-tags="design gate triage disposition blocked operator findings m17.3"><td>T-187</td><td>M17.3</td><td>The gate and the triage vocabulary: the <code>DEPENDS_ON</code> edge and the existing <code>BLOCKED</code> status, the four dispositions, the operator's queue, the gate's record as an <code>Artifact</code> of kind <code>review</code>, and the findings travelling back at <code>.gaos/packet/context/findings.md</code></td><td>D-068, BR-48, BR-50</td><td>✅</td></tr>
+      <tr data-tags="design gate budget drift meter m17.4"><td>T-188</td><td>M17.4</td><td>The budget accounting and the drift report: how review turns are metered against the per-workflow and per-tenant caps, and how a design that has drifted from the code is reported</td><td>D-068, BR-17</td><td>✅</td></tr>
+      <tr data-tags="reviewer workspace isolation review design gate m17.5"><td>T-189</td><td>M17.5</td><td>The reviewer's workspace id and the packet that carries it: <code>gaos-&lt;tenant&gt;-&lt;product&gt;-review</code>, derived per product and never from the shared override, which is retired</td><td>D-071, BR-49</td><td>✅</td></tr>
+      <tr data-tags="reviewer workspace isolation review design gate m17.5"><td>T-190</td><td>M17.5</td><td>The reset and the drift attribution: the reviewer's folder is re-synced with a prune before every review turn and its digest verified, and a run records which workspace it used, so a reviewer's turn never marks the author's workspace drifted</td><td>D-071, BR-38, BR-39</td><td>✅</td></tr>
+      <tr data-tags="reviewer workspace isolation review design gate m17.5"><td>T-191</td><td>M17.5</td><td>The registers: <a href="../product/decision-log.html#d-071">D-071</a>, BR-38, BR-47 and BR-49 amended, OQ-27 narrowed, and TC-382&hellip;TC-390</td><td>D-071</td><td>✅</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -1425,6 +1435,86 @@
   <p>A segmented control on real radios, a role table that appears in mixed mode, the model picker,
   and each vendor's availability and workspace status, with motion that answers a pointer and never a
   keyboard. Board cards carry a quiet <code>CL</code>/<code>AG</code> badge.</p>
+
+  <h2 id="m17-design-gate">M17 &middot; The design gate</h2>
+  <p>Added on 2026-11-04 with <a href="../product/decision-log.html#d-068">D-068</a>, rules
+  <a href="../product/brd.html#rules-design-review">BR-46</a> to BR-50 and the forward specifications
+  <a href="../product/qa-test-plan.html#go-designgate">TC-359&hellip;TC-375</a>.
+  A design is written before anything is built, and a fresh reviewer with no memory of the
+  conversation that produced it reads the design alone and attacks it. This milestone is
+  <strong>built</strong> as of v0.35.0: the mechanism that makes a platform reviewer genuinely
+  zero-context was decided by <a href="../product/decision-log.html#d-069">D-069</a>, which closed
+  <a href="../product/open-questions.html#oq-32">OQ-32</a>, and
+  <a href="../product/decision-log.html#d-070">D-070</a> records how it landed. No event name was
+  added: the event catalog is closed
+  (<a href="../product/brd.html#rules-invariants">BR-05</a>), and the gate speaks in
+  <code>TaskMoved</code>'s rule and in artifacts.</p>
+
+  <h3 id="sub-m17-1">M17.1 — The mechanism, the artifact and the kinds (T-184, T-185)</h3>
+  <p>T-184 builds the review-shaped packet. <a href="../product/decision-log.html#d-069">D-069</a>
+  fixed the isolation boundary at the packet rather than the workspace: the reviewer's workspace is
+  the product's own, holding the published Blueprint whole, and the reviewer's packet carries
+  exactly two kinds — <code>design</code> and <code>rules</code>. The standing files are the rubric,
+  not contamination; what is withheld is the author's session state, and it is withheld today by
+  default, because <code>freezePacketFor</code> is per-desk and <code>latestHandoffFor</code> is
+  desk-scoped, so a review would inherit the author's handoff unless the packet builder learned to
+  tell a review from an implement. T-184 adds that branch and the new <code>design</code> part kind.
+  T-185 makes the record possible: <code>Artifact.kind</code> admits
+  <code>design</code> and <code>review</code>, <code>Task</code> grows a <code>kind</code> of
+  <code>implement|design|review</code>, and the citation vocabulary grows a <code>design</code> role
+  so the design artifact is cited by the part that carries it. The <code>Review</code> vertex is not
+  touched: it belongs to the M5 score-band review engine, whose <code>verdict</code> vocabulary and
+  mandatory score mean something else entirely.</p>
+
+  <h3 id="sub-m17-2">M17.2 — The reviewer and its packet (T-186)</h3>
+  <p>One review task per design, on a fresh session with reason <code>reviewer</code>, carrying
+  the design artifact and the rubric and nothing else. The packet's kinds are exactly
+  <code>design</code> and <code>rules</code> — and not <code>task</code>,
+  <code>context</code>, <code>handoff</code> or <code>contract</code>. The rubric needs no new
+  kind: it already travels as <code>rules</code>. This is the deliberate inverse of
+  <a href="../product/decision-log.html#d-056">D-056</a>, which resumes a session so the model
+  sees its own failed reply; here the reviewer must see none of it. The design arrives at
+  <code>.gaos/packet/design.md</code> as a GAOS-held artifact, because GAOS reads no folder and
+  there is no other route by which a reviewer could open it.</p>
+
+  <h3 id="sub-m17-3">M17.3 — The gate and the triage vocabulary (T-187)</h3>
+  <p>The gate is a <code>DEPENDS_ON</code> edge and the existing <code>BLOCKED</code> status, the
+  planner's own mechanism — not a new task status, which would widen a closed vocabulary for no
+  gain. The four dispositions are <code>PROPOSE FIX</code>, <code>CONTEST</code>,
+  <code>ESCALATE</code> and <code>DECLINE</code>; a severity is never changed, and a
+  comprehension gap is never contested. An open Blocker holds the implement task in the
+  operator's queue, and the findings travel back on the implementer's next packet, at
+  <code>.gaos/packet/context/findings.md</code> — context semantics, the same way the previous
+  handoff travels — so the implementer sees the review that rejected it. A failed review is not a
+  verdict: it moves the review task to <code>BLOCKED</code> with reason <code>review-failed</code>
+  and never wedges the product. The gate's own record is an <code>Artifact</code> of kind
+  <code>review</code>, not a <code>Review</code> vertex. The operator's clearance is refused until
+  the back office has a real identity to check — <code>signedIn()</code> today accepts a cookie from
+  any request, so
+  <a href="../product/brd.html#rules-design-review">BR-48</a> is unimplementable as written until
+  that changes.</p>
+
+  <h3 id="sub-m17-4">M17.4 &mdash; The budget and the drift (T-188)</h3>
+  <p>EGM multiplies turns per task, and <a href="../product/brd.html#rules-scoring">BR-17</a>'s
+  budget caps are per workflow and per tenant rather than per attempt, so a review turn is metered
+  against them like any other: the desk's running cost and the tenant's spend carry it, and the
+  budget guard (<a href="#sub-m10-3">M10.3</a>) reads the same accumulators. The guard itself is
+  not built, so this is the accounting that will be. The drift report is the harness's idea made
+  mechanical: GAOS reads no folder, so it cannot compare a design against the code, but it can
+  compare a design against the <em>Blueprint version it was written under</em> &mdash; and a design
+  written under a superseded version is a design whose rules have moved under it. The review's
+  record says so, naming both versions.</p>
+
+  <h3 id="sub-m17-5">M17.5 &mdash; The reviewer's own workspace (T-189, T-190, T-191)</h3>
+  <p>The gate M17 built gave the reviewer a minimal packet and a fresh session, and left it in the
+  author's folder. <a href="../product/decision-log.html#d-071">D-071</a> closes that: a product has
+  a second workspace now, and the reviewer's turn runs there. The folder holds the published
+  Blueprint whole &mdash; the rubric, byte-identical &mdash; and is reset before every review turn, so
+  it holds none of the author's files. A run records which workspace it used, so a reviewer's turn
+  never marks the author's workspace drifted.</p>
+  <p>The limits are named rather than hidden: the standing files still carry the product's stories
+  and decisions, and the two folders are siblings under one managed root, so the gateway's write
+  boundary is not a read boundary between them.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

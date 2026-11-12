@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and fifty-six cases, positive and negative, across the four deploy automations and the
+  three hundred and ninety cases, positive and negative, across the four deploy automations and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -31,7 +31,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-11-02"
+       data-updated="2026-11-04"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and fifty-six cases in one filterable table. Filter by automation, kind, or any
+  <p>All three hundred and ninety cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -379,7 +379,7 @@
       <tr data-tags="blueprint publish unchanged no-op event negative implemented go test unit dashboard"><td>TC-288</td><td>dashboard (go test)</td><td>Negative</td><td>Publishing an unchanged Blueprint creates no version and emits no event (<code>TestPublishingAnUnchangedBlueprintDoesNothing</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint knowledge source pinned ref render positive implemented go test unit dashboard"><td>TC-289</td><td>dashboard (go test)</td><td>Positive</td><td>A knowledge source is rendered with its pinned ref and its purpose (<code>TestAKnowledgeSourceIsRenderedPinned</code>)</td><td>Implemented</td></tr>
       <tr data-tags="blueprint knowledge source url https credentials negative implemented go test unit dashboard"><td>TC-290</td><td>dashboard (go test)</td><td>Negative</td><td>A knowledge source with a non-<code>https</code> URL, or one carrying credentials, is refused (<code>TestAKnowledgeSourceThatIsNotHTTPSOrCarriesCredentialsIsRefused</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="workspace provision idempotent id derived positive implemented go test unit dashboard"><td>TC-291</td><td>dashboard (go test)</td><td>Positive</td><td>Provisioning is idempotent and derives <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>; a second call emits nothing (<code>TestProvisioningIsIdempotentAndTheWorkspaceIDIsDerived</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="workspace provision idempotent id derived positive implemented go test unit dashboard"><td>TC-291</td><td>dashboard (go test)</td><td>Positive</td><td>Provisioning is idempotent and derives <code>gaos-&lt;tenant&gt;-&lt;product&gt;</code> and <code>gaos-&lt;tenant&gt;-&lt;product&gt;-review</code>; a second call emits nothing (<code>TestProvisioningIsIdempotentAndTheWorkspaceIDIsDerived</code>)</td><td>Implemented</td></tr>
       <tr data-tags="workspace drift blueprint-drift dispatch refused br-39 negative implemented go test unit dashboard"><td>TC-292</td><td>dashboard (go test)</td><td>Negative</td><td>A workspace whose synced digest is not the published one refuses dispatch with <code>blueprint-drift</code>, no turn is sent, and a sync releases the product (<code>TestADriftedWorkspaceRefusesTheDispatchAndASyncReleasesIt</code>)</td><td>Implemented</td></tr>
       <tr data-tags="workspace sync egress credential refused br-32 negative implemented go test unit dashboard"><td>TC-293</td><td>dashboard (go test)</td><td>Negative</td><td>A credential in a policy refuses the sync, and the fake gateway receives nothing (<code>TestACredentialInAPolicyRefusesTheSyncAndNothingReachesTheGateway</code>)</td><td>Implemented</td></tr>
       <tr data-tags="workspace attempt record pin slice session request reopen positive implemented go test unit dashboard"><td>TC-294</td><td>dashboard (go test)</td><td>Positive</td><td>The attempt record carries the pinned version, the slice digest, the session id and the request id, across a store reopen (<code>TestTheAttemptRecordPinsTheBlueprintAndTheGatewayIDsAcrossAReopen</code>)</td><td>Implemented</td></tr>
@@ -445,6 +445,40 @@
       <tr data-tags="vendor pool disagree 409 repair provision write positive implemented go test unit dashboard m16 d-067"><td>TC-354</td><td>dashboard (go test)</td><td>Positive</td><td>A pool whose accounts hold different copies (409) is repaired by the sync: provision the missing copies, then one unconditional write (<code>TestAPoolWhoseCopiesDisagreeIsRepairedByTheSync</code>)</td><td>Implemented</td></tr>
       <tr data-tags="vendors tab ui render catalog models positive implemented go test unit dashboard m16 d-067 ui"><td>TC-355</td><td>dashboard (go test)</td><td>Positive</td><td>The AI vendors tab renders the policy, the role toggles and the pool's model list, with a form that saves to <code>PUT /products/{id}/vendors</code> (<code>TestTheVendorsTabRendersThePolicyAndTheCatalog</code>)</td><td>Implemented</td></tr>
       <tr data-tags="vendors form put save refuse positive negative implemented go test unit dashboard m16 d-067 ui"><td>TC-356</td><td>dashboard (go test)</td><td>Positive</td><td>Submitting the vendors form saves the policy and says so; a mode outside the three is refused and changes nothing (<code>TestPuttingTheVendorsFormSavesItAndRefusesABadOne</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="workspace agent skill orphan path count rule fork canary secret positive implemented shell check-workspace"><td>TC-357</td><td>check-workspace.sh</td><td>Positive</td><td>The agent workspace is internally consistent: every path named in <code>.claude/CLAUDE.md</code> exists, every skill is referenced, every count agrees with its register, no rule is forked, no canary is left, and no secret reached the report store</td><td>Implemented</td></tr>
+      <tr data-tags="workspace agent skill orphan path count rule fork canary secret negative implemented shell check-workspace"><td>TC-358</td><td>check-workspace.sh</td><td>Negative</td><td>A stale path or a drifted count is reported and the run exits 1</td><td>Implemented</td></tr>
+      <tr data-tags="workspace skill design engineering emil trim provenance digest sha256 licence positive implemented shell check-workspace"><td>TC-380</td><td>check-workspace.sh</td><td>Positive</td><td>The design-engineering skill is vendored, trimmed to the stack-agnostic half, carries no framework vocabulary, and matches the SHA-256 its <code>SOURCE.md</code> records</td><td>Implemented</td></tr>
+      <tr data-tags="workspace skill design engineering emil trim provenance digest licence vocabulary negative implemented shell check-workspace"><td>TC-381</td><td>check-workspace.sh</td><td>Negative</td><td>A skill carrying framework vocabulary, a vendored skill without its licence or its provenance, or a trimmed skill whose digest moved is reported and the run exits 1</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace packet dispatch m17.5 implemented"><td>TC-382</td><td>dashboard (go test)</td><td>Positive</td><td>The review turn runs in the product's own reviewer workspace: the packet names it and the gateway receives it</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace isolation m17.5 implemented"><td>TC-383</td><td>dashboard (go test)</td><td>Negative</td><td>The reviewer's workspace is never the product's own workspace</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace id grammar m17.5 implemented"><td>TC-384</td><td>dashboard (go test)</td><td>Positive</td><td>The reviewer's workspace id obeys the gateway's grammar: the prefix, the charset and the length cap</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace reset prune blueprint m17.5 implemented"><td>TC-385</td><td>dashboard (go test)</td><td>Positive</td><td>The reviewer's workspace is reset to the published Blueprint before every review turn, and holds the standing files and nothing else</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace refused dispatch m17.5 implemented"><td>TC-386</td><td>dashboard (go test)</td><td>Negative</td><td>A reviewer workspace that cannot be prepared refuses the dispatch before anything is spent</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace drift attribution m17.5 implemented"><td>TC-387</td><td>dashboard (go test)</td><td>Negative</td><td>A reviewer's turn does not mark the product's workspace drifted, so the author is not refused for the reviewer's behaviour</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace observed drift m17.5 implemented"><td>TC-388</td><td>dashboard (go test)</td><td>Negative</td><td>The observed drift check still fires for a review turn: a reviewer that rewrote the standing files is caught</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace blueprint sync m17.5 implemented"><td>TC-389</td><td>dashboard (go test)</td><td>Positive</td><td>The Blueprint sync keeps the product's workspace and the reviewer's in step</td><td>Implemented</td></tr>
+      <tr data-tags="reviewer workspace per product root m17.5 implemented"><td>TC-390</td><td>dashboard (go test)</td><td>Positive</td><td>Each product keeps its own workspace root, and no two products share a reviewer workspace</td><td>Implemented</td></tr>
+      <tr data-tags="design gate review artifact kind attach design positive m17 implemented"><td>TC-359</td><td>dashboard (go test)</td><td>Positive</td><td>The design artifact exists with kind <code>design</code> and is attached to the task that wrote it</td><td>Implemented</td></tr>
+      <tr data-tags="design gate dispatch block unreviewed design positive m17 implemented"><td>TC-360</td><td>dashboard (go test)</td><td>Positive</td><td>The implement task is <code>BLOCKED</code> while the review is unresolved, with reason <code>design-unreviewed</code></td><td>Implemented</td></tr>
+      <tr data-tags="design gate packet brief handoff history answer failure zero-context negative design m17 implemented"><td>TC-361</td><td>dashboard (go test)</td><td>Negative</td><td>The reviewer's prompt carries the design and the rubric and none of the brief, the handoff, the failure lesson, the operator's answer, the stories or the acceptance criteria</td><td>Implemented</td></tr>
+      <tr data-tags="design gate blocker operator queue design positive m17 implemented"><td>TC-362</td><td>dashboard (go test)</td><td>Positive</td><td>An open Blocker holds the implementation: the review task and the implement task are both <code>BLOCKED</code>, with reason <code>design-blocked</code></td><td>Implemented</td></tr>
+      <tr data-tags="design gate failed review blocked design positive m17 implemented"><td>TC-363</td><td>dashboard (go test)</td><td>Positive</td><td>A failed review is not a verdict: the review task is <code>BLOCKED</code> with reason <code>review-failed</code> and consumes no retry and no escalation</td><td>Implemented</td></tr>
+      <tr data-tags="design gate dispatch findings packet design positive m17 implemented"><td>TC-364</td><td>dashboard (go test)</td><td>Positive</td><td>A cleared review releases the implementation exactly once, and the implementer's next packet carries the design and the findings</td><td>Implemented</td></tr>
+      <tr data-tags="design gate workspace blueprint drift digest design positive m17 implemented"><td>TC-365</td><td>dashboard (go test)</td><td>Positive</td><td>A review dispatch does not trip the drift gate: the reviewer's workspace holds every file the pinned Blueprint version wrote</td><td>Implemented</td></tr>
+      <tr data-tags="design gate findings design packet design positive m17 implemented"><td>TC-366</td><td>dashboard (go test)</td><td>Positive</td><td>The implementer's next packet carries the design it is implementing and the findings made about it</td><td>Implemented</td></tr>
+      <tr data-tags="design gate plan shape review edge design positive m17 implemented"><td>TC-367</td><td>dashboard (go test)</td><td>Positive</td><td>Every story is designed, reviewed and then built, and the implementation waits on its review alone</td><td>Implemented</td></tr>
+      <tr data-tags="design gate plan validate refuse negative design m17 implemented"><td>TC-368</td><td>dashboard (go test)</td><td>Negative</td><td>A plan whose implementation has no review is refused before the first write</td><td>Implemented</td></tr>
+      <tr data-tags="design gate contract parse scope findings design positive m17 implemented"><td>TC-369</td><td>dashboard (go test)</td><td>Positive</td><td>Both new contracts parse their own example, and a malformed severity, a scope carrying prose and an empty findings list without <code>no-findings</code> are refused</td><td>Implemented</td></tr>
+      <tr data-tags="design gate session reason zero-context design positive m17 implemented"><td>TC-370</td><td>dashboard (go test)</td><td>Positive</td><td>A review task opens a fresh session with the reason <code>reviewer</code></td><td>Implemented</td></tr>
+      <tr data-tags="design gate budget cost metered design positive m17 implemented"><td>TC-371</td><td>dashboard (go test)</td><td>Positive</td><td>A review turn is metered like any other turn: the desk's cost and the tenant's spend both carry it</td><td>Implemented</td></tr>
+      <tr data-tags="design gate drift blueprint version design positive m17 implemented"><td>TC-372</td><td>dashboard (go test)</td><td>Positive</td><td>A design written under a superseded Blueprint is reported, with both versions named</td><td>Implemented</td></tr>
+      <tr data-tags="design gate vocabulary ddl kind citation design positive m17 implemented"><td>TC-373</td><td>dashboard (go test)</td><td>Positive</td><td>The three closed vocabularies M17 grows agree with the DDL that admits them</td><td>Implemented</td></tr>
+      <tr data-tags="design gate dispatch dependency operator negative design m17 implemented"><td>TC-374</td><td>dashboard (go test)</td><td>Negative</td><td>The operator's dispatch route refuses a task whose prerequisite is not done, and the board refuses to unblock a task the gate is holding</td><td>Implemented</td></tr>
+      <tr data-tags="design gate event catalog unchanged design positive m17 implemented"><td>TC-375</td><td>dashboard (go test)</td><td>Positive</td><td>The gate adds no event name: it speaks in <code>TaskMoved</code>'s rule</td><td>Implemented</td></tr>
+      <tr data-tags="design gate operator route unblock dispatch negative design m17 implemented"><td>TC-376</td><td>dashboard (go test)</td><td>Negative</td><td>The gate holds through the operator's own routes: the board refuses to unblock a gated task and the dispatch route refuses a task whose review has not resolved</td><td>Implemented</td></tr>
+      <tr data-tags="design gate no design screening refusal negative design m17 implemented"><td>TC-377</td><td>dashboard (go test)</td><td>Negative</td><td>The gate does not open on a review that had no design: a design the screening refused is recorded as blocked, and the review that follows has nothing to attack</td><td>Implemented</td></tr>
+      <tr data-tags="design gate unknown kind refuse vocabulary negative design m17 implemented"><td>TC-378</td><td>dashboard (go test)</td><td>Negative</td><td>A task whose kind is outside the vocabulary is refused before the first write, not normalised into an implement task</td><td>Implemented</td></tr>
+      <tr data-tags="design gate verdict record approval negative design m17 implemented"><td>TC-379</td><td>dashboard (go test)</td><td>Negative</td><td>The gate clears on its own recorded verdict, not on a task's status: a review task that reached <code>DONE</code> with no recorded finding leaves the gate closed</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -2189,11 +2223,12 @@
   <p>M14.4, in <code>dashboard/workspace_test.go</code>, against the fake ai-manager, which now also
   answers the provisioning routes, keeps files per workspace and computes the worker's digest.
   <strong>TC-291, positive</strong> (<code>TestProvisioningIsIdempotentAndTheWorkspaceIDIsDerived</code>):
-  the first sync emits one <code>WorkspaceProvisioned</code> and one <code>BlueprintSynced</code>
-  (<code>the first sync gave %v %v; want one WorkspaceProvisioned and one BlueprintSynced</code>), the
-  workspace is <code>gaos-t1-&lt;product&gt;</code> (<code>the workspace is %q (worker has %d
-  workspace(s)); want %s, derived from tenant and product</code>), and a second sync neither provisions
-  again nor rewrites unchanged files (<code>a second sync provisioned again or rewrote unchanged files
+  the first sync emits two <code>WorkspaceProvisioned</code> and two <code>BlueprintSynced</code> &mdash;
+  the product's workspace and the reviewer's (<code>the first sync gave %v %v; want two
+  WorkspaceProvisioned and two BlueprintSynced &mdash; the product's workspace and the reviewer's</code>),
+  the two workspaces are <code>gaos-t1-&lt;product&gt;</code> and <code>gaos-t1-&lt;product&gt;-review</code>
+  (<code>the workspace is %q (worker has %d workspace(s)); want %s, derived from tenant and product</code>),
+  and a second sync neither provisions again nor rewrites unchanged files (<code>a second sync provisioned again or rewrote unchanged files
   (%d writes); both must be no-ops</code>).
   <strong>TC-294, positive</strong> (<code>TestTheAttemptRecordPinsTheBlueprintAndTheGatewayIDsAcrossAReopen</code>,
   ArcadeDB only): a supervised gateway attempt, read back from a reopened store, carries version 1,
@@ -2596,6 +2631,149 @@
   outside the three = %d without the refusal: %s</code>, <code>a refused form changed the policy to
   %+v</code>. The round trip through both stores is a case in the conformance table
   (<code>SaveVendorPolicyRoundTripsAndABadOneIsRejected</code>), covered by TC-124 and TC-125.</p>
+
+  <h3 id="cw-workspace">check-workspace.sh — the agent workspace's own invariants (TC-357, TC-358, TC-380, TC-381)</h3>
+  <p>A running stack hides the drift in the agent workspace: an orphan skill that contradicts the
+  agent that owns its job, a vendored skill nothing referenced, and four numbers that stopped
+  matching their own registers. <code>deploy/check-stacks.sh</code> checks the stack and
+  <code>pustaka check</code> checks the docs site's structure; neither looked at
+  <code>.claude/</code>. This script does, in six checks: every path named in
+  <code>.claude/CLAUDE.md</code> exists; every skill is referenced; every count agrees with its
+  register; no rule sentence appears in two rule files; no isolation canary was left behind; and
+  the review report store carries no secret-shaped string. The sixth check also owns the skills:
+  no framework vocabulary came back into one, every vendored skill kept its licence and its
+  provenance, and the trimmed design-engineering skill still matches the SHA-256 its
+  <code>SOURCE.md</code> records — it is an instruction file every frontend session loads, so an
+  edit to it fails the run until the digest is updated in the same change. It runs on the host,
+  where <code>deploy/rebuild-restart.sh</code> symlinks the host-side credentials into worktrees,
+  so for a path matching <code>*.env</code>, <code>*.aim-*</code>, <code>*.pem</code> or
+  <code>*.key</code> it prints the path and the rule and never the matched line.
+  <strong>Positive (TC-357, TC-380):</strong> the files as committed print <code>ok</code> on all
+  six checks and the run exits 0. <strong>Negative (TC-358, TC-381):</strong> a stale path, a
+  drifted count, a skill carrying framework vocabulary, a vendored skill without its licence or
+  its provenance, or a trimmed skill whose digest moved prints <code>FAIL &lt;what&gt;</code> and
+  the run exits 1. It is advisory — there is no CI, so the product owner runs it
+  (<a href="decision-log.html#d-025">D-025</a>).</p>
+
+  <h3 id="go-reviewer-workspace">dashboard &mdash; the reviewer's own workspace (TC-382&hellip;TC-390)</h3>
+  <p>M17.5, in <code>dashboard/reviewer_workspace.go</code> and
+  <code>dashboard/reviewer_workspace_test.go</code>, against the fake ai-manager, which already
+  keeps files per workspace and computes the worker's digest.
+  <strong>TC-382, positive</strong> (<code>TestTheReviewTurnRunsInTheProductOwnReviewerWorkspace</code>):
+  the review's packet names the product's reviewer workspace and the gateway receives it
+  (<code>the gateway received workspace %q; want the reviewer's own %q</code>).
+  <strong>TC-383, negative</strong> (<code>TestTheReviewerWorkspaceIsNotTheProductWorkspace</code>):
+  no product's reviewer runs in the product's own workspace
+  (<code>the reviewer for %s runs in the product's own workspace %q</code>).
+  <strong>TC-384, positive</strong> (<code>TestTheReviewerWorkspaceIdObeysTheGatewayIdGrammar</code>):
+  the id matches the gateway's grammar, and two long product ids do not collapse onto one
+  (<code>the reviewer workspace id %q for %q does not match the gateway's grammar</code>).
+  <strong>TC-385, positive</strong> (<code>TestTheReviewerWorkspaceIsResetToThePublishedBlueprintBeforeEveryReviewTurn</code>):
+  the folder holds exactly the standing files &mdash; the author's file and an earlier review's
+  leftover are both gone (<code>the reviewer workspace holds %q, which the published Blueprint did
+  not write; the folder must hold exactly the standing files</code>).
+  <strong>TC-386, negative</strong> (<code>TestAReviewDispatchIsRefusedWhenTheReviewerWorkspaceCannotBePrepared</code>):
+  a workspace that cannot be prepared refuses the dispatch and sends no turn
+  (<code>the gateway received %d chat turn(s); a refused dispatch spends nothing</code>).
+  <strong>TC-387, negative</strong> (<code>TestAReviewTurnDoesNotMarkTheProductWorkspaceDrifted</code>):
+  the product's workspace digest does not move after a reviewer's turn
+  (<code>the product's workspace digest moved from %q to %q after a reviewer's turn; the author's
+  folder must not be marked drifted by the reviewer's behaviour</code>).
+  <strong>TC-388, negative</strong> (<code>TestTheObservedDriftCheckStillFiresForAReviewTurn</code>):
+  a reviewer that rewrote its own standing files is caught
+  (<code>a reviewer that rewrote its standing files produced %d observed-drift refusal(s); want one</code>).
+  <strong>TC-389, positive</strong> (<code>TestTheBlueprintSyncKeepsBothWorkspacesInStep</code>):
+  the sync leaves both workspaces holding exactly the published files, and the record names the
+  reviewer's copy (<code>the record does not say what the reviewer's copy holds</code>).
+  <strong>TC-390, positive</strong> (<code>TestEachProductKeepsItsOwnWorkspaceRoot</code>):
+  three products give three workspace roots and three reviewer workspaces
+  (<code>two products share the workspace root %q</code>).
+
+  <h3 id="go-designgate">dashboard — the design gate (TC-359…TC-375)</h3>
+  <p><code>T-184…T-188</code>, in <code>dashboard/designgate_test.go</code>. Since v0.35.0 a plan
+  can carry a <em>review</em> task, and the reviewer's prompt holds the design and the rubric and
+  nothing else — no brief, no goal, no handoff, no failure lesson, no operator's answer, no stories,
+  no acceptance criteria. The implementation waits on the review through the planner's own
+  <code>DEPENDS_ON</code> edge, and the gate releases it only when the review clears. The gate is
+  enforced twice over: a plan whose implementation has no review is refused before the first write,
+  and the operator's dispatch route refuses a task whose prerequisite is not done.</p>
+  <p><strong>TC-359, positive</strong> (<code>TestTheDesignArtifactExistsWithKindDesignAndIsAttachedToItsTask</code>):
+  the design artifact is recorded and attached to the task that wrote it — <code>no design artifact
+  was recorded for the design task</code>, <code>the design artifact is of kind %q; it must be %q</code>
+  — and a design document that quotes a contract example is refused, because a nested block of a
+  reserved tag would win the reply.
+  <strong>TC-360, positive</strong> (<code>TestTheImplementationTaskIsBlockedWhileTheReviewIsUnreviewed</code>):
+  the implementation is held from the moment the graph is written — <code>the implementation is %q; a
+  task waiting for a review is BLOCKED</code>, <code>the implementation's reason is %q; it must be
+  %q</code>.
+  <strong>TC-361, negative</strong> (<code>TestTheReviewPacketCarriesTheDesignAndTheRulesAndNothingElse</code>):
+  the reviewer's prompt carries the design and the rubric and nothing else — <code>the reviewer's
+  prompt carries %d parts (%v); it must carry the design and the rubric and nothing else (D-069
+  clause 3)</code>.
+  <strong>TC-362, positive</strong> (<code>TestAReviewWithAnOpenBlockerHoldsTheImplementation</code>):
+  an open Blocker holds the implementation — <code>the review task is %q; an open Blocker leaves it
+  BLOCKED</code>, <code>the implementation is %q; an open Blocker holds it</code>.
+  <strong>TC-363, positive</strong> (<code>TestAReviewWithNoReviewBlockIsAFailureAndNotAVerdict</code>):
+  a failed review is not a verdict — <code>the review task is %q; a review that produced no verdict is
+  BLOCKED</code>, <code>the failed review consumed a retry (%d) or an escalation (%d); a failed review
+  consumes none of the three attempt-scoped limits (D-068 clause 7)</code>.
+  <strong>TC-364, positive</strong> (<code>TestAReviewWithNoOpenBlockerClearsTheImplementationExactlyOnce</code>):
+  a cleared review releases the implementation — <code>the review task is %q; a review with no open
+  Blocker is DONE</code>, <code>the implementation is %q; a cleared review releases it to READY</code> —
+  and the implementer's next packet carries the design and the findings:
+  <code>the implement packet carries no findings (%v); the findings must travel back (D-069 clause
+  6)</code>.
+  <strong>TC-365, positive</strong> (<code>TestAReviewDispatchDoesNotTripTheDriftGate</code>): the
+  reviewer's workspace holds the published Blueprint whole — <code>the reviewer's workspace already
+  drifts: %s</code>.</p>
+
+  <h3 id="go-designgate-2">dashboard — the design gate's contracts, session, accounting and enforcement (TC-366…TC-379)</h3>
+  <p>The rest of the milestone's own cases, in the same file.
+  <strong>TC-366, positive</strong> (<code>TestAnImplementPacketCarriesTheDesignAndTheFindings</code>):
+  the implementer is handed the design it is implementing and the findings made about it.
+  <strong>TC-367, positive</strong> (<code>TestThePlanGivesEveryStoryADesignTaskAndAReviewTask</code>):
+  every story is designed, reviewed and then built — <code>the implementation %s depends on %v; it
+  must depend on the review %s, because that edge is the gate (D-069 clause 7)</code>.
+  <strong>TC-368, negative</strong> (<code>TestAPlanWithAnImplementationAndNoReviewIsRefused</code>):
+  a plan that omits the gate is refused — <code>a plan whose implementation has no review was
+  accepted; BR-46 says every implementation is reviewed before it runs, and the plan is an
+  input</code>.
+  <strong>TC-369, positive</strong> (<code>TestTheDesignContractAndTheReviewContractParse</code>):
+  both new contracts parse their own example — <code>the design contract's own example does not
+  parse: %v</code>, <code>the review contract's own example does not parse: %v</code> — and a
+  malformed severity, a scope carrying prose and an empty findings list without
+  <code>no-findings</code> are each refused.
+  <strong>TC-370, positive</strong> (<code>TestAReviewTaskRunsOnAFreshSessionWithTheReviewerReason</code>):
+  the reviewer opens a fresh session — <code>the review task's session reason is %q; it must be %q</code>.
+  <strong>TC-371, positive</strong> (<code>TestAReviewTurnIsMeteredLikeAnyOtherTurn</code>): a
+  review turn is metered like any other — <code>the desk's cost is %v after a review turn that cost
+  0.25; a review turn is metered like any other</code>.
+  <strong>TC-372, positive</strong> (<code>TestTheDesignDriftReportNamesADesignWrittenUnderAnOlderBlueprint</code>):
+  a design written under a superseded Blueprint is reported — <code>the review record does not report
+  the drift: %q</code>.
+  <strong>TC-373, positive</strong> (<code>TestTheClosedVocabulariesMatchTheDDL</code>): the three
+  closed vocabularies M17 grows agree with the DDL that admits them — <code>Task.kind's regexp %q
+  does not admit %q</code>.
+  <strong>TC-374, negative</strong> (<code>TestTheOperatorDispatchRouteRefusesAnUnmetDependency</code>):
+  the operator's route cannot bypass the gate — <code>the board may unblock %s by hand while %s has
+  not resolved</code>.
+  <strong>TC-375, positive</strong> (<code>TestTheEventCatalogIsUnchanged</code>): the gate adds no
+  event name — <code>the gate wrote an event of type %q, which is in neither the model document's
+  catalog nor the UI-lifecycle block</code>.
+  <strong>TC-376, negative</strong> (<code>TestTheGateHoldsThroughTheOperatorsOwnRoutes</code>): the
+  gate's second door holds — <code>the board unblocked a task the design gate is holding; the gate
+  has two doors and one of them was open</code>, <code>the dispatch route dispatched a task whose
+  review has not resolved</code>.
+  <strong>TC-377, negative</strong> (<code>TestTheGateDoesNotOpenOnAReviewThatHadNoDesign</code>): a
+  design the screening refused is recorded, not silently dropped, and the review that follows has
+  nothing to attack — <code>the design task is %q; a design the screening refused is BLOCKED, not
+  finished-looking</code>, <code>the review task is %q; a review with no design is BLOCKED</code>.
+  <strong>TC-378, negative</strong> (<code>TestAnUnknownTaskKindIsRefusedBeforeTheFirstWrite</code>):
+  a kind outside the vocabulary is refused — <code>a plan with a task whose kind is outside the
+  vocabulary was accepted; the fail-open direction is contamination</code>.
+  <strong>TC-379, negative</strong> (<code>TestTheGateRecordsAReviewOnlyWhenItHasOne</code>): the
+  gate clears on its own record — <code>the gate cleared on a review task that reached DONE with no
+  recorded finding; an approval is not a verdict</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

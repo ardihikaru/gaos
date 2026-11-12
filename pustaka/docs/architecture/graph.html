@@ -256,7 +256,7 @@ LIMIT 20</pre>
     <tbody>
       <tr><td><code>Policy</code>, <code>KnowledgeSource</code></td><td>The technical and coding sections of a Blueprint, and the repositories it must follow</td></tr>
       <tr><td><code>BlueprintVersion</code></td><td>An immutable, content-addressed publication; <code>TaskRun -PINNED_TO-&gt;</code> it</td></tr>
-      <tr><td><code>Workspace</code>, reused</td><td>One per product, by id (<code>HOSTED_IN</code>); its <code>leasedBy</code> and <code>leaseUntil</code> become one live turn per workspace</td></tr>
+      <tr><td><code>Workspace</code>, reused</td><td>One per product, by id (<code>HOSTED_IN</code>), plus the product's reviewer workspace (D-071); its <code>leasedBy</code> and <code>leaseUntil</code> become one live turn per product</td></tr>
       <tr><td><code>TaskRun</code></td><td>The request id recovery polls, the session id, the pinned version, the stored reply</td></tr>
       <tr><td>Six events</td><td><code>BlueprintPublished</code>, <code>WorkspaceProvisioned</code>, <code>BlueprintSynced</code>, <code>SessionOpened</code>, <code>SessionLost</code>, <code>TaskReordered</code></td></tr>
     </tbody>

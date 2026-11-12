@@ -1,0 +1,1 @@
+../../.claude/rules/rule-index.md
