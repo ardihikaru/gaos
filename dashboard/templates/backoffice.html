@@ -50,12 +50,54 @@
 {{define "bo-sheet"}}
 <div class="sheet" id="boSheet" {{if not .BO}}hidden{{end}} aria-label="Back office" hx-swap-oob="true">
   {{if .BO}}
-  <div class="sheet-head">
-    <div>
-      <span class="eyebrow">{{.Tenant}}</span>
-      <h2>Product master</h2>
+  {{/* One bar, two modes. Product mode is exactly when bo-main renders the
+       product detail: a Detail, and a view that is not one of the two global
+       panes bo-main checks first. */}}
+  {{$product := and .BO.Detail (ne .BO.View "inbox") (ne .BO.View "agents")}}
+  <header class="sheet-head bo-bar">
+    <div class="bo-ctx">
+      {{template "brand-mark" .}}
+      <div class="bo-where">
+        <span class="bo-tenant" title="{{.Tenant}}">{{.Tenant}}</span>
+        {{if $product}}{{with .BO.Detail}}
+        <span class="bo-crumb">
+          <button class="bo-crumb-up" hx-get="products" hx-target="#sink" hx-swap="innerHTML">Products</button>
+          <span class="bo-crumb-sep" aria-hidden="true">/</span>
+          <b title="{{.Name}}">{{.Name}}</b>
+        </span>
+        {{end}}{{else}}
+        <b class="bo-crumb">Back office</b>
+        {{end}}
+      </div>
     </div>
-    <div class="sp">
+
+    {{if $product}}{{with .BO.Detail}}
+    <nav class="bo-menu" aria-label="Product sections">
+      <button{{if eq .Tab "brd"}} aria-current="page"{{end}}       hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</button>
+      <button{{if eq .Tab "stories"}} aria-current="page"{{end}}   hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num (len .Master.Stories)}}</span></button>
+      <button{{if eq .Tab "diagrams"}} aria-current="page"{{end}}  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num (len .Master.Diagrams)}}</span></button>
+      <button{{if eq .Tab "knowledge"}} aria-current="page"{{end}} hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></button>
+      <button{{if eq .Tab "board"}} aria-current="page"{{end}}     hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</button>
+      <button{{if eq .Tab "timeline"}} aria-current="page"{{end}}  hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n">{{num (len .Timeline)}}</span></button>
+      <button{{if eq .Tab "blueprint"}} aria-current="page"{{end}} hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></button>
+      <button{{if eq .Tab "vendors"}} aria-current="page"{{end}}   hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</button>
+    </nav>
+    {{/* The inbox count is not in this bar, but chrome.html's oob and
+         GET /ui/needs swap it by id on every mutation: without a target htmx
+         logs oobErrorNoTarget. The needs chip on the right is the visible one. */}}
+    <span id="navNeedsCount" hidden>{{num $.Needs}}</span>
+    {{end}}{{else}}
+    <nav class="bo-menu" aria-label="Back office">
+      <button{{if eq .BO.View "inbox"}} aria-current="page"{{end}}     hx-get="ui/bo/inbox"     hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Inbox <span class="n" id="navNeedsCount">{{num .Needs}}</span></button>
+      <button{{if eq .BO.View "products"}} aria-current="page"{{end}}  hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="n">{{num .BO.Counts.Products}}</span></button>
+      <button{{if eq .BO.View "stories"}} aria-current="page"{{end}}   hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num .BO.Counts.Stories}}</span></button>
+      <button{{if eq .BO.View "diagrams"}} aria-current="page"{{end}}  hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num .BO.Counts.Diagrams}}</span></button>
+      <button{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></button>
+      <button{{if eq .BO.View "agents"}} aria-current="page"{{end}}    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></button>
+    </nav>
+    {{end}}
+
+    <div class="bo-end">
       <span class="needs-slot" id="needsSlot">{{template "needs-chip" .}}</span>
       <span class="live-off" id="liveOff" hidden title="Live updates paused — reconnecting"><i aria-hidden="true"></i><span class="sr-only">Live updates paused, reconnecting</span></span>
       <button class="icon-btn" id="boTheme" aria-label="Switch theme" title="Switch theme (T)">
@@ -64,23 +106,10 @@
       </button>
       <button class="btn" hx-post="auth/logout" hx-target="#sink" hx-swap="innerHTML">Sign out</button>
     </div>
-  </div>
+  </header>
 
   <div class="sheet-body">
-    <div class="bo">
-      <nav class="bo-nav">
-        <h3>Inbox</h3>
-        <button aria-current="{{eq .BO.View "inbox"}}" hx-get="ui/bo/inbox" hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Needs you <span class="count" id="navNeedsCount">{{num .Needs}}</span></button>
-        <h3 style="margin-top:20px">Records</h3>
-        <button aria-current="{{eq .BO.View "products"}}"  hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="count">{{.BO.Counts.Products}}</span></button>
-        <button aria-current="{{eq .BO.View "stories"}}"   hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">User stories <span class="count">{{.BO.Counts.Stories}}</span></button>
-        <button aria-current="{{eq .BO.View "diagrams"}}"  hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="count">{{.BO.Counts.Diagrams}}</span></button>
-        <button aria-current="{{eq .BO.View "knowledge"}}" hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="count">{{.BO.Counts.Knowledge}}</span></button>
-        <h3 style="margin-top:20px">Access</h3>
-        <button aria-current="{{eq .BO.View "agents"}}"    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="count">{{.BO.Counts.Agents}}</span></button>
-      </nav>
-      {{template "bo-main" .}}
-    </div>
+    {{template "bo-main" .}}
   </div>
   {{end}}
 </div>
@@ -154,28 +183,18 @@
 
 {{define "bo-product-detail"}}
 {{with .Detail}}
-<header>
-  <div>
-    <button class="btn" style="margin-bottom:8px" hx-get="products" hx-target="#sink" hx-swap="innerHTML">‹ All products</button>
-    <h2>{{.Name}}</h2>
-    <p>{{.Goal}} · owner {{.Owner}} · {{.Repos}}</p>
+{{/* A thin title row. The tabs live in the bar above (bo-sheet); the h2 stays
+     because app.js falls back to "#boMain h2" when focus has nowhere to go. */}}
+<header class="bo-title">
+  <div class="bo-title-text">
+    <h2 tabindex="-1" title="{{.Name}}">{{.Name}}</h2>
+    <p title="{{with .Goal}}{{.}} · {{end}}owner {{.Owner}} · {{.Repos}}">{{with .Goal}}{{.}} · {{end}}owner {{.Owner}} · <span class="mono">{{.Repos}}</span></p>
   </div>
   <span class="sp">
     <button class="btn" hx-post="products/{{.ID}}/inject?tab={{.Tab}}" hx-target="#sink" hx-swap="innerHTML">Inject into graph</button>
     <button class="btn btn-primary" hx-get="ui/cw?product={{.ID}}" hx-target="#sink" hx-swap="innerHTML">Create workflow</button>
   </span>
 </header>
-
-<div class="tabs" role="tablist">
-  <button role="tab" aria-selected="{{eq .Tab "brd"}}"       hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</button>
-  <button role="tab" aria-selected="{{eq .Tab "stories"}}"   hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">User stories<span class="n">{{len .Master.Stories}}</span></button>
-  <button role="tab" aria-selected="{{eq .Tab "diagrams"}}"  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams<span class="n">{{len .Master.Diagrams}}</span></button>
-  <button role="tab" aria-selected="{{eq .Tab "knowledge"}}" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge<span class="n">{{len .Master.Decisions}}</span></button>
-  <button role="tab" aria-selected="{{eq .Tab "board"}}" hx-get="products/{{.ID}}?tab=board" hx-target="#sink" hx-swap="innerHTML">Board</button>
-  <button role="tab" aria-selected="{{eq .Tab "timeline"}}" hx-get="products/{{.ID}}?tab=timeline" hx-target="#sink" hx-swap="innerHTML">Timeline<span class="n">{{len .Timeline}}</span></button>
-  <button role="tab" aria-selected="{{eq .Tab "blueprint"}}" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint<span class="n">{{len .Master.Blueprint.Policies}}</span></button>
-  <button role="tab" aria-selected="{{eq .Tab "vendors"}}" hx-get="products/{{.ID}}?tab=vendors" hx-target="#sink" hx-swap="innerHTML">AI vendors</button>
-</div>
 
 <div class="panel-grid">
   <div>
