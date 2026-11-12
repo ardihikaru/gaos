@@ -499,7 +499,7 @@
   <code>gaos_prod</code>, each refused (<code>403</code>) on the other's, which was measured when the
   users were created. <strong>Positive (TC-001):</strong> the files as committed print
   <code>ok dev uses the gaos_dev database</code>, <code>ok dev does not use the PROD database</code>,
-  <code>ok prod uses the gaos database</code>, <code>ok prod does not use the DEV database</code>,
+  <code>ok prod uses the gaos database (overridable per instance)</code> (prod names it as <code>"${GAOS_ARCADE_DB:-gaos}"</code>, so a second instance can set its own database), <code>ok prod does not use the DEV database</code>,
   <code>ok dev reaches the database over WireGuard</code> and <code>ok prod reaches the database over
   WireGuard</code>. <strong>Negative (TC-002):</strong> set dev's <code>GAOS_ARCADE_DB</code> to
   <code>"gaos"</code> — <code>FAIL dev uses the gaos_dev database</code> and <code>FAIL dev does not use
@@ -508,7 +508,7 @@
   <h3 id="cs-bind">check-stacks.sh — tunnel-only publish binding (TC-003, TC-004)</h3>
   <p>Without the <code>10.10.0.2</code> prefix a <code>ports:</code> mapping binds every interface the
   host has, including the LAN — and nothing at runtime says so. <strong>Positive (TC-003):</strong>
-  dev publishes <code>"10.10.0.2:19301:80"</code>, prod publishes <code>"10.10.0.2:18301:80"</code>,
+  dev publishes <code>"10.10.0.2:19301:80"</code>, prod publishes <code>"${GAOS_TUNNEL_IP:-10.10.0.2}:18301:80"</code> (the default is vm-rnd-ardi; a second instance sets <code>GAOS_TUNNEL_IP</code> to its own wg address),
   each file has exactly one <code>ports:</code> mapping. <strong>Negative (TC-004):</strong> drop the
   address prefix (<code>"19301:80"</code>) or add a second mapping — <code>FAIL unexpected bind</code>
   or <code>FAIL n ports: mappings, want 1</code>.</p>
@@ -705,7 +705,7 @@
 
   <h3 id="rr-bind">rebuild-restart.sh — verification: bind address (TC-036, TC-037)</h3>
   <p><strong>Positive:</strong> <code>ss -ltn</code> shows the port bound to
-  <code>10.10.0.2:$PORT</code> only → <code>vok "bound to $TUNNEL:$PORT only"</code>.
+  <code>$TUNNEL:$PORT</code> only (<code>TUNNEL</code> is <code>$GAOS_TUNNEL_IP</code>, default <code>10.10.0.2</code>) → <code>vok "bound to $TUNNEL:$PORT only"</code>.
   <strong>Negative:</strong> a compose or Traefik regression drops the tunnel prefix, or the entrypoint
   binds <code>0.0.0.0</code> → <code>vbad "unexpected bind: …"</code>.</p>
 
