@@ -36,6 +36,21 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-36-2">v0.36.2 <time datetime="2026-11-13">2026-11-13</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One bar, no nesting.</p>
+      <ul>
+        <li><span class="chg change">Changed</span> <b>the back office navigates from its top bar</b>.
+        The left sidebar and the product's tab row are gone. At tenant level the bar carries Inbox,
+        Products, Stories, Diagrams, Knowledge and Agents. Inside a product it carries a
+        <em>Products / name</em> breadcrumb and the product's eight tabs, from Requirements to AI vendors.
+        The product header is now one thin title row, and the content runs full width.</li>
+        <li><span class="chg fix">Fixed</span> <b>a deploy no longer serves yesterday's stylesheet</b>:
+        the dashboard's CSS and scripts carry a version in their URL, so the week-long static cache
+        cannot pair new markup with old styles.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-36-1">v0.36.1 <time datetime="2026-11-13">2026-11-13</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The front door finally describes GAOS.</p>
       <ul>

@@ -337,12 +337,38 @@
       .then(function (m) { m.mount(host); })
       .catch(function () { /* the server board stays */ });
   }
-  document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); });
-  document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); });
+  /* ---------- the back-office bar ----------
+     On a narrow screen the menu scrolls sideways. Two jobs the server cannot
+     do: keep the current item in view after every swap, and say which side
+     has more (data-more drives the edge fade in app.css). No smooth scroll —
+     switching tabs happens tens of times a day and must feel instant. */
+  function syncMenuFade(menu) {
+    var max = menu.scrollWidth - menu.clientWidth;
+    var start = menu.scrollLeft > 1, end = menu.scrollLeft < max - 1;
+    var v = start && end ? "both" : start ? "start" : end ? "end" : "";
+    if (v) menu.setAttribute("data-more", v); else menu.removeAttribute("data-more");
+  }
+  function syncMenu() {
+    var menu = document.querySelector("#boSheet .bo-menu");
+    if (!menu) return;
+    var cur = menu.querySelector('[aria-current="page"]');
+    // "nearest" moves nothing when the item already shows; scroll-padding in
+    // app.css keeps it clear of the faded edge when it does move.
+    if (cur && menu.scrollWidth > menu.clientWidth) cur.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "instant" });
+    syncMenuFade(menu);
+  }
+  document.addEventListener("scroll", function (e) {
+    if (e.target.classList && e.target.classList.contains("bo-menu")) syncMenuFade(e.target);
+  }, true);
+  window.addEventListener("resize", syncMenu);
+
+  document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); syncMenu(); });
+  document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); if (e.target.id === "boSheet") syncMenu(); });
 
   /* Boot: reflect the theme label. */
   applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
   mountBoard(document);
+  syncMenu();
   // The board (M14.6). Native drag and drop, by delegation so it survives
   // every swap. It renders nothing (I-6): a drop sends the same move request
   // a card's buttons do, and the server's answer -- the re-rendered board, or
