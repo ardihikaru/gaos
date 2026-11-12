@@ -92,9 +92,11 @@ if [ "$ENVIRON" = dev ]; then
 else
   COMPOSE=deploy/stacks/compose.prod.yaml
   PORT=18301
-  HOST=gaos.mfardiansyah.id
+  # A second prod instance (rnd-v3-vpn, gaos.sismedika.com) overrides both:
+  #   GAOS_TUNNEL_IP=10.10.0.9 GAOS_HOST=gaos.sismedika.com GAOS_ARCADE_DB=<db>
+  HOST="${GAOS_HOST:-gaos.mfardiansyah.id}"
 fi
-TUNNEL=10.10.0.2
+TUNNEL="${GAOS_TUNNEL_IP:-10.10.0.2}"
 
 dc() { docker compose -f "$COMPOSE" "$@"; }
 

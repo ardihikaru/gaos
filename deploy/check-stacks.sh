@@ -36,7 +36,7 @@ echo "== the two tiers never name each other's database =="
 # gaos_dev / gaos_dev and gaos / gaos_prod, each user refused on the other's.
 has   $DEV  'GAOS_ARCADE_DB: "gaos_dev"'      "dev uses the gaos_dev database"
 hasnt $DEV  'GAOS_ARCADE_DB: "gaos"'           "dev does not use the PROD database"
-has   $PROD 'GAOS_ARCADE_DB: "gaos"'          "prod uses the gaos database"
+has   $PROD 'GAOS_ARCADE_DB: "${GAOS_ARCADE_DB:-gaos}"' "prod uses the gaos database (overridable per instance)"
 hasnt $PROD 'GAOS_ARCADE_DB: "gaos_dev"'       "prod does not use the DEV database"
 has   $DEV  '"http://10.10.0.5:2480"'          "dev reaches the database over WireGuard"
 has   $PROD '"http://10.10.0.5:2480"'          "prod reaches the database over WireGuard"
@@ -46,7 +46,7 @@ echo "== nothing is published beyond the tunnel =="
 # Without the 10.10.0.2 prefix this binds every interface the host has -- the
 # LAN and the site-to-site link included -- and nothing says so.
 has   $DEV  '"10.10.0.2:19301:80"'           "dev publishes on the tunnel address only"
-has   $PROD '"10.10.0.2:18301:80"'           "prod publishes on the tunnel address only"
+has   $PROD '"${GAOS_TUNNEL_IP:-10.10.0.2}:18301:80"' "prod publishes on the tunnel address only"
 for f in $DEV $PROD; do
   n=$(grep -c '^\s*- "' "$f")
   [ "$n" = 1 ] && ok "$(basename "$f"): exactly one ports: mapping" \

@@ -37,7 +37,9 @@ services:
       # publishes on every interface the host has -- the LAN and the
       # site-to-site link included -- and nothing about that is visible in
       # `docker compose ps`. Check it with `ss -ltnp` after every change.
-      - "10.10.0.2:18301:80"
+      # GAOS_TUNNEL_IP defaults to 10.10.0.2 (vm-rnd-ardi). A second instance on
+      # another VM sets it to that VM's own wg address (rnd-v3-vpn: 10.10.0.9).
+      - "${GAOS_TUNNEL_IP:-10.10.0.2}:18301:80"
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ../traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
@@ -70,7 +72,9 @@ services:
       # on its own database alone (a 403 on the other's). There is no infra
       # network to join any more; nothing here resolves a neighbour by name.
       GAOS_ARCADE_URL: "http://10.10.0.5:2480"
-      GAOS_ARCADE_DB: "gaos"
+      # Default `gaos`. The second instance (rnd-v3-vpn) sets GAOS_ARCADE_DB to
+      # its own database, so the two never share a graph.
+      GAOS_ARCADE_DB: "${GAOS_ARCADE_DB:-gaos}"
       # The graph store, not the fixtures. The binary applies the schema from
       # its embedded copy on boot -- idempotent, so a restart is a no-op -- and
       # REFUSES TO START if the database is unreachable. That is deliberate: a
