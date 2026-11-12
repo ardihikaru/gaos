@@ -52,15 +52,21 @@ func TestProvisioningIsIdempotentAndTheWorkspaceIDIsDerived(t *testing.T) {
 	s, f, id := publishedStore(t)
 	ctx := context.Background()
 	r, err := s.SyncBlueprint(ctx, id)
-	if err != nil || len(eventsOf(r, WorkspaceProvisioned)) != 1 || len(eventsOf(r, BlueprintSynced)) != 1 {
-		t.Fatalf("the first sync gave %v %v; want one WorkspaceProvisioned and one BlueprintSynced", r.NewEvents, err)
+	// Two workspaces: the product's own, and the reviewer's (M17.5).
+	if err != nil || len(eventsOf(r, WorkspaceProvisioned)) != 2 || len(eventsOf(r, BlueprintSynced)) != 2 {
+		t.Fatalf("the first sync gave %v %v; want two WorkspaceProvisioned and two BlueprintSynced — the product's workspace and the reviewer's", r.NewEvents, err)
 	}
 	m, _ := s.Master(ctx, id)
-	if want := "gaos-t1-" + id; m.Workspace.ID != want || f.spaces[want] == nil {
+	want := "gaos-t1-" + id
+	review := want + "-review"
+	if m.Workspace.ID != want || f.spaces[want] == nil {
 		t.Fatalf("the workspace is %q (worker has %d workspace(s)); want %s, derived from tenant and product", m.Workspace.ID, len(f.spaces), want)
 	}
+	if m.Workspace.Review.ID != review || f.spaces[review] == nil {
+		t.Fatalf("the reviewer workspace is %q (worker has %d workspace(s)); want %s, derived from tenant and product", m.Workspace.Review.ID, len(f.spaces), review)
+	}
 	r, _ = s.SyncBlueprint(ctx, id)
-	if len(eventsOf(r, WorkspaceProvisioned)) != 0 || f.writes != 1 {
+	if len(eventsOf(r, WorkspaceProvisioned)) != 0 || f.writes != 2 {
 		t.Fatalf("a second sync provisioned again or rewrote unchanged files (%d writes); both must be no-ops", f.writes)
 	}
 }

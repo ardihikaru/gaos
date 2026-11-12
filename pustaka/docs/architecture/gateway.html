@@ -65,9 +65,12 @@
     </tbody>
   </table>
 
-  <p>One product has exactly one workspace, with the id <code>gaos-&lt;tenant&gt;-&lt;product
-  code&gt;</code>. The id is derived once, stored on the <code>Workspace</code> vertex, and never
-  renamed, because ai-claude-cli keys stored transcripts by it.</p>
+  <p>A product has its own workspace, with the id <code>gaos-&lt;tenant&gt;-&lt;product
+  code&gt;</code>, and &mdash; since <a href="../product/decision-log.html#d-071">D-071</a> &mdash; a
+  second one for its reviews, <code>gaos-&lt;tenant&gt;-&lt;product code&gt;-review</code>, which holds
+  the same standing files in its own root. Both ids are derived once, stored on the
+  <code>Workspace</code> vertex, and never renamed, because ai-claude-cli keys stored transcripts by
+  them.</p>
 
   <h2 id="turn">One turn, end to end</h2>
   <p>A <em>turn</em> is one prompt and one reply inside one session. Every attempt at a task is one

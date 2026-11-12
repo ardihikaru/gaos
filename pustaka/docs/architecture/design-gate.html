@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The design gate — GAOS</title>
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="arch-design-gate">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Architecture</p>
+  <h1>The design gate</h1>
+  <p class="lede">The review step between a design and its implementation. The agent that holds the
+  context writes the specification; a fresh reviewer with no memory of that conversation reads the
+  specification alone and attacks it. This page is the method, the two places GAOS applies it, the
+  mechanism that isolates a platform reviewer, and what it costs.</p>
+
+  <div class="page-meta"
+       data-tags="architecture, design, review, agents, context"
+       data-hashtags="gaos, design-review, spec-driven-development"
+       data-published="2026-11-04"
+       data-updated="2026-11-04"
+       data-version-from="0.34.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">Both halves are built</p>
+    <p><strong>Built, as of v0.34.0:</strong> the harness — GAOS's own development loop now starts a
+    feature-sized change as a design document under <code>docs/designs/</code>, five zero-context
+    reviewer agents read it alone, every finding is triaged, and the fixes go into the design rather
+    than into the code. <strong>Built, as of v0.35.0:</strong> the platform half, the gate inside the
+    product — <a href="../product/decision-log.html#d-068">D-068</a>,
+    <a href="../product/decision-log.html#d-069">D-069</a> and
+    <a href="../delivery/implementation-plan.html#m17-design-gate">M17</a>. A plan can carry a review
+    task; the reviewer's prompt holds the design and the rubric and nothing else; and the
+    implementation waits for the review to resolve.</p>
+  </div>
+
+  <h2 id="the-problem">The problem it answers</h2>
+  <p>Nothing in GAOS reviewed a <em>design</em> before it was built. The readiness rubric judges a
+  product record; the egress pass screens a packet; the handoff contract judges a reply. All three
+  act on work that already exists. The plan for a task and the code that implements it were written
+  by the same author, in the same session, holding the same assumptions — and the failure mode is
+  not stupidity. It is that an assumption made in the first ten minutes is never questioned by
+  anyone who did not share it.</p>
+  <p>This is the
+  <em>Elephant-Goldfish Model</em>, open-sourced by Google in October 2026 and Apache-2.0
+  licensed. The name is the whole idea: the <strong>Elephant</strong> holds the project context and
+  drafts the specification; the <strong>Goldfish</strong> are fresh sessions with no memory of that
+  conversation, each given the document and nothing else. If a Goldfish cannot follow the document,
+  the document is not done.</p>
+
+  <h2 id="two-layers">Two layers, one method</h2>
+  <p>The method lands in two places, and they are called apart throughout the repository.</p>
+  <div class="flow rv">
+    <div class="node"><b>Layer 1 — the harness</b><span>GAOS's own development loop</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Layer 2 — the platform</b><span>inside the product, built in v0.35.0</span></div>
+  </div>
+  <p><strong>Layer 1</strong> is built. A feature-sized change to GAOS itself starts as a document
+  in <code>docs/designs/</code>. Five reviewer agents — comprehension, zoom-out, critic,
+  readiness and a security lens — read that document alone, each with its own rubric and its own
+  severity scale. Every finding gets exactly one disposition, the fixes are applied to the
+  design, and the operator approves before anything is implemented. The rubric is GAOS's own rules,
+  so a reviewer checks the design against the same rules an implementer must satisfy.</p>
+  <p><strong>Layer 2</strong> is the same gate inside the product: a design task produces a design
+  artifact, a review task reviews it, and the implementation does not start until the review
+  resolves. It is written down — the rulings, five business rules, a milestone and seven forward
+  specifications — and <strong>built</strong> as of v0.35.0. The isolation mechanism was decided by
+  <a href="../product/decision-log.html#d-069">D-069</a> and is described below; the event catalog
+  stayed closed
+  (<a href="../product/brd.html#rules-invariants">BR-05</a>), so no event name was added and the
+  gate speaks in <code>TaskMoved</code>'s rule and in artifacts.</p>
+
+  <h2 id="the-isolation">The isolation, and its honest limit</h2>
+  <p>Under Claude Code the reviewers carry <code>omitClaudeMd: true</code>, so the author's project
+  memory never enters the reviewer's context — <strong>by the runtime</strong>. Under every other
+  harness it is excluded <strong>by instruction</strong>, and a planted canary is the only
+  evidence: one unique string per standing file, planted before the run, and the check is that no
+  canary reached any report. A reviewer that read the memory and never quoted it would still pass
+  that check, so the claim the probe supports is precise — <em>the canary did not reach a
+  report</em> — and not the broader one it is often mistaken for.</p>
+  <p>The probe is specified so that it <strong>can fail</strong>: one control run with the exclusion
+  deliberately disabled must produce a report that does contain a canary, and a leftover canary is
+  caught by <code>deploy/check-workspace.sh</code> rather than by a later
+  <code>git diff</code>.</p>
+
+  <h2 id="the-isolation-mechanism">How a platform reviewer is isolated</h2>
+  <p>Answered on 2026-11-04 by <a href="../product/decision-log.html#d-069">D-069</a>, which closed
+  <a href="../product/open-questions.html#oq-32">OQ-32</a>. The answer in one line:
+  <strong>the isolation boundary is the packet, not the workspace</strong> — and the standing files
+  are the rubric rather than contamination, so they stay whole.</p>
+
+  <p><strong>Amended 2026-11-04 by <a href="../product/decision-log.html#d-071">D-071</a>:</strong>
+  the boundary is the packet <em>and</em> the workspace. A product now has a second workspace, its
+  own <strong>reviewer workspace</strong>, holding the published Blueprint byte-identical in its own
+  root — so the standing files are still the rubric, whole, and the reviewer's folder holds none of
+  the author's files. The folder is reset before every review turn, so it holds nothing but the
+  standing files, and the run record says which workspace a turn used, so a reviewer's turn never
+  marks the author's workspace drifted. The limits stay named: the standing files still carry the
+  product's stories and decisions, and the two folders are siblings under one managed root, so the
+  gateway's write boundary is not a read boundary between them.</p>
+
+  <p>The question was framed in a way that turned out to be wrong in a useful way. The Blueprint —
+  the workspace GAOS generates for a product, a <code>CLAUDE.md</code> plus its
+  <code>.claude/rules/*.md</code> — loads on <strong>every</strong> turn of that workspace, so a new
+  session is not a zero-context turn: the reviewer's context carries the product's problem statement,
+  its 50 domain rules and its whole decision history whether or not it asked for them. The natural
+  reading is that the standing files are the leak, and that a reviewer needs a workspace without
+  them. Reading the code says otherwise. Those files <em>are</em> the rubric — the domain rules are
+  rendered into <code>.claude/rules/10-brd.md</code> — so a reviewer that could not see them could
+  not judge the design against them. And a workspace holding the rubric but not the Blueprint is a
+  drifting workspace under <a href="../product/brd.html#rules-gateway">BR-39</a>, which refuses
+  dispatch. Cutting the standing files down was never one of the options; it was the wrong
+  question.</p>
+
+  <p>What the code does show is that the <em>author's</em> state is sitting in the packet, and that
+  it arrives by default. A packet is frozen per desk, and the previous stage's handoff is inherited
+  by the next stage at that desk — deliberately, so that a workflow's stages chain. A review is a
+  stage at that desk. Without a change, a reviewer would inherit the author's handoff, the failure
+  lesson drawn from it and the operator's answer: precisely the assumptions the gate exists to
+  strip out. So the ruling draws the line between the product's context and the author's
+  process.</p>
+
+  <table class="tbl">
+    <thead><tr><th>Travels with the reviewer</th><th>Withheld from the reviewer</th></tr></thead>
+    <tbody>
+      <tr><td>The design artifact, at <code>.gaos/packet/design.md</code> — a GAOS-held artifact, screened outbound like every other part</td>
+          <td>The implement task's brief and its goal</td></tr>
+      <tr><td>The rubric, as the <code>rules</code> part and as the published Blueprint in the workspace</td>
+          <td>The previous stage's handoff</td></tr>
+      <tr><td>The product's problem statement, its domain rules and its out-of-scope list — the constraints the design is judged against</td>
+          <td>The failure lesson drawn from that handoff</td></tr>
+      <tr><td>The workspace's standing files, whole and unmodified</td>
+          <td>The operator's answer to the author's question</td></tr>
+      <tr><td>The product's own decisions, which are published knowledge rather than the author's process</td>
+          <td>The stories and the acceptance criteria</td></tr>
+    </tbody>
+  </table>
+
+  <p>Two consequences follow, and both are engineering rather than policy. First, the design has to
+  <em>travel</em>: GAOS reads no folder, and the allowlist admits only the instruction files, so a
+  design that lives in a repository cannot reach a reviewer at all. It is therefore a GAOS-held
+  artifact, carried in a new <code>design</code> packet part. Second, the findings travel back the
+  same way — at <code>.gaos/packet/context/findings.md</code>, as context, the same way the previous
+  handoff travels — which is what makes the implementer genuinely see the review that rejected it.
+  The gate itself needs nothing new: it is the planner's own <code>DEPENDS_ON</code> edge, the
+  existing <code>BLOCKED</code> status and the scheduler's existing dependency block, so no closed
+  vocabulary widens.</p>
+
+  <p>The content half of the question has the same answer. What the standing files may contain is
+  what they already contain. What may not <em>leave</em> the review is the matched text of anything:
+  a finding records where a detector fired and never what it matched, so a reviewer cites a standing
+  file by path and line exactly as it cites the design.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">The honest limit</p>
+    <p>The egress pass screens what leaves. It does not screen what comes back: a reply is stored
+    verbatim as an artifact, with no inbound screening. So a finding that quotes a secret is already
+    in the append-only store by the time the outbound pass refuses the next dispatch. The egress pass
+    is the backstop, not the cure, and inbound screening is a separate piece of work that this
+    design does not claim.</p>
+  </div>
+
+  <h2 id="the-rules">The rules it is bound by</h2>
+  <p>A <a href="../product/brd.html#rules-design-review">BRD §9.7</a> carries five rules. Every
+  implementation task has a design artifact and a review, and the review happens before the first
+  dispatch. A reviewer sees the design and the rubric, and not the brief, the goal, the handoff, the
+  failure lesson, the operator's answer or the acceptance criteria — and it records path and line,
+  never the matched text. The isolation boundary is the packet and the workspace: the standing files
+  stay whole in the reviewer's own workspace, and the author's session state and files are what is
+  withheld. A design reaches a reviewer only
+  as a GAOS-held artifact, because there is no other route, and the findings travel back the same
+  way. An open Blocker stops the dispatch and the task goes to the operator's queue — and the
+  clearance is refused until the back office has a real identity to check, because
+  <code>signedIn()</code> today accepts a cookie from any request.</p>
+  <p>The term is <strong>design gate</strong>, distinct from the BRD's existing
+  <strong>design review</strong>, which is a meeting after a failure and records a
+  <code>Decision</code>. All six of that phrase's occurrences say which they mean.</p>
+
+  <h2 id="the-cost">What it costs</h2>
+  <p>Five lenses means five parallel sessions per design, and the harness has no budget cap: the
+  operator pays that bill, and nothing in the repository bounds it. Layer 1's reviewers are
+  parallel; Layer 2's review is one task on a product's single live turn, so it queues behind
+  everything else in that product. Two numbers are measured from the append-only review reports:
+  the blockers caught per design, and the share of findings that need triage rather than action.
+  The upstream project's author, Dave Rensin, estimates roughly 30% of Goldfish suggestions are
+  worth acting on; that is the baseline, and the measured ratio is the real number.</p>
+
+  <h2 id="in-the-repository">Where it lives</h2>
+  <p>The policy is <code>docs/rules/gaos-design-review.md</code> and it is the source of truth for
+  the procedure. The rubric is <code>.claude/rules/</code>, path-scoped so it loads on demand
+  rather than at every session start. The runbook is the
+  <code>gaos-design-review</code> skill. The design documents are in
+  <code>docs/designs/</code>, with their reports beside them in
+  <code>docs/designs/reviews/</code> — append-only and numbered, because the sequence of rounds is
+  the record of how the design converged. And
+  <code>deploy/check-workspace.sh</code> keeps the drift from coming back: it checks that the paths
+  the project rules name exist, that no skill is an orphan, that every count agrees with its
+  register, that no rule is forked between two files, that no canary was left behind, and that no
+  secret reached the report store.</p>
+
+  <h2 id="related">Related</h2>
+  <p><a href="../product/decision-log.html#d-068">D-068</a> — the ruling that put the gate in the
+  product.
+  <a href="../product/decision-log.html#d-069">D-069</a> — the ruling that made it possible, and the
+  answer to <a href="../product/open-questions.html#oq-32">OQ-32</a>.
+  <a href="../product/brd.html#rules-design-review">BRD §9.7</a> — the five rules.
+  <a href="../delivery/implementation-plan.html#m17-design-gate">M17</a> — the work.
+  <a href="../product/qa-test-plan.html#cw-workspace">TC-357</a> and
+  <a href="../product/qa-test-plan.html#go-designgate">TC-359</a> — what is checked, and what is
+  specified.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -658,6 +658,11 @@ type PlanTask struct {
 	Deps  []string
 	Model string
 	Gate  bool
+	// Kind is the task's kind (M17, D-069 clause 9). It is a PLAN-TIME
+	// field, not something derived from the plan's position: the planner
+	// knows which task writes a design and which one reviews it, and the
+	// packet builder, the reply contract and the gate all branch on it.
+	Kind string
 }
 
 // TaskRecord is the Go mirror of the Task vertex in 04-execution.sql. One per
@@ -672,14 +677,19 @@ type PlanTask struct {
 // Event.T's choice: a value the fold and the reconciler both compare, with no
 // monotonic-clock reading riding along inside it.
 type TaskRecord struct {
-	ID          string
-	WorkflowID  string
-	DeskID      string
-	Title       string
-	Role        string
-	Story       string
-	Model       string
-	Status      string
+	ID         string
+	WorkflowID string
+	DeskID     string
+	Title      string
+	Role       string
+	Story      string
+	Model      string
+	Status     string
+	// Kind is the task's kind: implement, design or review (M17, D-069
+	// clause 9). It is what the packet builder branches on, what the reply
+	// contract is chosen by, and what the gate acts on. A task written before
+	// the migration has no kind, and an empty kind is an implement task.
+	Kind        string
 	Deps        []string
 	Priority    int
 	Ordinal     int
@@ -776,6 +786,9 @@ type TaskRunRecord struct {
 	// Provider is the vendor the attempt was sent to (M16): claude or
 	// antigravity. "" on a run recorded before M16, which went to Claude.
 	Provider string
+	// Workspace is the gateway workspace the turn ran in (M17.5). "" on a run
+	// recorded before M17.5, which ran in the product's own workspace.
+	Workspace string
 }
 
 func (r TaskRunRecord) Clone() TaskRunRecord { return r }
@@ -797,6 +810,10 @@ const (
 	CiteCode        = "code"
 	CiteDiff        = "diff"
 	CitePolicy      = "policy"
+	// CiteDesign is M17's: the design artifact is cited by the part that
+	// carries it, so the audit edge can say why the reviewer was given it.
+	// D-069 clause 9 -- the third of the three closed vocabularies that grow.
+	CiteDesign = "design"
 )
 
 // Citation is one USES_CONTEXT edge: why a node was in the prompt.
@@ -881,6 +898,28 @@ const (
 	ArtifactReply  = "reply"
 	// ArtifactQuestion is the question a turn ended on, rendered (M15).
 	ArtifactQuestion = "question"
+	// ArtifactDesign is the document a design task wrote (M17, D-069 clause 9).
+	ArtifactDesign = "design"
+	// ArtifactReview is the gate's own record of what a reviewer found (M17,
+	// D-069 clause 8). It is an artifact and not a Review: the Review vertex
+	// belongs to the M5 score-band engine.
+	ArtifactReview = "review"
+)
+
+// The eight kinds the DDL has always admitted and the Go side never wrote.
+// They are declared here so that the vocabulary can be compared as a SET
+// against the DDL's regexp, in both directions: a kind the DDL admits and
+// Go does not declare is a name nothing can write, and a kind Go declares and
+// the DDL does not admit is a row ArcadeDB refuses at commit.
+const (
+	ArtifactSequence = "sequence"
+	ArtifactERD      = "erd"
+	ArtifactFlow     = "flow"
+	ArtifactDiff     = "diff"
+	ArtifactCommit   = "commit"
+	ArtifactReport   = "report"
+	ArtifactLog      = "log"
+	ArtifactUpload   = "upload"
 )
 
 // ContextView is what the inspector and GET /tasks/{id}/context are answered
@@ -920,6 +959,11 @@ type PlannedTask struct {
 	Model    string
 	Gate     bool
 	Priority int
+	// Kind rides the event stream so a REPLAYED graph knows which task was a
+	// design and which was a review. Without it the fold rebuilds every task
+	// as an implement task, and the review branch is dead code on a board
+	// that was rebuilt from the stream.
+	Kind string
 }
 
 type ProductDraft struct {

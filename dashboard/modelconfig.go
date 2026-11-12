@@ -57,7 +57,6 @@ type AIMConfig struct {
 	ChatAuthFile  string        // GAOS_AIM_CHAT_AUTH_FILE: {"login_id","secret_key"}
 	AdminKeyFile  string        // GAOS_AIM_ADMIN_KEY_FILE: provisioning only (M14.4)
 	Tenant        string        // GAOS_AIM_TENANT: names workspaces gaos-<tenant>-<product>
-	Workspace     string        // GAOS_AIM_WORKSPACE: one shared workspace, until M14.4
 	PollEvery     time.Duration // GAOS_AIM_POLL_MS
 	TurnDeadline  time.Duration // GAOS_AIM_TURN_DEADLINE (seconds)
 	SessionMaxAge time.Duration // GAOS_AIM_SESSION_MAX_AGE (days)
@@ -100,7 +99,6 @@ func ModelConfigFromEnv() ModelConfig {
 			ChatAuthFile:  envOr("GAOS_AIM_CHAT_AUTH_FILE", ""),
 			AdminKeyFile:  envOr("GAOS_AIM_ADMIN_KEY_FILE", ""),
 			Tenant:        envOr("GAOS_AIM_TENANT", envOr("GAOS_ARCADE_TENANT", "local")),
-			Workspace:     envOr("GAOS_AIM_WORKSPACE", ""),
 			PollEvery:     time.Duration(envInt("GAOS_AIM_POLL_MS", 2000)) * time.Millisecond,
 			TurnDeadline:  time.Duration(envInt("GAOS_AIM_TURN_DEADLINE", 660)) * time.Second,
 			SessionMaxAge: time.Duration(envInt("GAOS_AIM_SESSION_MAX_AGE", 25)) * 24 * time.Hour,
@@ -204,7 +202,7 @@ func aimAdapterFor(c ModelConfig) (Adapter, error) {
 		Model:    c.Model,
 		Provider: c.Provider,
 		Local:    c.Local,
-		Tenant:   c.AIM.Tenant, Workspace: c.AIM.Workspace,
+		Tenant:   c.AIM.Tenant,
 		PollEvery: c.AIM.PollEvery, Deadline: c.AIM.TurnDeadline, MaxSessionAge: c.AIM.SessionMaxAge,
 	}, nil
 }

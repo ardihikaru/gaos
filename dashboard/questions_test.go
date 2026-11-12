@@ -128,7 +128,7 @@ func TestTheNextTurnResumesThroughTheAnswerRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, _, err := s.clearFor(Dispatch{TaskID: id, DeskID: desk}, 2)
+	c, _, err := s.clearFor(context.Background(), Dispatch{TaskID: id, DeskID: desk}, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestARefusedAnswerRouteFallsBackToAnOrdinaryTurn(t *testing.T) {
 		s.AnswerQuestion(t.Context(), desk, id, 1, "")
 		f.answerStatus = status
 
-		c, _, _ := s.clearFor(Dispatch{TaskID: id, DeskID: desk}, 2)
+		c, _, _ := s.clearFor(context.Background(), Dispatch{TaskID: id, DeskID: desk}, 2)
 		s.moveTaskByID(id, StatusDispatched, MoveDispatch) // what the scheduler does before it supervises
 		completeTurn(f, id, 2, "0.1")
 		if _, err := s.superviseRun(t.Context(), ad, desk, c, 2); err != nil {

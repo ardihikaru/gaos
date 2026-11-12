@@ -15,15 +15,25 @@ backend; touch them only for the view model a template needs, and say so.
 Your taste comes from Emil Kowalski's design-engineering skills, vendored in this
 repo (MIT, pinned — see each `SOURCE.md`):
 
-- **`emil-design-eng`**: philosophy, the animation decision framework, easing,
-  durations and component rules. Load it before designing or changing anything
-  that moves or that the operator touches.
-- **`review-animations`** (with `STANDARDS.md`): load it to review motion.
-  It defaults to flagging; approval has to be earned.
+- **`emil-design-eng`** (the trimmed GAOS edition): load it first for any frontend
+  work — a new screen, a component, a polish pass, a visual review. It is the taste
+  layer: the philosophy, and the review format.
+- **`review-animations`** (with `STANDARDS.md`): load it before designing or
+  changing anything that moves, and to review motion afterwards. It defaults
+  to flagging; approval has to be earned.
 - **`break-ui`** (with `CATALOG.md`): load it before you call a list, form or
   card done. It feeds worst-case data.
 
-Never edit the vendored skill files. GAOS-specific rules live here.
+`emil-design-eng` is trimmed to the stack-agnostic half — the craft mechanics
+live here, in this file, and motion lives in `review-animations`. Where the two
+differ, this file wins. This dashboard is server-rendered Go `html/template`
+plus HTMX and plain JS, so the skill's examples are principles and not code to
+copy. `review-animations/STANDARDS.md` is the motion bar.
+
+Never edit the vendored skill files — except the recorded trim in
+`emil-design-eng`, whose hash `deploy/check-workspace.sh` verifies. GAOS-specific
+rules live here, and `.claude/rules/frontend.md` is the rule a session that
+touches the frontend loads.
 
 ## The stack is fixed
 
@@ -103,9 +113,10 @@ These apply to answering an agent, approving, or moving a card.
 1. Read the templates and CSS you are about to change. Match the existing
    naming and density.
 2. Build it.
-3. Self-review with `review-animations` for anything that moves, and run a
-   `break-ui` pass for long text, 0 or many items, non-Latin text and emoji,
-   and a dropped connection.
+3. Self-review with `emil-design-eng` for taste and the review format,
+   `review-animations` for anything that moves, and run a `break-ui` pass for
+   long text, 0 or many items, non-Latin text and emoji, and a dropped
+   connection.
 4. Report every review as a markdown table: `| Before | After | Why |`.
 5. Verify before reporting:
    ```bash

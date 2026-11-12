@@ -54,7 +54,7 @@ CREATE PROPERTY AcceptanceCriterion.verifiedAt DATETIME;
 -- storage for anything large. Never both.
 CREATE VERTEX TYPE Artifact IF NOT EXISTS EXTENDS GaosVertex;
 CREATE PROPERTY Artifact.kind      STRING (mandatory true, notnull true,
-                 regexp 'sequence|erd|flow|diff|commit|report|log|upload');
+                 regexp 'sequence|erd|flow|diff|commit|report|log|upload|handoff|prompt|reply|question|design|review');
 CREATE PROPERTY Artifact.title     STRING (notnull true);
 CREATE PROPERTY Artifact.body      STRING;
 CREATE PROPERTY Artifact.bodyRef   STRING;

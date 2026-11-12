@@ -544,12 +544,30 @@ func TestPlanShapeAndDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// planner, architect, (backend+qa)x2, security, devops
-	if len(plan) != 8 {
-		t.Fatalf("plan has %d tasks, want 8: %+v", len(plan), plan)
+	// planner, architect, (design+review+backend+qa)x2, security, devops
+	//
+	// The design gate (M17) put two tasks between the architect and the
+	// implementation of each story: the story is designed, the design is
+	// reviewed, and only then is it built.
+	if len(plan) != 12 {
+		t.Fatalf("plan has %d tasks, want 12: %+v", len(plan), plan)
 	}
 	if plan[0].Role != "planner" || plan[1].Role != "architect" {
 		t.Error("a plan always starts planner then architect")
+	}
+	// And the gate is an edge: every implementation waits on its review.
+	for _, task := range plan {
+		if task.Kind != TaskKindImplement || task.Role != "backend" {
+			continue
+		}
+		if len(task.Deps) != 1 {
+			t.Errorf("%s waits on %v; an implementation waits on its review alone", task.ID, task.Deps)
+			continue
+		}
+		if dep := plan[0]; dep.ID == task.Deps[0] && dep.Kind != TaskKindReview {
+			t.Errorf("%s waits on %s, which is a %s; an implementation waits on a review",
+				task.ID, task.Deps[0], dep.Kind)
+		}
 	}
 
 	// DEPENDS_ON points from the dependent to its prerequisite, and the chain

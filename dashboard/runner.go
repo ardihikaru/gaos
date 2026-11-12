@@ -116,6 +116,7 @@ func (s *MemStore) superviseRun(ctx context.Context, ad Adapter, deskID string, 
 		ID: runID, TaskID: taskID, DeskID: deskID, Attempt: attempt,
 		Status: RunStatusStarted, Model: ad.Name(), Invocation: ad.Mode(), Provider: runProvider(ad, c.Packet()),
 		StartedAt: now, SliceDigest: slice.Digest, BlueprintVersion: pinned, RequestID: requestID,
+		Workspace: c.Packet().WorkspaceID,
 		// No CostBasis yet, and deliberately not "estimated". A run that has
 		// spent nothing has no basis to record; BR-31 is about never aggregating
 		// a measured number with a guessed one, and a default here would seed
@@ -248,6 +249,7 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	// rest. The two exceptions are failures of the invocation rather than of the
 	// work: no handoff at all (BR-30), and a run that never started.
 	to := StatusReview
+	rule := MoveExit
 	switch {
 	case runErr != nil, att.Failure != "":
 		to = StatusFailed
@@ -256,10 +258,37 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	case att.Outcome() == HandoffBlocked:
 		to = StatusBlocked
 	}
+	// M17: a DESIGN or a REVIEW task's terminal status is the gate's verdict,
+	// not the runner's default. The gate is the only thing in the product that
+	// writes DONE for a task that no human approved (D-069 clause 6).
+	//
+	// The gate's move comes AFTER the runner's, and that order is the state
+	// machine's: there is no RUNNING -> DONE edge, so the task goes to REVIEW
+	// first and the gate moves it on from there. Two moves, two events, and the
+	// timeline says what happened.
+	var gate *gateOutcome
+	if g, ok := s.gateVerdict(taskID, runID, att); ok {
+		gate = &g
+	}
 	var out []Event
-	if m, ok := s.moveTaskLocked(taskID, to, MoveExit); ok {
+	if m, ok := s.moveTaskLocked(taskID, to, rule); ok {
 		out = append(out, m)
 	}
+	gateTo := ""
+	if gate != nil {
+		gateTo = gate.to
+		if gate.reason != "" {
+			if t := s.taskByIDLocked(taskID); t != nil {
+				t.BlockReason = gate.reason
+			}
+		}
+		if m, ok := s.moveTaskLocked(taskID, gate.to, gate.rule); ok {
+			out = append(out, m)
+		}
+	}
+	// M17: the gate releases the implementation task when the review clears,
+	// and rewrites its reason when the review blocks.
+	out = append(out, s.gateReleaseLocked(taskID, gateTo)...)
 	if asked != nil {
 		out = append(out, s.emit(QuestionAsked, deskID, fmt.Sprintf("%s asks: %s", taskID, asked.Question),
 			KindWarn, EventPayload{Task: taskID, Question: asked}))
@@ -423,7 +452,7 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 			s.refuseDispatch(d, *drift)
 			continue
 		}
-		c, v, err := s.clearFor(d, attempt)
+		c, v, err := s.clearFor(ctx, d, attempt)
 		if err != nil {
 			// A refusal on this path used to be a `continue`, and that was a bug
 			// found by running it: the scheduler would decline to dispatch, over
@@ -472,7 +501,7 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 // the boolean, because the two failures are different facts: a desk that has
 // gone away is nothing to report, and a packet the egress pass refused is a
 // state change L-5 requires on the timeline.
-func (s *MemStore) clearFor(d Dispatch, attempt int) (Cleared, EgressVerdict, error) {
+func (s *MemStore) clearFor(ctx context.Context, d Dispatch, attempt int) (Cleared, EgressVerdict, error) {
 	s.mu.RLock()
 	idx := s.deskIdxByID(d.DeskID)
 	if idx < 0 {
@@ -493,6 +522,14 @@ func (s *MemStore) clearFor(d Dispatch, attempt int) (Cleared, EgressVerdict, er
 	}
 	if c.empty() {
 		return Cleared{}, v, nil
+	}
+	// A review runs in the product's reviewer workspace, and the folder is
+	// reset before the turn: it holds the standing files and nothing else
+	// (M17.5, D-071). A refusal here is a refusal before anything is spent.
+	if pkt.Kind == TaskKindReview {
+		if verdict := s.prepareReviewWorkspace(ctx, d.DeskID); verdict != nil {
+			return Cleared{}, *verdict, fmt.Errorf("%s", verdict.Reason)
+		}
 	}
 	return c, v, nil
 }

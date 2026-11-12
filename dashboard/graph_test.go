@@ -27,30 +27,56 @@ func TestThePlannerProducesADAGWithFanOutAndFanIn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Fan-out: every implement task hangs off the architect, not off the
+	// Fan-out: every story's chain hangs off the architect, not off the
 	// previous story's verifier. A chain would give the second implementer the
 	// first story's qa task as its prerequisite, and the two stories could never
 	// run at once.
+	//
+	// The shape is counted by KIND and not by role since M17, because the plan
+	// now holds two architect tasks (the workflow-wide one and each story's
+	// design) and two qa tasks (the review and the verify), and a role no
+	// longer says what a task is for.
 	arch := ""
-	var impls, verifiers []PlanTask
+	var impls, verifiers, designs, reviews []PlanTask
 	for _, p := range plan {
-		switch p.Role {
-		case "architect":
+		switch {
+		case p.Kind == TaskKindDesign && p.Role == "architect" && arch == "":
 			arch = p.ID
-		case "backend":
+		case p.Kind == TaskKindReview:
+			reviews = append(reviews, p)
+		case p.Kind == TaskKindImplement && p.Role == "backend":
 			impls = append(impls, p)
-		case "qa":
+		case p.Kind == TaskKindImplement && p.Role == "qa":
 			verifiers = append(verifiers, p)
 		}
 	}
-	if len(impls) != 2 || len(verifiers) != 2 {
-		t.Fatalf("two picked stories produced %d implement and %d verify tasks, want 2 and 2; "+
-			"the pair per story is what the fan-out is made of", len(impls), len(verifiers))
+	_ = designs
+	if len(impls) != 2 || len(verifiers) != 2 || len(reviews) != 2 {
+		t.Fatalf("two picked stories produced %d implement, %d verify and %d review tasks, "+
+			"want 2 and 2 and 2; the chain per story is what the fan-out is made of "+
+			"(M17)", len(impls), len(verifiers), len(reviews))
 	}
 	for _, p := range impls {
-		if !reflect.DeepEqual(p.Deps, []string{arch}) {
-			t.Errorf("%s waits on %v rather than on the architect alone; two stories that "+
-				"wait on each other are a chain wearing a graph's name", p.ID, p.Deps)
+		// The implementation waits on the REVIEW, and the review waits on the
+		// design, and the design waits on the architect. The gate is that first
+		// edge (D-069 clause 7).
+		if len(p.Deps) != 1 {
+			t.Errorf("%s waits on %v; it must wait on its review alone", p.ID, p.Deps)
+			continue
+		}
+		var rev PlanTask
+		for _, r := range reviews {
+			if r.ID == p.Deps[0] {
+				rev = r
+			}
+		}
+		if rev.ID == "" {
+			t.Errorf("%s waits on %v, which is not a review; the gate is the edge to the "+
+				"review and nothing else", p.ID, p.Deps)
+			continue
+		}
+		if len(rev.Deps) != 1 {
+			t.Errorf("the review %s waits on %v; it must wait on its design alone", rev.ID, rev.Deps)
 		}
 	}
 

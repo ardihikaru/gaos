@@ -1,0 +1,1 @@
+../../.claude/rules/qa-test-plan.md

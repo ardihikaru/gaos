@@ -159,8 +159,127 @@ func validatePlan(plan []PlanTask) error {
 			}
 		}
 	}
-	_, err := topoOrder(plan)
-	return err
+	// The cycle check first: a plan that loops is a different refusal from a
+	// plan that does not wire the gate, and the operator needs the one that
+	// names the row.
+	if _, err := topoOrder(plan); err != nil {
+		return err
+	}
+	return validateTheGate(plan)
+}
+
+// validateTheGate is BR-46's enforcement point (M17, D-069).
+//
+// A plan that omits the gate is a plan whose implementation task would be
+// built with nobody reviewing the design, so it is refused before the first
+// write -- here, and not in PlanWorkflow, because a check on the planner's own
+// output proves nothing while CreateWorkflow is public and any caller may hand
+// it a graph.
+//
+// Two shapes are refused: an implementation task with no review prerequisite,
+// and a review task with no design prerequisite.
+func validateTheGate(plan []PlanTask) error {
+	kinds := make(map[string]string, len(plan))
+	for _, t := range plan {
+		// A kind outside the vocabulary is refused here, before the first
+		// write, rather than normalised into an implement task further down.
+		// The fail-open direction is contamination: a task the gate cannot
+		// see is a task that gets the author's brief and no review.
+		if !knownTaskKind(t.Kind) {
+			return reject(fmt.Sprintf(
+				"%s has the kind %q, which is not one of implement|design|review.", t.ID, t.Kind))
+		}
+		kinds[t.ID] = taskKind(t.Kind)
+	}
+	// A plan with no gate in it at all is refused, whatever it contains.
+	var designs, reviews int
+	for _, t := range plan {
+		switch taskKind(t.Kind) {
+		case TaskKindDesign:
+			designs++
+		case TaskKindReview:
+			reviews++
+		}
+	}
+	if designs == 0 || reviews == 0 {
+		return reject("the plan wires no design gate: it needs at least one design task and one " +
+			"review task (BR-46).")
+	}
+	hasDep := func(id, want string) bool {
+		for _, t := range plan {
+			if t.ID != id {
+				continue
+			}
+			for _, dep := range t.Deps {
+				if kinds[dep] == want {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	// Every review needs something to attack.
+	for _, t := range plan {
+		if taskKind(t.Kind) != TaskKindReview {
+			continue
+		}
+		if !hasDep(t.ID, TaskKindDesign) {
+			return reject(fmt.Sprintf(
+				"%s is a review with no design to read; a review needs something to attack (BR-47).", t.ID))
+		}
+	}
+
+	// Every STORY's implementation is gated: at least one implementation task
+	// carrying that story waits directly on a review.
+	//
+	// "At least one" and not "all" because a story may carry several
+	// implementation tasks -- the one that builds it and the one that verifies
+	// it -- and only the first is the implementation the rule is about. The
+	// verifier waits on the implementation, which waits on the review, so it
+	// is gated too, one hop further out.
+	byStory := map[string]bool{}
+	for _, t := range plan {
+		if taskKind(t.Kind) == TaskKindImplement && t.Story != "" {
+			byStory[t.Story] = true
+		}
+	}
+	gated := map[string]bool{}
+	for _, t := range plan {
+		if taskKind(t.Kind) != TaskKindImplement {
+			continue
+		}
+		for _, dep := range t.Deps {
+			if kinds[dep] == TaskKindReview {
+				gated[t.Story] = true
+			}
+		}
+	}
+	if len(byStory) == 0 {
+		// A plan with no story at all still has to wire the gate somewhere.
+		any := false
+		for _, t := range plan {
+			if taskKind(t.Kind) == TaskKindImplement {
+				for _, dep := range t.Deps {
+					if kinds[dep] == TaskKindReview {
+						any = true
+					}
+				}
+			}
+		}
+		if !any {
+			return reject("the plan has no implementation waiting on a review; every " +
+				"implementation is reviewed before it runs (BR-46).")
+		}
+		return nil
+	}
+	for story := range byStory {
+		if !gated[story] {
+			return reject(fmt.Sprintf(
+				"the implementation of %s does not wait on a review; every story is "+
+					"designed, reviewed and then built (BR-46).", story))
+		}
+	}
+	return nil
 }
 
 // qualify rewrites a pure plan's local ids into graph ids, prerequisites

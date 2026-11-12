@@ -41,6 +41,7 @@ func foldTasks(events []Event, productID string) []TaskRecord {
 				tasks = append(tasks, TaskRecord{
 					ID: pt.ID, WorkflowID: p.WorkflowID, DeskID: productID,
 					Title: pt.Title, Role: pt.Role, Story: pt.Story, Model: pt.Model,
+					Kind:   taskKind(pt.Kind),
 					Status: StatusPending, Deps: append([]string(nil), pt.Deps...),
 					Priority: pt.Priority, Ordinal: i, Gate: pt.Gate,
 				})

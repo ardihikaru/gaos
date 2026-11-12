@@ -265,7 +265,8 @@ func TestTheVendorPolicyAndEachRunsVendorSurviveAReopen(t *testing.T) {
 	v, model := st.proj.vendorForLocked(desk, "backend")
 	st.proj.mu.RUnlock()
 	c, _, err := Screen(EgressPolicy{}, Target{Provider: "anthropic"}, Packet{TaskID: "t-1", RunID: run, DeskID: desk, Role: "backend",
-		Vendor: v, Model: model, Parts: []PacketPart{{Path: ".gaos/packet/task.md", Kind: KindTask, Body: "# t-1"}}})
+		Vendor: v, Model: model, WorkspaceID: ad.WorkspaceFor(desk),
+		Parts: []PacketPart{{Path: ".gaos/packet/task.md", Kind: KindTask, Body: "# t-1"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,6 +284,11 @@ func TestTheVendorPolicyAndEachRunsVendorSurviveAReopen(t *testing.T) {
 	runs, _ := second.Runs(ctx, "t-1")
 	if len(runs) != 1 || runs[0].Provider != VendorAntigravity {
 		t.Fatalf("the reopened attempt is %+v; want provider antigravity, or its retry would resume a session on the wrong vendor", runs)
+	}
+	// M17.5: the run says which workspace it used, so the drift check after the
+	// turn knows the folder to look at.
+	if runs[0].Workspace != ad.WorkspaceFor(desk) {
+		t.Fatalf("the reopened attempt names the workspace %q; want %q", runs[0].Workspace, ad.WorkspaceFor(desk))
 	}
 }
 

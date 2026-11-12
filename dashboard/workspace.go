@@ -20,8 +20,9 @@ import (
 // drift (BR-39) — the model would otherwise run under rules the record says
 // it never saw.
 
-// ProductWorkspace is GAOS's record of the product's workspace.
-type ProductWorkspace struct {
+// WorkspaceCopy is GAOS's record of ONE workspace: its id, and what each
+// vendor's copy of it holds.
+type WorkspaceCopy struct {
 	ID            string // gaos-<tenant>-<product>
 	ProvisionedAt int64
 	SyncedVersion int    // the BlueprintVersion.N the workspace holds; 0 = none
@@ -35,6 +36,15 @@ type ProductWorkspace struct {
 	Others map[string]WorkspaceSync
 }
 
+// ProductWorkspace is the product's workspaces: the one its own turns run in,
+// and the one its reviews run in (M17.5, D-071). The reviewer holds the same
+// standing files — the published Blueprint, whole — in its own root, so a
+// reviewer cannot reach the author's files.
+type ProductWorkspace struct {
+	WorkspaceCopy
+	Review WorkspaceCopy
+}
+
 // WorkspaceSync is what one vendor's copy of the workspace holds.
 type WorkspaceSync struct {
 	Version int
@@ -43,7 +53,7 @@ type WorkspaceSync struct {
 }
 
 // Holds reports what vendor's copy of the workspace holds.
-func (w ProductWorkspace) Holds(vendor string) WorkspaceSync {
+func (w WorkspaceCopy) Holds(vendor string) WorkspaceSync {
 	if vendor == VendorClaude || vendor == "" {
 		return WorkspaceSync{Version: w.SyncedVersion, Digest: w.SyncedDigest, At: w.SyncedAt}
 	}
@@ -51,7 +61,7 @@ func (w ProductWorkspace) Holds(vendor string) WorkspaceSync {
 }
 
 // setHolds records what vendor's copy now holds.
-func (w *ProductWorkspace) setHolds(vendor string, h WorkspaceSync) {
+func (w *WorkspaceCopy) setHolds(vendor string, h WorkspaceSync) {
 	if vendor == VendorClaude || vendor == "" {
 		w.SyncedVersion, w.SyncedDigest, w.SyncedAt = h.Version, h.Digest, h.At
 		return
@@ -63,7 +73,7 @@ func (w *ProductWorkspace) setHolds(vendor string, h WorkspaceSync) {
 }
 
 // Clone deep-copies the per-vendor map.
-func (w ProductWorkspace) Clone() ProductWorkspace {
+func (w WorkspaceCopy) Clone() WorkspaceCopy {
 	c := w
 	if w.Others != nil {
 		c.Others = make(map[string]WorkspaceSync, len(w.Others))
@@ -74,12 +84,24 @@ func (w ProductWorkspace) Clone() ProductWorkspace {
 	return c
 }
 
+// Clone deep-copies both workspaces' per-vendor maps.
+func (w ProductWorkspace) Clone() ProductWorkspace {
+	c := w
+	c.WorkspaceCopy = w.WorkspaceCopy.Clone()
+	c.Review = w.Review.Clone()
+	return c
+}
+
 // WorkspaceGateway is what an adapter offers when model work runs in a
 // remote, provisioned workspace. It is a capability, asserted by type, and
 // never a branch on the invocation mode (BR-33): an adapter that has no
 // workspace to keep in step simply does not implement it.
 type WorkspaceGateway interface {
 	WorkspaceFor(productID string) string
+	// ReviewWorkspaceFor is the reviewer's own workspace for a product
+	// (M17.5, D-071): a second root holding the same standing files, so a
+	// review never runs in the author's folder.
+	ReviewWorkspaceFor(productID string) string
 	// SyncWorkspace makes vendor's copy of the workspace hold exactly files,
 	// provisioning it first if needed, and returns the digest it now reports.
 	SyncWorkspace(ctx context.Context, vendor, workspaceID string, files []BlueprintFile) (digest string, provisioned bool, err error)
@@ -141,6 +163,58 @@ func (a *AIMAdapter) SyncWorkspace(ctx context.Context, vendor, id string, files
 	return cur.Digest, provisioned, nil
 }
 
+// screenBlueprintFiles screens the published files, the way every path that
+// writes them to a workspace must (BR-32). One place, so the product's
+// workspace and the reviewer's cannot drift apart in what they are given.
+func (s *MemStore) screenBlueprintFiles(deskID string, files []BlueprintFile) *EgressVerdict {
+	s.mu.RLock()
+	pol, tgt := s.egress, s.target
+	s.mu.RUnlock()
+	parts := make([]PacketPart, len(files))
+	for i, f := range files {
+		parts[i] = PacketPart{Path: f.Path, Kind: KindRules, Body: f.Content}
+	}
+	if _, verdict, err := Screen(pol, tgt, Packet{TaskID: "blueprint", DeskID: deskID, Parts: parts}); err != nil {
+		return &EgressVerdict{Rule: RuleEgressBlueprint, Reason: verdict.Reason}
+	}
+	return nil
+}
+
+// syncedWorkspace is what one vendor's copy of one workspace holds after a
+// sync.
+type syncedWorkspace struct {
+	vendor, digest string
+	provisioned    bool
+}
+
+// syncWorkspaceTo writes the files to one workspace id, on every vendor the
+// product's policy uses (M16), and reports what each holds.
+//
+// One place, so the product's workspace and the reviewer's cannot drift apart
+// in how they are written or how they are checked. A vendor that fails does
+// not undo one that succeeded: what each holds is a fact about that vendor.
+func (s *MemStore) syncWorkspaceTo(ctx context.Context, wsID string, files []BlueprintFile, vendors []string) ([]syncedWorkspace, []string, error) {
+	gw, ok := s.adapter.(WorkspaceGateway)
+	if !ok {
+		return nil, nil, nil
+	}
+	var done []syncedWorkspace
+	var failed []string
+	var firstErr error
+	for _, v := range vendors {
+		digest, provisioned, err := gw.SyncWorkspace(ctx, v, wsID, files)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			failed = append(failed, fmt.Sprintf("%s: %v", vendorLabel(v), err))
+			continue
+		}
+		done = append(done, syncedWorkspace{v, digest, provisioned})
+	}
+	return done, failed, firstErr
+}
+
 // SyncBlueprint writes the product's latest published Blueprint into its
 // workspace. The files are screened first — they reach the model on every
 // turn, so the sync is a dispatch path and BR-32 applies (T-154). Network
@@ -154,7 +228,6 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 	if m != nil {
 		v, has = m.Blueprint.Latest()
 	}
-	pol, tgt := s.egress, s.target
 	var vendors []string
 	if m != nil {
 		vendors = m.Vendors.Vendors()
@@ -169,11 +242,7 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 		return Result{}, reject("Publish the Blueprint first; only a published version is written to the workspace.")
 	}
 
-	parts := make([]PacketPart, len(v.Files))
-	for i, f := range v.Files {
-		parts[i] = PacketPart{Path: f.Path, Kind: KindRules, Body: f.Content}
-	}
-	if _, verdict, err := Screen(pol, tgt, Packet{TaskID: "blueprint", DeskID: id, Parts: parts}); err != nil {
+	if verdict := s.screenBlueprintFiles(id, v.Files); verdict != nil {
 		reason := fmt.Sprintf("Blueprint v%d was not written to the workspace: %s", v.N, verdict.Reason)
 		s.mu.Lock()
 		e := s.emit(DispatchRefused, id, reason, KindFail, EventPayload{Reason: reason, Rule: RuleEgressBlueprint, Version: v.N, Digest: v.Digest})
@@ -188,24 +257,34 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 	// Every vendor the policy dispatches to holds its own copy (M16). One
 	// that fails does not undo one that succeeded: what each holds is a fact
 	// about that vendor, and the gate below asks each of them.
+	//
+	// And every product has TWO workspaces (M17.5, D-071): the one its own
+	// turns run in, and the one its reviews run in. Both hold the published
+	// Blueprint whole, so both are synced here — and the reviewer's is reset
+	// again before every review turn.
 	wsID := gw.WorkspaceFor(id)
+	reviewID := gw.ReviewWorkspaceFor(id)
 	type synced struct {
 		vendor, digest string
 		provisioned    bool
+		wsID           string
+		review         bool
 	}
 	var done []synced
 	var failed []string
 	var firstErr error
-	for _, vendor := range vendors {
-		digest, provisioned, err := gw.SyncWorkspace(ctx, vendor, wsID, v.Files)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			failed = append(failed, fmt.Sprintf("%s: %v", vendorLabel(vendor), err))
-			continue
+	for _, ws := range []struct {
+		id     string
+		review bool
+	}{{wsID, false}, {reviewID, true}} {
+		syncedHere, failedHere, err := s.syncWorkspaceTo(ctx, ws.id, v.Files, vendors)
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
-		done = append(done, synced{vendor, digest, provisioned})
+		failed = append(failed, failedHere...)
+		for _, x := range syncedHere {
+			done = append(done, synced{x.vendor, x.digest, x.provisioned, ws.id, ws.review})
+		}
 	}
 	if len(done) == 0 {
 		return Result{}, firstErr
@@ -225,12 +304,20 @@ func (s *MemStore) SyncBlueprint(ctx context.Context, id string) (Result, error)
 		if !only {
 			on = " on " + vendorLabel(d.vendor)
 		}
-		if m.Workspace.ID == "" || d.provisioned {
-			m.Workspace.ID, m.Workspace.ProvisionedAt = wsID, now
-			ev = append(ev, s.emit(WorkspaceProvisioned, id, fmt.Sprintf("%s: workspace %s provisioned%s", s.productName(id), wsID, on), KindInfo, EventPayload{}))
+		// The copy this workspace's record is written to: the product's own,
+		// or the reviewer's (M17.5).
+		cp := &m.Workspace.WorkspaceCopy
+		which := "workspace"
+		if d.review {
+			cp = &m.Workspace.Review
+			which = "reviewer workspace"
 		}
-		m.Workspace.setHolds(d.vendor, WorkspaceSync{Version: v.N, Digest: d.digest, At: now})
-		ev = append(ev, s.emit(BlueprintSynced, id, fmt.Sprintf("%s: blueprint v%d is in %s%s", s.productName(id), v.N, wsID, on), KindKnow,
+		if cp.ID == "" || d.provisioned {
+			cp.ID, cp.ProvisionedAt = d.wsID, now
+			ev = append(ev, s.emit(WorkspaceProvisioned, id, fmt.Sprintf("%s: %s %s provisioned%s", s.productName(id), which, d.wsID, on), KindInfo, EventPayload{}))
+		}
+		cp.setHolds(d.vendor, WorkspaceSync{Version: v.N, Digest: d.digest, At: now})
+		ev = append(ev, s.emit(BlueprintSynced, id, fmt.Sprintf("%s: blueprint v%d is in %s%s", s.productName(id), v.N, d.wsID, on), KindKnow,
 			EventPayload{Version: v.N, Digest: d.digest}))
 	}
 	if _, drift := s.blueprintGate(id); drift == nil {
@@ -422,7 +509,13 @@ func (s *MemStore) checkAfterTurn(ctx context.Context, deskID, runID string, att
 				v = bv
 			}
 		}
-		wsID = m.Workspace.ID
+		// The workspace the RUN used (M17.5): a review ran in the product's
+		// reviewer workspace, and the drift must be looked for there. A run
+		// recorded before M17.5 carries none, and ran in the product's own.
+		wsID = s.runWorkspace(runID)
+		if wsID == "" {
+			wsID = m.Workspace.ID
+		}
 	}
 	s.mu.RUnlock()
 	if !isGateway || v.N == 0 {
@@ -451,9 +544,16 @@ func (s *MemStore) checkAfterTurn(ctx context.Context, deskID, runID string, att
 
 	s.mu.Lock()
 	if m := s.masterPtr(deskID); m != nil {
-		h := m.Workspace.Holds(vendor)
+		// The drift belongs to the folder the run touched (M17.5): a
+		// reviewer's turn must not mark the author's workspace drifted, or
+		// the author is refused a dispatch for the reviewer's behaviour.
+		cp := &m.Workspace.WorkspaceCopy
+		if m.Workspace.Review.ID != "" && wsID == m.Workspace.Review.ID {
+			cp = &m.Workspace.Review
+		}
+		h := cp.Holds(vendor)
 		h.Digest = digest // no longer the published one, so blueprintGate refuses
-		m.Workspace.setHolds(vendor, h)
+		cp.setHolds(vendor, h)
 	}
 	var e Event
 	if i := s.deskIdxByID(deskID); i >= 0 {

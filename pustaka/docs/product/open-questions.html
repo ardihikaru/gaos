@@ -14,19 +14,20 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Thirty decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Nineteen are
+  <p class="lede">Thirty-two decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  the options actually available, the trade-off each one carries, and what it blocks. Twenty-one are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
-  database version, which CLI ships first, and whether the sisflow board may be vendored. Of the eleven
+  database version, which CLI ships first, whether the sisflow board may be vendored, and how a
+  platform-run reviewer is made genuinely zero-context. Of the eleven
   still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
-  that move makes GAOS depend on without yet controlling.</p>
+  that move makes GAOS depend on without yet controlling — and the rest are older.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-11-02"
+       data-updated="2026-11-04"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -71,7 +72,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All twenty-four in one place. Filter by any word in a question, or by theme.</p>
+  <p>All thirty-two in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -108,11 +109,12 @@
       <tr data-tags="operations budget cap spend guard defer pacing answered"><td><a href="#oq-18">OQ-18</a></td><td>Operations</td><td>What are the initial budget caps, and what happens when one is hit?</td><td>R-05, BR-17</td><td>Answered → <a href="decision-log.html#d-037">D-037</a></td></tr>
       <tr data-tags="technical kanban board sisflow licence ownership vendoring br-27 new"><td><a href="#oq-25">OQ-25</a></td><td>Technical</td><td>May the sisflow board — another organisation's code with no licence file — be vendored into an Apache-2.0 repository, and on what terms?</td><td>I-10, D-061, TC-150</td><td>Answered → <a href="decision-log.html#d-063">D-063</a></td></tr>
       <tr data-tags="technical cancel stop turn in-flight ai-manager upstream new"><td><a href="#oq-26">OQ-26</a></td><td>Technical</td><td>How is a turn already running in ai-claude-cli cancelled, when ai-manager exposes no cancel?</td><td>D-060, task cancel, BR-38</td><td>Open — raised 2026-11-02</td></tr>
-      <tr data-tags="technical workspace repository code worktree concurrency product new"><td><a href="#oq-27">OQ-27</a></td><td>Technical</td><td>Where does a product's actual code live inside its workspace, and may one workspace ever run more than one turn at a time?</td><td>BR-38, BR-42, D-058</td><td>Open — raised 2026-11-02</td></tr>
+      <tr data-tags="technical workspace repository code worktree concurrency product new"><td><a href="#oq-27">OQ-27</a></td><td>Technical</td><td>Where does a product's actual code live inside its workspace, and may one workspace ever run more than one turn at a time?</td><td>BR-38, BR-42, D-058</td><td>Open — narrowed by <a href="decision-log.html#d-071">D-071</a></td></tr>
       <tr data-tags="technical knowledge source template repository clone licence pin blueprint new"><td><a href="#oq-28">OQ-28</a></td><td>Technical</td><td>How does a knowledge source repository reach the model — cloned, summarised, or indexed — and whose licence governs it?</td><td>A-9, D-058</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="technical admin key token least privilege ai-manager security new"><td><a href="#oq-29">OQ-29</a></td><td>Technical</td><td>Should GAOS hold a token scoped to its own workspaces instead of ai-manager's admin bearer?</td><td>D-059, BR-29</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="operations ai-manager restart async request records lost recovery new"><td><a href="#oq-30">OQ-30</a></td><td>Operations</td><td>ai-manager keeps async request records in memory. Is the deadline rule enough, or should ai-manager persist them?</td><td>D-060, recovery</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="operations question answer wait expiry session lifetime temp bucket answered"><td><a href="#oq-31">OQ-31</a></td><td>Operations</td><td>How long may an agent's question wait for the operator before it expires, and what happens to the task then?</td><td>I-11, BR-44, D-064</td><td>Answered → <a href="decision-log.html#d-066">D-066</a></td></tr>
+      <tr data-tags="technical design gate review zero-context isolation blueprint workspace session security answered"><td><a href="#oq-32">OQ-32</a></td><td>Technical</td><td>How does a platform-run reviewer become genuinely zero-context, and what may the standing files it necessarily contains contain?</td><td>D-068, BR-39, BR-42, M17</td><td>Answered → <a href="decision-log.html#d-069">D-069</a></td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -685,6 +687,13 @@
   question follows: one workspace per product means every task shares one checkout, so
   <a href="brd.html#rules-gateway">BR-38</a> allows one live turn per product. Worktrees would lift that
   and multiply the folders the worker must manage.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-071">D-071</a>, 2026-11-04:</strong> the second
+  question is answered. A product has <strong>two</strong> workspaces now — its own and its
+  reviewer's — and <a href="brd.html#rules-gateway">BR-38</a> says one live turn per <em>product</em>,
+  not per workspace. So a checkout mounted into the product's folder is reachable by the product's
+  tasks and <strong>not</strong> by a review: the reviewer's folder holds the standing files and
+  nothing else, and it is reset before every review turn. The first question — where the code lives
+  — is still open, and mounting it is now the operator's choice rather than the gate's.</p>
   <p><strong>Blocks:</strong> any task whose deliverable is a code change rather than a reply; the
   reopening of <a href="#oq-24">OQ-24</a>.</p>
 
@@ -728,6 +737,35 @@
   the asking session, even past GAOS's twenty-five-day rotation; after it, the task is blocked with
   the reason and starts again in a new session when unblocked. The inbox shows the time left instead
   of a stale tag.</p>
+
+  <h3 id="oq-32">OQ-32 · How does a platform-run reviewer become zero-context?</h3>
+  <p><strong>Why it was open:</strong> <a href="decision-log.html#d-068">D-068</a> put a design gate
+  in the product: a review task reads a design artifact and attacks it, and the implementation does
+  not start until that review resolves. The reviewer must be <em>zero-context</em> — it must not
+  carry the author of the design's assumptions — and opening a fresh session does not achieve that.
+  The Blueprint is loaded on every turn of every product workspace, including a fresh one
+  (<a href="blueprint.html#the-brief">the brief</a>), so the reviewer's context carries the product's
+  problem statement, its 50 domain rules and its whole decision history whether or not it asked for
+  them. <a href="brd.html#rules-gateway">BR-39</a> and
+  <a href="brd.html#rules-gateway">BR-42</a> then bound what may be written into that workspace at
+  all, and the rubric the reviewer needs is itself part of the Blueprint — the domain rules are
+  rendered into <code>.claude/rules/10-brd.md</code>, so a reviewer workspace that holds the rubric
+  but not the Blueprint is a workspace that has drifted.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-069">D-069</a>: <strong>the isolation
+  boundary is the packet, not the workspace</strong>, and the standing files are the rubric rather
+  than contamination — so they stay whole, and the reviewer's packet carries exactly two kinds,
+  <code>design</code> and <code>rules</code>. What is withheld is the <em>author's session
+  state</em>: the previous handoff, the failure lesson drawn from it, and the operator's answer.
+  That contamination is not hypothetical — <code>freezePacketFor</code> is per-desk and
+  <code>latestHandoffFor</code> is desk-scoped on purpose, so a review would inherit the author's
+  handoff by default. The design itself cannot reach a reviewer any other way, because GAOS reads
+  no folder: it travels as a GAOS-held artifact in a new <code>design</code> packet part, and the
+  findings travel back the same way, as context. The gate stays the planner's own
+  <code>DEPENDS_ON</code> edge and <code>BLOCKED</code> status, so no closed vocabulary widens.
+  The content half of the question has the same answer: what may the standing files contain is what
+  they already contain, and what may not <em>leave</em> the review is the matched text of anything —
+  a finding records where, never what. What this did not close is the decision log's unbounded
+  growth into the standing files, which is a context-cost problem and stays its own item.</p>
 
   <h2 id="oq-operations">Operations</h2>
 

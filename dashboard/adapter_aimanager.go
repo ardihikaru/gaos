@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
@@ -27,11 +29,9 @@ type AIMAdapter struct {
 	Provider string
 	Local    bool
 
-	// Tenant names the workspace: gaos-<tenant>-<product>. Workspace, when
-	// set, overrides the derived id for every product (a shared workspace,
-	// until M14.4 provisions one per product).
-	Tenant    string
-	Workspace string
+	// Tenant names the workspace: gaos-<tenant>-<product>. There is no shared
+	// override any more (M17.5, D-071): every product has its own root.
+	Tenant string
 
 	PollEvery     time.Duration // between result polls; default 2s
 	Deadline      time.Duration // whole-turn ceiling; default 660s (> ai-manager's 600s)
@@ -75,11 +75,24 @@ func safeID(s string) string {
 
 // WorkspaceFor derives a product's workspace id, gaos-<tenant>-<product>. It
 // is derived once and never renamed: ai-claude-cli keys transcripts by it.
+//
+// There is no shared-workspace override (M17.5, D-071): one folder for every
+// product would give them one root and one initial context, and the rule the
+// operator gave is that each product has its own.
 func (a *AIMAdapter) WorkspaceFor(productID string) string {
-	if a.Workspace != "" {
-		return a.Workspace
+	return workspaceID(a.Tenant, productID, "")
+}
+
+// workspaceID derives a workspace id for a tenant and a product, with an
+// optional suffix. One derivation for every id, so they cannot drift apart in
+// their format or their length cap.
+func workspaceID(tenant, productID, suffix string) string {
+	id := "gaos-" + safeID(tenant) + "-" + safeID(productID) + suffix
+	if len(id) <= maxWorkspaceIDLen {
+		return id
 	}
-	return "gaos-" + safeID(a.Tenant) + "-" + safeID(productID)
+	sum := sha256.Sum256([]byte(id))
+	return id[:maxWorkspaceIDLen-7] + "-" + hex.EncodeToString(sum[:])[:6]
 }
 
 // RequestIDFor is deterministic, so a lost 202 can be resent without a second
@@ -105,7 +118,29 @@ func RenderPrompt(c Cleared) string {
 			kept.Parts = append(kept.Parts, part)
 		}
 	}
-	return instructionOf(kept) + "\n===== the handoff =====\n" + gatewayContract(p.TaskID, p.RunID, p.Role)
+	return instructionOf(kept) + "\n" + contractsFor(p.Kind, p.TaskID, p.RunID, p.Role)
+}
+
+// contractsFor is what the model is told to produce.
+//
+// An ordinary task owes a handoff. A design task owes a design block AND a
+// handoff; a review task owes a review block AND a handoff. The handoff is
+// always last, because the handoff contract says "Copy it as the last thing
+// in your reply" (gatewayContractTemplate) and the handoff parser takes the
+// last gaos-handoff block.
+//
+// The kind reaches here on the packet (Packet.Kind), because the adapter has
+// no other way to know: it sees the packet and nothing else.
+func contractsFor(kind, taskID, runID, role string) string {
+	handoff := gatewayContract(taskID, runID, role)
+	switch taskKind(kind) {
+	case TaskKindDesign:
+		return designContract(taskID, runID, role) + "\n===== the handoff =====\n" + handoff
+	case TaskKindReview:
+		return reviewContract(taskID, runID, role) + "\n===== the handoff =====\n" + handoff
+	default:
+		return "\n===== the handoff =====\n" + handoff
+	}
 }
 
 // Dispatch runs one turn: persist the request id, submit, poll to a result.
@@ -134,7 +169,13 @@ func (a *AIMAdapter) turn(ctx context.Context, c Cleared, sessionID string) (Att
 	if sessionID != "" {
 		req.SessionID = sessionID
 	} else {
-		req.NewSession, req.WorkspaceID = true, a.WorkspaceFor(p.DeskID)
+		req.NewSession = true
+		// The packet names the workspace the turn runs in (M17.5): a review
+		// runs in the product's own reviewer workspace, never in the author's.
+		req.WorkspaceID = p.WorkspaceID
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = a.WorkspaceFor(p.DeskID)
+		}
 	}
 	if err := a.submit(ctx, reqID, req, p.Answer); err != nil {
 		if att, ok := a.answered(c, err); ok {
@@ -280,11 +321,19 @@ func gatewayCost(r ChatReply) (float64, string) {
 }
 
 // instructionOf renders a packet's parts as one prompt, in a fixed order:
-// the task, the rules, the context, the repository, the contract. Each part is
-// headed by its path, so the model can say which part it is answering.
+// the task, the DESIGN, the rules, the context, the repository, the contract.
+// Each part is headed by its path, so the model can say which part it is
+// answering.
+//
+// The design comes before the rules because that is the order a reviewer needs
+// them in: the thing under review, and then the rubric it is judged against.
+//
+// KindDesign is in this list, and it has to be: a part that is in the packet
+// but not in this order is a part the model never reads, and the packet would
+// be a frozen slice that lies about what was sent.
 func instructionOf(p Packet) string {
 	var b strings.Builder
-	for _, kind := range []string{KindTask, KindRules, KindContext, KindRepo, KindContract} {
+	for _, kind := range []string{KindTask, KindDesign, KindRules, KindContext, KindRepo, KindContract} {
 		for _, part := range p.Parts {
 			if part.Kind != kind {
 				continue
