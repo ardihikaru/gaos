@@ -107,7 +107,9 @@ services:
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.
-    user: "1001:1001"
+    # GAOS_UID / GAOS_GID override it for a host whose deploy user differs
+    # (rnd-v3-vpn: 1000).
+    user: "${GAOS_UID:-1001}:${GAOS_GID:-1001}"
     # No service joins an infra network: the database is an address on the
     # tunnel, and least privilege as topology is now simply "nobody resolves a
     # neighbour's services by name".
