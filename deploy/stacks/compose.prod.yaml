@@ -71,7 +71,9 @@ services:
       # user gaos_dev, prod is gaos with user gaos_prod, and each user has rights
       # on its own database alone (a 403 on the other's). There is no infra
       # network to join any more; nothing here resolves a neighbour by name.
-      GAOS_ARCADE_URL: "http://10.10.0.5:2480"
+      # Default: the shared ArcadeDB on clinodb. The rnd-v3-vpn instance points
+      # GAOS_ARCADE_URL at the ArcadeDB on rnd-v2-vpn (http://10.10.0.4:9480).
+      GAOS_ARCADE_URL: "${GAOS_ARCADE_URL:-http://10.10.0.5:2480}"
       # Default `gaos`. The second instance (rnd-v3-vpn) sets GAOS_ARCADE_DB to
       # its own database, so the two never share a graph.
       GAOS_ARCADE_DB: "${GAOS_ARCADE_DB:-gaos}"
