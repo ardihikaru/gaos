@@ -39,7 +39,7 @@ hasnt $DEV  'GAOS_ARCADE_DB: "gaos"'           "dev does not use the PROD databa
 has   $PROD 'GAOS_ARCADE_DB: "${GAOS_ARCADE_DB:-gaos}"' "prod uses the gaos database (overridable per instance)"
 hasnt $PROD 'GAOS_ARCADE_DB: "gaos_dev"'       "prod does not use the DEV database"
 has   $DEV  '"http://10.10.0.5:2480"'          "dev reaches the database over WireGuard"
-has   $PROD '"http://10.10.0.5:2480"'          "prod reaches the database over WireGuard"
+has   $PROD '"${GAOS_ARCADE_URL:-http://10.10.0.5:2480}"' "prod reaches the database over WireGuard"
 
 echo
 echo "== nothing is published beyond the tunnel =="
