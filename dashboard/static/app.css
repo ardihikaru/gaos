@@ -747,20 +747,69 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 }
 
 /* ---------------- back office ---------------- */
-.bo{display:grid;grid-template-columns:212px minmax(0,1fr);min-height:100%}
-.bo-nav{border-right:1px solid var(--line);background:var(--panel);padding:16px 12px}
-.bo-nav h3{
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
-  color:var(--ink-3);margin:0 0 9px;font-weight:500;padding-bottom:6px;border-bottom:1px solid var(--line-soft);
+/* The bar: the back office's only navigation. Three zones — where you are,
+   where you can go, and the operator's own controls. The menu is the one
+   zone allowed to give up width: it scrolls sideways (with a fade on the
+   side that has more) rather than wrap or push the controls off screen.
+   The bar's bottom rule is an inset shadow, not a border, so the current
+   item's brass line can sit ON it instead of floating 1px above it. */
+.bo-bar{
+  display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;
+  grid-template-areas:"ctx menu end";
+  align-items:stretch;column-gap:18px;padding:0 16px;
+  border-bottom:0;box-shadow:inset 0 -1px 0 var(--line);
 }
-.bo-nav button{
-  width:100%;text-align:left;padding:7px 9px;border-radius:var(--r-s);
-  border-left:2px solid transparent;font-size:13px;color:var(--ink-2);margin-bottom:2px;
+.bo-ctx{grid-area:ctx;display:flex;align-items:center;gap:11px;min-width:0}
+.bo-where{display:flex;flex-direction:column;min-width:0;max-width:clamp(160px,20vw,300px);line-height:1.2}
+.bo-tenant{
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.bo-nav button:hover{background:var(--panel-2)}
-.bo-nav button[aria-current="true"]{background:var(--panel-2);border-left-color:var(--brass);color:var(--ink)}
-.bo-nav .count{float:right;font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
-.bo-main{padding:20px 24px 40px;min-width:0}
+.bo-crumb{
+  display:flex;align-items:baseline;gap:6px;min-width:0;white-space:nowrap;
+  font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:.01em;
+}
+.bo-crumb b{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.bo-crumb-up{
+  flex:0 0 auto;padding:0;font-weight:500;color:var(--ink-3);
+  transition:color 150ms ease;
+}
+.bo-crumb-sep{flex:0 0 auto;color:var(--line);font-weight:400}
+
+.bo-menu{
+  grid-area:menu;display:flex;align-items:stretch;gap:2px;min-width:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  scroll-padding-inline:32px;
+}
+.bo-menu::-webkit-scrollbar{display:none}
+/* the fade says "there is more this way"; app.js sets the attributes */
+.bo-menu[data-more="end"]{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 36px),transparent)}
+.bo-menu[data-more="start"]{-webkit-mask-image:linear-gradient(90deg,transparent,#000 36px);mask-image:linear-gradient(90deg,transparent,#000 36px)}
+.bo-menu[data-more="both"]{-webkit-mask-image:linear-gradient(90deg,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
+.bo-menu button{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+  padding:0 11px;font-size:13px;color:var(--ink-3);white-space:nowrap;
+  transition:color 150ms ease;
+}
+/* inside a scroller, an outset ring is clipped: draw it inside */
+.bo-menu button:focus-visible{outline-offset:-4px;border-radius:var(--r-s)}
+.bo-menu button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--brass)}
+.bo-menu button:active{color:var(--ink)}
+.bo-menu .n{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.bo-menu button[aria-current="page"] .n{color:var(--ink-2)}
+.bo-menu .nav-needs.on .n{color:var(--ask);font-weight:600}
+@media (hover:hover) and (pointer:fine){
+  .bo-menu button:hover{color:var(--ink-2)}
+  .bo-menu button[aria-current="page"]:hover{color:var(--ink)}
+  .bo-crumb-up:hover{color:var(--ink)}
+}
+
+.bo-end{grid-area:end;display:flex;align-items:center;gap:8px}
+
+.bo-main{padding:20px 24px 40px;min-width:0;max-width:1400px;margin:0 auto}
 .bo-main > header{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
 .bo-main h2{font-family:var(--font-display);font-size:20px;font-weight:700;margin:2px 0 0}
 .bo-main header p{margin:3px 0 0;font-size:12.5px;color:var(--ink-3);max-width:60ch}
@@ -788,15 +837,20 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .mcard.add{border-style:dashed;display:grid;place-items:center;min-height:150px;color:var(--ink-3);font-size:13px}
 .mcard.add:hover{color:var(--brass)}
 
-/* tabs */
-.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:6px 0 18px;flex-wrap:wrap}
-.tabs button{
-  padding:8px 13px;font-size:13px;color:var(--ink-3);
-  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;
+/* the product's title row: one line, the bar above carries the tabs */
+.bo-main > header.bo-title{align-items:center;flex-wrap:nowrap;margin-bottom:18px}
+.bo-title-text{display:flex;align-items:baseline;gap:14px;min-width:0;flex:1 1 auto}
+.bo-title h2{
+  margin:0;flex:0 1 auto;max-width:55%;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.tabs button:hover{color:var(--ink-2)}
-.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brass)}
-.tabs .n{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);margin-left:5px}
+.bo-title h2:focus{outline:0}
+.bo-main .bo-title p{
+  margin:0;flex:1 1 0;min-width:0;max-width:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.bo-title p .mono{font-size:11.5px}
+.bo-title .sp{flex:0 0 auto}
 
 .panel-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
 .block{border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel);padding:14px;margin-bottom:14px}
@@ -953,9 +1007,31 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 @media (max-width:900px){
-  .bo{grid-template-columns:1fr}
-  .bo-nav{border-right:0;border-bottom:1px solid var(--line)}
   .panel-grid{grid-template-columns:minmax(0,1fr)}
+  /* two rows: where you are and your controls, then the menu at full width */
+  .bo-bar{
+    height:auto;grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"ctx end" "menu menu";padding:0;
+  }
+  .bo-ctx,.bo-end{height:52px;padding:0 14px}
+  .bo-ctx{padding-right:0}
+  .bo-menu{height:42px;padding:0 6px;box-shadow:inset 0 1px 0 var(--line-soft)}
+  .bo-where{max-width:none}
+  /* the title row wraps: name and actions, then the line under them */
+  .bo-main > header.bo-title{flex-wrap:wrap;align-items:flex-start;gap:10px}
+  .bo-title-text{flex:1 1 100%;flex-direction:column;align-items:stretch;gap:3px}
+  .bo-title h2{max-width:100%}
+  .bo-main .bo-title p{flex:none}
+  .bo-main{padding:16px 14px 32px}
+}
+@media (max-width:520px){
+  .bo-end .btn{padding:7px 10px}
+  .bo-crumb{font-size:15px}
+  /* too narrow for "Products / <name>": the name is the h2 right below, so
+     the crumb becomes the way back, and says so */
+  .bo-crumb b,.bo-crumb-sep{display:none}
+  .bo-crumb-up::before{content:"‹ ";color:var(--ink-3)}
+  .bo-crumb-up{color:var(--ink)}
 }
 
 
@@ -990,9 +1066,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .live-off{display:inline-grid;place-items:center;width:14px;height:32px;flex:0 0 14px}
 .live-off[hidden]{display:none}
 .live-off i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-3)}
-
-/* back-office nav */
-.bo-nav .nav-needs.on .count{color:var(--ask);font-weight:600}
 
 /* inbox */
 .inbox-filter{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
