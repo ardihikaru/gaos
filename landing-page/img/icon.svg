@@ -1,20 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Cubiq">
-  <title>Cubiq</title>
-  <!-- Full-bleed field, --ink. Corners stay square: every platform applies its own mask. -->
-  <rect width="512" height="512" fill="#16181D"/>
-  <!-- 3x3 cube face. Palette matches the app's scan colours in index.html:
-       U #FFD500 kuning · R #00A651 hijau · F #EE3124 merah · L #2F6FD6 biru · B #FF8200 jingga -->
-  <g>
-    <rect x="104" y="104" width="92" height="92" rx="14" fill="#FFD500"/>
-    <rect x="210" y="104" width="92" height="92" rx="14" fill="#FFD500"/>
-    <rect x="316" y="104" width="92" height="92" rx="14" fill="#EE3124"/>
-
-    <rect x="104" y="210" width="92" height="92" rx="14" fill="#2F6FD6"/>
-    <rect x="210" y="210" width="92" height="92" rx="14" fill="#FFD500"/>
-    <rect x="316" y="210" width="92" height="92" rx="14" fill="#00A651"/>
-
-    <rect x="104" y="316" width="92" height="92" rx="14" fill="#EE3124"/>
-    <rect x="210" y="316" width="92" height="92" rx="14" fill="#FF8200"/>
-    <rect x="316" y="316" width="92" height="92" rx="14" fill="#FFD500"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="GAOS">
+  <title>GAOS</title>
+  <!-- The dashboard's brand mark (dashboard/templates/chrome.html "brand-mark"):
+       three vertices and the edges between them, because the graph is the
+       primitive. Scaled x16 from its 32px box and centred on the centroid.
+       Field = the dashboard's bg #151310; edges = brass-soft; vertices = brass.
+       (No double hyphen in this comment: XML forbids it, and the icon breaks.)
+       Full-bleed square: every platform applies its own mask. -->
+  <rect width="512" height="512" fill="#151310"/>
+  <g stroke="#8A6D2C" stroke-width="22" stroke-linecap="round">
+    <line x1="152" y1="184" x2="360" y2="184"/>
+    <line x1="152" y1="184" x2="256" y2="392"/>
+    <line x1="360" y1="184" x2="256" y2="392"/>
+  </g>
+  <g fill="#CFA047">
+    <circle cx="152" cy="184" r="44"/>
+    <circle cx="360" cy="184" r="44"/>
+    <circle cx="256" cy="392" r="44"/>
   </g>
 </svg>

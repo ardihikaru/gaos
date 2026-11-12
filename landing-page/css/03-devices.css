@@ -1,103 +1,144 @@
 /* ============================================================
-   CUBIQ — mockup perangkat: ponsel potret dan tablet lanskap.
+   GAOS — mockup layar: Board (hero) dan Blueprint (showcase).
 
    SATU TOMBOL SKALA. Setiap ukuran di dalam bingkai ditulis dalam
-   `em`, dan hanya font-size perangkatnya yang di-clamp terhadap
-   lebar layar. Jadi seluruh mockup mengecil utuh dan proporsional
-   di ponsel, tanpa satu pun media query untuk isinya.
+   `em`, dan font-size bingkainya dihitung dari lebar wadahnya
+   (container query: 100cqi dibagi lebar bingkai dalam em). Jadi
+   seluruh mockup mengecil utuh dan pas, tanpa geser mendatar, dan
+   tanpa media query untuk isinya — kecuali yang menyembunyikan kolom.
 
-   Isi layar memakai token --app-* (selalu gelap), bukan token
-   halaman: aplikasi Cubiq memang hanya punya mode gelap.
+   Isi layar memakai token halaman, bukan palet tetap: Mission Control
+   punya mode terang dan gelap, jadi mockup-nya juga.
    ============================================================ */
 
-.shot{display:flex;justify-content:center;perspective:1400px}
-.phone,.tablet{--bez:#0A0B0E;background:var(--bez);position:relative;flex:none;
-  box-shadow:var(--shadow),0 0 0 1px color-mix(in srgb,var(--app-line) 60%,transparent)}
-.phone .screen,.tablet .screen{background:var(--app-ink);color:var(--app-text);
-  font-family:'Rubik',system-ui,sans-serif;overflow:hidden;position:relative}
+.shot{container-type:inline-size;min-width:0}
+.frame{background:var(--panel);border:1px solid var(--line);border-radius:1em;overflow:hidden;
+  box-shadow:var(--shadow-l);color:var(--ink);font-family:var(--font-body);line-height:1.35;
+  font-size:clamp(6px,calc(100cqi / var(--bem)),var(--max-fs))}
+.frame .mark{width:1.9em;height:1.9em}
 
-/* stiker kubus, dipakai di kedua perangkat */
-.face{display:grid;grid-template-columns:repeat(3,1fr);gap:.15em;flex:none}
-.face i{aspect-ratio:1;border-radius:.12em}
-.face .k{background:var(--kuning)} .face .h{background:var(--hijau)}
-.face .m{background:var(--merah)} .face .b{background:var(--biru)}
-.face .j{background:var(--jingga)} .face .p{background:#F2F3F5}
-.face .x{background:var(--app-ink-3)}
+/* bilah atas: tanda, nama produk, tab */
+.f-bar{display:flex;align-items:center;gap:.8em;padding:.75em 1em;border-bottom:1px solid var(--line-soft);
+  background:var(--panel-2);white-space:nowrap}
+.f-title{font-family:var(--font-display);font-weight:700;font-size:1.1em;min-width:0;max-width:24em;
+  overflow:hidden;text-overflow:ellipsis}
+.f-bar .mark,.f-pin{flex:none}
+.f-tabs{display:flex;gap:.25em;margin-left:.6em;flex:none}
+.f-tabs i{font-style:normal;font-size:.85em;color:var(--ink-3);padding:.35em .7em;border-radius:.4em}
+.f-tabs i.on{color:var(--ink);background:var(--panel);box-shadow:inset 0 -.14em 0 var(--brass)}
+.f-pin{margin-left:auto;font-family:var(--font-mono);font-size:.78em;color:var(--brass);
+  border:1px solid var(--brass-soft);border-radius:999px;padding:.2em .7em}
 
-/* ------------------------------ ponsel ------------------------------ */
-.phone{font-size:clamp(9.4px,2.7vw,12.4px);width:25.4em;padding:.7em;border-radius:2.6em;
-  transform:rotate(-1.4deg);transition:transform .5s var(--turn)}
-.shot:hover .phone{transform:rotate(0deg) translateY(-6px)}
-.phone .screen{border-radius:2em;min-height:44em;display:flex;flex-direction:column}
-.phone .screen::before{content:"";position:absolute;top:.55em;left:50%;translate:-50% 0;
-  width:6.4em;height:1.5em;background:var(--bez);border-radius:1em;z-index:3}
+/* ------------------------------ Board ------------------------------ */
+.board{--col:12.5em;--gap:.7em;--bem:80.5;--max-fs:15px}
+.kb{padding:.9em;display:grid;gap:.55em;
+  --hop:calc(2 * (var(--col) + var(--gap)))}   /* Working → Review: dua kolom */
+.kb-row{display:grid;grid-template-columns:repeat(6,var(--col));gap:var(--gap);align-items:start}
+.kb-head b{display:flex;align-items:center;gap:.5em;font-family:var(--font-mono);font-size:.8em;
+  font-weight:500;color:var(--ink-2);padding:.2em .15em .5em;border-bottom:1px solid var(--line-soft)}
+.kb-head i{width:.6em;height:.6em;border-radius:50%;flex:none}
+.d-backlog{background:var(--ink-3)} .d-ready{background:var(--ink-2)}
+.d-working{background:var(--run)}   .d-needs{background:var(--ask)}
+.d-review{background:var(--know)}   .d-done{background:var(--done)}
+.kb-lane{font-family:var(--font-mono);font-size:.76em;color:var(--ink-3);padding-top:.5em;
+  display:flex;align-items:center;gap:.6em}
+.kb-lane::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.kb-row > div{display:grid;grid-template-columns:minmax(0,1fr);gap:.5em;min-height:6.6em;border-radius:.6em;background:var(--panel-2)}
+.kb-row > div:empty{background:repeating-linear-gradient(135deg,transparent 0 .5em,var(--grid-line) .5em 1em)}
 
-.s-top{display:flex;align-items:center;justify-content:space-between;padding:2.7em 1.3em .9em;
-  border-bottom:1px solid var(--app-line)}
-.wm{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:1.6em;letter-spacing:-.02em}
-.wm i{color:var(--kuning);font-style:normal}
-.off{font-family:'JetBrains Mono',monospace;font-size:.82em;color:var(--jingga);
-  border:1px solid color-mix(in srgb,var(--jingga) 55%,transparent);border-radius:999px;padding:.3em .8em}
+/* Kartu tugas: tinggi tetap dan judul dua baris, supaya kartu yang
+   berpindah selalu pas di slotnya, berapa pun panjang judulnya. */
+.kc{height:6.6em;display:flex;flex-direction:column;gap:.15em;padding:.6em .7em;
+  background:var(--panel);border:1px solid var(--line);border-radius:.6em;overflow:hidden;min-width:0}
+.kc-id{font-family:var(--font-mono);font-size:.74em;color:var(--ink-3)}
+.kc-t{font-size:.9em;font-weight:500;line-height:1.3;color:var(--ink);overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.kc-m{margin-top:auto;font-family:var(--font-mono);font-size:.72em;color:var(--ink-3);
+  display:grid;grid-template-columns:minmax(0,1fr);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kc.done{opacity:.72}
+.kc.ask{border-color:color-mix(in srgb,var(--ask) 60%,var(--line))}
+.badge{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;color:var(--ask);border:1px solid color-mix(in srgb,var(--ask) 55%,transparent);
+  border-radius:999px;padding:.05em .6em}
 
-.s-body{padding:1.2em 1.3em;display:grid;gap:1em;flex:1;align-content:start}
-.s-eyebrow{font-family:'JetBrains Mono',monospace;font-size:.8em;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--app-muted)}
-.s-chips{display:flex;gap:.45em}
-.s-chips span{flex:1;text-align:center;font-size:.85em;padding:.5em .2em;border-radius:.6em;
-  background:var(--app-ink-2);color:var(--app-muted);border:1px solid var(--app-line)}
-.s-chips .ok{color:var(--hijau);border-color:color-mix(in srgb,var(--hijau) 55%,transparent)}
-.s-chips .now{color:#16181D;background:var(--kuning);border-color:var(--kuning);font-weight:600}
+/* Slot: tempat kartu berangkat dan tempat ia mendarat. Garis
+   putus-putusnya hanya terlihat ketika kartunya sedang tidak di sana. */
+.kc-slot{height:6.6em;border:1px dashed var(--line);border-radius:.6em;position:relative}
+.kc-slot > .kc{margin:-1px}
+.mover{position:relative;z-index:3;box-shadow:var(--shadow)}
+.st{grid-area:1/1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.st-run{color:var(--run)}
+.st-rev{color:var(--know);opacity:0}
 
-.s-move{background:var(--app-ink-2);border:1px solid var(--app-line);border-radius:1.1em;
-  padding:1.1em;display:flex;gap:1em;align-items:center}
-.s-move .txt{flex:1;min-width:0}
-.s-move .lbl{font-size:.82em;color:var(--app-muted)}
-.s-move .alg{font-family:'JetBrains Mono',monospace;font-size:1.65em;font-weight:700;
-  color:var(--kuning);letter-spacing:.04em;margin:.15em 0 .3em}
-.s-move .hint{font-size:.85em;color:var(--app-muted);line-height:1.45}
-.s-move .face{width:6.4em}
+/* Satu-satunya putaran dekoratif di halaman: T-214 berpindah dari Working
+   ke Review. Berhenti di posisi awal sampai theme.js menambahkan .is-live
+   (IntersectionObserver), jadi tidak berjalan di luar layar, dan tanpa
+   JavaScript kartunya diam di Working. Hanya transform dan opacity. */
+.mover,.st{animation-duration:8s;animation-iteration-count:infinite;animation-play-state:paused;
+  animation-fill-mode:both}
+.mover{animation-name:kb-move}
+.st-run{animation-name:kb-run}
+.st-rev{animation-name:kb-rev}
+.board.is-live .mover,.board.is-live .st{animation-play-state:running}
+@keyframes kb-move{
+  0%,50%{transform:translateX(0);opacity:1;
+    /* var(--ease-in-out); ditulis harfiah karena berlaku per keyframe */
+    animation-timing-function:cubic-bezier(0.77, 0, 0.175, 1)}
+  58%,92%{transform:translateX(var(--hop));opacity:1;animation-timing-function:cubic-bezier(0.23, 1, 0.32, 1)}
+  95%{transform:translateX(var(--hop));opacity:0}
+  96%{transform:translateX(0);opacity:0;animation-timing-function:cubic-bezier(0.23, 1, 0.32, 1)}
+  100%{transform:translateX(0);opacity:1}
+}
+@keyframes kb-run{0%,54%{opacity:1} 57%,95%{opacity:0} 97%,100%{opacity:1}}
+@keyframes kb-rev{0%,54%{opacity:0} 57%,95%{opacity:1} 97%,100%{opacity:0}}
 
-.s-bar{height:.5em;border-radius:999px;background:var(--app-ink-3);overflow:hidden}
-.s-bar i{display:block;height:100%;width:38%;background:var(--kuning);border-radius:999px}
-.s-ask{background:var(--app-ink-2);border:1px solid var(--app-line);border-radius:1.1em;padding:.95em 1.1em}
-.s-ask b{font-size:.95em;color:var(--hijau);display:block}
-.s-ask p{font-size:.82em;color:var(--app-muted);margin-top:.35em;line-height:1.45}
-.s-ask .in{margin-top:.7em;border:1px solid var(--app-line);border-radius:.6em;padding:.55em .7em;
-  font-size:.8em;color:var(--app-muted);background:var(--app-ink)}
+/* Layar sempit: tiga kolom yang menceritakan perpindahannya —
+   Working, Needs you, Review. Lompatannya tetap dua kolom. */
+@media (max-width:640px){
+  .board{--bem:41}
+  .kb-row{grid-template-columns:repeat(3,var(--col))}
+  .board .c-backlog,.board .c-ready,.board .c-done{display:none}
+  .board .f-tabs i:not(.on){display:none}
+}
 
-.s-tab{margin-top:auto;display:flex;background:var(--app-ink-2);border-top:1px solid var(--app-line);
-  padding:.7em .4em 1.1em}
-.s-tab b{flex:1;display:grid;justify-items:center;gap:.3em;font-size:.72em;font-weight:500;color:var(--app-muted)}
-.s-tab b i{width:1.9em;height:1.9em;border:.17em solid currentColor;border-radius:.5em}
-.s-tab b.on{color:var(--kuning)}
-.s-tab b.on i{rotate:90deg}
+/* ---------------------------- Blueprint ---------------------------- */
+.bp{--bem:46;--max-fs:13.5px;transform:rotate(-1deg);transition:transform 250ms var(--ease-in-out)}
+@media (hover:hover) and (pointer:fine){.shot-bp:hover .bp{transform:rotate(0deg)}}
+.bp-body{display:grid;grid-template-columns:12em minmax(0,1fr)}
+.bp-rail{border-right:1px solid var(--line-soft);background:var(--panel-2);padding:1em .8em;
+  display:grid;gap:.35em;align-content:start}
+.bp-rail .v{display:grid;gap:.1em;padding:.55em .7em;border-radius:.5em;font-weight:500}
+.bp-rail .v span{font-family:var(--font-mono);font-size:.95em;color:var(--ink-2)}
+.bp-rail .v em{font-style:normal;font-size:.75em;color:var(--ink-3)}
+.bp-rail .v.on{background:var(--panel);box-shadow:inset .2em 0 0 var(--brass)}
+.bp-rail .v.on span{color:var(--brass)}
+.bp-rail .v.draft{border:1px dashed var(--line);margin-top:.4em}
+.bp-main{padding:1.1em 1.3em 1.2em;min-width:0}
+.bp-head{display:flex;align-items:baseline;gap:.8em;flex-wrap:wrap}
+.bp-head h4{font-size:1.5em;font-weight:700}
+.bp-dig{font-family:var(--font-mono);font-size:.74em;color:var(--ink-3)}
+.tree{list-style:none;margin-top:.9em;border:1px solid var(--line-soft);border-radius:.6em;
+  padding:.5em 0;font-family:var(--font-mono);font-size:.8em;background:var(--panel-2)}
+.tree li{display:flex;gap:1em;padding:.22em 1em;color:var(--ink)}
+.tree li em{margin-left:auto;font-style:normal;color:var(--ink-3);white-space:nowrap}
+.tree li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree .dir{color:var(--brass)}
+.tree .sub,.tree .in{padding-left:2.2em}
+.tree .in{padding-left:3.4em}
+.bp-pin{margin-top:.9em;display:flex;align-items:center;gap:.8em;flex-wrap:wrap;
+  border:1px solid var(--brass-soft);background:var(--brass-wash);border-radius:.6em;padding:.6em .8em;font-size:.85em}
+.bp-pin > span:nth-child(2){color:var(--ink-2)}
+.bp-pin b{margin-left:auto;font-family:var(--font-mono);font-weight:500;font-size:.9em;color:var(--brass)}
+@media (max-width:560px){
+  .bp{--bem:32}
+  .bp-body{grid-template-columns:1fr}
+  .bp-rail{display:none}
+}
 
-/* ------------------------------ tablet ------------------------------ */
-.tablet{font-size:clamp(5.4px,1.35vw,10.6px);width:62em;padding:1.4em;border-radius:2em;
-  transform:rotate(1deg);transition:transform .5s var(--turn)}
-.showcase .shot:hover .tablet{transform:rotate(0deg) translateY(-6px)}
-/* 16/10, bukan 4/3: isi layarnya berhenti sekitar dua pertiga tinggi, dan
-   sisa ruang kosong di bawahnya terbaca sebagai mockup yang belum jadi. */
-.tablet .screen{border-radius:1em;aspect-ratio:16/10;display:flex}
-
-.t-rail{width:15em;border-right:1px solid var(--app-line);padding:1.4em 1.1em;display:grid;
-  gap:.45em;align-content:start;background:var(--app-ink-2)}
-.t-rail .wm{font-size:1.9em;margin-bottom:.5em}
-.t-rail b{font-size:1.05em;font-weight:500;color:var(--app-muted);padding:.65em .8em;border-radius:.6em}
-.t-rail b.on{background:var(--app-ink-3);color:var(--app-text);
-  box-shadow:inset .22em 0 0 var(--kuning)}
-.t-rail .tag{font-family:'JetBrains Mono',monospace;font-size:.85em;color:var(--app-muted);
-  padding:1.2em .8em 0}
-
-.t-main{flex:1;padding:1.6em 1.6em 1.2em;display:grid;align-content:start;gap:1.1em;min-width:0}
-.t-main h4{font-family:'Chakra Petch',sans-serif;font-size:2.1em;font-weight:700;line-height:1.1}
-.t-main .lead{font-size:1.05em;color:var(--app-muted);max-width:44ch;line-height:1.5}
-.t-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.9em}
-.t-alg{background:var(--app-ink-2);border:1px solid var(--app-line);border-radius:.9em;padding:1em;
-  display:grid;gap:.6em;justify-items:start}
-.t-alg .face{width:5.2em}
-.t-alg .alg{font-family:'JetBrains Mono',monospace;font-size:1.05em;font-weight:700;color:var(--kuning)}
-.t-alg span{font-size:.95em;color:var(--app-muted);line-height:1.4}
-.t-note{border:1px dashed var(--app-line);border-radius:.9em;padding:.9em 1.1em;font-size:1em;
-  color:var(--app-muted);display:flex;gap:.7em;align-items:center}
-.t-note b{color:var(--hijau);font-family:'JetBrains Mono',monospace;font-size:.9em;flex:none}
+/* Gerak dikurangi: tidak ada kemiringan, tidak ada putaran. Kartunya
+   diam di Working dengan label berjalannya. */
+@media (prefers-reduced-motion:reduce){
+  .bp,.shot-bp:hover .bp{transform:none;transition:none}
+  .mover,.st{animation:none}
+  .st-run{opacity:1}
+  .st-rev{opacity:0}
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="GAOS">
+  <title>GAOS</title>
+  <!-- The dashboard's brand mark (dashboard/templates/chrome.html "brand-mark"):
+       three vertices and the edges between them, because the graph is the
+       primitive. Scaled x16 from its 32px box and centred on the centroid.
+       Field = the dashboard's bg #151310; edges = brass-soft; vertices = brass.
+       (No double hyphen in this comment: XML forbids it, and the icon breaks.)
+       Full-bleed square: every platform applies its own mask. -->
+  <rect width="512" height="512" fill="#151310"/>
+  <g stroke="#8A6D2C" stroke-width="22" stroke-linecap="round">
+    <line x1="152" y1="184" x2="360" y2="184"/>
+    <line x1="152" y1="184" x2="256" y2="392"/>
+    <line x1="360" y1="184" x2="256" y2="392"/>
+  </g>
+  <g fill="#CFA047">
+    <circle cx="152" cy="184" r="44"/>
+    <circle cx="360" cy="184" r="44"/>
+    <circle cx="256" cy="392" r="44"/>
+  </g>
+</svg>

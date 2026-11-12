@@ -1,4 +1,4 @@
-Cubiq bundles three font families, each licensed under the SIL Open Font License 1.1.
+GAOS bundles three font families, each licensed under the SIL Open Font License 1.1.
 The full licence text for each is reproduced below, as required by the OFL.
 Font files in this directory are the 'latin' subset only, in woff2 format,
 obtained from the Google Fonts CSS API v2.

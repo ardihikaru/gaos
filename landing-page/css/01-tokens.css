@@ -1,115 +1,181 @@
 /* ============================================================
-   CUBIQ — landing page, design tokens.
+   GAOS — landing page, design tokens.
 
-   Dua palet yang TIDAK sama, dan itu disengaja:
+   Palet yang sama dengan Mission Control (dashboard/static/app.css):
+   grafit hangat, cahaya lampu brass, tinta pigmen. Brass untuk
+   struktur, tinta untuk status. Mockup di halaman ini memakai token
+   yang sama dengan halamannya sendiri, karena dasbornya memang punya
+   mode terang dan gelap — layar terang di sana bukan janji kosong.
 
-   --paper/--ink/…  ikut tema halaman (terang atau gelap).
-   --app-*          warna aplikasi Cubiq yang sebenarnya, dan
-                    selalu gelap. Layar di dalam mockup ponsel dan
-                    tablet memakai token ini, karena aplikasinya
-                    memang hanya punya mode gelap. Menampilkan
-                    layar terang di sana berarti menjanjikan
-                    sesuatu yang tidak ada.
-
-   Warna kubus (kuning/hijau/merah/biru/jingga) sama persis dengan
-   app-pwa/css/01-tokens.css. Itu identitas produk, bukan aksen
-   halaman, jadi nilainya tidak berubah antar tema.
+   Setiap token didefinisikan tiga kali: terang (bawaan), gelap
+   (data-theme), dan gelap lewat prefers-color-scheme ketika JavaScript
+   mati. Token baru yang hanya ada di satu tema tidak boleh mendarat.
    ============================================================ */
 
 :root{
-  --kuning:#FFD500; --hijau:#00A651; --merah:#EE3124; --biru:#2F6FD6; --jingga:#FF8200;
+  /* ---- permukaan: kertas linen ---- */
+  --paper:#EEEBE2;
+  --paper-glow:#F7F5EF;
+  --panel:#FAF8F2;
+  --panel-2:#F0EDE3;
+  --panel-3:#E4DFD1;
+  --line:#CBC5B4;
+  --line-soft:#DCD7C8;
+  --grid-line:rgba(90,78,52,.07);
 
-  /* layar aplikasi di dalam mockup — tetap gelap di kedua tema */
-  --app-ink:#16181D; --app-ink-2:#1F222A; --app-ink-3:#2A2E38;
-  --app-line:#343945; --app-text:#EDEFF4; --app-muted:#9AA1B0;
+  /* ---- teks ---- */
+  --ink:#22211C;
+  --ink-2:#55524A;
+  --ink-3:#736E5F;
 
-  --paper:#FBFBF9; --panel:#FFFFFF; --panel-2:#F3F4F1;
-  --ink:#16181D; --muted:#565C69; --faint:#858C9A; --line:#E3E5E0;
-  /* varian aksen yang lolos kontras di atas kertas terang */
-  --hijau-ink:#067A3E; --biru-ink:#265FB8; --merah-ink:#C7261B;
-  --glow:rgba(255,213,0,.22);
-  --shadow:0 18px 44px rgba(22,24,29,.10);
-  --shadow-s:0 6px 18px rgba(22,24,29,.07);
-  --r-s:8px; --r-m:14px; --r-l:22px; --r-xl:30px;
-  --turn:cubic-bezier(.2,.85,.3,1);
+  /* ---- brass: struktur ---- */
+  --brass:#8A6716;
+  --brass-soft:#B79A55;
+  --on-brass:#FAF8F2;
+  --brass-wash:rgba(138,103,22,.10);
+
+  /* ---- tinta status, sama dengan dasbor ---- */
+  --run:#2C63A6;
+  --done:#4C7534;
+  --block:#96681A;
+  --fail:#A6473A;
+  --know:#65429B;
+  --ask:#1D6E67;
+
+  --shadow:0 18px 34px -20px rgba(58,50,30,.42);
+  --shadow-l:0 34px 60px -30px rgba(58,50,30,.50);
+
+  /* ---- gerak (kurva Emil Kowalski; sama persis dengan app.css) ---- */
+  --ease-out:cubic-bezier(0.23, 1, 0.32, 1);       /* masuk dan keluar   */
+  --ease-in-out:cubic-bezier(0.77, 0, 0.175, 1);   /* bergerak di layar  */
+
+  --font-display:'Chakra Petch',ui-sans-serif,system-ui,sans-serif;
+  --font-body:'Rubik',ui-sans-serif,system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --r-s:5px; --r-m:10px; --r-l:14px;
   --header-h:60px;
   color-scheme:light;
 }
 
 [data-theme="dark"]{
-  --paper:#0E1014; --panel:#171A21; --panel-2:#1E222B;
-  --ink:#EDEFF4; --muted:#A2A9B8; --faint:#767D8C; --line:#262B36;
-  --hijau-ink:#34D17E; --biru-ink:#7FA9EF; --merah-ink:#FF7A6E;
-  --glow:rgba(255,213,0,.14);
-  --shadow:0 18px 44px rgba(0,0,0,.5);
-  --shadow-s:0 6px 18px rgba(0,0,0,.35);
+  --paper:#151310;
+  --paper-glow:#231F19;
+  --panel:#1C1A16;
+  --panel-2:#232019;
+  --panel-3:#2A261E;
+  --line:#37322A;
+  --line-soft:#2B2721;
+  --grid-line:rgba(214,178,112,.055);
+  --ink:#EFE8DA;
+  --ink-2:#B3A992;
+  --ink-3:#8C8472;
+  --brass:#CFA047;
+  --brass-soft:#8A6D2C;
+  --on-brass:#151310;
+  --brass-wash:rgba(207,160,71,.12);
+  --run:#7BA6DC;
+  --done:#8FAF6B;
+  --block:#DCA544;
+  --fail:#C86458;
+  --know:#A585CE;
+  --ask:#5CB8AE;
+  --shadow:0 24px 46px -24px rgba(0,0,0,.9);
+  --shadow-l:0 40px 70px -34px rgba(0,0,0,.95);
   color-scheme:dark;
 }
 
 /* Tanpa JavaScript tidak ada data-theme sama sekali, jadi preferensi
-   sistem tetap dihormati. Dengan JavaScript, skrip di <head> menulis
-   data-theme sebelum paint dan aturan ini kalah — itulah maksudnya. */
+   sistem tetap dihormati. Dengan JavaScript, theme.js menulis
+   data-theme sebelum paint hanya bila ada pilihan tersimpan. */
 @media (prefers-color-scheme:dark){
   html:not([data-theme]){
-    --paper:#0E1014; --panel:#171A21; --panel-2:#1E222B;
-    --ink:#EDEFF4; --muted:#A2A9B8; --faint:#767D8C; --line:#262B36;
-    --hijau-ink:#34D17E; --biru-ink:#7FA9EF; --merah-ink:#FF7A6E;
-    --glow:rgba(255,213,0,.14);
-    --shadow:0 18px 44px rgba(0,0,0,.5);
-    --shadow-s:0 6px 18px rgba(0,0,0,.35);
+    --paper:#151310;
+    --paper-glow:#231F19;
+    --panel:#1C1A16;
+    --panel-2:#232019;
+    --panel-3:#2A261E;
+    --line:#37322A;
+    --line-soft:#2B2721;
+    --grid-line:rgba(214,178,112,.055);
+    --ink:#EFE8DA;
+    --ink-2:#B3A992;
+    --ink-3:#8C8472;
+    --brass:#CFA047;
+    --brass-soft:#8A6D2C;
+    --on-brass:#151310;
+    --brass-wash:rgba(207,160,71,.12);
+    --run:#7BA6DC;
+    --done:#8FAF6B;
+    --block:#DCA544;
+    --fail:#C86458;
+    --know:#A585CE;
+    --ask:#5CB8AE;
+    --shadow:0 24px 46px -24px rgba(0,0,0,.9);
+    --shadow-l:0 40px 70px -34px rgba(0,0,0,.95);
     color-scheme:dark;
   }
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h) + 14px)}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h) + 14px);overflow-x:clip}
 body{
-  font-family:'Rubik',system-ui,sans-serif;
+  font-family:var(--font-body);
   background:var(--paper); color:var(--ink);
   line-height:1.6; font-size:16px; -webkit-font-smoothing:antialiased;
-  transition:background .25s var(--turn), color .25s var(--turn);
+  overflow-x:clip;
+  /* Perubahan warna saat ganti tema: warna, bukan gerak, jadi `ease`. */
+  transition:background-color .25s ease, color .25s ease;
 }
-h1,h2,h3,.display{font-family:'Chakra Petch',system-ui,sans-serif;line-height:1.12;letter-spacing:-.01em}
-code,kbd,.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+h1,h2,h3,h4{font-family:var(--font-display);line-height:1.12;letter-spacing:-.01em;text-wrap:balance}
+p{text-wrap:pretty}
+code,kbd,.mono{font-family:var(--font-mono)}
 a{color:inherit;text-decoration:none}
 img,svg{max-width:100%;display:block}
-::selection{background:var(--kuning);color:#16181D}
-:focus-visible{outline:3px solid var(--biru);outline-offset:3px;border-radius:6px}
+::selection{background:var(--brass);color:var(--on-brass)}
+:focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:6px}
 
-.skip{position:absolute;left:-9999px;top:8px;background:var(--kuning);color:#16181D;
+.skip{position:absolute;left:-9999px;top:8px;background:var(--brass);color:var(--on-brass);
   padding:10px 16px;border-radius:var(--r-s);font-weight:600;z-index:99}
 .skip:focus{left:12px}
 
 .wrap{width:min(1140px,100% - 40px);margin-inline:auto}
-section{padding:clamp(52px,7vw,96px) 0}
-.eyebrow{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--faint);margin-bottom:10px}
-.sec-head{max-width:62ch;margin-bottom:clamp(26px,3.5vw,44px)}
-.sec-head h2{font-size:clamp(26px,3.6vw,40px);font-weight:700}
-.sec-head p{color:var(--muted);margin-top:12px;font-size:clamp(15px,1.6vw,17.5px)}
+section{padding:clamp(56px,7vw,104px) 0}
+.sec-head{max-width:60ch;margin-bottom:clamp(26px,3.5vw,44px)}
+.sec-head h2{font-size:clamp(27px,3.6vw,42px);font-weight:700}
+.sec-head p{color:var(--ink-2);margin-top:12px;font-size:clamp(15px,1.6vw,17.5px)}
 
-.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:999px;
-  font-weight:600;font-size:15.5px;border:1.5px solid transparent;cursor:pointer;
-  transition:transform .18s var(--turn),box-shadow .18s var(--turn),background .18s}
-.btn:hover{transform:translateY(-2px)}
-/* Hitam pekat, bukan --ink. Di atas kuning penuh, #16181D yang kebiruan itu
-   terbaca keabu-abuan — paling kentara di mode gelap, di mana mata sudah
-   menyesuaikan diri ke latar gelap. #000 memberi kontras 15.9:1. Warnanya
-   sama di kedua tema karena latarnya sendiri tidak ikut berubah tema. */
-.btn.primary{background:var(--kuning);color:#000;box-shadow:0 10px 26px var(--glow)}
-.btn.primary:hover{box-shadow:0 16px 34px var(--glow)}
+/* ------------------------------ tombol ------------------------------ */
+.btn{display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border-radius:var(--r-s);
+  font-weight:600;font-size:15px;border:1px solid transparent;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform 160ms var(--ease-out)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brass);color:var(--on-brass)}
 .btn.ghost{border-color:var(--line);background:var(--panel);color:var(--ink)}
-.btn.ghost:hover{border-color:var(--faint)}
-.btn.big{padding:16px 30px;font-size:17px}
+.btn.big{padding:15px 26px;font-size:16px}
+/* Hover hanya warna, dan hanya untuk penunjuk yang benar-benar bisa
+   melayang: sentuhan memicu hover palsu pada ketukan. */
+@media (hover:hover) and (pointer:fine){
+  .btn.primary:hover{background:color-mix(in srgb,var(--brass) 88%,var(--ink))}
+  .btn.ghost:hover{border-color:var(--brass-soft)}
+}
 
-/* Reveal saat masuk viewport. Tanpa JavaScript .rv tidak pernah dapat
-   .in, jadi keadaan awalnya harus tetap terbaca — karena itu opacity
-   diturunkan lewat JS (html.js), bukan di sini. */
-html.js .rv{opacity:0;transform:translateY(16px)}
-html.js .rv.in{opacity:1;transform:none;transition:opacity .6s var(--turn),transform .6s var(--turn)}
+/* ------------------------------ reveal ------------------------------
+   Tanpa JavaScript .rv tidak pernah mendapat .in, jadi keadaan awalnya
+   harus tetap terbaca — karena itu opacity diturunkan lewat html.js,
+   bukan di sini. --i ditulis theme.js: urutan elemen di dalam
+   kelompoknya, untuk jeda 50ms per elemen. */
+html.js .rv{opacity:0;transform:translateY(8px)}
+html.js .rv.in{opacity:1;transform:none;
+  transition:opacity 300ms var(--ease-out) calc(var(--i,0) * 50ms),
+             transform 300ms var(--ease-out) calc(var(--i,0) * 50ms)}
+
+/* Gerak dikurangi: pudar tetap ada, semua perpindahan dan skala hilang. */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
-  html.js .rv,html.js .rv.in{opacity:1;transform:none;transition:none}
-  .btn:hover{transform:none}
+  html.js .rv{transform:none}
+  html.js .rv.in{transition:opacity 300ms var(--ease-out)}
+  .btn,.btn:active{transform:none;transition:none}
   *{animation-duration:.001ms !important;animation-iteration-count:1 !important}
 }
