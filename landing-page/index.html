@@ -3,19 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Terkunci ke 'self' seperti app-pwa, tapi TANPA 'unsafe-inline' untuk skrip:
-     halaman ini cuma punya satu kontrol dan mengikatnya lewat addEventListener,
-     bukan onclick=. Nol sumber pihak ketiga — font di-vendor, tanpa CDN. -->
+<!-- Terkunci ke 'self', TANPA 'unsafe-inline' untuk skrip maupun gaya:
+     halaman ini mengikat kontrolnya lewat addEventListener, bukan onclick=,
+     dan tidak punya atribut style. Nol sumber pihak ketiga — font di-vendor,
+     tanpa CDN. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'self'; object-src 'none'; form-action 'none'; frame-ancestors 'none'">
-<title>GAOS — sistem operasi agen berbasis graph</title>
-<meta name="description" content="GAOS menjalankan agen perangkat lunak di atas catatan produk yang hidup di dalam graph. Statusnya ada di vertex dan edge, bukan di rantai prompt, dan setiap perubahan menulis event sehingga setiap jalannya kerja bisa diputar ulang.">
-<meta name="theme-color" content="#16181D">
+<title>GAOS — manajemen produk dan tugas untuk agen, berbasis graph</title>
+<meta name="description" content="GAOS menyimpan produk, tugas, dan Blueprint berversi di dalam graph. Setiap percobaan adalah satu giliran lewat ai-manager, di ruang kerja produk itu sendiri, dan setiap perubahan menulis event yang bisa diputar ulang.">
+<meta name="theme-color" content="#151310">
 <meta property="og:type" content="website">
-<meta property="og:title" content="GAOS — sistem operasi agen berbasis graph">
-<meta property="og:description" content="Graph-nya yang jadi primitif, bukan prompt-nya. Status di graph, setiap perubahan menulis event, dan orkestratornya boleh mati kapan saja.">
-<meta property="og:image" content="img/icon.svg">
+<meta property="og:title" content="GAOS — yang jadi primitif itu graph-nya, bukan prompt-nya">
+<meta property="og:description" content="Manajemen produk dan tugas untuk agen. Status di graph, setiap percobaan terikat pada satu versi Blueprint, dan setiap perubahan menulis event.">
+<meta property="og:image" content="img/og-image.png">
+<link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="img/icon.svg" type="image/svg+xml">
-<link rel="icon" href="img/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="vendor/fonts/fonts.css">
 <link rel="stylesheet" href="css/01-tokens.css">
@@ -29,16 +30,21 @@
 
 <header class="top">
   <div class="wrap">
-    <!-- Wordmark saja, persis seperti header aplikasi. Satu elemen teks, jadi
-         gap flex di .nav tidak menyisipkan spasi di tengah kata. -->
-    <a class="brand" href="./">GAO<span class="q">S</span></a>
-    <nav class="nav">
+    <a class="brand" href="./" aria-label="GAOS, ke awal halaman">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect class="mk-box" x=".5" y=".5" width="31" height="31" rx="7"/>
+        <path class="mk-edge" d="M10 10H22L16 22Z"/>
+        <circle class="mk-node" cx="10" cy="10" r="2.4"/><circle class="mk-node" cx="22" cy="10" r="2.4"/><circle class="mk-node" cx="16" cy="22" r="2.4"/>
+      </svg>
+      <span>GAOS</span>
+    </a>
+    <nav class="nav" aria-label="Utama">
       <a class="lnk" href="#fitur">Fitur</a><a class="lnk" href="#cara">Cara kerja</a><a class="lnk" href="/docs/">Dokumentasi</a>
       <button class="theme" type="button" aria-label="Ganti mode gelap atau terang">
-        <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-        <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
-      <a class="btn primary lnk keep" href="/app/">Buka Mission Control</a>
+      <a class="btn primary keep" href="/app/">Buka Mission Control</a>
     </nav>
   </div>
 </header>
@@ -48,48 +54,76 @@
   <!-- ================================ HERO ================================ -->
   <section class="hero">
     <div class="wrap">
-      <div>
-        <span class="pill"><span class="dot"></span> v0.1.0 · graph-native · event-sourced</span>
-        <h1>Yang jadi primitif itu <em>graph</em>-nya, bukan prompt-nya.</h1>
-        <p class="sub">GAOS menjalankan agen di atas catatan produk yang hidup di dalam graph. Statusnya ada di vertex dan edge, setiap perubahan menulis event, dan orkestratornya tidak menyimpan apa pun — matikan di tengah jalan, ia menyusun dirinya kembali dari graph.</p>
-        <div class="cta"><a class="btn primary big" href="/app/">Buka Mission Control →</a><a class="btn ghost big" href="#fitur">Lihat isinya</a></div>
-        <div class="tags"><span>Go pustaka standar saja</span><span>0 permintaan pihak ketiga</span><span>setiap jalannya bisa diputar ulang</span></div>
+      <div class="hero-copy">
+        <p class="pill"><span class="dot"></span>Intinya sudah berjalan; penilaian hasil belum dibangun</p>
+        <h1>Yang jadi primitif itu graph-nya, bukan prompt-nya.</h1>
+        <div class="hero-side">
+          <p class="sub">GAOS adalah manajemen produk dan tugas untuk agen. Ia memegang produknya, rincian tugasnya, dan Blueprint berversi. Setiap percobaan adalah satu giliran lewat ai-manager, di ruang kerja produk itu sendiri, terikat pada satu versi Blueprint. Yang mengerjakan tugasnya ai-claude-cli.</p>
+          <div class="cta"><a class="btn primary big" href="/app/">Buka Mission Control</a><a class="btn ghost big" href="/docs/">Baca dokumentasi</a></div>
+        </div>
       </div>
 
-      <!-- Mockup ponsel: layar Coach Mode. Bukan tangkapan layar — digambar ulang
-           dengan HTML/CSS supaya tajam di semua resolusi dan ikut mengecil utuh. -->
-      <div class="shot rv">
-        <div class="phone" role="img" aria-label="Layar Mission Control: satu meja kerja pada tahap coding, tugas t-213, dengan bilah kemajuan dan bilah navigasi bawah.">
-          <div class="screen">
-            <div class="s-top"><span class="wm">GAO<i>S</i></span><span class="off">LIVE</span></div>
-            <div class="s-body">
-              <p class="s-eyebrow">Tahap 3 dari 6 · coding</p>
-              <div class="s-chips"><span class="ok">planning</span><span class="ok">architecture</span><span class="now">coding</span><span>review</span></div>
-              <div class="s-move">
-                <div class="txt"><p class="lbl">Tugas 7 dari 21</p><p class="alg">t-213</p>
-                  <p class="hint">Tambahkan migrasi harga ke layanan pricing.</p></div>
-                <div class="face"><i class="p"></i><i class="h"></i><i class="p"></i><i class="h"></i><i class="p"></i><i class="p"></i><i class="x"></i><i class="p"></i><i class="h"></i></div>
-              </div>
-              <div class="s-bar"><i></i></div>
-              <div class="s-ask"><b>Irisan konteks</b>
-                <p>Persis apa yang dikirim ke model pada percobaan ini — bukan ringkasan, melainkan simpul graph-nya sendiri.</p>
-                <div class="in">brd:problem · rules(4) · story:US-01 · adr:ADR-011</div></div>
+      <!-- Board: digambar ulang dengan HTML/CSS, bukan tangkapan layar, supaya
+           tajam di semua resolusi dan ikut mengecil utuh. Kolomnya sama dengan
+           dashboard/board.go; Blocked, Failed, dan Canceled tidak digambar. -->
+      <div class="shot shot-board rv">
+        <div class="frame board" role="img" aria-label="Board produk Laundry Membership di Mission Control. Kolom Backlog, Ready, Working, Needs you, Review, dan Done, dengan dua lajur: cerita US-02 Harga per wilayah, dan lajur Plan untuk tugas di luar cerita. Tugas T-214, migrasi harga ke layanan pricing, sedang dikerjakan pada Blueprint v7 lalu pindah ke Review. Tugas T-215 menunggu jawaban operator.">
+          <div class="f-bar">
+            <svg class="mark" viewBox="0 0 32 32"><rect class="mk-box" x=".5" y=".5" width="31" height="31" rx="7"/><path class="mk-edge" d="M10 10H22L16 22Z"/><circle class="mk-node" cx="10" cy="10" r="2.4"/><circle class="mk-node" cx="22" cy="10" r="2.4"/><circle class="mk-node" cx="16" cy="22" r="2.4"/></svg>
+            <span class="f-title">Laundry Membership</span>
+            <span class="f-tabs"><i>Requirements</i><i>User stories</i><i class="on">Board</i><i>Timeline</i><i>Blueprint</i></span>
+            <span class="f-pin">blueprint v7</span>
+          </div>
+          <div class="kb">
+            <div class="kb-row kb-head">
+              <b class="c-backlog"><i class="d-backlog"></i>Backlog</b>
+              <b class="c-ready"><i class="d-ready"></i>Ready</b>
+              <b class="c-working"><i class="d-working"></i>Working</b>
+              <b class="c-needs"><i class="d-needs"></i>Needs you</b>
+              <b class="c-review"><i class="d-review"></i>Review</b>
+              <b class="c-done"><i class="d-done"></i>Done</b>
             </div>
-            <div class="s-tab"><b><i></i>Lantai</b><b><i></i>Inspektur</b><b class="on"><i></i>Linimasa</b><b><i></i>Rapat</b><b><i></i>Catatan</b></div>
+
+            <p class="kb-lane">US-02 · Harga per wilayah</p>
+            <div class="kb-row">
+              <div class="c-backlog"><div class="kc"><span class="kc-id">T-219</span><span class="kc-t">Laporan selisih harga per cabang</span><span class="kc-m">menunggu T-214</span></div></div>
+              <div class="c-ready"><div class="kc"><span class="kc-id">T-216</span><span class="kc-t">Validasi tarif minimum di API</span><span class="kc-m">siap dikirim</span></div></div>
+              <div class="c-working">
+                <div class="kc-slot"><div class="kc mover"><span class="kc-id">T-214</span><span class="kc-t">Migrasi harga ke layanan pricing</span><span class="kc-m"><span class="st st-run">A-3 · berjalan</span><span class="st st-rev">A-3 · selesai, v7</span></span></div></div>
+              </div>
+              <div class="c-needs"><div class="kc ask"><span class="kc-id">T-215</span><span class="kc-t">Pembulatan harga: ke atas atau ke terdekat?</span><span class="kc-m"><span class="badge">Needs you</span></span></div></div>
+              <div class="c-review"><div class="kc-slot land"></div></div>
+              <div class="c-done"><div class="kc done"><span class="kc-id">T-211</span><span class="kc-t">Skema tabel tarif wilayah</span><span class="kc-m">A-1 · v6</span></div></div>
+            </div>
+
+            <p class="kb-lane">Plan</p>
+            <div class="kb-row">
+              <div class="c-backlog"><div class="kc"><span class="kc-id">T-220</span><span class="kc-t">Uji beban endpoint harga</span><span class="kc-m">belum siap</span></div></div>
+              <div class="c-ready"></div>
+              <div class="c-working"><div class="kc"><span class="kc-id">T-218</span><span class="kc-t">Siapkan data contoh cabang</span><span class="kc-m">A-1 · berjalan</span></div></div>
+              <div class="c-needs"></div>
+              <div class="c-review"><div class="kc"><span class="kc-id">T-212</span><span class="kc-t">Dokumentasi API tarif</span><span class="kc-m">A-2 · v7</span></div></div>
+              <div class="c-done"><div class="kc done"><span class="kc-id">T-209</span><span class="kc-t">Kerangka layanan pricing</span><span class="kc-m">A-1 · v6</span></div></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ================================ ANGKA ================================ -->
-  <section class="proof">
+  <!-- ================================ ANGKA ================================
+       Dihitung ulang dari kodenya, bukan dari ingatan:
+         grep -h 'CREATE VERTEX TYPE'   dashboard/schema/*.sql | wc -l   → 29
+         grep -h 'CREATE EDGE TYPE'     dashboard/schema/*.sql | wc -l   → 39
+         grep -h 'CREATE DOCUMENT TYPE' dashboard/schema/*.sql | wc -l   → 3
+         grep -c 'EventType = "' dashboard/events.go                     → 49 -->
+  <section class="proof" aria-label="Angka">
     <div class="wrap">
       <ul>
-        <li><b>60</b><span>tipe graph — 25 vertex, 32 edge, 3 dokumen</span></li>
-        <li><b>27</b><span>nama event, dan daftarnya tertutup — bukan terbuka</span></li>
-        <li><b>0</b><span>dependensi pihak ketiga di dasbor — tanpa go.sum</span></li>
-        <li><b>1</b><span>port yang dibuka per tingkat penempatan</span></li>
+        <li class="rv"><b>71</b><span>tipe di graph: 29 vertex, 39 edge, 3 dokumen</span></li>
+        <li class="rv"><b>49</b><span>tipe event, dan daftarnya tertutup</span></li>
+        <li class="rv"><b>0</b><span>dependensi pihak ketiga di dasbor, tanpa go.sum</span></li>
+        <li class="rv"><b>1</b><span>port yang dibuka per tingkat penempatan</span></li>
       </ul>
     </div>
   </section>
@@ -98,65 +132,92 @@
   <section id="fitur">
     <div class="wrap">
       <div class="sec-head">
-        <p class="eyebrow">Fitur</p>
-        <h2>Yang sudah berjalan hari ini, dan yang masih rancangan.</h2>
-        <p>Empat yang pertama sudah berjalan. Tiga terakhir ditandai jujur: rancangannya lengkap, kodenya belum ada.</p>
+        <h2>Yang sudah berjalan hari ini, dan yang belum.</h2>
+        <p>Lima bagian di bawah ini ada kodenya dan berjalan di atas ArcadeDB. Yang menilai hasil kerja agen belum ada, dan ditulis terpisah supaya tidak tertukar.</p>
       </div>
+
       <div class="grid">
-        <article class="card rv" data-c="hijau"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v9m0 0 3.5-3.5M12 12 8.5 8.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div>
-          <h3>Lantai kerja</h3>
-          <p>Satu meja untuk satu alur kerja. Tahap, kemajuan, skor, agen yang duduk di sana, dan ruangan mana yang sudah penuh — semuanya proyeksi dari graph, bukan status yang disimpan terpisah.</p></article>
-        <article class="card rv" data-c="kuning"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9L12 3Z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg></div>
-          <h3>Inspektur</h3>
-          <p>Untuk setiap tugas: asal-usulnya sebagai jalur graph, rincian skor per dimensi, dan irisan konteks persis yang dikirim ke model. Bukan ringkasan — simpulnya sendiri.</p></article>
-        <article class="card rv" data-c="biru"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M8 8h7M8 12h5"/></svg></div>
-          <h3>Catatan produk</h3>
-          <p>Masalah, tujuan, aturan domain, batasan, cerita pengguna, dan diagram. Planner membacanya sebelum merencanakan apa pun — catatan yang kosong menghasilkan rencana yang mengambang.</p></article>
-        <article class="card rv" data-c="jingga"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/></svg></div>
-          <h3>Linimasa &amp; putar ulang</h3>
-          <p>Setiap perubahan menulis event. Klik salah satunya dan seluruh lantai kembali ke saat itu — status pada waktu t adalah lipatan atas alirannya, bukan tebakan.</p></article>
-        <article class="card rv" data-c="merah"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 20V10M12 20V4M18 20v-7"/><path d="M3 20h18"/></svg></div>
-          <h3>Skema graph <span class="soon">Segera</span></h3>
-          <p>25 tipe vertex dan 32 tipe edge di ArcadeDB, lengkap dengan indeks dan invariannya. Rancangannya selesai; DDL-nya belum pernah dijalankan ke basis data mana pun.</p></article>
-        <article class="card rv" data-c="kuning"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="m8.5 13.5-1.5 7 5-2.5 5 2.5-1.5-7"/></svg></div>
-          <h3>Penjadwal &amp; pelari <span class="soon">Segera</span></h3>
-          <p>Yang menjalankan tugas sungguhan: sewa ruang kerja, proses terpisah, denyut nadi, dan rekonsiliasi saat orkestrator hidup lagi. Sekarang masih goroutine simulasi.</p></article>
-        <article class="card rv" data-c="biru"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.4a3.2 3.2 0 0 1 0 5.2M18.2 14a6.5 6.5 0 0 1 3.3 6"/></svg></div>
-          <h3>Rapat multi-agen <span class="soon">Dirancang</span></h3>
-          <p>Saat skor terlalu rendah atau percobaan gagal dengan cara yang sama dua kali, kerja berhenti dan sebuah keputusan ditulis. Bentuk akhirnya masih dirancang.</p></article>
+        <article class="card wide rv">
+          <h3>Board per produk</h3>
+          <p>Kanban untuk setiap produk: Backlog, Ready, Working, Needs you, Review, Done, plus Blocked, Failed, dan Canceled. Lajurnya cerita pengguna, dan satu lajur Plan untuk tugas di luar cerita. Kolomnya proyeksi dari status tugas di graph, bukan papan yang disimpan terpisah.</p>
+          <p class="on-graph">di graph: Task</p>
+        </article>
+        <article class="card rv">
+          <h3>Blueprint berversi</h3>
+          <p>BRD, kebijakan teknis dan koding, serta repositori acuan, sebagai satu unit berversi yang ditulis ke ruang kerja produk.</p>
+          <p class="on-graph">di graph: Policy, KnowledgeSource, BlueprintVersion</p>
+        </article>
+        <article class="card rv">
+          <h3>Kesiapan dan planner</h3>
+          <p>Catatan produk dinilai sampai 100 oleh aturan yang bisa diperiksa mesin. Di bawah 45, planner menolak merencanakan. Di atasnya, planner menyusun graph tugas tanpa siklus.</p>
+          <p class="on-graph">di graph: Product, Requirement, Task</p>
+        </article>
+        <article class="card rv">
+          <h3>Penjadwal dan catatan percobaan</h3>
+          <p>Penjadwal mengirim tugas yang siap. Setiap percobaan adalah satu giliran lewat ai-manager, dan tercatat lengkap dengan versi Blueprint-nya.</p>
+          <p class="on-graph">di graph: TaskRun</p>
+        </article>
+        <article class="card rv">
+          <h3>Linimasa dan putar ulang</h3>
+          <p>Setiap perubahan menulis event. Status pada waktu t adalah lipatan atas alirannya, jadi masa lalu bisa diputar ulang, bukan ditebak.</p>
+          <p class="on-graph">di graph: Event</p>
+        </article>
+      </div>
+
+      <div class="unbuilt rv">
+        <div class="unbuilt-head"><h3>Belum dibangun</h3>
+        <p class="unbuilt-lead">Rancangannya sudah ditulis di dokumentasi. Kodenya belum ada, dan sampai ada, tidak ada yang menilai hasil kerja agen secara otomatis.</p></div>
+        <ul>
+          <li><b>Review</b><span>Peninjau yang membaca hasil percobaan terhadap kriteria penerimaan tugasnya.</span><em class="tag">Dirancang</em></li>
+          <li><b>Penilaian</b><span>Lima dimensi berbobot menjadi satu angka, dengan batas keamanan yang menghentikan kerja berapa pun totalnya.</span><em class="tag">Dirancang</em></li>
+          <li><b>Pagar percobaan ulang</b><span>Berhenti dan meminta keputusan ketika percobaan gagal dengan cara yang sama dua kali.</span><em class="tag">Belum dibangun</em></li>
+        </ul>
       </div>
     </div>
   </section>
 
-  <!-- ============================ SHOWCASE TABLET ============================ -->
-  <section class="showcase" id="tablet">
+  <!-- ============================ SHOWCASE BLUEPRINT ============================ -->
+  <section class="showcase" id="blueprint">
     <div class="wrap">
-      <div>
-        <p class="eyebrow">Layar lebar</p>
-        <div class="sec-head"><h2>Di layar lebar, catatannya jadi lega.</h2></div>
+      <div class="showcase-copy">
+        <div class="sec-head"><h2>Blueprint-nya ditulis ke ruang kerja, dan setiap percobaan tahu versinya.</h2></div>
         <ul>
-          <li><b>Daftar catatan di samping.</b> Pindah produk tanpa kehilangan tempat.</li>
-          <li><b>Kesiapan berdampingan.</b> Proyeksi graph, cakupan cerita, dan daftar periksa planner sekaligus.</li>
-          <li><b>Tata letak yang sama.</b> Satu asal, satu alamat — tidak ada versi terpisah untuk layar besar.</li>
+          <li><b>Satu unit berversi.</b> Kebutuhan bisnis, kebijakan teknis dan koding, dan repositori yang harus diikuti polanya.</li>
+          <li><b>Tinggal di ruang kerja, bukan di prompt.</b> Ditulis sebagai CLAUDE.md dan .claude/rules, jadi dimuat di setiap giliran, termasuk giliran yang dilanjutkan.</li>
+          <li><b>Versi yang terbit tidak berubah.</b> Pengiriman ditolak sampai ruang kerja memegang versi yang terbit, dan setiap percobaan mencatat versi tempat ia berjalan.</li>
         </ul>
-        <div class="cta"><a class="btn ghost" href="/app/">Lihat back office →</a></div>
+        <p class="caveat">Belum ada: membandingkan apa yang benar-benar dimuat agen dengan manifesnya setelah giliran selesai.</p>
       </div>
-      <div class="shot rv">
-        <div class="tablet" role="img" aria-label="Layar back office: daftar catatan produk di kiri, tiga kartu cerita pengguna di kanan.">
-          <div class="screen">
-            <aside class="t-rail"><span class="wm">GAO<i>S</i></span>
-              <b class="on">Produk</b><b>Cerita pengguna</b><b>Diagram</b><b>Pengetahuan</b><b>Agen</b>
-              <span class="tag">5 catatan · 9 agen</span></aside>
-            <div class="t-main">
-              <p class="s-eyebrow">p-1 · Laundry Membership</p>
-              <h4>Apa yang dibaca planner</h4>
-              <p class="lead">Tiga cerita pengguna beserta kriteria penerimaannya. Tanpa kriteria, peninjau tidak punya apa pun untuk dinilai.</p>
-              <div class="t-cards">
-                <div class="t-alg"><span class="alg">US-01</span><span>3 tugas · must</span><div class="face"><i class="x"></i><i class="k"></i><i class="x"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="x"></i><i class="k"></i><i class="x"></i></div></div>
-                <div class="t-alg"><span class="alg">US-02</span><span>2 tugas · must</span><div class="face"><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i><i class="k"></i><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i></div></div>
-                <div class="t-alg"><span class="alg">US-04</span><span>belum ada tugas</span><div class="face"><i class="x"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="k"></i><i class="x"></i></div></div>
-              </div>
-              <div class="t-note"><b>catatan</b> Cerita tanpa tugas adalah pekerjaan yang belum direncanakan siapa pun.</div>
+      <div class="shot shot-bp rv">
+        <div class="frame bp" role="img" aria-label="Tab Blueprint di Mission Control. Versi 7 sudah terbit dan disinkronkan ke ruang kerja; versi 6 dan 5 di bawahnya. Isinya CLAUDE.md dan delapan berkas aturan: kontrak GAOS, BRD, cerita, keputusan, kebijakan teknis, kebijakan koding, kebijakan keamanan, dan sumber pengetahuan. Percobaan A-3 untuk tugas T-214 terikat pada Blueprint v7.">
+          <div class="f-bar">
+            <svg class="mark" viewBox="0 0 32 32"><rect class="mk-box" x=".5" y=".5" width="31" height="31" rx="7"/><path class="mk-edge" d="M10 10H22L16 22Z"/><circle class="mk-node" cx="10" cy="10" r="2.4"/><circle class="mk-node" cx="22" cy="10" r="2.4"/><circle class="mk-node" cx="16" cy="22" r="2.4"/></svg>
+            <span class="f-title">Laundry Membership</span>
+            <span class="f-tabs"><i>Board</i><i>Timeline</i><i class="on">Blueprint</i></span>
+          </div>
+          <div class="bp-body">
+            <aside class="bp-rail">
+              <b class="v on"><span>v7</span><em>terbit · di ruang kerja</em></b>
+              <b class="v"><span>v6</span><em>terbit</em></b>
+              <b class="v"><span>v5</span><em>terbit</em></b>
+              <b class="v draft"><span>draf</span><em>2 kebijakan diubah</em></b>
+            </aside>
+            <div class="bp-main">
+              <div class="bp-head"><h4>Blueprint v7</h4><span class="bp-dig">sha256:4be1c0…9a2f</span></div>
+              <ol class="tree">
+                <li class="dir">gaos-t214-p1/</li>
+                <li><span>CLAUDE.md</span><em>2,1 KiB</em></li>
+                <li class="dir sub">.claude/rules/</li>
+                <li class="in"><span>00-gaos-contract.md</span><em>1,4 KiB</em></li>
+                <li class="in"><span>10-brd.md</span><em>6,8 KiB</em></li>
+                <li class="in"><span>20-stories.md</span><em>1,9 KiB</em></li>
+                <li class="in"><span>30-decisions.md</span><em>3,2 KiB</em></li>
+                <li class="in"><span>40-technical-policy.md</span><em>4,0 KiB</em></li>
+                <li class="in"><span>50-coding-policy.md</span><em>5,5 KiB</em></li>
+                <li class="in"><span>60-security-policy.md</span><em>2,2 KiB</em></li>
+                <li class="in"><span>70-knowledge-sources.md</span><em>0,9 KiB</em></li>
+              </ol>
+              <div class="bp-pin"><span class="kc-id">T-214 · A-3</span><span>satu giliran lewat ai-manager</span><b>blueprint v7</b></div>
             </div>
           </div>
         </div>
@@ -167,12 +228,18 @@
   <!-- ============================== CARA KERJA ============================== -->
   <section id="cara">
     <div class="wrap">
-      <div class="sec-head"><p class="eyebrow">Cara kerja</p><h2>Tiga langkah, dan yang pertama boleh menolak.</h2></div>
-      <div class="steps">
-        <div class="step rv"><h3>Isi catatan produknya</h3><p>Kesiapannya dinilai sampai 100 oleh aturan yang bisa diperiksa mesin. Di bawah 45, planner menolak merencanakan — spesifikasi yang mengambang menghasilkan rencana yang mengambang.</p></div>
-        <div class="step rv"><h3>Planner menyusun graph tugas</h3><p>Satu tugas, satu perkara, satu ruang kerja, minimal satu kriteria penerimaan. Ketergantungannya wajib tanpa siklus, dan itu diperiksa pada setiap penulisan.</p></div>
-        <div class="step rv"><h3>Agen bekerja, hasilnya dinilai</h3><p>Lima dimensi berbobot jadi satu angka, dengan batas keamanan yang menghentikan kerja berapa pun totalnya. Yang mengakhiri putaran adalah pagar pengamannya, bukan penilaiannya.</p></div>
-      </div>
+      <div class="sec-head"><h2>Empat langkah, dan yang kedua boleh menolak.</h2>
+        <p>Setiap langkah menulis ke graph. Garis di bawah ini adalah jalurnya: dari catatan produk ke tugas, dari tugas ke percobaan, dari percobaan ke event.</p></div>
+      <ol class="steps">
+        <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">Product</p>
+          <h3>Isi catatan produknya</h3><p>Masalah, tujuan, cakupan, aturan domain, cerita pengguna dan kriteria penerimaannya.</p></li>
+        <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">skor kesiapan</p>
+          <h3>Gerbang kesiapan</h3><p>Catatannya dinilai sampai 100. Di bawah 45, planner menolak: spesifikasi yang mengambang menghasilkan rencana yang mengambang.</p></li>
+        <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">Task</p>
+          <h3>Planner menyusun graph tugas</h3><p>Satu tugas, satu perkara, minimal satu kriteria penerimaan. Ketergantungannya diperiksa bebas siklus pada setiap penulisan.</p></li>
+        <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">TaskRun, Event</p>
+          <h3>Setiap percobaan lewat ai-manager</h3><p>Satu giliran di ruang kerja produk, di bawah Blueprint yang terbit. ai-claude-cli mengerjakannya; GAOS mencatat percobaan dan event-nya.</p></li>
+      </ol>
     </div>
   </section>
 
@@ -180,9 +247,10 @@
   <section class="finale">
     <div class="wrap">
       <div class="box rv">
-        <h2>Graph-nya sudah ada. Tinggal diisi.</h2>
-        <p>Mission Control berjalan dengan data contoh dan mengatakannya terus terang. Dokumentasinya menyebutkan bagian mana yang sudah dibangun dan bagian mana yang masih rancangan.</p>
-        <div class="cta"><a class="btn primary big" href="/app/">Buka Mission Control →</a><a class="btn ghost big" href="/docs/">Baca dokumentasi</a></div>
+        <svg class="mark big" viewBox="0 0 32 32" aria-hidden="true"><path class="mk-edge" d="M10 10H22L16 22Z"/><circle class="mk-node" cx="10" cy="10" r="2"/><circle class="mk-node" cx="22" cy="10" r="2"/><circle class="mk-node" cx="16" cy="22" r="2"/></svg>
+        <h2>Graph-nya sudah ada. Mulai dari catatan produknya.</h2>
+        <p>Mission Control berjalan di atas ArcadeDB, sudah melakukan panggilan model sungguhan lewat ai-manager, dan mengatakan terus terang bagian mana yang belum ada.</p>
+        <div class="cta"><a class="btn primary big" href="/app/">Buka Mission Control</a><a class="btn ghost big" href="/docs/">Baca dokumentasi</a></div>
       </div>
     </div>
   </section>
@@ -192,8 +260,8 @@
 <footer class="foot">
   <div class="wrap">
     <span>© <span id="tahun">2026</span> GAOS</span>
-    <nav><a href="/app/">Mission Control</a><a href="/docs/">Dokumentasi</a><a href="#fitur">Isi</a><a href="#cara">Cara kerja</a></nav>
-    <p class="note">GAOS masih dalam pengembangan aktif. Yang bertanda “Segera” dan “Dirancang” belum ada kodenya, Mission Control masih membaca data contoh, dan halaman ini tidak akan berpura-pura sebaliknya.</p>
+    <nav aria-label="Kaki halaman"><a href="/app/">Mission Control</a><a href="/docs/">Dokumentasi</a><a href="#fitur">Fitur</a><a href="#cara">Cara kerja</a></nav>
+    <p class="note">GAOS masih dalam pengembangan aktif. Graph, event store, kesiapan, planner, penjadwal, catatan percobaan, Board, dan Blueprint sudah ada kodenya. Review, penilaian, dan pagar percobaan ulang belum, dan halaman ini tidak akan berpura-pura sebaliknya.</p>
   </div>
 </footer>
 </body>
