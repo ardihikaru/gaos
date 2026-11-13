@@ -1,6 +1,6 @@
 # HISv3 as a GAOS product, and a two-way QA sync API
 
-**Status:** Draft v3 (after review rounds 1 and 2, `reviews/hisv3-qa-sync-review-{1,2}.md`)
+**Status:** Draft v4 (rounds 1 and 2 reviewed v1 and v2; §4.12 and its knock-on edits are new in v4 and go to round 3)
 **Feature:** `hisv3-qa-sync`
 **Version target:** v0.37.0
 
@@ -52,12 +52,14 @@ the two buttons.
   the outbound half is inert until `GAOS_QA_URL` and its token are set.
 - N2. No new event type, task status or docs class (the three closed
   vocabularies stay closed).
-- N3. No case editor in the BO. Planning fields change only through the catalog
-  endpoint (admin) or a seed re-run.
+- N3. No case editor in the BO. Planning fields of an EXISTING case change only
+  through the catalog endpoint (admin) or a seed re-run. (v4: the QA tools may
+  CREATE a case, never change one, §4.12.)
 - N4. No deletion of cases; `decision: wont` retires one.
-- N5. **The catalog never moves a task.** QA data does not write the task graph
-  in any way (BR-54). Cards follow the existing design→review→implement flow
-  and the operator. (Round 1: the reflection walked gated tasks past the gate
+- N5. **The catalog never moves a task.** QA data changes no existing task's
+  status, ever (BR-54). The one write it may cause to the task graph is to ADD a
+  card for a new epic, born exactly as a planned card is (§4.12). Cards follow
+  the existing design→review→implement flow and the operator. (Round 1: the reflection walked gated tasks past the gate
   and recorded dispatches that never happened. It is removed, not repaired.
   Whether results should ever move cards is OQ-35.)
 - N6. No BO authentication. The new BO routes inherit BR-48's open
@@ -492,6 +494,60 @@ both; both end in the same two store methods. The published contract page
 (`pustaka/docs/guide/qa-sync-api.html`) shows one `curl` per call with
 `<TOKEN>` placeholders and no internal addresses.
 
+### 4.12 Cases created on the QA side, and the kanban (v4)
+
+The product owner's addition: in the QA tools' `/products`, a product can be
+flagged **integrated with GAOS**; test cases created there then appear in
+HISv3's board in GAOS, and are kept up to date, without a human step. The QA
+tools' own design is in that repository (`docs/designs/GAOS_INTEGRATION.md`);
+this is the GAOS half.
+
+**Creation by the QA tools** — `POST /v1/products/{id}/qa/cases` (scope `qa`,
+product-scoped, one write in flight, ≤ 200 items, strict JSON), the write twin
+of the existing `GET` on that path:
+
+```json
+{"source":"qa-automation-tools",
+ "epics":[{"code":"AUTH","title":"Authentication","service":"his-backend","source":"docs/test-catalog/his-backend/auth.md","module":"A13"}],
+ "cases":[ <§4.7 case: planning fields, plus implemented/spec> ]}
+```
+→ `{"created":n,"unchanged":n,"rejected":[{"caseId","reason"}],"epicsAdded":n,"cardsAdded":n,"catHead":n}`.
+
+Per case, **create-only**: a new `caseId` is created if it validates (§4.1),
+with `decision: planned` and an empty `reason` only (the QA side may not park or
+retire a case; refusal `decision-not-allowed`), carrying `implemented`/`spec`
+(validated) and no run record (`result`/`runAt`/`runRef` non-zero →
+`use-results`). An existing `caseId` with identical planning fields is
+`unchanged`; with different ones it is refused `exists-differs` — GAOS owns the
+planning half of every case that exists, so the case's planning fields are not
+changed and the QA tools see the refusal. Nothing is ever deleted.
+
+**Epics and cards.** A case whose `epic` is not in `Qa.Epics` creates it (title
+from the body's `epics` entry, else the code). For each epic created, **if the
+product has a workflow with a review task**, GAOS adds one card, "Automate:
+<title>", exactly as the seed's plan makes one: kind `implement`, role `qa`,
+dependent on the product's review task, story = the epic's module story (else
+the Plan lane), status `PENDING` — or `BLOCKED` with the design gate's reason
+when that review has not cleared, through the same helper `CreateWorkflow`
+uses. It is announced by a `TaskPlanned` event carrying that one task (no new
+event type); the task fold continues the workflow's ordinals instead of
+restarting them. Without a workflow the epic is recorded and no card is made
+(`cardsAdded: 0`). The new card's id is stored on the epic (`QaEpic.Task`).
+**No existing task's status is touched** (BR-54, amended: "QA data never moves
+a task"), and an epic that exists never gets a second card.
+
+**The kanban follows the catalog (display only).** `BoardCard` gains an
+optional `qa` object for an epic's card — `{epic, cases, automated, fail,
+pct}` — filled at read time from the catalog through `QaEpic.Task`. Every case
+the QA tools create or whose script facts they report therefore shows on the
+card at once, with nothing written to the task. The seed stores `QaEpic.Task`
+for the epics it plans (step 9, second import).
+
+**Persistence.** A QA write that adds a card returns `Floor.Desks` holding the
+LIVE desk of that product only (never the folded view), so `persist`'s existing
+task loop writes the new task and its `DEPENDS_ON` edge; a write that adds no
+card keeps the empty floor (§4.4). Tests: TC-409…TC-411 (§7).
+
 ## 5. Change list (every file)
 
 New: `dashboard/qacatalog.go` (types, vocabularies, validation, effective
@@ -591,11 +647,15 @@ a new milestone **M18** with **T-192…T-196**, one per phase P1…P5 of §10.
 | TC-405 | `TestSyncRefusesRedirectsOverlapAndCooldown` | redirect not followed; `sync-running` and `cooldown` are process-wide; unconfigured → 409; a product outside `GAOS_API_QA_PRODUCTS` → `qa-out-of-scope`; a pull page that does not echo the product is refused |
 | TC-406 | `TestProductSeedIsIdempotentAndMeetsTheFloor` | twice = same; operator-edited BRD/policy untouched; a same-named unseeded product → 409; seed text with a secret → 400 and stripped markup; score ≥ `PlanFloor`; `2 + epics + 1` tasks; Release gated; none `DONE`; refused in replay |
 | TC-407 | `TestTheHISv3SeedIsWellFormed` | the committed files: 39 modules, 444 features, 47 epics, 1,700 unique cases, 494 implemented; patterns; every epic/module resolves; egress detector finds nothing |
-| TC-408 | `deploy/seed/hisv3/seed.sh` | on the VM: ends `ok  summary matches` or `FAIL <what>` after asserting the totals |
+| TC-409 | `TestQaToolsMayCreateButNeverChangeACase` | create-only: new valid case created planned; park/retire refused; run fields refused; existing identical = unchanged; existing differing = `exists-differs` and unchanged; QA token only, product-scoped; strict JSON; 201 items → 413 |
+| TC-410 | `TestANewEpicGetsOneCardAndNothingElseMoves` | a new epic adds one `Automate:` card (`PENDING` or gate-`BLOCKED` as the review dictates) with `TaskPlanned`, `QaEpic.Task` set, the Plan lane without a module; no existing task's status changes; a second case in the epic adds no card; no workflow → no card; the live desk is persisted, never the folded one (parked floor); the fold continues ordinals |
+| TC-411 | `TestTheBoardCardCarriesLiveCaseCounts` | `BoardCard.qa` equals the epic's roll-up and moves with every created case and every result; cards of other epics and non-epic cards carry none; the seed stores `QaEpic.Task` for every epic |
+| TC-412 | `deploy/seed/hisv3/seed.sh` | on the VM: ends `ok  summary matches` or `FAIL <what>` after asserting the totals |
 
-Totals: register **390 → 408** (all three hundred and ninety → "four hundred
-and eight"); Go tests **273 → 290** (17 new), dashboard **251 → 268**, pustaka
-22. The persistence case in the conformance table needs no row.
+Totals: register **390 → 412** ("four hundred and twelve"); Go tests
+**273 → 293** (20 new: TC-391…TC-411 except the script row), dashboard
+**251 → 271**, pustaka 22. (The script row moved from TC-408 to TC-412 in v4;
+nothing was issued under 408.) The persistence case in the conformance table needs no row.
 
 ## 8. Security considerations
 
