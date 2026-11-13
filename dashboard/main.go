@@ -58,6 +58,10 @@ type server struct {
 	rend  *Renderer
 	arc   *Arcade
 
+	// api is the machine API's configuration (api_v1.go); nil in tests that do
+	// not exercise it, which is the same as disabled.
+	api *apiConfig
+
 	// adapter is nil unless GAOS_MODEL_MODE names one. Held for /healthz and
 	// the boot log only -- the dispatch path reaches it through the store,
 	// because a dispatch emits events and only a store may.
@@ -264,7 +268,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 	}()
 
-	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter}
+	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv()}
 
 	h := gzipMiddleware(srv.routes())
 	hs := &http.Server{
@@ -350,6 +354,9 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /ui/cw", s.handleCWOpen)
 	mux.HandleFunc("POST /ui/cw/step/{n}", s.handleCWStep)
 	mux.HandleFunc("POST /workflows", s.handleWorkflowCreate)
+
+	// The machine API (api_v1.go). Traefik strips /api, so these are /v1/...
+	s.registerAPI(mux)
 
 	return mux
 }
