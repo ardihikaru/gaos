@@ -363,6 +363,11 @@ type Master struct {
 	// Vendors is which AI vendors run the product's tasks (M16, vendors.go).
 	// The zero value is Claude only.
 	Vendors VendorPolicy
+
+	// Qa is the product's QA catalog state: its modules, its epics, the
+	// revision counter and the last outbound sync (qacatalog.go, D-072). The
+	// cases themselves are QaCase vertices, not part of this document.
+	Qa QaState
 }
 
 func (m Master) Clone() Master {
@@ -383,6 +388,7 @@ func (m Master) Clone() Master {
 	c.Diagrams = append([]Diagram(nil), m.Diagrams...)
 	c.Decisions = append([]Decision(nil), m.Decisions...)
 	c.Blueprint = m.Blueprint.Clone()
+	c.Qa = m.Qa.Clone()
 	return c
 }
 
@@ -971,4 +977,6 @@ type ProductDraft struct {
 	Owner string
 	Repo  string
 	Goal  string
+	// Priority is low, medium or high; empty is medium.
+	Priority string
 }

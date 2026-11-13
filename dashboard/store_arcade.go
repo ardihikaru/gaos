@@ -380,6 +380,11 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 			return err
 		}
 	}
+	for _, c := range r.QaCases {
+		if err := s.writeQaCase(ctx, tx, c); err != nil {
+			return err
+		}
+	}
 	// A snapshot every snapshotEvery events, not one per event.
 	//
 	// The rung is keyed to the LAST event in the batch rather than to whichever
@@ -550,6 +555,10 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	if err != nil {
 		return err
 	}
+	qaState, err := jsonMap(m.Qa)
+	if err != nil {
+		return err
+	}
 	props := map[string]any{
 		"code": m.Code, "owner": m.Owner, "priority": m.Priority,
 		"brd": brd, "stories": stories, "diagrams": diagrams,
@@ -557,6 +566,7 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 		"policies": policies, "knowledgeSources": sources, // the Blueprint draft, D-058
 		"workspace":    workspace, // the product's ai-manager workspace and what it holds, M14.4
 		"vendorPolicy": vendors,   // which AI vendors run its tasks, M16
+		"qaState":      qaState,   // the QA catalog's modules, epics, head and sync state, D-072
 	}
 	if m.Stage != "" {
 		props["stage"] = m.Stage
@@ -1151,10 +1161,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Sources   json.RawMessage `json:"knowledgeSources"`
 		Workspace json.RawMessage `json:"workspace"`
 		Vendors   json.RawMessage `json:"vendorPolicy"`
+		QaState   json.RawMessage `json:"qaState"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, name, repo, goal, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy
+		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1201,6 +1212,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 				return false, err
 			}
 		}
+		if len(r.QaState) > 0 && string(r.QaState) != "null" {
+			if err := decodeInto(r.QaState, &mr.Qa); err != nil {
+				return false, err
+			}
+		}
 		m.masters = append(m.masters, mr)
 	}
 
@@ -1235,6 +1251,16 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		map[string]any{"t": s.tenant}, &wrows); err != nil {
 		return false, err
 	}
+	// ORDER BY productId sorts as a string, so p-10 would land between p-1 and
+	// p-2 and shift the seeded desks' indices after a restart. Re-sort by
+	// (id length, id): the same order for p-1..p-9, and p-10 after p-9.
+	sort.SliceStable(wrows, func(i, j int) bool {
+		a, b := wrows[i].ProductID, wrows[j].ProductID
+		if len(a) != len(b) {
+			return len(a) < len(b)
+		}
+		return a < b // the same order sortDeskIDs gives
+	})
 	for _, r := range wrows {
 		d := Desk{
 			ID: r.ProductID, Name: r.Title, Repo: r.Repo, Goal: r.Goal,
@@ -1558,6 +1584,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 	} else {
 		m.live = NewBroker()
 	}
+	cases, err := s.loadQaCases(ctx)
+	if err != nil {
+		return false, err
+	}
+	m.restoreQa(cases)
 	s.proj = m
 	return true, nil
 }
