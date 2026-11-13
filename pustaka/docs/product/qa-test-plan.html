@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  three hundred and ninety cases, positive and negative, across the four deploy automations and the
+  four hundred and eleven cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -31,7 +31,7 @@
        data-tags="qa, testing, test-plan, acceptance-tests, deploy, automation, unit-tests, go-test"
        data-hashtags="qa, testing, deploy, oq-13, unit-tests"
        data-published="2026-08-08"
-       data-updated="2026-11-04"
+       data-updated="2026-11-14"
        data-version-from="0.3.0"
        data-version-to=""></div>
 
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All three hundred and ninety cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and eleven cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -479,6 +479,27 @@
       <tr data-tags="design gate no design screening refusal negative design m17 implemented"><td>TC-377</td><td>dashboard (go test)</td><td>Negative</td><td>The gate does not open on a review that had no design: a design the screening refused is recorded as blocked, and the review that follows has nothing to attack</td><td>Implemented</td></tr>
       <tr data-tags="design gate unknown kind refuse vocabulary negative design m17 implemented"><td>TC-378</td><td>dashboard (go test)</td><td>Negative</td><td>A task whose kind is outside the vocabulary is refused before the first write, not normalised into an implement task</td><td>Implemented</td></tr>
       <tr data-tags="design gate verdict record approval negative design m17 implemented"><td>TC-379</td><td>dashboard (go test)</td><td>Negative</td><td>The gate clears on its own recorded verdict, not on a task's status: a review task that reached <code>DONE</code> with no recorded finding leaves the gate closed</td><td>Implemented</td></tr>
+      <tr data-tags="qa catalog vocabulary closed validation case id epic reason spec negative m18 implemented"><td>TC-391</td><td>dashboard (go test)</td><td>Negative</td><td>The QA case vocabulary is closed: every out-of-vocabulary value, bad pattern, over-cap text, bad reason and non-relative spec is refused with its code, and well-formed cases go in</td><td>Implemented</td></tr>
+      <tr data-tags="qa catalog effective status automated needs decision positive m18 implemented"><td>TC-392</td><td>dashboard (go test)</td><td>Positive</td><td>A planned and implemented case is automated; a blocked case that has a script stays blocked and is listed as needing a decision</td><td>Implemented</td></tr>
+      <tr data-tags="qa catalog ownership planning automation half import results seed positive negative m18 implemented"><td>TC-393</td><td>dashboard (go test)</td><td>Negative</td><td>An import never rewrites the automation half of an existing case, a results item naming a planning field is a decode error, and a seeded import carries script facts only for a new case</td><td>Implemented</td></tr>
+      <tr data-tags="qa catalog idempotent repost unchanged revision event positive m18 implemented"><td>TC-394</td><td>dashboard (go test)</td><td>Positive</td><td>An identical re-post of cases or results changes nothing: no revision moves and no event is emitted</td><td>Implemented</td></tr>
+      <tr data-tags="qa catalog results unknown stale future run record force negative m18 implemented"><td>TC-395</td><td>dashboard (go test)</td><td>Negative</td><td>A results post rejects an unknown case, a stale run, a future run and a result without a runAt while valid items apply; an equal run is unchanged and force skips stale</td><td>Implemented</td></tr>
+      <tr data-tags="qa desk runtime product plan gate requireBO route 401 sort d-076 positive negative m18 implemented"><td>TC-396</td><td>dashboard (go test)</td><td>Positive</td><td>A product made in the back office gets a desk and can be planned exactly as a seeded one; a parked floor with a runtime desk answers; desk order survives p-10; the workflow and task routes refuse a caller with no cookie</td><td>Implemented</td></tr>
+      <tr data-tags="qa api auth fail closed token 401 403 503 404 429 forwarded prefix negative m18 implemented"><td>TC-397</td><td>dashboard (go test)</td><td>Negative</td><td>The machine API fails closed: no tokens is 503, a missing or wrong token 401, a QA token on an admin route 403, malformed or equal tokens disable it, /app is 404, a second concurrent write is 429, and no token is ever echoed</td><td>Implemented</td></tr>
+      <tr data-tags="qa api product scope qa token 404 positive negative m18 implemented"><td>TC-398</td><td>dashboard (go test)</td><td>Negative</td><td>The QA token reaches only the products listed in GAOS_API_QA_PRODUCTS: any other id is 404, the product list is filtered, an unset list or a name reaches nothing, and force is the admin's</td><td>Implemented</td></tr>
+      <tr data-tags="qa api limits strict json 413 400 stripped path negative m18 implemented"><td>TC-399</td><td>dashboard (go test)</td><td>Negative</td><td>Every batch is bounded and strictly decoded: 201 items or a body over 1 MiB is 413, an unknown field, trailing JSON or a bad query is 400, and the stripped /v1 path works</td><td>Implemented</td></tr>
+      <tr data-tags="qa api cases cursor catrev paging next null positive m18 implemented"><td>TC-400</td><td>dashboard (go test)</td><td>Positive</td><td>The cases feed pages by revision: every case comes back exactly once, a touched case moves to the end of the feed, and next is null on the short page</td><td>Implemented</td></tr>
+      <tr data-tags="qa replay floor desk parked write no floor sync negative m18 implemented"><td>TC-401</td><td>dashboard (go test)</td><td>Negative</td><td>QA writes carry no floor: while the floor is parked the API writes answer 200 and the live desks do not move, and the back office's own sync path is refused</td><td>Implemented</td></tr>
+      <tr data-tags="qa client outbound url validation https loopback userinfo cursor negative m18 implemented"><td>TC-402</td><td>dashboard (go test)</td><td>Negative</td><td>The outbound URL is valid only as https or as http to a loopback or tunnel IP literal with no userinfo or query, never GAOS's own gateway or database host; a missing token or an over-long cursor is refused</td><td>Implemented</td></tr>
+      <tr data-tags="qa client pull cursor stale pages untrusted positive negative m18 implemented"><td>TC-403</td><td>dashboard (go test)</td><td>Positive</td><td>A pull applies each page through the results rules and keeps the cursor; stale and unknown items are counted, and a hostile or malformed page fails the sync and keeps the cursor</td><td>Implemented</td></tr>
+      <tr data-tags="qa client push batch cursor rejected 500 positive negative m18 implemented"><td>TC-404</td><td>dashboard (go test)</td><td>Positive</td><td>A push advances its cursor per accepted batch, stops at the first failure, keeps at most the well-formed rejected ids, and resumes from the stored cursor</td><td>Implemented</td></tr>
+      <tr data-tags="qa client sync redirect overlap cooldown scope unconfigured negative m18 implemented"><td>TC-405</td><td>dashboard (go test)</td><td>Negative</td><td>The sync buttons refuse a redirect, an overlapping sync, a click inside the process-wide cooldown, an unconfigured client, a product outside GAOS_API_QA_PRODUCTS and replay</td><td>Implemented</td></tr>
+      <tr data-tags="qa seed idempotent readiness floor secret screening adopt 409 422 replay positive negative m18 implemented"><td>TC-406</td><td>dashboard (go test)</td><td>Positive</td><td>The generic product seed is idempotent and meets the readiness floor: the second run changes nothing, an operator's edits survive, no task is moved, and a secret, a thin seed, an unseeded same-named product or replay is refused</td><td>Implemented</td></tr>
+      <tr data-tags="qa seed hisv3 data well formed counts egress detector positive m18 implemented"><td>TC-407</td><td>dashboard (go test)</td><td>Positive</td><td>The committed HISv3 seed files are well formed: 39 modules, 444 features, 47 epics, 1,700 unique cases, 494 implemented, every reference resolves, and the egress detector finds nothing</td><td>Implemented</td></tr>
+      <tr data-tags="qa create only door decision refuse exists differs secret strip scope limit negative m18 implemented"><td>TC-408</td><td>dashboard (go test)</td><td>Negative</td><td>The QA token may create a case but never change one: a new planned case is created, while parking, run fields, a wrong epic infix, a differing existing case and the case ceiling are refused with their codes</td><td>Implemented</td></tr>
+      <tr data-tags="qa epic card blocked one TaskPlanned TaskMoved gate loop caps epic-limit parked fold positive negative m18 implemented"><td>TC-409</td><td>dashboard (go test)</td><td>Positive</td><td>A new epic adds exactly one BLOCKED card and nothing else moves: no existing task changes, a cleared review does not release it, no workflow or a parked floor defers it, and the epic caps hold</td><td>Implemented</td></tr>
+      <tr data-tags="qa board card badge live counts no card summary positive m18 implemented"><td>TC-410</td><td>dashboard (go test)</td><td>Positive</td><td>An epic's board card carries live case counts that move with every created case and every result, other cards carry none, and no task is written</td><td>Implemented</td></tr>
+      <tr data-tags="qa seed script hisv3 summary totals ok FAIL positive negative m18 implemented"><td>TC-411</td><td>seed.sh</td><td>Positive</td><td>On the VM the seed script ends with ok summary matches, or FAIL naming what differs, after asserting the catalog's totals are at least the committed files'</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -550,7 +571,12 @@
   <code>FAIL deploy/stacks/docs.env is tracked by git</code>. Since 2026-11-02 the same loop covers the
   gateway's two secret files, <code>deploy/stacks/*.aim-*</code> (the ai-stack login and ai-manager's
   admin key, mounted read-only into the dev dashboard): <code>ok dev.aim-chat.json is untracked</code>,
-  or <code>FAIL deploy/stacks/dev.aim-chat.json is tracked by git</code>.</p>
+  or <code>FAIL deploy/stacks/dev.aim-chat.json is tracked by git</code>. Since v0.37.0 (D-072) it covers
+  the machine API's three token files, <code>deploy/stacks/*.api-*</code> (<code>prod.api-admin</code>,
+  <code>prod.api-qa</code>, <code>prod.api-qa-out</code>): <code>ok prod.api-qa is untracked</code>, or
+  <code>FAIL deploy/stacks/prod.api-qa is tracked by git</code>, and
+  <code>FAIL deploy/stacks/prod.api-qa is not a regular file (a missing bind-mount source is created by
+  Docker as a root-owned directory)</code> when one is a directory.</p>
 
   <h3 id="cs-redirects">check-stacks.sh — trailing-slash redirects (TC-015, TC-016)</h3>
   <p>Without these the <code>&lt;base href&gt;</code> resolves one level up and every asset 404s, while
@@ -2646,7 +2672,7 @@
   <code>SOURCE.md</code> records — it is an instruction file every frontend session loads, so an
   edit to it fails the run until the digest is updated in the same change. It runs on the host,
   where <code>deploy/rebuild-restart.sh</code> symlinks the host-side credentials into worktrees,
-  so for a path matching <code>*.env</code>, <code>*.aim-*</code>, <code>*.pem</code> or
+  so for a path matching <code>*.env</code>, <code>*.aim-*</code>, <code>*.api-*</code>, <code>*.pem</code> or
   <code>*.key</code> it prints the path and the rule and never the matched line.
   <strong>Positive (TC-357, TC-380):</strong> the files as committed print <code>ok</code> on all
   six checks and the run exits 0. <strong>Negative (TC-358, TC-381):</strong> a stale path, a
@@ -2774,6 +2800,272 @@
   <strong>TC-379, negative</strong> (<code>TestTheGateRecordsAReviewOnlyWhenItHasOne</code>): the
   gate clears on its own record — <code>the gate cleared on a review task that reached DONE with no
   recorded finding; an approval is not a verdict</code>.</p>
+
+  <h3 id="go-qa-catalog">dashboard &mdash; the QA catalog (TC-391&hellip;TC-396)</h3>
+  <p>M18 phase P1, in <code>dashboard/qacatalog_test.go</code>
+  (<a href="decision-log.html#d-072">D-072</a>, <a href="decision-log.html#d-073">D-073</a>,
+  <a href="decision-log.html#d-076">D-076</a>; <a href="brd.html#rules-qa-sync">BR-51</a>). A QA case has two
+  halves with one writer each: GAOS's planning half and the QA tools' automation half. These six
+  tests pin the vocabulary, the derived status, the ownership split, idempotency, the run-record
+  rules and the desk fix.
+  <strong>TC-391, negative</strong> (<code>TestQaCaseVocabularyIsClosed</code>): sixteen deliberately
+  broken cases &mdash; bad case id, epic, module, user story, feature, thirteen features, empty or
+  over-long scenario, polarity, level, priority, decision, a reason on a planned case, a reason with
+  no colon, an unknown category, an empty detail &mdash; each come back as exactly one rejection and
+  nothing is created (<code>%s: want one rejection %q and nothing created, got %+v</code>); the
+  well-formed cases, including a planned case with <code>deferred:next phase</code>, are all created
+  (<code>valid cases refused: %+v</code>); and a spec that is absolute, climbs with <code>..</code> or
+  uses a backslash is refused as <code>bad-spec</code> (<code>spec %q was not refused as bad-spec: %+v</code>).
+  <strong>TC-392, positive</strong> (<code>TestEffectiveStatusAndNeedsDecision</code>): a planned and
+  implemented case is <em>automated</em>, a blocked and implemented one stays <em>blocked</em>
+  (<code>planned+implemented must be automated and blocked+implemented must stay blocked, got %+v</code>)
+  and is listed (<code>a script on a parked case must be listed as needs-decision, got %v</code>); each
+  case's own <code>status</code> agrees (<code>%s: status %q, want %q</code>).
+  <strong>TC-393, negative</strong> (<code>TestImportAndResultsOwnTheirOwnHalf</code>): an import
+  without <code>seed</code> creates a case without script facts (<code>an import without seed wrote the
+  automation half: %+v</code>); a later import, even seeded, updates the planning half
+  (<code>a changed scenario must update the planning half: %+v</code>) but never the automation half
+  (<code>an import overwrote the automation half: %+v</code>); a results item that names a planning
+  field is refused at decode (<code>a results item naming a planning field must be a decode error, got
+  none</code>); and a seeded import does carry the script facts of a case not yet present
+  (<code>a seeded new case lost its script facts: %+v</code>).
+  <strong>TC-394, positive</strong> (<code>TestAnIdenticalRepostChangesNothing</code>): an identical
+  re-post counts <em>unchanged</em> (<code>an identical re-post must be unchanged, got %+v</code>),
+  moves no revision and emits no <code>RecordUpdated</code> (<code>an identical re-post moved the
+  revision (%d -&gt; %d) or emitted an event</code>); the same holds for results
+  (<code>an identical results post must be unchanged, got %+v</code>, <code>an unchanged results post
+  emitted an event</code>).
+  <strong>TC-395, negative</strong> (<code>TestResultsRejectUnknownStaleAndFuture</code>): in one batch
+  an unknown case is <code>unknown-case</code>, a result without <code>runAt</code> is
+  <code>run-incomplete</code>, and the valid item still applies (<code>unknown case and a run without
+  runAt must be rejected while the valid item applies: %+v</code>); an older run is <code>stale</code>
+  (<code>an older run must be stale, got %v</code>); a millisecond timestamp is <code>future</code>
+  (<code>a timestamp in the future must be rejected, got %v</code>); an equal run is unchanged
+  (<code>an equal run must be unchanged: %+v</code>); <code>force</code> overrides stale
+  (<code>force must override stale: %+v</code>); and <code>bad-result</code>, <code>bad-spec</code> and
+  <code>bad-run-ref</code> are named (<code>%s: got %v</code>).
+  <strong>TC-396, positive</strong> (<code>TestACreatedProductGetsADeskAndCanBePlanned</code>): the
+  desk fix of <a href="decision-log.html#d-076">D-076</a>. <code>ProductDraft.Priority</code> is
+  honoured (<code>ProductDraft.Priority was ignored: %q</code>); a product made in the back office is
+  plannable (<code>a product made in the back office must be plannable (D-076), got %v</code>) and gets
+  one desk (<code>one desk must be seated for the new product: %d -&gt; %d</code>); its tasks start
+  exactly as a seeded product's (<code>a runtime product's tasks must start exactly as a seeded
+  product's (PENDING, PENDING, gate-BLOCKED), got %v</code>); a parked floor with the runtime desk
+  answers (<code>Replay with a runtime desk present: %v</code>, <code>Snapshot while parked: %v</code>);
+  an unknown product is still refused (<code>CreateWorkflow for an unknown product must fail</code>).
+  The negative half: <code>POST /workflows</code> and the four task routes without the back-office
+  cookie answer 401 (<code>%s %s without the back-office cookie answered %d, want 401</code>) while a
+  signed-in caller passes (<code>a signed-in caller must pass the gate, got %d</code>), and the desk
+  order after a restart sorts by id length then id (<code>desk order = %v, want [p-1 p-2 p-9 p-10
+  p-11]</code>).</p>
+
+  <h3 id="go-qa-api">dashboard &mdash; the QA sync API (TC-397&hellip;TC-401)</h3>
+  <p>M18 phase P2, in <code>dashboard/api_v1_test.go</code>
+  (<a href="decision-log.html#d-072">D-072</a>; <a href="brd.html#rules-qa-sync">BR-52, BR-53</a>). The
+  tokens in these tests are fixtures. The contract itself is published at
+  <a href="../guide/qa-sync-api.html">The QA sync API</a>.
+  <strong>TC-397, negative</strong> (<code>TestAPIFailsClosed</code>): no header is 401, a wrong token
+  401, the QA token on the admin route 403, the admin token and the QA token on a QA route 200, a request
+  carrying <code>X-Forwarded-Prefix</code> 404, all as <code>%s: answered %d, want %d (%s)</code>, and no
+  token ever appears in a body (<code>%s: a token appeared in the response body</code>); the public
+  <code>/api/v1</code> path never reaches the mux (<code>/api/v1/... answered 200: the mux must register
+  the STRIPPED path (Traefik removes /api)</code>); a nil config, no tokens, equal tokens and an
+  outbound token equal to an API token all answer 503; one token configured leaves the other 401; a
+  second concurrent write is 429 with <code>Retry-After</code> (<code>a 429 carries no
+  Retry-After</code>) while a read still passes; and a token file that is empty, missing, without the
+  <code>gaos_</code> prefix or short is treated as unset (<code>token file %q must be treated as unset,
+  got a token</code>), a good one with a trailing newline is read back (<code>a good token file with a
+  trailing newline was not read back</code>), and the boot line names no token (<code>the boot line
+  names a token: %q</code>).
+  <strong>TC-398, negative</strong> (<code>TestAPIQaTokenIsScopedToItsProducts</code>): the QA token's
+  product list holds only its products (<code>the QA token's product list must hold only %s: %s</code>),
+  the admin token lists every one (<code>the admin token must list every product</code>), another
+  product is 404 and not 403 (<code>GET %s on an unscoped product answered %d, want 404 (a 403 would say
+  it exists)</code>, <code>results on an unscoped product answered %d, want 404</code>), the admin
+  token reaches them (<code>the admin token must reach every product, got %d</code>), an unknown id is
+  404 (<code>an unknown product answered %d, want 404</code>), an unset list or a product <em>name</em>
+  in the list reaches nothing (<code>QA scope %s: answered %d, want 404</code>, <code>QA scope %s:
+  listed %d products, want none</code>), and <code>force</code> with the QA token is 403 (<code>force
+  with the QA token answered %d, want 403</code>).
+  <strong>TC-399, negative</strong> (<code>TestAPILimitsAndStrictDecoding</code>): 201 items are 413
+  (<code>%d items answered %d, want 413</code>) and 200 are 200; a body over 1 MiB is 413 (<code>a body
+  over 1 MiB answered %d, want 413</code>); a results item naming a planning field, trailing JSON, a
+  non-JSON body and an unknown catalog field are 400 (<code>a results item naming a planning field
+  answered %d, want 400</code>, <code>trailing JSON answered %d, want 400</code>, <code>a non-JSON body
+  answered %d, want 400</code>, <code>an unknown catalog field answered %d, want 400</code>); 201
+  catalog items are 413; a catalog post is <code>created</code> then <code>unchanged</code>
+  (<code>catalog post %d: %d %s, want %s</code>); a bad query (<code>after=-1</code>,
+  <code>after=x</code>, <code>limit=0</code>, <code>limit=201</code>, <code>epic=lower</code>) is 400
+  (<code>?%s answered %d, want 400</code>); and the revision after one created case is 1
+  (<code>CatHead = %d after one created case, want 1</code>).
+  <strong>TC-400, positive</strong> (<code>TestAPICasesCursorCoversEveryCaseOnce</code>): seven cases at
+  three a page take three pages, a case touched mid-way moves to the end of the feed and still appears
+  once, and the last short page has <code>next: null</code> (<code>the feed returned %d distinct cases,
+  want %d: %v</code>, <code>%s came back %d times, want once</code>, <code>7 cases at 3 a page took %d
+  pages, want 3 (the last, short page has next=null)</code>); every case carries its derived status
+  (<code>%s: the derived status is missing from the API's case</code>); an epic with no cases answers
+  an empty list (<code>an epic with no cases must answer an empty list, got %s</code>).
+  <strong>TC-401, negative</strong> (<code>TestQaWritesNeverTouchTheFloorInReplay</code>): with the floor
+  parked, a results post and a catalog post still answer 200 (<code>a results post while parked answered
+  %d (%s), want 200: a QA write carries no floor</code>, <code>a catalog post while parked answered %d,
+  want 200</code>), the write's <code>Result</code> carries no desks (<code>a QA Result carried %d desks;
+  persist would save the replayed past over the live floor</code>), the live desks do not move
+  (<code>a QA write changed the live desks while the floor was parked</code>), and the back office's own
+  sync path is refused (<code>the back office's QA write was allowed during replay</code>,
+  <code>QaRecordSync was allowed during replay</code>).</p>
+
+  <h3 id="go-qa-client">dashboard &mdash; GAOS calling the QA tools (TC-402&hellip;TC-405)</h3>
+  <p>M18 phase P4, in <code>dashboard/qaclient_test.go</code>, against an <code>httptest</code> server
+  standing in for the contract
+  (<a href="decision-log.html#d-075">D-075</a>). The two back-office buttons are inert until
+  <code>GAOS_QA_URL</code> and its token are set.
+  <strong>TC-402, negative</strong> (<code>TestQaClientURLValidation</code>): twenty URLs, each usable
+  or not as stated (<code>%q: usable=%v (%s), want %v</code>) &mdash; https passes, http passes only to
+  an IP literal in loopback or <code>10.10.0.0/24</code>; a hostname over http, another private range,
+  userinfo, a query, a fragment, another scheme, an empty or unparsable URL, and GAOS's own gateway or
+  database host are refused; a missing token leaves the client unconfigured (<code>a missing token must
+  leave the client unconfigured</code>); a cursor over 128 bytes or with a control or non-ASCII
+  character is refused (<code>cursor %q: valid=%v, want %v</code>).
+  <strong>TC-403, positive</strong> (<code>TestPullAppliesPagesAndKeepsTheCursor</code>): two pages are
+  applied, the cursor ends at the last <code>next</code>, items are counted, and the unknown case and
+  the stale run are counted as rejected (<code>pull = %+v, want ok, cursor c2, 4 items</code>,
+  <code>note %q must say 2 applied and 2 rejected (one unknown, one stale)</code>); the call carries the
+  outbound bearer (<code>the outbound call did not carry the outbound bearer</code>); the totals land
+  (<code>after the pull: %+v, want 2 pass (001 and the older 003), 1 fail (002), 1 automated</code>); a
+  resumed pull asks for the stored cursor and makes one request (<code>a resumed pull = %+v after %d
+  more requests, want ok, cursor c2 and one request</code>). Negative: a page for another product, a
+  planning field, an unknown field, a hostile or over-long cursor and non-JSON each fail the sync and
+  keep the cursor (<code>%s: pull = %+v, want a failure that keeps the cursor</code>), a page of more
+  than 200 items is refused (<code>a page of more than 200 items was accepted</code>), and a 404 is a
+  recorded failure that names the status (<code>a 404 = %+v, want a failure naming the status</code>).
+  <strong>TC-404, positive</strong> (<code>TestPushAdvancesPerBatchAndKeepsRejections</code>): with 450
+  cases and a 500 on the second batch the cursor stops at the first accepted batch
+  (<code>push = %+v, want a failure after batch 1: cursor 200, 200 items</code>), the note names the
+  status (<code>note %q must name the status</code>), the QA tools' rejected ids are counted but only a
+  well-formed one is kept (<code>rejections: n=%d ids=%v, want 2 counted and only the well-formed id
+  kept</code>), the QA tools saw two batches (<code>the QA tools saw %d batches, want 2 (the second
+  refused)</code>); a resumed push sends the remaining 250 once (<code>resumed push = %+v over %d
+  batches, want ok, cursor 450, 250 items, 2 batches</code>, <code>the resumed push began at %s, want
+  TC-AUTH-201</code>) and a push with nothing new sends nothing (<code>a push with nothing new = %+v, %d
+  batches; want ok and none sent</code>).
+  <strong>TC-405, negative</strong> (<code>TestSyncRefusesRedirectsOverlapAndCooldown</code>): an
+  unconfigured client, no client and an out-of-scope product are each 409 and call nothing
+  (<code>an unconfigured pull answered %d, want 409</code>, <code>an out-of-scope product answered %d
+  after %d calls to the QA tools, want 409 and none</code>); no cookie is 401; a good click records the
+  outcome and emits exactly one event (<code>the pull was not recorded: %+v</code>, <code>a sync must
+  emit exactly one RecordUpdated</code>); a second click is 409 with <code>Retry-After</code> and so is
+  the other direction (<code>the other direction within the cooldown answered %d, want 409 (the cooldown
+  is process-wide)</code>); an overlapping sync is 409 and the sync after the release is 200; a redirect
+  is never followed (<code>a redirect: ok=%v followed=%v note=%q, want a refusal that never followed
+  it</code>); the tab says in visible text why it is disabled (<code>the pane for an unconfigured client:
+  enabled=%v why=%q</code>, <code>the pane during replay: enabled=%v why=%q</code>); and a pull during
+  replay is 409 (<code>a pull during replay answered %d, want 409</code>).</p>
+
+  <h3 id="go-qa-create">dashboard &mdash; creation by the QA tools and the board (TC-408&hellip;TC-410)</h3>
+  <p>M18 phase P5, in <code>dashboard/qacatalog_create_test.go</code>
+  (<a href="decision-log.html#d-073">D-073</a>; <a href="brd.html#rules-qa-sync">BR-51, BR-53, BR-54</a>).
+  The QA tools may <em>create</em> a case and, for a new epic, one blocked card; nothing they send
+  changes a case that exists or moves a task.
+  <strong>TC-408, negative</strong> (<code>TestQaToolsMayCreateButNeverChangeACase</code>): a new valid
+  case is created as planned (<code>create = %d %s, want 200, 1 created, 1 epic</code>, <code>the
+  created case: %+v</code>); an identical re-post is unchanged (<code>an identical re-post: %+v, want
+  unchanged</code>); a differing one is <code>exists-differs</code> and is not changed
+  (<code>a differing existing case: %+v, want exists-differs</code>, <code>the QA token changed an
+  existing case's planning half: %q</code>); and <code>decision-not-allowed</code>,
+  <code>use-results</code>, <code>bad-case-epic</code>, <code>empty-scenario</code> and
+  <code>bad-spec</code> each refuse their case (<code>%s: rejected %q, created %d</code>); an
+  <code>epics</code> entry for an existing code rewrites nothing (<code>an epics entry rewrote an
+  existing epic: %+v</code>); the admin token also passes, another product is 404 and no token is 401
+  (<code>the admin token answered %d, want 200</code>, <code>an unscoped product answered %d, want
+  404</code>, <code>no token answered %d, want 401</code>); a secret anywhere refuses the whole request
+  and writes nothing (<code>a secret answered %d %s, want 400 secret-in-body</code>, <code>a refused
+  request wrote cases: %d in the catalog, want 3</code>); markup is stripped (<code>markup survived in a
+  scenario: %q</code>); an unknown field is 400, 201 cases are 413, and past the case ceiling a case is
+  <code>case-limit</code> (<code>past the case ceiling: %+v, want case-limit</code>).
+  <strong>TC-409, positive</strong> (<code>TestANewEpicGetsOneBlockedCardAndNothingElseMoves</code>): a
+  new epic with two cases adds one epic and one card (<code>create = %d %s, want 1 epic, 1 card, 2
+  cases</code>), the card is <code>BLOCKED</code> with the QA reason, kind implement, in the Plan lane, one
+  dependency, ordinal 3 &mdash; even though the review has already cleared (<code>the card = %+v, want
+  BLOCKED with the QA reason, implement, Plan lane, one dep, ordinal 3</code>); exactly one
+  <code>TaskPlanned</code> and one <code>TaskMoved</code> are written (<code>a new card must write
+  exactly one TaskPlanned and one TaskMoved</code>); no existing task, and none of another product, moves
+  (<code>task %s went from %q to %q</code>, <code>a QA write changed another product's tasks</code>); the
+  epic records its card (<code>the epic's card id = %q, want %q</code>); a second case adds no card
+  (<code>a second case in the epic: %+v, want no new card</code>); the fold rebuilds the same card
+  (<code>the fold's card = %+v, want BLOCKED at ordinal %d</code>); the board badge counts three cases
+  and no other card carries one (<code>the card's badge = %+v, want 3 cases of NEW</code>,
+  <code>card %q carries a badge it should not</code>). Negative: with no workflow the epic is recorded
+  and no card is made (<code>no workflow: %+v, want an epic, no card, no-workflow</code>,
+  <code>the summary's noCard = %v, want [ZED]</code>); with the floor parked the card is deferred and the
+  live desks do not move (<code>parked: %+v, want an epic, no card, replay</code>, <code>a QA write changed
+  the live desks while the floor was parked</code>); six new epics in one request add five and refuse one,
+  and the hundred-epic ceiling refuses another (<code>six new epics: %+v, want 5 added and 1
+  epic-limit</code>, <code>past the epic ceiling: %+v, want epic-limit</code>); and planning another
+  product leaves an in-flight task of a bystander alone (<code>the bystander's task = %q after other
+  products were planned</code>, <code>planning another product re-blocked the bystander's task:
+  %q</code>) &mdash; the fix to <code>CreateWorkflow</code>'s gate loop.
+  <strong>TC-410, positive</strong> (<code>TestTheBoardCardCarriesLiveCaseCounts</code>): after the seed
+  every epic holds its card id (<code>epic %s has no card id after the seed</code>), each epic card has a
+  badge with no cases yet and the design, review and release cards have none (<code>%q shows %d cases
+  before any case exists</code>, <code>epic card %q has no badge</code>, <code>%d badges, want %d (one
+  per epic card, none on design, review or release)</code>); two created cases and one failing result
+  move the badge to 2 cases, 1 automated, 1 failing, 50% (<code>the AUTH badge = %+v, want 2 cases, 1
+  automated, 1 failing, 50%%</code>) without writing a task (<code>a case or a result changed a
+  task</code>); and <code>noCard</code> is empty after a full seed (<code>noCard = %v after a full seed,
+  want none</code>).</p>
+
+  <h3 id="go-qa-seed">The product seed and <code>seed.sh</code> (TC-406, TC-407, TC-411)</h3>
+  <p>M18 phase P3, in <code>dashboard/seed_test.go</code> and <code>deploy/seed/hisv3/seed.sh</code>
+  (<a href="decision-log.html#d-074">D-074</a>). The seed is generic; HISv3's content is data under
+  <code>deploy/seed/hisv3/</code>, and the seed never clears the design gate.
+  <strong>TC-406, positive</strong> (<code>TestProductSeedIsIdempotentAndMeetsTheFloor</code>): the first
+  run creates the product, one story per module, the epics, the policies and a Blueprint version 1, with
+  <code>2 + epics + 1</code> tasks (<code>first seed = %+v, want created, %d stories, %d epics, %d
+  tasks</code>, <code>first seed = %+v, want a readiness of at least %d, Blueprint version 1 and %d
+  policies</code>); nothing is moved or run (<code>%q is %s; the seed must not move or run a task</code>);
+  design and review start pending (<code>design and review must start PENDING: %+v / %+v</code>); every
+  epic card is blocked by the gate (<code>%q is %s, want BLOCKED by the design gate</code>) and only the
+  epic with no module sits in the Plan lane (<code>%d of %d epic cards are in the Plan lane: only the
+  epic with no module should be</code>); the release task is gated and waits on every epic (<code>the
+  release task must be gated and wait on every epic: %+v</code>); a second run changes nothing
+  (<code>a re-run must change nothing: %+v</code>) and overwrites no operator edit
+  (<code>a re-run overwrote an operator's BRD: %q</code>, <code>a re-run overwrote an operator's policy:
+  %+v</code>); and story text carries no backtick or angle bracket (<code>story %s carries unsafe text:
+  %q</code>). Negative: a QA token may not seed (<code>a QA token seeded: %d</code>); a secret in a
+  feature line, a policy body or the BRD is 400 <code>secret-in-seed</code> and creates no product
+  (<code>secret %s: answered %d %s, want 400 secret-in-seed</code>, <code>a refused seed created a
+  product</code>); a malformed seed is 400 (<code>%s: answered %d %s, want 400</code>); a seed below the
+  readiness floor is 422 <code>not-ready</code> and plans no workflow (<code>a thin seed answered %d %s,
+  want 422 not-ready</code>, <code>a below-the-floor seed planned a workflow anyway</code>); a same-named
+  product the seed did not make, or two of one name, is 409 (<code>a same-named non-pristine product:
+  answered %d %s, want 409 product-exists-unseeded</code>, <code>two products of one name: answered %d,
+  want 409</code>); and during replay the seed is 409 (<code>a seed during replay answered %d %s, want 409
+  replay</code>).
+  <strong>TC-407, positive</strong> (<code>TestTheHISv3SeedIsWellFormed</code>): the committed files hold
+  39 modules, 444 features, 47 epics and 1,700 cases (<code>seed has %d modules, %d features, %d epics,
+  %d cases; want 39, 444, 47, 1700</code>), 494 implemented and 1,146 planned (<code>%d implemented and
+  %d planned; want 494 and 1146</code>), a 40-hex source commit (<code>cases.json names no source
+  commit: %q</code>, <code>knowledge source %s is pinned to %q, want a 40-hex commit</code>), exactly one
+  epic with no module (<code>%d epics have no module, want exactly 1 (the report builder: its stories
+  name no feature)</code>); every case validates and resolves to a defined epic and module, no id is
+  duplicated, an implemented case is planned with a valid spec, and no scenario carries unsafe text
+  (<code>%s: %s</code>, <code>duplicate case id %s</code>, <code>%s names epic %s, which the seed does not
+  define</code>, <code>%s is implemented but is %s with spec %q</code>, <code>%s: unsafe scenario
+  text</code>); and the egress detector finds nothing in either file (<code>%s trips the secret detector
+  %s</code>).
+  <strong>TC-411, positive and negative</strong> (<code>deploy/seed/hisv3/seed.sh</code>, run on the VM
+  against the tunnel listener, not the public edge): it prints <code>seed: %d modules, %d epics, %d cases
+  (%d automated)</code>, then <code>ok   product %s %s: ...</code>, <code>ok   catalog: %d created, %d
+  updated, %d unchanged</code> and ends <code>ok   summary matches: %d cases, %d automated, %d epics (at least the seed's %d, %d,
+  %d), coverage %d%%</code>. Its failures are <code>FAIL python3 is required</code>, <code>FAIL cannot read the
+  token file %s</code>, <code>FAIL the token file does not hold a gaos_ token (an empty file disables the
+  admin token)</code>, <code>FAIL cannot reach %s: %s</code>, <code>FAIL the product seed answered %d: %s
+  %s</code>, <code>FAIL catalog slice at %d answered %d: %s %s</code>, <code>FAIL catalog slice at %d
+  rejected %d case(s), first %s</code>, <code>FAIL the summary answered %d</code> and <code>FAIL summary
+  is below the seed: cases/automated/epics = %s, want at least %s</code>. The totals are checked
+  <em>at least</em> the seed's, not equal to them: once the QA tools have created cases, added epics and
+  reported scripts through the API the totals only grow, and a healthy re-run must not print FAIL. With <code>--dry-run</code> it only prints the seed's totals and
+  <code>ok   dry run: nothing sent</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

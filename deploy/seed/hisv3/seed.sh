@@ -10,7 +10,7 @@
 #
 # The token is read from the file inside python and sent as a header; it is never an argument, never in the
 # environment of a child process and never printed. Needs python3 (stdlib only). IDEMPOTENT: a second run changes
-# nothing. It ends by asserting the catalog's totals against the committed files and printing one line:
+# nothing. It ends by asserting the catalog's totals are AT LEAST the committed files' and printing one line:
 #   ok   summary matches ...   |   FAIL <what differs>
 set -u
 
@@ -92,9 +92,11 @@ if st != 200:
     sys.exit(1)
 got = (s['totals']['cases'], s['totals']['automated'], len(s['epics']))
 exp = (want_cases, want_auto, want_epics)
-if got != exp:
-    print('FAIL summary differs: cases/automated/epics = %s, want %s' % (got, exp))
+# AT LEAST the seed's: after the QA tools create cases, add epics and report scripts, the totals only grow,
+# and a healthy re-run must not print FAIL (design section 4.9).
+if any(g < e for g, e in zip(got, exp)):
+    print('FAIL summary is below the seed: cases/automated/epics = %s, want at least %s' % (got, exp))
     sys.exit(1)
-print('ok   summary matches: %d cases, %d automated, %d epics, coverage %d%%' % (got[0], got[1], got[2], s['totals']['coveragePct']))
+print('ok   summary matches: %d cases, %d automated, %d epics (at least the seed\'s %d, %d, %d), coverage %d%%' % (got[0], got[1], got[2], exp[0], exp[1], exp[2], s['totals']['coveragePct']))
 print('next: set GAOS_API_QA_PRODUCTS=%s for the QA token, then restart the dashboard' % pid)
 PY

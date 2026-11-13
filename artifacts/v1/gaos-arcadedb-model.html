@@ -207,6 +207,8 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 
   <h3>Since v0.24.0</h3>
   <a href="#gateway-additions"><i>15</i>Gateway, Blueprint &amp; Board</a>
+  <h3>Since v0.37.0</h3>
+  <a href="#qa-catalog"><i>16</i>The QA catalog</a>
 
   <button class="dl" id="dlBtn"><span>download</span>gaos-schema.sql — every DDL block on this page</button>
 </nav>
@@ -762,7 +764,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <thead><tr><th class="mono">Group</th><th class="mono">Types</th></tr></thead>
     <tbody>
       <tr><td class="mono">master</td><td class="mono">ProductCreated · RecordUpdated · KnowledgeInjected · ReadinessEvaluated · ReadinessDropped</td></tr>
-      <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned · DependencyRewired · WorkflowCanceled</td></tr>
+      <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned (a plan, or an addition to one — §16) · DependencyRewired · WorkflowCanceled</td></tr>
       <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered</td></tr>
       <tr><td class="mono">judgment</td><td class="mono">ReviewCompleted · RetryRequested · ModelEscalated · SafetyVeto · GuardExhausted</td></tr>
       <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
@@ -1424,6 +1426,83 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
     <tbody>
       <tr><td>At most one live turn per product workspace.</td><td>The dispatch transaction, via Workspace.activeTurn</td><td class="mono">TaskRun status in (STARTED, RUNNING), grouped by workspaceId, having count &gt; 1</td></tr>
       <tr><td>An attempt ran under the Blueprint it pinned.</td><td>Dispatch (synced digest) and finish (observed context)</td><td class="mono">TaskRun -PINNED_TO-&gt; BlueprintVersion where digest ≠ the workspace's syncedDigest at dispatch</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="qa-catalog">
+  <h2><span class="num">16</span> The QA catalog</h2>
+  <p class="lede">Decided on 2026-11-14 (D-072, D-073). <b>Applied in v0.37.0</b> as <code>dashboard/schema/16-qa-catalog.sql</code> — one vertex type, one edge type and three indexes, every statement <span class="mono">IF NOT EXISTS</span>, applied at every boot and purely additive: the previous image ignores the new type. A product's test cases are their own vertices and never tasks: a case is a fact about a script, not work for an agent.</p>
+
+  <h4>New vertex type · 28 become 29</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">QaCase</td><td>One test case of a product. The planning half is GAOS's; the automation half is the QA tools'.</td><td class="mono">id (<span class="mono">&lt;productId&gt;:&lt;caseId&gt;</span>), productId, caseId, epic, module, features, userStory, scenario, polarity, level, pri, decision, reason, implemented, spec, result, runAt, runRef, catRev</td></tr>
+    </tbody>
+  </table>
+
+  <h4>New edge type · 37 become 38</h4>
+  <table>
+    <thead><tr><th class="mono">Edge</th><th class="mono">From → To</th><th>Card.</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">HAS_QA_CASE</td><td class="mono">Product → QaCase</td><td>1 → n</td><td>endpoint uniqueness index, as D-045 established</td></tr>
+    </tbody>
+  </table>
+
+  <h4>What does not need DDL</h4>
+  <p>The product's modules, epics, the catalog revision <span class="mono">CatHead</span> and the state of the last pull and push ride on the <span class="mono">Product</span> record as the document <span class="mono">qaState</span> (D-009, as <span class="mono">vendorPolicy</span> does). An empty <span class="mono">result</span> is stored as an absent property, because the property is constrained. <span class="mono">catRev</span> counts planning changes: a write that changes a planning field sets the case's <span class="mono">catRev</span> to <span class="mono">++CatHead</span>, and the cases feed pages by it.</p>
+
+  <h4>Events: nothing new, one meaning widened</h4>
+  <p>A QA write that changes something emits one <span class="mono">RecordUpdated</span> and no other event name is added (BR-05). The one change of meaning is <span class="mono">TaskPlanned</span>: it now announces <b>a plan, or an addition to one</b>. When the QA tools create a case in a new epic, GAOS adds one card, <span class="mono">Automate: &lt;epic&gt;</span>, to the product's current workflow, announced by one <span class="mono">TaskPlanned</span> and one <span class="mono">TaskMoved</span>; it is always born <span class="mono">BLOCKED</span> with the rule <span class="mono">qa-epic-added</span>. The task fold therefore continues a workflow's ordinals (ordinal = the tasks already in that workflow plus the index) instead of restarting at 0; a first plan is unchanged. QA data never changes any existing task (BR-54).</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>16-qa-catalog.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre>-- 16 · The QA catalog (D-072, D-073; docs/designs/hisv3-qa-sync.md §4.3).
+--
+-- A product's test cases, one vertex each. The planning half (what the case is,
+-- what is decided about it) is written by GAOS; the automation half
+-- (implemented, spec, result, runAt, runRef) by the QA tools. The catalog is
+-- machine-read, so it is schema-full here; the product's modules, epics, head
+-- and sync state ride on the Product record as the document `qaState`
+-- (D-009, like vendorPolicy) and need no DDL.
+--
+-- The vertex id is "&lt;productId&gt;:&lt;caseId&gt;" (D-047). `result` is constrained, so
+-- an empty one is stored as an ABSENT property, never as ''.
+
+CREATE VERTEX TYPE QaCase IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY QaCase.productId   STRING  (mandatory true, notnull true);
+CREATE PROPERTY QaCase.caseId      STRING  (mandatory true, notnull true);
+CREATE PROPERTY QaCase.epic        STRING  (mandatory true, notnull true);
+CREATE PROPERTY QaCase.module      STRING;
+CREATE PROPERTY QaCase.features    LIST;
+CREATE PROPERTY QaCase.userStory   STRING;
+CREATE PROPERTY QaCase.scenario    STRING  (notnull true);
+CREATE PROPERTY QaCase.polarity    STRING  (mandatory true);
+CREATE PROPERTY QaCase.level       STRING  (mandatory true, regexp 'API|GQL|WEB|E2E');
+CREATE PROPERTY QaCase.pri         STRING  (mandatory true, regexp 'P0|P1|P2|P3');
+CREATE PROPERTY QaCase.decision    STRING  (mandatory true, regexp 'planned|blocked|manual-only|wont');
+CREATE PROPERTY QaCase.reason      STRING;
+CREATE PROPERTY QaCase.implemented BOOLEAN;
+CREATE PROPERTY QaCase.spec        STRING;
+CREATE PROPERTY QaCase.result      STRING  (regexp 'pass|fail|skipped');
+CREATE PROPERTY QaCase.runAt       LONG;
+CREATE PROPERTY QaCase.runRef      STRING;
+CREATE PROPERTY QaCase.catRev      INTEGER (mandatory true, min 0);
+
+CREATE EDGE TYPE HAS_QA_CASE IF NOT EXISTS EXTENDS GaosEdge;   -- Product -&gt; QaCase
+
+CREATE INDEX IF NOT EXISTS ON QaCase (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON QaCase (tenantId, productId, catRev) NOTUNIQUE;
+CREATE INDEX IF NOT EXISTS ON HAS_QA_CASE (`@out`, `@in`) UNIQUE;</pre>
+  </div>
+
+  <h4>One invariant</h4>
+  <table>
+    <thead><tr><th>Invariant</th><th>Enforced by</th><th>Detection query</th></tr></thead>
+    <tbody>
+      <tr><td>A case has one id per product, and one edge from its product.</td><td>The two unique indexes</td><td class="mono">QaCase grouped by (tenantId, id), having count &gt; 1</td></tr>
     </tbody>
   </table>
 </section>

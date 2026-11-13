@@ -23,7 +23,7 @@
        data-tags="brd, product, business-requirements, scope, risks, stakeholders"
        data-hashtags="brd, product, roadmap, requirements"
        data-published="2026-08-08"
-       data-updated="2026-11-04"
+       data-updated="2026-11-14"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -1212,7 +1212,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="business-rules">9. Business rules</h2>
-  <p>Fifty rules, each one traceable to an artifact section, to committed code, or to a logged
+  <p>Fifty-four rules, each one traceable to an artifact section, to committed code, or to a logged
   decision. These are the statements a reviewer — human or agent — can score an implementation
   against. They are the reason domain rules are worth 12 points in the readiness rubric.</p>
 
@@ -1324,6 +1324,24 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-48</td><td>An open Blocker stops the dispatch and the task goes to the operator's queue. Only the operator clears it — and the clearance is <strong>refused until the back office has a real identity to check</strong>, because <code>signedIn()</code> today accepts a cookie from any request. A blocking precondition on M17, not an assumption: M17 implements the dispatch stop and refuses the clearance, and the refusal is recorded. <em>(D-068, D-070)</em></td></tr>
       <tr><td>BR-49</td><td>The isolation boundary is the packet and the workspace. The reviewer's workspace is the product's own reviewer workspace, a second root holding the published Blueprint whole — the standing files are the rubric, and a reduced set would be drift under <a href="#rules-gateway">BR-39</a> — and it is reset before every review turn, so it holds none of the author's files. What is withheld from the packet is the author's session state: the previous handoff, the failure lesson and the operator's answer. <em>(D-069, <a href="decision-log.html#d-071">D-071</a>)</em></td></tr>
       <tr><td>BR-50</td><td>A design reaches a reviewer only as a GAOS-held artifact in the packet, because there is no other route: GAOS reads no folder, and its allowlist admits only the instruction files. The findings travel back the same way, as context. The gate is the planner's own <code>DEPENDS_ON</code> edge and <code>BLOCKED</code> status, and its record is an artifact — not the score-band <code>Review</code> vertex, which stays with the review engine that owns it. <em>(D-069)</em></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rules-qa-sync">9.8 The QA catalog and the QA sync API</h3>
+  <p>The QA catalog is a per-product register of test cases, and the QA tools reach it over a REST
+  API (<a href="decision-log.html#d-072">D-072</a>, <a href="decision-log.html#d-073">D-073</a>). The
+  rules bound what a machine caller may write. They are built as of v0.37.0, they rely on the design
+  gate (<a href="#rules-design-review">BR-46</a>) and the closed event catalog
+  (<a href="#rules-invariants">BR-05</a>) and amend neither, and the contract itself is published at
+  <a href="../guide/qa-sync-api.html">The QA sync API</a>. The question of who may edit a
+  case's decision is <a href="open-questions.html#oq-34">OQ-34</a>.</p>
+  <table class="tbl">
+    <thead><tr><th>ID</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>BR-51</td><td>Every field of a QA case has one writer. The planning half belongs to GAOS and changes only through the admin catalog endpoint or a seed re-run; the automation half belongs to the QA tools. Inside the automation half the run record (<code>result</code>, <code>runAt</code>, <code>runRef</code>) is written as one: an item that writes any of them must carry <code>runAt</code>, is refused <code>stale</code> when a newer run is stored, <code>future</code> when <code>runAt</code> is more than 300 seconds ahead, and <code>run-incomplete</code> when it carries a result without a time, so the newest run wins; only the admin token may force past <code>stale</code>. The QA side is create-only: it may add a case that does not exist and may never change, park, retire or delete one that does. <em>(D-072, D-073)</em></td></tr>
+      <tr><td>BR-52</td><td>The machine API answers only a bearer token read from a file, and fails closed. With no token configured every route is 503; a missing or wrong token is 401; a QA token on an admin route is 403; equal tokens, or a token that is short or lacks the <code>gaos_</code> prefix, disable the API; a request through <code>/app</code> is 404. The QA token reaches only the products named by id in <code>GAOS_API_QA_PRODUCTS</code> &mdash; any other product is 404 and an unset list reaches nothing &mdash; and only one write per token is in flight. A token is never logged or echoed. <em>(D-072, D-074, D-075)</em></td></tr>
+      <tr><td>BR-53</td><td>Every batch is bounded: at most 200 items and 1 MiB per request, strictly decoded, and over the bound nothing is applied. So is what a QA token can add: at most 5 new epics per request, 100 epics and 5,000 cases per product. Every text field of a request is screened for secrets and stripped of backticks, angle brackets and line breaks before it can reach an agent's prompt. <em>(D-072, D-073, D-075)</em></td></tr>
+      <tr><td>BR-54</td><td>QA data never moves a task. No result, case or sync changes the status or block reason of any existing task. The single write it may cause to the task graph is to add one card for a new epic, in the product's current workflow, born <code>BLOCKED</code> with the reason <code>qa-epic-added</code> and released only by an operator's board move, so a QA token can never create dispatchable agent work. It is announced by the existing <code>TaskPlanned</code> and <code>TaskMoved</code> events and adds no event name. <em>(D-073, D-076)</em></td></tr>
     </tbody>
   </table>
 
@@ -1642,8 +1660,9 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <p>Since then <a href="open-questions.html#oq-24">OQ-24</a> was raised by measurement, and on
   2026-11-02 the move to the gateway raised six more, <a href="open-questions.html#oq-25">OQ-25</a> to
   <a href="open-questions.html#oq-30">OQ-30</a>, and on 2026-11-04 the design gate raised one more,
-  <a href="open-questions.html#oq-32">OQ-32</a> — thirty-two in all, twenty-one answered.</p>
-  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-32)</a></strong></p>
+  <a href="open-questions.html#oq-32">OQ-32</a>, and on 2026-11-14 the QA sync raised three more,
+  <a href="open-questions.html#oq-33">OQ-33</a> to <a href="open-questions.html#oq-35">OQ-35</a> — thirty-five in all, twenty-one answered.</p>
+  <p><strong>→ <a href="open-questions.html">Open questions (OQ-01…OQ-35)</a></strong></p>
 
 </main>
 </div>

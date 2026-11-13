@@ -24,7 +24,7 @@
 # WHAT IT MUST NEVER PRINT.  The matched line of a secret-bearing file.  This
 # script runs on the host, where deploy/rebuild-restart.sh symlinks the
 # host-side credentials into worktrees, so the tree it walks contains them.
-# For a path matching *.env, *.aim-*, *.pem or *.key, print the path and the
+# For a path matching *.env, *.aim-*, *.api-*, *.pem or *.key, print the path and the
 # rule and never the text.
 
 set -u
@@ -109,11 +109,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "two hundred and seventy-three" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "273" ]; then
+if grep -q "two hundred and ninety-three" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "293" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says two hundred and seventy-three"
+  bad "Go test count: $go_tests tests on disk, register says two hundred and ninety-three"
 fi
 
 prose_check() {
@@ -124,11 +124,11 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "three hundred and ninety"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "three hundred and ninety"
-prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-one entries"
-prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-two in one place"
-prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty rules"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "four hundred and eleven"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "four hundred and eleven"
+prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-six entries"
+prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-five in one place"
+prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-four rules"
 
 readme_check() {
   local label="$1" want="$2"
@@ -138,10 +138,10 @@ readme_check() {
     bad "$label: README.md does not say \"$want\""
   fi
 }
-readme_check "README dashboard test count" "251 tests"
-readme_check "README total test count"    "273 tests"
-readme_check "README case count"          "390 cases"
-readme_check "README version"             "Product version 0.36.0"
+readme_check "README dashboard test count" "271 tests"
+readme_check "README total test count"    "293 tests"
+readme_check "README case count"          "411 cases"
+readme_check "README version"             "Product version 0.37.0"
 
 # ------------------------------------------------------------- 4. rule forks ---
 # A rule restated in two files forks: one harness enforces the new wording and
