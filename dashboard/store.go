@@ -137,6 +137,9 @@ type Store interface {
 	QaSummary(ctx context.Context, productID string) (QaSummary, error)
 	QaImport(ctx context.Context, productID string, in QaImportIn) (QaImportOut, Result, error)
 	QaApplyResults(ctx context.Context, productID string, in QaResultsIn) (QaResultsOut, Result, error)
+	// QaCreate is the QA tools' create-only door (design §4.12): new cases, new
+	// epics and, for a new epic, one BLOCKED card.
+	QaCreate(ctx context.Context, productID string, in QaCreateIn) (QaCreateOut, Result, error)
 	// QaRecordSync records what one direction of the outbound sync did.
 	QaRecordSync(ctx context.Context, productID, dir string, side QaSyncSide) (Result, error)
 
@@ -293,4 +296,7 @@ func (readOnly) QaApplyResults(context.Context, string, QaResultsIn) (QaResultsO
 }
 func (readOnly) QaRecordSync(context.Context, string, string, QaSyncSide) (Result, error) {
 	return Result{}, reject(replayRefusal)
+}
+func (readOnly) QaCreate(context.Context, string, QaCreateIn) (QaCreateOut, Result, error) {
+	return QaCreateOut{}, Result{}, reject(replayRefusal)
 }

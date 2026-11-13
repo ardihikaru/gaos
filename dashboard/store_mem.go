@@ -2065,6 +2065,13 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	// nobody has been dispatched to write yet.
 	for i := range s.tasks {
 		t := &s.tasks[i]
+		// Only the tasks of THIS workflow. The loop used to walk every task of
+		// every product, so planning one product re-blocked another's gated
+		// task -- in flight or not -- and overwrote its BlockReason (found by
+		// the QA-sync design review, round 3).
+		if t.WorkflowID != wf {
+			continue
+		}
 		if taskKind(t.Kind) != TaskKindImplement {
 			continue
 		}

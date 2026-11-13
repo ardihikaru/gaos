@@ -136,6 +136,28 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	if err != nil {
 		t.Fatalf("snapshot: %v", err)
 	}
+	// D-072 / design §4.12: a product with a workflow gets one BLOCKED card for
+	// a new epic the QA tools name, and the card, its edge and its block reason
+	// must be in the graph, not only in memory.
+	if _, err := first.AddStory(ctx, qaPID, Story{Pri: "must", Role: "qa", Want: "w", So: "s", AC: []string{"a", "b"}}); err != nil {
+		t.Fatalf("add story: %v", err)
+	}
+	if _, err := first.CreateWorkflow(ctx, WorkflowDraft{ProductID: qaPID, Goal: "plan", Stories: []string{"US-01"}}, []PlanTask{
+		{ID: "t-1", Title: "Design", Role: "architect", Kind: TaskKindDesign},
+		{ID: "t-2", Title: "Review", Role: "qa", Kind: TaskKindReview, Deps: []string{"t-1"}},
+		{ID: "t-3", Title: "Build", Role: "qa", Story: "US-01", Kind: TaskKindImplement, Deps: []string{"t-2"}},
+	}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	cc := qaCase("TC-NEW-001")
+	cc.Epic = "NEW"
+	if cout, _, err := first.QaCreate(ctx, qaPID, QaCreateIn{Cases: []QaCase{cc}}); err != nil || cout.CardsAdded != 1 {
+		t.Fatalf("QaCreate of a new epic: %+v err=%v, want one card", cout, err)
+	}
+	// The workflow above seated a desk the first snapshot did not have.
+	if before, err = first.Snapshot(ctx); err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
 	beforeEvents, _ := first.Events(ctx)
 
 	second, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
@@ -182,13 +204,29 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	if len(m.Stories) == 0 {
 		t.Error("the story added before the reopen is gone from the master record")
 	}
+	bd, err := second.Board(ctx, qaPID)
+	if err != nil {
+		t.Fatalf("board after reopen: %v", err)
+	}
+	cards := 0
+	for _, c := range bd.Cards {
+		if c.Label == "Automate: NEW" {
+			cards++
+			if c.Status != StatusBlocked {
+				t.Errorf("the QA card came back %s, want BLOCKED", c.Status)
+			}
+		}
+	}
+	if cards != 1 {
+		t.Errorf("%d QA cards after reopen, want 1: the card never reached the graph", cards)
+	}
 	qm, err := second.Master(ctx, qaPID)
-	if err != nil || qm.Qa.CatHead != 2 || len(qm.Qa.Epics) != 1 {
-		t.Errorf("the QA state did not come back: head=%d epics=%d err=%v, want head 2, 1 epic", qm.Qa.CatHead, len(qm.Qa.Epics), err)
+	if err != nil || qm.Qa.CatHead != 3 || len(qm.Qa.Epics) != 2 {
+		t.Errorf("the QA state did not come back: head=%d epics=%d err=%v, want head 3, 2 epics", qm.Qa.CatHead, len(qm.Qa.Epics), err)
 	}
 	page, err := second.QaCases(ctx, qaPID, QaQuery{})
-	if err != nil || len(page.Items) != 2 {
-		t.Fatalf("the catalog did not come back: %d cases, err %v, want 2", len(page.Items), err)
+	if err != nil || len(page.Items) != 3 {
+		t.Fatalf("the catalog did not come back: %d cases, err %v, want 3", len(page.Items), err)
 	}
 	for _, c := range page.Items {
 		if c.CaseID == "TC-AUTH-001" && (!c.Implemented || c.Result != "fail" || c.RunRef != "run-1" || c.Spec != "tests/a.spec.ts") {
@@ -1430,7 +1468,7 @@ func wipeTenant(t *testing.T, arc *Arcade, tenant string) {
 	for _, typ := range []string{
 		"Product", "Workflow", "Task", "TaskRun", "ContextSlice", "Requirement", "Issue",
 		"AcceptanceCriterion", "Artifact", "Decision", "Repository",
-		"Event", "Snapshot", "Agent", "Room", "Tenant",
+		"Event", "Snapshot", "Agent", "Room", "QaCase", "Tenant",
 	} {
 		if err := arc.Command(ctx,
 			fmt.Sprintf("DELETE FROM %s WHERE tenantId = :t", typ),
