@@ -154,7 +154,7 @@ if [ -z "$INSIDE" ]; then
     # behind in a worktree nobody removed.
     # The gateway's two secret files (deploy/stacks/<tier>.aim-*) are the same
     # kind of thing and are linked the same way.
-    for e in deploy/stacks/*.env deploy/stacks/*.aim-*; do
+    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac
       ln -sfn "$PWD/$e" "$WT/$e"

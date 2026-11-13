@@ -115,6 +115,18 @@ for f in deploy/stacks/*.aim-*; do
     ok "$(basename "$f") is untracked"
   fi
 done
+for f in deploy/stacks/*.api-*; do
+  # The machine API's bearer tokens (D-072): host-side files mounted read-only.
+  [ -e "$f" ] || continue
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    bad "$f is tracked by git"
+  else
+    ok "$(basename "$f") is untracked"
+  fi
+  if [ ! -f "$f" ]; then
+    bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
+  fi
+done
 hasnt $DEV  'PASSWORD: "'                    "dev bakes no password into compose"
 hasnt $PROD 'PASSWORD: "'                    "prod bakes no password into compose"
 
