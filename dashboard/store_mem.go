@@ -92,6 +92,10 @@ type MemStore struct {
 	// them" -- the next attempt is cited one document, not a pile.
 	artifacts map[string]ArtifactRecord
 
+	// qa is the QA catalog: product -> case id -> case. Not folded, restored
+	// by ArcadeStore.load (qacatalog.go).
+	qa map[string]map[string]QaCase
+
 	// workflowSeq numbers workflows. Monotonic, and never derived from
 	// len(desks): the desks are the six seeded products and their count does not
 	// change, so `wf-len(desks)+1` handed every workflow ever created the same
@@ -250,6 +254,7 @@ func newProjection() *MemStore {
 		pending:     map[string][]LogLine{},
 		slices:      map[string]SliceRecord{},
 		artifacts:   map[string]ArtifactRecord{},
+		qa:          map[string]map[string]QaCase{},
 
 		// The documented defaults of §7.6.1, so a store built without a
 		// configuration still screens. An egress policy that defaulted to
@@ -1654,10 +1659,15 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 		owner = "unassigned"
 	}
 	id := fmt.Sprintf("p-%d", len(s.products)+1)
+	prio := "medium"
+	switch dr.Priority {
+	case "low", "high":
+		prio = dr.Priority
+	}
 	s.products = append(s.products, Product{ID: id, Name: name, Repo: repo, Goal: goal})
 	s.masters = append(s.masters, Master{
 		ID: id, Code: strings.ToUpper(firstN(name, 2)), Owner: owner,
-		Priority: "medium", Stage: "draft", Repos: []string{repo},
+		Priority: prio, Stage: "draft", Repos: []string{repo},
 	})
 	e := s.emit(ProductCreated, id, name+" record created", KindInfo, EventPayload{})
 	r := s.result("Product record created. Fill the requirements before planning work.", e)
@@ -1954,7 +1964,24 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	}
 	idx := s.deskIdxByID(d.ProductID)
 	if idx < 0 {
-		return Result{}, ErrNotFound
+		// D-076: a product made in the back office has no desk, because desks
+		// were only ever built for the seeded products. Seat an idle one; the
+		// code below activates it. No event records it and the fold skips events
+		// for desks it never seated (fold.go), so a parked floor does not show
+		// it -- the first runtime desk, and a known gap rather than a hidden one.
+		var p *Product
+		for i := range s.products {
+			if s.products[i].ID == d.ProductID {
+				p = &s.products[i]
+			}
+		}
+		if p == nil {
+			return Result{}, ErrNotFound
+		}
+		s.desks = append(s.desks, Desk{
+			ID: p.ID, Name: p.Name, Repo: p.Repo, Goal: p.Goal, State: StateIdle,
+		})
+		idx = len(s.desks) - 1
 	}
 
 	// The picked stories now have planned tasks, which is what moves the

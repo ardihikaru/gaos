@@ -130,6 +130,16 @@ type Store interface {
 	// (D-066); main.go sweeps it once a minute.
 	ExpireQuestions(ctx context.Context, now int64) (Result, error)
 
+	// The QA catalog (qacatalog.go, D-072). The three writes carry NO floor in
+	// their Result: the catalog is not part of the floor, and a write that
+	// carried one would save a replayed past over the live desks (BR-20).
+	QaCases(ctx context.Context, productID string, q QaQuery) (QaPage, error)
+	QaSummary(ctx context.Context, productID string) (QaSummary, error)
+	QaImport(ctx context.Context, productID string, in QaImportIn) (QaImportOut, Result, error)
+	QaApplyResults(ctx context.Context, productID string, in QaResultsIn) (QaResultsOut, Result, error)
+	// QaRecordSync records what one direction of the outbound sync did.
+	QaRecordSync(ctx context.Context, productID, dir string, side QaSyncSide) (Result, error)
+
 	// ---- planning ----
 	// PlanWorkflow is pure: it reads the master and returns a task graph without
 	// writing anything, so the wizard can preview a plan the user may discard.
@@ -149,6 +159,10 @@ type Result struct {
 	Master    *Master
 	NewEvents []Event
 	Toast     string
+
+	// QaCases are the catalog cases this mutation changed; ArcadeStore writes
+	// them in the same transaction as the events.
+	QaCases []QaCase
 }
 
 // Sentinel errors. ErrRejected is the "rejection reason" half of the §09 rule:
@@ -268,5 +282,15 @@ func (readOnly) Inject(context.Context, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) CreateWorkflow(context.Context, WorkflowDraft, []PlanTask) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+
+func (readOnly) QaImport(context.Context, string, QaImportIn) (QaImportOut, Result, error) {
+	return QaImportOut{}, Result{}, reject(replayRefusal)
+}
+func (readOnly) QaApplyResults(context.Context, string, QaResultsIn) (QaResultsOut, Result, error) {
+	return QaResultsOut{}, Result{}, reject(replayRefusal)
+}
+func (readOnly) QaRecordSync(context.Context, string, string, QaSyncSide) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
