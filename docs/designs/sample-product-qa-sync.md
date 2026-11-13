@@ -107,9 +107,10 @@ at the commit the seed records, §4.9):
 
 - `polarity` `+`|`-`; `level` `API`|`GQL`|`WEB`|`E2E`; `pri` `P0`..`P3`;
   `decision` `planned`|`blocked`|`manual-only`|`wont`; `result` `""`|`pass`|`fail`|`skipped`.
-- `reason`: empty when `decision == planned`; else `<category>:<detail>`,
-  category in `defect|not-needed|blocked|unsafe|manual-only|deferred|other`,
-  detail non-empty.
+- `reason`: required for `blocked`/`manual-only`/`wont`; optional on `planned`
+  (the source catalog's planned rows may carry a note such as `deferred:…`).
+  When present it is `<category>:<detail>`, category in
+  `defect|not-needed|blocked|unsafe|manual-only|deferred|other`, detail non-empty.
 - patterns: `caseId ^TC-[A-Z]+-[0-9]{3}$`; `epic ^[A-Z]{2,8}$`;
   `userStory ^US-[A-Z]+-[0-9]{2}$` or empty; `module ^[A-D][0-9]{2}$` or empty;
   feature `^[A-D][0-9]{2}\.[0-9]{2,3}(\.[0-9]{2})?$`.
@@ -303,6 +304,7 @@ deploy order is: deploy, seed (prints the id), set the variable, restart.
 | `GET /v1/products` | qa | `[{id,name,repo}]` (QA: its products only) |
 | `GET /v1/products/{id}/qa/summary` | qa | totals, per-epic roll-up, `regressed` epics (an epic with a `fail`), needs-decision list, sync state, `catHead` |
 | `GET /v1/products/{id}/qa/cases?after=<catRev>&limit=<1..200, default 100>&epic=<code>` | qa | cases with `catRev > after`, ascending; `{items,next,catHead}`; `next` = last item's `catRev` when the page was full, else `null` |
+| `POST /v1/products/{id}/qa/cases` | qa | create-only, §4.12: `{source,epics?,cases[]}` → `{created,unchanged,rejected[],epicsAdded,cardsAdded,catHead}` |
 | `POST /v1/products/{id}/qa/results` | qa | `{source,force?,items[]}` → `{applied,unchanged,rejected[],catHead}` |
 | `POST /v1/products/{id}/qa/catalog` | admin | `{seed?,epics[],cases[]}` → `{created,updated,unchanged,rejected[],catHead}` |
 | `POST /v1/seed/product` | admin | §4.9 |
@@ -396,7 +398,7 @@ overwrites what an operator edited), each through an **existing store call**:
 7. readiness: if `Master.ReadinessScore() < PlanFloor` → 422 `not-ready` with
    `ReadinessMissing()` (BR-07 holds for the seed; `CreateWorkflow` does not
    check it itself, `store_mem.go:1930-1958`).
-8. epics: `QaImport` epics (with the resolved story id).
+8. epics: `QaImport` epics (with the resolved story id; the card's task id is stored by a second import after step 9).
 9. workflow, only if the product's desk has no tasks: `CreateWorkflow` with
    `WorkflowDraft{ProductID, Goal: plan.goal, Priority: plan.priority, Gate:false,
    Stories: <story ids with an epic>}` and this plan, **task `Gate:true` except the Release task** (a human releases it):
@@ -437,7 +439,7 @@ whole file with the existing egress detector (`egress.go:466`).
 token from its file, passes the header through a mode-600 temp file
 (`curl -H @file`, so it is never in argv), posts the product seed, then the
 cases in slices of 200 with `seed:true` (9 slices), then reads
-`/qa/summary` and **asserts the totals** (§7, TC-408). Re-running changes
+`/qa/summary` and **asserts the totals** (§7, TC-412). Re-running changes
 nothing.
 
 ### 4.10 Outbound sync and the BO tab
@@ -597,8 +599,8 @@ two buttons; **D-076** the desk fix. D-071 is taken
 (`decision-log.html:1404`). Log: seventy-one → **seventy-six** entries. Rules:
 **BR-51** one writer per field, newest run wins inside the automation half;
 **BR-52** the API is bearer-authenticated, fail-closed, product-scoped for the
-QA token; **BR-53** every batch is bounded; **BR-54** QA data never writes the
-task graph. BRD: "Fifty rules" → **fifty-four**. Open questions:
+QA token; **BR-53** every batch is bounded; **BR-54** QA data never moves a task (it may add one card for a new epic,
+§4.12). BRD: "Fifty rules" → **fifty-four**. Open questions:
 **OQ-33** the QA tools' endpoints are a contract only; **OQ-34** who may edit a
 case's decision (needs BR-48's identity); **OQ-35** whether results should ever
 move a card. OQ: "thirty-two" → **thirty-five**. Delivery plan
