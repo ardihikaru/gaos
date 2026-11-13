@@ -36,6 +36,47 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-37-0">v0.37.0 <time datetime="2026-11-14">2026-11-14</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A QA catalog per product, a REST API for the QA tools, and sample-product on the board. One change together.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>a QA catalog per product</b>: test cases are
+        <code>QaCase</code> vertices, never tasks, with one writer per field &mdash; GAOS owns the planning half,
+        the QA tools own the automation half, and the newest run wins inside it
+        (<a href="product/decision-log.html#d-072">D-072</a>, <a href="product/decision-log.html#d-073">D-073</a>,
+        <a href="product/brd.html#rules-qa-sync">BR-51</a>).</li>
+        <li><span class="chg add">Added</span> <b>a bearer-token REST API</b> at <code>/api/v1</code> for the QA
+        tools: products, a summary, the cases feed, create-only cases, results, and, for the admin token, a
+        catalog import and a generic product seed. Fail-closed, product-scoped for the QA token, bounded at 200
+        items and 1 MiB (<a href="product/brd.html#rules-qa-sync">BR-52, BR-53</a>). The contract is published as
+        <a href="guide/qa-sync-api.html">The QA sync API</a>.</li>
+        <li><span class="chg add">Added</span> <b>a new epic from the QA side adds one blocked card</b> to the
+        product's board, and nothing the QA tools send ever moves a task
+        (<a href="product/brd.html#rules-qa-sync">BR-54</a>). <code>TaskPlanned</code> now also announces an
+        addition to a plan; no event name was added.</li>
+        <li><span class="chg add">Added</span> <b>a QA tab</b> in the back office, live case counts on an
+        epic's board card, and two buttons, <em>Pull</em> and <em>Push</em>, by which GAOS calls the QA tools. The
+        buttons stay disabled until the QA tools implement their side
+        (<a href="product/decision-log.html#d-075">D-075</a>, <a href="product/open-questions.html#oq-33">OQ-33</a>).</li>
+        <li><span class="chg add">Added</span> <b>a generic product seed</b> and sample-product's data under
+        <code>deploy/seed/sample-product/</code>, loaded by <code>seed.sh</code>; the seed never clears the design gate
+        (<a href="product/decision-log.html#d-074">D-074</a>).</li>
+        <li><span class="chg change">Changed</span> <b>a product made in the back office can now have a workflow</b>:
+        it is seated at an idle desk when it is first planned
+        (<a href="product/decision-log.html#d-076">D-076</a>). <code>POST /workflows</code> and the task routes
+        <code>dispatch</code>, <code>approve</code>, <code>retry</code> and <code>cancel</code> now require the
+        back-office cookie.</li>
+        <li><span class="chg fix">Fixed</span> <b><code>CreateWorkflow</code>'s gate loop</b> walked every task of
+        every product and re-blocked any implementation task with a review dependency; it now touches only the
+        workflow being created.</li>
+        <li><span class="chg change">Changed</span> <b>migration and configuration</b>: the schema gains
+        <code>16-qa-catalog.sql</code> (<code>QaCase</code>, <code>HAS_QA_CASE</code>), applied on boot and purely
+        additive. Five variables, all optional: <code>GAOS_API_ADMIN_TOKEN_FILE</code>,
+        <code>GAOS_API_QA_TOKEN_FILE</code>, <code>GAOS_API_QA_PRODUCTS</code>, <code>GAOS_QA_URL</code> and
+        <code>GAOS_QA_TOKEN_FILE</code>. With no token the API answers 503 and the buttons stay disabled.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-36-2">v0.36.2 <time datetime="2026-11-13">2026-11-13</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One bar, no nesting.</p>
       <ul>

@@ -79,6 +79,18 @@ window.DOCS.nav.push({
         }
       ]
     }
+    {
+      id: "qa-sync-api", file: "guide/qa-sync-api.html", title: "The QA sync API",
+      desc: "The public contract for the QA tools: the bearer-token REST API GAOS serves, the two endpoints GAOS calls, and which side owns which field of a test case.",
+      tags: ["api", "rest", "qa", "integration", "bearer", "curl", "catalog"],
+      sections: [
+        { anchor: "base-and-auth", title: "Base URL and authentication", text: "The base URL, the bearer token, the qa and admin scopes, product scoping and the fail-closed rules." },
+        { anchor: "limits-and-errors", title: "Limits, errors and status codes", text: "200 items and 1 MiB a request, strict JSON, one write in flight per token, the error shape and what each status means." },
+        { anchor: "calls", title: "The calls GAOS serves", text: "One curl example per call: products, summary, the cases feed, create-only cases and the card a new epic adds, results and the run-record rules, the admin catalog and the product seed." },
+        { anchor: "ownership", title: "Who owns which field", text: "The planning half is GAOS's and the automation half is the QA tools'; inside the automation half the newest run wins." },
+        { anchor: "gaos-calls", title: "What GAOS calls on the QA tools", text: "GET /api/v1/gaos/results with its page shape and POST /api/v1/gaos/catalog, behind the two sync buttons." }
+      ]
+    },
     /* pustaka:insert — `pustaka new` adds entries above this marker */
   ]
 });

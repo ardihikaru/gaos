@@ -15,15 +15,15 @@
   <p class="eyebrow">Delivery</p>
   <h1>Implementation plan</h1>
   <p class="lede">Every business requirement in the BRD, mapped against the code that is actually
-  committed, and broken into eighteen modules of work you can pick up one at a time.
-  One hundred and eighty-eight tasks: ninety-four done, eighteen standing on fixtures or partly done,
+  committed, and broken into twenty modules of work you can pick up one at a time.
+  One hundred and ninety-three tasks: ninety-nine done, eighteen standing on fixtures or partly done,
   seventy-one not started, and five superseded by the move to ai-manager as the gateway.</p>
 
   <div class="page-meta"
        data-tags="implementation, roadmap, tasks, gap-analysis, modules, brd"
        data-hashtags="delivery, planning, roadmap, gap-analysis"
        data-published="2026-08-09"
-       data-updated="2026-11-04"
+       data-updated="2026-11-14"
        data-version-from="0.6.0"
        data-version-to=""></div>
 
@@ -78,7 +78,7 @@
   </div>
 
   <h2 id="scoreboard">Scoreboard</h2>
-  <p>Nineteen modules, seventy-eight sub-modules. The last column is the thing to pick up if you open
+  <p>Twenty modules, eighty-three sub-modules. The last column is the thing to pick up if you open
   that module today — usually the first task that is not already done, and where the module has one
   task the rest of it waits on, that instead. <code>M1</code> names injection, <code>M6</code>
   authentication and <code>M10</code> the budget zones for exactly that reason, and each says so in
@@ -105,7 +105,8 @@
       <tr data-tags="vendor policy claude antigravity product mixed role m16"><td><a href="#m16-vendors">M16 &middot; AI vendors per product</a></td><td>3</td><td>3</td><td>3</td><td>0</td><td>0</td><td><a href="#register">T-178</a> &mdash; merge and deploy the upstream branch</td></tr>
       <tr data-tags="design gate review zero-context m17"><td><a href="#m17-design-gate">M17 &middot; The design gate</a></td><td>4</td><td>5</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
       <tr data-tags="reviewer workspace isolation review design gate m17.5"><td><a href="#sub-m17-5">M17.5 &middot; The reviewer's own workspace</a></td><td>3</td><td>3</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
-      <tr data-tags="total"><td><b>All modules</b></td><td><b>78</b></td><td><b>102</b></td><td><b>18</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
+      <tr data-tags="qa catalog sample-product api seed sync desk m18"><td><a href="#m18-qa-catalog">M18 &middot; The QA catalog and the sample-product product</a></td><td>5</td><td>5</td><td>0</td><td>0</td><td>0</td><td>&mdash; complete</td></tr>
+      <tr data-tags="total"><td><b>All modules</b></td><td><b>83</b></td><td><b>107</b></td><td><b>18</b></td><td><b>66</b></td><td><b>5</b></td><td>&mdash;</td></tr>
     </tbody>
   </table>
   <p>Domain E has no numbered requirements in the BRD — §8.5 specifies it as a formula, a score-band
@@ -353,6 +354,11 @@
       <tr data-tags="reviewer workspace isolation review design gate m17.5"><td>T-189</td><td>M17.5</td><td>The reviewer's workspace id and the packet that carries it: <code>gaos-&lt;tenant&gt;-&lt;product&gt;-review</code>, derived per product and never from the shared override, which is retired</td><td>D-071, BR-49</td><td>✅</td></tr>
       <tr data-tags="reviewer workspace isolation review design gate m17.5"><td>T-190</td><td>M17.5</td><td>The reset and the drift attribution: the reviewer's folder is re-synced with a prune before every review turn and its digest verified, and a run records which workspace it used, so a reviewer's turn never marks the author's workspace drifted</td><td>D-071, BR-38, BR-39</td><td>✅</td></tr>
       <tr data-tags="reviewer workspace isolation review design gate m17.5"><td>T-191</td><td>M17.5</td><td>The registers: <a href="../product/decision-log.html#d-071">D-071</a>, BR-38, BR-47 and BR-49 amended, OQ-27 narrowed, and TC-382&hellip;TC-390</td><td>D-071</td><td>✅</td></tr>
+      <tr data-tags="qa catalog schema vertex store desk fix gate loop sample-product m18.1"><td>T-192</td><td>M18.1</td><td>The QA catalog and the desk fix (P1): <code>QaCase</code> and <code>HAS_QA_CASE</code> (<code>16-qa-catalog.sql</code>), the vocabularies and validation, the five store methods on <code>MemStore</code> and <code>ArcadeStore</code>, <code>ProductDraft.Priority</code>, the idle desk <code>CreateWorkflow</code> seats for a back-office product, <code>requireBO</code> on <code>POST /workflows</code> and the four task routes, and the fix to <code>CreateWorkflow</code>'s gate loop</td><td><a href="../product/decision-log.html#d-072">D-072</a>, <a href="../product/decision-log.html#d-073">D-073</a>, <a href="../product/decision-log.html#d-076">D-076</a>, <a href="../product/brd.html#rules-qa-sync">BR-51</a>, BR-54</td><td>✅</td></tr>
+      <tr data-tags="qa api rest bearer token scope product scoping limits m18.2"><td>T-193</td><td>M18.2</td><td>The REST surface (P2): <code>/v1</code> (public <code>/api/v1</code>) with the admin and QA scopes, tokens from files, fail-closed, the QA token scoped to <code>GAOS_API_QA_PRODUCTS</code>, bounded and strictly decoded batches, one write in flight per token, the cases feed by revision, and QA writes that carry no floor</td><td><a href="../product/decision-log.html#d-072">D-072</a>, <a href="../product/brd.html#rules-qa-sync">BR-52</a>, BR-53</td><td>✅</td></tr>
+      <tr data-tags="seed sample-product product generic idempotent readiness blueprint workflow m18.3"><td>T-194</td><td>M18.3</td><td>The generic product seed and sample-product's data (P3): <code>POST /v1/seed/product</code>, the generator, <code>deploy/seed/sample-product/{product,cases}.json</code> and <code>seed.sh</code>; the design gate is not cleared</td><td><a href="../product/decision-log.html#d-074">D-074</a>, BR-07, BR-52</td><td>✅</td></tr>
+      <tr data-tags="qa outbound sync pull push buttons tab client m18.4"><td>T-195</td><td>M18.4</td><td>Outbound sync and the QA tab (P4): <code>qaclient.go</code>, the two back-office buttons, the QA tab and the live case counts on a board card; inert until <code>GAOS_QA_URL</code> and its token are set</td><td><a href="../product/decision-log.html#d-075">D-075</a>, BR-52, BR-53</td><td>✅</td></tr>
+      <tr data-tags="qa creation epic card blocked registers pustaka guide m18.5"><td>T-196</td><td>M18.5</td><td>Creation by the QA tools, the blocked card and the registers (P5): the create-only endpoint, one <code>BLOCKED</code> card per new epic, <a href="../product/decision-log.html#d-072">D-072</a>&hellip;<a href="../product/decision-log.html#d-076">D-076</a>, BR-51&hellip;BR-54, OQ-33&hellip;OQ-35, TC-391&hellip;TC-411 and the published API page</td><td>D-072&hellip;D-076, <a href="../product/brd.html#rules-qa-sync">BR-51&hellip;BR-54</a></td><td>✅</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="ip-empty">No task matches that filter.</div>
@@ -1515,6 +1521,41 @@
   <p>The limits are named rather than hidden: the standing files still carry the product's stories
   and decisions, and the two folders are siblings under one managed root, so the gateway's write
   boundary is not a read boundary between them.</p>
+
+  <h2 id="m18-qa-catalog">M18 &middot; The QA catalog and the sample-product product</h2>
+  <p>Added on 2026-11-14 with <a href="../product/decision-log.html#d-072">D-072</a>&hellip;<a href="../product/decision-log.html#d-076">D-076</a>,
+  rules <a href="../product/brd.html#rules-qa-sync">BR-51 to BR-54</a> and
+  <a href="../product/qa-test-plan.html#go-qa-catalog">TC-391&hellip;TC-411</a>. GAOS keeps a QA catalog per product,
+  serves a bearer-token REST API for the QA tools, seeds the sample-product product, and calls the QA tools from two
+  back-office buttons. This milestone is <strong>built</strong> as of v0.37.0, in five phases that each ended with
+  <code>go vet</code> and <code>go test</code> green. Its design is
+  <code>docs/designs/sample-product-qa-sync.md</code>, reviewed in three rounds. No event name, task status or docs class was
+  added: the three closed vocabularies stayed closed. The contract for the QA tools is published at
+  <a href="../guide/qa-sync-api.html">The QA sync API</a>; what stays open is
+  <a href="../product/open-questions.html#oq-33">OQ-33</a>, <a href="../product/open-questions.html#oq-34">OQ-34</a>
+  and <a href="../product/open-questions.html#oq-35">OQ-35</a>.</p>
+
+  <h3 id="sub-m18-1">M18.1 &mdash; The catalog and the desk fix (T-192)</h3>
+  <p>A case is a <code>QaCase</code> vertex with one writer per field, never a task. A product made in the back
+  office is seated at an idle desk when it is first planned, so it can have a workflow and a board; five routes
+  that took no cookie check now require one; and <code>CreateWorkflow</code>'s gate loop no longer re-blocks
+  another product's tasks.</p>
+
+  <h3 id="sub-m18-2">M18.2 &mdash; The REST surface (T-193)</h3>
+  <p>Fail-closed, product-scoped for the QA token, bounded at 200 items and 1 MiB. A QA write carries no floor, so
+  a replayed floor is never overwritten.</p>
+
+  <h3 id="sub-m18-3">M18.3 &mdash; The seed (T-194)</h3>
+  <p>Generic and idempotent; sample-product's data is outside the binary and the gate is not cleared. The data stays in this
+  private repository only until it could be made public.</p>
+
+  <h3 id="sub-m18-4">M18.4 &mdash; Outbound sync and the QA tab (T-195)</h3>
+  <p>One configured origin, no redirects, one sync at a time and a cooldown. The buttons render disabled, with the
+  reason, until the QA tools implement their side.</p>
+
+  <h3 id="sub-m18-5">M18.5 &mdash; Creation, the blocked card and the registers (T-196)</h3>
+  <p>The QA token may create cases and, for a new epic, one card that is born <code>BLOCKED</code>; nothing it sends
+  moves an existing task.</p>
 
   <h2 id="whats-excluded">What this page deliberately leaves out</h2>
   <p>Domain K — the commercial model — has no rows here. <code>K-1</code>…<code>K-10</code> are

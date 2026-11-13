@@ -33,7 +33,7 @@ window.DOCS.nav.push({
       id: "brd",
       file: "product/brd.html",
       title: "BRD — Business requirements",
-      desc: "GAOS's business source of truth: the three design artifacts restated as business requirements across twelve domains, with 50 business rules, a fourteen-entry risk register, a scope boundary, the move to ai-manager as the one gateway with a Blueprint and a board per product, the dual CLI/API execution model it supersedes, the budget guard, and a commercial model and technical policy that are now decided rather than deferred.",
+      desc: "GAOS's business source of truth: the three design artifacts restated as business requirements across twelve domains, with 54 business rules, a fourteen-entry risk register, a scope boundary, the move to ai-manager as the one gateway with a Blueprint and a board per product, the dual CLI/API execution model it supersedes, the budget guard, and a commercial model and technical policy that are now decided rather than deferred.",
       tags: ["brd", "business-requirements", "objectives", "stakeholders", "scope", "business-rules", "risks", "tenancy", "commercial", "open-core", "pricing", "data-protection"],
       sections: [
         { anchor: "executive-summary", title: "1. Executive summary",
@@ -53,7 +53,7 @@ window.DOCS.nav.push({
         { anchor: "business-requirements", title: "8. Business requirements",
           text: "Twelve domains A–L: product master, readiness gating, planning, execution, review and retry, gates, memory, replay, the operator surface, tenancy and cost control including the three-zone budget guard, commercial — now decided, with the proposed rate card — and data protection, egress and residency." },
         { anchor: "business-rules", title: "9. Business rules",
-          text: "BR-01 to BR-50 across core invariants, readiness and planning, scoring and gates, data and replay, and the commercial, execution and data-handling rules — the open-core boundary, what may never be sold, tenancy as a configurable boundary, normalised model tiers, and why an unpriceable cost is never reported as zero — plus §9.6, BR-38 to BR-45, and §9.7, BR-46 to BR-50: one live turn per workspace, a pinned Blueprint, no silently replaced session, the session as transport, ids never paths, a board move as a request, a question that waits only on its answer, and the design gate — a review before the build, isolated at the packet." },
+          text: "BR-01 to BR-54 across core invariants, readiness and planning, scoring and gates, data and replay, and the commercial, execution and data-handling rules — the open-core boundary, what may never be sold, tenancy as a configurable boundary, normalised model tiers, and why an unpriceable cost is never reported as zero — plus §9.6, BR-38 to BR-45, and §9.7, BR-46 to BR-50: one live turn per workspace, a pinned Blueprint, no silently replaced session, the session as transport, ids never paths, a board move as a request, a question that waits only on its answer, and the design gate — a review before the build, isolated at the packet — and §9.8, BR-51 to BR-54: one writer per QA case field, a fail-closed bearer API, bounded batches, and QA data that never moves a task." },
         { anchor: "scope", title: "10. Scope",
           text: "What is in scope, a boundary diagram showing what GAOS never owns — the tenant's repository, the merge, the model provider, the host — and ten constraints including the ArcadeDB version coupling, the open-core seam, Apache-2.0 as a one-way door, and the two adapters that must stay indistinguishable." },
         { anchor: "risks-and-assumptions", title: "11. Risks & assumptions",
@@ -75,7 +75,7 @@ window.DOCS.nav.push({
         { anchor: "appendix-document-notes", title: "Appendix C — Document notes",
           text: "Which reference template the structure came from, what was dropped and why, and the two structural departures: the decision log and the open questions are separate pages." },
         { anchor: "open-questions", title: "Consolidated open questions",
-          text: "Pointer to the thirty-two-question register, twenty-one of them answered, six raised by the move to the gateway and one by the design gate." }
+          text: "Pointer to the thirty-five-question register, twenty-one of them answered, six raised by the move to the gateway, one by the design gate and three by the QA sync." }
       ]
     },
     {
@@ -107,11 +107,11 @@ window.DOCS.nav.push({
       id: "open-questions",
       file: "product/open-questions.html",
       title: "Open questions",
-      desc: "Thirty-two decisions the BRD refuses to invent — twenty-one now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
+      desc: "Thirty-five decisions the BRD refuses to invent — twenty-one now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
-          text: "All thirty-two questions in one filterable table with theme, what each blocks, and status. Filter by pricing, licence, auth, or any word in a question." },
+          text: "All thirty-five questions in one filterable table with theme, what each blocks, and status. Filter by pricing, licence, auth, or any word in a question." },
         { anchor: "oq-commercial", title: "Commercial",
           text: "OQ-01 to OQ-07 and OQ-14, all answered on 2026-08-08 — open core, the target customer, the auditor persona, quota profiles, pricing basis, who pays the provider, support, and data handling — plus OQ-20 answered as Apache-2.0, OQ-19 answered as the generation pack, and the one still open: OQ-21 the rate card." },
         { anchor: "oq-product", title: "Product & scope",
@@ -126,7 +126,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Seventy-one decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
+      desc: "Seventy-six decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -159,15 +159,15 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates three hundred and ninety positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates four hundred and eleven positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All three hundred and ninety TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and seventy-three unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All four hundred and eleven TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the two hundred and ninety-three unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
-          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the two hundred and fifty-one dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
+          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the two hundred and seventy-one dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
           text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist. Since 2026-11-02 also TC-275 to TC-310: the ai-manager adapter and reply handoff, the Blueprint, the workspace and turns, live-aim-run.sh, and the board." }
       ]
