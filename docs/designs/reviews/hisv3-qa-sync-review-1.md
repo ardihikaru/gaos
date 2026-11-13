@@ -88,3 +88,28 @@ Critic: B=2 M=5 N=11. Security: Critical=1 High=3 Medium=5 Low=4.
 
 Surviving Blockers after v3: none known. A third round was not run; the
 fixes are mechanical and each has a named test. That is a judgement, stated.
+
+---
+
+# Round 3 (critic and security lenses, against draft v4, focused on §4.12)
+
+Critic: B=2 M=12 N=8. Security: Critical=0 High=4 Medium=3 Low=1.
+
+| Finding | Severity | Disposition | Note |
+|---|---|---|---|
+| A QA-created card can be dispatchable under a review that never covered it (critic B1, SEC-2) | Blocker / High | PROPOSE FIX | Always born `BLOCKED` (`qa-epic-added`); only an operator's `unblock` releases it; BR-46 note in §4.12. |
+| §8 / §4.4 still say QA cannot create cases or touch tasks (critic B2, SEC-4) | Blocker / High | PROPOSE FIX | §8 rewritten with exactly what the QA token can do, plus revocation; §4.1 writer table, §4.4 events, §4.5 cost. |
+| "The same helper CreateWorkflow uses" is an all-products loop that re-blocks other products' tasks (critic M, SEC-1) | Major / High | PROPOSE FIX | New single-task routine; and the existing loop is scoped to its own workflow (a real defect found by this review), asserted in TC-409. |
+| Replay rationale no longer holds for card writes (critic, SEC-7) | Major / Medium | PROPOSE FIX | Card creation refused while parked (`cardsDeferred: replay`); live-desk constructor named. |
+| Anchor review task and Release fan-in undefined (critic) | Major | PROPOSE FIX | Anchor = lowest-ordinal review of the current workflow; Release not touched; no backfill, `noCard` listed. |
+| Unbounded epic/card growth (critic, SEC-3) | Major / High | PROPOSE FIX | ≤ 5 new epics per request, ≤ 100 per product, ≤ 5,000 cases per product (BR-53). |
+| QA text reaches prompts unscreened (critic, SEC-5) | Major / Medium | PROPOSE FIX | Same server-side screen and strip as the seed; 400 `secret-in-body`. |
+| `epics` array can overwrite seeded epics (SEC-6) | Medium | PROPOSE FIX | Read only for a code that does not exist. |
+| BR-51 / §4.1 / G2 still say one writer (critic) | Major | PROPOSE FIX | Create-only writer added; wording "per existing case". |
+| seed.sh asserts fixed totals (critic) | Major | PROPOSE FIX | Lower bounds. |
+| Change list misses `taskfold.go`, board, helper, data-model doc, API page (critic) | Major | PROPOSE FIX | §5 amended in the next edit; fold rule stated in §4.12. |
+| 390 → 412 miscounted; skipped TC-408 (critic) | Major | PROPOSE FIX | Renumbered: TC-391…TC-410 tests, TC-411 script, total 411. |
+| `Gate` stated both ways in the seed plan (critic) | Major | PROPOSE FIX | `Gate:false` except Release. |
+| Code exists for a design marked Draft (critic) | Major | CONTEST (partly) | The code that exists implements v3, which the author approved under the product owner's "don't ask me"; the status line now says so and that §4.12 waited for this round. |
+| Token wording QA-only vs admin passes (critic nit, SEC-8) | Low | PROPOSE FIX | "QA scope; admin also passes". |
+| Nits (line numbers, review file names, existing-epic title, caseId infix, 200 vs 201, cross-repo doc) | Nit | PROPOSE FIX | Applied: infix rule, 200, ignored titles. |
