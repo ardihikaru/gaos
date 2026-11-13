@@ -62,6 +62,10 @@ type server struct {
 	// not exercise it, which is the same as disabled.
 	api *apiConfig
 
+	// qaOut is the client for GAOS calling the QA tools (qaclient.go); nil or
+	// unconfigured means the sync buttons are disabled.
+	qaOut *qaOutbound
+
 	// adapter is nil unless GAOS_MODEL_MODE names one. Held for /healthz and
 	// the boot log only -- the dispatch path reaches it through the store,
 	// because a dispatch emits events and only a store may.
@@ -268,7 +272,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 	}()
 
-	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv()}
+	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv(), qaOut: qaOutboundFromEnv()}
 
 	h := gzipMiddleware(srv.routes())
 	hs := &http.Server{
@@ -357,6 +361,10 @@ func (s *server) routes() http.Handler {
 
 	// The machine API (api_v1.go). Traefik strips /api, so these are /v1/...
 	s.registerAPI(mux)
+
+	// The QA sync buttons (handlers_qa.go): the back office's own routes.
+	mux.HandleFunc("POST /products/{id}/qa/sync/pull", s.handleQaPull)
+	mux.HandleFunc("POST /products/{id}/qa/sync/push", s.handleQaPush)
 
 	return mux
 }

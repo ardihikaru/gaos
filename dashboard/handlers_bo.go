@@ -294,6 +294,9 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 				d.Board = &b
 			}
 		}
+		if tab == "qa" {
+			d.QA = s.buildQAPane(r.Context(), m)
+		}
 		if tab == "vendors" {
 			d.Vendors = buildVendorsPane(r.Context(), m, s.adapter)
 		}
