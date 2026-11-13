@@ -114,7 +114,7 @@ func (s *MemStore) qaResult(m *Master, toast string, cases []QaCase, ev ...Event
 }
 
 func (s *MemStore) QaImport(ctx context.Context, productID string, in QaImportIn) (QaImportOut, Result, error) {
-	if len(in.Epics)+len(in.Cases) > qaMaxItems {
+	if len(in.Modules)+len(in.Epics)+len(in.Cases) > qaMaxItems {
 		return QaImportOut{}, Result{}, reject(fmt.Sprintf("A batch holds at most %d items.", qaMaxItems))
 	}
 	s.mu.Lock()
@@ -127,6 +127,32 @@ func (s *MemStore) QaImport(ctx context.Context, productID string, in QaImportIn
 	book := s.qaBook(productID)
 	var changed []QaCase
 	epicsChanged := 0
+
+	for _, mod := range in.Modules {
+		if why := validateModule(mod); why != "" {
+			out.Rejected = append(out.Rejected, QaReject{CaseID: mod.Key, Reason: why})
+			continue
+		}
+		idx := -1
+		for i := range m.Qa.Modules {
+			if m.Qa.Modules[i].Key == mod.Key {
+				idx = i
+			}
+		}
+		switch {
+		case idx < 0:
+			m.Qa.Modules = append(m.Qa.Modules, mod)
+			epicsChanged++
+		default:
+			if mod.Story == "" {
+				mod.Story = m.Qa.Modules[idx].Story
+			}
+			if m.Qa.Modules[idx] != mod {
+				m.Qa.Modules[idx] = mod
+				epicsChanged++
+			}
+		}
+	}
 
 	for _, e := range in.Epics {
 		if why := validateEpic(e); why != "" {
