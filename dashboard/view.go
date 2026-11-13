@@ -123,6 +123,8 @@ type ProductDetail struct {
 	Diagrams []DiagramView
 	// Vendors is set for the AI vendors tab only (M16).
 	Vendors *VendorsPane
+	// QA is set for the QA tab only (D-072, handlers_qa.go).
+	QA *QAPane
 }
 
 type DiagramView struct {
