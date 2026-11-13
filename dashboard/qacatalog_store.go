@@ -175,6 +175,9 @@ func (s *MemStore) QaImport(ctx context.Context, productID string, in QaImportIn
 		if e.Story == "" {
 			e.Story = m.Qa.Epics[idx].Story
 		}
+		if e.Task == "" {
+			e.Task = m.Qa.Epics[idx].Task
+		}
 		if m.Qa.Epics[idx] != e {
 			m.Qa.Epics[idx] = e
 			epicsChanged++
@@ -354,4 +357,25 @@ func qaTrim(s string, n int) string {
 		s = s[:n]
 	}
 	return s
+}
+
+// decorateBoardQa puts an epic card's live case counts on it. It reads the
+// catalog and writes nothing: the badge is a view of the catalog through
+// QaEpic.Task, never state on the task (BR-54). Caller holds s.mu.
+func (s *MemStore) decorateBoardQa(b *Board, m *Master) {
+	if len(m.Qa.Epics) == 0 {
+		return
+	}
+	sum := rollUp(*m, s.qaCasesOf(m.ID))
+	byTask := map[string]QaEpicRoll{}
+	for _, e := range sum.Epics {
+		if e.Task != "" {
+			byTask[e.Task] = e
+		}
+	}
+	for i := range b.Cards {
+		if e, ok := byTask[b.Cards[i].ID]; ok {
+			b.Cards[i].Qa = &BoardQa{Epic: e.Code, Cases: e.Total, Automated: e.Automated, Fail: e.Fail, Pct: e.CoveragePct}
+		}
+	}
 }
