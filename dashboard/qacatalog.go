@@ -185,9 +185,10 @@ type QaReject struct {
 }
 
 type QaImportIn struct {
-	Seed  bool     `json:"seed"`
-	Epics []QaEpic `json:"epics"`
-	Cases []QaCase `json:"cases"`
+	Seed    bool       `json:"seed"`
+	Modules []QaModule `json:"modules"`
+	Epics   []QaEpic   `json:"epics"`
+	Cases   []QaCase   `json:"cases"`
 }
 
 type QaImportOut struct {
@@ -329,10 +330,10 @@ func validatePlanning(c QaCase) string {
 			return "bad-feature"
 		}
 	}
-	if c.Decision == DecisionPlanned {
-		if c.Reason != "" {
-			return "reason-on-planned"
-		}
+	// A planned case needs no reason, but the source catalog's planned rows may
+	// carry a note (deferred:..., for one); when one is there it is held to the
+	// same shape as every other reason.
+	if c.Decision == DecisionPlanned && c.Reason == "" {
 		return ""
 	}
 	if byteLen(c.Reason) > qaMaxReason {
@@ -355,6 +356,18 @@ func validateSpec(spec string) string {
 func validateRunRef(ref string) string {
 	if byteLen(ref) > qaMaxRunRef || !qaPrintable.MatchString(ref) {
 		return "bad-run-ref"
+	}
+	return ""
+}
+
+func validateModule(m QaModule) string {
+	switch {
+	case !qaModuleKey.MatchString(m.Key):
+		return "bad-module"
+	case strings.TrimSpace(m.Title) == "" || byteLen(m.Title) > 200:
+		return "bad-module-title"
+	case byteLen(m.Story) > 20 || !qaPrintable.MatchString(m.Story):
+		return "bad-module-story"
 	}
 	return ""
 }

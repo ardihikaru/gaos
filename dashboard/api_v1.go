@@ -399,9 +399,10 @@ func (s *server) apiQaResults(w http.ResponseWriter, r *http.Request) {
 }
 
 type apiCatalogBody struct {
-	Seed  bool     `json:"seed"`
-	Epics []QaEpic `json:"epics"`
-	Cases []QaCase `json:"cases"`
+	Seed    bool       `json:"seed"`
+	Modules []QaModule `json:"modules"`
+	Epics   []QaEpic   `json:"epics"`
+	Cases   []QaCase   `json:"cases"`
 }
 
 func (s *server) apiQaCatalog(w http.ResponseWriter, r *http.Request) {
@@ -422,11 +423,11 @@ func (s *server) apiQaCatalog(w http.ResponseWriter, r *http.Request) {
 	if !apiDecode(w, r, &body) {
 		return
 	}
-	if len(body.Epics)+len(body.Cases) > qaMaxItems {
+	if len(body.Modules)+len(body.Epics)+len(body.Cases) > qaMaxItems {
 		apiErr(w, http.StatusRequestEntityTooLarge, "too-large", "a batch holds at most "+strconv.Itoa(qaMaxItems)+" items")
 		return
 	}
-	out, _, err := s.store.QaImport(r.Context(), id, QaImportIn{Seed: body.Seed, Epics: body.Epics, Cases: body.Cases})
+	out, _, err := s.store.QaImport(r.Context(), id, QaImportIn{Seed: body.Seed, Modules: body.Modules, Epics: body.Epics, Cases: body.Cases})
 	if err != nil {
 		apiStoreErr(w, err)
 		return

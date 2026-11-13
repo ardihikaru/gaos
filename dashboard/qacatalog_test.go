@@ -54,29 +54,29 @@ func countEventsOfType(s *MemStore, typ EventType) int {
 func TestQaCaseVocabularyIsClosed(t *testing.T) {
 	s, pid := qaFixture(t)
 	bad := map[string]func(c *QaCase){
-		"bad-case-id":       func(c *QaCase) { c.CaseID = "TC-auth-1" },
-		"bad-epic":          func(c *QaCase) { c.Epic = "a" },
-		"bad-module":        func(c *QaCase) { c.Module = "Z99" },
-		"bad-user-story":    func(c *QaCase) { c.UserStory = "US-1" },
-		"bad-feature":       func(c *QaCase) { c.Features = []string{"A1.1"} },
-		"too-many-features": func(c *QaCase) { c.Features = make([]string, 13) },
-		"empty-scenario":    func(c *QaCase) { c.Scenario = "  " },
-		"scenario-too-long": func(c *QaCase) { c.Scenario = strings.Repeat("x", qaMaxScenario+1) },
-		"bad-polarity":      func(c *QaCase) { c.Polarity = "?" },
-		"bad-level":         func(c *QaCase) { c.Level = "UI" },
-		"bad-pri":           func(c *QaCase) { c.Pri = "P9" },
-		"bad-decision":      func(c *QaCase) { c.Decision = "automated" },
-		"reason-on-planned": func(c *QaCase) { c.Reason = "other:why" },
-		"bad-reason":        func(c *QaCase) { c.Decision, c.Reason = DecisionBlocked, "no colon" },
-		"bad-reason-cat":    func(c *QaCase) { c.Decision, c.Reason = DecisionWont, "whim:because" },
-		"bad-reason-empty":  func(c *QaCase) { c.Decision, c.Reason = DecisionWont, "other:  " },
+		"bad-case-id":        func(c *QaCase) { c.CaseID = "TC-auth-1" },
+		"bad-epic":           func(c *QaCase) { c.Epic = "a" },
+		"bad-module":         func(c *QaCase) { c.Module = "Z99" },
+		"bad-user-story":     func(c *QaCase) { c.UserStory = "US-1" },
+		"bad-feature":        func(c *QaCase) { c.Features = []string{"A1.1"} },
+		"too-many-features":  func(c *QaCase) { c.Features = make([]string, 13) },
+		"empty-scenario":     func(c *QaCase) { c.Scenario = "  " },
+		"scenario-too-long":  func(c *QaCase) { c.Scenario = strings.Repeat("x", qaMaxScenario+1) },
+		"bad-polarity":       func(c *QaCase) { c.Polarity = "?" },
+		"bad-level":          func(c *QaCase) { c.Level = "UI" },
+		"bad-pri":            func(c *QaCase) { c.Pri = "P9" },
+		"bad-decision":       func(c *QaCase) { c.Decision = "automated" },
+		"bad-reason-planned": func(c *QaCase) { c.Reason = "just a note" },
+		"bad-reason":         func(c *QaCase) { c.Decision, c.Reason = DecisionBlocked, "no colon" },
+		"bad-reason-cat":     func(c *QaCase) { c.Decision, c.Reason = DecisionWont, "whim:because" },
+		"bad-reason-empty":   func(c *QaCase) { c.Decision, c.Reason = DecisionWont, "other:  " },
 	}
 	for want, mut := range bad {
 		c := qaCase("TC-AUTH-001")
 		mut(&c)
 		out := importCases(t, s, pid, false, c)
 		code := want
-		if want == "bad-reason-cat" || want == "bad-reason-empty" {
+		if want == "bad-reason-cat" || want == "bad-reason-empty" || want == "bad-reason-planned" {
 			code = "bad-reason"
 		}
 		if len(out.Rejected) != 1 || out.Rejected[0].Reason != code || out.Created != 0 {
@@ -87,7 +87,9 @@ func TestQaCaseVocabularyIsClosed(t *testing.T) {
 	ok := qaCase("TC-AUTH-002")
 	blocked := qaCase("TC-AUTH-003")
 	blocked.Decision, blocked.Reason = DecisionBlocked, "defect:DEF-152"
-	if out := importCases(t, s, pid, false, ok, blocked); out.Created != 2 || len(out.Rejected) != 0 {
+	deferred := qaCase("TC-AUTH-005") // a planned case may carry a well-formed note
+	deferred.Reason = "deferred:next phase"
+	if out := importCases(t, s, pid, false, ok, blocked, deferred); out.Created != 3 || len(out.Rejected) != 0 {
 		t.Errorf("valid cases refused: %+v", out)
 	}
 	// A spec must be relative: no leading slash, no "..".
