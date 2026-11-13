@@ -144,6 +144,9 @@ type QaEpic struct {
 	Source  string `json:"source"`
 	Module  string `json:"module"`
 	Story   string `json:"story"`
+	// Task is the id of the epic's card on the board. It is how a card finds
+	// its epic's counts (BoardCard.Qa); it is never read to MOVE a task.
+	Task string `json:"task"`
 }
 
 // QaSyncSide is what one direction of the outbound sync last did.

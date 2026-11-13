@@ -1,6 +1,6 @@
 # HISv3 as a GAOS product, and a two-way QA sync API
 
-**Status:** Draft v4 (rounds 1 and 2 reviewed v1 and v2; §4.12 and its knock-on edits are new in v4 and go to round 3)
+**Status:** Draft v5. Reviewed in three rounds (`reviews/hisv3-qa-sync-review-1.md`: round 1 on v1, round 2 on v2, round 3 on v4's §4.12). Implementation of P1–P4 followed v3, which the author approved on 2026-11-14 under the product owner's standing "don't ask me"; §4.12 (v4/v5) is implemented only after round 3's findings, all applied below.
 **Feature:** `hisv3-qa-sync`
 **Version target:** v0.37.0
 
@@ -99,7 +99,7 @@ A **QaCase** belongs to one product, keyed by its **case id** (`caseId`, e.g.
 
 | Half | Fields | Writer |
 |---|---|---|
-| Planning (GAOS) | `caseId`, `epic`, `module`, `features[]`, `userStory`, `scenario`, `polarity`, `level`, `pri`, `decision`, `reason` | catalog endpoint (admin), seed |
+| Planning (GAOS) | `caseId`, `epic`, `module`, `features[]`, `userStory`, `scenario`, `polarity`, `level`, `pri`, `decision`, `reason` | catalog endpoint (admin), seed; **and, for a case that does not exist yet, the create-only endpoint (QA scope, §4.12)** |
 | Automation (QA tools) | `implemented`, `spec`, `result`, `runAt`, `runRef` | results endpoint (qa/admin), the pull |
 
 Closed vocabularies (copied from the source repo's `scripts/test-catalog.mjs`
@@ -231,9 +231,11 @@ floor over the live one (BR-20; `store.go:197-201`; `store_mem.go:573-578`).
 This also removes the fixed cost of rewriting every desk, task and edge from
 each QA write (§4.5). A test asserts both (TC-401).
 
-A write that changes something emits **exactly one `RecordUpdated`** event
+A write that changes something emits **one `RecordUpdated`** event (plus, for
+a write that adds a card, the `TaskPlanned` and `TaskMoved` events of that one
+card, §4.12)
 (`QaRecordSync` too), naming product, direction and counts. A write that
-changes nothing emits nothing. No other event is ever emitted by QA code (N5).
+changes nothing emits nothing. No other event is ever emitted by QA code.
 
 `QaImport` takes optional epics (upsert by `code`) and cases (upsert by
 `caseId`) and writes the planning half. Exception, once: with `seed:true`
@@ -254,8 +256,9 @@ mutation commits once.
 authentication); over → 413, nothing applied. One write in flight per token; a
 second concurrent one answers 429 `Retry-After: 2`. The bound comes from lock
 time, not the proxy: `mutate` holds the store's one lock for the whole ArcadeDB
-transaction (`store_arcade.go:326-337`). A QA write has **no fixed cost** (no
-floor, §4.4); each new case costs about three statements (upsert, edge probe,
+transaction (`store_arcade.go:326-337`). A QA write that adds no card has **no fixed
+cost** (no floor, §4.4); one that adds a card returns the live floor and costs
+what any ordinary mutation costs (rare: at most 5 per request, §4.12); each new case costs about three statements (upsert, edge probe,
 edge), so 200 cases ≈ 600 statements. The *seed's* `CreateWorkflow` is the
 opposite: every later ordinary mutation in the system rewrites every desk,
 task and edge, so the ~50 HISv3 tasks and ~100 dependency edges added by the
@@ -304,7 +307,7 @@ deploy order is: deploy, seed (prints the id), set the variable, restart.
 | `GET /v1/products` | qa | `[{id,name,repo}]` (QA: its products only) |
 | `GET /v1/products/{id}/qa/summary` | qa | totals, per-epic roll-up, `regressed` epics (an epic with a `fail`), needs-decision list, sync state, `catHead` |
 | `GET /v1/products/{id}/qa/cases?after=<catRev>&limit=<1..200, default 100>&epic=<code>` | qa | cases with `catRev > after`, ascending; `{items,next,catHead}`; `next` = last item's `catRev` when the page was full, else `null` |
-| `POST /v1/products/{id}/qa/cases` | qa | create-only, §4.12: `{source,epics?,cases[]}` → `{created,unchanged,rejected[],epicsAdded,cardsAdded,catHead}` |
+| `POST /v1/products/{id}/qa/cases` | qa | create-only, §4.12: `{source,epics?,cases[]}` → `{created,unchanged,rejected[],epicsAdded,cardsAdded,cardsDeferred,catHead}` |
 | `POST /v1/products/{id}/qa/results` | qa | `{source,force?,items[]}` → `{applied,unchanged,rejected[],catHead}` |
 | `POST /v1/products/{id}/qa/catalog` | admin | `{seed?,epics[],cases[]}` → `{created,updated,unchanged,rejected[],catHead}` |
 | `POST /v1/seed/product` | admin | §4.9 |
@@ -401,7 +404,7 @@ overwrites what an operator edited), each through an **existing store call**:
 8. epics: `QaImport` epics (with the resolved story id; the card's task id is stored by a second import after step 9).
 9. workflow, only if the product's desk has no tasks: `CreateWorkflow` with
    `WorkflowDraft{ProductID, Goal: plan.goal, Priority: plan.priority, Gate:false,
-   Stories: <story ids with an epic>}` and this plan, **task `Gate:true` except the Release task** (a human releases it):
+   Stories: <story ids with an epic>}` and this plan, **task `Gate:false` except the Release task, which is `Gate:true`** (a human releases it):
    - `t-1` *Design: test strategy and catalog* — kind `design`, role `architect`;
    - `t-2` *Review the test strategy* — kind `review`, role `qa`, dep `t-1`;
    - one *Automate: `<epic title>`* per epic — kind `implement`, role `qa`,
@@ -439,7 +442,9 @@ whole file with the existing egress detector (`egress.go:466`).
 token from its file, passes the header through a mode-600 temp file
 (`curl -H @file`, so it is never in argv), posts the product seed, then the
 cases in slices of 200 with `seed:true` (9 slices), then reads
-`/qa/summary` and **asserts the totals** (§7, TC-412). Re-running changes
+`/qa/summary` and **asserts the totals are at least the seed's** (§7, TC-411): later QA
+writes add cases, epics and script facts, so equality would turn a healthy
+re-run into a FAIL. Re-running changes
 nothing.
 
 ### 4.10 Outbound sync and the BO tab
@@ -496,59 +501,91 @@ both; both end in the same two store methods. The published contract page
 (`pustaka/docs/guide/qa-sync-api.html`) shows one `curl` per call with
 `<TOKEN>` placeholders and no internal addresses.
 
-### 4.12 Cases created on the QA side, and the kanban (v4)
+### 4.12 Cases created on the QA side, and the kanban (v5)
 
 The product owner's addition: in the QA tools' `/products`, a product can be
 flagged **integrated with GAOS**; test cases created there then appear in
 HISv3's board in GAOS, and are kept up to date, without a human step. The QA
-tools' own design is in that repository (`docs/designs/GAOS_INTEGRATION.md`);
-this is the GAOS half.
+tools' own design lives in that repository (`docs/designs/GAOS_INTEGRATION.md`);
+this is the GAOS half, and what the QA token may now do is listed in §8.
 
-**Creation by the QA tools** — `POST /v1/products/{id}/qa/cases` (scope `qa`,
-product-scoped, one write in flight, ≤ 200 items, strict JSON), the write twin
-of the existing `GET` on that path:
+**Creation by the QA tools** — `POST /v1/products/{id}/qa/cases` (QA scope; the
+admin token also passes, §4.7; product-scoped; one write in flight; ≤ 200 cases;
+strict JSON; answers 200), the write twin of the `GET` on that path:
 
 ```json
 {"source":"qa-automation-tools",
  "epics":[{"code":"AUTH","title":"Authentication","service":"his-backend","source":"docs/test-catalog/his-backend/auth.md","module":"A13"}],
  "cases":[ <§4.7 case: planning fields, plus implemented/spec> ]}
 ```
-→ `{"created":n,"unchanged":n,"rejected":[{"caseId","reason"}],"epicsAdded":n,"cardsAdded":n,"catHead":n}`.
+→ `{"created":n,"unchanged":n,"rejected":[{"caseId","reason"}],"epicsAdded":n,"cardsAdded":n,"cardsDeferred":"","catHead":n}`.
 
-Per case, **create-only**: a new `caseId` is created if it validates (§4.1),
-with `decision: planned` and an empty `reason` only (the QA side may not park or
-retire a case; refusal `decision-not-allowed`), carrying `implemented`/`spec`
-(validated) and no run record (`result`/`runAt`/`runRef` non-zero →
-`use-results`). An existing `caseId` with identical planning fields is
-`unchanged`; with different ones it is refused `exists-differs` — GAOS owns the
-planning half of every case that exists, so the case's planning fields are not
-changed and the QA tools see the refusal. Nothing is ever deleted.
+**Per case, create-only.** A new `caseId` is created if it validates (§4.1) and
+passes these extra rules, each a refusal code: `decision-not-allowed` unless
+`decision` is `planned` (the QA side may not park or retire a case) and `reason`
+is empty; `use-results` if `result`/`runAt`/`runRef` is non-zero; `bad-case-epic`
+unless the id's infix equals its `epic` (`TC-AUTH-001` belongs to `AUTH`);
+`case-limit` past 5,000 cases for the product. It carries `implemented`/`spec`
+(validated). An existing `caseId` with identical planning fields is `unchanged`;
+with different ones it is refused `exists-differs` and **not changed** — GAOS
+owns the planning half of every case that exists. Nothing is ever deleted.
 
-**Epics and cards.** A case whose `epic` is not in `Qa.Epics` creates it (title
-from the body's `epics` entry, else the code). For each epic created, **if the
-product has a workflow with a review task**, GAOS adds one card, "Automate:
-<title>", exactly as the seed's plan makes one: kind `implement`, role `qa`,
-dependent on the product's review task, story = the epic's module story (else
-the Plan lane), status `PENDING` — or `BLOCKED` with the design gate's reason
-when that review has not cleared, through the same helper `CreateWorkflow`
-uses. It is announced by a `TaskPlanned` event carrying that one task (no new
-event type); the task fold continues the workflow's ordinals instead of
-restarting them. Without a workflow the epic is recorded and no card is made
-(`cardsAdded: 0`). The new card's id is stored on the epic (`QaEpic.Task`).
-**No existing task's status is touched** (BR-54, amended: "QA data never moves
-a task"), and an epic that exists never gets a second card.
+**Every text field of the request is screened server-side**, like the seed's
+(§4.9): the egress secret detector over each string (a hit → 400
+`secret-in-body`, nothing written), and backticks, angle brackets, line breaks
+and a leading `#` stripped from `scenario` and from the epic's `title`,
+`service` and `source`.
+
+**Epics.** A case whose `epic` is not in `Qa.Epics` creates it. The `epics`
+array is read **only for a code that does not exist yet**; an entry for an
+existing code is ignored (GAOS owns it; never overwritten by this route). An
+unknown epic with no entry is titled by its code. Caps (BR-53): at most **5 new
+epics per request** (more → `epic-limit` on those cases) and **100 epics per
+product** (`epic-limit`).
+
+**Cards — born blocked, never released by the QA side.** For each new epic, if
+the desk has a current workflow **and** that workflow has a review task (the one
+with the lowest ordinal), and the floor is **not parked**, GAOS adds one card,
+"Automate: <title>": kind `implement`, role `qa`, story = the epic's module
+story (else the Plan lane), dependent on that review task. It is **always born
+`BLOCKED`**, `BlockReason` "added by the QA catalog; plan its design and review
+before unblocking", rule `qa-epic-added`, by a **new single-task routine** that
+touches only that task (never the all-tasks loop `CreateWorkflow` runs, never
+`replayAtSeq`). It is announced by one `TaskPlanned` event carrying that task
+and one `TaskMoved` event. Only an operator's board move (`unblock`) releases it;
+the scheduler cannot, so a QA token can never create dispatchable agent work
+(BR-46). The card does not become a prerequisite of the Release task and does not
+bump `Story.Tasks`; both are the operator's to plan. Without a workflow or review,
+or while parked, the epic is recorded and `cardsAdded` is 0, `cardsDeferred`
+says `no-workflow` or `replay`; there is no backfill, and `qa/summary` lists
+`noCard`, the epics with no card, so the tab can say so. An epic never gets a
+second card. The card's id is stored on the epic (`QaEpic.Task`).
+
+**`TaskPlanned` now means "a plan, or an addition to one".** The task fold
+continues a workflow's ordinals instead of restarting them at 0 (ordinal = the
+count of tasks already in that workflow plus the index); a first plan is
+unchanged. `taskfold.go` and the data-model document say so.
 
 **The kanban follows the catalog (display only).** `BoardCard` gains an
-optional `qa` object for an epic's card — `{epic, cases, automated, fail,
-pct}` — filled at read time from the catalog through `QaEpic.Task`. Every case
-the QA tools create or whose script facts they report therefore shows on the
-card at once, with nothing written to the task. The seed stores `QaEpic.Task`
-for the epics it plans (step 9, second import).
+optional `qa` object for an epic's card — `{epic, cases, automated, fail, pct}` —
+filled at read time from the catalog through `QaEpic.Task`. Every case the QA
+tools create, and every script fact they report, therefore shows on the card at
+once, with nothing written to the task. The seed stores `QaEpic.Task` for the
+epics it plans (a second import after step 9).
 
-**Persistence.** A QA write that adds a card returns `Floor.Desks` holding the
-LIVE desk of that product only (never the folded view), so `persist`'s existing
-task loop writes the new task and its `DEPENDS_ON` edge; a write that adds no
-card keeps the empty floor (§4.4). Tests: TC-409…TC-411 (§7).
+**Persistence.** A write that adds a card builds `Floor.Desks` from the **live**
+desk slice (`s.desks`), never from `s.result`/`s.floor()` (which return the
+folded view while parked, `store_mem.go:578-583`), so `persist`'s existing task
+loop writes the card and its `DEPENDS_ON` edge. A write that adds no card keeps
+the empty floor (§4.4).
+
+**An existing defect, fixed on the way.** `CreateWorkflow`'s gate loop
+(`store_mem.go:2066-2078`) walks every task of every product and re-blocks any
+implementation task with a review dependency, whether or not the review cleared.
+The seed's `CreateWorkflow` would run it. It is restricted to the tasks of the
+workflow being created (TC-396 asserts another product's in-flight task keeps
+its status and reason); its `replayAtSeq` reset stays (it is the wizard's
+documented behaviour).
 
 ## 5. Change list (every file)
 
@@ -599,7 +636,7 @@ two buttons; **D-076** the desk fix. D-071 is taken
 (`decision-log.html:1404`). Log: seventy-one → **seventy-six** entries. Rules:
 **BR-51** one writer per field, newest run wins inside the automation half;
 **BR-52** the API is bearer-authenticated, fail-closed, product-scoped for the
-QA token; **BR-53** every batch is bounded; **BR-54** QA data never moves a task (it may add one card for a new epic,
+QA token; **BR-53** every batch is bounded, and so are the epics, cards and cases a QA token can add; **BR-54** QA data never moves a task (it may add one card for a new epic,
 §4.12). BRD: "Fifty rules" → **fifty-four**. Open questions:
 **OQ-33** the QA tools' endpoints are a contract only; **OQ-34** who may edit a
 case's decision (needs BR-48's identity); **OQ-35** whether results should ever
@@ -649,15 +686,14 @@ a new milestone **M18** with **T-192…T-196**, one per phase P1…P5 of §10.
 | TC-405 | `TestSyncRefusesRedirectsOverlapAndCooldown` | redirect not followed; `sync-running` and `cooldown` are process-wide; unconfigured → 409; a product outside `GAOS_API_QA_PRODUCTS` → `qa-out-of-scope`; a pull page that does not echo the product is refused |
 | TC-406 | `TestProductSeedIsIdempotentAndMeetsTheFloor` | twice = same; operator-edited BRD/policy untouched; a same-named unseeded product → 409; seed text with a secret → 400 and stripped markup; score ≥ `PlanFloor`; `2 + epics + 1` tasks; Release gated; none `DONE`; refused in replay |
 | TC-407 | `TestTheHISv3SeedIsWellFormed` | the committed files: 39 modules, 444 features, 47 epics, 1,700 unique cases, 494 implemented; patterns; every epic/module resolves; egress detector finds nothing |
-| TC-409 | `TestQaToolsMayCreateButNeverChangeACase` | create-only: new valid case created planned; park/retire refused; run fields refused; existing identical = unchanged; existing differing = `exists-differs` and unchanged; QA token only, product-scoped; strict JSON; 201 items → 413 |
-| TC-410 | `TestANewEpicGetsOneCardAndNothingElseMoves` | a new epic adds one `Automate:` card (`PENDING` or gate-`BLOCKED` as the review dictates) with `TaskPlanned`, `QaEpic.Task` set, the Plan lane without a module; no existing task's status changes; a second case in the epic adds no card; no workflow → no card; the live desk is persisted, never the folded one (parked floor); the fold continues ordinals |
-| TC-411 | `TestTheBoardCardCarriesLiveCaseCounts` | `BoardCard.qa` equals the epic's roll-up and moves with every created case and every result; cards of other epics and non-epic cards carry none; the seed stores `QaEpic.Task` for every epic |
-| TC-412 | `deploy/seed/hisv3/seed.sh` | on the VM: ends `ok  summary matches` or `FAIL <what>` after asserting the totals |
+| TC-408 | `TestQaToolsMayCreateButNeverChangeACase` | QA scope (admin also passes); product-scoped; a new valid case is created `planned`; park/retire, reason, run fields, wrong epic infix, `case-limit` refused with their codes; identical existing = `unchanged`; differing existing = `exists-differs` and unchanged; the `epics` entry for an existing code is ignored; a secret in any text → 400 and nothing written; markup stripped; strict JSON; 201 cases → 413 |
+| TC-409 | `TestANewEpicGetsOneBlockedCardAndNothingElseMoves` | a new epic adds exactly one `Automate:` card, always `BLOCKED` with the QA reason, with one `TaskPlanned` and one `TaskMoved`; `QaEpic.Task` set; the Plan lane without a module; the review having already cleared does not release it; no existing task changes status or reason, including an in-flight gated task of another product; `CreateWorkflow`'s gate loop touches only its own workflow; a second case in the epic adds no card; no workflow or review → `cardsAdded:0` and `no-workflow`; parked floor → card deferred (`replay`) and the live desks unchanged; > 5 new epics per request and > 100 per product → `epic-limit`; the fold continues ordinals; the card persists (live desk) |
+| TC-410 | `TestTheBoardCardCarriesLiveCaseCounts` | `BoardCard.qa` equals the epic's roll-up and moves with every created case and every result; cards of other epics and non-epic cards carry none; the seed stores `QaEpic.Task` for every epic; `qa/summary.noCard` lists an epic with no card |
+| TC-411 | `deploy/seed/hisv3/seed.sh` | on the VM: ends `ok  summary matches` or `FAIL <what>` after asserting the totals are at least the seed's |
 
-Totals: register **390 → 412** ("four hundred and twelve"); Go tests
-**273 → 293** (20 new: TC-391…TC-411 except the script row), dashboard
-**251 → 271**, pustaka 22. (The script row moved from TC-408 to TC-412 in v4;
-nothing was issued under 408.) The persistence case in the conformance table needs no row.
+Totals: register **390 → 411** ("four hundred and eleven"); Go tests
+**273 → 293** (20 new, TC-391…TC-410); dashboard **251 → 271**; pustaka 22. The
+persistence case in the conformance table needs no row.
 
 ## 8. Security considerations
 
@@ -671,8 +707,8 @@ nothing was issued under 408.) The persistence case in the conformance table nee
   Accepted, with bounds: they reach only the one configured origin and only for
   products in `GAOS_API_QA_PRODUCTS`, a process-wide single flight and 30 s
   cooldown cap the rate, they are inert until the QA tools exist (N1), and what
-  comes back passes the validation of the API and cannot touch the task graph
-  (BR-54). This is the same blast radius as every BO write (BR-48's open
+  comes back passes the validation of the API and can add at most blocked
+  cards for new epics (BR-54, §4.12). This is the same blast radius as every BO write (BR-48's open
   precondition); closing it is OQ-34's prerequisite, not this change.
 - **Existing ungated routes.** `POST /workflows` (`main.go:352`) and the task
   routes `dispatch|approve|retry|cancel` (`main.go:310-313`) take no cookie
@@ -693,8 +729,15 @@ nothing was issued under 408.) The persistence case in the conformance table nee
   (`egress.go`, `check-workspace.sh`); the files are gitignored, checked by
   `check-stacks.sh` and on the reviewer deny-list. The reviewer deny-list is
   otherwise still enforced by instruction only (round 1, ESCALATE).
-- **The QA tools can change automation facts and nothing else**; a malicious
-  or compromised QA tool cannot create cases, change a decision, or move a task.
+- **What the QA token can do** (v5; read this before rotating or leaking it):
+  write automation facts of existing cases; **create** new `planned` cases
+  (never change or delete one, never park or retire one); create epics (≤ 5 per
+  request, ≤ 100 per product) and, for each, **one `BLOCKED` card** in the
+  product's current workflow, with its `TaskPlanned`/`TaskMoved` events, up to
+  5,000 cases per product. It cannot move or release any task, change a
+  decision, a policy or the BRD, or touch another product. Every text it sends is
+  screened and stripped server-side (§4.12). To revoke it: empty
+  `deploy/stacks/prod.api-qa` and restart the dashboard.
 - The catalog holds test scenarios, not patient data (the source repo forbids
   PII in its catalog).
 

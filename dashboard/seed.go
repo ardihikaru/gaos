@@ -424,7 +424,18 @@ func (s *server) runSeed(r *http.Request, seed ProductSeed) (seedOut, *seedErr) 
 			return seedOut{}, seedErrFrom(err)
 		}
 	}
+	// 10. each epic learns its card, so the board can show its live counts.
 	board, _ := s.store.Board(ctx, pid)
+	cardOf := map[string]string{}
+	for _, c := range board.Cards {
+		cardOf[c.Label] = c.ID
+	}
+	for i := range epics {
+		epics[i].Task = cardOf["Automate: "+epics[i].Title]
+	}
+	if _, _, err := st.QaImport(ctx, pid, QaImportIn{Epics: epics}); err != nil {
+		return seedOut{}, seedErrFrom(err)
+	}
 	out.Tasks = len(board.Cards)
 	return out, nil
 }
