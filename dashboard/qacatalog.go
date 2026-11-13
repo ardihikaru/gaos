@@ -64,6 +64,12 @@ const (
 	// under the store's one lock.
 	qaMaxItems = 200
 
+	// The caps on what a QA token can ADD (BR-53): a card is a task, and every
+	// later write for every product rewrites every task.
+	qaMaxNewEpicsPerRequest = 5
+	qaMaxEpics              = 100
+	qaMaxCases              = 5000
+
 	// qaFutureSlack is how far past "now" a run may claim to have happened. One
 	// item with a millisecond timestamp must not lock a case forever.
 	qaFutureSlack = 300
@@ -194,6 +200,23 @@ type QaImportIn struct {
 	Cases   []QaCase   `json:"cases"`
 }
 
+// QaCreateIn is what the QA tools may send to create cases (design §4.12).
+type QaCreateIn struct {
+	Source string   `json:"source"`
+	Epics  []QaEpic `json:"epics"`
+	Cases  []QaCase `json:"cases"`
+}
+
+type QaCreateOut struct {
+	Created       int        `json:"created"`
+	Unchanged     int        `json:"unchanged"`
+	Rejected      []QaReject `json:"rejected"`
+	EpicsAdded    int        `json:"epicsAdded"`
+	CardsAdded    int        `json:"cardsAdded"`
+	CardsDeferred string     `json:"cardsDeferred"`
+	CatHead       int        `json:"catHead"`
+}
+
 type QaImportOut struct {
 	Created   int        `json:"created"`
 	Updated   int        `json:"updated"`
@@ -269,6 +292,7 @@ type QaTotals struct {
 }
 
 type QaSummary struct {
+	NoCard        []string     `json:"noCard"` // epics with no card on the board
 	ProductID     string       `json:"productId"`
 	Name          string       `json:"name"`
 	Totals        QaTotals     `json:"totals"`
@@ -411,13 +435,16 @@ func samePlanning(a, b QaCase) bool {
 
 func rollUp(m Master, cases []QaCase) QaSummary {
 	sum := QaSummary{ProductID: m.ID, CatHead: m.Qa.CatHead, Pull: m.Qa.Pull, Push: m.Qa.Push,
-		Epics: []QaEpicRoll{}, Regressed: []string{}, NeedsDecision: []string{}}
+		Epics: []QaEpicRoll{}, Regressed: []string{}, NeedsDecision: []string{}, NoCard: []string{}}
 	rolls := map[string]*QaEpicRoll{}
 	order := []string{}
 	for _, e := range m.Qa.Epics {
 		r := &QaEpicRoll{QaEpic: e}
 		rolls[e.Code] = r
 		order = append(order, e.Code)
+		if e.Task == "" {
+			sum.NoCard = append(sum.NoCard, e.Code)
+		}
 	}
 	for _, c := range cases {
 		r := rolls[c.Epic]

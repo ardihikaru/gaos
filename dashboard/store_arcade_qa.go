@@ -38,6 +38,16 @@ func (s *ArcadeStore) QaApplyResults(ctx context.Context, id string, in QaResult
 	return out, r, err
 }
 
+func (s *ArcadeStore) QaCreate(ctx context.Context, id string, in QaCreateIn) (QaCreateOut, Result, error) {
+	var out QaCreateOut
+	r, err := s.mutate(ctx, func() (Result, error) {
+		o, r, err := s.proj.QaCreate(ctx, id, in)
+		out = o
+		return r, err
+	})
+	return out, r, err
+}
+
 func (s *ArcadeStore) QaRecordSync(ctx context.Context, id, dir string, side QaSyncSide) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.QaRecordSync(ctx, id, dir, side) })
 }

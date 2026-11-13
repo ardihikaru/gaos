@@ -262,6 +262,7 @@ func (s *server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/products", s.apiProducts)
 	mux.HandleFunc("GET /v1/products/{id}/qa/summary", s.apiQaSummary)
 	mux.HandleFunc("GET /v1/products/{id}/qa/cases", s.apiQaCases)
+	mux.HandleFunc("POST /v1/products/{id}/qa/cases", s.apiQaCreate)
 	mux.HandleFunc("POST /v1/products/{id}/qa/results", s.apiQaResults)
 	mux.HandleFunc("POST /v1/products/{id}/qa/catalog", s.apiQaCatalog)
 	mux.HandleFunc("POST /v1/seed/product", s.apiSeedProduct)
@@ -428,6 +429,50 @@ func (s *server) apiQaCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, _, err := s.store.QaImport(r.Context(), id, QaImportIn{Seed: body.Seed, Modules: body.Modules, Epics: body.Epics, Cases: body.Cases})
+	if err != nil {
+		apiStoreErr(w, err)
+		return
+	}
+	apiJSON(w, http.StatusOK, out)
+}
+
+// apiQaCreate is the QA tools' create-only door (design §4.12). Every string of
+// the request is screened for secrets before anything is written; the store
+// cleans the text it keeps.
+func (s *server) apiQaCreate(w http.ResponseWriter, r *http.Request) {
+	scope, ok := s.apiGate(w, r, scopeQA)
+	if !ok {
+		return
+	}
+	id, ok := s.apiProduct(w, r, scope)
+	if !ok {
+		return
+	}
+	release, ok := s.beginWrite(w, scope)
+	if !ok {
+		return
+	}
+	defer release()
+	var body QaCreateIn
+	if !apiDecode(w, r, &body) {
+		return
+	}
+	if len(body.Cases) > qaMaxItems || len(body.Epics) > qaMaxItems {
+		apiErr(w, http.StatusRequestEntityTooLarge, "too-large", "a batch holds at most "+strconv.Itoa(qaMaxItems)+" cases")
+		return
+	}
+	if byteLen(body.Source) > 80 || !qaPrintable.MatchString(body.Source) {
+		apiErr(w, http.StatusBadRequest, "bad-source", "source is short printable text")
+		return
+	}
+	raw, _ := json.Marshal(body)
+	var tree any
+	_ = json.Unmarshal(raw, &tree)
+	if hit := secretInStrings(tree); hit != "" {
+		apiErr(w, http.StatusBadRequest, "secret-in-body", "the body matches the secret detector "+hit+"; nothing was written")
+		return
+	}
+	out, _, err := s.store.QaCreate(r.Context(), id, body)
 	if err != nil {
 		apiStoreErr(w, err)
 		return
