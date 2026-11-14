@@ -286,7 +286,8 @@ file, or a read error (logged) is **unset**. The files must exist (an empty
 file is the way to disable a token; the new value is read at boot, so a change
 needs a restart). If two of the three tokens (admin, QA, outbound) are equal,
 **all API tokens are disabled** and the boot log says why. A request arriving
-with a non-empty `X-Forwarded-Prefix` (i.e. through `/app`) is answered 404, so
+with an `X-Forwarded-Prefix` other than `/api` (Traefik sets `/api` on every public call;
+`/app` is another mount) is answered 404, so
 an edge control keyed to `/api` cannot be bypassed (SEC-10). Rules:
 
 - neither token configured → every `/v1` route answers 503 `api-disabled`;
