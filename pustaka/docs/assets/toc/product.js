@@ -172,6 +172,26 @@ window.DOCS.nav.push({
           text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist. Since 2026-11-02 also TC-275 to TC-310: the ai-manager adapter and reply handoff, the Blueprint, the workspace and turns, live-aim-run.sh, and the board." }
       ]
     }
+    {
+      id: "qa-collaboration",
+      file: "product/qa-collaboration.html",
+      title: "How GAOS and the QA tools work together",
+      desc: "How GAOS and the QA tools exchange a product's test catalog in both directions: who owns what, what flows automatically, what the two sync buttons do, how to set it up and what to check when it does not work.",
+      tags: ["qa", "integration", "sync", "kanban", "tokens", "operations", "troubleshooting"],
+      sections: [
+        { anchor: "overview", title: "The idea in one picture", text: "A product exists in both systems; each owns the part it is good at and tells the other. Two flows: QA tools to GAOS runs by itself, GAOS to QA tools is two buttons." },
+        { anchor: "who-owns-what", title: "Who owns what", text: "The planning half of a test case is GAOS's, the automation half is the QA tools'; the QA side may create a case, never change one." },
+        { anchor: "qa-to-gaos", title: "QA tools to GAOS: automatic", text: "A knowledge sync, then a background push of new cases and script facts in batches of 200; what is sent, skipped, informational and retried." },
+        { anchor: "a-new-case", title: "What happens when someone adds a test case", text: "From a row in the automation repo to a badge on the board, and why a new epic's card is born Blocked." },
+        { anchor: "gaos-to-qa", title: "GAOS to QA tools: the two buttons", text: "Pull brings script facts in, Push sends decisions out; the one-at-a-time rule, the 30 second cooldown and the 60 second click." },
+        { anchor: "kanban", title: "What you see on the board", text: "Epic cards with live automated counts, why everything starts Blocked, and the QA tab." },
+        { anchor: "setup", title: "Setting it up", text: "The three tokens and where each lives, the URLs and variables for HISv3, and the order to deploy in." },
+        { anchor: "operate", title: "Checking that it works", text: "Where to look in GAOS, in the QA tools and from a shell." },
+        { anchor: "troubleshooting", title: "When it does not work", text: "Symptom, meaning and fix: disabled buttons, 409, deadline exceeded, unreadable body, 401, 403, 404, 503, exists-differs, a missing card." },
+        { anchor: "security", title: "Security in short", text: "Token files, strict decoding, screening, scoping, redirects refused, and the open back-office login." },
+        { anchor: "not-built", title: "What is not built yet", text: "Per-case run results, withdrawing a case, and showing GAOS's decisions in the QA tools." }
+      ]
+    },
     /* pustaka:insert — `pustaka new` adds entries above this marker */
   ]
 });
