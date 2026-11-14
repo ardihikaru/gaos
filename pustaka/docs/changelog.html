@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-38-1">v0.38.1 <time datetime="2026-11-15">2026-11-15</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Two hardening fixes found by review of the QA tool inbox.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>a secret split by an invisible character</b> could pass the egress screen,
+        because the screen ran before the text was cleaned. The cleaned text is screened again.</li>
+        <li><span class="chg fix">Fixed</span> <b>the answer webhook re-sent every ten seconds</b> when recording the
+        attempt failed (a database outage). The attempt is now remembered in memory and the backoff holds.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-38-0">v0.38.0 <time datetime="2026-11-14">2026-11-14</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The QA tool can ask the operator a question, and gets the decision back.</p>
       <ul>
