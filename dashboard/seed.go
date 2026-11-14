@@ -236,10 +236,16 @@ func (s *server) runSeed(r *http.Request, seed ProductSeed) (seedOut, *seedErr) 
 		}
 		moduleKeys[m.Key] = true
 	}
+	seenCode, seenTitle := map[string]bool{}, map[string]bool{}
 	for _, e := range seed.Epics {
+		e.Title = cleanSeedText(e.Title)
 		if why := validateEpic(e); why != "" {
 			return bad("bad-seed", "epic "+e.Code+": "+why)
 		}
+		if seenCode[e.Code] || seenTitle[e.Title] {
+			return bad("bad-seed", "epic "+e.Code+" repeats another epic's code or title; each epic is one card, found by its title")
+		}
+		seenCode[e.Code], seenTitle[e.Title] = true, true
 		if e.Module != "" && !moduleKeys[e.Module] {
 			return bad("bad-seed", "epic "+e.Code+" names module "+e.Module+", which the seed does not define")
 		}
@@ -290,8 +296,10 @@ func (s *server) runSeed(r *http.Request, seed ProductSeed) (seedOut, *seedErr) 
 	for _, m := range seed.Modules {
 		marker = append(marker, QaModule{Key: m.Key, Title: cleanSeedText(m.Title)})
 	}
-	if _, _, err := st.QaImport(ctx, pid, QaImportIn{Modules: marker}); err != nil {
+	if qo, _, err := st.QaImport(ctx, pid, QaImportIn{Modules: marker}); err != nil {
 		return seedOut{}, seedErrFrom(err)
+	} else if len(qo.Rejected) > 0 {
+		return bad("bad-seed", "module "+qo.Rejected[0].CaseID+": "+qo.Rejected[0].Reason)
 	}
 	cur := func() Master {
 		m, _ := s.store.Master(ctx, pid)
@@ -418,8 +426,10 @@ func (s *server) runSeed(r *http.Request, seed ProductSeed) (seedOut, *seedErr) 
 		epics[i].Title = cleanSeedText(epics[i].Title)
 		epics[i].Story = storyOf[epics[i].Module]
 	}
-	if _, _, err := st.QaImport(ctx, pid, QaImportIn{Modules: mods, Epics: epics}); err != nil {
+	if qo, _, err := st.QaImport(ctx, pid, QaImportIn{Modules: mods, Epics: epics}); err != nil {
 		return seedOut{}, seedErrFrom(err)
+	} else if len(qo.Rejected) > 0 {
+		return bad("bad-seed", "epic or module "+qo.Rejected[0].CaseID+": "+qo.Rejected[0].Reason)
 	}
 	out.Epics = len(epics)
 
@@ -443,8 +453,10 @@ func (s *server) runSeed(r *http.Request, seed ProductSeed) (seedOut, *seedErr) 
 	for i := range epics {
 		epics[i].Task = cardOf["Automate: "+epics[i].Title]
 	}
-	if _, _, err := st.QaImport(ctx, pid, QaImportIn{Epics: epics}); err != nil {
+	if qo, _, err := st.QaImport(ctx, pid, QaImportIn{Epics: epics}); err != nil {
 		return seedOut{}, seedErrFrom(err)
+	} else if len(qo.Rejected) > 0 {
+		return bad("bad-seed", "epic "+qo.Rejected[0].CaseID+": "+qo.Rejected[0].Reason)
 	}
 	out.Tasks = len(board.Cards)
 	return out, nil

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 // The machine API (D-072, BR-52, BR-53). Bearer-token authenticated, fail
@@ -61,8 +62,10 @@ func validToken(t string) bool {
 	if len(t) < apiTokenMinLen || !strings.HasPrefix(t, apiTokenPrefix) {
 		return false
 	}
-	for _, r := range t {
-		if r <= ' ' || r > '~' {
+	// The same alphabet as the egress detector (gaos_[0-9A-Za-z]{32,}), so a
+	// token this accepts is one the secret screens can see.
+	for _, r := range t[len(apiTokenPrefix):] {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z') {
 			return false
 		}
 	}
@@ -231,6 +234,9 @@ func (s *server) beginWrite(w http.ResponseWriter, scope apiScope) (release func
 
 // apiDecode reads one strictly-typed JSON body of at most apiMaxBody.
 func apiDecode(w http.ResponseWriter, r *http.Request, v any) bool {
+	// A slow client must not hold the principal's one write slot: the body has
+	// 30 seconds (the server sets only a header timeout).
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(30 * time.Second))
 	err := decodeStrict(http.MaxBytesReader(w, r.Body, apiMaxBody), v)
 	if err == nil {
 		return true
