@@ -32,6 +32,13 @@ import (
 var started = time.Now()
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "hash-password" {
+		if err := runHashPassword(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "hash-password:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	fs := flag.NewFlagSet("dashboard", flag.ExitOnError)
 	addr := fs.String("addr", envOr("GAOS_ADDR", ":8080"), "listen address")
 	prod := fs.Bool("prod", false, "parse templates once and skip the filesystem watcher")
@@ -54,9 +61,13 @@ func envOr(k, def string) string {
 }
 
 type server struct {
-	store Store
-	rend  *Renderer
-	arc   *Arcade
+	auth *authority // back-office sessions (auth.go); nil signs nobody in
+	// patterns and bearer are what routes() registered, for the route-table test.
+	patterns []string
+	bearer   map[string]bool
+	store    Store
+	rend     *Renderer
+	arc      *Arcade
 
 	// api is the machine API's configuration (api_v1.go); nil in tests that do
 	// not exercise it, which is the same as disabled.
@@ -276,7 +287,8 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 	}()
 
-	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv(), qaOut: qaOutboundFromEnv()}
+	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv(), qaOut: qaOutboundFromEnv(),
+		auth: authFromEnv(!dev)}
 
 	// D-078: the answer webhook. One worker; with the outbound unconfigured it
 	// idles and the QA tool polls GET /v1/products/{id}/inbox/{externalId}.
@@ -312,73 +324,84 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 
 func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
+	var patterns []string
+	bearer := map[string]bool{}
+	handle := func(p string, f http.HandlerFunc) {
+		patterns = append(patterns, p)
+		mux.HandleFunc(p, f)
+	}
 
 	// Go 1.22 patterns: method and wildcards in the pattern itself, so there is
 	// no router library and no switch on r.Method inside a handler.
-	mux.HandleFunc("GET /{$}", s.handleIndex)
-	mux.HandleFunc("GET /healthz", s.handleHealth)
+	handle("GET /{$}", s.handleIndex)
+	handle("GET /healthz", s.handleHealth)
+	patterns = append(patterns, "GET /static/")
 	mux.Handle("GET /static/", s.staticHandler())
 
 	// --- the documented surface (architecture §09). Named now so nothing has
 	// to be renamed when the graph is behind it. ---
-	mux.HandleFunc("GET /events", s.handleEvents)
-	mux.HandleFunc("GET /events/stream", s.handleStream) // D-065: hints, not HTML
-	mux.HandleFunc("GET /replay/{workflow}", s.handleReplay)
-	mux.HandleFunc("POST /tasks/{id}/dispatch", s.handleDispatch)
-	mux.HandleFunc("POST /tasks/{id}/approve", s.handleApprove)
-	mux.HandleFunc("POST /tasks/{id}/retry", s.handleRetry)
-	mux.HandleFunc("POST /tasks/{id}/cancel", s.handleCancel)
-	mux.HandleFunc("GET /tasks/{id}/context", s.handleTaskContext)
+	handle("GET /events", s.handleEvents)
+	handle("GET /events/stream", s.handleStream) // D-065: hints, not HTML
+	handle("POST /replay/{workflow}", s.handleReplay)
+	handle("POST /tasks/{id}/dispatch", s.handleDispatch)
+	handle("POST /tasks/{id}/approve", s.handleApprove)
+	handle("POST /tasks/{id}/retry", s.handleRetry)
+	handle("POST /tasks/{id}/cancel", s.handleCancel)
+	handle("GET /tasks/{id}/context", s.handleTaskContext)
 
 	// --- back office ---
-	mux.HandleFunc("POST /auth/login", s.handleLogin)
-	mux.HandleFunc("POST /auth/logout", s.handleLogout)
-	mux.HandleFunc("GET /ui/bo", s.handleBOSheet)
-	mux.HandleFunc("GET /ui/bo/{view}", s.handleBOView)
+	handle("POST /auth/login", s.handleLogin)
+	handle("POST /auth/logout", s.handleLogout)
+	handle("GET /ui/bo", s.handleBOSheet)
+	handle("GET /ui/bo/{view}", s.handleBOView)
 
-	mux.HandleFunc("GET /products", s.handleProductList)
-	mux.HandleFunc("POST /products", s.handleProductCreate)
-	mux.HandleFunc("GET /products/{id}", s.handleProductDetail)
-	mux.HandleFunc("PUT /products/{id}/brd", s.handleBRDSave)
-	mux.HandleFunc("POST /products/{id}/stories", s.handleAddStory)
-	mux.HandleFunc("POST /products/{id}/diagrams", s.handleAddDiagram)
-	mux.HandleFunc("POST /products/{id}/knowledge", s.handleAddDecision)
-	mux.HandleFunc("POST /products/{id}/inject", s.handleInject)
-	mux.HandleFunc("POST /products/{id}/blueprint/policies", s.handleSavePolicy)
-	mux.HandleFunc("POST /products/{id}/blueprint/sources", s.handleAddSource)
-	mux.HandleFunc("POST /products/{id}/blueprint/publish", s.handlePublishBlueprint)
-	mux.HandleFunc("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
-	mux.HandleFunc("PUT /products/{id}/vendors", s.handleSaveVendors)
-	mux.HandleFunc("GET /products/{id}/board", s.handleBoard)
-	mux.HandleFunc("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
-	mux.HandleFunc("POST /products/{id}/board/cards", s.handleCardRefused)
-	mux.HandleFunc("PUT /products/{id}/board/cards/{taskId}", s.handleCardRefused)
-	mux.HandleFunc("DELETE /products/{id}/board/cards/{taskId}", s.handleCardRefused)
-	mux.HandleFunc("GET /products/{id}/readiness", s.handleReadiness)
+	handle("GET /products", s.handleProductList)
+	handle("POST /products", s.handleProductCreate)
+	handle("GET /products/{id}", s.handleProductDetail)
+	handle("PUT /products/{id}/brd", s.handleBRDSave)
+	handle("POST /products/{id}/stories", s.handleAddStory)
+	handle("POST /products/{id}/diagrams", s.handleAddDiagram)
+	handle("POST /products/{id}/knowledge", s.handleAddDecision)
+	handle("POST /products/{id}/inject", s.handleInject)
+	handle("POST /products/{id}/blueprint/policies", s.handleSavePolicy)
+	handle("POST /products/{id}/blueprint/sources", s.handleAddSource)
+	handle("POST /products/{id}/blueprint/publish", s.handlePublishBlueprint)
+	handle("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
+	handle("PUT /products/{id}/vendors", s.handleSaveVendors)
+	handle("GET /products/{id}/board", s.handleBoard)
+	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
+	handle("POST /products/{id}/board/cards", s.handleCardRefused)
+	handle("PUT /products/{id}/board/cards/{taskId}", s.handleCardRefused)
+	handle("DELETE /products/{id}/board/cards/{taskId}", s.handleCardRefused)
+	handle("GET /products/{id}/readiness", s.handleReadiness)
 
 	// --- "Needs you" (M15): agents waiting on the operator, and the answer ---
-	mux.HandleFunc("GET /questions", s.handleQuestions)
-	mux.HandleFunc("GET /products/{id}/questions", s.handleQuestions)
-	mux.HandleFunc("POST /products/{id}/tasks/{taskId}/answer", s.handleAnswer)
-	mux.HandleFunc("GET /ui/needs", s.handleNeeds)                      // the chip and the nav count
-	mux.HandleFunc("GET /ui/answer/{id}/{taskId}", s.handleAnswerSheet) // the answer sheet
+	handle("GET /questions", s.handleQuestions)
+	handle("GET /products/{id}/questions", s.handleQuestions)
+	handle("POST /products/{id}/tasks/{taskId}/answer", s.handleAnswer)
+	handle("GET /ui/needs", s.handleNeeds)                      // the chip and the nav count
+	handle("GET /ui/answer/{id}/{taskId}", s.handleAnswerSheet) // the answer sheet
 	// D-078: the QA tool's questions, answered through the same sheet.
-	mux.HandleFunc("POST /products/{id}/inbox/{externalId}/answer", s.handleExternalAnswer)
-	mux.HandleFunc("GET /ui/answer-ext/{id}/{externalId}", s.handleExternalSheet)
+	handle("POST /products/{id}/inbox/{externalId}/answer", s.handleExternalAnswer)
+	handle("GET /ui/answer-ext/{id}/{externalId}", s.handleExternalSheet)
 
 	// --- create workflow ---
-	mux.HandleFunc("GET /ui/cw", s.handleCWOpen)
-	mux.HandleFunc("POST /ui/cw/step/{n}", s.handleCWStep)
-	mux.HandleFunc("POST /workflows", s.handleWorkflowCreate)
+	handle("GET /ui/cw", s.handleCWOpen)
+	handle("POST /ui/cw/step/{n}", s.handleCWStep)
+	handle("POST /workflows", s.handleWorkflowCreate)
 
 	// The machine API (api_v1.go). Traefik strips /api, so these are /v1/...
-	s.registerAPI(mux)
+	s.registerAPI(func(p string, f http.HandlerFunc) {
+		bearer[p] = true
+		mux.HandleFunc(p, f)
+	})
 
 	// The QA sync buttons (handlers_qa.go): the back office's own routes.
-	mux.HandleFunc("POST /products/{id}/qa/sync/pull", s.handleQaPull)
-	mux.HandleFunc("POST /products/{id}/qa/sync/push", s.handleQaPush)
+	handle("POST /products/{id}/qa/sync/pull", s.handleQaPull)
+	handle("POST /products/{id}/qa/sync/push", s.handleQaPush)
 
-	return mux
+	s.patterns, s.bearer = patterns, bearer
+	return s.gate(mux, bearer)
 }
 
 // staticHandler serves the embedded assets. Fingerprinting is pass 2; for now
@@ -446,8 +469,8 @@ func (s *server) newView(r *http.Request) (*View, Floor) {
 	v := &View{
 		Prefix:   sitePrefix(r),
 		Stats:    f.Stats,
-		SignedIn: signedIn(r),
-		Tenant:   tenantOf(r),
+		SignedIn: s.auth.signedIn(r),
+		Tenant:   s.tenantLabel(r),
 		Needs:    s.needsCount(r),
 	}
 	return v, f

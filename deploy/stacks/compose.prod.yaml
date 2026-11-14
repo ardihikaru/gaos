@@ -114,6 +114,13 @@ services:
       GAOS_API_ADMIN_TOKEN_FILE: "/run/secrets/api-admin"
       GAOS_API_QA_TOKEN_FILE: "/run/secrets/api-qa"
       GAOS_QA_TOKEN_FILE: "/run/secrets/api-qa-out"
+      # D-079: back-office sign-in. The accounts file and the session key are
+      # host-side secrets (deploy/stacks/prod.bo-*, gitignored, mode 600). The
+      # label binds a session to this deployment; with it empty, prod disables
+      # sign-in rather than guess.
+      GAOS_BO_USERS_FILE: "/run/secrets/bo-users"
+      GAOS_BO_SESSION_KEY_FILE: "/run/secrets/bo-session-key"
+      GAOS_BO_LABEL: "${GAOS_BO_LABEL:-}"
       # Which products the QA token may reach: PRODUCT IDS (p-6), comma
       # separated. Unset reaches nothing. The id is known after the seed prints it.
       GAOS_API_QA_PRODUCTS: "${GAOS_API_QA_PRODUCTS:-}"
@@ -125,6 +132,8 @@ services:
       - ./prod.api-admin:/run/secrets/api-admin:ro
       - ./prod.api-qa:/run/secrets/api-qa:ro
       - ./prod.api-qa-out:/run/secrets/api-qa-out:ro
+      - ./prod.bo-users:/run/secrets/bo-users:ro
+      - ./prod.bo-session-key:/run/secrets/bo-session-key:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.

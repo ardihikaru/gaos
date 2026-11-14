@@ -9,7 +9,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // The tests pin the things that fail SILENTLY.
@@ -29,7 +31,32 @@ func newTestServer(t *testing.T) (*server, *MemStore) {
 	// A pinned seed. Every branch in sim.go is a probability; a test that
 	// cannot reproduce a sequence cannot assert on one.
 	st := NewMemStore(1)
-	return &server{store: st, rend: rend, arc: &Arcade{DB: "gaos"}}, st
+	return &server{store: st, rend: rend, arc: &Arcade{DB: "gaos"}, auth: newTestAuthority()}, st
+}
+
+// The test authority: fixed key, one account, the minimum iteration count so
+// the suite stays fast. newTestServer builds a FRESH authority per test from
+// these constants, so throttle state never leaks between tests, and boCookies()
+// signs with the same constants.
+const (
+	testEmail    = "ardi@example.test"
+	testPassword = "correct horse battery"
+	testLabel    = "gaos-test"
+)
+
+var testKey = []byte("0123456789abcdef0123456789abcdef-test-key")
+
+var testHashLine = sync.OnceValue(func() string {
+	h, err := hashWith(testPassword, []byte("fixed-test-salt!"), pbkdf2MinIter)
+	if err != nil {
+		panic(err)
+	}
+	return h
+})
+
+func newTestAuthority() *authority {
+	accts := parseUsers(strings.NewReader(testEmail+":"+testHashLine()+"\n"), func(string, ...any) {})
+	return newAuthority(accts, testKey, testLabel)
 }
 
 func do(t *testing.T, s *server, method, path string, form url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
@@ -54,7 +81,8 @@ func do(t *testing.T, s *server, method, path string, form url.Values, cookies .
 }
 
 func boCookies() []*http.Cookie {
-	return []*http.Cookie{{Name: boCookie, Value: "1"}}
+	a := newTestAuthority()
+	return []*http.Cookie{{Name: boCookie, Value: a.sign(testEmail, time.Now().Add(time.Hour))}}
 }
 
 // ---------- routes ----------
@@ -73,8 +101,8 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/events", 200},
 		// Seq 1 is FloorOpened, which every store has from boot. Not 0: the
 		// cursor is an event Seq now and Seq starts at 1.
-		{"GET", "/replay/floor?t=1", 200},
-		{"GET", "/replay/floor?t=-1", 200}, // back to live, or every mutation below is refused (BR-20)
+		{"POST", "/replay/floor?t=1", 200},
+		{"POST", "/replay/floor?t=-1", 200}, // back to live, or every mutation below is refused (BR-20)
 		// Desk 0 is running in the fixtures, so this is the "already in
 		// flight" rejection rather than a dispatch: a 409 with the reason,
 		// since the desk routes answer JSON (M14.7). Asserting the route
@@ -260,7 +288,7 @@ func TestLoginRejectsANonEmail(t *testing.T) {
 // warning in the log, not an error.
 func TestTenantCookieSurvivesNonASCII(t *testing.T) {
 	s, _ := newTestServer(t)
-	w := do(t, s, "POST", "/auth/login", url.Values{"email": {"a@b.c"}, "tenant": {"loop-eng"}})
+	w := do(t, s, "POST", "/auth/login", url.Values{"email": {testEmail}, "password": {testPassword}, "tenant": {"loop-eng"}})
 	var raw string
 	for _, c := range w.Result().Cookies() {
 		if c.Name == tenantCookie {
@@ -272,7 +300,7 @@ func TestTenantCookieSurvivesNonASCII(t *testing.T) {
 	}
 	r := httptest.NewRequest("GET", "/", nil)
 	r.AddCookie(&http.Cookie{Name: tenantCookie, Value: raw})
-	if got := tenantOf(r); got != "loop-eng · a@b.c" {
+	if got := tenantOf(r); got != "loop-eng" {
 		t.Errorf("round-trip = %q", got)
 	}
 }
@@ -635,7 +663,7 @@ func TestWizardDraftRoundTrips(t *testing.T) {
 		"priority": {"medium"}, "gate": {"no"},
 		"stories": {"US-01", "US-02"},
 	}
-	w := do(t, s, "POST", "/ui/cw/step/3", form)
+	w := do(t, s, "POST", "/ui/cw/step/3", form, boCookies()...)
 	if w.Code != 200 {
 		t.Fatalf("status = %d", w.Code)
 	}
@@ -649,7 +677,7 @@ func TestWizardDraftRoundTrips(t *testing.T) {
 
 func TestWizardRefusesToAdvanceWithoutAProduct(t *testing.T) {
 	s, _ := newTestServer(t)
-	w := do(t, s, "POST", "/ui/cw/step/2", url.Values{"step": {"1"}})
+	w := do(t, s, "POST", "/ui/cw/step/2", url.Values{"step": {"1"}}, boCookies()...)
 	if w.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want 422", w.Code)
 	}
@@ -661,7 +689,7 @@ func TestWizardRefusesToAdvanceWithoutAProduct(t *testing.T) {
 // Going BACK must never be blocked by the field you went back to fix.
 func TestWizardBackIsNeverValidated(t *testing.T) {
 	s, _ := newTestServer(t)
-	w := do(t, s, "POST", "/ui/cw/step/1", url.Values{"step": {"2"}, "product": {""}})
+	w := do(t, s, "POST", "/ui/cw/step/1", url.Values{"step": {"2"}, "product": {""}}, boCookies()...)
 	if w.Code != 200 {
 		t.Fatalf("going back was blocked: %d", w.Code)
 	}

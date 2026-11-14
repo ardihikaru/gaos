@@ -17,8 +17,7 @@ import (
 
 // The machine API (D-072, BR-52, BR-53). Bearer-token authenticated, fail
 // closed, product-scoped for the QA token. It exists because the back office's
-// cookie gate accepts any request that sets `gaos_bo=1` (handlers_bo.go) and so
-// cannot protect a route a machine calls.
+// session is a browser cookie (auth.go) and a machine has no browser.
 //
 // PATHS. Traefik routes PathPrefix(/api) to this server and STRIPS it
 // (deploy/traefik/dynamic.yml), so a public https://<host>/api/v1/products
@@ -268,16 +267,16 @@ func apiStoreErr(w http.ResponseWriter, err error) {
 
 // ---------- routes ----------
 
-func (s *server) registerAPI(mux *http.ServeMux) {
-	mux.HandleFunc("GET /v1/products", s.apiProducts)
-	mux.HandleFunc("GET /v1/products/{id}/qa/summary", s.apiQaSummary)
-	mux.HandleFunc("GET /v1/products/{id}/qa/cases", s.apiQaCases)
-	mux.HandleFunc("POST /v1/products/{id}/qa/cases", s.apiQaCreate)
-	mux.HandleFunc("POST /v1/products/{id}/qa/results", s.apiQaResults)
-	mux.HandleFunc("POST /v1/products/{id}/qa/catalog", s.apiQaCatalog)
-	mux.HandleFunc("POST /v1/products/{id}/inbox", s.apiInboxAsk)
-	mux.HandleFunc("GET /v1/products/{id}/inbox/{externalId}", s.apiInboxGet)
-	mux.HandleFunc("POST /v1/seed/product", s.apiSeedProduct)
+func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
+	handle("GET /v1/products", s.apiProducts)
+	handle("GET /v1/products/{id}/qa/summary", s.apiQaSummary)
+	handle("GET /v1/products/{id}/qa/cases", s.apiQaCases)
+	handle("POST /v1/products/{id}/qa/cases", s.apiQaCreate)
+	handle("POST /v1/products/{id}/qa/results", s.apiQaResults)
+	handle("POST /v1/products/{id}/qa/catalog", s.apiQaCatalog)
+	handle("POST /v1/products/{id}/inbox", s.apiInboxAsk)
+	handle("GET /v1/products/{id}/inbox/{externalId}", s.apiInboxGet)
+	handle("POST /v1/seed/product", s.apiSeedProduct)
 }
 
 type apiProductOut struct {

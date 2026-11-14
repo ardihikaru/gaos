@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Seventy-seven entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Seventy-eight entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1601,6 +1601,32 @@
         <td><a href="qa-collaboration.html">How GAOS and the QA tools work together</a>;
         <a href="../guide/qa-sync-api.html#gaos-calls">The QA sync API</a>;
         <a href="open-questions.html#oq-33">OQ-33</a></td>
+      </tr>
+      <tr id="d-079">
+        <td>D-079</td><td>2026-11-15</td>
+        <td><strong>The back office signs in for real: accounts in a hashed file, a signed expiring session cookie, and a mux gate that refuses every route nobody classified.</strong>
+        Context: <code>signedIn()</code> accepted <code>gaos_bo=1</code> from any request and the login checked only
+        for an <code>@</code> (<a href="brd.html#rules-design-review">BR-48</a>'s open precondition), so anyone who could
+        reach the dashboard could read the product master, answer questions, publish Blueprints and press the QA sync
+        buttons; six routes (the event log, the model's packet, the readiness read, the wizard and a <code>GET</code>
+        that parked every write) checked nothing at all. Decision: accounts are lines of a file
+        (<code>email:pbkdf2-sha256$600000$&hellip;</code>, <code>GAOS_BO_USERS_FILE</code>); a session is
+        <code>v1.email.expiry.fingerprint.mac</code>, HMAC-SHA256 under <code>GAOS_BO_SESSION_KEY_FILE</code> and a
+        per-deployment label, 12 hours absolute, so a password change or a removed account ends it; failures are
+        throttled per account and never starve a known account; the gate looks up each request's matched pattern and
+        refuses everything that is not on a fixed public list or a bearer route; replay became a <code>POST</code>;
+        non-GET requests that a browser marks cross-origin are refused. Nothing is open when no account exists.
+        Lifted from <code>pustaka</code>'s auth with the changes the design names
+        (<code>docs/designs/bo-login.md</code>, three review rounds). Per-tenant scoping and SSO stay open
+        (<a href="open-questions.html#oq-11">OQ-11</a> is narrowed, not answered), and events still carry no actor.
+        <br><br>
+        Consequences: the two prod deployments need the two <code>prod.bo-*</code> files and a
+        <code>GAOS_BO_LABEL</code> before the tag that carries this. A rollback to an older tag brings the forgeable
+        cookie back. D-078 (the QA inbox) is claimed by its own design and recorded here when that review passes.</td>
+        <td><a href="../guide/bo-sign-in.html">Back-office sign-in</a>;
+        <a href="qa-test-plan.html#go-bo-login">TC-423 to TC-438</a>;
+        <a href="brd.html#rules-design-review">BR-48, BR-55</a>;
+        <a href="open-questions.html#oq-11">OQ-11</a></td>
       </tr>
     </tbody>
   </table>

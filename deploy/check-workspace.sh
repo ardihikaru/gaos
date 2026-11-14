@@ -24,7 +24,7 @@
 # WHAT IT MUST NEVER PRINT.  The matched line of a secret-bearing file.  This
 # script runs on the host, where deploy/rebuild-restart.sh symlinks the
 # host-side credentials into worktrees, so the tree it walks contains them.
-# For a path matching *.env, *.aim-*, *.api-*, *.pem or *.key, print the path and the
+# For a path matching *.env, *.aim-*, *.api-*, *.bo-*, *.pem or *.key, print the path and the
 # rule and never the text.
 
 set -u
@@ -109,11 +109,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "two hundred and ninety-four" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "294" ]; then
+if grep -q "three hundred and sixteen" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "316" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says two hundred and ninety-four"
+  bad "Go test count: $go_tests tests on disk, register says three hundred and sixteen"
 fi
 
 prose_check() {
@@ -124,11 +124,11 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "four hundred and twelve"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "four hundred and twelve"
-prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-seven entries"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "four hundred and thirty-eight"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "four hundred and thirty-eight"
+prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-eight entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-five in one place"
-prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-four rules"
+prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-five rules"
 
 readme_check() {
   local label="$1" want="$2"
@@ -138,10 +138,10 @@ readme_check() {
     bad "$label: README.md does not say \"$want\""
   fi
 }
-readme_check "README dashboard test count" "272 tests"
-readme_check "README total test count"    "294 tests"
-readme_check "README case count"          "411 cases"
-readme_check "README version"             "Product version 0.37.5"
+readme_check "README dashboard test count" "294 tests"
+readme_check "README total test count"    "316 tests"
+readme_check "README case count"          "438 cases"
+readme_check "README version"             "Product version 0.39.0"
 
 # ------------------------------------------------------------- 4. rule forks ---
 # A rule restated in two files forks: one harness enforces the new wording and
@@ -195,7 +195,7 @@ done
 # A report that quotes the vocabulary -- the security reviewer's own rules do --
 # is not a leak.  What leaks is a VALUE: a key, a token, a PEM block, or a
 # credential assigned to something.
-SECRET='(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|bearer [A-Za-z0-9._-]{24,}|((api[_-]?key|secret[_-]?key|password|passwd|admin[_-]?key)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._/+-]{12,})'
+SECRET='(pbkdf2-sha256\$[0-9]+\$|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|bearer [A-Za-z0-9._-]{24,}|((api[_-]?key|secret[_-]?key|password|passwd|admin[_-]?key)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._/+-]{12,}))'
 if [ -d docs/designs/reviews ]; then
   hits=$(grep -rEil "$SECRET" docs/designs/reviews/ 2>/dev/null | wc -l | tr -d ' ')
   # A PEM block is a secret on its own: the header line plus a base64 body.

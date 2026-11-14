@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and twenty-two cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and thirty-eight cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and twenty-two cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and thirty-eight cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -511,6 +511,22 @@
       <tr data-tags="go test unit dashboard qa inbox webhook delivery bearer path positive negative d-078 implemented"><td>TC-420</td><td>dashboard (go test)</td><td>Positive</td><td>The webhook POSTs each answered or expired item once to GAOS_QA_URL plus /api/v1/gaos/inbox-answer with the outbound bearer and the agreed body; delivered items are never re-sent, not even after a restart, and an unconfigured or unsafe URL sends nothing (TestTheAnswerWebhookDeliversTheDecision)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard qa inbox webhook retry backoff give up negative d-078 implemented"><td>TC-421</td><td>dashboard (go test)</td><td>Negative</td><td>A failing QA tool is retried at 30 s, 2 min, 10 min and 1 h then given up after five attempts, the backoff survives a restart, a recovered tool is told once, and GET keeps serving the decision (TestTheAnswerWebhookRetriesWithBackoffThenGivesUp)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard qa inbox webhook never blocks answer positive negative d-078 implemented"><td>TC-422</td><td>dashboard (go test)</td><td>Negative</td><td>Answering returns at once while the QA tool hangs or is unreachable; the failure is recorded as a delivery attempt and never reaches the operator (TestAnAnswerNeverWaitsOnTheWebhook)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth forged cookie 401 negative d-079 implemented"><td>TC-423</td><td>dashboard (go test)</td><td>Negative</td><td>A forged <code>gaos_bo=1</code> cookie is signed out: back-office routes answer 401 and the sheet shows the sign-in form (<code>TestAForgedBackOfficeCookieIsSignedOut</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth login session cookie positive negative d-079 implemented"><td>TC-424</td><td>dashboard (go test)</td><td>Positive</td><td>A correct login issues an HttpOnly session cookie with a Max-Age that opens the back office, the email is canonicalised, and a wrong password and an unknown email answer the same text (<code>TestASignedInCookieOpensTheBackOffice</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth tamper mac expiry label negative d-079 implemented"><td>TC-425</td><td>dashboard (go test)</td><td>Negative</td><td>A cookie with an edited email, expiry or fingerprint, a truncated or missing MAC, an oversized value, another deployment's label or an expired time is refused (<code>TestACookieThatWasTamperedWithIsRefused</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth fingerprint revoke password negative d-079 implemented"><td>TC-426</td><td>dashboard (go test)</td><td>Negative</td><td>A session ends when its account's password changes or the account is removed from the users file (<code>TestAPasswordChangeEndsOldSessions</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth fail closed no accounts negative d-079 implemented"><td>TC-427</td><td>dashboard (go test)</td><td>Negative</td><td>With no accounts nobody signs in: login answers 422 not configured, and neither <code>gaos_bo=1</code> nor a once-valid cookie opens anything (<code>TestWithNoAccountsNobodySignsIn</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth throttle lockout unknown email positive negative d-079 implemented"><td>TC-428</td><td>dashboard (go test)</td><td>Negative</td><td>Five failures lock the account (even for the right password, with Retry-After); email variants share one counter; other accounts are unaffected; a flood of unknown emails neither fills the table nor ends a lock; the lock expires (<code>TestFiveFailuresLockTheAccount</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth users file parser pbkdf2 negative d-079 implemented"><td>TC-429</td><td>dashboard (go test)</td><td>Negative</td><td>The users file parser skips comments, blanks, duplicates, malformed lines, an email with a colon or control character and an out-of-range iteration count, and never logs a line's content (<code>TestTheUsersFileParser</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth hash-password pbkdf2 vector positive negative d-079 implemented"><td>TC-430</td><td>dashboard (go test)</td><td>Positive</td><td>PBKDF2 matches the RFC 7914 vector; <code>hash-password</code> output round-trips and refuses an empty password (<code>TestHashPasswordRoundTrip</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth gate route table default deny replay negative d-079 implemented"><td>TC-431</td><td>dashboard (go test)</td><td>Negative</td><td>Every registered route is classified: the public list is fixed, every other pattern answers 401 signed out and with <code>gaos_bo=1</code> (HTML and JSON), an unknown path is not public, a GET not on the read-only list fails, and replay is a POST (<code>TestEveryRouteIsClassified</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth csrf origin sec-fetch-site positive negative d-079 implemented"><td>TC-432</td><td>dashboard (go test)</td><td>Negative</td><td>A cross-origin non-GET request (foreign Origin, null Origin, cross-site fetch) to login, logout and a back-office PUT is refused 403; same-origin and header-less requests pass; the bearer API is exempt (<code>TestACrossOriginPostIsRefused</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth session key file random fallback positive negative d-079 implemented"><td>TC-433</td><td>dashboard (go test)</td><td>Negative</td><td>The session key file is trimmed raw bytes of at least 32; a short, unset or unreadable file falls back to a random per-process key with a log line (<code>TestTheSessionKeyFile</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard auth stream expiry sse negative d-079 implemented"><td>TC-434</td><td>dashboard (go test)</td><td>Negative</td><td>An open event stream closes at the expiry of the session that opened it (<code>TestTheEventStreamClosesAtSessionExpiry</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks secrets bo-users session key untracked label negative d-079 implemented"><td>TC-435</td><td>check-stacks.sh</td><td>Negative</td><td><code>deploy/stacks/*.bo-*</code> (the accounts file and the session key) are untracked regular files.</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks compose label positive d-079 implemented"><td>TC-436</td><td>check-stacks.sh</td><td>Positive</td><td>The prod compose file passes <code>GAOS_BO_LABEL</code>, so a session is bound to one deployment.</td><td>Implemented</td></tr>
+      <tr data-tags="check-workspace secret scan pbkdf2 hash negative d-079 implemented"><td>TC-437</td><td>check-workspace.sh</td><td>Negative</td><td>A <code>pbkdf2-sha256$&hellip;$</code> hash line in the committed review reports is caught by the secret scan.</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart preflight bo-users missing refuse negative d-079 implemented"><td>TC-438</td><td>rebuild-restart.sh</td><td>Negative</td><td>A tag deploy refuses, with a <code>bad</code> line, when <code>prod.bo-users</code> or <code>prod.bo-session-key</code> is missing.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3147,6 +3163,82 @@
   <p><strong>TC-422, negative</strong> (<code>TestAnAnswerNeverWaitsOnTheWebhook</code>): prints <code>the
   answer took %v and answered %d while the QA tool hangs; it must return at once</code> and <code>a refused
   connection left the delivery %+v; want one failed attempt, still pending</code>.</p>
+
+  <h3 id="go-bo-login">dashboard &mdash; back-office sign-in (TC-423 to TC-434)</h3>
+  <p>The sign-in is real (<a href="decision-log.html#d-079">D-079</a>, <a href="brd.html#rules-design-review">BR-55</a>):
+  a signed, expiring session cookie issued after a PBKDF2 password check, and a default-deny gate at the mux.</p>
+  <p><strong>TC-423, negative</strong> (<code>TestAForgedBackOfficeCookieIsSignedOut</code>): prints
+  <code>GET %s with the forged cookie gaos_bo=1 answered %d, want 401</code> and
+  <code>the back-office sheet opened for the forged cookie gaos_bo=1; want the sign-in sheet</code>.</p>
+  <p><strong>TC-424, positive and negative</strong> (<code>TestASignedInCookieOpensTheBackOffice</code>): prints
+  <code>a correct login answered %d, want 200</code>,
+  <code>the session cookie is %+v, want one that is HttpOnly with a Max-Age</code>,
+  <code>GET /products with the issued cookie answered %d, want 200</code>,
+  <code>wrong password %d, unknown email %d, want 422 and no cookie for both</code> and
+  <code>a wrong password and an unknown email must both answer: That email and password do not match.</code></p>
+  <p><strong>TC-425, negative</strong> (<code>TestACookieThatWasTamperedWithIsRefused</code>): prints
+  <code>a freshly signed cookie did not verify</code> and <code>a cookie with %s verified; want it refused</code>,
+  once for each of: edited email, edited expiry, edited fp, truncated MAC, no MAC, oversized, empty, wrong
+  deployment, expired.</p>
+  <p><strong>TC-426, negative</strong> (<code>TestAPasswordChangeEndsOldSessions</code>): prints
+  <code>a session survived a password change in the users file; want it refused</code> and
+  <code>a session survived the removal of its account; want it refused</code>.</p>
+  <p><strong>TC-427, negative</strong> (<code>TestWithNoAccountsNobodySignsIn</code>): prints
+  <code>login with no accounts answered %d, want 422 with %q and no cookie</code>,
+  <code>gaos_bo=1 with no accounts answered %d, want 401</code> and
+  <code>a once-valid cookie with no accounts answered %d, want 401</code>.</p>
+  <p><strong>TC-428, negative</strong> (<code>TestFiveFailuresLockTheAccount</code>): prints
+  <code>failure %d answered %d, want 422 with %q</code>,
+  <code>the right password after five failures answered %d, want 422 "Too many attempts" and no cookie</code>,
+  <code>a locked login sent no Retry-After</code>,
+  <code>another account answered %d while this one was locked, want 200</code>,
+  <code>the unknown-email table holds %d keys, want at most %d</code>,
+  <code>a flood of unknown emails ended the lock on a real account</code> and
+  <code>after the lockout the right password answered %d, want 200</code>.</p>
+  <p><strong>TC-429, negative</strong> (<code>TestTheUsersFileParser</code>): prints
+  <code>accepted accounts = %v, want [first@example.test second@example.test]</code>,
+  <code>two different hashes share one fingerprint</code>,
+  <code>%d lines were reported as skipped, want 8: %v</code> and
+  <code>a skipped-line report quotes line content: %q</code>.</p>
+  <p><strong>TC-430, positive and negative</strong> (<code>TestHashPasswordRoundTrip</code>): prints
+  <code>PBKDF2 vector = %x, %v; want 55ac046e…20dacbc</code>,
+  <code>hash-password output %q did not round-trip (%v)</code>,
+  <code>a new hash is %q, want the 600000-iteration form</code> and
+  <code>hash-password accepted an empty password</code>.</p>
+  <p><strong>TC-431, negative</strong> (<code>TestEveryRouteIsClassified</code>): prints
+  <code>routes() recorded %d patterns and %d bearer patterns; the table is not being filled</code>,
+  <code>the public list names %q, which is not a registered pattern</code>,
+  <code>%q is both bearer and back office/public; the classes must not overlap</code>,
+  <code>GET pattern %q is not on the read-only list; a GET must not change state</code>,
+  <code>%s %s signed out answered %d, want 401</code>,
+  <code>%s %s signed out (not htmx) answered %d %q, want 401 JSON</code>,
+  <code>an unknown path answered %d, want 404</code>,
+  <code>GET /static answered 200 signed out, want a redirect or 401</code> and
+  <code>GET /replay answered %d, want 405</code>.</p>
+  <p><strong>TC-432, positive and negative</strong> (<code>TestACrossOriginPostIsRefused</code>): prints
+  <code>%s %s with a %s answered %d, want 403</code>,
+  <code>a login with %s answered %d, want 200</code> and
+  <code>a /v1 route was refused by the origin check; bearer routes are exempt</code>.</p>
+  <p><strong>TC-433, positive and negative</strong> (<code>TestTheSessionKeyFile</code>): prints
+  <code>a 32-byte key file with whitespace around it loaded as %q, want the trimmed key</code>,
+  <code>a good key file logged %v</code>,
+  <code>a 31-byte key file was accepted; want a random per-process key and a log line</code>,
+  <code>an unset or unreadable key file did not fall back to two different random keys</code> and
+  <code>fallbacks logged %d lines, want 3</code>.</p>
+  <p><strong>TC-434, negative</strong> (<code>TestTheEventStreamClosesAtSessionExpiry</code>): prints
+  <code>the stream with a session two seconds from expiry answered %v %v; want 200</code> and
+  <code>the stream was still open four seconds after its session expired; want it closed at expiry</code>.</p>
+  <p><strong>TC-435 and TC-436, <code>check-stacks.sh</code></strong>: for each <code>deploy/stacks/*.bo-*</code> prints
+  <code>ok  &lt;file&gt; is untracked</code> or <code>FAIL &lt;file&gt; is tracked by git</code>, and
+  <code>FAIL &lt;file&gt; is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)</code>;
+  and <code>ok  prod passes the deployment label that binds a session to it</code> or the same text as <code>FAIL</code>.</p>
+  <p><strong>TC-437, <code>check-workspace.sh</code></strong>: the secret scan's pattern now includes
+  <code>pbkdf2-sha256$&lt;n&gt;$</code>; a report that quotes a hash line fails the existing
+  <code>no secret value in the review report store</code> check.</p>
+  <p><strong>TC-438, <code>rebuild-restart.sh</code></strong>: a prod tag deploy whose compose mounts
+  <code>prod.bo-users</code> prints <code>FAIL deploy/stacks/prod.bo-users is missing (or is not a regular file)</code>
+  (or the same for <code>prod.bo-session-key</code>) and exits 1; with both present it prints
+  <code>ok  the back office's accounts and session-key files exist</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

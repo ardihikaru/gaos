@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -113,4 +114,32 @@ func TestTheStreamSendsAHintForAQuestion(t *testing.T) {
 		}
 	}
 	t.Fatalf("the stream ended without a question hint: %v", sc.Err())
+}
+
+// A stream is one long request checked once at open. It must end with the
+// session that opened it, or an expired cookie keeps reading (BR-55).
+func TestTheEventStreamClosesAtSessionExpiry(t *testing.T) {
+	srv, s, _ := plannedProduct(t)
+	ts := httptest.NewServer(srv.routes())
+	defer ts.Close()
+
+	cookie := &http.Cookie{Name: boCookie, Value: newTestAuthority().sign(testEmail, time.Now().Add(2*time.Second))}
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/events/stream", nil)
+	req.AddCookie(cookie)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("the stream with a session two seconds from expiry answered %v %v; want 200", resp, err)
+	}
+	defer resp.Body.Close()
+	_ = s
+	done := make(chan struct{})
+	go func() {
+		bufio.NewReader(resp.Body).WriteTo(io.Discard)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(6 * time.Second):
+		t.Fatal("the stream was still open four seconds after its session expired; want it closed at expiry")
+	}
 }
