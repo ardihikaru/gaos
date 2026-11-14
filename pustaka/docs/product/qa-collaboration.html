@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>How GAOS and the QA tools work together — GAOS</title>
+<meta name="description" content="How GAOS and the QA tools exchange a product's test catalog in both directions: who owns what, what flows automatically, what the two sync buttons do, how to set it up and what to check when it does not work.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="qa-collaboration">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Product</p>
+  <h1>How GAOS and the QA tools work together</h1>
+  <p class="lede">GAOS plans and tracks the work; the QA tools hold the test catalog and the scripts. They
+  exchange one thing in both directions: the test cases of a product. This page explains who owns what, what
+  moves on its own, what the two sync buttons do, how to set it up and what to look at when it does not work.
+  The exact request and response shapes are in <a href="../guide/qa-sync-api.html">The QA sync API</a>.</p>
+
+  <div class="page-meta"
+       data-tags="qa, integration, sync, kanban, operations"
+       data-hashtags="qa, integration, operations"
+       data-published="2026-11-14"
+       data-updated="2026-11-14"
+       data-version-from="0.37.2"
+       data-version-to=""></div>
+
+  <h2 id="overview">The idea in one picture</h2>
+  <p>A product such as sample-product exists in both systems. In GAOS it is a product with a board: one card per test
+  epic, each card showing how many of its test cases are automated. In the QA tools it is a product whose test
+  cases are read from its automation repository, and whose scripts run in Playwright. Neither system is the
+  whole truth, so each owns the part it is good at and tells the other.</p>
+  <div class="flow rv">
+    <div class="node"><b>Automation repo</b><span>the catalog, as markdown</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>QA tools</b><span>knowledge sync reads it</span></div>
+    <div class="arrow">⇄</div>
+    <div class="node"><b>GAOS</b><span>catalog, board, decisions</span></div>
+  </div>
+  <p>Two flows connect the two boxes on the right. <strong>QA tools to GAOS</strong> runs by itself after every
+  knowledge sync and carries new cases and which of them have a script. <strong>GAOS to QA tools</strong> is
+  started by an operator with two buttons on the product's QA tab and carries GAOS's decisions out and the
+  QA tools' script facts back in.</p>
+
+  <h2 id="who-owns-what">Who owns what</h2>
+  <p>Every test case has two halves, and each half has exactly one writer. That is what makes it safe to sync
+  in both directions at once: the two flows never write the same field.</p>
+  <table class="tbl">
+    <thead><tr><th>Half</th><th>Fields</th><th>Owner</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Planning</strong></td><td>case id, epic, module, features, user story, scenario, polarity (+ or −), level, priority, <em>decision</em> (planned, blocked, manual-only, wont) and its reason</td><td>GAOS. The QA tools may <em>create</em> a case, never change one that exists.</td></tr>
+      <tr><td><strong>Automation</strong></td><td>is there a script (<code>implemented</code>), its path (<code>spec</code>), and, when they exist, the last result, its time and a run reference</td><td>The QA tools. Inside this half the newest run wins, and an older one is refused as stale.</td></tr>
+    </tbody>
+  </table>
+  <p>A case is shown as <strong>automated</strong> when its decision is <em>planned</em> and it has a script.
+  If a script exists for a case GAOS has parked (blocked, manual-only or wont), the case is listed as
+  <em>needs a decision</em> and GAOS never changes the decision by itself. The rules behind this are
+  <a href="brd.html#rules-qa-sync">BR-51 to BR-54</a>.</p>
+
+  <h2 id="qa-to-gaos">QA tools to GAOS: automatic</h2>
+  <p>This direction needs no one to press anything.</p>
+  <ol>
+    <li>The product's automation repository changes (a case is added or a script lands).</li>
+    <li>The QA tools' knowledge sync reads the repository, on its schedule or when someone starts it, and
+    updates the product's test cases.</li>
+    <li>If the product is flagged <strong>integrated with GAOS</strong> and the sync succeeded, the QA tools
+    start a push to GAOS in the background. It never blocks or fails the knowledge sync.</li>
+    <li>The push sends the cases in batches of 200: first the cases themselves (create-only), then the script
+    facts of every case it sent.</li>
+  </ol>
+  <p>Turning the flag on also starts a full push, and the product's page has a <em>Sync to GAOS now</em> button
+  for a push on demand. What the push does and does not send:</p>
+  <ul>
+    <li><strong>Sent:</strong> cases whose status is planned or automated and whose code looks like
+    <code>TC-AUTH-001</code>.</li>
+    <li><strong>Skipped, and counted:</strong> blocked, manual-only and wont cases (the QA side may not park or
+    retire a case in GAOS) and local drafts, whose codes start with <code>L-</code>.</li>
+    <li><strong>Informational:</strong> a case that already exists in GAOS with different planning fields comes
+    back as <code>exists-differs</code>. GAOS keeps its own values. The result shows the count; it is not a failure.</li>
+    <li><strong>Retried:</strong> GAOS allows one write at a time per token, so a busy answer
+    (<code>429</code>) is waited out and retried, up to three times.</li>
+  </ul>
+  <p>The outcome (<code>ok</code>, <code>partial</code> or <code>failed</code>, with a note such as
+  <em>sent 1146 cases, unchanged 1067, exists-differs 79, skipped 554</em>) is stored on the product and shown
+  in its GAOS card in the QA tools.</p>
+
+  <h2 id="a-new-case">What happens when someone adds a test case</h2>
+  <p>This is the path of a brand-new case, end to end, with nobody touching GAOS:</p>
+  <ol>
+    <li>A test author adds a row to an epic file in the automation repository and merges it.</li>
+    <li>The next knowledge sync in the QA tools picks the row up as a new test case.</li>
+    <li>The push creates the case in GAOS as a <em>planned</em> case and bumps its revision. If the case already
+    has a script, <code>implemented</code> and the spec path travel with it; otherwise the script facts follow
+    when the script is written and the next sync runs.</li>
+    <li>On sample-product's board the epic's card now counts one more case. When the script exists, the card's
+    <em>automated</em> number rises. Nothing is written to the card's task: the numbers are read from the
+    catalog every time the board is drawn.</li>
+  </ol>
+  <p>If the case belongs to an epic GAOS has not seen, GAOS creates the epic too, and adds <strong>one new
+  card</strong> to the board. That card is always born <strong>Blocked</strong>, with the reason <em>added by
+  the QA catalog; plan its design and review before unblocking</em>. The reason is the design gate
+  (<a href="brd.html#rules-design-review">BR-46</a>): work the QA side adds must not start without a person
+  releasing it. Only an operator moving the card releases it. If the product has no workflow yet, or the floor
+  is being replayed at that moment, the epic is recorded without a card and the QA tab lists it.</p>
+
+  <div class="adm note">
+    <p class="adm-title">What never happens</p>
+    <p>Data from the QA tools never moves an existing card, never changes a decision, never changes the BRD or a
+    policy, and never reaches another product. The QA token is scoped to the products the GAOS operator listed
+    for it. At most 5 new epics per request, 100 epics and 5,000 cases per product.</p>
+  </div>
+
+  <h2 id="gaos-to-qa">GAOS to QA tools: the two buttons</h2>
+  <p>On a product's <strong>QA</strong> tab in GAOS there are two buttons. They are an operator's tool, for the
+  times when you want GAOS and the QA tools to compare notes now rather than after the next knowledge sync.</p>
+  <table class="tbl">
+    <thead><tr><th>Button</th><th>What GAOS does</th><th>What it changes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Pull from QA tools</strong></td><td>Asks the QA tools for the script facts of the product's cases, page by page (up to 200 cases a page, up to 20 pages a click), and applies them like any inbound result.</td><td>Only the automation half in GAOS (<code>implemented</code>, <code>spec</code>). Today the QA tools hold no per-case run results, so no pass or fail comes back.</td></tr>
+      <tr><td><strong>Push to QA tools</strong></td><td>Sends GAOS's planning data (decision, reason, scenario, module, features and the rest) for every case that changed since the last push, in batches of 200.</td><td>Only the QA tools' <code>gaos_decisions</code> table. It never writes the synced test cases, which stay read-only there. A newer revision wins; an older push leaves the stored row alone.</td></tr>
+    </tbody>
+  </table>
+  <p>After a click the tab shows a last-sync line for each button: ok or failed, how long ago, how many
+  items, and a note. A push also lists up to 20 case ids the QA tools refused.</p>
+  <p>Some limits you will meet:</p>
+  <ul>
+    <li><strong>One sync at a time, and 30 seconds between starts</strong>, across the whole of GAOS. A second
+    click answers <em>the last sync started moments ago; wait 16s</em> (HTTP 409).</li>
+    <li><strong>A click lasts at most 60 seconds.</strong> The first push of a whole catalog (1,700 cases) takes two
+    clicks, because each batch of 200 takes the QA tools about 15 seconds. GAOS remembers where it stopped, so
+    the second click carries on; later pushes only send what changed.</li>
+    <li><strong>The buttons are disabled, with the reason printed beside them,</strong> when the QA tools are not
+    connected (<code>GAOS_QA_URL</code> unset), when the product is not in the list of products allowed to
+    exchange data (<code>GAOS_API_QA_PRODUCTS</code>) or while the floor is in replay.</li>
+  </ul>
+
+  <h2 id="kanban">What you see on the board</h2>
+  <p>sample-product's board has one card per test epic ("Automate: ..."), a design card, a review card and a release
+  card. Each epic card carries a small badge: <em>automated / cases</em> with a bar, and a failing marker if
+  the last run of one of its cases failed. The badge is a live view of the catalog; it is not stored on the
+  task. Cards start in <strong>Blocked</strong> because GAOS's design gate holds all implementation work until a
+  design has been written and reviewed; running those two cards is the first thing to do on a new product.
+  The <strong>QA</strong> tab next to Board shows the whole catalog: totals, the per-epic table, epics with a
+  regression, the cases that need a decision, and the two sync lines.</p>
+
+  <h2 id="setup">Setting it up</h2>
+  <p>Both systems run on the same machine (rnd-v3-vpn) and talk over the tunnel, so no token has to cross the
+  shared public edge. Three tokens exist on the GAOS side, one per purpose, and the three must differ (if two
+  are equal GAOS disables its whole API). A token is the text <code>gaos_</code> followed by 32 or more letters
+  and digits.</p>
+  <table class="tbl">
+    <thead><tr><th>Purpose</th><th>Held in GAOS (a file, mode 600)</th><th>Held in the QA tools (env)</th></tr></thead>
+    <tbody>
+      <tr><td>The QA tools call GAOS</td><td><code>deploy/stacks/prod.api-qa</code> (<code>GAOS_API_QA_TOKEN_FILE</code>)</td><td><code>GAOS_API_TOKEN</code></td></tr>
+      <tr><td>GAOS calls the QA tools</td><td><code>deploy/stacks/prod.api-qa-out</code> (<code>GAOS_QA_TOKEN_FILE</code>)</td><td><code>GAOS_INBOUND_TOKEN</code></td></tr>
+      <tr><td>Seeding and catalog import (an operator, not the QA tools)</td><td><code>deploy/stacks/prod.api-admin</code> (<code>GAOS_API_ADMIN_TOKEN_FILE</code>)</td><td>not used</td></tr>
+    </tbody>
+  </table>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Where</th><th>Value for sample-product on rnd-v3-vpn</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_API_URL</code></td><td>QA tools</td><td><code>http://10.10.0.9:18301/api/v1</code> (the tunnel; the public one is <code>https://gaos.sample-product.com/api/v1</code>)</td></tr>
+      <tr><td><code>GAOS_QA_URL</code></td><td>GAOS, at deploy time</td><td><code>http://10.10.0.9:8140</code> (the public one is <code>https://qa-tool.sample-product.com</code>)</td></tr>
+      <tr><td><code>GAOS_API_QA_PRODUCTS</code></td><td>GAOS, at deploy time</td><td><code>p-6</code>: GAOS product ids, comma separated. Unset means the QA token reaches nothing.</td></tr>
+      <tr><td>Integrated flag and GAOS product id</td><td>QA tools, <em>/products</em>, the product's GAOS card (Admin or DevOps)</td><td>on, and <code>p-6</code></td></tr>
+    </tbody>
+  </table>
+  <p>The order that works, for a new product:</p>
+  <ol>
+    <li>Seed the product in GAOS (<code>deploy/seed/sample-product/seed.sh</code> for sample-product). It prints the product id.</li>
+    <li>Put that id in <code>GAOS_API_QA_PRODUCTS</code> and redeploy GAOS. The deploy command is the one in the
+    <a href="../infra/environments.html">environments</a> page, with the extra variables.</li>
+    <li>Create the token files before the deploy (the deploy refuses a production tag without them), and put the
+    matching values in the QA tools' env without printing them.</li>
+    <li>Deploy the QA tools (run their migration first), then switch the product's integration on.</li>
+  </ol>
+  <p>To revoke a token, empty its file (GAOS) or remove it from the env (QA tools) and restart that side. A
+  token that is unset stops working at once: a caller with it gets <code>401</code> from GAOS (and
+  <code>503</code> when no GAOS token is set at all), and the QA tools answer <code>503</code> when their
+  inbound token is unset.</p>
+
+  <h2 id="operate">Checking that it works</h2>
+  <ul>
+    <li><strong>In GAOS:</strong> the product's QA tab. The totals should match the QA tools'
+    product (sample-product: 1,700 cases). The two last-sync lines say when each button last ran and how it went.</li>
+    <li><strong>In the QA tools:</strong> the product's GAOS card shows the last push, its status and note. A healthy
+    push reads <em>rejected 0</em>.</li>
+    <li><strong>From a shell on the VM</strong> (the token is read from its file and never printed):
+    <code>GET /api/v1/products/p-6/qa/summary</code> with the QA token returns the same totals as the tab.</li>
+  </ul>
+
+  <h2 id="troubleshooting">When it does not work</h2>
+  <table class="tbl">
+    <thead><tr><th>You see</th><th>It means</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>A GAOS button is disabled, "the QA tools are not connected"</td><td><code>GAOS_QA_URL</code> or the outbound token file is empty or invalid.</td><td>Set it and redeploy GAOS. The boot log says <em>qa sync: outbound to ...</em> or why it is off.</td></tr>
+      <tr><td>"this product is not listed in GAOS_API_QA_PRODUCTS"</td><td>The product id is missing from that variable.</td><td>Add the id and redeploy.</td></tr>
+      <tr><td>409 "the last sync started moments ago" or "a sync is already running"</td><td>The 30 second cooldown, or a sync in progress.</td><td>Wait; nothing is wrong.</td></tr>
+      <tr><td>Push or pull ends "context deadline exceeded"</td><td>The 60 second budget ran out; the cursor was kept.</td><td>Press again. A first push of a full catalog needs two clicks.</td></tr>
+      <tr><td>QA tools: "answered 200 with an unreadable body"</td><td>The two sides disagree on a response shape (a contract bug).</td><td>Compare the live response with <a href="../guide/qa-sync-api.html">the API page</a>; GAOS answers <code>cardsDeferred</code> as a string.</td></tr>
+      <tr><td>401 or 403 from either side</td><td>A wrong, missing or wrongly scoped token.</td><td>Check which of the three tokens the caller presents. A QA token cannot call admin routes.</td></tr>
+      <tr><td>404 on a product</td><td>The product id is not in the token's scope, or the product is not flagged on the QA side.</td><td>Check <code>GAOS_API_QA_PRODUCTS</code> and the product's GAOS card.</td></tr>
+      <tr><td>503 from GAOS's API</td><td>No token is configured, or two tokens are equal.</td><td>Read the GAOS boot line <em>api: disabled (...)</em>.</td></tr>
+      <tr><td><code>exists-differs</code> on many cases</td><td>GAOS already holds that case with different planning fields (often the module or features). GAOS keeps its values.</td><td>Informational. To change a case's planning fields, import through the admin catalog route or re-seed.</td></tr>
+      <tr><td>A new epic has no card</td><td>The product has no workflow with a review task yet, or the floor was in replay.</td><td>The epic is on the QA tab's list of epics without a card; plan the workflow first.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="security">Security in short</h2>
+  <ul>
+    <li>Tokens live in files (GAOS) or the server env (QA tools), mode 600, never in the repository or in a log.
+    A request is checked in constant time and an unset token closes the surface.</li>
+    <li>Everything a caller sends is size-limited (200 items, 1 MiB) and strictly decoded: an unknown field is a
+    refusal. Text from either side is screened for secrets and stripped of markup before it is stored.</li>
+    <li>Each side ignores the half it does not own, and the QA token cannot reach a product it was not given.</li>
+    <li>GAOS refuses redirects when it calls the QA tools and bounds the response; the destination is set by the
+    operator in configuration, never taken from a request.</li>
+    <li>The back office itself still has no real login (<a href="open-questions.html#oq-34">OQ-34</a>), so the
+    two buttons can be pressed by anyone who can reach it; the cooldown and the product scope bound the damage.</li>
+  </ul>
+
+  <h2 id="not-built">What is not built yet</h2>
+  <ul>
+    <li><strong>Per-case run results.</strong> The QA tools do not map Playwright runs to catalog cases, so a pull
+    carries script facts only and the board's failing marker stays empty until they do.</li>
+    <li><strong>Removing or withdrawing a case.</strong> A case is retired in GAOS with decision <em>wont</em>; the
+    QA tools do not announce removed cases.</li>
+    <li><strong>Showing GAOS's decisions inside the QA tools' dashboard,</strong> and using them to settle the
+    <code>exists-differs</code> cases.</li>
+  </ul>
+  <p>The decisions behind all of this are <a href="decision-log.html#d-072">D-072</a> to
+  <a href="decision-log.html#d-076">D-076</a>; the design is <code>docs/designs/sample-product-qa-sync.md</code>, and the QA
+  tools' own side is <code>docs/designs/GAOS_INTEGRATION.md</code> and <code>docs/designs/GAOS_INBOUND.md</code>
+  in the qa-automation-tools repository.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
