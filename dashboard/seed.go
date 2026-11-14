@@ -283,6 +283,16 @@ func (s *server) runSeed(r *http.Request, seed ProductSeed) (seedOut, *seedErr) 
 		return seedOut{}, &seedErr{http.StatusConflict, "product-exists-unseeded", "more than one product has that name; refusing to choose"}
 	}
 	out.ProductID = pid
+	// The seed's own marker, written FIRST: from here on a re-run recognises the
+	// product as one this seed made, so a run that died at any later step can be
+	// repeated instead of being refused as "exists, not made by this seed".
+	var marker []QaModule
+	for _, m := range seed.Modules {
+		marker = append(marker, QaModule{Key: m.Key, Title: cleanSeedText(m.Title)})
+	}
+	if _, _, err := st.QaImport(ctx, pid, QaImportIn{Modules: marker}); err != nil {
+		return seedOut{}, seedErrFrom(err)
+	}
 	cur := func() Master {
 		m, _ := s.store.Master(ctx, pid)
 		return m

@@ -206,6 +206,32 @@ func checkProductSeedRefusals(t *testing.T) {
 		}
 	}
 
+	// A run that died partway is repeatable: the marker is written as soon as the
+	// product exists, so the half-made product is recognised as the seed's own.
+	if code, _, body := seedCall(t, srv, mk(func(p *ProductSeed) { p.Name = "Half Done"; p.Policies = nil; p.Epics[0].Module = "D99" })); code != 400 {
+		t.Fatalf("a bad seed answered %d %s, want 400 before anything is written", code, body)
+	}
+	half := mk(func(p *ProductSeed) { p.Name = "Half Done" })
+	if code, _, body := seedCall(t, srv, half); code != 200 {
+		t.Fatalf("seed: %d %s", code, body)
+	}
+	for _, p := range func() []Product { x, _ := st.Products(ctx); return x }() {
+		if p.Name == "Half Done" {
+			// Simulate the crash: stories and policies exist, the workflow does not.
+			st.mu.Lock()
+			st.tasks = slicesDeleteDesk(st.tasks, p.ID)
+			for i := range st.desks {
+				if st.desks[i].ID == p.ID {
+					st.desks[i].WorkflowID = ""
+				}
+			}
+			st.mu.Unlock()
+		}
+	}
+	if code, out, body := seedCall(t, srv, half); code != 200 || out.Product != "adopted" || out.Tasks == 0 {
+		t.Errorf("re-running a seed that died before its workflow answered %d %+v %s, want 200, adopted, tasks planned", code, out, body)
+	}
+
 	// Never adopt silently: a same-named product the seed did not make is a 409.
 	if _, err := st.CreateProduct(ctx, ProductDraft{Name: "Squatter"}); err != nil {
 		t.Fatal(err)
@@ -334,4 +360,16 @@ func TestThesample-productSeedIsWellFormed(t *testing.T) {
 			t.Errorf("%s trips the secret detector %s", name, hit)
 		}
 	}
+}
+
+// slicesDeleteDesk drops one product's tasks, to simulate a seed that died
+// before its workflow was planned.
+func slicesDeleteDesk(tasks []TaskRecord, deskID string) []TaskRecord {
+	out := tasks[:0:0]
+	for _, t := range tasks {
+		if t.DeskID != deskID {
+			out = append(out, t)
+		}
+	}
+	return out
 }
