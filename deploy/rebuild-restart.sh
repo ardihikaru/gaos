@@ -92,8 +92,16 @@ if [ "$ENVIRON" = dev ]; then
 else
   COMPOSE=deploy/stacks/compose.prod.yaml
   PORT=18301
-  # A second prod instance (rnd-v3-vpn, gaos.sample-product.com) overrides both:
-  #   GAOS_TUNNEL_IP=10.10.0.9 GAOS_HOST=gaos.sample-product.com GAOS_ARCADE_DB=<db>
+  # A second prod instance (rnd-v3-vpn, gaos.sample-product.com) overrides several things. Pass ALL of
+  # them or the stack comes up broken (a missing one is a failed port bind or an ArcadeDB crash loop):
+  #   GAOS_TUNNEL_IP=10.10.0.9            bind address (default 10.10.0.2 does not exist on rnd-v3)
+  #   GAOS_HOST=gaos.sample-product.com        host the route check expects
+  #   GAOS_ARCADE_URL=http://10.10.0.4:9480   the ArcadeDB on rnd-v2 (default is clinodb's, wrong user)
+  #   GAOS_ARCADE_DB=gaos_sample-product       its database (the user in prod.dashboard.env owns only this one)
+  #   GAOS_UID=1000 GAOS_GID=1000         owner of the secret files
+  #   GAOS_QA_URL=http://10.10.0.9:8140 GAOS_API_QA_PRODUCTS=p-6   the QA tool's address and scope
+  # The post-deploy checks that `ssh clino` fail when run on rnd-v3 itself: probe
+  # http://10.10.0.9:18301/api/healthz and https://gaos.sample-product.com/api/healthz by hand instead.
   HOST="${GAOS_HOST:-gaos.mfardiansyah.id}"
 fi
 TUNNEL="${GAOS_TUNNEL_IP:-10.10.0.2}"
