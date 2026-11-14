@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -719,4 +721,29 @@ func trunc(s string) string {
 		return s[:400] + "…"
 	}
 	return s
+}
+
+// TestTheBoardHostHasABoundedHeight pins a failure that is silent by nature: the
+// vendored board (sisflow-board.css) is `height:100%; overflow:hidden` with
+// `.sfb-body` as its one scroller and `overscroll-behavior:contain` on it. In the
+// back office's normal-flow block the host had no height, so the board grew to
+// its content (13,000px for 40 story lanes), `.sfb-body` could never scroll
+// vertically, its horizontal scrollbar sat off screen, and `contain` stopped the
+// wheel reaching the page: scrolling over the board did nothing, and nothing
+// errored. Found in a real browser (the wheel moved nothing); this keeps the two
+// rules that fix it from being "tidied" away.
+func TestTheBoardHostHasABoundedHeight(t *testing.T) {
+	b, err := os.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(b)
+	host := regexp.MustCompile(`\.sisflow-board-host\{[^}]*height:calc\(100d?vh - \d+px\)[^}]*min-height:\d+px[^}]*\}`)
+	if !host.MatchString(css) {
+		t.Errorf(".sisflow-board-host has no bounded height (height:calc(100vh - Npx) with a min-height): " +
+			"the board grows to its content and .sfb-body can never scroll vertically")
+	}
+	if !strings.Contains(css, ".sisflow-board-host .sfb-body{overscroll-behavior:auto}") {
+		t.Errorf(".sfb-body still has overscroll-behavior:contain: a wheel over the board never reaches the page")
+	}
 }

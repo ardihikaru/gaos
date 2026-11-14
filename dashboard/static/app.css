@@ -1181,6 +1181,22 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .kbd-hint{font-family:var(--font-mono);font-size:10px;font-weight:500;opacity:.75;margin-left:6px}
 .kbd-hint:empty{display:none}
 
+/* board: it must scroll, both ways, inside the page.
+   The vendored board assumes a fixed-height parent: .sisflow-board is height:100%
+   with overflow:hidden, and .sfb-body is its ONE scroller. Dropped into a normal
+   block (the back office's) the host had no height, so the board grew to its
+   content (13,000px for 40 story lanes): .sfb-body could never scroll vertically,
+   its horizontal scrollbar sat at the bottom of that 13,000px box, off screen, and
+   its overscroll-behavior:contain stopped the wheel from reaching the page, so
+   scrolling down over the board did nothing. Fix: give the host a bounded height
+   (the viewport less the bar, title and intro above it), so .sfb-body is the
+   scroller in BOTH axes, scrollbars in view; and let a scroll that hits the
+   board's edge continue to the page. 240px = the chrome above the board (measured
+   at 205px) plus the block's own padding; min-height keeps a short window usable
+   (the page then scrolls). 100dvh follows a phone's collapsing address bar. */
+.sisflow-board-host{height:calc(100vh - 240px);height:calc(100dvh - 240px);min-height:420px}
+.sisflow-board-host .sfb-body{overscroll-behavior:auto}
+
 /* board: the waiting card and its badge, server board and sisflow board alike */
 .board-col-label{color:var(--ink-3)}
 .board-col[data-col="needs-you"] .board-col-label,
