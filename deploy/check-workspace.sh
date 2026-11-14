@@ -126,7 +126,7 @@ prose_check() {
 }
 prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "four hundred and twelve"
 prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "four hundred and twelve"
-prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-six entries"
+prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-seven entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-five in one place"
 prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-four rules"
 
@@ -141,7 +141,7 @@ readme_check() {
 readme_check "README dashboard test count" "272 tests"
 readme_check "README total test count"    "294 tests"
 readme_check "README case count"          "411 cases"
-readme_check "README version"             "Product version 0.37.4"
+readme_check "README version"             "Product version 0.37.5"
 
 # ------------------------------------------------------------- 4. rule forks ---
 # A rule restated in two files forks: one harness enforces the new wording and

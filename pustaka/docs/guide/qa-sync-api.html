@@ -245,8 +245,9 @@
   <h2 id="gaos-calls">What GAOS calls on the QA tools</h2>
   <p>When an operator presses <strong>Pull</strong> or <strong>Push</strong> on a product's QA tab, GAOS
   calls the QA tools' API with its own bearer token. The buttons are disabled, with the reason shown, until
-  the operator configures the QA tools' address and token, and the QA tools' side of this contract is an open
-  question (<a href="../product/open-questions.html#oq-33">OQ-33</a>). GAOS accepts only an <code>https</code>
+  the operator configures the QA tools' address and token. The QA tools serve both routes
+  (<a href="../product/decision-log.html#d-077">D-077</a>, which closed
+  <a href="../product/open-questions.html#oq-33">OQ-33</a>). GAOS accepts only an <code>https</code>
   address (or a plain-http address on its private tunnel), never follows a redirect, and treats every answer as untrusted: a page naming another product, a
   planning field, an unknown field, a cursor over 128 printable ASCII bytes or more than 200 items fails
   the sync and keeps the stored cursor.</p>
@@ -260,7 +261,11 @@
  "next":"&lt;opaque&gt;","more":true}</pre>
   </div>
   <p>The <code>product</code> echoes the id asked for. Each item goes through the same rules as the results
-  route above, so a stale run is counted and skipped. GAOS reads at most 20 pages per click.</p>
+  route above, so a stale run is counted and skipped. GAOS reads at most 20 pages per click. An item carries
+  <code>result</code>, <code>runAt</code> and <code>runRef</code> only for a case that has a stored run (the QA tools
+  ingest a Playwright report; <code>runAt</code> is the report's start time), and then always the first two
+  together. A case removed from the automation repository arrives as <code>implemented: false</code> with no
+  script.</p>
   <h3 id="gaos-push">POST /api/v1/gaos/catalog</h3>
   <p>GAOS sends the cases whose revision is above its push cursor, in batches of at most 200, and advances
   the cursor after each batch the QA tools accept. It stops at the first non-2xx answer.</p>

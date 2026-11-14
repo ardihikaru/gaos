@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Seventy-six entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Seventy-seven entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1573,6 +1573,34 @@
         <a href="qa-test-plan.html#go-qa-catalog">TC-396</a> and
         <a href="qa-test-plan.html#go-qa-create">TC-409</a>;
         <a href="brd.html#rules-invariants">BR-05</a>, <a href="brd.html#rules-design-review">BR-46, BR-48</a></td>
+      </tr>
+      <tr id="d-077">
+        <td>D-077</td><td>2026-11-14</td>
+        <td><strong>The QA tools serve the two endpoints GAOS calls, and per-case results come from the automation repository's Playwright report, ingested by the QA tools.</strong>
+        Context: <a href="open-questions.html#oq-33">OQ-33</a> asked when the QA tools would serve
+        <code>GET /api/v1/gaos/results</code> and <code>POST /api/v1/gaos/catalog</code>, without which the two
+        sync buttons (<a href="#d-075">D-075</a>) stay disabled, and the QA tools held no per-case pass or fail at
+        all. Decision: the QA tools built both routes behind one static bearer token of their own
+        (<code>GAOS_INBOUND_TOKEN</code>, distinct from every GAOS token, closed when unset) and scoped to the
+        products flagged as integrated. <em>Results</em> carries the script facts, a removed case as
+        &ldquo;no script&rdquo; and, since the QA tools can ingest a Playwright JSON report (a CI step with its own
+        token, or an upload on the product page), the run record of every case that has one: <code>result</code>,
+        <code>runAt</code> (the report's start time) and <code>runRef</code>. The latest run wins per case on
+        their side, and GAOS refuses an older one as stale (<a href="brd.html#rules-qa-sync">BR-51</a>).
+        <em>Catalog</em> stores GAOS's planning data in a table of its own and never writes the QA tools'
+        synced test cases. Nothing changed in GAOS except switching the buttons on (<code>GAOS_QA_URL</code> and
+        the outbound token file).
+        <br><br>
+        Consequences: verified on production on 2026-11-14. Pull returned the whole catalog (1,700 items),
+        push sent the whole planning half in two clicks (a 200-case batch takes about 15 seconds there against
+        GAOS's 60-second click), and the QA tools stored all 1,700 decisions. For the first real results, one
+        staging run of 2026-11-08 (98 tests, 68 cases, none failing) was uploaded and pulled: 68 results applied,
+        shown with the report's own time. Results then reach GAOS by themselves: the QA tools' push carries the run
+        record of every case and an upload starts a push (a second real staging report, 8 cases, arrived in GAOS
+        about twelve seconds after the upload with no button pressed); an operator's pull reads the same data.</td>
+        <td><a href="qa-collaboration.html">How GAOS and the QA tools work together</a>;
+        <a href="../guide/qa-sync-api.html#gaos-calls">The QA sync API</a>;
+        <a href="open-questions.html#oq-33">OQ-33</a></td>
       </tr>
     </tbody>
   </table>
