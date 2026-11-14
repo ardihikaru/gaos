@@ -355,6 +355,9 @@ var detectors = []detector{
 	{"env-assignment", ClassSecrets, regexp.MustCompile(
 		`(?im)^[ \t]*(?:export[ \t]+)?[A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_KEY|ACCESS_KEY)[A-Z0-9_]*[ \t]*[:=][ \t]*\S{6,}`)},
 
+	// A GAOS machine-API token (api_v1.go): minted gaos_<hex>, so that this
+	// table, the report-store scan and a reviewer's eyes can recognise one.
+	{"gaos-api-token", ClassCredentials, regexp.MustCompile(`\bgaos_[0-9A-Za-z]{32,}\b`)},
 	{"anthropic-key", ClassCredentials, regexp.MustCompile(`\bsk-ant-[A-Za-z0-9_\-]{16,}`)},
 	{"openai-key", ClassCredentials, regexp.MustCompile(`\bsk-(?:proj-)?[A-Za-z0-9]{20,}`)},
 	{"aws-access-key-id", ClassCredentials, regexp.MustCompile(`\b(?:AKIA|ASIA|AGPA|AIDA)[0-9A-Z]{16}\b`)},

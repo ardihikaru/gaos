@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Seventy-one entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Seventy-six entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -23,7 +23,7 @@
        data-tags="decisions, adr, product, governance, rationale"
        data-hashtags="brd, decisions, adr"
        data-published="2026-08-08"
-       data-updated="2026-11-04"
+       data-updated="2026-11-14"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -1435,6 +1435,144 @@
         <a href="qa-test-plan.html#go-reviewer-workspace">TC-382&hellip;TC-390</a>;
         amends <a href="#d-069">D-069</a>;
         amends <a href="brd.html#rules-design-review">BR-38</a>, BR-47 and BR-49</td>
+      </tr>
+      <tr id="d-072">
+        <td>D-072</td><td>2026-11-14</td>
+        <td><strong>A QA case has two halves with one writer each, and GAOS serves a bearer-token REST API for the QA tools.</strong>
+        Context: GAOS had no machine API &mdash; every route was for a browser &mdash; and the product
+        owner wanted the QA tools (a separate repository) to integrate with GAOS, in both directions,
+        without two writers fighting over one field. Decision: the <em>planning half</em> of a case
+        (<code>caseId</code>, <code>epic</code>, <code>module</code>, <code>features</code>,
+        <code>userStory</code>, <code>scenario</code>, <code>polarity</code>, <code>level</code>,
+        <code>pri</code>, <code>decision</code>, <code>reason</code>) belongs to GAOS and changes only
+        through the admin catalog endpoint or a seed re-run; the <em>automation half</em>
+        (<code>implemented</code>, <code>spec</code>, and the run record <code>result</code>,
+        <code>runAt</code>, <code>runRef</code>) belongs to the QA tools. Inside the automation half the
+        newest run wins: a run record must carry <code>runAt</code>, is refused <code>stale</code> when an
+        older one is stored and <code>future</code> past five minutes ahead, and an equal run is
+        <code>unchanged</code>; only the admin token may <code>force</code> past stale. The REST surface is
+        mounted at <code>/v1</code> and published at <code>/api/v1</code> (Traefik strips <code>/api</code>), with two
+        scopes &mdash; <code>qa</code> and <code>admin</code> &mdash; bearer tokens read from files with a
+        <code>gaos_</code> prefix, fail-closed (no token configured means 503, equal tokens disable the API),
+        a QA token scoped to the product ids in <code>GAOS_API_QA_PRODUCTS</code>, and one write in flight per
+        token.
+        <br><br>
+        Consequences: a new inbound trust boundary, bounded by <a href="brd.html#rules-qa-sync">BR-51, BR-52
+        and BR-53</a>; QA writes carry no floor, so a parked (replayed) floor is never overwritten by one;
+        a write that changes something emits one <code>RecordUpdated</code> and no event name is added
+        (<a href="brd.html#rules-invariants">BR-05</a>). The two sides cannot be given the same token.
+        The contract is published at <a href="../guide/qa-sync-api.html">The QA sync API</a>.</td>
+        <td>Product-owner request, 2026-11-14; <code>docs/designs/hisv3-qa-sync.md</code> &sect;4.1, &sect;4.7 and
+        its review rounds; <a href="qa-test-plan.html#go-qa-api">TC-397&hellip;TC-401</a> and
+        <a href="qa-test-plan.html#go-qa-catalog">TC-391&hellip;TC-396</a>;
+        <a href="brd.html#rules-qa-sync">BR-51, BR-52, BR-53</a>; <a href="open-questions.html#oq-33">OQ-33</a></td>
+      </tr>
+      <tr id="d-073">
+        <td>D-073</td><td>2026-11-14</td>
+        <td><strong>The QA catalog is its own vertex and never a task; QA data never moves a task, and the QA token may add one blocked card for a new epic.</strong>
+        Context: a test case is a fact about a script, not work for an agent. Making every case a task
+        was rejected: the planner demands a gated design, review, implement shape, and the scheduler
+        and the task fold walk every task. Keeping the catalog inside the product document was rejected
+        too &mdash; about 700 KB rewritten per edit. A first draft reflected each epic's roll-up onto its
+        card and was removed after review: it walked gated tasks past the design gate and recorded
+        dispatches that never happened. Decision: a case is a <code>QaCase</code> vertex
+        (<code>16-qa-catalog.sql</code>, edge <code>HAS_QA_CASE</code>), keyed by <code>&lt;productId&gt;:&lt;caseId&gt;</code>;
+        QA data changes no existing task's status, ever. The one write it may cause is to add a card:
+        when the QA tools create a case in an epic that does not exist, GAOS adds one
+        <code>Automate: &lt;epic&gt;</code> card, always <code>BLOCKED</code> with the rule
+        <code>qa-epic-added</code>, released only by an operator's board move &mdash; so a QA token can never
+        create dispatchable agent work (<a href="brd.html#rules-design-review">BR-46</a>). The QA token may
+        create new <code>planned</code> cases (never change, park or retire one), at most five new epics
+        per request and a hundred per product; a card shows live case counts, read from the catalog at
+        display time, without anything being written to the task.
+        <br><br>
+        Consequences: <code>TaskPlanned</code> now means &ldquo;a plan, or an addition to one&rdquo; and the
+        task fold continues a workflow's ordinals; no event name is added. The QA token can add at most
+        5,000 cases to a product.
+        Whether results should ever move a card is <a href="open-questions.html#oq-35">OQ-35</a>.</td>
+        <td><code>docs/designs/hisv3-qa-sync.md</code> &sect;3, &sect;4.12 and its review round 1;
+        <a href="qa-test-plan.html#go-qa-create">TC-408&hellip;TC-410</a>;
+        <a href="brd.html#rules-qa-sync">BR-53, BR-54</a>; amends nothing in
+        <a href="brd.html#rules-design-review">BR-46</a>, which it relies on;
+        <a href="open-questions.html#oq-35">OQ-35</a></td>
+      </tr>
+      <tr id="d-074">
+        <td>D-074</td><td>2026-11-14</td>
+        <td><strong>The product seed is generic; HISv3's data lives outside the binary and the seed does not clear the design gate.</strong>
+        Context: the product owner wanted HISv3 on the <code>gaos.sismedika.com</code> instance with a BRD,
+        stories, a Blueprint, a workflow and a populated board. Compiling a customer's catalog into a
+        generic Apache-2.0 binary was rejected. Decision: <code>POST /v1/seed/product</code> (admin) takes a
+        product seed document and creates or adopts the product through the existing store calls, each step
+        skipped when already true, so a re-run changes nothing and overwrites no operator edit; it refuses to
+        adopt an unseeded product of the same name (409 <code>product-exists-unseeded</code>), screens every
+        text field with the egress detector, refuses a record below the readiness floor (422
+        <code>not-ready</code>), and plans a workflow whose design and review start <code>PENDING</code> and
+        whose epic cards start gate-<code>BLOCKED</code> &mdash; nothing is fabricated: no <code>DONE</code>, no run,
+        no artifact. HISv3's content is data under <code>deploy/seed/hisv3/</code>
+        (<code>product.json</code>, <code>cases.json</code>, generated by <code>build-seed.mjs</code> from the
+        source repository at a recorded commit) and is loaded by <code>seed.sh</code> on the VM.
+        <br><br>
+        The product owner approved committing those files on 2026-11-14 and they ride in this repository
+        exactly as the <code>gaos.sismedika.com</code> host overrides already do. <strong>The condition: the
+        repository is private, and these files leave it before it could ever be made public.</strong>
+        Consequences: <code>ProductDraft</code> gains a <code>Priority</code>; the seed does not run
+        <code>SyncBlueprint</code> (a real gateway call that stays an operator button); the seed is
+        never run at boot.</td>
+        <td><code>docs/designs/hisv3-qa-sync.md</code> &sect;4.9 and &sect;9;
+        <a href="qa-test-plan.html#go-qa-seed">TC-406, TC-407, TC-411</a>;
+        <a href="brd.html#rules-readiness">BR-07</a>, <a href="brd.html#rules-qa-sync">BR-52</a></td>
+      </tr>
+      <tr id="d-075">
+        <td>D-075</td><td>2026-11-14</td>
+        <td><strong>GAOS calls one configured QA origin from two back-office buttons, which stay inert until the QA tools implement their side.</strong>
+        Context: the product owner asked for a sync button for each direction. Decision: the outbound
+        origin is operator configuration, never request input &mdash; <code>GAOS_QA_URL</code> (https, or http
+        to a loopback or tunnel IP literal with no userinfo or query) and <code>GAOS_QA_TOKEN_FILE</code> with
+        its own token. <em>Pull</em> pages <code>GET /api/v1/gaos/results</code> and applies each page through
+        the same results rules as the inbound route; <em>push</em> sends cases above its cursor to
+        <code>POST /api/v1/gaos/catalog</code> in batches of 200. Fifteen seconds per call, sixty per click,
+        every redirect refused, two MiB per response; one sync in the whole process at a time and a thirty
+        second cooldown; only products in <code>GAOS_API_QA_PRODUCTS</code>. With the URL or the token missing
+        the buttons render disabled with the reason as visible text.
+        <br><br>
+        Consequences: the two routes sit behind the back office's cookie gate, which accepts any request
+        carrying <code>gaos_bo=1</code> (<a href="brd.html#rules-design-review">BR-48</a>'s open
+        precondition), so anyone who can reach the dashboard can click them; the blast radius is bounded
+        by the single origin, the in-scope products, the cooldown, and by what comes back passing the
+        API's own validation and being unable to move a task. The QA tools' side of the contract is
+        <a href="open-questions.html#oq-33">OQ-33</a>.</td>
+        <td><code>docs/designs/hisv3-qa-sync.md</code> &sect;4.10, &sect;4.11 and &sect;8;
+        <a href="qa-test-plan.html#go-qa-client">TC-402&hellip;TC-405</a>;
+        <a href="brd.html#rules-qa-sync">BR-52, BR-53</a>;
+        <a href="open-questions.html#oq-33">OQ-33</a>, <a href="open-questions.html#oq-34">OQ-34</a></td>
+      </tr>
+      <tr id="d-076">
+        <td>D-076</td><td>2026-11-14</td>
+        <td><strong>A product made in the back office is seated at an idle desk the first time it is planned, so it can have a workflow and a board.</strong>
+        Context: desks were built only for the six seeded products, so a product created in the back
+        office could have stories but no tasks: <code>CreateWorkflow</code> returned
+        <code>ErrNotFound</code> for it. HISv3 needs both. Decision: when <code>CreateWorkflow</code> finds no
+        desk for an existing product it seats an idle one and continues. Effects, stated rather than hidden:
+        (1) any such product can now have a workflow, a board and &mdash; if <code>GAOS_RUNNER</code> is on and the
+        gate cleared &mdash; dispatch; prod leaves the runner unset. (2) The desk persists through the existing
+        desk loop, with no schema change. (3) <strong>No event records the desk, and the fold skips events for
+        unknown desks</strong>, so a parked floor does not show it: this is the first runtime desk, there was no
+        precedent, and reopening <a href="brd.html#rules-invariants">BR-05</a> for a desk event is out of scope.
+        (4) The desks are re-sorted by id length then id after a load, so <code>p-10</code> does not shift the
+        seeded desks' indices. (5) <code>POST /workflows</code> and the task routes
+        <code>dispatch</code>, <code>approve</code>, <code>retry</code> and <code>cancel</code> &mdash; five routes
+        that took no cookie check at all &mdash; now require the back-office cookie, because this change would
+        otherwise extend their reach to new products.
+        <br><br>
+        Alongside it, a defect is fixed: <code>CreateWorkflow</code>'s gate loop walked every task of every
+        product and re-blocked any implementation task with a review dependency whether or not the review
+        had cleared; it now touches only the tasks of the workflow being created. Still open and not
+        widened here: <code>GET /replay/{workflow}</code> (a state-changing GET) and
+        <code>GET /tasks/{id}/context</code>.</td>
+        <td><code>docs/designs/hisv3-qa-sync.md</code> &sect;4.8, &sect;8 and review round 1 (SEC-11);
+        <a href="qa-test-plan.html#go-qa-catalog">TC-396</a> and
+        <a href="qa-test-plan.html#go-qa-create">TC-409</a>;
+        <a href="brd.html#rules-invariants">BR-05</a>, <a href="brd.html#rules-design-review">BR-46, BR-48</a></td>
       </tr>
     </tbody>
   </table>

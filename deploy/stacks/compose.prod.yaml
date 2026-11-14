@@ -101,9 +101,30 @@ services:
       GAOS_AIM_CHAT_AUTH_FILE: "/run/secrets/aim-chat.json"
       GAOS_AIM_ADMIN_KEY_FILE: "/run/secrets/aim-admin-key"
       GAOS_MODEL: "claude-sonnet-5"
+      # THE MACHINE API (D-072, BR-52). Three bearer tokens, each a FILE holding
+      # gaos_<hex>, mounted read-only below from host-side files that are never
+      # committed (deploy/stacks/prod.api-*, gitignored, mode 600). They MUST
+      # EXIST before `up`: a missing bind-mount source is created by Docker as a
+      # root-owned directory, and the dashboard would then read a directory. An
+      # EMPTY file is the way to leave a token unset (the API fails closed: 503
+      # until a token is set), and a token is read at boot, so a change needs a
+      # restart. Admin: seed, catalog import. QA: the QA tools' routes. Out: what
+      # GAOS presents when IT calls the QA tools (empty until they implement
+      # their side). The three must differ or the API disables itself.
+      GAOS_API_ADMIN_TOKEN_FILE: "/run/secrets/api-admin"
+      GAOS_API_QA_TOKEN_FILE: "/run/secrets/api-qa"
+      GAOS_QA_TOKEN_FILE: "/run/secrets/api-qa-out"
+      # Which products the QA token may reach: PRODUCT IDS (p-6), comma
+      # separated. Unset reaches nothing. The id is known after the seed prints it.
+      GAOS_API_QA_PRODUCTS: "${GAOS_API_QA_PRODUCTS:-}"
+      # The QA tools' base URL for the two sync buttons; empty = buttons off.
+      GAOS_QA_URL: "${GAOS_QA_URL:-}"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
       - ./prod.aim-admin-key:/run/secrets/aim-admin-key:ro
+      - ./prod.api-admin:/run/secrets/api-admin:ro
+      - ./prod.api-qa:/run/secrets/api-qa:ro
+      - ./prod.api-qa-out:/run/secrets/api-qa-out:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.

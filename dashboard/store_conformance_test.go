@@ -40,6 +40,7 @@ type storeCase struct {
 
 var storeContract = []storeCase{
 	{"KindIsOneOfTheTwoDeclaredValues", caseKind},
+	{"TheQaCatalogImportsAndReadsBack", caseQaCatalog},
 	{"ReadyReportsTheStoreIsUsable", caseReady},
 	{"SnapshotHasOneDeskPerSeedProduct", caseSnapshotShape},
 	{"SnapshotDoesNotAliasTheLiveFloor", caseSnapshotNoAlias},
@@ -116,8 +117,45 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	if _, err := first.AddStory(ctx, "p-1", Story{Role: "operator", Want: "an audit trail"}); err != nil {
 		t.Fatalf("add story: %v", err)
 	}
+	// D-072: the QA catalog must come back with the floor, or the projection
+	// holds a catalog the database never received.
+	ps, _ := first.Products(ctx)
+	qaPID := ps[len(ps)-1].ID
+	if _, _, err := first.QaImport(ctx, qaPID, QaImportIn{
+		Epics: []QaEpic{{Code: "AUTH", Title: "Authentication", Service: "his-backend", Source: "docs/x.md", Module: "A13"}},
+		Cases: []QaCase{qaCase("TC-AUTH-001"), qaCase("TC-AUTH-002")},
+	}); err != nil {
+		t.Fatalf("QaImport: %v", err)
+	}
+	if _, _, err := first.QaApplyResults(ctx, qaPID, QaResultsIn{Items: []QaResultItem{
+		{CaseID: "TC-AUTH-001", Implemented: boolp(true), Spec: strp("tests/a.spec.ts"), Result: strp("fail"), RunAt: i64p(qaNow() - 5), RunRef: strp("run-1")},
+	}}); err != nil {
+		t.Fatalf("QaApplyResults: %v", err)
+	}
 	before, err := first.Snapshot(ctx)
 	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	// D-072 / design §4.12: a product with a workflow gets one BLOCKED card for
+	// a new epic the QA tools name, and the card, its edge and its block reason
+	// must be in the graph, not only in memory.
+	if _, err := first.AddStory(ctx, qaPID, Story{Pri: "must", Role: "qa", Want: "w", So: "s", AC: []string{"a", "b"}}); err != nil {
+		t.Fatalf("add story: %v", err)
+	}
+	if _, err := first.CreateWorkflow(ctx, WorkflowDraft{ProductID: qaPID, Goal: "plan", Stories: []string{"US-01"}}, []PlanTask{
+		{ID: "t-1", Title: "Design", Role: "architect", Kind: TaskKindDesign},
+		{ID: "t-2", Title: "Review", Role: "qa", Kind: TaskKindReview, Deps: []string{"t-1"}},
+		{ID: "t-3", Title: "Build", Role: "qa", Story: "US-01", Kind: TaskKindImplement, Deps: []string{"t-2"}},
+	}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	cc := qaCase("TC-NEW-001")
+	cc.Epic = "NEW"
+	if cout, _, err := first.QaCreate(ctx, qaPID, QaCreateIn{Cases: []QaCase{cc}}); err != nil || cout.CardsAdded != 1 {
+		t.Fatalf("QaCreate of a new epic: %+v err=%v, want one card", cout, err)
+	}
+	// The workflow above seated a desk the first snapshot did not have.
+	if before, err = first.Snapshot(ctx); err != nil {
 		t.Fatalf("snapshot: %v", err)
 	}
 	beforeEvents, _ := first.Events(ctx)
@@ -165,6 +203,38 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	}
 	if len(m.Stories) == 0 {
 		t.Error("the story added before the reopen is gone from the master record")
+	}
+	bd, err := second.Board(ctx, qaPID)
+	if err != nil {
+		t.Fatalf("board after reopen: %v", err)
+	}
+	cards := 0
+	for _, c := range bd.Cards {
+		if c.Label == "Automate: NEW" {
+			cards++
+			if c.Status != StatusBlocked {
+				t.Errorf("the QA card came back %s, want BLOCKED", c.Status)
+			}
+		}
+	}
+	if cards != 1 {
+		t.Errorf("%d QA cards after reopen, want 1: the card never reached the graph", cards)
+	}
+	qm, err := second.Master(ctx, qaPID)
+	if err != nil || qm.Qa.CatHead != 3 || len(qm.Qa.Epics) != 2 {
+		t.Errorf("the QA state did not come back: head=%d epics=%d err=%v, want head 3, 2 epics", qm.Qa.CatHead, len(qm.Qa.Epics), err)
+	}
+	page, err := second.QaCases(ctx, qaPID, QaQuery{})
+	if err != nil || len(page.Items) != 3 {
+		t.Fatalf("the catalog did not come back: %d cases, err %v, want 3", len(page.Items), err)
+	}
+	for _, c := range page.Items {
+		if c.CaseID == "TC-AUTH-001" && (!c.Implemented || c.Result != "fail" || c.RunRef != "run-1" || c.Spec != "tests/a.spec.ts") {
+			t.Errorf("the automation half did not come back: %+v", c)
+		}
+		if c.CaseID == "TC-AUTH-002" && c.Result != "" {
+			t.Errorf("an unrun case came back with a result %q", c.Result)
+		}
 	}
 }
 
@@ -1398,7 +1468,7 @@ func wipeTenant(t *testing.T, arc *Arcade, tenant string) {
 	for _, typ := range []string{
 		"Product", "Workflow", "Task", "TaskRun", "ContextSlice", "Requirement", "Issue",
 		"AcceptanceCriterion", "Artifact", "Decision", "Repository",
-		"Event", "Snapshot", "Agent", "Room", "Tenant",
+		"Event", "Snapshot", "Agent", "Room", "QaCase", "Tenant",
 	} {
 		if err := arc.Command(ctx,
 			fmt.Sprintf("DELETE FROM %s WHERE tenantId = :t", typ),
@@ -1451,4 +1521,42 @@ func caseSaveVendorPolicy(t *testing.T, s Store) {
 func caseSavePolicyBadKind(t *testing.T, s Store) {
 	_, err := s.SavePolicy(context.Background(), firstMasterID(t, s), Policy{Key: "x", Kind: "vibes", Title: "x"})
 	assertRejected(t, err, "A policy kind is technical, coding, security, testing or custom.")
+}
+
+// caseQaCatalog runs against both stores: an import, a results post and a read
+// agree, so ArcadeStore's persist path and MemStore's rules cannot drift (D-072).
+func caseQaCatalog(t *testing.T, s Store) {
+	ctx := context.Background()
+	if _, err := s.CreateProduct(ctx, ProductDraft{Name: "Catalog Case"}); err != nil {
+		t.Fatalf("CreateProduct: %v", err)
+	}
+	ps, _ := s.Products(ctx)
+	id := ps[len(ps)-1].ID
+	out, res, err := s.QaImport(ctx, id, QaImportIn{Cases: []QaCase{qaCase("TC-AUTH-001"), qaCase("TC-AUTH-002")}})
+	if err != nil || out.Created != 2 {
+		t.Fatalf("QaImport: %+v err=%v, want 2 created", out, err)
+	}
+	if len(res.Floor.Desks) != 0 {
+		t.Errorf("a QA write carried a floor of %d desks; it would save a replayed past over the live one (BR-20)", len(res.Floor.Desks))
+	}
+	if _, _, err := s.QaImport(ctx, "p-999", QaImportIn{}); err == nil {
+		t.Error("QaImport on an unknown product must fail")
+	}
+	rs, _, err := s.QaApplyResults(ctx, id, QaResultsIn{Items: []QaResultItem{
+		{CaseID: "TC-AUTH-001", Implemented: boolp(true), Spec: strp("a.spec.ts")}, {CaseID: "TC-NOPE-001", Implemented: boolp(true)}}})
+	if err != nil || rs.Applied != 1 || len(rs.Rejected) != 1 {
+		t.Fatalf("QaApplyResults: %+v err=%v, want 1 applied and 1 rejected", rs, err)
+	}
+	sum, err := s.QaSummary(ctx, id)
+	if err != nil || sum.Totals.Cases != 2 || sum.Totals.Automated != 1 {
+		t.Errorf("QaSummary: %+v err=%v, want 2 cases and 1 automated", sum.Totals, err)
+	}
+	pg, _ := s.QaCases(ctx, id, QaQuery{Limit: 1})
+	if len(pg.Items) != 1 || pg.Next == nil {
+		t.Fatalf("a page of 1 over 2 cases must carry a next cursor: %+v", pg)
+	}
+	pg2, _ := s.QaCases(ctx, id, QaQuery{After: *pg.Next, Limit: 1})
+	if len(pg2.Items) != 1 || pg2.Next != nil || pg2.Items[0].CaseID == pg.Items[0].CaseID {
+		t.Errorf("the second page must be the other case and the last: %+v", pg2)
+	}
 }

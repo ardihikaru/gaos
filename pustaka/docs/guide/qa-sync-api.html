@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The QA sync API — GAOS</title>
+<meta name="description" content="The public contract for the QA tools: the bearer-token REST API GAOS serves, the two endpoints GAOS calls, and which side owns which field of a test case.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="qa-sync-api">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Guide</p>
+  <h1>The QA sync API</h1>
+  <p class="lede">The contract between GAOS and the QA tools: the REST API GAOS serves so the QA tools can
+  read a product's test catalog and report what they automated and ran, and the two endpoints GAOS
+  calls on the QA tools when an operator presses a sync button. Built in v0.37.0
+  (<a href="../product/decision-log.html#d-072">D-072</a>).</p>
+
+  <div class="page-meta"
+       data-tags="api, rest, qa, integration, bearer-token"
+       data-hashtags="api, qa, integration"
+       data-published="2026-11-14"
+       data-updated="2026-11-14"
+       data-version-from="0.37.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">Placeholders</p>
+    <p>Every example uses <code>&lt;TOKEN&gt;</code> for a bearer token and <code>&lt;PRODUCT_ID&gt;</code>
+    for a product id such as <code>p-6</code>. Ask the GAOS operator for both. A command line is visible to
+    other users of the machine, so prefer <code>curl -H @header-file</code> with the
+    <code>Authorization</code> line in a file only you can read.</p>
+  </div>
+
+  <h2 id="base-and-auth">Base URL and authentication</h2>
+  <p>The base URL is <code>https://gaos.sismedika.com/api/v1</code>. Every request carries
+  <code>Authorization: Bearer &lt;TOKEN&gt;</code> and every body is a JSON object. A token looks like
+  <code>gaos_</code> followed by 64 hexadecimal characters. There are two scopes. The
+  <strong>qa</strong> token reads a product's catalog, reports results and creates new cases. The
+  <strong>admin</strong> token does all of that and also imports and seeds, and may force a stale result. A qa token reaches
+  only the products the operator listed for it: any other product answers <code>404</code>, never
+  <code>403</code>.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -H @header-file https://gaos.sismedika.com/api/v1/products
+<span class="c"># header-file holds one line:  Authorization: Bearer &lt;TOKEN&gt;</span></pre>
+  </div>
+  <p>The API fails closed. When no token is configured every route answers <code>503</code>; when two
+  tokens are equal the API is disabled. A request that reaches GAOS through the operator's browser path
+  (<code>/app</code>) answers <code>404</code>. A token is never echoed in a response.</p>
+
+  <h2 id="limits-and-errors">Limits, errors and status codes</h2>
+  <p>A request carries at most 200 items and 1 MiB. Over either bound the answer is <code>413</code> and
+  nothing is applied. Bodies are decoded strictly: an unknown field, a second JSON value after the first
+  or a body that is not JSON is <code>400</code>. Each token may have one write in flight; a second
+  concurrent write answers <code>429</code> with <code>Retry-After: 2</code>, and reads are never
+  blocked. A write that changes nothing answers <code>200</code> and counts the items
+  <code>unchanged</code>. Every error has the same shape:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"error":"not-found","reason":"no such product"}</pre>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>200</td><td>Done. Per-item refusals are in <code>rejected</code>, not in the status.</td></tr>
+      <tr><td>400</td><td>Malformed JSON, an unknown field, a bad query, or a secret-shaped string in the body (<code>secret-in-body</code>, nothing written).</td></tr>
+      <tr><td>401</td><td>No token, or a wrong one.</td></tr>
+      <tr><td>403</td><td>A valid qa token on an admin route, or <code>force</code> without the admin token.</td></tr>
+      <tr><td>404</td><td>No such route or product, or a product outside the qa token's scope.</td></tr>
+      <tr><td>409</td><td>On the seed: <code>product-exists-unseeded</code> or <code>replay</code>.</td></tr>
+      <tr><td>413</td><td>More than 200 items, or a body over 1 MiB.</td></tr>
+      <tr><td>422</td><td>On the seed: <code>not-ready</code>, with the list of what is missing.</td></tr>
+      <tr><td>429</td><td>Another write by this token is still running.</td></tr>
+      <tr><td>503</td><td><code>api-disabled</code>: no token is configured.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="calls">The calls GAOS serves</h2>
+  <p>Seven routes: five the qa token may call (two reads, then creating cases and reporting results)
+  and two only the admin token may call. Each example shows the request; the answer is described under it.</p>
+
+  <h3 id="call-products">GET /products</h3>
+  <p>Lists the products this token reaches, as <code>{"products":[{"id","name","repo"}]}</code>. A qa token
+  sees only the products the operator scoped to it; if none, the list is empty.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -H @header-file https://gaos.sismedika.com/api/v1/products</pre>
+  </div>
+
+  <h3 id="call-summary">GET /products/{id}/qa/summary</h3>
+  <p>Totals for the product, a roll-up per epic, the epics that are <code>regressed</code> (an epic with a
+  failing case), the cases that <em>need a decision</em> (a script exists for a case GAOS has parked), the
+  epics with no board card (<code>noCard</code>), the state of the last pull and push, and
+  <code>catHead</code>, the product's catalog revision.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -H @header-file https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/summary</pre>
+  </div>
+
+  <h3 id="call-cases-get">GET /products/{id}/qa/cases</h3>
+  <p>The catalog's cases, oldest change first. <code>after</code> is a revision (default 0), <code>limit</code>
+  is 1 to 200 (default 100), and <code>epic</code> filters to one epic code of 2 to 8 capital letters. The
+  answer is <code>{"items":[…],"next":n|null,"catHead":n}</code>. <code>next</code> is the last item's revision
+  when the page was full and <code>null</code> when it was the last page, so a loop that passes
+  <code>after=next</code> until <code>next</code> is null sees every case exactly once. A case that changes
+  moves to the end of the feed. Each case carries the derived, output-only <code>status</code>:
+  <code>automated</code> when it is planned and implemented, otherwise its <code>decision</code>.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -H @header-file \
+  "https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/cases?after=0&amp;limit=100&amp;epic=AUTH"</pre>
+  </div>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"caseId":"TC-AUTH-001","epic":"AUTH","module":"A13","features":["A13.03"],
+ "userStory":"US-AUTH-01","scenario":"Given…","polarity":"-","level":"GQL","pri":"P0",
+ "decision":"planned","reason":"","status":"automated",
+ "implemented":true,"spec":"tests/api/graphql/user/login.spec.ts",
+ "result":"pass","runAt":1763000000,"runRef":"run-1","catRev":12}</pre>
+  </div>
+
+  <h3 id="call-cases-post">POST /products/{id}/qa/cases</h3>
+  <p><strong>Create-only.</strong> Takes <code>{"source","epics":[…],"cases":[…]}</code> and answers
+  <code>{"created","unchanged","rejected":[{"caseId","reason"}],"epicsAdded","cardsAdded","cardsDeferred","catHead"}</code>.
+  A new <code>caseId</code> is created if it validates and has <code>decision: "planned"</code>, an empty
+  <code>reason</code>, no <code>result</code>, <code>runAt</code> or <code>runRef</code>, and an id whose
+  middle part equals its <code>epic</code> (<code>TC-AUTH-001</code> belongs to <code>AUTH</code>). It may
+  carry <code>implemented</code> and <code>spec</code>. An existing case with identical planning fields is
+  <code>unchanged</code>; with different ones it is refused <code>exists-differs</code> and is not changed.
+  Nothing is ever deleted.</p>
+  <table class="tbl">
+    <thead><tr><th>Refusal code</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>decision-not-allowed</code></td><td>The decision is not <code>planned</code>, or a reason is given: the QA side may not park or retire a case.</td></tr>
+      <tr><td><code>use-results</code></td><td><code>result</code>, <code>runAt</code> or <code>runRef</code> is set; report runs on the results route.</td></tr>
+      <tr><td><code>bad-case-epic</code></td><td>The id's middle part is not the case's epic.</td></tr>
+      <tr><td><code>exists-differs</code></td><td>The case exists with different planning fields. GAOS owns them.</td></tr>
+      <tr><td><code>case-limit</code></td><td>The product already holds 5,000 cases.</td></tr>
+      <tr><td><code>epic-limit</code></td><td>More than 5 new epics in this request, or the product already has 100.</td></tr>
+      <tr><td>other <code>bad-…</code> codes</td><td>A field outside its vocabulary or pattern, such as <code>bad-case-id</code>, <code>bad-level</code>, <code>bad-spec</code> or <code>empty-scenario</code>.</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Epics and cards.</strong> A case whose epic GAOS does not know creates it; the
+  <code>epics</code> array supplies <code>code</code>, <code>title</code>, <code>service</code>,
+  <code>source</code> and <code>module</code>, and is read only for a code that does not exist yet. For each
+  new epic GAOS adds <strong>one card</strong> to the product's board, titled
+  <code>Automate: &lt;title&gt;</code>, and the card is always born <code>BLOCKED</code>: only an operator can
+  release it, and nothing the QA tools send ever moves a task. With no workflow, or while the operator is
+  replaying history, the epic is recorded and no card is made; <code>cardsDeferred</code> says
+  <code>no-workflow</code> or <code>replay</code>. Every text field is screened for secrets and stripped of
+  backticks, angle brackets and line breaks.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/cases \
+  -d '{"source":"qa-automation-tools",
+       "epics":[{"code":"AUTH","title":"Authentication","service":"his-backend",
+                 "source":"docs/test-catalog/his-backend/auth.md","module":"A13"}],
+       "cases":[{"caseId":"TC-AUTH-001","epic":"AUTH","module":"A13","features":["A13.03"],
+                 "userStory":"US-AUTH-01","scenario":"Given a user, when they sign in, then they see home",
+                 "polarity":"+","level":"GQL","pri":"P0","decision":"planned","reason":"",
+                 "implemented":true,"spec":"tests/api/graphql/user/login.spec.ts"}]}'</pre>
+  </div>
+
+  <h3 id="call-results">POST /products/{id}/qa/results</h3>
+  <p>Reports what the QA tools automated and ran. Takes <code>{"source","force"?,"items":[…]}</code>; each
+  item is <code>{"caseId", "implemented"?, "spec"?, "result"?, "runAt"?, "runRef"?}</code> and a field left out
+  is left untouched. It answers <code>{"applied","unchanged","rejected":[{"caseId","reason"}],"catHead"}</code>.
+  Valid items apply and invalid ones come back in <code>rejected</code>. <code>implemented</code> and
+  <code>spec</code> describe the script, and the last write wins. <code>result</code>
+  (<code>pass</code>, <code>fail</code> or <code>skipped</code>), <code>runAt</code> (unix seconds) and
+  <code>runRef</code> are one <strong>run record</strong> and obey these rules.</p>
+  <table class="tbl">
+    <thead><tr><th>Reason</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>run-incomplete</code></td><td>The item writes <code>result</code> or <code>runRef</code> without <code>runAt</code>. A run record always carries its time.</td></tr>
+      <tr><td><code>stale</code></td><td>The stored <code>runAt</code> is greater: the newest run wins. An equal <code>runAt</code> with equal fields is <code>unchanged</code>.</td></tr>
+      <tr><td><code>future</code></td><td><code>runAt</code> is more than 300 seconds ahead of GAOS's clock. A millisecond timestamp lands here.</td></tr>
+      <tr><td><code>unknown-case</code></td><td>The case does not exist. Create it first.</td></tr>
+      <tr><td><code>bad-result</code>, <code>bad-spec</code>, <code>bad-run-ref</code></td><td>A value outside its vocabulary: <code>spec</code> is relative, with no leading slash and no <code>..</code>; <code>runRef</code> is printable ASCII up to 120 bytes.</td></tr>
+    </tbody>
+  </table>
+  <p>An item that names a planning field such as <code>decision</code> fails the whole request with
+  <code>400</code>. <code>force: true</code> skips the <code>stale</code> rule, to repair a bad timestamp
+  already stored, and needs the admin token (<code>403</code> otherwise).</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/results \
+  -d '{"source":"qa-automation-tools",
+       "items":[{"caseId":"TC-AUTH-001","implemented":true,
+                 "spec":"tests/api/graphql/user/login.spec.ts",
+                 "result":"pass","runAt":1763000000,"runRef":"run-1"}]}'</pre>
+  </div>
+
+  <h3 id="call-catalog">POST /products/{id}/qa/catalog (admin)</h3>
+  <p>Imports epics and the planning half of cases, the only way to <em>change</em> a case that exists.
+  Takes <code>{"seed"?,"epics":[…],"cases":[…]}</code> and answers
+  <code>{"created","updated","unchanged","rejected","catHead"}</code>. It never writes the automation half
+  of an existing case; with <code>"seed": true</code> a case that does not exist yet is created with the
+  <code>implemented</code> and <code>spec</code> it carries.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/catalog \
+  -d '{"cases":[ <span class="c">/* planning fields, as in the case above */</span> ]}'</pre>
+  </div>
+
+  <h3 id="call-seed">POST /seed/product (admin)</h3>
+  <p>Creates or adopts a product from a seed document: the BRD, stories, Blueprint policies, epics and a
+  workflow. It is idempotent, screens every text field for secrets, refuses a product below the readiness
+  floor (<code>422 not-ready</code>) or a same-named product it did not make (<code>409
+  product-exists-unseeded</code>), and never clears the design gate. The operator normally runs it from
+  a script on the GAOS host.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.sismedika.com/api/v1/seed/product -d @product.json</pre>
+  </div>
+
+  <h2 id="ownership">Who owns which field</h2>
+  <p>Every field of a case has one writer, so there is no silent loser
+  (<a href="../product/brd.html#rules-qa-sync">BR-51</a>). Inside the automation half the newest run
+  wins.</p>
+  <table class="tbl">
+    <thead><tr><th>Half</th><th>Fields</th><th>Written by</th></tr></thead>
+    <tbody>
+      <tr><td>Planning (GAOS)</td><td><code>caseId</code>, <code>epic</code>, <code>module</code>, <code>features</code>, <code>userStory</code>, <code>scenario</code>, <code>polarity</code>, <code>level</code>, <code>pri</code>, <code>decision</code>, <code>reason</code></td><td>The admin catalog route and the seed. The qa token may set them once, when it creates a case that does not exist.</td></tr>
+      <tr><td>Automation (QA tools)</td><td><code>implemented</code>, <code>spec</code>, and the run record <code>result</code>, <code>runAt</code>, <code>runRef</code></td><td>The results route, and GAOS's pull.</td></tr>
+    </tbody>
+  </table>
+  <p>The vocabularies are closed: <code>polarity</code> <code>+</code> or <code>-</code>;
+  <code>level</code> <code>API</code>, <code>GQL</code>, <code>WEB</code> or <code>E2E</code>;
+  <code>pri</code> <code>P0</code> to <code>P3</code>; <code>decision</code> <code>planned</code>,
+  <code>blocked</code>, <code>manual-only</code> or <code>wont</code>. A <code>reason</code> is required for
+  anything but <code>planned</code> and has the form <code>&lt;category&gt;:&lt;detail&gt;</code>. A case with a
+  script but a decision other than <code>planned</code> is <em>needs decision</em>: GAOS lists it and never
+  flips it.</p>
+
+  <h2 id="gaos-calls">What GAOS calls on the QA tools</h2>
+  <p>When an operator presses <strong>Pull</strong> or <strong>Push</strong> on a product's QA tab, GAOS
+  calls the QA tools' API with its own bearer token. The buttons are disabled, with the reason shown, until
+  the operator configures the QA tools' address and token, and the QA tools' side of this contract is an open
+  question (<a href="../product/open-questions.html#oq-33">OQ-33</a>). GAOS accepts only an <code>https</code>
+  address (or a plain-http address on its private tunnel), never follows a redirect, and treats every answer as untrusted: a page naming another product, a
+  planning field, an unknown field, a cursor over 128 printable ASCII bytes or more than 200 items fails
+  the sync and keeps the stored cursor.</p>
+  <h3 id="gaos-pull">GET /api/v1/gaos/results</h3>
+  <p>GAOS pages through automation facts: <code>?product=&lt;PRODUCT_ID&gt;&amp;after=&lt;cursor&gt;&amp;limit=200</code>,
+  where the cursor is the opaque <code>next</code> of the previous page. The QA tools answer:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"product":"&lt;PRODUCT_ID&gt;",
+ "items":[{"caseId":"TC-AUTH-001","implemented":true,"spec":"…","result":"pass","runAt":1763000000,"runRef":"run-1"}],
+ "next":"&lt;opaque&gt;","more":true}</pre>
+  </div>
+  <p>The <code>product</code> echoes the id asked for. Each item goes through the same rules as the results
+  route above, so a stale run is counted and skipped. GAOS reads at most 20 pages per click.</p>
+  <h3 id="gaos-push">POST /api/v1/gaos/catalog</h3>
+  <p>GAOS sends the cases whose revision is above its push cursor, in batches of at most 200, and advances
+  the cursor after each batch the QA tools accept. It stops at the first non-2xx answer.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"product":{"id":"&lt;PRODUCT_ID&gt;","name":"…","repo":"…"},
+ "cases":[ <span class="c">/* the case shape above, planning fields */</span> ],
+ "catHead":12}</pre>
+  </div>
+  <p>The QA tools answer <code>{"accepted":n,"rejected":[{"caseId","reason"}]}</code>. A rejected id is shown
+  on the QA tab and is not sent again until its revision changes. Both directions end in the same two store
+  operations, so the QA tools may use either direction or both.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

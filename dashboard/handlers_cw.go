@@ -65,6 +65,9 @@ func (s *server) handleCWStep(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleWorkflowCreate(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
 	_ = r.ParseForm()
 	d := draftFromForm(r)
 	plan, err := s.store.PlanWorkflow(r.Context(), d)

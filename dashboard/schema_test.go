@@ -36,12 +36,13 @@ const schemaDir = "schema"
 // The counts are the model document's own: its §01 lede says "25 vertex types,
 // 3 document types, 32 edge types", and §15 (D-058, 11-blueprint.sql) adds
 // Policy, KnowledgeSource and BlueprintVersion and five edges -- 28 and 37.
+// D-072 (16-qa-catalog.sql) adds QaCase and HAS_QA_CASE -- 29 and 38.
 // GaosVertex and GaosEdge are supertypes that everything else EXTENDS and are
 // deliberately outside those numbers.
 const (
-	wantVertexTypes   = 28
+	wantVertexTypes   = 29
 	wantDocumentTypes = 3
-	wantEdgeTypes     = 37
+	wantEdgeTypes     = 38
 )
 
 var (

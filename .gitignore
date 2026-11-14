@@ -3,6 +3,10 @@
 # to them document the names.
 deploy/stacks/*.env
 deploy/stacks/*.aim-*
+# The machine API's bearer tokens (D-072): prod.api-admin, prod.api-qa and
+# prod.api-qa-out, gaos_<hex>, mode 600. The outbound one stays empty until the
+# QA tools implement their side.
+deploy/stacks/*.api-*
 !deploy/stacks/*.env.example
 
 # Detached worktrees created by `rebuild-restart.sh --tag`. Each is a checkout
