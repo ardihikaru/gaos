@@ -66,6 +66,10 @@ type server struct {
 	// unconfigured means the sync buttons are disabled.
 	qaOut *qaOutbound
 
+	// inbox delivers the operator's answers to the QA tool's questions
+	// (inbox_worker.go); nil in tests that do not exercise it.
+	inbox *inboxWorker
+
 	// adapter is nil unless GAOS_MODEL_MODE names one. Held for /healthz and
 	// the boot log only -- the dispatch path reaches it through the store,
 	// because a dispatch emits events and only a store may.
@@ -274,6 +278,11 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv(), qaOut: qaOutboundFromEnv()}
 
+	// D-078: the answer webhook. One worker; with the outbound unconfigured it
+	// idles and the QA tool polls GET /v1/products/{id}/inbox/{externalId}.
+	srv.inbox = newInboxWorker(store, srv.qaOut)
+	go srv.inbox.Run(ctx)
+
 	h := gzipMiddleware(srv.routes())
 	hs := &http.Server{
 		Addr:              addr,
@@ -353,6 +362,9 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /products/{id}/tasks/{taskId}/answer", s.handleAnswer)
 	mux.HandleFunc("GET /ui/needs", s.handleNeeds)                      // the chip and the nav count
 	mux.HandleFunc("GET /ui/answer/{id}/{taskId}", s.handleAnswerSheet) // the answer sheet
+	// D-078: the QA tool's questions, answered through the same sheet.
+	mux.HandleFunc("POST /products/{id}/inbox/{externalId}/answer", s.handleExternalAnswer)
+	mux.HandleFunc("GET /ui/answer-ext/{id}/{externalId}", s.handleExternalSheet)
 
 	// --- create workflow ---
 	mux.HandleFunc("GET /ui/cw", s.handleCWOpen)

@@ -92,6 +92,49 @@ func (s *server) handleAnswer(w http.ResponseWriter, r *http.Request) {
 	writeBoardJSON(w, http.StatusOK, map[string]any{"toast": res.Toast, "events": stripPayloads(res.NewEvents)})
 }
 
+// handleExternalAnswer is POST /products/{id}/inbox/{externalId}/answer: the
+// operator answers one of the QA tool's questions (D-078). The same session
+// gate, body and refusals as the task route; the answer is recorded here and
+// delivered to the QA tool by the worker, so a webhook that is down never
+// makes this fail.
+//
+//	POST /products/{id}/inbox/{externalId}/answer   {choice: 1..4, text} -> 200 {toast, events}
+//	                                                | 404 {error} | 409 {error, reason} | 422 {error, reason}
+func (s *server) handleExternalAnswer(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id, ext := r.PathValue("id"), r.PathValue("externalId")
+	choice, text, err := answerBody(w, r)
+	if err != nil {
+		writeBoardJSON(w, http.StatusBadRequest, map[string]string{"error": `body must be {"choice": 1..4, "text"}`})
+		return
+	}
+	res, err := s.mut(r).AnswerExternal(r.Context(), id, ext, choice, text)
+	if err != nil {
+		if wantsHTMX(r) {
+			s.fail(w, r, err)
+			return
+		}
+		switch {
+		case errors.Is(err, ErrNotFound):
+			writeBoardJSON(w, http.StatusNotFound, map[string]string{"error": "no such question"})
+		case choice < ChoiceRecommended || choice > ChoiceOther ||
+			(choice == ChoiceOther && strings.TrimSpace(text) == ""):
+			writeBoardJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "answer refused", "reason": err.Error()})
+		default:
+			writeBoardJSON(w, http.StatusConflict, map[string]string{"error": "answer refused", "reason": err.Error()})
+		}
+		return
+	}
+	s.inbox.Kick() // tell the QA tool soon; never wait for it
+	if wantsHTMX(r) {
+		s.renderInbox(w, r, res, r.URL.Query().Get("product"))
+		return
+	}
+	writeBoardJSON(w, http.StatusOK, map[string]any{"toast": res.Toast, "events": stripPayloads(res.NewEvents)})
+}
+
 // renderInbox renders the back office's inbox view after a read or an answer,
 // with the chrome riding along so the toast and the badge move together.
 func (s *server) renderInbox(w http.ResponseWriter, r *http.Request, res Result, productID string) {

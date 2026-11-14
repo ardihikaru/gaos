@@ -176,6 +176,7 @@ type InboxRow struct {
 	ProductName string
 	TaskID      string
 	TaskTitle   string
+	Source      string // "QA tool" for an item that belongs to no task (D-078); "" for a task's question
 	RoleLabel   string
 	RoleStyle   template.CSS
 	Lead        string // the question's first line, clipped
@@ -202,6 +203,7 @@ type AnswerView struct {
 	ProductName string
 	TaskID      string
 	TaskTitle   string
+	Source      string // as on InboxRow
 	RoleLabel   string
 	Waiting     string
 	AskedISO    string

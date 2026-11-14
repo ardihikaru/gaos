@@ -49,6 +49,36 @@ func (s *ArcadeStore) AnswerQuestion(ctx context.Context, id, taskID string, cho
 	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerQuestion(ctx, id, taskID, choice, text) })
 }
 
+// The QA tool's inbox items (external_inbox.go, D-078) are events too: the ask,
+// the answer or expiry and each delivery attempt persist with the events they
+// emit, and load() rebuilds them from the stream.
+func (s *ArcadeStore) AskExternal(ctx context.Context, id string, in ExternalAsk) (ExternalItem, bool, Result, error) {
+	var (
+		item    ExternalItem
+		created bool
+	)
+	r, err := s.mutate(ctx, func() (Result, error) {
+		x, c, r, err := s.proj.AskExternal(ctx, id, in)
+		item, created = x, c
+		return r, err
+	})
+	return item, created, r, err
+}
+func (s *ArcadeStore) ExternalGet(ctx context.Context, id, externalID string) (ExternalItem, error) {
+	return s.proj.ExternalGet(ctx, id, externalID)
+}
+func (s *ArcadeStore) AnswerExternal(ctx context.Context, id, externalID string, choice int, text string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerExternal(ctx, id, externalID, choice, text) })
+}
+func (s *ArcadeStore) ExternalPending(ctx context.Context) ([]ExternalItem, error) {
+	return s.proj.ExternalPending(ctx)
+}
+func (s *ArcadeStore) RecordExternalDelivery(ctx context.Context, id, externalID string, attempt int, outcome, reason string, at int64) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) {
+		return s.proj.RecordExternalDelivery(ctx, id, externalID, attempt, outcome, reason, at)
+	})
+}
+
 func blueprintVersionID(productID string, n int) string { return fmt.Sprintf("%s-bp-%d", productID, n) }
 
 // writeBlueprintVersion writes the newest version, once. Older versions were

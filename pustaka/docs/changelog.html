@@ -36,6 +36,25 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-38-0">v0.38.0 <time datetime="2026-11-14">2026-11-14</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The QA tool can ask the operator a question, and gets the decision back.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>QA tool questions in Needs you</b>: the QA token asks with
+        <code>POST /api/v1/products/{id}/inbox</code> and polls with
+        <code>GET /api/v1/products/{id}/inbox/{externalId}</code>. The item has no task. It appears in the inbox
+        with a QA tool tag, counts on the chip, is answered in the same sheet and expires on its own deadline
+        (default 7 days, at most 30).</li>
+        <li><span class="chg add">Added</span> <b>an answer webhook</b>: the decision is posted to the QA tool at
+        <code>/api/v1/gaos/inbox-answer</code> under the existing <code>GAOS_QA_URL</code> and outbound token,
+        retried up to five times with backoff, and recorded as events so a restart resumes it. Answering never waits
+        on it.</li>
+        <li><span class="chg change">Changed</span> the event catalog gains <code>ExternalQuestionAsked</code>,
+        <code>ExternalQuestionAnswered</code> and <code>ExternalAnswerDelivery</code> (BR-05); no DDL change.
+        Design: <code>docs/designs/qa-inbox-api.md</code> (D-078, proposed).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-37-5">v0.37.5 <time datetime="2026-11-14">2026-11-14</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Documentation only: the QA tools' side is built, and test results now flow.</p>
       <ul>
