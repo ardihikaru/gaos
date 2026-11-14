@@ -78,6 +78,11 @@ func TestAPIFailsClosed(t *testing.T) {
 	check("admin token on a qa route", call(t, srv, "GET", sum, tokAdmin, ""), 200)
 	check("qa token on its route", call(t, srv, "GET", sum, tokQA, ""), 200)
 	check("through /app", call(t, srv, "GET", sum, tokQA, "", "X-Forwarded-Prefix", "/app"), 404)
+	check("through any other prefix", call(t, srv, "GET", sum, tokQA, "", "X-Forwarded-Prefix", "/docs"), 404)
+	// Through /api, which Traefik strips and announces as X-Forwarded-Prefix: /api,
+	// is the API's own public path (found on the first deploy: every call was a 404).
+	check("through /api (the public path)", call(t, srv, "GET", sum, tokQA, "", "X-Forwarded-Prefix", "/api"), 200)
+	check("through /api without a token", call(t, srv, "GET", sum, "", "", "X-Forwarded-Prefix", "/api"), 401)
 	// The stripped path is /v1; the public /api/v1 never reaches this mux.
 	if rec := call(t, srv, "GET", "/api"+sum, tokQA, ""); rec.Code == 200 {
 		t.Error("/api/v1/... answered 200: the mux must register the STRIPPED path (Traefik removes /api)")

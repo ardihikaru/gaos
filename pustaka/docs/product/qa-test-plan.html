@@ -2871,7 +2871,9 @@
   <a href="../guide/qa-sync-api.html">The QA sync API</a>.
   <strong>TC-397, negative</strong> (<code>TestAPIFailsClosed</code>): no header is 401, a wrong token
   401, the QA token on the admin route 403, the admin token and the QA token on a QA route 200, a request
-  carrying <code>X-Forwarded-Prefix</code> 404, all as <code>%s: answered %d, want %d (%s)</code>, and no
+  carrying <code>X-Forwarded-Prefix</code> <code>/app</code> or <code>/docs</code> 404 while one carrying
+  <code>/api</code> &mdash; the prefix Traefik strips and announces on every public call &mdash; is 200 with
+  a token and 401 without, all as <code>%s: answered %d, want %d (%s)</code>, and no
   token ever appears in a body (<code>%s: a token appeared in the response body</code>); the public
   <code>/api/v1</code> path never reaches the mux (<code>/api/v1/... answered 200: the mux must register
   the STRIPPED path (Traefik removes /api)</code>); a nil config, no tokens, equal tokens and an
