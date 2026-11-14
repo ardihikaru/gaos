@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and twelve cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
+  four hundred and twenty-two cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and twelve cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and twenty-two cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -501,6 +501,16 @@
       <tr data-tags="qa board card badge live counts no card summary positive m18 implemented"><td>TC-410</td><td>dashboard (go test)</td><td>Positive</td><td>An epic's board card carries live case counts that move with every created case and every result, other cards carry none, and no task is written</td><td>Implemented</td></tr>
       <tr data-tags="qa seed script hisv3 summary totals ok FAIL positive negative m18 implemented"><td>TC-411</td><td>seed.sh</td><td>Positive</td><td>On the VM the seed script ends with ok summary matches, or FAIL naming what differs, after asserting the catalog's totals are at least the committed files'</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard board scroll css sisflow overscroll wheel height silent negative"><td>TC-412</td><td>dashboard (go test)</td><td>Negative</td><td>The back office's board host has a bounded height and its scroller lets a scroll reach the page, so the board scrolls both ways (TestTheBoardHostHasABoundedHeight)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox api scope bearer 404 forbidden positive negative d-078 implemented"><td>TC-413</td><td>dashboard (go test)</td><td>Positive</td><td>The QA token asks and polls only for the products it is scoped to: an out-of-scope or unknown product is a 404 that writes nothing, a missing, wrong or outbound token is a 401, and the QA token on the catalog, the seed or a back-office answer route is a 403 or a 401 (TestAnInboxAskNeedsTheQAScopeAndTheProduct)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox idempotent externalid duplicate cap positive negative d-078 implemented"><td>TC-414</td><td>dashboard (go test)</td><td>Positive</td><td>Asking again with the same (product, externalId) returns the existing item with created false, whatever state it reached, and writes no second event; a product holding 200 open items refuses the next (TestAnInboxAskIsIdempotentOnTheExternalID)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox validation sanitise secret 413 negative d-078 implemented"><td>TC-415</td><td>dashboard (go test)</td><td>Negative</td><td>A bad id, question, context, title, option list or expiry, an unknown field, a body over 1 MiB and a body the secret detector matches are each refused with their code and write nothing; control and bidi characters are stripped, options and the 168 h expiry default (TestAnInboxAskIsValidatedAndSanitised)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox answer sheet chip source tag positive negative d-078 implemented"><td>TC-416</td><td>dashboard (go test)</td><td>Positive</td><td>A QA tool question shows in the inbox with the QA tool tag and counts on the chip, opens a sheet with no option preselected, and is answered through the back-office route: refused without a session, with no choice, empty own words or an unoffered option, then recorded once (TestTheQAToolsQuestionIsAnsweredFromTheInbox)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox status poll open answered expired positive d-078 implemented"><td>TC-417</td><td>dashboard (go test)</td><td>Positive</td><td>GET reports open, answered (choice, optionLabel, text, answeredAt) and expired, an overdue open item reading expired before the sweep and leaving the inbox, and absent facts stay absent in the JSON (TestTheInboxStatusReadsOpenAnsweredAndExpired)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox expiry sweep once positive negative d-078 implemented"><td>TC-418</td><td>dashboard (go test)</td><td>Negative</td><td>The sweep expires an open item after its own deadline exactly once, writes no floor, never touches an answered item, refuses a late answer, and leaves a task question's own expiry alone (TestAnUnansweredInboxItemExpires)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox restart replay events positive d-078 implemented"><td>TC-419</td><td>dashboard (go test)</td><td>Positive</td><td>After a restart the items, their answers, expiries and delivery state read exactly as before, a delivered answer is not pending again, and the same id still asks idempotently (TestAnInboxItemSurvivesARestart)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox webhook delivery bearer path positive negative d-078 implemented"><td>TC-420</td><td>dashboard (go test)</td><td>Positive</td><td>The webhook POSTs each answered or expired item once to GAOS_QA_URL plus /api/v1/gaos/inbox-answer with the outbound bearer and the agreed body; delivered items are never re-sent, not even after a restart, and an unconfigured or unsafe URL sends nothing (TestTheAnswerWebhookDeliversTheDecision)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox webhook retry backoff give up negative d-078 implemented"><td>TC-421</td><td>dashboard (go test)</td><td>Negative</td><td>A failing QA tool is retried at 30 s, 2 min, 10 min and 1 h then given up after five attempts, the backoff survives a restart, a recovered tool is told once, and GET keeps serving the decision (TestTheAnswerWebhookRetriesWithBackoffThenGivesUp)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox webhook never blocks answer positive negative d-078 implemented"><td>TC-422</td><td>dashboard (go test)</td><td>Negative</td><td>Answering returns at once while the QA tool hangs or is unreachable; the failure is recorded as a delivery attempt and never reaches the operator (TestAnAnswerNeverWaitsOnTheWebhook)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3092,6 +3102,51 @@
   The behaviour itself was verified in a real browser (Chromium via Playwright: wheel down, wheel sideways
   and back up over the board at 1440&times;900, 1280&times;720 and 390&times;800), which this register does
   not run.</p>
+
+  <h3 id="go-qa-inbox">dashboard &mdash; the QA tool's inbox (TC-413 to TC-422)</h3>
+  <p>D-078, <code>docs/designs/qa-inbox-api.md</code>. The QA tool asks the operator a question through the
+  bearer API, the operator answers it in "Needs you", and the decision goes back by webhook. All ten are
+  in <code>dashboard/external_inbox_test.go</code>; the third case of the conformance suite
+  (<code>TheQaToolsInboxItemsRoundTrip</code>) is covered by TC-124 and TC-125.</p>
+  <p><strong>TC-413, positive</strong> (<code>TestAnInboxAskNeedsTheQAScopeAndTheProduct</code>): each row
+  of the table answers its status; a miss prints <code>%s: answered %d, want %d (%s)</code>, for example
+  <code>out-of-scope product: answered 201, want 404</code>. A refused call that wrote something prints
+  <code>%d items exist after the table; want 2, the refused calls wrote nothing</code>; a second concurrent
+  write prints <code>a second concurrent ask answered %d, want 429</code>.</p>
+  <p><strong>TC-414, positive</strong> (<code>TestAnInboxAskIsIdempotentOnTheExternalID</code>): the
+  first ask is 201 and the second 200; a duplicate prints <code>the store holds %d item(s) %+v; want the
+  one original, never a duplicate</code> and a second event prints <code>%d ExternalQuestionAsked events;
+  want 1</code>. The cap prints <code>%d more open items were accepted; want a refusal at %d</code>.</p>
+  <p><strong>TC-415, negative</strong> (<code>TestAnInboxAskIsValidatedAndSanitised</code>): each bad body
+  prints <code>%s: answered %d %q, want 400 %q</code>; a body that was refused but stored prints
+  <code>%d item(s) exist after only refused asks; a refusal writes nothing</code>; the oversized body
+  prints <code>an oversized body answered %d, want 413</code>; cleaning prints <code>stored question %q
+  context %q title %q; want them cleaned of control and bidi characters</code>.</p>
+  <p><strong>TC-416, positive</strong> (<code>TestTheQAToolsQuestionIsAnsweredFromTheInbox</code>): prints
+  <code>the chip after a QA tool question = %q; want it to count 1</code>, <code>the inbox lacks %q</code>
+  when the source tag or the sheet link is missing, <code>refused answers changed the item to %q</code>
+  and <code>GET after the answer = %d %+v; want answered, choice 3, Needs changes, the note and a time</code>.</p>
+  <p><strong>TC-417, positive</strong> (<code>TestTheInboxStatusReadsOpenAnsweredAndExpired</code>): prints
+  <code>GET %s = %d %+v; want %s, choice %d %q</code> and <code>an open item's JSON %s carries choice or
+  answeredAt</code>.</p>
+  <p><strong>TC-418, negative</strong> (<code>TestAnUnansweredInboxItemExpires</code>): prints <code>a
+  second sweep wrote %d event(s); an item expires once</code>, <code>an external expiry carried a floor; it
+  must not touch the desks (BR-20)</code> and <code>an expired item accepted an answer</code>.</p>
+  <p><strong>TC-419, positive</strong> (<code>TestAnInboxItemSurvivesARestart</code>): the stream is
+  round-tripped through the same JSON the ArcadeDB store writes; prints <code>%s reads %+v before the
+  restart and %+v after</code> and <code>a delivered answer reads %q after the restart; want delivered, so
+  it is not sent twice</code>.</p>
+  <p><strong>TC-420, positive</strong> (<code>TestTheAnswerWebhookDeliversTheDecision</code>): a fake QA tool
+  records each call; prints <code>call %d carried Authorization %q; want the outbound token</code>,
+  <code>call %d was %q; want POST /api/v1/gaos/inbox-answer</code>, <code>a second pass made %d call(s); a
+  delivered answer is sent once</code> and <code>an unconfigured worker made %d call(s) and wrote %d
+  event(s); want none</code>.</p>
+  <p><strong>TC-421, negative</strong> (<code>TestTheAnswerWebhookRetriesWithBackoffThenGivesUp</code>): a
+  fake clock walks the schedule; prints <code>%s: the pass made %d call(s) (%d in all); want %d (%d in
+  all)</code> and <code>the delivery events are %v; want four retries then gave-up</code>.</p>
+  <p><strong>TC-422, negative</strong> (<code>TestAnAnswerNeverWaitsOnTheWebhook</code>): prints <code>the
+  answer took %v and answered %d while the QA tool hangs; it must return at once</code> and <code>a refused
+  connection left the delivery %+v; want one failed attempt, still pending</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

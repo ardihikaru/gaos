@@ -596,7 +596,12 @@ func relSpan(d time.Duration) string {
 // the datetime, and whether it is within urgentBefore. Nothing for a question
 // whose ask time was not recorded, which never expires.
 func expiryFor(asked int64, now time.Time) (rel, iso string, urgent bool) {
-	exp := questionExpiresAt(asked)
+	return expiryAt(questionExpiresAt(asked), now)
+}
+
+// expiryAt is expiryFor for a deadline already known: the QA tool's items carry
+// their own (D-078).
+func expiryAt(exp int64, now time.Time) (rel, iso string, urgent bool) {
 	if exp == 0 {
 		return "", "", false
 	}
@@ -667,6 +672,15 @@ func answerSheetURL(productID, taskID, from, filter string) string {
 	return "ui/answer/" + url.PathEscape(productID) + "/" + url.PathEscape(taskID) + "?" + q.Encode()
 }
 
+// externalSheetURL is the GET that opens the answer sheet of a QA tool item.
+func externalSheetURL(productID, externalID, filter string) string {
+	q := url.Values{"from": {"inbox"}}
+	if filter != "" {
+		q.Set("product", filter)
+	}
+	return "ui/answer-ext/" + url.PathEscape(productID) + "/" + url.PathEscape(externalID) + "?" + q.Encode()
+}
+
 // buildInbox fills the inbox view: every waiting agent, oldest first, narrowed
 // to one product when filter is set.
 func (s *server) buildInbox(r *http.Request, bo *BOView, filter string, name func(string) string) {
@@ -691,6 +705,20 @@ func (s *server) buildInbox(r *http.Request, bo *BOView, filter string, name fun
 		}
 		lead, _ := splitLead(q.Question)
 		rel, iso, abs := waitingFor(q.AskedAt, now)
+		if q.External {
+			// D-078: no task, no role; the source tag and the title stand in.
+			exp, expISO, urgent := expiryAt(q.ExpiresAt, now)
+			bo.Inbox = append(bo.Inbox, InboxRow{
+				ProductID: q.ProductID, ProductName: name(q.ProductID),
+				Source: q.Source, TaskTitle: q.Title,
+				Lead: clipEllipsis(def(lead, "(the QA tool sent no question text)"), 160), Question: q.Question,
+				Waiting: rel, AskedISO: iso, AskedAbs: abs,
+				Expires: exp, ExpiresISO: expISO, Urgent: urgent,
+				OpenURL: externalSheetURL(q.ProductID, q.ExternalID, filter),
+				DomID:   "inbox-" + q.ProductID + "-ext-" + q.ExternalID,
+			})
+			continue
+		}
 		exp, expISO, urgent := expiryFor(q.AskedAt, now)
 		label, style := roleOf(q.Role)
 		bo.Inbox = append(bo.Inbox, InboxRow{
@@ -745,6 +773,33 @@ func (s *server) handleAnswerSheet(w http.ResponseWriter, r *http.Request) {
 	s.rend.Render(w, http.StatusOK, "answer-modal", v)
 }
 
+// handleExternalSheet is GET /ui/answer-ext/{id}/{externalId}: the answer sheet
+// for one of the QA tool's questions (D-078).
+func (s *server) handleExternalSheet(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id, ext := r.PathValue("id"), r.PathValue("externalId")
+	qs, err := s.store.OpenQuestions(r.Context(), id)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var q *Question
+	for i := range qs {
+		if qs[i].External && qs[i].ExternalID == ext {
+			q = &qs[i]
+		}
+	}
+	if q == nil {
+		s.fail(w, r, reject("That QA tool question is not waiting on an answer any more."))
+		return
+	}
+	v, _ := s.newView(r)
+	v.Answer = s.buildAnswer(r, *q)
+	s.rend.Render(w, http.StatusOK, "answer-modal", v)
+}
+
 func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 	name := q.ProductID
 	if ps, err := s.store.Products(r.Context()); err == nil {
@@ -757,6 +812,9 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 	lead, rest := splitLead(q.Question)
 	rel, iso, abs := waitingFor(q.AskedAt, time.Now())
 	exp, expISO, urgent := expiryFor(q.AskedAt, time.Now())
+	if q.External {
+		exp, expISO, urgent = expiryAt(q.ExpiresAt, time.Now())
+	}
 	label, _ := roleOf(q.Role)
 	a := &AnswerView{
 		ProductID: q.ProductID, ProductName: name, TaskID: q.TaskID,
@@ -776,10 +834,15 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 			break // 4 is always the operator's own words
 		}
 		a.Options = append(a.Options, AnswerOption{N: i + 1, Label: def(strings.TrimSpace(o.Label), fmt.Sprintf("Option %d", i+1)),
-			Description: o.Description, Recommended: i == 0, Checked: i == 0})
+			Description: o.Description, Recommended: i == 0 && !q.External, Checked: i == 0 && !q.External})
 	}
 	if len(a.Options) > 0 {
 		a.Default = ChoiceRecommended
+	}
+	if q.External {
+		// D-078: the QA tool recommends nothing, and an Approve preselected by
+		// default is a decision nobody made. Nothing is checked; the operator picks.
+		a.Source, a.TaskID, a.TaskTitle, a.RoleLabel, a.Default = q.Source, "", q.Title, "", 0
 	}
 	pq := url.Values{}
 	if f := r.URL.Query().Get("product"); f != "" {
@@ -789,6 +852,9 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 		pq.Set("from", "board")
 	}
 	a.PostURL = "products/" + url.PathEscape(q.ProductID) + "/tasks/" + url.PathEscape(q.TaskID) + "/answer"
+	if q.External {
+		a.PostURL = "products/" + url.PathEscape(q.ProductID) + "/inbox/" + url.PathEscape(q.ExternalID) + "/answer"
+	}
 	if len(pq) > 0 {
 		a.PostURL += "?" + pq.Encode()
 	}

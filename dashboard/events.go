@@ -85,6 +85,17 @@ const (
 	// operator answered it. The payload's Question carries both halves.
 	QuestionAsked    EventType = "QuestionAsked"
 	QuestionAnswered EventType = "QuestionAnswered"
+
+	// D-078: a question that belongs to no task. The QA tool asks the operator
+	// through the machine API (docs/designs/qa-inbox-api.md), the operator
+	// answers in the inbox, and the decision goes back to the QA tool.
+	// ExternalQuestionAnswered carries the answer OR the expiry (Question.Status
+	// says which); ExternalAnswerDelivery is one attempt to tell the QA tool
+	// (Rule: delivered | retry | gave-up). Same BR-05 rule: the fold case, the
+	// data model document section 08 and the catalog test land with these names.
+	ExternalQuestionAsked    EventType = "ExternalQuestionAsked"
+	ExternalQuestionAnswered EventType = "ExternalQuestionAnswered"
+	ExternalAnswerDelivery   EventType = "ExternalAnswerDelivery"
 )
 
 // judgment

@@ -130,6 +130,17 @@ type Store interface {
 	// (D-066); main.go sweeps it once a minute.
 	ExpireQuestions(ctx context.Context, now int64) (Result, error)
 
+	// The QA tool's questions (external_inbox.go, D-078): items of the inbox
+	// that belong to no task. Their Results carry no Floor. AskExternal is
+	// idempotent on (product, externalId) and reports whether it created the
+	// item; ExternalPending and RecordExternalDelivery are the answer
+	// webhook's half (inbox_worker.go).
+	AskExternal(ctx context.Context, productID string, in ExternalAsk) (ExternalItem, bool, Result, error)
+	ExternalGet(ctx context.Context, productID, externalID string) (ExternalItem, error)
+	AnswerExternal(ctx context.Context, productID, externalID string, choice int, text string) (Result, error)
+	ExternalPending(ctx context.Context) ([]ExternalItem, error)
+	RecordExternalDelivery(ctx context.Context, productID, externalID string, attempt int, outcome, reason string, at int64) (Result, error)
+
 	// The QA catalog (qacatalog.go, D-072). The three writes carry NO floor in
 	// their Result: the catalog is not part of the floor, and a write that
 	// carried one would save a replayed past over the live desks (BR-20).
@@ -276,6 +287,15 @@ func (readOnly) AnswerQuestion(context.Context, string, string, int, string) (Re
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) ExpireQuestions(context.Context, int64) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) AskExternal(context.Context, string, ExternalAsk) (ExternalItem, bool, Result, error) {
+	return ExternalItem{}, false, Result{}, reject(replayRefusal)
+}
+func (readOnly) AnswerExternal(context.Context, string, string, int, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) RecordExternalDelivery(context.Context, string, string, int, string, string, int64) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SyncBlueprint(context.Context, string) (Result, error) {
