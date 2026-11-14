@@ -40,7 +40,7 @@ design.
    reads.
 
 **Off limits, never open:** `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md`,
-`GEMINI.md`, `.env*`, `*.env`, `*.aim-*`, `*.pem`, `*.key`,
+`GEMINI.md`, `.env*`, `*.env`, `*.aim-*`, `*.api-*`, `*.bo-*`, `*.pem`, `*.key`,
 `**/credentials*`, `~/.ssh`, `~/.aws`, and any path outside this repository.
 Never print a secret, token or env value.
 

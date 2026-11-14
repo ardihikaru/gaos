@@ -127,6 +127,19 @@ for f in deploy/stacks/*.api-*; do
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
   fi
 done
+for f in deploy/stacks/*.bo-*; do
+  # The back office's accounts file and session key (D-079): host-side files.
+  [ -e "$f" ] || continue
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    bad "$f is tracked by git"
+  else
+    ok "$(basename "$f") is untracked"
+  fi
+  if [ ! -f "$f" ]; then
+    bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
+  fi
+done
+has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
 hasnt $DEV  'PASSWORD: "'                    "dev bakes no password into compose"
 hasnt $PROD 'PASSWORD: "'                    "prod bakes no password into compose"
 

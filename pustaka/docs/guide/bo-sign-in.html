@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Back-office sign-in — GAOS</title>
+<meta name="description" content="How the GAOS back office authenticates an operator: the accounts file, the session cookie, the throttle, and how to add an account or end a session.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="bo-sign-in">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Guide</p>
+  <h1>Back-office sign-in</h1>
+  <p class="lede">The back office is the part of GAOS that writes: products, requirements, Blueprints, answers
+  and the QA sync buttons. It signs an operator in with an email and a password checked against a hashed file,
+  and every route that is not public is refused without a valid session. Built in v0.39.0
+  (<a href="../product/decision-log.html#d-079">D-079</a>).</p>
+
+  <div class="page-meta"
+       data-tags="auth, login, session, back-office, operations"
+       data-hashtags="auth, operations"
+       data-published="2026-11-15"
+       data-updated="2026-11-15"
+       data-version-from="0.39.0"
+       data-version-to=""></div>
+
+  <h2 id="what-it-is">What it is</h2>
+  <p>An account is one line of a text file. A session is a signed cookie that lasts twelve hours from sign-in
+  and is checked on every request. There is no open mode: with no account configured, nobody can sign in, and
+  in production the deployment label must be set too
+  (<a href="../product/brd.html#rules-design-review">BR-55</a>).</p>
+
+  <h2 id="accounts">Accounts</h2>
+  <p>The server reads <code>GAOS_BO_USERS_FILE</code> once at start. Each line is
+  <code>email:pbkdf2-sha256$600000$&lt;salt&gt;$&lt;hash&gt;</code>; blank lines and lines starting with
+  <code>#</code> are ignored, and a bad line is skipped and reported by its number, never its content. To make a
+  hash, give the password on standard input; it is never an argument, so it does not appear in a process list:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">sh</span><button class="copy">copy</button></div>
+    <pre>docker run --rm -i --entrypoint /dashboard &lt;IMAGE&gt; hash-password &lt; password-file</pre>
+  </div>
+  <p>Add the printed line to the users file and restart the dashboard. The file and the session key are
+  <strong>secrets</strong>: mode 0600, never committed (<code>deploy/stacks/prod.bo-users</code> and
+  <code>prod.bo-session-key</code> are gitignored), and the dashboard warns at start when either is readable by
+  others.</p>
+
+  <h2 id="sessions">Sessions and revocation</h2>
+  <p>The cookie is <code>v1.&lt;email&gt;.&lt;expiry&gt;.&lt;fingerprint&gt;.&lt;mac&gt;</code>, signed with
+  HMAC-SHA256 under <code>GAOS_BO_SESSION_KEY_FILE</code> (raw bytes, at least 32) and the deployment label
+  <code>GAOS_BO_LABEL</code>, so a cookie from one deployment is worthless on another. Sessions are stateless, so
+  they end in these ways only:</p>
+  <ul>
+    <li>twelve hours after sign-in (no sliding renewal);</li>
+    <li>when the account's password changes or the account is removed, once the dashboard restarts with the
+    edited file (the fingerprint is part of the signature);</li>
+    <li>when the key changes or, with no key file, when the dashboard restarts.</li>
+  </ul>
+  <p>Signing out clears the browser's cookie but cannot recall a copy somebody stole; the twelve-hour bound and the
+  steps above are what limit it. An open event stream closes when its session expires.</p>
+
+  <h2 id="throttle">Throttle</h2>
+  <p>Five wrong passwords for one account within fifteen minutes lock that account for fifteen minutes. A locked
+  account answers &ldquo;Too many attempts&rdquo; with a <code>Retry-After</code> and does not check the password.
+  Made-up emails never lock and answer the same text as a wrong password. There is no per-address lock on
+  purpose: behind the proxy every client shares one address, so it would let anyone lock everyone out.</p>
+
+  <h2 id="routes">What needs a session</h2>
+  <div class="tblwrap"><table class="tbl">
+    <thead><tr><th>Class</th><th>Routes</th><th>Signed out</th></tr></thead>
+    <tbody>
+      <tr><td>Public</td><td>the home page, <code>/healthz</code>, static assets, sign-in and sign-out, the Needs-you chip, the back-office sheet</td><td>answered as before (the sheet shows the sign-in form)</td></tr>
+      <tr><td>Bearer</td><td>every <code>/v1/*</code> route (<a href="qa-sync-api.html">the machine API</a>)</td><td>its own token check</td></tr>
+      <tr><td>Back office</td><td>everything else, including any route added later</td><td>401: the sign-in sheet for a browser request, JSON otherwise</td></tr>
+    </tbody>
+  </table></div>
+  <p>A non-<code>GET</code> request that a browser marks cross-site, or whose <code>Origin</code> names another
+  host, is refused with 403, sign-in and sign-out included. Replay is a <code>POST</code> now.</p>
+
+  <h2 id="limits">What this does not do</h2>
+  <p>All accounts are equal; there are no roles and no per-tenant scoping. Events record no actor, so the log
+  cannot yet say which operator cleared a Blocker. There is no password-reset page: an operator with shell access
+  edits the file. Pages on the same origin as the dashboard (the docs) can still make requests as a signed-in
+  operator; no check stops a docs page from loading a third-party script yet.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

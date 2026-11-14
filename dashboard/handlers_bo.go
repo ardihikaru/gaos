@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -12,26 +14,16 @@ import (
 // The back office: the product master, and the only part of the UI that writes
 // records rather than watching them.
 //
-// AUTH IS A PLACEHOLDER AND SAYS SO. The prototype's own note (line 1194) is
-// that nothing is checked and any value opens the panel. That is preserved
-// exactly: a cookie, no password comparison, no session store. Real auth is
-// pass 2 and its shape is already written down next door -- pustaka's
-// HMAC-signed cookie, credential fingerprint and per-IP throttle
-// (pustaka/main.go:645-1244) is the thing to lift, not a new invention.
-//
-// What IS enforced now is the boundary shape: every back-office route checks
-// the cookie, so when the check becomes real there is exactly one place to
-// change and no route that quietly never had one.
+// Authentication is real (auth.go, D-079, BR-55): a signed, expiring session
+// cookie issued after a password check against a PBKDF2 hash file. The mux gate
+// (auth.go: gate) refuses every route that is not on its fixed public list or a
+// bearer route when no valid session is presented, and requireBO below is the
+// second line of defence in each handler.
 
 const (
 	boCookie     = "gaos_bo"
 	tenantCookie = "gaos_tenant"
 )
-
-func signedIn(r *http.Request) bool {
-	c, err := r.Cookie(boCookie)
-	return err == nil && c.Value == "1"
-}
 
 // tenantOf reads the label shown in the back-office header.
 //
@@ -51,19 +43,36 @@ func tenantOf(r *http.Request) string {
 	return v
 }
 
+// tenantLabel is what the header shows: the tenant (cosmetic, from its cookie)
+// and, when signed in, the email of the VERIFIED session.
+func (s *server) tenantLabel(r *http.Request) string {
+	t := tenantOf(r)
+	if ss, ok := s.auth.sessionFrom(r); ok {
+		return t + " · " + ss.Email
+	}
+	return t
+}
+
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
-	user := strings.TrimSpace(r.FormValue("email"))
 	tenant := r.FormValue("tenant")
 	if tenant == "" {
 		tenant = "loop-eng"
 	}
 
-	if user == "" || !strings.Contains(user, "@") {
+	// The order is the design's (docs/designs/bo-login.md 3.6a): the origin
+	// check ran in the gate; this is "not configured", the shape check, the
+	// account lock, a verification slot, then the password.
+	res := s.auth.login(r.FormValue("email"), r.FormValue("password"))
+	if res.Email == "" {
+		if res.RetryAfter > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(res.RetryAfter.Seconds()))))
+		}
 		v, _ := s.newView(r)
 		v.ShowLogin = true
-		v.LoginErr = "Enter the email you use for this tenant."
-		s.rend.Render(w, http.StatusUnprocessableEntity, "login-sheet", v)
+		v.LoginErr = res.Msg
+		v.LoginEmail = strings.TrimSpace(r.FormValue("email"))
+		s.rend.Render(w, res.Status, "login-sheet", v)
 		return
 	}
 
@@ -71,12 +80,9 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// real TLS at the edge and see plain HTTP inside the tunnel, so deriving
 	// the flag from r.TLS would drop it in production. It is env-driven, and it
 	// defaults on -- the same rule cubiq applies to its admin cookie.
+	http.SetCookie(w, s.auth.cookie(res.Email))
 	http.SetCookie(w, &http.Cookie{
-		Name: boCookie, Value: "1", Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, Secure: secureCookies(),
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name: tenantCookie, Value: url.QueryEscape(tenant + " · " + user), Path: "/",
+		Name: tenantCookie, Value: url.QueryEscape(tenant), Path: "/",
 		SameSite: http.SameSiteLaxMode, Secure: secureCookies(),
 	})
 
@@ -86,7 +92,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	v, _ := s.newView(r)
 	v.SignedIn = true
 	v.ShowLogin = false
-	v.Tenant = tenant + " · " + user
+	v.Tenant = tenant + " · " + res.Email
 	v.BO = s.buildBO(r, "products", "", "brd")
 	s.rend.Render(w, http.StatusOK, "sheets", v)
 }
@@ -109,7 +115,7 @@ func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) requireBO(w http.ResponseWriter, r *http.Request) bool {
-	if signedIn(r) {
+	if s.auth.signedIn(r) {
 		return true
 	}
 	v, _ := s.newView(r)
@@ -122,7 +128,7 @@ func (s *server) requireBO(w http.ResponseWriter, r *http.Request) bool {
 
 func (s *server) handleBOSheet(w http.ResponseWriter, r *http.Request) {
 	v, _ := s.newView(r)
-	if !signedIn(r) {
+	if !s.auth.signedIn(r) {
 		v.ShowLogin = true
 		s.rend.Render(w, http.StatusOK, "login-sheet", v)
 		return
@@ -616,7 +622,7 @@ func expiryAt(exp int64, now time.Time) (rel, iso string, urgent bool) {
 // needsCount is the topbar chip's number. Signed out it is zero: the count is
 // back-office data, and there is no inbox to open without a session.
 func (s *server) needsCount(r *http.Request) int {
-	if !signedIn(r) {
+	if !s.auth.signedIn(r) {
 		return 0
 	}
 	qs, err := s.store.OpenQuestions(r.Context(), "")

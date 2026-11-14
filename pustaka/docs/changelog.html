@@ -36,6 +36,33 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-39-0">v0.39.0 <time datetime="2026-11-15">2026-11-15</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The back office signs in for real. Needs two files and a label on each deployment before it is deployed.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>real back-office sign-in</b> (<a href="product/decision-log.html#d-079">D-079</a>,
+        <a href="product/brd.html#rules-design-review">BR-55</a>): accounts in a PBKDF2-hashed file, a signed
+        twelve-hour session cookie, a per-account throttle, and <code>dashboard hash-password</code>. See
+        <a href="guide/bo-sign-in.html">Back-office sign-in</a>.</li>
+        <li><span class="chg change">Changed</span> <b>every route not on a fixed public list is refused without a
+        session</b>, at the mux, so the event log, the model's packet, the readiness read and the wizard (which
+        checked nothing) are covered and so is any route added later. Bearer routes are unchanged.</li>
+        <li><span class="chg change">Changed</span> <code>GET /replay/{workflow}</code> is <code>POST</code>: it
+        parked every write and needed no session.</li>
+        <li><span class="chg change">Changed</span> non-GET requests a browser marks cross-origin are refused (403),
+        and the login form no longer ships a demo email and password.</li>
+        <li><span class="chg change">Changed</span> an event stream closes when the session that opened it expires.</li>
+        <li><span class="chg fix">Fixed</span> the review-report secret scan in <code>check-workspace.sh</code>: its
+        pattern had an unbalanced parenthesis, so grep failed silently and the scan never matched anything. It now
+        matches (and also catches a <code>pbkdf2-sha256$&hellip;$</code> hash line).</li>
+        <li><span class="chg add">Added</span> deploy support: <code>deploy/stacks/*.bo-*</code> are gitignored and
+        linked into a tag worktree, the prod compose mounts <code>prod.bo-users</code> and
+        <code>prod.bo-session-key</code> and passes <code>GAOS_BO_LABEL</code>, and <code>rebuild-restart.sh</code>
+        refuses a tag deploy when either file is missing. A rollback to an older tag brings the forgeable cookie
+        back.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-38-0">v0.38.0 <time datetime="2026-11-14">2026-11-14</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The QA tool can ask the operator a question, and gets the decision back.</p>
       <ul>

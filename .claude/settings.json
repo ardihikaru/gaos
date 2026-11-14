@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*.bo-*)",
+      "Read(**/*.api-*)",
+      "Read(**/*.aim-*)",
+      "Read(**/*.env)"
+    ]
+  }
+}
