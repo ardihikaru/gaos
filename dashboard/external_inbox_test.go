@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -222,6 +223,8 @@ func TestAnInboxAskIsValidatedAndSanitised(t *testing.T) {
 		{"an unknown field", `{"externalId":"a","question":"q","productId":"p-1"}`, "bad-json"},
 		{"not JSON", `question=q`, "bad-json"},
 		{"a secret in the context", `{"externalId":"a","question":"q","context":"token ` + tokQA + `"}`, "secret-in-body"},
+		// A bidi mark splits the token so the raw-body screen misses it; cleaning joins it again.
+		{"a secret split by a bidi mark", `{"externalId":"a","question":"q","context":"token ` + tokQA[:9] + `\u202a` + tokQA[9:] + `"}`, "secret-in-body"},
 	}
 	for _, tc := range bad {
 		rec := call(t, srv, "POST", inboxPath(pid), tokQA, tc.body)
@@ -799,5 +802,37 @@ func caseExternalInbox(t *testing.T, s Store) {
 	}
 	if pend, _ := s.ExternalPending(ctx); len(pend) != 0 {
 		t.Errorf("ExternalPending = %d after delivery; want 0", len(pend))
+	}
+}
+
+// failingRecord makes the delivery record fail, as a database outage would.
+type failingRecord struct{ Store }
+
+func (failingRecord) RecordExternalDelivery(context.Context, string, string, int, string, string, int64) (Result, error) {
+	return Result{}, errors.New("database unavailable")
+}
+
+func TestAWebhookWhoseRecordFailsIsNotResentEveryTick(t *testing.T) {
+	st := NewMemStore(1)
+	pid := st.desks[0].ID
+	ctx := t.Context()
+	h := &hook{status: 200}
+	w, _ := hookWorker(t, failingRecord{st}, h)
+	st.AskExternal(ctx, pid, ExternalAsk{ExternalID: "r1", Question: "q", Options: []QuestionOption{{Label: "A"}, {Label: "B"}}})
+	st.AnswerExternal(ctx, pid, "r1", 1, "")
+
+	t0 := time.Now().Unix()
+	if n := w.RunOnce(ctx, t0); n != 1 {
+		t.Fatalf("the first pass made %d calls; want 1", n)
+	}
+	for i := int64(1); i <= 20; i++ { // ten-second ticks for 200 s: the 30 s backoff must hold
+		if i*10 < 30 {
+			if n := w.RunOnce(ctx, t0+i*10); n != 0 {
+				t.Fatalf("at +%d s the pass re-sent (%d calls); the failed record must still back off", i*10, n)
+			}
+		}
+	}
+	if n := w.RunOnce(ctx, t0+30); n != 1 {
+		t.Fatalf("after the backoff the pass made %d calls; want 1", n)
 	}
 }
