@@ -36,6 +36,19 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-37-4">v0.37.4 <time datetime="2026-11-14">2026-11-14</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The board could not be scrolled.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>scrolling on a product's Board tab</b>: the wheel did nothing over the
+        board, and its horizontal scrollbar was off screen. The vendored board assumes a fixed-height parent;
+        the back office gave it none, so it grew to its content (13,000px for forty story lanes) and its own
+        <code>overscroll-behavior:contain</code> kept the wheel from reaching the page. The board now has a
+        bounded height, scrolls both ways inside it with its scrollbars in view, and a scroll that reaches its
+        edge continues to the page. <code>TestTheBoardHostHasABoundedHeight</code> (TC-412) pins the two rules.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-37-3">v0.37.3 <time datetime="2026-11-14">2026-11-14</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Documentation only.</p>
       <ul>
