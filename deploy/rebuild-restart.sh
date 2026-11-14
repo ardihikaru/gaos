@@ -154,6 +154,20 @@ if [ -z "$INSIDE" ]; then
     # behind in a worktree nobody removed.
     # The gateway's two secret files (deploy/stacks/<tier>.aim-*) are the same
     # kind of thing and are linked the same way.
+    # D-072: a tag whose compose mounts the machine API's token files needs them
+    # on this disk BEFORE `up`. A missing bind-mount source is created by Docker
+    # as a root-owned directory the deploy user cannot then replace. An EMPTY
+    # file is fine (it leaves that token unset and the API closed).
+    if [ "$ENVIRON" = prod ] && grep -q 'prod.api-admin' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
+      for f in prod.api-admin prod.api-qa prod.api-qa-out; do
+        if [ ! -f "deploy/stacks/$f" ]; then
+          bad "deploy/stacks/$f is missing (or is not a regular file)"
+          info "create it, mode 600 (empty is fine) -- see compose.prod.yaml -- then re-run."
+          exit 1
+        fi
+      done
+      ok "the machine API's token files exist"
+    fi
     for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac

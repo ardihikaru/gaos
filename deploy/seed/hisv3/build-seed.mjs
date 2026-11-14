@@ -105,6 +105,7 @@ for (const file of fs.readdirSync(modDir).filter((f) => /^[A-D]-.+\.md$/.test(f)
 const stories = new Map();
 const epics = new Map();
 const cases = [];
+let caseRows = 0; // every checkbox row in the source, so a row that fails to parse is COUNTED, not dropped
 const files = fs
   .readdirSync(catDir, { recursive: true })
   .map((f) => f.split(path.sep).join('/'))
@@ -134,6 +135,7 @@ for (const file of files) {
 
   for (const line of lines) {
     if (!/^\|\s*[☐☑]\s*\|/.test(line)) continue;
+    caseRows += 1;
     const c = cells(line);
     if (c.length !== 10) continue;
     const [, id, story, scenario, polarity, level, pri, status, spec, reason] = c;
@@ -160,6 +162,31 @@ for (const file of files) {
 }
 cases.sort((a, b) => a.caseId.localeCompare(b.caseId));
 
+// A row that did not parse is a refusal, not a silent drop (design §4.9).
+if (cases.length !== caseRows) {
+  console.error(`refusing to write: ${caseRows} case rows in the source but ${cases.length} parsed (a stray pipe, or a status outside ${STATUSES.join('|')})`);
+  process.exit(1);
+}
+// The Go side's rules (dashboard/qacatalog.go validatePlanning/validateSpec), so a bad row fails HERE and not
+// on slice N of a seed run that has already created the product.
+const REASON = /^(defect|not-needed|blocked|unsafe|manual-only|deferred|other):\s*\S/;
+const bad = [];
+for (const c of cases) {
+  const why =
+    (c.decision !== 'planned' || c.reason) && !(REASON.test(c.reason) && Buffer.byteLength(c.reason) <= 240)
+      ? 'reason'
+      : !/^[\x20-\x7e]*$/.test(c.spec) || c.spec.startsWith('/') || c.spec.split('/').includes('..')
+        ? 'spec'
+        : !/^TC-[A-Z]+-\d{3}$/.test(c.caseId) || !/^[A-Z]{2,8}$/.test(c.epic) || c.caseId.split('-')[1] !== c.epic
+          ? 'id'
+          : '';
+  if (why) bad.push(`${c.caseId}: ${why}`);
+}
+if (bad.length) {
+  console.error(`refusing to write: ${bad.length} case(s) the server would refuse: ${bad.slice(0, 5).join('; ')}`);
+  process.exit(1);
+}
+
 // ---- assemble
 const automationSha = git(root, 'rev-parse', 'HEAD');
 const qaSha = qaArg ? git(path.resolve(qaArg), 'rev-parse', 'HEAD') : '';
@@ -183,14 +210,20 @@ const product = {
 };
 const casesDoc = { source, cases };
 
-const texts = JSON.stringify([product, casesDoc]);
-for (const re of SECRETS) {
-  const m = texts.match(re);
-  if (m) {
-    console.error(`refusing to write: the text matches a secret pattern (${re.source.slice(0, 40)}...)`);
-    process.exit(1);
+// Each string on its own: the line-anchored patterns never match inside one JSON blob.
+const walk = (v, fn) => {
+  if (typeof v === 'string') fn(v);
+  else if (Array.isArray(v)) v.forEach((x) => walk(x, fn));
+  else if (v && typeof v === 'object') Object.values(v).forEach((x) => walk(x, fn));
+};
+walk([product, casesDoc], (str) => {
+  for (const re of SECRETS) {
+    if (re.test(str)) {
+      console.error(`refusing to write: a text matches a secret pattern (${re.source.slice(0, 40)}...)`);
+      process.exit(1);
+    }
   }
-}
+});
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, 'product.json'), JSON.stringify(product, null, 1) + '\n');
 fs.writeFileSync(path.join(outDir, 'cases.json'), JSON.stringify(casesDoc) + '\n');

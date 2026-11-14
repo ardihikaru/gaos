@@ -29,31 +29,56 @@ while [ $# -gt 0 ]; do
   esac
 done
 command -v python3 >/dev/null 2>&1 || { echo "FAIL python3 is required"; exit 2; }
-[ -r "$tokfile" ] || { echo "FAIL cannot read the token file $tokfile"; exit 2; }
+[ "$dry" = 1 ] || [ -r "$tokfile" ] || { echo "FAIL cannot read the token file $tokfile"; exit 2; }
 
 exec python3 - "$base" "$tokfile" "$here" "$dry" <<'PY'
 import json, sys, urllib.request, urllib.error
 
 base, tokfile, here, dry = sys.argv[1].rstrip('/'), sys.argv[2], sys.argv[3], sys.argv[4] == '1'
-token = open(tokfile).read().strip()
-if not token.startswith('gaos_') or len(token) < 37:
-    print('FAIL the token file does not hold a gaos_ token (an empty file disables the admin token)')
+import ipaddress, urllib.parse
+
+# The bearer is sent to --base and only there: https, or http to a loopback or private (tunnel) address, and never
+# through a redirect (urllib would forward the header to the new host).
+u = urllib.parse.urlparse(base)
+host_ok = u.scheme == 'https'
+if u.scheme == 'http' and u.hostname:
+    try:
+        ip = ipaddress.ip_address(u.hostname)
+        host_ok = ip.is_loopback or ip.is_private
+    except ValueError:
+        host_ok = False
+if not host_ok or u.username or u.password:
+    print('FAIL --base must be https, or http to a loopback or private address, without credentials')
     sys.exit(2)
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):
+        return None
+opener = urllib.request.build_opener(NoRedirect)
+
+token = ''
+if not dry:
+    token = open(tokfile).read().strip()
+    if not token.startswith('gaos_') or len(token) < 37:
+        print('FAIL the token file does not hold a gaos_ token (an empty file disables the admin token)')
+        sys.exit(2)
 
 def call(method, path, body=None):
     data = None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(base + path, data=data, method=method, headers={
         'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return r.status, json.loads(r.read() or b'{}')
+        with opener.open(req, timeout=120) as r:
+            raw, status = r.read(), r.status
     except urllib.error.HTTPError as e:
-        try:
-            return e.code, json.loads(e.read() or b'{}')
-        except ValueError:
-            return e.code, {}
+        raw, status = e.read(), e.code
     except OSError as e:
         print('FAIL cannot reach %s: %s' % (base, e.__class__.__name__))
+        sys.exit(1)
+    try:
+        return status, json.loads(raw or b'{}')
+    except ValueError:
+        print('FAIL the answer to %s %s (HTTP %d) is not JSON; is --base the API?' % (method, path, status))
         sys.exit(1)
 
 product = json.load(open(here + '/product.json'))

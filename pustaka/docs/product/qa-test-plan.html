@@ -689,7 +689,12 @@
   <code>--from-tree</code> is the deliberate escape hatch — <code>building from the working tree
   (b4b43bf)</code> — and the dirty refusal still guards it with <code>working tree is dirty --
   refusing to touch prod</code>. Passing both flags is a usage error: <code>--tag and --from-tree
-  contradict each other</code>. Dev is unchanged and needs no tag, which is the point of dev.</p>
+  contradict each other</code>. Dev is unchanged and needs no tag, which is the point of dev.
+  Since v0.37.0 (D-072) a prod <code>--tag</code> whose compose mounts the machine API's token files
+  also refuses to start when one is missing: <code>FAIL deploy/stacks/prod.api-qa is missing (or is not a
+  regular file)</code>, with <code>create it, mode 600 (empty is fine) -- see compose.prod.yaml -- then
+  re-run.</code>, and prints <code>ok the machine API's token files exist</code> otherwise; Docker would
+  otherwise create the missing source as a root-owned directory.</p>
 
   <h3 id="rr-gotoolchain">rebuild-restart.sh — the test gate runs with or without a local Go (TC-147, TC-148)</h3>
   <p>The VM these stacks run on has Docker and no Go toolchain — not on <code>PATH</code>, not under
