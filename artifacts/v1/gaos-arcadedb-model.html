@@ -765,7 +765,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <tbody>
       <tr><td class="mono">master</td><td class="mono">ProductCreated · RecordUpdated · KnowledgeInjected · ReadinessEvaluated · ReadinessDropped</td></tr>
       <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned (a plan, or an addition to one — §16) · DependencyRewired · WorkflowCanceled</td></tr>
-      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered</td></tr>
+      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered · ExternalQuestionAsked · ExternalQuestionAnswered · ExternalAnswerDelivery</td></tr>
       <tr><td class="mono">judgment</td><td class="mono">ReviewCompleted · RetryRequested · ModelEscalated · SafetyVeto · GuardExhausted</td></tr>
       <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
       <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
@@ -1408,6 +1408,9 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
     <tbody>
       <tr><td class="mono">QuestionAsked</td><td>execution</td><td class="mono">taskId, question{id, runId, attempt, question, context, options[3], askedAt}</td></tr>
       <tr><td class="mono">QuestionAnswered</td><td>execution</td><td class="mono">taskId, question{… , choice 1..4, text, answeredAt}</td></tr>
+      <tr><td class="mono">ExternalQuestionAsked</td><td>execution</td><td class="mono">question{externalId, title, source, question, context, options[2..3], askedAt, deadline} — D-078: a question from the QA tool, bound to no task; entityId is the product</td></tr>
+      <tr><td class="mono">ExternalQuestionAnswered</td><td>execution</td><td class="mono">question{… , status answered|expired, choice 1..4, text, answeredAt}</td></tr>
+      <tr><td class="mono">ExternalAnswerDelivery</td><td>execution</td><td class="mono">question{externalId, attempt, attemptAt}, rule delivered|retry|gave-up, reason — one attempt to tell the QA tool</td></tr>
     </tbody>
   </table>
   <p>An agent that needs the operator's decision ends its turn on a question; the task waits in <span class="mono">Task.status = 'AWAITING_INPUT'</span> until the answer requeues it. The question is also stored as an <span class="mono">Artifact</span> of kind <span class="mono">question</span> on the attempt that asked. There is no Question vertex: the inbox is a projection of the two events. Applied as <span class="mono">dashboard/schema/12-questions.sql</span>, which widens <span class="mono">Task.status</span> and <span class="mono">Artifact.kind</span> in place.</p>
