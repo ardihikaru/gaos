@@ -69,10 +69,12 @@
     <li>If the product is flagged <strong>integrated with GAOS</strong> and the sync succeeded, the QA tools
     start a push to GAOS in the background. It never blocks or fails the knowledge sync.</li>
     <li>The push sends the cases in batches of 200: first the cases themselves (create-only), then the script
-    facts of every case it sent.</li>
+    facts of every case it sent, and, for every case that has one, its latest <em>run result</em> (pass, fail or
+    skipped, when it ran and a run reference).</li>
   </ol>
-  <p>Turning the flag on also starts a full push, and the product's page has a <em>Sync to GAOS now</em> button
-  for a push on demand. What the push does and does not send:</p>
+  <p>Turning the flag on also starts a full push; so does <strong>uploading a test report</strong> that stored
+  results (see <a href="#test-results">Getting test results in</a>); and the product's page has a <em>Sync to GAOS
+  now</em> button for a push on demand. What the push does and does not send:</p>
   <ul>
     <li><strong>Sent:</strong> cases whose status is planned or automated and whose code looks like
     <code>TC-AUTH-001</code>.</li>
@@ -113,13 +115,40 @@
     for it. At most 5 new epics per request, 100 epics and 5,000 cases per product.</p>
   </div>
 
+  <h2 id="test-results">Getting test results in</h2>
+  <p>Pass and fail come from the automation repository's own Playwright runs, not from the QA tools' exploratory
+  runs. The QA tools ingest the <strong>JSON report</strong> of a run (<code>results.json</code>); a test counts
+  for a catalog case when its title starts with the case id, for example <code>TC-CHMGMT-010 ...</code>. There are
+  two doors:</p>
+  <ul>
+    <li><strong>From CI</strong>, one <code>curl</code> step after the tests. The product id here is the
+    <em>QA tools'</em> id for the product (sample-product is <code>3</code> there), not GAOS's <code>p-6</code>:
+    <div class="codeblock">
+      <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+      <pre>curl -sS -X POST -H @header-file --data-binary @results.json \
+  "https://qa-tool.sample-product.com/api/v1/results/playwright?product=&lt;QA_PRODUCT_ID&gt;&amp;run_ref=&lt;CI_RUN_ID&gt;"
+<span class="c"># header-file holds one line:  Authorization: Bearer &lt;RESULTS_INGEST_TOKEN&gt;
+# keep the token in the CI system's secret store</span></pre>
+    </div></li>
+    <li><strong>By hand</strong>, on the product's page in the QA tools: the <em>Test results</em> card takes the
+    same file (Admin, DevOps, Developer, QA and QC roles).</li>
+  </ul>
+  <p>The QA tools keep the <strong>latest run per case</strong>, judged by the report's start time; an older
+  report never overwrites a newer result. The answer to an upload says how many cases it stored and how many
+  test codes matched no case. A code that is not an active case of the product is ignored.</p>
+  <p>The results then reach GAOS on their own: a stored upload starts a push, and a few seconds later the
+  product's QA tab shows the new pass and fail counts. The board's epic cards show a <em>failing</em> marker
+  when a case's last run failed, and the QA tab lists the epic as <em>regressed</em>. The <strong>Pull</strong>
+  button reads the same results if you want them immediately. GAOS keeps one run per case: the latest it has
+  been told about.</p>
+
   <h2 id="gaos-to-qa">GAOS to QA tools: the two buttons</h2>
   <p>On a product's <strong>QA</strong> tab in GAOS there are two buttons. They are an operator's tool, for the
   times when you want GAOS and the QA tools to compare notes now rather than after the next knowledge sync.</p>
   <table class="tbl">
     <thead><tr><th>Button</th><th>What GAOS does</th><th>What it changes</th></tr></thead>
     <tbody>
-      <tr><td><strong>Pull from QA tools</strong></td><td>Asks the QA tools for the script facts of the product's cases, page by page (up to 200 cases a page, up to 20 pages a click), and applies them like any inbound result.</td><td>Only the automation half in GAOS (<code>implemented</code>, <code>spec</code>). Today the QA tools hold no per-case run results, so no pass or fail comes back.</td></tr>
+      <tr><td><strong>Pull from QA tools</strong></td><td>Asks the QA tools for the script facts of the product's cases, page by page (up to 200 cases a page, up to 20 pages a click), and applies them like any inbound result.</td><td>Only the automation half in GAOS: <code>implemented</code>, <code>spec</code> and the run record (<code>result</code>, <code>runAt</code>, <code>runRef</code>) of every case that has one. An older run than the one GAOS holds is refused as stale.</td></tr>
       <tr><td><strong>Push to QA tools</strong></td><td>Sends GAOS's planning data (decision, reason, scenario, module, features and the rest) for every case that changed since the last push, in batches of 200.</td><td>Only the QA tools' <code>gaos_decisions</code> table. It never writes the synced test cases, which stay read-only there. A newer revision wins; an older push leaves the stored row alone.</td></tr>
     </tbody>
   </table>
@@ -157,6 +186,7 @@
       <tr><td>The QA tools call GAOS</td><td><code>deploy/stacks/prod.api-qa</code> (<code>GAOS_API_QA_TOKEN_FILE</code>)</td><td><code>GAOS_API_TOKEN</code></td></tr>
       <tr><td>GAOS calls the QA tools</td><td><code>deploy/stacks/prod.api-qa-out</code> (<code>GAOS_QA_TOKEN_FILE</code>)</td><td><code>GAOS_INBOUND_TOKEN</code></td></tr>
       <tr><td>Seeding and catalog import (an operator, not the QA tools)</td><td><code>deploy/stacks/prod.api-admin</code> (<code>GAOS_API_ADMIN_TOKEN_FILE</code>)</td><td>not used</td></tr>
+      <tr><td>CI uploads a test report to the QA tools</td><td>not used (GAOS never sees it)</td><td><code>RESULTS_INGEST_TOKEN</code>; also the CI system's secret. It must differ from the GAOS tokens.</td></tr>
     </tbody>
   </table>
   <table class="tbl">
@@ -205,6 +235,8 @@
       <tr><td>404 on a product</td><td>The product id is not in the token's scope, or the product is not flagged on the QA side.</td><td>Check <code>GAOS_API_QA_PRODUCTS</code> and the product's GAOS card.</td></tr>
       <tr><td>503 from GAOS's API</td><td>No token is configured, or two tokens are equal.</td><td>Read the GAOS boot line <em>api: disabled (...)</em>.</td></tr>
       <tr><td><code>exists-differs</code> on many cases</td><td>GAOS already holds that case with different planning fields (often the module or features). GAOS keeps its values.</td><td>Informational. The QA tools' <em>GAOS decisions</em> view shows which fields differ. To change a case's planning fields, import through the admin catalog route or re-seed.</td></tr>
+      <tr><td>A report was uploaded but GAOS shows no new results</td><td>The upload stored nothing (no test title starts with a case id, or the report is older than what is stored), the product is not flagged, or the push failed.</td><td>Read the upload's answer (<code>stored</code>, <code>unmatched</code>, <code>stale</code>), then the product's GAOS card in the QA tools; press <em>Sync to GAOS now</em>, or press Pull in GAOS. Rows younger than a minute are held back from a pull.</td></tr>
+      <tr><td>A push says "results older than GAOS's"</td><td>GAOS already holds a newer run for those cases. Not an error.</td><td>Nothing to do; the newest run wins.</td></tr>
       <tr><td>A new epic has no card</td><td>The product has no workflow with a review task yet, or the floor was in replay.</td><td>The epic is on the QA tab's list of epics without a card; plan the workflow first.</td></tr>
     </tbody>
   </table>
@@ -224,8 +256,8 @@
 
   <h2 id="not-built">What is not built yet</h2>
   <ul>
-    <li><strong>Per-case run results.</strong> The QA tools do not map Playwright runs to catalog cases, so a pull
-    carries script facts only and the board's failing marker stays empty until they do.</li>
+    <li><strong>Run history.</strong> Both sides keep only the latest run per case. There is no trend, no list of
+    earlier runs and no flaky-test view.</li>
     <li><strong>Deleting a case.</strong> Nothing deletes a case in GAOS; one is retired with decision
     <em>wont</em>. A case removed from the automation repository now reaches GAOS as <em>no script</em> (the
     QA tools send <code>implemented: false</code> for it) and stays in the catalog.</li>

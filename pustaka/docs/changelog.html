@@ -36,6 +36,21 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-37-5">v0.37.5 <time datetime="2026-11-14">2026-11-14</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Documentation only: the QA tools' side is built, and test results now flow.</p>
+      <ul>
+        <li><span class="chg change">Changed</span> <a href="product/decision-log.html#d-077">D-077</a> answers
+        <a href="product/open-questions.html#oq-33">OQ-33</a>: the QA tools serve the two endpoints GAOS calls, and
+        per-case results come from a Playwright JSON report they ingest.</li>
+        <li><span class="chg add">Added</span> <a href="product/qa-collaboration.html#test-results">Getting test
+        results in</a>: the CI step, the upload on the product's page, how the latest run per case is kept, and
+        how results reach GAOS (by themselves after an upload, or with Pull).</li>
+        <li><span class="chg change">Changed</span> <a href="guide/qa-sync-api.html#gaos-pull">The QA sync API</a>
+        no longer calls the QA tools' side an open question, and shows the run record on a pulled item.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-37-4">v0.37.4 <time datetime="2026-11-14">2026-11-14</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The board could not be scrolled.</p>
       <ul>
