@@ -26,21 +26,16 @@
         </div>
         <div class="field">
           <label for="loginUser">Email</label>
-          <input id="loginUser" name="email" type="email" autocomplete="username" placeholder="you@loop.eng" value="ardi@loop.eng">
+          <input id="loginUser" name="email" type="email" autocomplete="username" placeholder="you@example.org" value="{{.LoginEmail}}" required>
         </div>
         <div class="field">
           <label for="loginPass">Password</label>
-          <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" value="demo">
+          <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
         </div>
         <p class="form-error">{{.LoginErr}}</p>
         <button class="btn btn-primary btn-block" type="submit">Sign in</button>
 
-        <p class="login-note">
-          <b>No password is checked yet.</b> This posts to <span class="mono">POST /auth/login</span> and sets a
-          plain cookie — the prototype's behaviour, kept honestly. Real auth is the HMAC-signed cookie, credential
-          fingerprint and per-IP throttle that <span class="mono">pustaka</span> already implements next door, and
-          the tenant selected here becomes the hard boundary applied to every graph query behind it.
-        </p>
+        <p class="login-note">Accounts are set by whoever runs this server.</p>
       </form>
     </div>
   </div>

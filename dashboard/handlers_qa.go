@@ -11,12 +11,10 @@ import (
 
 // The QA tab and its two sync buttons (D-072, D-075, design §4.10).
 //
-// The routes sit behind the back office's cookie gate, which accepts any
-// request that sets gaos_bo=1 (handlers_bo.go): anyone who can reach the
-// dashboard can press them. That is BR-48's open precondition and is accepted
-// here with bounds -- one configured origin, only products listed in
-// GAOS_API_QA_PRODUCTS, one sync at a time and one start per 30 s -- and it is
-// not widened. What a sync can do is what an inbound results post can do:
+// The routes sit behind the back office's verified session (auth.go, BR-55):
+// only a signed-in operator can press them. They are also bounded -- one
+// configured origin, only products listed in GAOS_API_QA_PRODUCTS, one sync at
+// a time and one start per 30 s. What a sync can do is what an inbound results post can do:
 // change automation facts, never a decision and never a task (BR-54).
 
 // ---------- the view model ----------

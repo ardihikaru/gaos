@@ -71,10 +71,11 @@ type View struct {
 	// ShowLogin and a non-nil BO are what decide whether each sheet is visible.
 	// The server owns that, not the client: "am I signed in" has exactly one
 	// answer and it is not stored in the DOM.
-	ShowLogin bool
-	SignedIn  bool
-	Tenant    string
-	LoginErr  string
+	ShowLogin  bool
+	SignedIn   bool
+	Tenant     string
+	LoginErr   string
+	LoginEmail string // what was typed, so a wrong password does not clear the email field
 }
 
 // ---------- back office ----------

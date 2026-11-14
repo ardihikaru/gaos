@@ -92,7 +92,7 @@
       <tr data-tags="domain-c planning planner workflow wizard routing"><td><a href="#m3-planning">M3 &middot; Planning</a></td><td>5</td><td>2</td><td>2</td><td>5</td><td>0</td><td><a href="#register">T-040</a> &mdash; the gate policy the wizard never asks for</td></tr>
       <tr data-tags="domain-d execution scheduler runner adapter handoff cost"><td><a href="#m4-execution">M4 &middot; Execution</a></td><td>7</td><td>13</td><td>0</td><td>4</td><td>3</td><td><a href="#m14-gateway">M14</a> &mdash; the rest of execution moves behind the gateway</td></tr>
       <tr data-tags="domain-e review score retry guard safety signature"><td><a href="#m5-review">M5 &middot; Review, scoring &amp; retry</a></td><td>6</td><td>0</td><td>3</td><td>10</td><td>0</td><td><a href="#register">T-069</a> &mdash; correctness from a real test run</td></tr>
-      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>1</td><td>1</td><td>7</td><td>0</td><td><a href="#register">T-087</a> &mdash; a password that is actually checked</td></tr>
+      <tr data-tags="domain-f gate approval auth merge"><td><a href="#m6-gates">M6 &middot; Gates &amp; approvals</a></td><td>4</td><td>3</td><td>1</td><td>5</td><td>0</td><td><a href="#register">T-089</a> &mdash; the rest of OQ-11: per-tenant scoping and an actor on events</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction"><td><a href="#m7-memory">M7 &middot; Memory &amp; learning</a></td><td>3</td><td>0</td><td>0</td><td>5</td><td>2</td><td><a href="#register">T-090</a> &mdash; knowledge written back</td></tr>
       <tr data-tags="domain-h replay audit fold timeline"><td><a href="#m8-replay">M8 &middot; Replay &amp; audit</a></td><td>4</td><td>5</td><td>1</td><td>0</td><td>0</td><td><a href="#register">T-101</a> &mdash; the three replay scopes below the floor</td></tr>
       <tr data-tags="domain-i operator mission-control floor inspector ui"><td><a href="#m9-operator-surface">M9 &middot; Operator surface</a></td><td>3</td><td>7</td><td>0</td><td>2</td><td>0</td><td><a href="#register">T-109</a> &mdash; the five blocking reasons</td></tr>
@@ -249,8 +249,8 @@
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.2"><td>T-084</td><td>M6.2</td><td>Record approval and rejection as vertices with a decider, a timestamp and a reason</td><td>F-4</td><td>❌</td></tr>
       <tr data-tags="domain-f gate approval auth merge partial fixtures m6.2"><td>T-085</td><td>M6.2</td><td>Emit <code>ApprovalRejected</code> &mdash; <code>MemStore.CancelTask</code> writes it when the desk it cancels was holding a merge gate, which is what lets an auditor tell <em>nobody answered</em> from <em>somebody answered no</em>; the gate that raised the flag is still the simulator's, and the rejection has no vertex to hang on until <code>T-084</code></td><td>F-4</td><td>🟡</td></tr>
       <tr data-tags="domain-f gate approval auth merge done built m6.3"><td>T-086</td><td>M6.3</td><td>Operator approve / retry / cancel on the inspector &mdash; <code>handlers_floor.go</code></td><td>F-5</td><td>✅</td></tr>
-      <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-087</td><td>M6.4</td><td>Authenticate and authorise operators &mdash; the cookie is checked, the password never is</td><td>F-6, R-02</td><td>❌</td></tr>
-      <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-088</td><td>M6.4</td><td>Remove the demo credentials shipped as <code>value=</code> attributes in the login form</td><td>F-6</td><td>❌</td></tr>
+      <tr data-tags="domain-f gate approval auth merge done m6.4"><td>T-087</td><td>M6.4</td><td>Authenticate operators &mdash; a signed, expiring session after a PBKDF2 password check, and a default-deny gate (<code>dashboard/auth.go</code>, D-079)</td><td>F-6, R-02</td><td>✅</td></tr>
+      <tr data-tags="domain-f gate approval auth merge done m6.4"><td>T-088</td><td>M6.4</td><td>Remove the demo credentials shipped as <code>value=</code> attributes in the login form (<code>templates/backoffice.html</code>)</td><td>F-6</td><td>✅</td></tr>
       <tr data-tags="domain-f gate approval auth merge todo not-built m6.4"><td>T-089</td><td>M6.4</td><td>Answer <a href="../product/open-questions.html#oq-11">OQ-11</a> before anything binds beyond localhost</td><td>F-6</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-090</td><td>M7.1</td><td>Write <code>Knowledge</code> back to the product on every completed workflow</td><td>G-1</td><td>❌</td></tr>
       <tr data-tags="domain-g memory knowledge adr meeting contradiction todo not-built m7.1"><td>T-091</td><td>M7.1</td><td>Carry decisions as ADRs into every later prompt, with supersession tracked</td><td>G-2</td><td>❌</td></tr>
@@ -983,14 +983,12 @@
   rejections.</p>
 
   <h3 id="sub-m6-4">M6.4 — Authentication (T-087–T-089)</h3>
-  <p><code>F-6</code> is the BRD's only <strong>Not built</strong>, cross-referenced to risk
-  <code>R-02</code> and <a href="../product/open-questions.html#oq-11">OQ-11</a>.
-  <code>dashboard/handlers_bo.go</code> states the position in a header comment: a cookie, no
-  password comparison, no session store, and every back-office route checks the cookie so there is
-  exactly one place to change. The login form ships working credentials as
-  <code>value=</code> attributes, which must go with it. The shape to lift is next door —
-  <code>pustaka</code>'s HMAC-signed cookie, credential fingerprint and per-IP throttle with
-  lockout, already covered by fifteen of its own tests.</p>
+  <p>Built in v0.39.0 (<a href="../product/decision-log.html#d-079">D-079</a>,
+  <a href="../product/brd.html#rules-design-review">BR-55</a>). <code>dashboard/auth.go</code> holds the
+  accounts file, the PBKDF2 hashes, the HMAC session, the per-account throttle and the mux gate; the shape is
+  <code>pustaka</code>'s, copied with the changes the design lists. <code>T-089</code> stays: it asks for
+  <a href="../product/open-questions.html#oq-11">OQ-11</a> to be answered, and D-079 narrows it rather than answers
+  it. Per-tenant scoping and an actor on every event are what is left.</p>
 
   <h2 id="m7-memory">M7 · Memory &amp; learning</h2>
   <p>Domain G, requirements <code>G-1</code>…<code>G-5</code>. Seven tasks, two partial. Build-order
@@ -1494,11 +1492,9 @@
   handoff travels — so the implementer sees the review that rejected it. A failed review is not a
   verdict: it moves the review task to <code>BLOCKED</code> with reason <code>review-failed</code>
   and never wedges the product. The gate's own record is an <code>Artifact</code> of kind
-  <code>review</code>, not a <code>Review</code> vertex. The operator's clearance is refused until
-  the back office has a real identity to check — <code>signedIn()</code> today accepts a cookie from
-  any request, so
-  <a href="../product/brd.html#rules-design-review">BR-48</a> is unimplementable as written until
-  that changes.</p>
+  <code>review</code>, not a <code>Review</code> vertex. The operator's clearance needed a real
+  identity to check, and the back office has one since v0.39.0
+  (<a href="../product/brd.html#rules-design-review">BR-48</a>, <a href="../product/decision-log.html#d-079">D-079</a>).</p>
 
   <h3 id="sub-m17-4">M17.4 &mdash; The budget and the drift (T-188)</h3>
   <p>EGM multiplies turns per task, and <a href="../product/brd.html#rules-scoring">BR-17</a>'s

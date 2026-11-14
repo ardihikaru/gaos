@@ -93,7 +93,7 @@ func taskResult(w http.ResponseWriter, res Result, err error) {
 // s.mut(r) is the whole replay story: parked in the past, the handle is a
 // readOnly and readOnly.DispatchTask refuses.
 func (s *server) handleDispatch(w http.ResponseWriter, r *http.Request) {
-	if !requireBOJSON(w, r) {
+	if !s.requireBOJSON(w, r) {
 		return
 	}
 	res, err := s.mut(r).DispatchTask(r.Context(), deskIdx(r))
@@ -101,7 +101,7 @@ func (s *server) handleDispatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleApprove(w http.ResponseWriter, r *http.Request) {
-	if !requireBOJSON(w, r) {
+	if !s.requireBOJSON(w, r) {
 		return
 	}
 	res, err := s.mut(r).ApproveTask(r.Context(), deskIdx(r))
@@ -109,7 +109,7 @@ func (s *server) handleApprove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleRetry(w http.ResponseWriter, r *http.Request) {
-	if !requireBOJSON(w, r) {
+	if !s.requireBOJSON(w, r) {
 		return
 	}
 	res, err := s.mut(r).RetryTask(r.Context(), deskIdx(r))
@@ -117,7 +117,7 @@ func (s *server) handleRetry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleCancel(w http.ResponseWriter, r *http.Request) {
-	if !requireBOJSON(w, r) {
+	if !s.requireBOJSON(w, r) {
 		return
 	}
 	res, err := s.mut(r).CancelTask(r.Context(), deskIdx(r))
@@ -146,10 +146,10 @@ func (s *server) handleTaskContext(w http.ResponseWriter, r *http.Request) {
 // requireBOJSON is requireBO's answer for a JSON route: 401 with a JSON body
 // rather than the login sheet. These four routes took no cookie check at all
 // until D-076, which would have extended their reach to every product made in
-// the back office (the desk fix); the gate is the same forgeable cookie as
-// every other back-office write (BR-48), and no more than that.
-func requireBOJSON(w http.ResponseWriter, r *http.Request) bool {
-	if signedIn(r) {
+// the back office (the desk fix); the gate is the same verified session as
+// every other back-office write (BR-55).
+func (s *server) requireBOJSON(w http.ResponseWriter, r *http.Request) bool {
+	if s.auth.signedIn(r) {
 		return true
 	}
 	jsonStatus(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})

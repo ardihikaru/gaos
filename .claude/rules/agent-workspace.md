@@ -103,7 +103,7 @@ A reviewer may read the repository — that is how it checks the author's
 
 - `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md`, `GEMINI.md` — the author's
   standing memory, and the whole point of a zero-context review;
-- `*.env`, `*.env.*`, `*.aim-*`, `*.api-*` — the host-side credentials;
+- `*.env`, `*.env.*`, `*.aim-*`, `*.api-*`, `*.bo-*` — the host-side credentials;
 - `*.pem`, `*.key`, `privkey.pem`, `**/credentials*`;
 - `~/.ssh`, `~/.aws`;
 - any path outside the repository.

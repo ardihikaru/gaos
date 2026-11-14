@@ -91,6 +91,19 @@ window.DOCS.nav.push({
         { anchor: "gaos-calls", title: "What GAOS calls on the QA tools", text: "GET /api/v1/gaos/results with its page shape and POST /api/v1/gaos/catalog, behind the two sync buttons." }
       ]
     },
+    {
+      id: "bo-sign-in", file: "guide/bo-sign-in.html", title: "Back-office sign-in",
+      desc: "How the GAOS back office authenticates an operator: the hashed accounts file, the signed session cookie, the throttle, and what needs a session.",
+      tags: ["auth", "login", "session", "back-office", "operations", "password"],
+      sections: [
+        { anchor: "what-it-is", title: "What it is", text: "An account is a line of a file, a session is a signed twelve-hour cookie, and there is no open mode." },
+        { anchor: "accounts", title: "Accounts", text: "The users file format, the hash-password command, and why the file and the key are secrets." },
+        { anchor: "sessions", title: "Sessions and revocation", text: "The cookie's shape, the key and the deployment label, and the only ways a session ends." },
+        { anchor: "throttle", title: "Throttle", text: "Five failures lock one account for fifteen minutes; why there is no per-address lock." },
+        { anchor: "routes", title: "What needs a session", text: "Public, bearer and back-office routes, and the cross-origin rule." },
+        { anchor: "limits", title: "What this does not do", text: "No roles, no tenant scoping, no actor on events, no reset page." }
+      ]
+    },
     /* pustaka:insert — `pustaka new` adds entries above this marker */
   ]
 });
