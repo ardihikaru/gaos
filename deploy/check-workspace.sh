@@ -141,7 +141,7 @@ readme_check() {
 readme_check "README dashboard test count" "271 tests"
 readme_check "README total test count"    "293 tests"
 readme_check "README case count"          "411 cases"
-readme_check "README version"             "Product version 0.37.2"
+readme_check "README version"             "Product version 0.37.3"
 
 # ------------------------------------------------------------- 4. rule forks ---
 # A rule restated in two files forks: one harness enforces the new wording and

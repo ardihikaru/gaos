@@ -204,7 +204,7 @@
       <tr><td>401 or 403 from either side</td><td>A wrong, missing or wrongly scoped token.</td><td>Check which of the three tokens the caller presents. A QA token cannot call admin routes.</td></tr>
       <tr><td>404 on a product</td><td>The product id is not in the token's scope, or the product is not flagged on the QA side.</td><td>Check <code>GAOS_API_QA_PRODUCTS</code> and the product's GAOS card.</td></tr>
       <tr><td>503 from GAOS's API</td><td>No token is configured, or two tokens are equal.</td><td>Read the GAOS boot line <em>api: disabled (...)</em>.</td></tr>
-      <tr><td><code>exists-differs</code> on many cases</td><td>GAOS already holds that case with different planning fields (often the module or features). GAOS keeps its values.</td><td>Informational. To change a case's planning fields, import through the admin catalog route or re-seed.</td></tr>
+      <tr><td><code>exists-differs</code> on many cases</td><td>GAOS already holds that case with different planning fields (often the module or features). GAOS keeps its values.</td><td>Informational. The QA tools' <em>GAOS decisions</em> view shows which fields differ. To change a case's planning fields, import through the admin catalog route or re-seed.</td></tr>
       <tr><td>A new epic has no card</td><td>The product has no workflow with a review task yet, or the floor was in replay.</td><td>The epic is on the QA tab's list of epics without a card; plan the workflow first.</td></tr>
     </tbody>
   </table>
@@ -226,11 +226,16 @@
   <ul>
     <li><strong>Per-case run results.</strong> The QA tools do not map Playwright runs to catalog cases, so a pull
     carries script facts only and the board's failing marker stays empty until they do.</li>
-    <li><strong>Removing or withdrawing a case.</strong> A case is retired in GAOS with decision <em>wont</em>; the
-    QA tools do not announce removed cases.</li>
-    <li><strong>Showing GAOS's decisions inside the QA tools' dashboard,</strong> and using them to settle the
-    <code>exists-differs</code> cases.</li>
+    <li><strong>Deleting a case.</strong> Nothing deletes a case in GAOS; one is retired with decision
+    <em>wont</em>. A case removed from the automation repository now reaches GAOS as <em>no script</em> (the
+    QA tools send <code>implemented: false</code> for it) and stays in the catalog.</li>
+    <li><strong>Settling the <code>exists-differs</code> cases.</strong> The QA tools' product page has a
+    <em>GAOS decisions</em> view that lists what GAOS sent and which fields differ from what the QA tools would
+    send, so the differences can be found; changing a case's planning fields is still done on the GAOS side
+    (the admin catalog route or a re-seed).</li>
   </ul>
+  <p>The tombstones and the decisions view are merged in the QA tools and become visible with their next
+  deploy.</p>
   <p>The decisions behind all of this are <a href="decision-log.html#d-072">D-072</a> to
   <a href="decision-log.html#d-076">D-076</a>; the design is <code>docs/designs/sample-product-qa-sync.md</code>, and the QA
   tools' own side is <code>docs/designs/GAOS_INTEGRATION.md</code> and <code>docs/designs/GAOS_INBOUND.md</code>
