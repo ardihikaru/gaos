@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -51,10 +52,20 @@ type inboxWorker struct {
 	backoff []time.Duration
 	tick    time.Duration
 	kick    chan struct{}
+
+	// A delivery whose record failed to persist would otherwise look "never tried" on the next
+	// tick and be re-sent every tick. The attempt is remembered here until the store catches up.
+	mu     sync.Mutex
+	unsent map[string]memAttempt
+}
+
+type memAttempt struct {
+	attempts int
+	at       int64
 }
 
 func newInboxWorker(st Store, out *qaOutbound) *inboxWorker {
-	return &inboxWorker{store: st, out: out, backoff: inboxBackoff, tick: inboxTick, kick: make(chan struct{}, 1)}
+	return &inboxWorker{store: st, out: out, backoff: inboxBackoff, tick: inboxTick, kick: make(chan struct{}, 1), unsent: map[string]memAttempt{}}
 }
 
 // Kick asks for a pass soon. It never blocks and is safe on a nil worker.
@@ -85,7 +96,12 @@ func (w *inboxWorker) Run(ctx context.Context) {
 
 // due says whether an item's next attempt is owed at now.
 func (w *inboxWorker) due(x ExternalItem, now int64) bool {
-	n := x.Delivery.Attempts
+	n, last := x.Delivery.Attempts, x.Delivery.LastAt
+	w.mu.Lock()
+	if m, ok := w.unsent[x.ProductID+"/"+x.ExternalID]; ok && m.attempts > n {
+		n, last = m.attempts, m.at
+	}
+	w.mu.Unlock()
 	if n == 0 {
 		return true
 	}
@@ -93,7 +109,7 @@ func (w *inboxWorker) due(x ExternalItem, now int64) bool {
 	if i >= len(w.backoff) {
 		i = len(w.backoff) - 1
 	}
-	return now >= x.Delivery.LastAt+int64(w.backoff[i]/time.Second)
+	return now >= last+int64(w.backoff[i]/time.Second)
 }
 
 // RunOnce makes one pass over the pending items and reports how many it
@@ -126,8 +142,16 @@ func (w *inboxWorker) RunOnce(ctx context.Context, now int64) int {
 				outcome = DeliveryGaveUp
 			}
 		}
+		key := x.ProductID + "/" + x.ExternalID
 		if _, err := w.store.RecordExternalDelivery(ctx, x.ProductID, x.ExternalID, attempt, outcome, why, now); err != nil {
 			log.Printf("inbox webhook: recording attempt %d for %s: %v", attempt, x.ExternalID, err)
+			w.mu.Lock()
+			w.unsent[key] = memAttempt{attempts: attempt, at: now}
+			w.mu.Unlock()
+		} else {
+			w.mu.Lock()
+			delete(w.unsent, key)
+			w.mu.Unlock()
 		}
 	}
 	return tried
