@@ -97,17 +97,17 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 294 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 295 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ./deploy/check-workspace.sh
 ```
 
-The two Go packages hold 316 tests between them — 294 in `dashboard/` and 22 in
+The two Go packages hold 317 tests between them — 295 in `dashboard/` and 22 in
 `pustaka/`.
 
 Every test case — implemented or still a forward specification — is registered in
-`pustaka/docs/product/qa-test-plan.html` (438 cases, 45 of them retired and struck). There is no CI: the product
+`pustaka/docs/product/qa-test-plan.html` (439 cases, 45 of them retired and struck). There is no CI: the product
 owner runs them (D-025), and a test that is not on that page is one nobody knows
 to run.
 

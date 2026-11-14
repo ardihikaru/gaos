@@ -278,3 +278,7 @@ OQ-11's row records that split. The operator delegated the choices.
   read-only GET list in TC-431 is the set of GET patterns in `main.go:318-371` that read only; the test file
   writes each with its reason; bearer GETs are in the bearer class.
 - `.claude/settings.json` Read denies are kept (`**/*.bo-*`, `**/*.api-*`, `**/*.env`).
+
+## 11. As merged
+
+While merging `main` (PR #9, v0.38.1) a test of the QA-inbox work, `TestAWebhookWhoseRecordFailsIsNotResentEveryTick`, was found without a register row; it is registered as TC-439, so the totals are 439 rows, 317 Go tests (295 in `dashboard/`).

@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and thirty-eight cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
+  four hundred and thirty-nine cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and thirty-eight cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and thirty-nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -527,6 +527,7 @@
       <tr data-tags="check-stacks compose label positive d-079 implemented"><td>TC-436</td><td>check-stacks.sh</td><td>Positive</td><td>The prod compose file passes <code>GAOS_BO_LABEL</code>, so a session is bound to one deployment.</td><td>Implemented</td></tr>
       <tr data-tags="check-workspace secret scan pbkdf2 hash negative d-079 implemented"><td>TC-437</td><td>check-workspace.sh</td><td>Negative</td><td>A <code>pbkdf2-sha256$&hellip;$</code> hash line in the committed review reports is caught by the secret scan.</td><td>Implemented</td></tr>
       <tr data-tags="rebuild-restart preflight bo-users missing refuse negative d-079 implemented"><td>TC-438</td><td>rebuild-restart.sh</td><td>Negative</td><td>A tag deploy refuses, with a <code>bad</code> line, when <code>prod.bo-users</code> or <code>prod.bo-session-key</code> is missing.</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard qa inbox webhook record failure backoff memory negative d-078 implemented"><td>TC-439</td><td>dashboard (go test)</td><td>Negative</td><td>When recording a delivery attempt fails (a database outage) the webhook still backs off from its in-memory memory of the attempt and is not re-sent every tick (<code>TestAWebhookWhoseRecordFailsIsNotResentEveryTick</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3239,6 +3240,10 @@
   <code>prod.bo-users</code> prints <code>FAIL deploy/stacks/prod.bo-users is missing (or is not a regular file)</code>
   (or the same for <code>prod.bo-session-key</code>) and exits 1; with both present it prints
   <code>ok  the back office's accounts and session-key files exist</code>.</p>
+  <p><strong>TC-439, negative</strong> (<code>TestAWebhookWhoseRecordFailsIsNotResentEveryTick</code>; added with v0.38.1,
+  registered here): prints <code>the first pass made %d calls; want 1</code>,
+  <code>at +%d s the pass re-sent (%d calls); the failed record must still back off</code> and
+  <code>after the backoff the pass made %d calls; want 1</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

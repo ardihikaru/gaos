@@ -157,6 +157,16 @@ func (s *server) apiInboxAsk(w http.ResponseWriter, r *http.Request) {
 		apiErr(w, http.StatusBadRequest, code, why)
 		return
 	}
+	// The detector ran on the raw body; sanitising can JOIN a split secret (a token with a
+	// bidi mark inside it), so the cleaned text is screened again.
+	clean := []any{ask.Title, ask.Question, ask.Context}
+	for _, o := range ask.Options {
+		clean = append(clean, o.Label, o.Description)
+	}
+	if hit := secretInStrings(clean); hit != "" {
+		apiErr(w, http.StatusBadRequest, "secret-in-body", "the cleaned text matches the secret detector "+hit+"; nothing was written")
+		return
+	}
 	item, created, _, err := s.store.AskExternal(r.Context(), id, ask)
 	if err != nil {
 		apiStoreErr(w, err)
