@@ -27,6 +27,8 @@ var catalog = map[EventType]bool{
 	TaskBlocked: true, TaskResumed: true, TaskOrphaned: true,
 	// execution -- M15, D-064
 	QuestionAsked: true, QuestionAnswered: true,
+	// execution -- D-078, the QA tool's inbox items
+	ExternalQuestionAsked: true, ExternalQuestionAnswered: true, ExternalAnswerDelivery: true,
 	// judgment
 	ReviewCompleted: true, RetryRequested: true, ModelEscalated: true,
 	SafetyVeto: true, GuardExhausted: true,
@@ -434,6 +436,7 @@ func driveRunner(t *testing.T, s *MemStore) {
 	if _, err := s.AnswerQuestion(t.Context(), desk, "wf-drive-t-2", ChoiceRecommended, ""); err != nil {
 		t.Fatalf("answering the driven question failed: %v", err)
 	}
+	driveExternal(t, s)
 }
 
 // driveRecovery plants one task whose turn the gateway no longer knows, and

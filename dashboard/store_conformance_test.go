@@ -41,6 +41,7 @@ type storeCase struct {
 var storeContract = []storeCase{
 	{"KindIsOneOfTheTwoDeclaredValues", caseKind},
 	{"TheQaCatalogImportsAndReadsBack", caseQaCatalog},
+	{"TheQaToolsInboxItemsRoundTrip", caseExternalInbox},
 	{"ReadyReportsTheStoreIsUsable", caseReady},
 	{"SnapshotHasOneDeskPerSeedProduct", caseSnapshotShape},
 	{"SnapshotDoesNotAliasTheLiveFloor", caseSnapshotNoAlias},
@@ -835,7 +836,15 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"MoveCard":         func() (Result, error) { return ro.MoveCard(ctx, "p-1", "t-1", CardMove{Column: ColCanceled}) },
 		"AnswerQuestion":   func() (Result, error) { return ro.AnswerQuestion(ctx, "p-1", "t-1", 1, "") },
 		"ExpireQuestions":  func() (Result, error) { return ro.ExpireQuestions(ctx, 0) },
-		"CreateWorkflow":   func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
+		"AnswerExternal":   func() (Result, error) { return ro.AnswerExternal(ctx, "p-1", "x", 1, "") },
+		"RecordExternalDelivery": func() (Result, error) {
+			return ro.RecordExternalDelivery(ctx, "p-1", "x", 1, DeliveryDelivered, "", 0)
+		},
+		"AskExternal": func() (Result, error) {
+			_, _, r, err := ro.AskExternal(ctx, "p-1", ExternalAsk{ExternalID: "x", Question: "q"})
+			return r, err
+		},
+		"CreateWorkflow": func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+

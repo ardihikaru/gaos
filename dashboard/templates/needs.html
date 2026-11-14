@@ -28,12 +28,16 @@
       <span class="ir-q" dir="auto">{{.Lead}}</span>
       <span class="ir-meta">
         <span class="ir-prod">{{.ProductName}}</span>
+        {{if .Source}}
+        <span class="ir-task"><b class="ir-src">{{.Source}}</b>{{if .TaskTitle}} <span dir="auto">{{.TaskTitle}}</span>{{end}}</span>
+        {{else}}
         <span class="ir-task"><b class="mono">{{.TaskID}}</b> <span dir="auto">{{.TaskTitle}}</span></span>
         <span class="ir-role"><i style="{{.RoleStyle}}" aria-hidden="true"></i>{{.RoleLabel}}</span>
+        {{end}}
       </span>
       <span class="ir-when">
         {{if .AskedISO}}<time datetime="{{.AskedISO}}" data-since="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}
-        {{if .ExpiresISO}}<time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}" title="Closes with the agent's session; after that the task is blocked and starts again in a new session">{{.Expires}}</time>{{end}}
+        {{if .ExpiresISO}}<time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}" title="{{if .Source}}Closes at its deadline; after that the QA tool is told it expired{{else}}Closes with the agent's session; after that the task is blocked and starts again in a new session{{end}}">{{.Expires}}</time>{{end}}
       </span>
     </button>
   </li>
@@ -68,7 +72,7 @@
   <div class="modal answer" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="answerTitle" aria-describedby="answerMeta">
     <header>
       <div class="answer-head">
-        <span class="eyebrow" id="answerMeta"><span class="am-prod">{{.ProductName}}</span> · <span class="am-task">{{.TaskID}} {{.TaskTitle}}</span> · {{.RoleLabel}} · {{if .AskedISO}}<time datetime="{{.AskedISO}}" data-since="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}{{if .ExpiresISO}} · <time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}">{{.Expires}}</time>{{end}}</span>
+        <span class="eyebrow" id="answerMeta"><span class="am-prod">{{.ProductName}}</span> · {{if .Source}}<span class="am-task"><b class="ir-src">{{.Source}}</b>{{if .TaskTitle}} {{.TaskTitle}}{{end}}</span>{{else}}<span class="am-task">{{.TaskID}} {{.TaskTitle}}</span> · {{.RoleLabel}}{{end}} · {{if .AskedISO}}<time datetime="{{.AskedISO}}" data-since="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}{{if .ExpiresISO}} · <time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}">{{.Expires}}</time>{{end}}</span>
         <h3 id="answerTitle" dir="auto">{{.Lead}}</h3>
       </div>
       <button type="button" class="icon-btn x" aria-label="Close" title="Close (Esc)" data-close-modal="answerModal">✕</button>
@@ -106,14 +110,14 @@
             <span class="opt-tx">
               <label class="opt-label" for="answerOther"><b>Other — write your own</b></label>
               <textarea id="answerOwn" dir="auto" rows="3" maxlength="4000" aria-label="Your own answer"
-                        placeholder="Tell the agent what to do instead"{{if eq .Default 4}} name="text"{{end}}></textarea>
+                        placeholder="{{if .Source}}Tell the QA tool what to do instead{{else}}Tell the agent what to do instead{{end}}"{{if eq .Default 4}} name="text"{{end}}></textarea>
             </span>
           </div>
         </fieldset>
 
         <div class="field answer-note" id="answerNoteField" {{if eq .Default 4}}hidden{{end}}>
-          <label for="answerNote">Note to the agent <span class="opt-in">optional</span></label>
-          <input id="answerNote" dir="auto" maxlength="4000" autocomplete="off" placeholder="Anything it should know when it picks this up"{{if ne .Default 4}} name="text"{{end}}>
+          <label for="answerNote">Note to the {{if .Source}}QA tool{{else}}agent{{end}} <span class="opt-in">optional</span></label>
+          <input id="answerNote" dir="auto" maxlength="4000" autocomplete="off" placeholder="{{if .Source}}Anything it should know about this decision{{else}}Anything it should know when it picks this up{{end}}"{{if ne .Default 4}} name="text"{{end}}>
         </div>
       </div>
       <footer>

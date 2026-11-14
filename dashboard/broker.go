@@ -45,7 +45,7 @@ func hintOf(e Event) Hint {
 // subscribe to what it renders: the inbox to questions, the board to tasks.
 func sseName(t EventType) string {
 	switch t {
-	case QuestionAsked, QuestionAnswered:
+	case QuestionAsked, QuestionAnswered, ExternalQuestionAsked, ExternalQuestionAnswered:
 		return "question"
 	case TaskMoved, TaskReordered, RunStarted, RunExited, TaskDispatched:
 		return "task"
