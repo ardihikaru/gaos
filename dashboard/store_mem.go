@@ -1978,10 +1978,20 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 		if p == nil {
 			return Result{}, ErrNotFound
 		}
-		s.desks = append(s.desks, Desk{
-			ID: p.ID, Name: p.Name, Repo: p.Repo, Goal: p.Goal, State: StateIdle,
-		})
-		idx = len(s.desks) - 1
+		// In (id length, id) order, the order ArcadeStore.load restores, so a
+		// restart does not shift the index of any desk (the desk routes are
+		// keyed by it). The seeded desks p-1..p-5 sort first and are untouched.
+		nd := Desk{ID: p.ID, Name: p.Name, Repo: p.Repo, Goal: p.Goal, State: StateIdle}
+		idx = len(s.desks)
+		for i, d := range s.desks {
+			if len(d.ID) > len(nd.ID) || (len(d.ID) == len(nd.ID) && d.ID > nd.ID) {
+				idx = i
+				break
+			}
+		}
+		s.desks = append(s.desks, Desk{})
+		copy(s.desks[idx+1:], s.desks[idx:])
+		s.desks[idx] = nd
 	}
 
 	// The picked stories now have planned tasks, which is what moves the

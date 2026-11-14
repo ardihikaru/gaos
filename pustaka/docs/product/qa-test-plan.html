@@ -2909,7 +2909,10 @@
   want %d: %v</code>, <code>%s came back %d times, want once</code>, <code>7 cases at 3 a page took %d
   pages, want 3 (the last, short page has next=null)</code>); every case carries its derived status
   (<code>%s: the derived status is missing from the API's case</code>); an epic with no cases answers
-  an empty list (<code>an epic with no cases must answer an empty list, got %s</code>).
+  an empty list (<code>an epic with no cases must answer an empty list, got %s</code>). It also runs
+  sixteen concurrent readers (the cases feed, the summary and the board) over a product that has no
+  cases yet: run under <code>go test -race</code> it fails with <code>DATA RACE</code> if a read takes
+  only the read lock and writes the catalog map, which crashed the process before it was fixed.
   <strong>TC-401, negative</strong> (<code>TestQaWritesNeverTouchTheFloorInReplay</code>): with the floor
   parked, a results post and a catalog post still answer 200 (<code>a results post while parked answered
   %d (%s), want 200: a QA write carries no floor</code>, <code>a catalog post while parked answered %d,

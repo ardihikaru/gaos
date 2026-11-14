@@ -173,7 +173,9 @@ func (s *MemStore) QaCreate(ctx context.Context, productID string, in QaCreateIn
 		fmt.Sprintf("%d created", out.Created), fmt.Sprintf("%d unchanged", out.Unchanged),
 		fmt.Sprintf("%d epics", out.EpicsAdded), fmt.Sprintf("%d cards", out.CardsAdded),
 		fmt.Sprintf("%d rejected", len(out.Rejected))), KindInfo, EventPayload{})
-	res := s.qaResult(m, "QA cases created.", changed, append([]Event{head}, events...)...)
+	// Ascending by seq, which persist's snapshot rung relies on: the card events
+	// were emitted first, the summary last.
+	res := s.qaResult(m, "QA cases created.", changed, append(events, head)...)
 	res.Floor.Desks = liveDesks
 	return out, res, nil
 }

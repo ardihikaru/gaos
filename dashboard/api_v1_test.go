@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -123,7 +124,7 @@ func TestAPIFailsClosed(t *testing.T) {
 	}
 	for name, path := range map[string]string{
 		"empty": write("empty", ""), "no prefix": write("np", strings.Repeat("a", 50)),
-		"short": write("sh", "gaos_abc"), "missing": filepath.Join(dir, "absent"), "unset": "",
+		"short": write("sh", "gaos_abc"), "bad alphabet": write("ba", "gaos_"+strings.Repeat("a-", 20)), "missing": filepath.Join(dir, "absent"), "unset": "",
 	} {
 		t.Setenv("GAOS_T_FILE", path)
 		if got := readTokenFile("GAOS_T_FILE"); got != "" {
@@ -307,6 +308,22 @@ func TestAPICasesCursorCoversEveryCaseOnce(t *testing.T) {
 	if pages != 3 {
 		t.Errorf("7 cases at 3 a page took %d pages, want 3 (the last, short page has next=null)", pages)
 	}
+	// Concurrent readers of a product that has NO cases must not write the
+	// catalog map under a read lock (found by review: it crashed the process).
+	bare := pids[1]
+	srv.api = newAPIConfig(tokAdmin, tokQA, tokOut, id+","+bare)
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = st.QaCases(context.Background(), bare, QaQuery{})
+			_, _ = st.QaSummary(context.Background(), bare)
+			_, _ = st.Board(context.Background(), bare)
+			call(t, srv, "GET", "/v1/products/"+bare+"/qa/cases", tokQA, "")
+		}()
+	}
+	wg.Wait()
 	// the epic filter
 	rec := call(t, srv, "GET", "/v1/products/"+id+"/qa/cases?epic=NONE", tokQA, "")
 	if !strings.Contains(rec.Body.String(), `"items":[]`) {

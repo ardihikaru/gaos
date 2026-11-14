@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // MemStore's QA catalog (qacatalog.go, D-072). The domain rules live here once;
@@ -68,7 +69,10 @@ func (s *MemStore) QaCases(ctx context.Context, productID string, q QaQuery) (Qa
 		limit = qaMaxItems
 	}
 	var all []QaCase
-	for _, c := range s.qaBook(productID) {
+	// A READ under RLock: qaBook creates the book on a miss, which is a map
+	// write. Reading s.qa directly (a nil map reads as empty) is what keeps two
+	// concurrent reads of a product with no cases from crashing the process.
+	for _, c := range s.qa[productID] {
 		if c.CatRev <= q.After || (q.Epic != "" && c.Epic != q.Epic) {
 			continue
 		}
@@ -159,6 +163,14 @@ func (s *MemStore) QaImport(ctx context.Context, productID string, in QaImportIn
 			out.Rejected = append(out.Rejected, QaReject{CaseID: e.Code, Reason: why})
 			continue
 		}
+		known := false
+		for i := range m.Qa.Epics {
+			known = known || m.Qa.Epics[i].Code == e.Code
+		}
+		if !known && len(m.Qa.Epics) >= qaMaxEpics {
+			out.Rejected = append(out.Rejected, QaReject{CaseID: e.Code, Reason: "epic-limit"})
+			continue
+		}
 		// A story id is the seed's resolution of the module key; an import
 		// that does not carry one keeps what is there.
 		idx := -1
@@ -192,6 +204,10 @@ func (s *MemStore) QaImport(ctx context.Context, productID string, in QaImportIn
 		}
 		have, exists := book[c.CaseID]
 		if !exists {
+			if len(book) >= qaMaxCases {
+				out.Rejected = append(out.Rejected, QaReject{CaseID: c.CaseID, Reason: "case-limit"})
+				continue
+			}
 			next := c.clone()
 			next.Status, next.Result, next.RunAt, next.RunRef = "", "", 0, ""
 			next.Implemented, next.Spec = false, ""
@@ -320,9 +336,7 @@ func (s *MemStore) QaRecordSync(ctx context.Context, productID, dir string, side
 	if !validCursor(side.Cursor) {
 		return Result{}, reject("The sync cursor is short printable text.")
 	}
-	if byteLen(side.Note) > qaMaxNote {
-		side.Note = string([]byte(side.Note)[:qaMaxNote])
-	}
+	side.Note = qaTrim(side.Note, qaMaxNote)
 	var ids []string
 	for _, id := range side.Rejected {
 		if qaRejectedID.MatchString(id) && len(ids) < qaMaxRejected {
@@ -355,6 +369,10 @@ func qaTrim(s string, n int) string {
 	s = strings.Join(strings.Fields(s), " ")
 	if len(s) > n {
 		s = s[:n]
+		// Never leave half a rune: back up to the last complete one.
+		for len(s) > 0 && !utf8.ValidString(s) {
+			s = s[:len(s)-1]
+		}
 	}
 	return s
 }

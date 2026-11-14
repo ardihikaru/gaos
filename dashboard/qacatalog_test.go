@@ -300,6 +300,33 @@ func TestACreatedProductGetsADeskAndCanBePlanned(t *testing.T) {
 		t.Errorf("Snapshot while parked: %v", err)
 	}
 	_, _ = s.Replay(ctx, -1)
+	// Desks are seated in the order a restart restores (id length, then id), so
+	// the second-created product's workflow, made FIRST, still lands after the first's.
+	if _, err := s.CreateProduct(ctx, ProductDraft{Name: "Second Runtime"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateProduct(ctx, ProductDraft{Name: "Third Runtime"}); err != nil {
+		t.Fatal(err)
+	}
+	ms2, _ := s.Masters(ctx)
+	second, third := ms2[len(ms2)-2].ID, ms2[len(ms2)-1].ID
+	for _, pid := range []string{third, second} { // third first
+		if _, err := s.AddStory(ctx, pid, Story{Pri: "must", Role: "qa", Want: "w" + pid, So: "s", AC: []string{"a", "b"}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.CreateWorkflow(ctx, WorkflowDraft{ProductID: pid, Goal: "g", Stories: []string{"US-01"}}, plan); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var order []string
+	for _, d := range func() []Desk { f, _ := s.Snapshot(ctx); return f.Desks }() {
+		order = append(order, d.ID)
+	}
+	ids := append([]string(nil), order...)
+	sortDeskIDs(ids)
+	if fmt.Sprint(order) != fmt.Sprint(ids) {
+		t.Errorf("desks are seated as %v, want the restart order %v", order, ids)
+	}
 	// An unknown product is still not found.
 	if _, err := s.CreateWorkflow(ctx, WorkflowDraft{ProductID: "p-999", Goal: "x"}, plan); err == nil {
 		t.Error("CreateWorkflow for an unknown product must fail")

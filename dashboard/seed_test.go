@@ -173,11 +173,14 @@ func checkProductSeedRefusals(t *testing.T) {
 	}
 	// Structure.
 	for name, mut := range map[string]func(p *ProductSeed){
-		"no name":         func(p *ProductSeed) { p.Name = " " },
-		"no epics":        func(p *ProductSeed) { p.Epics = nil },
-		"unknown module":  func(p *ProductSeed) { p.Epics[0].Module = "D99" },
-		"no plan goal":    func(p *ProductSeed) { p.Plan.Goal = "" },
-		"a bad epic code": func(p *ProductSeed) { p.Epics[0].Code = "x" },
+		"no name":                        func(p *ProductSeed) { p.Name = " " },
+		"no epics":                       func(p *ProductSeed) { p.Epics = nil },
+		"unknown module":                 func(p *ProductSeed) { p.Epics[0].Module = "D99" },
+		"no plan goal":                   func(p *ProductSeed) { p.Plan.Goal = "" },
+		"a bad epic code":                func(p *ProductSeed) { p.Epics[0].Code = "x" },
+		"a title that cleans to nothing": func(p *ProductSeed) { p.Epics[0].Title = "###" },
+		"two epics, one title":           func(p *ProductSeed) { p.Epics[1].Title = p.Epics[0].Title },
+		"two epics, one code":            func(p *ProductSeed) { p.Epics[1].Code = p.Epics[0].Code },
 	} {
 		if code, _, body := seedCall(t, srv, mk(mut)); code != 400 {
 			t.Errorf("%s: answered %d %s, want 400", name, code, body)
