@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-37-1">v0.37.1 <time datetime="2026-11-14">2026-11-14</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The machine API answered 404 on every public call.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>every <code>/api/v1</code> call answered 404</b> through the edge:
+        Traefik's strip of <code>/api</code> announces <code>X-Forwarded-Prefix: /api</code>, and the guard that
+        refuses a call arriving through <code>/app</code> refused that too. It now refuses any prefix except
+        <code>/api</code>. Found by the first deploy of v0.37.0, which no local test could see because it has no proxy;
+        <code>TestAPIFailsClosed</code> now sends the header.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-37-0">v0.37.0 <time datetime="2026-11-14">2026-11-14</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A QA catalog per product, a REST API for the QA tools, and sample-product on the board. One change together.</p>
       <ul>
