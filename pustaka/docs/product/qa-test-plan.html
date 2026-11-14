@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and eleven cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and twelve cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and eleven cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and twelve cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -500,6 +500,7 @@
       <tr data-tags="qa epic card blocked one TaskPlanned TaskMoved gate loop caps epic-limit parked fold positive negative m18 implemented"><td>TC-409</td><td>dashboard (go test)</td><td>Positive</td><td>A new epic adds exactly one BLOCKED card and nothing else moves: no existing task changes, a cleared review does not release it, no workflow or a parked floor defers it, and the epic caps hold</td><td>Implemented</td></tr>
       <tr data-tags="qa board card badge live counts no card summary positive m18 implemented"><td>TC-410</td><td>dashboard (go test)</td><td>Positive</td><td>An epic's board card carries live case counts that move with every created case and every result, other cards carry none, and no task is written</td><td>Implemented</td></tr>
       <tr data-tags="qa seed script sample-product summary totals ok FAIL positive negative m18 implemented"><td>TC-411</td><td>seed.sh</td><td>Positive</td><td>On the VM the seed script ends with ok summary matches, or FAIL naming what differs, after asserting the catalog's totals are at least the committed files'</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard board scroll css sisflow overscroll wheel height silent negative"><td>TC-412</td><td>dashboard (go test)</td><td>Negative</td><td>The back office's board host has a bounded height and its scroller lets a scroll reach the page, so the board scrolls both ways (TestTheBoardHostHasABoundedHeight)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3076,6 +3077,21 @@
   <em>at least</em> the seed's, not equal to them: once the QA tools have created cases, added epics and
   reported scripts through the API the totals only grow, and a healthy re-run must not print FAIL. With <code>--dry-run</code> it only prints the seed's totals and
   <code>ok   dry run: nothing sent</code>.</p>
+
+  <h3 id="go-board-scroll">dashboard &mdash; the board scrolls (TC-412)</h3>
+  <p><strong>TC-412, negative</strong> (<code>TestTheBoardHostHasABoundedHeight</code>): the vendored board is
+  <code>height:100%; overflow:hidden</code> with <code>.sfb-body</code> as its one scroller and
+  <code>overscroll-behavior:contain</code> on it. In the back office's normal-flow block the host had no
+  height, so the board grew to its content (13,000px for forty story lanes), <code>.sfb-body</code> could
+  never scroll vertically, its horizontal scrollbar sat off screen, and <code>contain</code> stopped the
+  wheel reaching the page: scrolling down over the board did nothing and nothing errored. The test reads
+  <code>static/app.css</code> and fails with <code>.sisflow-board-host has no bounded height
+  (height:calc(100vh - Npx) with a min-height): the board grows to its content and .sfb-body can never
+  scroll vertically</code> when the host rule is gone, and with <code>.sfb-body still has
+  overscroll-behavior:contain: a wheel over the board never reaches the page</code> when the second rule is.
+  The behaviour itself was verified in a real browser (Chromium via Playwright: wheel down, wheel sideways
+  and back up over the board at 1440&times;900, 1280&times;720 and 390&times;800), which this register does
+  not run.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

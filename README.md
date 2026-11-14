@@ -5,7 +5,7 @@ the primitive, not the prompt.** State lives in vertices and edges rather than a
 conversation, every change emits an event, and the orchestrator holds nothing —
 kill it mid-run and it rebuilds from the graph.
 
-**Product version 0.37.3** (`pustaka/docs/assets/toc.js`). The graph, the event
+**Product version 0.37.4** (`pustaka/docs/assets/toc.js`). The graph, the event
 store, readiness, the planner, the scheduler and the attempt record are built, and
 GAOS has made real model calls. What judges a result — review, scoring, the retry
 guards — is not built yet. Every page and every file says which is which.
@@ -97,13 +97,13 @@ to those modules so the gap cannot quietly grow or shrink.
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 271 tests, race-clean, no dependencies
+cd dashboard && go test ./...          # 272 tests, race-clean, no dependencies
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ./deploy/check-workspace.sh
 ```
 
-The two Go packages hold 293 tests between them — 271 in `dashboard/` and 22 in
+The two Go packages hold 294 tests between them — 272 in `dashboard/` and 22 in
 `pustaka/`.
 
 Every test case — implemented or still a forward specification — is registered in
