@@ -7,6 +7,9 @@ deploy/stacks/*.aim-*
 # prod.api-qa-out, gaos_<hex>, mode 600. The outbound one stays empty until the
 # QA tools implement their side.
 deploy/stacks/*.api-*
+# The back office's accounts file and session key (D-079): prod.bo-users and
+# prod.bo-session-key, mode 600. A hash file plus the key forges any session.
+deploy/stacks/*.bo-*
 !deploy/stacks/*.env.example
 
 # Detached worktrees created by `rebuild-restart.sh --tag`. Each is a checkout

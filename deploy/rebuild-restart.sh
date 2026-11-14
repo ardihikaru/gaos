@@ -176,7 +176,19 @@ if [ -z "$INSIDE" ]; then
       done
       ok "the machine API's token files exist"
     fi
-    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-*; do
+    # D-079: the same holds for the back office's two files; without them sign-in
+    # fails closed and a missing mount source becomes a root-owned directory.
+    if [ "$ENVIRON" = prod ] && grep -q 'prod.bo-users' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
+      for f in prod.bo-users prod.bo-session-key; do
+        if [ ! -f "deploy/stacks/$f" ]; then
+          bad "deploy/stacks/$f is missing (or is not a regular file)"
+          info "create it, mode 600 -- see docs/designs/bo-login.md section 6 -- then re-run."
+          exit 1
+        fi
+      done
+      ok "the back office's accounts and session-key files exist"
+    fi
+    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac
       ln -sfn "$PWD/$e" "$WT/$e"

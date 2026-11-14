@@ -232,7 +232,7 @@ func TestSyncRefusesRedirectsOverlapAndCooldown(t *testing.T) {
 	srv, st, pids := apiFixture(t, func(p []string) *apiConfig { return newAPIConfig(tokAdmin, tokQA, tokOut, p[0]) })
 	ctx := context.Background()
 	id := pids[0]
-	cookie := &http.Cookie{Name: boCookie, Value: "1"}
+	cookie := boCookies()[0]
 	post := func(path string) *httptest.ResponseRecorder {
 		return do(t, srv, "POST", path, nil, cookie)
 	}

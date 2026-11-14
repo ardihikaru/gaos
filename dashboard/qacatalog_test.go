@@ -350,7 +350,7 @@ func checkCookielessRoutesAreGated(t *testing.T) {
 			t.Errorf("%s %s without the back-office cookie answered %d, want 401", c.method, c.path, rec.Code)
 		}
 	}
-	rec := do(t, srv, "POST", "/tasks/0/approve", nil, &http.Cookie{Name: boCookie, Value: "1"})
+	rec := do(t, srv, "POST", "/tasks/0/approve", nil, boCookies()[0])
 	if rec.Code == http.StatusUnauthorized {
 		t.Errorf("a signed-in caller must pass the gate, got %d", rec.Code)
 	}

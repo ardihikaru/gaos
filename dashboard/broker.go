@@ -155,9 +155,19 @@ func (s *server) handleStream(w http.ResponseWriter, r *http.Request) {
 
 	beat := time.NewTicker(sseHeartbeat)
 	defer beat.Stop()
+	// A stream is one long request, checked once at open. It ends with the
+	// session that opened it (BR-55), so an expired cookie cannot keep reading.
+	var expired <-chan time.Time
+	if ss, ok := sessionOf(r); ok {
+		t := time.NewTimer(time.Until(ss.Exp))
+		defer t.Stop()
+		expired = t.C
+	}
 	for {
 		select {
 		case <-r.Context().Done():
+			return
+		case <-expired:
 			return
 		case e, open := <-ch:
 			if !open {

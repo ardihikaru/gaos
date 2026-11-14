@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
   <p class="lede">Thirty-five decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Twenty-one are
+  the options actually available, the trade-off each one carries, and what it blocks. Twenty-two are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
   database version, which CLI ships first, whether the sisflow board may be vendored, and how a
@@ -100,7 +100,7 @@
       <tr data-tags="product mission-control surface ui console both role-gated answered"><td><a href="#oq-15">OQ-15</a></td><td>Product</td><td>Is Mission Control the product surface, or an internal operations console?</td><td>§16, domain I roadmap</td><td>Answered → <a href="decision-log.html#d-040">D-040</a></td></tr>
       <tr data-tags="technical provider anthropic multi-provider gateway adapter cli mvp tiers answered"><td><a href="#oq-09">OQ-09</a></td><td>Technical</td><td>Anthropic only, or multi-provider behind the model gateway?</td><td>R-08, escalation ladder</td><td>Answered → <a href="decision-log.html#d-041">D-041</a></td></tr>
       <tr data-tags="technical tenancy database isolation shared hybrid repository interface configurable answered"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Answered → <a href="decision-log.html#d-042">D-042</a></td></tr>
-      <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a></td></tr>
+      <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a>, <a href="decision-log.html#d-079">D-079</a></td></tr>
       <tr data-tags="technical arcadedb version ddl dialect external pin 26.7.2 answered"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Answered → <a href="decision-log.html#d-043">D-043</a></td></tr>
       <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a>, <a href="decision-log.html#d-051">D-051</a>, <a href="decision-log.html#d-062">D-062</a></td></tr>
       <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Answered → <a href="decision-log.html#d-049">D-049</a>, <a href="decision-log.html#d-050">D-050</a></td></tr>
@@ -511,6 +511,12 @@
   The shape is still unanswered and the localhost rule above is unchanged. What changed is the
   consequence of leaving it unanswered — it now stops a named piece of work rather than a
   hypothetical one.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-079">D-079</a>.</strong> The back office now has local
+  accounts with real password hashing, a signed expiring session and a throttle, and every route is refused
+  without it unless it is on a fixed public list or a bearer route. That is the <em>core's own</em> account
+  system the paragraphs above describe, and it is sufficient for a lab or a small team. What stays open is what
+  D-040 listed beside it: per-tenant scoping (the tenant selector is still cosmetic), an identity-provider
+  integration (<a href="#oq-19">OQ-19</a>), and an actor on every event.</p>
 
   <h3 id="oq-17">OQ-17 · Which ArcadeDB version, validated when?</h3>
   <p><strong>Why it was open:</strong> no DDL had ever been applied. The data model warns in its own
@@ -801,10 +807,10 @@
   <code>blocked</code>, <code>manual-only</code>, <code>wont</code>) is the planning half, owned by GAOS
   (<a href="brd.html#rules-qa-sync">BR-51</a>). Today it changes only through the admin catalog
   endpoint or a seed re-run, and there is no case editor in the back office on purpose: the back
-  office has no identity to check, because its gate accepts a cookie from any request
-  (<a href="brd.html#rules-design-review">BR-48</a>'s open precondition). A case marked
+  office had no identity to check until <a href="decision-log.html#d-079">D-079</a>; its gate now needs a real session, but
+  events carry no actor yet. A case marked
   <em>needs decision</em> &mdash; a script exists for a parked case &mdash; therefore waits for an admin.
-  Answering this question needs BR-48's real identity first.</p>
+  Answering this question needs an actor recorded on the event, which the new identity makes possible.</p>
 
   <h2 id="oq-operations">Operations</h2>
 
