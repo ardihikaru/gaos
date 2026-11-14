@@ -275,6 +275,8 @@ func (s *server) registerAPI(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/products/{id}/qa/cases", s.apiQaCreate)
 	mux.HandleFunc("POST /v1/products/{id}/qa/results", s.apiQaResults)
 	mux.HandleFunc("POST /v1/products/{id}/qa/catalog", s.apiQaCatalog)
+	mux.HandleFunc("POST /v1/products/{id}/inbox", s.apiInboxAsk)
+	mux.HandleFunc("GET /v1/products/{id}/inbox/{externalId}", s.apiInboxGet)
 	mux.HandleFunc("POST /v1/seed/product", s.apiSeedProduct)
 }
 

@@ -62,6 +62,15 @@ type QuestionPayload struct {
 	Choice     int    `json:"choice,omitempty"` // 1..3 an offered option, 4 the operator's own words
 	Text       string `json:"text,omitempty"`   // the words; required for 4, a note otherwise
 	AnsweredAt int64  `json:"answeredAt,omitempty"`
+
+	// D-078, the QA tool's inbox items only (external_inbox.go). Empty on every
+	// task-bound question, so the existing events are unchanged.
+	ExternalID string `json:"externalId,omitempty"` // the QA tool's own id; ID repeats it
+	Title      string `json:"title,omitempty"`
+	Source     string `json:"source,omitempty"`    // "QA tool"
+	Deadline   int64  `json:"deadline,omitempty"`  // unix seconds the item expires
+	Status     string `json:"status,omitempty"`    // on ExternalQuestionAnswered: answered | expired
+	AttemptAt  int64  `json:"attemptAt,omitempty"` // on ExternalAnswerDelivery: when this attempt ran
 }
 
 // Question is one row of the inbox.
@@ -72,6 +81,9 @@ type Question struct {
 	TaskTitle string `json:"taskTitle"`
 	Role      string `json:"role"`
 	Answered  bool   `json:"answered"`
+	// External marks a QA tool item (D-078): it has no task, and TaskTitle
+	// carries its title.
+	External bool `json:"external,omitempty"`
 	// ExpiresAt is when the question closes with its session (D-066); 0
 	// when the ask time was not recorded.
 	ExpiresAt int64 `json:"expiresAt"`
@@ -80,7 +92,8 @@ type Question struct {
 // needsNotice is which events count toward the operator's notice count: what
 // went wrong, and what is waiting on them.
 func needsNotice(e Event) bool {
-	return e.Kind == KindWarn || e.Kind == KindFail || e.Type == ApprovalRequested || e.Type == QuestionAsked
+	return e.Kind == KindWarn || e.Kind == KindFail || e.Type == ApprovalRequested || e.Type == QuestionAsked ||
+		e.Type == ExternalQuestionAsked
 }
 
 // questionsLocked folds the stream into one question per (task, id), newest
@@ -165,6 +178,7 @@ func (s *MemStore) OpenQuestions(ctx context.Context, productID string) ([]Quest
 		q.ExpiresAt = questionExpiresAt(q.AskedAt)
 		out = append(out, q)
 	}
+	out = append(out, s.openExternalLocked(productID, time.Now().Unix())...)
 	sort.SliceStable(out, func(a, b int) bool { return out[a].AskedAt < out[b].AskedAt })
 	return out, nil
 }
@@ -226,8 +240,15 @@ func (s *MemStore) ExpireQuestions(ctx context.Context, now int64) (Result, erro
 		}
 	}
 	if len(ev) == 0 {
-		return Result{}, nil
+		// D-078: the QA tool's items expire on their own deadline and touch no
+		// task, so their Result carries no floor.
+		xe := s.expireExternalLocked(now)
+		if len(xe) == 0 {
+			return Result{}, nil
+		}
+		return Result{NewEvents: xe, Toast: fmt.Sprintf("%d QA tool question(s) expired.", len(xe))}, nil
 	}
+	ev = append(ev, s.expireExternalLocked(now)...)
 	return s.result(fmt.Sprintf("%d question(s) expired with their session.", len(ev)), ev...), nil
 }
 

@@ -47,8 +47,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-412`;
-   next free number is `TC-413`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-422`;
+   next free number is `TC-423`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it
    — do not delete it and do not renumber anything after it. `TC-076` is the
    worked example: BR-07 made planning an empty record illegal, so the case
@@ -71,17 +71,17 @@ every check identical are exempt.
 
 3. **The counts, which must agree.** Changing the number of cases means
    changing all four or none. They are currently all "four hundred and
-   eleven", so
+   twenty-two", so
    `grep -rn "four hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
    finds every one. Retired rows still count: the register is every ID ever
-   issued, and `TC-076` is one of the four hundred and twelve. Older
+   issued, and `TC-076` is one of the four hundred and twenty-two. Older
    changelog notes keep their own numbers; they are release records and stay as
    written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All four hundred and twelve cases…")
+   - the register intro on the same page ("All four hundred and twenty-two cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
-     the Go unit-test count, currently "two hundred and ninety-four"
+     the Go unit-test count, currently "three hundred and four"
 
    The same pages carry four more counts that move together with the registers:
    "Fifty-four rules" in `pustaka/docs/product/brd.html`, "Seventy-seven entries"
@@ -118,7 +118,7 @@ grep -oE '<td>TC-0[0-9][0-9]</td><td>[^<]*' pustaka/docs/product/qa-test-plan.ht
 | `live-aim-run.sh` | Implemented | TC-300…TC-303 |
 | `check-workspace.sh` | Implemented | TC-357, TC-358, TC-380, TC-381 |
 | `seed.sh` | Implemented | TC-411 |
-| `dashboard (go test)` | Implemented | TC-050, TC-051, TC-054…TC-075, TC-077…TC-086, TC-109…TC-126, TC-131…TC-146, TC-149, TC-156…TC-179, TC-185, TC-191, TC-193…TC-219, TC-227…TC-230, TC-247…TC-261, TC-266, TC-267, TC-274…TC-299, TC-304…TC-309, TC-311…TC-356, TC-359…TC-379, TC-382…TC-410, TC-412 |
+| `dashboard (go test)` | Implemented | TC-050, TC-051, TC-054…TC-075, TC-077…TC-086, TC-109…TC-126, TC-131…TC-146, TC-149, TC-156…TC-179, TC-185, TC-191, TC-193…TC-219, TC-227…TC-230, TC-247…TC-261, TC-266, TC-267, TC-274…TC-299, TC-304…TC-309, TC-311…TC-356, TC-359…TC-379, TC-382…TC-410, TC-412…TC-422 |
 | `pustaka (go test)` | Implemented | TC-087…TC-108 |
 | `dashboard (go test)` | Retired | TC-076, TC-180…TC-184, TC-186…TC-190, TC-192, TC-220…TC-226, TC-231…TC-242, TC-262…TC-265 |
 | `kill-mid-task.sh` | Retired | TC-243…TC-246 |
@@ -126,7 +126,7 @@ grep -oE '<td>TC-0[0-9][0-9]</td><td>[^<]*' pustaka/docs/product/qa-test-plan.ht
 | Unsatisfiable task | Not implemented | TC-048, TC-049 |
 | Second run | Not implemented | TC-052, TC-053 |
 
-**412 rows in total. 272 in `dashboard/` and 22 in `pustaka/`** — 294 Go tests,
+**422 rows in total. 282 in `dashboard/` and 22 in `pustaka/`** — 304 Go tests,
 and **one register row per `func Test…`**, because that is the unit `go test
 -run` can select. A new top-level `func Test…` always gets its own row. The
 store conformance suite is the exception: it is one `func Test…` per
