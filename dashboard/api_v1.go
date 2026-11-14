@@ -174,7 +174,11 @@ func apiErr(w http.ResponseWriter, status int, code, reason string) {
 // apiGate answers for the request or reports the caller's scope. need is the
 // least scope the route accepts.
 func (s *server) apiGate(w http.ResponseWriter, r *http.Request, need apiScope) (apiScope, bool) {
-	if r.Header.Get("X-Forwarded-Prefix") != "" {
+	// Traefik's stripPrefix sets X-Forwarded-Prefix to the prefix it removed: /api
+	// is THE public path of this API and must pass; /app (Mission Control's mount)
+	// and anything else is refused, so an edge control keyed to /api cannot be
+	// walked around through another mount.
+	if p := r.Header.Get("X-Forwarded-Prefix"); p != "" && p != "/api" {
 		apiErr(w, http.StatusNotFound, "not-found", "no such route")
 		return scopeNone, false
 	}
