@@ -47,9 +47,22 @@ type BoardCard struct {
 	// Vendor is where the card's next turn goes under the product's policy
 	// (M16): claude or antigravity.
 	Vendor string `json:"vendor"`
+	// Qa is the case count of the epic this card automates, when it is one
+	// (qacatalog.go). Display only: it is filled at read time from the catalog
+	// and nothing about it is stored on, or ever moves, the task (BR-54).
+	Qa *BoardQa `json:"qa,omitempty"`
 	// Moves are the columns this card may be moved to now, for a client
 	// that renders only legal actions. The server checks again either way.
 	Moves []string `json:"moves"`
+}
+
+// BoardQa is an epic card's live roll-up from the QA catalog.
+type BoardQa struct {
+	Epic      string `json:"epic"`
+	Cases     int    `json:"cases"`
+	Automated int    `json:"automated"`
+	Fail      int    `json:"fail"`
+	Pct       int    `json:"pct"`
 }
 
 // Board is a product's board.
@@ -192,7 +205,9 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	if m == nil {
 		return Board{}, ErrNotFound
 	}
-	return boardOf(productID, m, s.tasks), nil
+	b := boardOf(productID, m, s.tasks)
+	s.decorateBoardQa(&b, m)
+	return b, nil
 }
 
 // boardOf is the projection itself, pure: the master's stories are the lanes

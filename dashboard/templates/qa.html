@@ -1,0 +1,107 @@
+{{/* The QA tab (design §4.10). Everything that came from the QA tools (Note,
+     Rejected, titles) is printed as plain text through html/template's
+     auto-escaping -- never template.HTML. */}}
+{{define "pane-qa"}}
+{{with .QA}}
+{{if not .Has}}
+<div class="block qa">
+  <h4>QA test catalog</h4>
+  <p class="qa-empty">This product has no test catalog yet. The seed or the QA tools create it; once cases exist, their coverage appears here.</p>
+</div>
+{{else}}
+<div class="block qa">
+  <h4>QA coverage <span class="sp mono">{{num .Totals.Cases}} {{if eq .Totals.Cases 1}}case{{else}}cases{{end}}</span></h4>
+  <div class="qa-stats">
+    <span class="qa-stat"><b>{{num .Totals.Automated}}</b> automated</span>
+    <span class="qa-stat"><b>{{num .Totals.Planned}}</b> planned</span>
+    <span class="qa-stat"><b>{{num .Totals.Blocked}}</b> blocked</span>
+    <span class="qa-stat"><b>{{num .Totals.ManualOnly}}</b> manual-only</span>
+    <span class="qa-stat"><b>{{num .Totals.Wont}}</b> won't</span>
+  </div>
+  <div class="cov-bar qa-cov" role="img" aria-label="{{.Totals.CoveragePct}}% of cases automated"><i style="{{.CovStyle}}"></i></div>
+  <p class="qa-sub mono">{{.Totals.CoveragePct}}% automated · positive {{num .Totals.Positive}} · negative {{num .Totals.Negative}} · pass {{num .Totals.Pass}} · <span{{if .Totals.Fail}} class="qa-failc"{{end}}>fail {{num .Totals.Fail}}</span></p>
+</div>
+
+{{if .Regressed}}
+<div class="block qa qa-regressed" role="status">
+  <h4>Regressed</h4>
+  <p class="qa-note"><b>{{len .Regressed}} {{if eq (len .Regressed) 1}}epic{{else}}epics{{end}}</b> had an automated case that now fails:
+    {{range $i, $c := .Regressed}}{{if $i}}, {{end}}<span class="mono">{{$c}}</span>{{end}}</p>
+</div>
+{{end}}
+
+<div class="block qa">
+  <h4>By epic <span class="sp mono">{{len .Epics}}</span></h4>
+  <div class="qa-scroll">
+    <table class="qa-tbl">
+      <thead><tr><th>Epic</th><th>Title</th><th>Service</th><th class="r">Automated</th><th class="qa-barcol"><span class="sr-only">Coverage</span></th><th class="r">Fail</th></tr></thead>
+      <tbody>
+      {{range .Epics}}
+      <tr{{if .Regressed}} class="is-regressed"{{end}}>
+        <td class="mono qa-code">{{.Code}}</td>
+        <td class="qa-title" title="{{.Title}}"><span>{{.Title}}</span>{{if .Regressed}} <em class="qa-flag">regressed</em>{{end}}</td>
+        <td class="mono qa-svc" title="{{.Service}}">{{.Service}}</td>
+        <td class="mono r">{{num .Automated}} / {{num .Total}}</td>
+        <td class="qa-barcol"><div class="cov-bar qa-mini" role="img" aria-label="{{.Pct}}% automated"><i style="{{.PctStyle}}"></i></div></td>
+        <td class="mono r{{if .Fail}} qa-failc{{end}}">{{if .Fail}}{{num .Fail}}{{else}}0{{end}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{if .NeedsDecision}}
+<div class="block qa">
+  <h4>Needs a decision</h4>
+  <p class="qa-note">A script exists for a case that was parked. Keep it, or retire the script:</p>
+  <ul class="qa-needs">
+    {{range .NeedsDecision}}<li class="mono" title="{{.}}">{{.}}</li>{{end}}
+  </ul>
+  {{if .NeedsMore}}<p class="qa-sub mono">{{num .NeedsMore}} more</p>{{end}}
+</div>
+{{end}}
+{{end}}
+
+{{template "qa-sync" .Sync}}
+{{end}}
+{{end}}
+
+{{define "qa-sync"}}
+<div class="block qa qa-sync">
+  <h4>Sync with the QA tools</h4>
+  <div class="qa-sync-grid">
+    <div class="qa-side">
+      <button type="button" class="btn qa-btn" id="qaPull" hx-post="{{.PullURL}}" hx-target="#sink" hx-swap="innerHTML"
+        hx-disabled-elt="#qaPull, #qaPush"{{if not .Enabled}} disabled{{end}}>
+        <span class="qa-lbl">Pull from QA tools</span><span class="qa-busy" aria-hidden="true">Pulling…</span></button>
+      {{template "qa-line" .Pull}}
+    </div>
+    <div class="qa-side">
+      <button type="button" class="btn qa-btn" id="qaPush" hx-post="{{.PushURL}}" hx-target="#sink" hx-swap="innerHTML"
+        hx-disabled-elt="#qaPull, #qaPush"{{if not .Enabled}} disabled{{end}}>
+        <span class="qa-lbl">Push to QA tools</span><span class="qa-busy" aria-hidden="true">Pushing…</span></button>
+      {{template "qa-line" .Push}}
+      {{template "qa-rejected" .Push}}
+    </div>
+  </div>
+  {{if not .Enabled}}<p class="qa-why" id="qaWhy">Sync is off: {{.Why}}.</p>{{end}}
+  <p class="qa-sub">A sync can take up to a minute. It changes automation facts only; never a decision, never a task.</p>
+</div>
+{{end}}
+
+{{define "qa-line"}}
+<p class="qa-last">
+  {{if .Never}}<span class="qa-never">Last sync: never</span>
+  {{else}}<b class="{{if .OK}}qa-ok{{else}}qa-bad{{end}}">{{if .OK}}ok{{else}}failed{{end}}</b>
+    <time datetime="{{.WhenISO}}" title="{{.WhenAbs}}">{{.When}}</time> · {{num .Items}} {{if eq .Items 1}}item{{else}}items{{end}}
+    {{with .Note}}<span class="qa-lastnote" title="{{.}}">{{.}}</span>{{end}}
+  {{end}}
+</p>
+{{end}}
+
+{{define "qa-rejected"}}{{if or .Rejected .RejectedN}}
+<p class="qa-rej mono" title="{{range $i, $r := .Rejected}}{{if $i}}, {{end}}{{$r}}{{end}}">{{num .RejectedN}} rejected{{if .Rejected}}: {{range $i, $r := .Rejected}}{{if $i}}, {{end}}{{$r}}{{end}}{{end}}</p>
+{{end}}{{end}}
+
+{{define "qa-badge"}}{{with .}}<span class="qa-badge" title="{{.Epic}}: {{.Automated}} of {{.Cases}} cases automated{{if .Fail}}, {{.Fail}} failing{{end}}"><span class="qa-badge-t mono">{{.Automated}}/{{.Cases}} automated{{if .Fail}} <em class="qa-badge-f">{{.Fail}} failing</em>{{end}}</span><span class="cov-bar qa-badge-bar"><i style="width:{{.Pct}}%"></i></span></span>{{end}}{{end}}

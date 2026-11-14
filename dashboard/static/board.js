@@ -47,10 +47,39 @@ function vendorBadge(card) {
   return b;
 }
 
+// The epic card's QA roll-up (display only; the server fills card.qa at read
+// time). Built with textContent: nothing from the payload is parsed as HTML.
+function qaBadge(card) {
+  const q = card.qa;
+  if (!q) return null;
+  const pct = Math.max(0, Math.min(100, Number(q.pct) || 0));
+  const b = document.createElement("span");
+  b.className = "qa-badge";
+  b.title = q.epic + ": " + q.automated + " of " + q.cases + " cases automated" + (q.fail > 0 ? ", " + q.fail + " failing" : "");
+  const t = document.createElement("span");
+  t.className = "qa-badge-t mono";
+  t.textContent = q.automated + "/" + q.cases + " automated";
+  if (q.fail > 0) {
+    const f = document.createElement("em");
+    f.className = "qa-badge-f";
+    f.textContent = q.fail + " failing";
+    t.append(" ", f);
+  }
+  const bar = document.createElement("span");
+  bar.className = "cov-bar qa-badge-bar";
+  const i = document.createElement("i");
+  i.style.width = pct + "%";
+  bar.append(i);
+  b.append(t, bar);
+  return b;
+}
+
 function cardFace(product, card, ctx) {
   const face = ctx.defaultRender(card);
   const badge = vendorBadge(card);
   if (badge) (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(badge);
+  const qb = qaBadge(card);
+  if (qb) (face.querySelector(".sfb-card-content") || face).append(qb);
   return card.status === AWAITING ? [needsBadge(product, card), face] : face;
 }
 

@@ -1318,3 +1318,59 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
   color:var(--ink-3);border:1px solid var(--line);border-radius:3px;
 }
 .sfb-card-meta .vnd-badge{margin-left:0}
+
+/* ---- QA tab and the board card's QA badge (design §4.10, §4.12) ---- */
+:root{--qa-warn-bg:rgba(200,100,88,.10)}
+[data-theme="light"]{--qa-warn-bg:rgba(176,64,52,.08)}
+.qa .sp{float:right}
+.qa-empty,.qa-note{margin:0;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}
+.qa-sub{margin:6px 0 0;font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.qa-stats{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12.5px;color:var(--ink-3)}
+.qa-stat b{color:var(--ink);font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums}
+.qa-cov{height:6px;margin:10px 0 2px}
+.qa-failc{color:var(--fail)}
+.qa-regressed{border-color:var(--fail);background:var(--qa-warn-bg)}
+.qa-regressed h4{color:var(--fail)}
+.qa-regressed .qa-note{max-height:6.5em;overflow:auto}
+.qa-scroll{overflow:auto;max-height:30rem;border-top:1px solid var(--line-soft)}
+.qa-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:560px}
+.qa-tbl th{position:sticky;top:0;background:var(--panel);text-align:left;color:var(--ink-3);font-weight:500;padding:6px 8px;z-index:1;white-space:nowrap}
+.qa-tbl td{padding:5px 8px;border-top:1px solid var(--line-soft);vertical-align:top;overflow:hidden}
+.qa-tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.qa-tbl th:nth-child(1){width:7em}
+.qa-tbl th:nth-child(3){width:11.5em}
+.qa-tbl th:nth-child(4){width:7em}
+.qa-tbl th:nth-child(5){width:5.5em}
+.qa-tbl th:nth-child(6){width:3.5em}
+.qa-code{white-space:nowrap;text-overflow:ellipsis}
+.qa-svc{white-space:nowrap;text-overflow:ellipsis;color:var(--ink-2)}
+.qa-title{overflow-wrap:anywhere}
+.qa-title span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qa-barcol .qa-mini{height:4px;margin:6px 0 0}
+.qa-flag{font-style:normal;font-family:var(--font-mono);font-size:10px;color:var(--fail);border:1px solid var(--fail);border-radius:3px;padding:0 4px;margin-left:4px;white-space:nowrap}
+.qa-needs{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 6px;max-height:9em;overflow:auto}
+.qa-needs li{font-size:11px;color:var(--block);border:1px solid var(--line);border-radius:3px;padding:1px 6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qa-sync-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+.qa-side{min-width:0}
+.qa-btn{position:relative;transition:border-color .15s,color .15s,background .15s,transform .12s var(--ease-out)}
+.qa-btn:active:not([disabled]){transform:scale(.97)}
+.qa-btn[disabled]{opacity:.55}
+.qa-btn .qa-busy{display:none}
+.qa-btn.htmx-request .qa-lbl{display:none}
+.qa-btn.htmx-request .qa-busy{display:inline}
+.qa-btn.htmx-request{opacity:1;color:var(--run);border-color:var(--run)}
+.qa-btn[disabled]:not(.htmx-request){color:var(--ink-3)}
+@media (hover:hover) and (pointer:fine){.qa-btn[disabled]:hover{border-color:var(--line);background:var(--panel-2);color:var(--ink-3)}}
+.qa-why{margin:12px 0 0;font-size:12.5px;color:var(--block);overflow-wrap:anywhere}
+.qa-last,.qa-rej{margin:8px 0 0;font-size:12px;color:var(--ink-2);overflow-wrap:anywhere}
+.qa-rej{font-size:11px;color:var(--fail);max-height:5em;overflow:auto}
+.qa-lastnote{display:block;color:var(--ink-3);max-height:4.5em;overflow:auto}
+.qa-ok{color:var(--done);font-weight:600}
+.qa-bad{color:var(--fail);font-weight:600}
+.qa-never{color:var(--ink-3)}
+/* on a board card: quiet, one line of text and a hairline bar */
+.qa-badge{display:block;margin-top:5px;min-width:0}
+.qa-badge-t{display:block;font-size:10px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qa-badge-f{font-style:normal;color:var(--fail)}
+.qa-badge-f::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--fail);margin-right:3px;vertical-align:1px}
+.qa-badge-bar{display:block;height:2px;margin:3px 0 0}

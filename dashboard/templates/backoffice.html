@@ -78,6 +78,7 @@
       <button{{if eq .Tab "diagrams"}} aria-current="page"{{end}}  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num (len .Master.Diagrams)}}</span></button>
       <button{{if eq .Tab "knowledge"}} aria-current="page"{{end}} hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></button>
       <button{{if eq .Tab "board"}} aria-current="page"{{end}}     hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</button>
+      <button{{if eq .Tab "qa"}} aria-current="page"{{end}}        hx-get="products/{{.ID}}?tab=qa"        hx-target="#sink" hx-swap="innerHTML">QA</button>
       <button{{if eq .Tab "timeline"}} aria-current="page"{{end}}  hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n">{{num (len .Timeline)}}</span></button>
       <button{{if eq .Tab "blueprint"}} aria-current="page"{{end}} hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></button>
       <button{{if eq .Tab "vendors"}} aria-current="page"{{end}}   hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</button>
@@ -204,6 +205,7 @@
     {{else if eq .Tab "blueprint"}}{{template "pane-blueprint" .}}
     {{else if eq .Tab "vendors"}}{{template "pane-vendors" .}}
     {{else if eq .Tab "board"}}{{template "pane-board" .}}
+    {{else if eq .Tab "qa"}}{{template "pane-qa" .}}
     {{else if eq .Tab "timeline"}}{{template "pane-timeline" .}}
     {{else}}{{template "pane-brd" .}}{{end}}
   </div>
@@ -399,6 +401,7 @@
         {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
         <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
         <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
+        {{with .Qa}}{{template "qa-badge" .}}{{end}}
         {{$card := .ID}}{{range .Moves}}
         <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
         {{end}}

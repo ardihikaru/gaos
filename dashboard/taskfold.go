@@ -36,6 +36,16 @@ func foldTasks(events []Event, productID string) []TaskRecord {
 		p := e.Payload
 		switch e.Type {
 		case TaskPlanned:
+			// "A plan, or an addition to one" (D-072, the QA catalog adds a card
+			// for a new epic): ordinals continue from the tasks the workflow
+			// already holds, so a one-task addition is not ordinal 0. A first
+			// plan has none yet and is unchanged.
+			base := 0
+			for _, t := range tasks {
+				if t.WorkflowID == p.WorkflowID {
+					base++
+				}
+			}
 			for i, pt := range p.Tasks {
 				at[pt.ID] = len(tasks)
 				tasks = append(tasks, TaskRecord{
@@ -43,7 +53,7 @@ func foldTasks(events []Event, productID string) []TaskRecord {
 					Title: pt.Title, Role: pt.Role, Story: pt.Story, Model: pt.Model,
 					Kind:   taskKind(pt.Kind),
 					Status: StatusPending, Deps: append([]string(nil), pt.Deps...),
-					Priority: pt.Priority, Ordinal: i, Gate: pt.Gate,
+					Priority: pt.Priority, Ordinal: base + i, Gate: pt.Gate,
 				})
 			}
 		case TaskMoved:

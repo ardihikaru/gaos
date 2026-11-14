@@ -14,20 +14,21 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Thirty-two decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Thirty-five decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Twenty-one are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
   database version, which CLI ships first, whether the sisflow board may be vendored, and how a
-  platform-run reviewer is made genuinely zero-context. Of the eleven
+  platform-run reviewer is made genuinely zero-context. Of the fourteen
   still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
-  that move makes GAOS depend on without yet controlling — and the rest are older.</p>
+  that move makes GAOS depend on without yet controlling — three arrived on 2026-11-14 with the QA
+  sync, and the rest are older.</p>
 
   <div class="page-meta"
        data-tags="open-questions, decisions, commercial, pricing, tenancy, licensing, roadmap"
        data-hashtags="brd, product, decisions"
        data-published="2026-08-08"
-       data-updated="2026-11-04"
+       data-updated="2026-11-14"
        data-version-from="0.2.0"
        data-version-to=""></div>
 
@@ -72,7 +73,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All thirty-two in one place. Filter by any word in a question, or by theme.</p>
+  <p>All thirty-five in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -115,6 +116,9 @@
       <tr data-tags="operations ai-manager restart async request records lost recovery new"><td><a href="#oq-30">OQ-30</a></td><td>Operations</td><td>ai-manager keeps async request records in memory. Is the deadline rule enough, or should ai-manager persist them?</td><td>D-060, recovery</td><td>Open — raised 2026-11-02</td></tr>
       <tr data-tags="operations question answer wait expiry session lifetime temp bucket answered"><td><a href="#oq-31">OQ-31</a></td><td>Operations</td><td>How long may an agent's question wait for the operator before it expires, and what happens to the task then?</td><td>I-11, BR-44, D-064</td><td>Answered → <a href="decision-log.html#d-066">D-066</a></td></tr>
       <tr data-tags="technical design gate review zero-context isolation blueprint workspace session security answered"><td><a href="#oq-32">OQ-32</a></td><td>Technical</td><td>How does a platform-run reviewer become genuinely zero-context, and what may the standing files it necessarily contains contain?</td><td>D-068, BR-39, BR-42, M17</td><td>Answered → <a href="decision-log.html#d-069">D-069</a></td></tr>
+      <tr data-tags="technical qa tools api contract gaos results catalog endpoints sync integration new"><td><a href="#oq-33">OQ-33</a></td><td>Technical</td><td>The two endpoints GAOS calls on the QA tools (<code>GET /api/v1/gaos/results</code>, <code>POST /api/v1/gaos/catalog</code>) are a contract only. When do the QA tools serve them?</td><td>D-075, the two sync buttons</td><td>Open — raised 2026-11-14</td></tr>
+      <tr data-tags="technical qa case decision edit identity authentication back office planned blocked wont new"><td><a href="#oq-34">OQ-34</a></td><td>Technical</td><td>Who may change an existing case's decision (park it, block it, retire it), and through which surface?</td><td>BR-48, BR-51, D-072</td><td>Open — raised 2026-11-14</td></tr>
+      <tr data-tags="product qa results kanban card move status failing epic new"><td><a href="#oq-35">OQ-35</a></td><td>Product</td><td>Should a QA result ever move an epic's card on the board?</td><td>BR-54, D-073</td><td>Open — raised 2026-11-14 (today: deliberately not)</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -413,6 +417,18 @@
   those three rather than before them. Domain L's requirement lands here by elimination, which is
   what <a href="brd.html#req-l">L-3</a> already assumed. Recorded as
   <a href="brd.html#req-i">I-8</a>.</p>
+
+  <h3 id="oq-35">OQ-35 · Should a QA result ever move a card?</h3>
+  <p><strong>Why it is open:</strong> the first draft of the QA sync reflected each epic's roll-up
+  onto its board card &mdash; a failing case sent the card back, a full pass marked it done. Review
+  removed it: the reflection walked gated tasks past the design gate, overrode other
+  <code>BLOCKED</code> reasons, wrote the scheduler's own word <code>READY</code>, and invented
+  <code>DISPATCHED</code> and <code>RUNNING</code> states for runs that never happened.
+  <a href="decision-log.html#d-073">D-073</a> and <a href="brd.html#rules-qa-sync">BR-54</a> therefore say
+  that QA data never moves a task; the card shows live case counts and a <code>regressed</code> marker
+  instead. <strong>Deliberately not</strong>, for now. The question that remains is whether an operator
+  would want a result to <em>propose</em> a move, with the operator's board move as the only way it
+  happens, and what that would cost the gate.</p>
 
   <h2 id="oq-technical">Technical policy</h2>
 
@@ -766,6 +782,28 @@
   they already contain, and what may not <em>leave</em> the review is the matched text of anything —
   a finding records where, never what. What this did not close is the decision log's unbounded
   growth into the standing files, which is a context-cost problem and stays its own item.</p>
+
+  <h3 id="oq-33">OQ-33 · When do the QA tools serve the two endpoints GAOS calls?</h3>
+  <p><strong>Why it is open:</strong> GAOS has two back-office buttons that call the QA tools:
+  <em>pull</em> reads <code>GET /api/v1/gaos/results</code> and <em>push</em> sends the catalog to
+  <code>POST /api/v1/gaos/catalog</code>
+  (<a href="decision-log.html#d-075">D-075</a>). Those endpoints are a contract written by GAOS and
+  implemented by a repository it does not own, so until they exist the buttons stay disabled and say
+  why. The QA tools' side that <em>pushes</em> to GAOS is a different matter and exists: it is described
+  in that repository's <code>GAOS_INTEGRATION</code> design and calls the
+  <a href="../guide/qa-sync-api.html">published API</a>. What is open is the pull half &mdash; and whether
+  it is wanted at all, since both directions end in the same two store methods and the QA tools may use
+  either or both.</p>
+
+  <h3 id="oq-34">OQ-34 · Who may change an existing case's decision?</h3>
+  <p><strong>Why it is open:</strong> a case's <code>decision</code> (<code>planned</code>,
+  <code>blocked</code>, <code>manual-only</code>, <code>wont</code>) is the planning half, owned by GAOS
+  (<a href="brd.html#rules-qa-sync">BR-51</a>). Today it changes only through the admin catalog
+  endpoint or a seed re-run, and there is no case editor in the back office on purpose: the back
+  office has no identity to check, because its gate accepts a cookie from any request
+  (<a href="brd.html#rules-design-review">BR-48</a>'s open precondition). A case marked
+  <em>needs decision</em> &mdash; a script exists for a parked case &mdash; therefore waits for an admin.
+  Answering this question needs BR-48's real identity first.</p>
 
   <h2 id="oq-operations">Operations</h2>
 
