@@ -84,7 +84,7 @@ every check identical are exempt.
      the Go unit-test count, currently "two hundred and ninety-four"
 
    The same pages carry four more counts that move together with the registers:
-   "Fifty-four rules" in `pustaka/docs/product/brd.html`, "Seventy-six entries"
+   "Fifty-four rules" in `pustaka/docs/product/brd.html`, "Seventy-seven entries"
    in `pustaka/docs/product/decision-log.html`, and "Thirty-five decisions" and
    "All thirty-five in one place" in `pustaka/docs/product/open-questions.html`.
    The published ToC mirrors all of them in `pustaka/docs/assets/toc/product.js`.

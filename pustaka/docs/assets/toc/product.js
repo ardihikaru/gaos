@@ -126,7 +126,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Seventy-six decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
+      desc: "Seventy-seven decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -183,13 +183,14 @@ window.DOCS.nav.push({
         { anchor: "who-owns-what", title: "Who owns what", text: "The planning half of a test case is GAOS's, the automation half is the QA tools'; the QA side may create a case, never change one." },
         { anchor: "qa-to-gaos", title: "QA tools to GAOS: automatic", text: "A knowledge sync, then a background push of new cases and script facts in batches of 200; what is sent, skipped, informational and retried." },
         { anchor: "a-new-case", title: "What happens when someone adds a test case", text: "From a row in the automation repo to a badge on the board, and why a new epic's card is born Blocked." },
+        { anchor: "test-results", title: "Getting test results in", text: "A Playwright JSON report uploaded from CI or by hand, matched to cases by the id at the start of a test title; the latest run per case wins; results reach GAOS by themselves and show as pass, fail and a failing marker on the board." },
         { anchor: "gaos-to-qa", title: "GAOS to QA tools: the two buttons", text: "Pull brings script facts in, Push sends decisions out; the one-at-a-time rule, the 30 second cooldown and the 60 second click." },
         { anchor: "kanban", title: "What you see on the board", text: "Epic cards with live automated counts, why everything starts Blocked, and the QA tab." },
         { anchor: "setup", title: "Setting it up", text: "The three tokens and where each lives, the URLs and variables for HISv3, and the order to deploy in." },
         { anchor: "operate", title: "Checking that it works", text: "Where to look in GAOS, in the QA tools and from a shell." },
         { anchor: "troubleshooting", title: "When it does not work", text: "Symptom, meaning and fix: disabled buttons, 409, deadline exceeded, unreadable body, 401, 403, 404, 503, exists-differs, a missing card." },
         { anchor: "security", title: "Security in short", text: "Token files, strict decoding, screening, scoping, redirects refused, and the open back-office login." },
-        { anchor: "not-built", title: "What is not built yet", text: "Per-case run results, withdrawing a case, and showing GAOS's decisions in the QA tools." }
+        { anchor: "not-built", title: "What is not built yet", text: "Run history beyond the latest run per case, deleting a case, and settling the exists-differs cases." }
       ]
     },
     /* pustaka:insert — `pustaka new` adds entries above this marker */
