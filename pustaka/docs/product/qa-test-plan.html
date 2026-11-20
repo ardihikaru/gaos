@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and sixty-three cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
+  four hundred and sixty-five cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and sixty-three cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and sixty-five cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -552,6 +552,8 @@
       <tr data-tags="go test unit dashboard design gate review contract finding note limit 300 characters negative implemented"><td>TC-461</td><td>dashboard (go test)</td><td>Negative</td><td>The review contract a reviewer is shown states that a finding's note is one line of at most <code>maxFindingNote</code> (300) characters, read from the constant the parser uses, and that a longer note fails the whole review (<code>TestTheReviewContractStatesTheNoteLimit</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard design gate review parser finding note limit boundary control character positive negative implemented"><td>TC-462</td><td>dashboard (go test)</td><td>Positive</td><td>A note of exactly 300 characters passes, a note of 301 is refused with a message naming 301 and 300, and a note carrying a control character is refused as one, not as a length (<code>TestAFindingNoteIsHeldToTheStatedLimit</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard design gate review replay long note refused timeline reason negative implemented"><td>TC-463</td><td>dashboard (go test)</td><td>Negative</td><td>A real reviewer reply whose note ran past 300 characters is still refused, with the length and the limit in the refusal, and a review refused through the gate is BLOCKED with <code>review-failed</code> and its run line on the timeline carries the parser's reason (<code>TestARealReviewWithALongNoteSaysWhyItWasRefused</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard workflow goal objective packet task.md two workflows same product negative implemented"><td>TC-464</td><td>dashboard (go test)</td><td>Negative</td><td>With two workflows on one product, each task's packet states its own workflow's goal under Objective &mdash; not the desk's, which holds only the latest &mdash; and two freezes give one digest (<code>TestEachTaskIsBriefedWithItsOwnWorkflowsGoal</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test arcadedb dashboard workflow goal restart reopen one desk per product objective negative implemented"><td>TC-465</td><td>dashboard (go test)</td><td>Negative</td><td>After two workflows on one product and a reopened ArcadeStore, the product has one desk, seated on its latest workflow, and each task's packet still states its own workflow's goal; skipped without <code>GAOS_ARCADE_TEST_URL</code> (<code>TestASecondWorkflowKeepsItsGoalAcrossARestart</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3429,6 +3431,25 @@
   <code>the real reply was refused with %q; it must say %q</code>,
   <code>the review is %q (%q); a refused review is BLOCKED with %q</code> or
   <code>the run's line on the timeline is %q; it must carry %q, or the operator retries a review without knowing what the reviewer must change</code>.</p>
+
+  <h3 id="go-workflow-goal">dashboard &mdash; a task is briefed with its own workflow's goal, across a restart (TC-464&ndash;TC-465)</h3>
+  <p>v0.40.5, in <code>dashboard/workflow_goal_test.go</code>. Found on HISv3: a second workflow, created to automate two
+  VSYS cases, had every packet's <code>## Objective</code> carry the seeded workflow's goal, so the planner planned the whole
+  product. The objective was read from the desk, which is one per product and holds the latest workflow's goal; and
+  <code>ArcadeStore.load</code> seated one desk per Workflow vertex, so after a restart the product had two and the older
+  one was found first. The objective now comes from the dispatched task's own workflow, and load seats one desk per
+  product, on its latest workflow.
+  <strong>TC-464, negative</strong> (<code>TestEachTaskIsBriefedWithItsOwnWorkflowsGoal</code>): a task of the first
+  workflow and a task of the second each carry their own goal, or the test prints
+  <code>the packet for %s says the objective is %q, want its own workflow's goal %q; the desk holds the LATEST workflow's goal, not this task's</code>;
+  a second freeze of the same task must give the same digest, or it prints
+  <code>two freezes of %s produced two digests; the objective must be a function of the record</code>.
+  <strong>TC-465, negative</strong> (<code>TestASecondWorkflowKeepsItsGoalAcrossARestart</code>, ArcadeDB; skipped without
+  <code>GAOS_ARCADE_TEST_URL</code>): after the reopen the product has one desk, or it prints
+  <code>p-1 has %d desks after the reopen, want 1; load seated one desk per Workflow vertex, and deskIdxByID then finds the oldest workflow's desk first</code>;
+  that desk is on the latest workflow, or it prints <code>p-1 is seated on %s after the reopen, want the latest workflow %s</code>;
+  and each task still carries its own goal, or it prints
+  <code>after the reopen the packet for %s says the objective is %q, want its own workflow's goal %q</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
