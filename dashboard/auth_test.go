@@ -256,19 +256,21 @@ func TestHashPasswordRoundTrip(t *testing.T) {
 // a state change must be a POST/PUT/DELETE (the origin check covers those), and
 // the reason is written next to each entry.
 var readOnlyGET = map[string]string{
-	"GET /events":                          "reads the event log",
-	"GET /events/stream":                   "a hint stream",
-	"GET /tasks/{id}/context":              "reads one packet",
-	"GET /ui/bo/{view}":                    "renders a back-office pane",
-	"GET /products":                        "lists products",
-	"GET /products/{id}":                   "renders one product",
-	"GET /products/{id}/board":             "renders the board",
-	"GET /products/{id}/readiness":         "reads readiness",
-	"GET /questions":                       "lists open questions",
-	"GET /products/{id}/questions":         "lists one product's questions",
-	"GET /ui/answer/{id}/{taskId}":         "renders the answer sheet",
-	"GET /ui/answer-ext/{id}/{externalId}": "renders the external answer sheet",
-	"GET /ui/cw":                           "opens the wizard",
+	"GET /events":                                    "reads the event log",
+	"GET /events/stream":                             "a hint stream",
+	"GET /tasks/{id}/context":                        "reads one packet",
+	"GET /ui/bo/{view}":                              "renders a back-office pane",
+	"GET /products":                                  "lists products",
+	"GET /products/{id}":                             "renders one product",
+	"GET /products/{id}/board":                       "renders the board",
+	"GET /products/{id}/readiness":                   "reads readiness",
+	"GET /questions":                                 "lists open questions",
+	"GET /products/{id}/questions":                   "lists one product's questions",
+	"GET /ui/answer/{id}/{taskId}":                   "renders the answer sheet",
+	"GET /ui/answer-ext/{id}/{externalId}":           "renders the external answer sheet",
+	"GET /ui/cw":                                     "opens the wizard",
+	"GET /products/{id}/board/cards/{taskId}/timing": "reads one card's timing (D-081)",
+	"GET /ui/timing/{id}/{taskId}":                   "renders the timing sheet (D-081)",
 }
 
 func samplePath(pattern string) (method, path string) {

@@ -14,6 +14,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Templates and static assets are EMBEDDED, not copied into the image.
@@ -137,6 +138,10 @@ var funcs = template.FuncMap{
 	"num":       thousands,
 	"clip":      clip,
 	"confPct":   func(v float64) int { return int(v*100 + 0.5) },
+	// timingURL path-escapes both ids, as the answer sheet's URL does (D-081).
+	"timingURL": timingURL,
+	// since is a unix time as RFC 3339 UTC, for a <time datetime> live.js ticks.
+	"since": func(sec int64) string { return time.Unix(sec, 0).UTC().Format(time.RFC3339) },
 	// styleWidth exists so a template can size a bar without the caller having
 	// to build a template.CSS. It is the only func that produces CSS, and it
 	// takes a number, so there is nothing to inject.

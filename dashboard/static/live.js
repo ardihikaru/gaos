@@ -179,6 +179,11 @@
       var t = Date.parse(el.getAttribute("data-since"));
       if (!isNaN(t)) el.textContent = "waiting " + span(Math.max(0, now - t));
     });
+    // A card's lead time (D-081): elapsed since the card was planned, no prefix.
+    document.querySelectorAll("time[data-elapsed-since]").forEach(function (el) {
+      var t = Date.parse(el.getAttribute("data-elapsed-since"));
+      if (!isNaN(t)) el.textContent = span(Math.max(0, now - t));
+    });
     document.querySelectorAll("time[data-until]").forEach(function (el) {
       var t = Date.parse(el.getAttribute("data-until"));
       if (isNaN(t)) return;

@@ -1036,9 +1036,12 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 // how a pill is drawn; `delta` is what fold.go folds. A future field on one has
 // no way to shadow a field on the other.
 type eventPayloadWire struct {
-	Text  string       `json:"text"`
-	Kind  string       `json:"kind"`
-	Clock int          `json:"clock"`
+	Text  string `json:"text"`
+	Kind  string `json:"kind"`
+	Clock int    `json:"clock"`
+	// At is Event.At (D-081). Absent on rows written before v0.41.0, which
+	// read their time from the row's own ts instead -- see load().
+	At    int64        `json:"at,omitempty"`
 	Delta EventPayload `json:"delta"`
 }
 
@@ -1056,7 +1059,7 @@ type eventPayloadWire struct {
 // a document rather than a JSON string -- see jsonMap -- so the delta stays
 // queryable on the way back out.
 func (s *ArcadeStore) writeEvent(ctx context.Context, tx *ArcadeTx, e Event) error {
-	p, err := jsonMap(eventPayloadWire{Text: e.Text, Kind: e.Kind, Clock: e.T, Delta: e.Payload})
+	p, err := jsonMap(eventPayloadWire{Text: e.Text, Kind: e.Kind, Clock: e.T, At: e.At, Delta: e.Payload})
 	if err != nil {
 		return err
 	}
@@ -1739,10 +1742,16 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Seq     int             `json:"seq"`
 		Type    string          `json:"type"`
 		Entity  string          `json:"entityId"`
+		TS      string          `json:"ts"`
 		Payload json.RawMessage `json:"payload"`
 	}
+	// D-081: a row written before v0.41.0 has no "at" in its payload, and its
+	// time is the row's ts -- the database's clock, printed in the database
+	// server's zone with no zone attached. dbOffset is that zone, measured
+	// once here, so an old row lands on the same clock as a new one.
+	dbOffset := s.dbZoneOffset(ctx)
 	if err := s.arc.Query(ctx,
-		`SELECT seq, type, entityId, payload FROM Event
+		`SELECT seq, type, entityId, ts, payload FROM Event
 		 WHERE tenantId = :t ORDER BY seq`,
 		map[string]any{"t": s.tenant}, &erows); err != nil {
 		return false, err
@@ -1752,8 +1761,14 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		if err := decodeInto(r.Payload, &pw); err != nil {
 			return false, err
 		}
+		at := pw.At
+		if at == 0 {
+			if ts := parseStamp(r.TS); ts > 0 {
+				at = ts + dbOffset
+			}
+		}
 		e := Event{Seq: r.Seq, Type: EventType(r.Type), DeskID: r.Entity,
-			Text: pw.Text, Kind: pw.Kind, T: pw.Clock, Payload: pw.Delta}
+			Text: pw.Text, Kind: pw.Kind, T: pw.Clock, At: at, Payload: pw.Delta}
 		if needsNotice(e) {
 			m.notifs++
 		}
@@ -1886,6 +1901,23 @@ func nowStamp() string { return time.Now().UTC().Format("2006-01-02 15:04:05") }
 // stamp is zero rather than an error: it means "not yet", which is what an
 // attempt that has not ended has, and failing a whole boot over one is a worse
 // answer than a run whose end time reads as unset.
+// dbZoneOffset is how far the database's printed clock is from the app's,
+// rounded to a zone (tzOffset). Zero when the probe fails: an old event's time
+// is display, never state, and a load must not fail over it.
+func (s *ArcadeStore) dbZoneOffset(ctx context.Context) int64 {
+	var rows []struct {
+		Now string `json:"now"`
+	}
+	if err := s.arc.Query(ctx, `SELECT sysdate() AS now`, nil, &rows); err != nil || len(rows) == 0 {
+		return 0
+	}
+	db := parseStamp(rows[0].Now)
+	if db == 0 {
+		return 0
+	}
+	return tzOffset(db, time.Now().Unix())
+}
+
 func parseStamp(s string) int64 {
 	if s == "" {
 		return 0

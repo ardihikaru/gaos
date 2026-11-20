@@ -373,6 +373,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
 	handle("PUT /products/{id}/vendors", s.handleSaveVendors)
 	handle("GET /products/{id}/board", s.handleBoard)
+	handle("GET /products/{id}/board/cards/{taskId}/timing", s.handleCardTiming) // D-081
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards", s.handleCardRefused)
 	handle("PUT /products/{id}/board/cards/{taskId}", s.handleCardRefused)
@@ -388,6 +389,8 @@ func (s *server) routes() http.Handler {
 	// D-078: the QA tool's questions, answered through the same sheet.
 	handle("POST /products/{id}/inbox/{externalId}/answer", s.handleExternalAnswer)
 	handle("GET /ui/answer-ext/{id}/{externalId}", s.handleExternalSheet)
+	// D-081: a card's timing sheet.
+	handle("GET /ui/timing/{id}/{taskId}", s.handleTimingSheet)
 
 	// --- create workflow ---
 	handle("GET /ui/cw", s.handleCWOpen)

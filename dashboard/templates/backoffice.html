@@ -397,7 +397,8 @@
         <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
         <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
         {{with .Qa}}{{template "qa-badge" .}}{{end}}
-        {{$card := .ID}}{{range .Moves}}
+        {{$card := .ID}}
+        {{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}{{range .Moves}}
         <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
         {{end}}
       </div>

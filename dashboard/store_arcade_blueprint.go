@@ -33,6 +33,9 @@ func (s *ArcadeStore) SyncBlueprint(ctx context.Context, id string) (Result, err
 func (s *ArcadeStore) Board(ctx context.Context, id string) (Board, error) {
 	return s.proj.Board(ctx, id)
 }
+func (s *ArcadeStore) CardTiming(ctx context.Context, id, taskID string) (CardTiming, error) {
+	return s.proj.CardTiming(ctx, id, taskID)
+}
 func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMove) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
 }

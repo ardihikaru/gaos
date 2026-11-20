@@ -116,6 +116,12 @@ func foldedBoard(s *MemStore, desk string, events []Event) (Board, Board) {
 	m := s.masterPtr(desk)
 	s.mu.RUnlock()
 	live, _ := s.Board(context.Background(), desk)
+	// The card timing (D-081) is read-time decoration derived from the same
+	// events, like the QA badge; the fold reproduces the projection under it.
+	live.Workflows = nil
+	for i := range live.Cards {
+		live.Cards[i].Timing = nil
+	}
 	return boardOf(desk, m, foldTasks(events, desk)), live
 }
 
