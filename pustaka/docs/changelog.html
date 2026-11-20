@@ -36,6 +36,23 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-41-0">v0.41.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every card says how long it has taken, and where the time went.</p>
+      <ul>
+        <li><span class="chg add">Added</span> every card on the board now shows how long it has taken, and its timing
+        sheet shows each status it passed through, how long it stayed, which move took it there, the attempts with their
+        tokens and cost, and how much of the time no AI was working on it
+        (<a href="product/decision-log.html#d-081">D-081</a>). An open card's lead time keeps counting on the card.</li>
+        <li><span class="chg add">Added</span> the board's JSON carries a <code>timing</code> summary on every card and the
+        totals of each workflow; <code>GET /products/{id}/board/cards/{taskId}/timing</code> answers one card's whole
+        history. Both are back-office routes. Costs keep their basis, and no run's session or request id is shown.</li>
+        <li><span class="chg change">Changed</span> every event now records the wall-clock time it happened at; events
+        written before this release take the time the database stored with them. <code>GET /events</code> gains an
+        <code>At</code> field. Twelve new tests, TC-466 to TC-477.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-40-5">v0.40.5 <time datetime="2026-11-21">2026-11-21</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A task is briefed with its own workflow's goal, after a restart too.</p>
       <ul>

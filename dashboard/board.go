@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 // The board. M14.6, D-061, I-9, I-10, BR-43.
@@ -54,6 +55,9 @@ type BoardCard struct {
 	// Moves are the columns this card may be moved to now, for a client
 	// that renders only legal actions. The server checks again either way.
 	Moves []string `json:"moves"`
+	// Timing is the card's timing summary (D-081, timing.go): display only,
+	// derived from the event stream at read time.
+	Timing *CardTimingSummary `json:"timing,omitempty"`
 }
 
 // BoardQa is an epic card's live roll-up from the QA catalog.
@@ -71,6 +75,8 @@ type Board struct {
 	Columns   []BoardColumn `json:"columns"`
 	Rows      []BoardRow    `json:"rows"`
 	Cards     []BoardCard   `json:"cards"`
+	// Workflows are the product's workflows' timing totals (D-081).
+	Workflows []WorkflowTiming `json:"workflows"`
 }
 
 // CardMove is the body of PUT …/cards/{id}/move.
@@ -207,6 +213,7 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	}
 	b := boardOf(productID, m, s.tasks)
 	s.decorateBoardQa(&b, m)
+	s.decorateBoardTiming(&b, productID, time.Now().Unix())
 	return b, nil
 }
 

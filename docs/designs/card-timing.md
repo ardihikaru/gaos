@@ -363,3 +363,13 @@ None blocking. The live check (p-6 `wf-8`, 8 DONE cards, 2026-11-20 16:10–18:0
 ## 11. Approval
 
 Approved 2026-11-21, v2, by the orchestrating agent under the product owner's standing instruction of 2026-11-20/21 to work among the agents without asking for confirmation (approval by delegation). Basis: round 1 raised no Blocker; the one High security finding (SEC-1, run records on the HTTP surface) is fixed by the `AttemptTiming` allowlist and two negative assertions; every Major is fixed or contested with a checkable reason in `reviews/card-timing-review-1.md`. No second round: no Blocker survives (policy step 7).
+
+## 12. As built (v0.41.0)
+
+Built as designed, with three additions the change list did not name:
+
+- `deploy/check-workspace.sh` carries the register's counts as literals; they move with the counts (353 Go tests, "four hundred and seventy-seven", "Eighty entries").
+- `dashboard/taskfold_test.go`'s `foldedBoard` clears `Timing` and `Workflows` from the live board before comparing it with the fold — they are read-time decoration, like the QA badge, and TC-308's assertion is unchanged.
+- `dashboard/render.go` gains a second template func, `since` (a unix time as RFC 3339), for the chip's `<time data-elapsed-since>`.
+
+Verified: `go test -race ./...` green on both stores (ArcadeDB on the scratch image); the board rendered locally on the in-memory store shows a chip on every card and the sheet opens from it, closes on Esc and returns focus to the chip.

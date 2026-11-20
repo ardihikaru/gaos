@@ -779,6 +779,38 @@ func (s *server) handleAnswerSheet(w http.ResponseWriter, r *http.Request) {
 	s.rend.Render(w, http.StatusOK, "answer-modal", v)
 }
 
+// handleTimingSheet is GET /ui/timing/{id}/{taskId}: a card's timing sheet
+// (D-081). An unknown card is a 404 and the toast, as the answer sheet's is.
+func (s *server) handleTimingSheet(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id, taskID := r.PathValue("id"), r.PathValue("taskId")
+	ct, err := s.store.CardTiming(r.Context(), id, taskID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	name, title := id, taskID
+	if ps, err := s.store.Products(r.Context()); err == nil {
+		for _, p := range ps {
+			if p.ID == id {
+				name = p.Name
+			}
+		}
+	}
+	if b, err := s.store.Board(r.Context(), id); err == nil {
+		for _, c := range b.Cards {
+			if c.ID == taskID {
+				title = c.Label
+			}
+		}
+	}
+	v, _ := s.newView(r)
+	v.Timing = buildTimingView(name, title, ct)
+	s.rend.Render(w, http.StatusOK, "timing-modal", v)
+}
+
 // handleExternalSheet is GET /ui/answer-ext/{id}/{externalId}: the answer sheet
 // for one of the QA tool's questions (D-078).
 func (s *server) handleExternalSheet(w http.ResponseWriter, r *http.Request) {

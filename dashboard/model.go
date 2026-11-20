@@ -191,12 +191,16 @@ func clonePlannedTasks(in []PlannedTask) []PlannedTask {
 // different buckets renumbers every RID, and a history keyed by one would be
 // unreadable afterwards.
 type Event struct {
-	Seq     int
-	Type    EventType
-	DeskID  string
-	Text    string
-	Kind    string
-	T       int
+	Seq    int
+	Type   EventType
+	DeskID string
+	Text   string
+	Kind   string
+	T      int
+	// At is the wall-clock time the event was emitted, unix seconds, on the
+	// app's clock (D-081). T above is the simulation clock and is 0 in
+	// production; At is what the card timing measures with. 0 = unknown.
+	At      int64
 	Payload EventPayload
 }
 
