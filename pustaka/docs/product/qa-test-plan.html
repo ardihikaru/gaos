@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and sixty cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
+  four hundred and sixty-three cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and sixty cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and sixty-three cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -549,6 +549,9 @@
       <tr data-tags="go test unit dashboard design gate fence nested code sample replay reviewer truncated negative implemented"><td>TC-458</td><td>dashboard (go test)</td><td>Negative</td><td>A real architect reply whose <code>gaos-design</code> block carries <code>```ts</code> code samples parses to the whole design document, through its last section, and its handoff with <code>basis: unmeasured</code> is still refused (<code>TestADesignWithCodeSamplesReachesItsReviewerWhole</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard fence scanner nested info string tilde four backticks reserved tag positive negative implemented"><td>TC-459</td><td>dashboard (go test)</td><td>Positive</td><td>A reserved block closes only at a bare fence at nesting depth 0 at least as long as its opener; info-string and tilde fences nest, an unclosed block is ignored, and a reserved tag quoted inside a design is still refused (<code>TestAFencedBlockClosesOnlyAtItsOwnDepth</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard handoff contract usage basis measured estimated negative implemented"><td>TC-460</td><td>dashboard (go test)</td><td>Negative</td><td>The handoff contract a turn is shown states that <code>usage.basis</code> is exactly <code>measured</code> or <code>estimated</code>, and when to use estimated (<code>TestTheContractStatesTheAllowedUsageBasis</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate review contract finding note limit 300 characters negative implemented"><td>TC-461</td><td>dashboard (go test)</td><td>Negative</td><td>The review contract a reviewer is shown states that a finding's note is one line of at most <code>maxFindingNote</code> (300) characters, read from the constant the parser uses, and that a longer note fails the whole review (<code>TestTheReviewContractStatesTheNoteLimit</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate review parser finding note limit boundary control character positive negative implemented"><td>TC-462</td><td>dashboard (go test)</td><td>Positive</td><td>A note of exactly 300 characters passes, a note of 301 is refused with a message naming 301 and 300, and a note carrying a control character is refused as one, not as a length (<code>TestAFindingNoteIsHeldToTheStatedLimit</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate review replay long note refused timeline reason negative implemented"><td>TC-463</td><td>dashboard (go test)</td><td>Negative</td><td>A real reviewer reply whose note ran past 300 characters is still refused, with the length and the limit in the refusal, and a review refused through the gate is BLOCKED with <code>review-failed</code> and its run line on the timeline carries the parser's reason (<code>TestARealReviewWithALongNoteSaysWhyItWasRefused</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3404,6 +3407,28 @@
   <strong>TC-460, negative</strong> (<code>TestTheContractStatesTheAllowedUsageBasis</code>): prints
   <code>the contract never says %q; a model that writes basis: unmeasured fails an otherwise complete turn on a rule nobody stated</code>
   or <code>the contract does not name the basis %q the parser accepts</code>.</p>
+
+  <h3 id="go-review-note-limit">dashboard &mdash; a review note's length limit is stated, and its refusal says why (TC-461&ndash;TC-463)</h3>
+  <p>v0.40.4, in <code>dashboard/review_note_test.go</code>, replaying a real reviewer reply kept in
+  <code>dashboard/testdata/review-reply-long-note.txt</code>. The review was correct &mdash; no blockers, one major, two
+  nits &mdash; and was refused because a note ran to 473 characters: the parser caps a note at 300, the contract only said
+  &ldquo;one line&rdquo;, and the refusal said only that a note is &ldquo;one bounded line&rdquo;. Both now read the limit
+  from one constant, <code>maxFindingNote</code>; the parser is not loosened.
+  <strong>TC-461, negative</strong> (<code>TestTheReviewContractStatesTheNoteLimit</code>): prints
+  <code>the review contract never says %q; a reviewer whose note runs long fails an otherwise complete review on a rule nobody stated</code>
+  or <code>the review contract does not say what a longer note costs</code>.
+  <strong>TC-462, positive and negative</strong> (<code>TestAFindingNoteIsHeldToTheStatedLimit</code>): a note of exactly
+  300 two-byte characters passes, or the test prints <code>a note of exactly %d characters was refused: %v</code>; a note
+  of 301 is refused, or it prints <code>a note of %d characters was accepted; the limit is %d</code>, and its refusal names
+  both numbers, or it prints
+  <code>the refusal %q does not say %q; a retry must be told what to shorten, and by how much</code>; a note carrying a
+  control character is refused as one, or it prints
+  <code>a note carrying a control character gave %v; it must be refused as one</code>.
+  <strong>TC-463, negative</strong> (<code>TestARealReviewWithALongNoteSaysWhyItWasRefused</code>): prints
+  <code>the real reply with a note past %d characters was accepted; the parser must keep refusing it</code>,
+  <code>the real reply was refused with %q; it must say %q</code>,
+  <code>the review is %q (%q); a refused review is BLOCKED with %q</code> or
+  <code>the run's line on the timeline is %q; it must carry %q, or the operator retries a review without knowing what the reviewer must change</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
