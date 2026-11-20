@@ -140,6 +140,13 @@ for f in deploy/stacks/*.bo-*; do
   fi
 done
 has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
+# D-080: the runner is the permission to spend. It comes from the deploy shell,
+# empty (off) by default, and from nowhere else -- a second GAOS_RUNNER line in
+# any spelling would be a hard-coded value.
+has $PROD 'GAOS_RUNNER: "${GAOS_RUNNER:-}"' "prod passes the runner switch from the deploy shell, empty (off) by default"
+[ "$(grep -c 'GAOS_RUNNER:' $PROD)" = 1 ] \
+  && ok "prod sets GAOS_RUNNER in exactly one place, the pass-through" \
+  || bad "prod sets GAOS_RUNNER in more than one place; the runner must come only from the deploy shell"
 hasnt $DEV  'PASSWORD: "'                    "dev bakes no password into compose"
 hasnt $PROD 'PASSWORD: "'                    "prod bakes no password into compose"
 

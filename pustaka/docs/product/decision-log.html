@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Seventy-eight entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Seventy-nine entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1627,6 +1627,30 @@
         <a href="qa-test-plan.html#go-bo-login">TC-423 to TC-438</a>;
         <a href="brd.html#rules-design-review">BR-48, BR-55</a>;
         <a href="open-questions.html#oq-11">OQ-11</a></td>
+      </tr>
+      <tr id="d-080">
+        <td>D-080</td><td>2026-11-20</td>
+        <td><strong><code>GAOS_RUNNER=manual</code>: the scheduler readies work and only the operator's board dispatch spends.</strong>
+        Context: <code>GAOS_RUNNER</code> was off or on. On, the control loop dispatched every ready task on every product,
+        which on the instance carrying HISv3 means a design task and then forty-seven automate tasks, unasked; off, nothing
+        ever became ready and the board refused to dispatch. Decision: a third value. Under <code>manual</code> the loop runs,
+        moves every task the scheduler would start to ready (a card parked in ready claims neither its product nor an agent
+        seat, so every eligible card arrives), and never dispatches; a turn is sent only when an operator moves a ready card
+        to working, through the readiness floor (<a href="brd.html#rules-readiness">BR-07</a>), one live turn per product
+        (BR-38), the drift gate (BR-39), the dependency check and the egress pass. The board dispatch now re-checks the
+        readiness floor and claims its product atomically under both <code>on</code> and <code>manual</code>. An unrecognised
+        value is off; the desk route stays on-only. Reviewed in one round by five goldfish lenses
+        (<code>docs/designs/runner-manual.md</code>); approved by the orchestrating agent under the product owner's standing
+        instruction of 2026-11-20 to proceed without confirmation.
+        <br><br>
+        Consequences: the prod compose passes the value from the deploy shell, so <code>manual</code> must be on every
+        redeploy line and a plain redeploy falls back to off; <code>on</code> is equally one word away, and choosing it stays
+        the operator's decision. The budget guard, when it is built, must gate the board dispatch as well as the loop. Under
+        <code>on</code> the unused desk route (<code>POST /tasks/{id}/dispatch</code>) still spends without BR-38. Events
+        still carry no actor, so which signed-in account dispatched is not recorded.</td>
+        <td><a href="qa-test-plan.html#go-runner-manual">TC-443 to TC-452</a>;
+        <a href="brd.html#rules-gateway">BR-56</a>;
+        <a href="../architecture/gateway.html">Gateway</a></td>
       </tr>
     </tbody>
   </table>

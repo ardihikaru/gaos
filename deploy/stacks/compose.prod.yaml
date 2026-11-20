@@ -94,9 +94,16 @@ services:
       # tier -- dev was retired on 2026-11-03 -- so it carries what dev did. The
       # two secrets are FILES, mounted read-only below from host-side files
       # that are never committed (deploy/stacks/*.aim-*, gitignored, mode 600).
-      # GAOS_RUNNER stays unset: gateway mode means a turn CAN be sent; the
-      # runner is the permission to spend, and it is an operator's decision.
+      # Gateway mode means a turn CAN be sent; the runner below is the
+      # permission to spend, and it is an operator's decision.
       GAOS_MODEL_MODE: "aimanager"
+      # THE RUNNER (D-080, BR-56): the permission to spend. Empty/unset = off:
+      # nothing is ever dispatched. "manual" = the scheduler readies work and only
+      # a board move ready -> working sends a turn, one chosen card at a time.
+      # "on" = the scheduler dispatches everything ready, unasked. Read from the
+      # deploying shell, so it must be on EVERY redeploy line; a plain redeploy
+      # falls back to off. This key overrides a GAOS_RUNNER in prod.dashboard.env.
+      GAOS_RUNNER: "${GAOS_RUNNER:-}"
       GAOS_AIM_URL: "http://10.10.0.4:8099"
       GAOS_AIM_CHAT_AUTH_FILE: "/run/secrets/aim-chat.json"
       GAOS_AIM_ADMIN_KEY_FILE: "/run/secrets/aim-admin-key"

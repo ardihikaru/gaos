@@ -326,7 +326,9 @@
     with a request id before sending one turn to ai-manager, which runs it in the product's
     workspace &mdash; one live turn per product. The reply's handoff moves the task, and after the
     turn GAOS compares the workspace with the pinned Blueprint; drift refuses the next dispatch.
-    Nothing reviews the result yet.</li>
+    Nothing reviews the result yet. With the runner set to <code>manual</code> the scheduler only moves
+    work to ready, and a turn is sent when the operator moves one ready card to working
+    (<a href="decision-log.html#d-080">D-080</a>).</li>
     <li><strong>The board moves only when a task does.</strong> Every task status change writes a
     <code>TaskMoved</code> event, so the board is a fold of the stream like everything else, and
     the vendored sisflow board reads the same API.</li>
@@ -1212,7 +1214,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="business-rules">9. Business rules</h2>
-  <p>Fifty-five rules, each one traceable to an artifact section, to committed code, or to a logged
+  <p>Fifty-six rules, each one traceable to an artifact section, to committed code, or to a logged
   decision. These are the statements a reviewer — human or agent — can score an implementation
   against. They are the reason domain rules are worth 12 points in the readiness rubric.</p>
 
@@ -1300,6 +1302,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-43</td><td>A move on the board is a request. The task state machine decides, and a refused move writes nothing. <em>(I-10, <a href="decision-log.html#d-061">D-061</a>)</em></td></tr>
       <tr><td>BR-44</td><td>A task waiting on the operator's answer holds no lease, is never dispatched by the scheduler, and leaves <code>AWAITING_INPUT</code> only by an answer (to <code>READY</code>), a cancel, or — thirty days after it asked, when the session that asked is gone — expiry to <code>BLOCKED</code>. Until then the answer resumes the asking session. Nobody but an agent puts a card there. <em>(I-11, <a href="decision-log.html#d-064">D-064</a>, <a href="decision-log.html#d-066">D-066</a>)</em></td></tr>
       <tr><td>BR-45</td><td>A task's vendor follows its product's vendor policy and is fixed for the life of a session: a retry whose vendor changed opens a new session and says why (<code>vendor</code>), a resumed turn names the vendor that opened it, and nothing falls back to another vendor silently. A product dispatches only when every vendor its policy uses holds the published Blueprint. <em>(I-12, <a href="decision-log.html#d-067">D-067</a>)</em></td></tr>
+      <tr><td>BR-56</td><td>A turn is sent only under the runner switch. <code>off</code> sends none. <code>on</code> lets the scheduler dispatch whatever it judges ready. <code>manual</code> lets the scheduler move work to ready and nothing further: a turn is sent only when a signed-in operator moves a ready card to working, and that move applies the readiness floor (BR-07), one live turn per product (BR-38), the drift gate (BR-39), the dependency check and the egress pass. An unrecognised value is <code>off</code>. <em>(<a href="decision-log.html#d-080">D-080</a>)</em></td></tr>
     </tbody>
   </table>
 

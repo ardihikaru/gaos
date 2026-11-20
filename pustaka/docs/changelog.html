@@ -36,6 +36,26 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-40-0">v0.40.0 <time datetime="2026-11-20">2026-11-20</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Run one chosen card at a time. Nothing changes on a deploy that does not set the new value.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <code>GAOS_RUNNER=manual</code> (<a href="product/decision-log.html#d-080">D-080</a>,
+        <a href="product/brd.html#rules-gateway">BR-56</a>): the scheduler moves every task it would start to ready and
+        dispatches nothing; a turn is sent only when the operator moves a ready card to working on the board. An answered
+        question waits in ready the same way. Unrecognised values are off.</li>
+        <li><span class="chg change">Changed</span> the board dispatch re-checks the readiness floor (BR-07) and claims its
+        product atomically, so two dispatches at once in one product start one turn (BR-38). Both apply under
+        <code>on</code> as well. A missing model adapter gets its own refusal.</li>
+        <li><span class="chg add">Added</span> <code>runner</code> in <code>/healthz</code> (<code>off</code>, <code>manual</code>
+        or <code>on</code>) and a boot log line for <code>manual</code>.</li>
+        <li><span class="chg add">Added</span> deploy support: the prod compose passes <code>GAOS_RUNNER</code> from the deploy
+        shell, empty (off) by default, <code>rebuild-restart.sh</code> prints the value it deploys, and
+        <code>check-stacks.sh</code> checks it is set in exactly one place. To enable:
+        <code>GAOS_RUNNER=manual &hellip; ./deploy/rebuild-restart.sh prod deploy --tag v0.40.0</code>, on every redeploy.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-39-1">v0.39.1 <time datetime="2026-11-20">2026-11-20</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A new workflow starts on its own, and each task is briefed as itself.</p>
       <ul>
