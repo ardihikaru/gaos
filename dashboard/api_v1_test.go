@@ -317,6 +317,10 @@ func TestAPICasesCursorCoversEveryCaseOnce(t *testing.T) {
 	// catalog map under a read lock (found by review: it crashed the process).
 	bare := pids[1]
 	srv.api = newAPIConfig(tokAdmin, tokQA, tokOut, id+","+bare)
+	// One handler for every goroutine: routes() records its patterns on the
+	// server, so building it per call from sixteen goroutines is a race of the
+	// test's own making, not the store's.
+	h := srv.routes()
 	var wg sync.WaitGroup
 	for i := 0; i < 16; i++ {
 		wg.Add(1)
@@ -325,7 +329,9 @@ func TestAPICasesCursorCoversEveryCaseOnce(t *testing.T) {
 			_, _ = st.QaCases(context.Background(), bare, QaQuery{})
 			_, _ = st.QaSummary(context.Background(), bare)
 			_, _ = st.Board(context.Background(), bare)
-			call(t, srv, "GET", "/v1/products/"+bare+"/qa/cases", tokQA, "")
+			req := httptest.NewRequest("GET", "/v1/products/"+bare+"/qa/cases", nil)
+			req.Header.Set("Authorization", "Bearer "+tokQA)
+			h.ServeHTTP(httptest.NewRecorder(), req)
 		}()
 	}
 	wg.Wait()
