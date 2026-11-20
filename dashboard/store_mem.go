@@ -2219,30 +2219,52 @@ func (s *MemStore) schedulerInputLocked(now int64) SchedulerInput {
 		in.Readiness[s.masters[i].ID] = s.masters[i].ReadinessScore()
 	}
 
-	// Busy is a fact about the floor, not something the scheduler infers: an
-	// agent seated at a desk that is running, in review or in a meeting cannot
-	// take another desk's task. It can take its own desk's (AgentSlot.Desk), so
-	// the seated agent is named with the one desk it sits at; an agent seated at
-	// two live desks is busy everywhere.
-	busy := map[string]bool{}
-	seatedAt := map[string]string{}
-	for _, d := range s.desks {
-		switch d.State {
-		case StateActive, StateReview, StateMeeting:
-			for _, id := range d.Agents {
-				if busy[id] && seatedAt[id] != d.ID {
-					seatedAt[id] = ""
-				} else if !busy[id] {
-					seatedAt[id] = d.ID
-				}
-				busy[id] = true
+	// Busy is a fact about the graph, not about the floor: an agent is busy
+	// when it carries a live turn, and a live turn is a task DISPATCHED or
+	// RUNNING. Each one holds one agent of its role, named with the live
+	// task's desk (AgentSlot.Desk).
+	//
+	// It used to be read from the desk seats, and that stopped every card on
+	// prod (v0.40.1): a seat is the floor's display, not a run. The seeded
+	// desks seat a-1, the only architect, at p-1 and p-3 and stay active with
+	// nothing running them; CreateWorkflow seats a-9, the only planner, on
+	// every desk it activates. An agent seated at two live desks read as busy
+	// everywhere, so every architect and planner task waited on a run that did
+	// not exist and that nothing would ever finish.
+	in.Agents = liveAgentSlots(s.tasks, agents)
+	return in
+}
+
+// liveAgentSlots marks one agent busy per live task, deterministically: live
+// tasks in id order, each taking the first agent of its role (in id order) not
+// already taken. A live task whose role has no free agent left takes nothing --
+// the capacity is already spent, and the graph lease still holds its product.
+func liveAgentSlots(tasks []TaskRecord, roster []Agent) []AgentSlot {
+	var live []TaskRecord
+	for _, t := range tasks {
+		if t.Status == StatusDispatched || t.Status == StatusRunning {
+			live = append(live, t)
+		}
+	}
+	sort.Slice(live, func(i, j int) bool { return live[i].ID < live[j].ID })
+	slots := make([]AgentSlot, 0, len(roster))
+	for _, a := range roster {
+		slots = append(slots, AgentSlot{ID: a.ID, Role: a.Role})
+	}
+	order := make([]int, len(slots))
+	for i := range order {
+		order[i] = i
+	}
+	sort.Slice(order, func(i, j int) bool { return slots[order[i]].ID < slots[order[j]].ID })
+	for _, t := range live {
+		for _, i := range order {
+			if slots[i].Role == t.Role && !slots[i].Busy {
+				slots[i].Busy, slots[i].Desk = true, t.DeskID
+				break
 			}
 		}
 	}
-	for _, a := range agents {
-		in.Agents = append(in.Agents, AgentSlot{ID: a.ID, Role: a.Role, Busy: busy[a.ID], Desk: seatedAt[a.ID]})
-	}
-	return in
+	return slots
 }
 
 // tasksSnapshot is tasksFor with the lock taken, for callers reaching into the
