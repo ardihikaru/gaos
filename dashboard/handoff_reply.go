@@ -39,30 +39,89 @@ const (
 
 // handoffBlocks returns the body of every gaos-handoff fenced block in reply,
 // in order. A block opens on a line that is exactly ```gaos-handoff and
-// closes on the next line that is exactly ```; an unclosed block is ignored,
-// because a truncated reply did not finish its handoff.
+// closes on the next bare ``` that is not closing a fence nested inside it; an
+// unclosed block is ignored, because a truncated reply did not finish its
+// handoff.
 func handoffBlocks(reply string) []string { return fenceBlocks(reply, HandoffFence) }
 
 // fenceBlocks is the scanner, and it takes the tag because three contracts
 // use it: the handoff, the design and the review. A copy per contract would
 // be a second thing to keep right.
+//
+// It is nesting-aware, because a design is a markdown document and a markdown
+// document carries code samples. Inside an open reserved block:
+//
+//   - a backtick fence line with an info string (```ts, ```yaml, ````md)
+//     opens a nested fence, as does any ~~~ line; the nested fence is closed
+//     by the next bare run of the same character at least as long as the one
+//     that opened it, and nothing inside it is read as a fence of the
+//     reserved block;
+//   - only a bare run of backticks at nesting depth 0, flush left and at least
+//     as long as the run that opened the reserved block, closes it
+//     (CommonMark: a block opened with four backticks closes only with four or
+//     more).
+//
+// Before v0.40.3 the first bare ``` closed the block, so a design with a code
+// sample in it reached its reviewer cut off after the first sample.
+//
+// The opening line is a run of three or more backticks followed by the tag,
+// flush left.
 func fenceBlocks(reply, tag string) []string {
 	var out []string
 	var cur []string
 	in := false
+	open := 0     // backticks that opened the reserved block
+	var nest byte // the nested fence's character, 0 when not nested
+	nestLen := 0  // and its length
 	for _, raw := range strings.Split(reply, "\n") {
 		line := strings.TrimRight(raw, " \t\r")
-		switch {
-		case !in && line == fence+tag:
-			in, cur = true, nil
-		case in && line == fence:
-			out = append(out, strings.Join(cur, "\n"))
-			in = false
-		case in:
-			cur = append(cur, raw)
+		if !in {
+			if n, info := fenceRun(line, '`'); n >= 3 && info == tag {
+				in, open, nest, cur = true, n, 0, nil
+			}
+			continue
 		}
+		inner := strings.TrimLeft(line, " \t")
+		switch {
+		case nest != 0:
+			if n, info := fenceRun(inner, nest); n >= nestLen && info == "" {
+				nest = 0
+			}
+		case strings.HasPrefix(line, "`"):
+			n, info := fenceRun(line, '`')
+			if n >= open && info == "" {
+				out = append(out, strings.Join(cur, "\n"))
+				in = false
+				continue
+			}
+			if n >= 3 && info != "" {
+				nest, nestLen = '`', n
+			}
+		default:
+			if n, info := fenceRun(inner, '`'); n >= 3 && info != "" {
+				nest, nestLen = '`', n
+			} else if n, _ := fenceRun(inner, '~'); n >= 3 {
+				nest, nestLen = '~', n
+			}
+		}
+		cur = append(cur, raw)
 	}
 	return out
+}
+
+// fenceRun reports how many ch characters line starts with, and the trimmed
+// info string after them. A backtick fence's info string may not itself
+// contain a backtick (CommonMark), so such a line is not a fence at all.
+func fenceRun(line string, ch byte) (int, string) {
+	n := 0
+	for n < len(line) && line[n] == ch {
+		n++
+	}
+	info := strings.TrimSpace(line[n:])
+	if ch == '`' && strings.ContainsRune(info, '`') {
+		return 0, ""
+	}
+	return n, info
 }
 
 // ExtractHandoff reads the handoff from a reply. It returns the parsed
@@ -146,6 +205,9 @@ describe what you actually did:
 - status is exactly one of: complete | blocked | partial. Blocked is a
   legitimate answer, and a better one than a plausible guess.
 - Each criterion is one line: - id: <id>   met: true|false   evidence: "..."
+- usage.basis is exactly one of: measured | estimated. Use measured only when
+  you counted the tokens; use estimated when you did not. Any other value
+  (unmeasured, unknown, n/a) fails the whole block.
 - Write exactly one %s block. Prose before it is kept for the human reading
   the timeline; nothing after it is read.
 
