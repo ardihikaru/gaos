@@ -103,10 +103,21 @@ type TaskNode struct {
 
 // AgentSlot is a seat. Busy is computed by the shell from the floor; whether an
 // agent is busy is a fact about the world, not something the scheduler infers.
+//
+// Desk is the one product a busy agent is seated at, or "" when it is busy
+// everywhere (seated at more than one live desk, or busy for a reason no desk
+// names). A seat is not a turn: CreateWorkflow seats the planner on the desk
+// it activates, and that agent sitting at THAT desk is the agent for that
+// desk's own task -- counting it as busy against its own desk left the first
+// task of every new workflow blocked as "every planner agent is busy" with
+// nothing anywhere to free it. One live turn per product is the graph lease's
+// job (BR-38), so letting a seated agent take its own desk's task cannot put
+// two turns on one product.
 type AgentSlot struct {
 	ID   string
 	Role string
 	Busy bool
+	Desk string
 }
 
 // LeaseState is one workspace lease as it stands. TaskID is who holds it, so a
@@ -257,12 +268,9 @@ func Schedule(in SchedulerInput) ScheduleDecision {
 	// Seats taken as we go, so two tasks in one pass cannot be handed the same
 	// agent. This is state, but it is state of THIS call over its own inputs --
 	// the function is still a value in, value out.
+	// A busy agent is not pre-claimed here: whether it is free depends on the
+	// task asking (see AgentSlot.Desk), so freeAgent reads Busy itself.
 	taken := map[string]bool{}
-	for _, a := range agents {
-		if a.Busy {
-			taken[a.ID] = true
-		}
-	}
 	claimed := map[string]bool{}
 
 	var out ScheduleDecision
@@ -291,7 +299,7 @@ func Schedule(in SchedulerInput) ScheduleDecision {
 		// An agent that exists and is busy is not a capable agent for this
 		// task, and the two cases get different sentences because the
 		// operator's next action differs -- hire versus wait.
-		seat := freeAgent(agents, t.Role, taken)
+		seat := freeAgent(agents, t.Role, t.DeskID, taken)
 		if seat == "" {
 			if countRole(agents, t.Role) == 0 {
 				reasons[BlockedByCapability] = "no agent holds the " + t.Role + " role"
@@ -378,11 +386,17 @@ func unmetDeps(t TaskNode, status map[string]string) []string {
 // freeAgent returns the first unclaimed agent holding the role, scanning in
 // sorted id order. First rather than best: choosing best is routing, T-044, and
 // it needs a capability model this does not have.
-func freeAgent(agents []AgentSlot, role string, taken map[string]bool) string {
+//
+// A busy agent is free only for a task of the one desk it is seated at.
+func freeAgent(agents []AgentSlot, role, desk string, taken map[string]bool) string {
 	for _, a := range agents {
-		if a.Role == role && !taken[a.ID] {
-			return a.ID
+		if a.Role != role || taken[a.ID] {
+			continue
 		}
+		if a.Busy && (a.Desk == "" || a.Desk != desk) {
+			continue
+		}
+		return a.ID
 	}
 	return ""
 }

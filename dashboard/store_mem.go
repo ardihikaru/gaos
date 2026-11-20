@@ -1322,13 +1322,25 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// The task's kind decides the shape of this packet (M17, D-069). A review
 	// gets a packet of its own -- the design and the rubric, and nothing else.
 	kind := TaskKindImplement
+	role := s.roleFor(d)
+	// The brief is the dispatched task's own when a planned task stands behind
+	// the id. d.Task is the desk's display line -- CreateWorkflow sets it to the
+	// plan's FIRST task -- so briefing from it told every later task of the
+	// graph (the architect, the implementer, the verifier) that it was the
+	// planner. The role follows the task for the same reason: the seated agent
+	// is the planner for the whole workflow.
+	brief := d.Task
 	if t := s.taskByIDLocked(taskID); t != nil {
 		kind = taskKind(t.Kind)
+		if t.Role != "" {
+			role = t.Role
+		}
+		brief = s.taskBriefLocked(d.ID, *t)
 	}
 	pkt := Packet{
 		TaskID: taskID,
 		RunID:  runIDFor(taskID, attempt),
-		Role:   s.roleFor(d),
+		Role:   role,
 		DeskID: d.ID,
 		Kind:   kind,
 	}
@@ -1370,7 +1382,7 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// reviewer: what is withheld is the author's session state.
 	if kind != TaskKindReview {
 		add(".gaos/packet/task.md", KindTask,
-			"# "+taskID+"\n\n"+d.Task+"\n\n## Objective\n"+d.Goal+
+			"# "+taskID+"\n\n"+brief+"\n\n## Objective\n"+d.Goal+
 				"\n\n## Definition of done\nThe work above, AND the handoff: one gaos-handoff block at the end "+
 				"of your reply — see .gaos/packet/handoff.md for its exact shape. "+
 				"A reply that does the work and carries no block is recorded as failed.\n")
@@ -1382,7 +1394,7 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// what it was given, so it belongs inside the frozen slice and inside the
 	// digest. A replay can then prove both halves.
 	add(".gaos/packet/handoff.md", KindContract,
-		contractsFor(kind, taskID, runIDFor(taskID, attempt), s.roleFor(d)))
+		contractsFor(kind, taskID, runIDFor(taskID, attempt), role))
 
 	// What the previous attempt handed over, T-064. It reaches this agent HERE
 	// and nowhere else -- as a cited part of its own frozen slice, not by
@@ -1520,6 +1532,39 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 		}
 	}
 	return pkt
+}
+
+// taskBriefLocked is the body of task.md for a planned task: what THIS task
+// is -- its title, kind and role -- and, when it serves a story, the story and
+// its acceptance criteria. Deterministic in its inputs, so two freezes of one
+// attempt still produce one digest. Caller holds the lock.
+func (s *MemStore) taskBriefLocked(deskID string, t TaskRecord) string {
+	var b strings.Builder
+	b.WriteString(t.Title)
+	fmt.Fprintf(&b, "\n\n- Kind: %s\n", taskKind(t.Kind))
+	if t.Role != "" {
+		fmt.Fprintf(&b, "- Role: %s\n", t.Role)
+	}
+	if t.Story == "" {
+		return strings.TrimRight(b.String(), "\n")
+	}
+	if m := s.masterPtr(deskID); m != nil {
+		for _, st := range m.Stories {
+			if st.ID != t.Story {
+				continue
+			}
+			fmt.Fprintf(&b, "\n## Story %s\nAs %s, I want %s so %s\n", st.ID, st.Role, st.Want, st.So)
+			if len(st.AC) > 0 {
+				b.WriteString("\n## Acceptance criteria\n")
+				for _, c := range st.AC {
+					fmt.Fprintf(&b, "- %s\n", c)
+				}
+			}
+			return strings.TrimRight(b.String(), "\n")
+		}
+	}
+	fmt.Fprintf(&b, "- Story: %s\n", t.Story)
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // tokenEstimate is USES_CONTEXT.tokens, and the name is the whole disclaimer.
@@ -2174,18 +2219,26 @@ func (s *MemStore) schedulerInputLocked(now int64) SchedulerInput {
 
 	// Busy is a fact about the floor, not something the scheduler infers: an
 	// agent seated at a desk that is running, in review or in a meeting cannot
-	// take another task.
+	// take another desk's task. It can take its own desk's (AgentSlot.Desk), so
+	// the seated agent is named with the one desk it sits at; an agent seated at
+	// two live desks is busy everywhere.
 	busy := map[string]bool{}
+	seatedAt := map[string]string{}
 	for _, d := range s.desks {
 		switch d.State {
 		case StateActive, StateReview, StateMeeting:
 			for _, id := range d.Agents {
+				if busy[id] && seatedAt[id] != d.ID {
+					seatedAt[id] = ""
+				} else if !busy[id] {
+					seatedAt[id] = d.ID
+				}
 				busy[id] = true
 			}
 		}
 	}
 	for _, a := range agents {
-		in.Agents = append(in.Agents, AgentSlot{ID: a.ID, Role: a.Role, Busy: busy[a.ID]})
+		in.Agents = append(in.Agents, AgentSlot{ID: a.ID, Role: a.Role, Busy: busy[a.ID], Desk: seatedAt[a.ID]})
 	}
 	return in
 }

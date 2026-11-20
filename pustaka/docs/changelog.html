@@ -36,6 +36,26 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-39-1">v0.39.1 <time datetime="2026-11-20">2026-11-20</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A new workflow starts on its own, and each task is briefed as itself.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <b>the first task of a new workflow never got an agent.</b> The planner
+        seated on the new desk counted as busy for that desk's own planner task, so the task stayed blocked
+        (&ldquo;every planner agent is busy&rdquo;) and everything after it waited. A seated agent is now free for
+        its own desk's task and still busy for every other product's.</li>
+        <li><span class="chg fix">Fixed</span> <b>the packet's <code>task.md</code> described the wrong task.</b> It
+        carried the desk's first-task line, so an implementation task was briefed as the planner. It now names the
+        dispatched task's title, kind and role, and its story and acceptance criteria; the packet's role is the
+        task's.</li>
+        <li><span class="chg fix">Fixed</span> <code>deploy/acceptance/live-aim-run.sh</code> signs in with a password
+        read from <code>GAOS_ACCEPT_PASSWORD_FILE</code> and sends its session on every call (D-079), and no longer
+        cancels the desk to start the turn.</li>
+        <li><span class="chg change">Changed</span> the QA register gains TC-440&hellip;TC-442 (442 cases, 320 Go
+        tests).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-39-0">v0.39.0 <time datetime="2026-11-15">2026-11-15</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The back office signs in for real. Needs two files and a label on each deployment before it is deployed.</p>
       <ul>

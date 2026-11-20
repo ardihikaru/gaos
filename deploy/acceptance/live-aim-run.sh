@@ -11,7 +11,16 @@
 #   GAOS_AIM_URL=http://10.10.0.4:8099 \
 #   GAOS_AIM_CHAT_AUTH_FILE=deploy/stacks/dev.aim-chat.json \
 #   GAOS_AIM_ADMIN_KEY_FILE=deploy/stacks/dev.aim-admin-key \
+#   GAOS_ACCEPT_PASSWORD_FILE=~/.config/gaos/acceptance-password \
 #     ./deploy/acceptance/live-aim-run.sh
+#
+# Since the real back-office sign-in (D-079, v0.39.0) every route but /healthz
+# needs a session. The script makes its own one-account users file for the
+# dashboard it boots -- GAOS_ACCEPT_EMAIL (default acceptance@example.test),
+# hashed with `dashboard hash-password` from the first line of
+# GAOS_ACCEPT_PASSWORD_FILE -- signs in once, and sends the cookie jar on every
+# call after that. The password is read from the file and piped; it is never
+# put on a command line, in the environment or in the output.
 #
 # Without GAOS_LIVE_OK=1 it says what it would do and stops: a turn costs real
 # money on a real account, and a script that ran one because somebody
@@ -37,7 +46,6 @@ TMP="$(mktemp -d)"
 JAR="$TMP/cookies"
 DASH_PID=""
 DESK="p-5"
-DESK_IDX=4
 
 cleanup() {
   [ -n "$DASH_PID" ] && kill "$DASH_PID" 2>/dev/null
@@ -55,7 +63,7 @@ if [ "${GAOS_LIVE_OK:-}" != "1" ]; then
   info "  wait for one turn and read its handoff from the reply."
   exit 0
 fi
-for v in GAOS_AIM_URL GAOS_AIM_CHAT_AUTH_FILE GAOS_AIM_ADMIN_KEY_FILE; do
+for v in GAOS_AIM_URL GAOS_AIM_CHAT_AUTH_FILE GAOS_AIM_ADMIN_KEY_FILE GAOS_ACCEPT_PASSWORD_FILE; do
   if [ -z "${!v:-}" ] || { [ "$v" != GAOS_AIM_URL ] && [ ! -r "${!v}" ]; }; then
     bad "$v is unset or unreadable"
     exit 1
@@ -65,6 +73,11 @@ done
 # ---------------------------------------------------------------- TC-300
 (cd dashboard && go build -o "$TMP/dashboard" .) || { bad "dashboard did not build"; exit 1; }
 ok "dashboard built"
+EMAIL="${GAOS_ACCEPT_EMAIL:-acceptance@example.test}"
+pw() { head -n1 "$GAOS_ACCEPT_PASSWORD_FILE" | tr -d '\r\n'; }
+HASH="$(pw | "$TMP/dashboard" hash-password 2>/dev/null)" || { bad "the password file's first line could not be hashed (is it empty?)"; exit 1; }
+( umask 077; printf '%s:%s\n' "$EMAIL" "$HASH" >"$TMP/bo-users" )
+GAOS_BO_USERS_FILE="$TMP/bo-users" GAOS_BO_LABEL=acceptance GAOS_COOKIE_SECURE=0 \
 GAOS_STORE=memory GAOS_ADDR="127.0.0.1:$PORT" GAOS_RUNNER=on \
 GAOS_MODEL_MODE=aimanager GAOS_AIM_TENANT=acceptance GAOS_MODEL="${GAOS_MODEL:-claude-sonnet-5}" \
 GAOS_AIM_URL="$GAOS_AIM_URL" GAOS_AIM_CHAT_AUTH_FILE="$GAOS_AIM_CHAT_AUTH_FILE" \
@@ -80,11 +93,19 @@ if ! curl -s "$BASE/healthz" | grep -q "gateway"; then
 fi
 ok "dashboard ready in gateway mode — the boot smoke test found ai-manager's claude provider"
 
-# Free the floor: the seeded desks hold the agents the scheduler would need.
-for i in 0 1 2 3; do curl -s -o /dev/null -X POST "$BASE/tasks/$i/cancel"; done
-curl -s -c "$JAR" -o /dev/null -X POST "$BASE/auth/login" --data-urlencode "email=acceptance@example.test"
+pw | curl -s -c "$JAR" -o /dev/null -X POST "$BASE/auth/login" \
+  --data-urlencode "email=$EMAIL" --data-urlencode "password@-"
+if grep -q 'gaos_bo' "$JAR" 2>/dev/null; then
+  ok "signed in to the back office as $EMAIL (D-079)"
+else
+  bad "the back office refused the sign-in for $EMAIL; check GAOS_ACCEPT_PASSWORD_FILE"
+  exit 1
+fi
 bo() { curl -s -b "$JAR" -H "HX-Request: true" "$@"; }
-events() { curl -s "$BASE/events"; }
+events() { curl -s -b "$JAR" "$BASE/events"; }
+
+# Free the floor: the seeded desks hold the agents the scheduler would need.
+for i in 0 1 2 3; do curl -s -b "$JAR" -o /dev/null -X POST "$BASE/tasks/$i/cancel"; done
 
 # ---------------------------------------------------------------- TC-301
 bo -o /dev/null -X PUT "$BASE/products/$DESK/brd" \
@@ -102,7 +123,7 @@ bo -o /dev/null -X POST "$BASE/products/$DESK/stories" \
   --data-urlencode "so=a new agent follows it" \
   --data-urlencode "ac=The reply states that code is formatted with gofmt.
 The reply states that errors are wrapped with %w."
-SCORE="$(curl -s "$BASE/products/$DESK/readiness" | grep -o '"score":[0-9]*' | head -1 | cut -d: -f2)"
+SCORE="$(curl -s -b "$JAR" "$BASE/products/$DESK/readiness" | grep -o '"score":[0-9]*' | head -1 | cut -d: -f2)"
 [ -n "$SCORE" ] && [ "$SCORE" -ge 45 ] && ok "readiness $SCORE — above the planning floor of 45 (BR-07)" \
   || bad "readiness ${SCORE:-?} is below the planning floor"
 
@@ -129,7 +150,9 @@ CREATED="$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -X POST "$BASE/workf
   --data-urlencode "product=$DESK" --data-urlencode "goal=Restate the coding policy for new agents" \
   --data-urlencode "priority=high" --data-urlencode "gate=no" --data-urlencode "stories=US-01")"
 [ "$CREATED" = "200" ] || { bad "the planner refused the workflow (HTTP $CREATED)"; exit 1; }
-curl -s -o /dev/null -X POST "$BASE/tasks/$DESK_IDX/cancel"
+# No desk cancel here. Before v0.39.1 the planner CreateWorkflow seated on the
+# desk counted as busy against the desk's own first task, and this script
+# cancelled the desk to free it; the seat now serves its own desk's task.
 ok "workflow planned — the scheduler owns the graph"
 
 DEADLINE=$(( $(date +%s) + ${GAOS_LIVE_TIMEOUT:-700} ))
