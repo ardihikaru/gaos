@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and fifty-seven cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and sixty cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and fifty-seven cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and sixty cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -546,6 +546,9 @@
       <tr data-tags="go test unit dashboard arcadedb persist write lock slow database changed records negative implemented"><td>TC-455</td><td>dashboard (go test)</td><td>Negative</td><td>Against a fake ArcadeDB, a persist with nothing changed sends no upsert and one event insert, one changed task sends exactly one Task upsert, and a task whose commit failed is written again by the next persist (<code>TestAPersistWritesOnlyTheRecordsThatChanged</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb background write lock budget slow database stall negative implemented"><td>TC-456</td><td>dashboard (go test)</td><td>Negative</td><td>A background write against an ArcadeDB that stalls every statement gives up within its budget, reports the failure and releases the store lock, so a board move is not left waiting behind it (<code>TestABackgroundWriteReleasesTheStoreLockWhenTheGraphStalls</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler manual ready publish one write positive implemented"><td>TC-457</td><td>dashboard (go test)</td><td>Positive</td><td>A manual-runner pass that readies two cards publishes one write carrying both moves, and a pass that moves nothing publishes nothing (<code>TestAManualPassPublishesItsReadiesAsOneWrite</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate fence nested code sample replay reviewer truncated negative implemented"><td>TC-458</td><td>dashboard (go test)</td><td>Negative</td><td>A real architect reply whose <code>gaos-design</code> block carries <code>```ts</code> code samples parses to the whole design document, through its last section, and its handoff with <code>basis: unmeasured</code> is still refused (<code>TestADesignWithCodeSamplesReachesItsReviewerWhole</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard fence scanner nested info string tilde four backticks reserved tag positive negative implemented"><td>TC-459</td><td>dashboard (go test)</td><td>Positive</td><td>A reserved block closes only at a bare fence at nesting depth 0 at least as long as its opener; info-string and tilde fences nest, an unclosed block is ignored, and a reserved tag quoted inside a design is still refused (<code>TestAFencedBlockClosesOnlyAtItsOwnDepth</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard handoff contract usage basis measured estimated negative implemented"><td>TC-460</td><td>dashboard (go test)</td><td>Negative</td><td>The handoff contract a turn is shown states that <code>usage.basis</code> is exactly <code>measured</code> or <code>estimated</code>, and when to use estimated (<code>TestTheContractStatesTheAllowedUsageBasis</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3380,6 +3383,27 @@
   <strong>TC-457, positive</strong> (<code>TestAManualPassPublishesItsReadiesAsOneWrite</code>): prints
   <code>a pass that readied two cards published %d write(s); want 1 carrying both moves -- one transaction per card multiplies the time the store lock is held</code>
   or, for the negative half, <code>a pass that moved nothing published %d write(s); want 0</code>.</p>
+
+  <h3 id="go-nested-fences">dashboard &mdash; a design with code samples reaches its reviewer whole (TC-458&ndash;TC-460)</h3>
+  <p>v0.40.3, in <code>dashboard/fence_test.go</code>, replaying a real architect reply kept in
+  <code>dashboard/testdata/design-reply-nested-fences.txt</code>. Its <code>gaos-design</code> block carried
+  <code>```ts</code> code samples, and the scanner closed the block at the first bare fence, so the design kept 3,785 of
+  10,480 bytes. The same reply's handoff wrote <code>basis: unmeasured</code>, which the parser refuses and the
+  contract never stated.
+  <strong>TC-458, negative</strong> (<code>TestADesignWithCodeSamplesReachesItsReviewerWhole</code>): prints
+  <code>the real design reply does not parse: %v</code>,
+  <code>the design parsed to task %q run %q role %q</code>,
+  <code>the design document (%d bytes) lacks %q; a code sample's closing fence closed the design, and the reviewer would be handed a truncated document</code>,
+  <code>the design document ran on into the handoff block after it</code> or
+  <code>the reply's handoff with basis unmeasured gave %v; the parser must keep refusing it</code>.
+  <strong>TC-459, positive and negative</strong> (<code>TestAFencedBlockClosesOnlyAtItsOwnDepth</code>): a table of
+  replies &mdash; a plain block, an info-string fence, an indented fence in a list, a four-backtick block holding a bare
+  triple, a longer nested fence, a tilde fence, an unclosed block and two blocks in order &mdash; prints
+  <code>%s: fenceBlocks gave %q, want %q</code>; a design quoting a <code>gaos-handoff</code> block prints
+  <code>a design quoting a gaos-handoff block gave %v; it must still be refused as reserved</code>.
+  <strong>TC-460, negative</strong> (<code>TestTheContractStatesTheAllowedUsageBasis</code>): prints
+  <code>the contract never says %q; a model that writes basis: unmeasured fails an otherwise complete turn on a rule nobody stated</code>
+  or <code>the contract does not name the basis %q the parser accepts</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
