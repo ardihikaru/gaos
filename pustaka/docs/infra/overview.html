@@ -329,8 +329,8 @@ nginx -t &amp;&amp; systemctl reload nginx</pre>
 
   <div class="adm warn">
     <p class="adm-title">Two traps, both caught by <code>nginx -t</code> or worth knowing</p>
-    <p><code>http2 on;</code> is nginx <b>1.25+</b>; this box runs 1.18, where the syntax is
-    <code>listen 443 ssl http2;</code>. Always <code>nginx -t</code> before <code>reload</code> — a
+    <p><code>http2 on;</code> (nginx <b>1.25.1+</b>) goes inside each TLS <code>server</code> block; this box runs
+    nginx.org stable 1.30, so the deprecated <code>listen 443 ssl http2;</code> parameter is not used. Always <code>nginx -t</code> before <code>reload</code> — a
     rejected config never reaches the running process. And the certificate covers
     <em>only</em> the two GAOS names: any other host reaching <code>:443</code> falls to
     <code>default ""</code> and gets <code>444</code>, a closed connection that says nothing.</p>
