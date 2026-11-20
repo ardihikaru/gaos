@@ -36,6 +36,19 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-40-5">v0.40.5 <time datetime="2026-11-21">2026-11-21</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A task is briefed with its own workflow's goal, after a restart too.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> a second workflow on a product had every task's objective set to the first
+        workflow's goal, so a workflow made to automate two cases was planned as the whole product. The objective in a
+        task's packet is now its own workflow's goal, not the desk's.</li>
+        <li><span class="chg fix">Fixed</span> after a restart, a product with more than one workflow was seated on more
+        than one desk, and the oldest was the one dispatched from. The product now gets one desk, on its latest workflow,
+        and every workflow's goal is restored from the graph. Two new tests, TC-464 and TC-465.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-40-4">v0.40.4 <time datetime="2026-11-21">2026-11-21</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A reviewer is told how long a note may be, and a refused review says why.</p>
       <ul>
