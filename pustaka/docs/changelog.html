@@ -36,6 +36,24 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-40-3">v0.40.3 <time datetime="2026-11-21">2026-11-21</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A design with code samples in it reaches its reviewer whole.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> a <code>gaos-design</code> block closed at the first bare fence inside it, so a
+        design document carrying a <code>```ts</code> code sample was cut off after that sample, and the truncated text is
+        what the zero-context reviewer would have been handed. Replaying a real architect reply kept 3,785 of its 10,480
+        bytes. Block extraction is now nesting-aware: inside a <code>gaos-design</code>, <code>gaos-review</code> or
+        <code>gaos-handoff</code> block, a fence with an info string (or any <code>~~~</code> fence) opens a nested fence,
+        and only a bare fence at depth zero, at least as long as the one that opened the block, closes it. A reserved tag
+        quoted inside a design is still refused.</li>
+        <li><span class="chg fix">Fixed</span> the handoff contract a turn is shown now states that
+        <code>usage.basis</code> is exactly <code>measured</code> or <code>estimated</code>, and when to use each. The same
+        reply wrote <code>basis: unmeasured</code> and an otherwise complete turn failed with
+        <code>handoff-missing</code>; the parser still refuses it. Three new tests, TC-458 to TC-460.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-40-2">v0.40.2 <time datetime="2026-11-20">2026-11-20</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A slow ArcadeDB no longer freezes the board behind a background write.</p>
       <ul>
