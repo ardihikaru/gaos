@@ -1016,7 +1016,9 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 	// supervising them." There is a lease now, and a supervisor.
 	//
 	// Two conditions, not one. An adapter exists so the boot smoke test can run;
-	// GAOS_RUNNER is what says money may be spent. See runnerEnabled.
+	// GAOS_RUNNER is what says money may be spent. See runnerMode. Only `on`:
+	// under `manual` the board's dispatch is the one route that spends (D-080),
+	// and this desk route has neither its dependency check nor its BR-38 claim.
 	//
 	// A goroutine, because superviseRun blocks for as long as the work takes and
 	// this method is holding the floor's lock. The goroutine's first act that
@@ -1025,7 +1027,7 @@ func (s *MemStore) DispatchTask(ctx context.Context, idx int) (Result, error) {
 	// context.WithoutCancel because ctx here is the HTTP request's, which is
 	// cancelled the moment the response is written -- a run tied to it would die
 	// as the operator's browser finished painting the toast.
-	if s.adapter != nil && runnerEnabled() {
+	if s.adapter != nil && runnerMode() == RunnerOn {
 		ad, deskID, cl := s.adapter, d.ID, cleared
 		run := context.WithoutCancel(ctx)
 		go func() { _, _ = s.superviseRun(run, ad, deskID, cl, attempt) }()

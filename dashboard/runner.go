@@ -28,18 +28,42 @@ import (
 // written every heartbeatEventEvery, plus always the first beat of a run and
 // always the last before it exits. D-053 has the argument.
 
-// runnerEnabled is the runner's own switch, deliberately separate from whether
-// an adapter is configured.
+// The runner switch, GAOS_RUNNER, deliberately separate from whether an
+// adapter is configured.
 //
 // An operator who sets GAOS_MODEL_MODE=aimanager to make the boot smoke test run has
 // not thereby authorised spending money on model calls. Two different
 // decisions, two different variables, and the default on this one is off.
-func runnerEnabled() bool {
-	switch strings.ToLower(envOr("GAOS_RUNNER", "off")) {
+//
+// Three modes (D-080, BR-56):
+//
+//   - off: nothing is ever sent, and the scheduler loop does not run.
+//   - on: the scheduler dispatches everything it judges ready, unasked.
+//   - manual: the scheduler moves work to READY and no further; a turn is sent
+//     only when an operator moves a ready card to working on the board.
+//
+// Anything unrecognised is off: a typo must fail closed, never open.
+const (
+	RunnerOff    = "off"
+	RunnerOn     = "on"
+	RunnerManual = "manual"
+)
+
+func runnerMode() string {
+	switch strings.ToLower(strings.TrimSpace(envOr("GAOS_RUNNER", RunnerOff))) {
 	case "on", "1", "true", "yes":
-		return true
+		return RunnerOn
+	case "manual":
+		return RunnerManual
 	}
-	return false
+	return RunnerOff
+}
+
+// runnerMaySpend says whether an operator's board dispatch may start a turn.
+// The scheduler's own permission is runnerMode() == RunnerOn, and only that.
+func runnerMaySpend() bool {
+	m := runnerMode()
+	return m == RunnerOn || m == RunnerManual
 }
 
 // The heartbeat's two cadences (D-053): the supervisor beats every
@@ -431,8 +455,22 @@ const schedulerTick = 2 * time.Second
 // per twenty minutes.
 func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 	now := time.Now().Unix()
+	mode := runnerMode()
+	if ad != nil && mode == RunnerManual {
+		// D-080: the scheduler's verdict is recorded as READY and acted on by
+		// nobody but the operator. READY tasks are left out of the input so a
+		// card parked in ready holds neither its product's claim nor its role's
+		// seat in this pass -- otherwise the first ready card would keep every
+		// other card of its product, and of other products sharing a one-agent
+		// role, in backlog for as long as the operator left it there.
+		in := s.schedulerInput(now)
+		in.Tasks = withoutReady(in.Tasks)
+		decision := Schedule(in)
+		s.readyPending(decision)
+		return decision
+	}
 	decision := Schedule(s.schedulerInput(now))
-	if ad == nil || !runnerEnabled() {
+	if ad == nil || mode != RunnerOn {
 		// The decision still stands and is still worth having -- T-109 renders
 		// the blocked half whether or not anything may run. What does not happen
 		// is the spending.
@@ -492,6 +530,40 @@ func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 		}()
 	}
 	return decision
+}
+
+// withoutReady drops READY tasks from a scheduler input (manual mode). A task
+// that depends on one reads it as not in the graph and stays blocked, which is
+// right: READY is not DONE. The lease reads DISPATCHED and RUNNING only, so it
+// is untouched.
+func withoutReady(tasks []TaskNode) []TaskNode {
+	var out []TaskNode
+	for _, t := range tasks {
+		if t.Status != StatusReady {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// readyPending moves each scheduled task PENDING -> READY, and only from
+// PENDING, with the status re-read under the write lock. The decision was
+// computed from a snapshot, and DISPATCHED -> READY is a legal transition: an
+// unconditional move would pull a card the operator dispatched in between back
+// to READY while its turn is live, releasing the BR-38 lease.
+func (s *MemStore) readyPending(d ScheduleDecision) {
+	for _, x := range d.Ready {
+		s.mu.Lock()
+		var e Event
+		ok := false
+		if t := s.taskPtr(x.TaskID); t != nil && t.Status == StatusPending {
+			e, ok = s.moveTaskLocked(x.TaskID, StatusReady, MoveSchedule)
+		}
+		s.mu.Unlock()
+		if ok {
+			s.publish(e)
+		}
+	}
 }
 
 // clearFor freezes and screens the packet for one scheduled task. BR-32: the

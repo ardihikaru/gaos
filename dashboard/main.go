@@ -205,9 +205,12 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		// smoke test CAN talk to a provider; GAOS_RUNNER is what says it MAY. An
 		// operator who set one and meant both would otherwise find out from a
 		// dispatch that quietly did nothing.
-		if runnerEnabled() {
+		switch runnerMode() {
+		case RunnerOn:
 			log.Printf("runner on: a cleared dispatch spawns %s and spends against it", adapter.Name())
-		} else {
+		case RunnerManual:
+			log.Printf("runner manual (GAOS_RUNNER): the scheduler readies work; only a board move ready -> working spawns %s and spends against it", adapter.Name())
+		default:
 			log.Printf("runner off (GAOS_RUNNER): a dispatch screens and records, and stops there")
 		}
 	}
@@ -247,8 +250,9 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	// Behind both switches, same as the dispatch route: an adapter says a
 	// provider CAN be reached, GAOS_RUNNER says it MAY be. Without them the loop
 	// would still produce a correct decision and nothing to do with it, so it
-	// simply does not run.
-	if adapter != nil && runnerEnabled() {
+	// simply does not run. Under GAOS_RUNNER=manual it runs, and only readies
+	// work (D-080): RunOnce never dispatches in that mode.
+	if adapter != nil && runnerMode() != RunnerOff {
 		if r, ok := store.(interface {
 			RunOnce(context.Context, Adapter) ScheduleDecision
 		}); ok {
@@ -439,7 +443,10 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"service": "gaos-dashboard",
 		"store":   s.store.Kind(),
 		"adapter": s.describeAdapter(),
-		"uptime":  time.Since(started).Round(time.Second).String(),
+		// The configured switch (D-080); whether anything can be sent at all is
+		// the adapter key beside it.
+		"runner": runnerMode(),
+		"uptime": time.Since(started).Round(time.Second).String(),
 	}
 
 	db, err := s.arc.Probe(ctx)
