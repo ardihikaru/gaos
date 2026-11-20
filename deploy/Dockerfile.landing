@@ -7,7 +7,7 @@
 # So this only copies. The stacks build it anyway rather than bind-mounting the
 # working tree, for the same reason the app is built there: a deployed tier must
 # not serve whatever happens to be checked out on the host.
-FROM nginx:alpine
+FROM nginx:1.31.9-alpine
 COPY . /srv/landing
 # The server block stays a bind mount in every stack, same file the local
 # compose uses, so cache headers live in exactly one place.
