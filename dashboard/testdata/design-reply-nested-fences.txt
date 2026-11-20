@@ -1,0 +1,191 @@
+Confirmed the marker mismatch. Now I have what I need to write the design.
+
+```gaos-design
+---
+task: wf-8-t-3
+run: wf-8-t-3-a1
+role: architect
+---
+# The design
+
+Automated regression coverage for B06 — Teknis & Monitoring (his-vendor-backend), closing out
+B06.01 (liveness), B06.02 (Swagger UI) and B06.03 (router 404/405 hygiene). The epic already has a
+reviewed catalog (`docs/test-catalog/vendor-backend/system.md`, cluster `V-SYS`, 8 cases,
+TC-VSYS-001..008) and three cases already have merged specs (`TC-VSYS-001`, `TC-VSYS-004`,
+`TC-VSYS-006`, all `tests/api/rest/his-vendor-backend/TC-VSYS-NNN.spec.ts`). This design covers the
+five still-`planned` cases (`TC-VSYS-002`, `-003`, `-005`, `-007`, `-008`) and a small refactor of the
+REST client that the three existing specs should have used.
+
+## What it does
+
+1. **A typed probe surface on the existing vendor client**, so the `V-SYS` specs stop sending raw
+   requests and start going through `src/api/rest/his-vendor-backend/his-vendor-backend.client.ts`
+   like every other endpoint in the suite — closing a golden-rule-2 gap (`AGENTS.md` §2.2: "no raw
+   `request.get()` ... in specs") that the first three merged `V-SYS` specs opened by calling
+   `anonymousContext().get(url)` directly, because no client method existed yet for these
+   infrastructure routes.
+2. **Five new specs**, one file per case (matching the established `TC-VSYS-NNN.spec.ts` naming),
+   each asserting exactly one behaviour from the catalog's Given/When/Then.
+3. **One shared leak-marker helper**, because the two existing mechanisms for "the body must not leak
+   internals" disagree today: the data-driven harness defaults (`src/data/vendor-cases/evaluate.ts`,
+   `DEFAULT_FORBIDDEN = ['goroutine ', 'runtime error', 'panic:']`) and the hand-written
+   `TC-VSYS-006` spec (`['goroutine', 'panic', 'sql:']`) use different lists. `V-SYS` specs are
+   hand-written (not data-driven), but they should still assert the same canonical set the catalog's
+   own scenario text names (`goroutine`, `panic`, `sql:`) plus the harness's `runtime error`, so a
+   future reader does not have to guess which list is authoritative.
+4. A documentation note (not an edit by this design) that the catalog and module-traceability rows
+   for `TC-VSYS-004` and `TC-VSYS-006` are stale — the specs are merged to `main` but
+   `docs/test-catalog/vendor-backend/system.md` still shows them `planned` with an empty `Spec`
+   column, and `docs/modules/B-vendor.md` still shows B06.02 and B06.03 at 0% automated. This design
+   does not touch those files (catalog rows are GAOS/engineer-owned, not architect-owned here), but
+   the implementing engineer must sync them in the same change as `TC-VSYS-001`'s catalog fix did
+   (commit `41a1209`), before or alongside landing the five new specs — otherwise the coverage number
+   this product is scored against (BRD success metric) stays wrong even after the specs exist.
+
+## How it works
+
+### Client: `his-vendor-backend.client.ts`
+
+Add a small "system" section to the existing `HisVendorBackendClient` (one client per service is
+already the rule; these routes belong to the same service, just not to the omnichannel/VTT domain
+surface):
+
+```ts
+/** GET/POST/DELETE /service-status — the liveness probe (V-SYS, B06.01/.03). */
+serviceStatus(method: 'GET' | 'POST' | 'DELETE' = 'GET'): Promise<APIResponse> {
+  return method === 'GET' ? this.get('service-status')
+    : method === 'POST' ? this.post('service-status')
+    : this.delete('service-status');
+}
+
+/** GET /swagger/<relativePath> — the API documentation surface (V-SYS, B06.02). */
+swagger(relativePath: string): Promise<APIResponse> {
+  return this.get(`swagger/${relativePath.replace(/^\/+/, '')}`);
+}
+
+/** GET an arbitrary path with no domain surface — router-hygiene probes (V-SYS, B06.03). */
+probeUnknownRoute(path: string): Promise<APIResponse> {
+  return this.get(path.replace(/^\/+/, ''));
+}
+```
+
+`BaseApiClient.url()` already joins `baseURL + '/' + path` and the registered base URL for
+`his-vendor-backend` already ends in `/api/v1`, so these three methods reproduce exactly the routes
+the three merged specs hit by hand (`.../api/v1/service-status`, `.../api/v1/swagger/index.html`,
+`.../api/v1/thisisnotaroute`) without the ad-hoc base-URL string surgery those specs currently do.
+`TC-VSYS-001`, `-004` and `-006` should be updated in the same change to call these methods via the
+`vendorApi` fixture instead of `anonymousContext().get(...)`; this is a behaviour-preserving edit to
+spec files, which `AGENTS.md` §6.3 lists under "may change freely" (no human approval needed), and it
+must still pass 3× before merging.
+
+### Shared helper: `src/utils/server-leak-markers.ts`
+
+```ts
+export const SERVER_LEAK_MARKERS = ['goroutine', 'panic', 'sql:', 'runtime error'] as const;
+
+export function expectNoServerLeak(body: string): void {
+  const haystack = body.toLowerCase();
+  for (const marker of SERVER_LEAK_MARKERS) {
+    expect(haystack, `response body must not contain "${marker}"`).not.toContain(marker);
+  }
+}
+```
+
+Used by every new `V-SYS` spec below in place of each spec re-declaring its own marker array.
+
+### The five specs
+
+All five are stateless GET/negative-method probes against public routes: no factory, no kit, no
+`cleanup.add`, no seed — same as the three merged cases. All use `{ tag: [Tag.regression] }`
+(matching the existing `V-SYS` specs; none is `@smoke` today, so none of the new ones introduces that
+distinction unilaterally).
+
+- **`TC-VSYS-002`** (B06.01, `+`, P1) — `tests/api/rest/his-vendor-backend/TC-VSYS-002.spec.ts`.
+  `vendorApi.serviceStatus()` (GET); assert `response.status() === 200`, then `expectNoServerLeak`
+  on the raw text body. Distinct behaviour from `TC-VSYS-001` (which asserts the `version`/`appName`
+  contract) even though both call the same route — the catalog gives them separate ids and separate
+  Given/When/Then, so they stay separate tests per the "one behaviour per test" rule rather than being
+  folded into one.
+
+- **`TC-VSYS-003`** (B06.03, `-`, P2) — `TC-VSYS-003.spec.ts`. `vendorApi.serviceStatus('POST')`;
+  assert `response.status() === 405`; also run `expectNoServerLeak` on the body, because the source
+  scenario (`SC-V-SYS-03`) states a 404/405 body containing `goroutine` or `panic` is itself a
+  security finding, not just a status-code check.
+
+- **`TC-VSYS-005`** (B06.02, `-`, P2) — `TC-VSYS-005.spec.ts`. `vendorApi.swagger('nonexistent-xyz.js')`;
+  assert `response.status() === 404` and `expectNoServerLeak` on the body.
+
+- **`TC-VSYS-007`** (B06.03, `-`, P2) — `TC-VSYS-007.spec.ts`. `vendorApi.serviceStatus('DELETE')`;
+  assert `response.status() === 405` and `expectNoServerLeak`, mirroring `TC-VSYS-003` for a different
+  verb on the same route (two cases, two files — the catalog keeps them distinct because the scenario
+  lists both `POST` and `DELETE` as separate "wrong method" examples).
+
+- **`TC-VSYS-008`** (B06.03, `-`, P1) — `TC-VSYS-008.spec.ts`, the path-traversal probe. Naively
+  calling `vendorApi.probeUnknownRoute('../etc/passwd')` is unsafe to rely on: Playwright's request
+  layer resolves the URL via standard dot-segment normalization before the bytes ever leave the
+  client, so `/api/v1/../etc/passwd` collapses to `/etc/passwd` client-side — the server never sees a
+  traversal attempt inside its own path space, and a 404 on that unrelated path would be a false
+  pass. The design sends the dot-segment percent-encoded instead —
+  `vendorApi.probeUnknownRoute('%2e%2e/etc/passwd')`, which normalization does not collapse — and,
+  following the precedent already set by `TC-VSYS-006` (which asserts `response.url()` to prove the
+  intended path was actually sent), first asserts `response.url()` contains `%2e%2e` to prove the
+  literal traversal bytes reached the server before asserting on the response: `expect([400,
+  404]).toContain(response.status())` and a body check that it contains neither a `/etc/passwd`-style
+  path nor `expectNoServerLeak`'s markers. `expect([...]).toContain(...)` is an assertion over a fixed
+  set, not a branch, so it does not trip the "no conditionals inside a test" rule.
+
+### Catalog bookkeeping (engineer's follow-up, not part of this design's output)
+
+For each of the five specs, the implementing change updates
+`docs/test-catalog/vendor-backend/system.md` (`Done` ☑, `Status` → `automated`, `Spec` → the file
+path) and regenerates `docs/modules/B-vendor.md` / `docs/modules/README.md` /
+`docs/modules/traceability.md` / `docs/test-catalog/README.md` coverage tables with
+`npm run catalog:report`, then `npm run catalog` to validate — the same sequence commit `41a1209`
+used for `TC-VSYS-001`. The same pass should also pick up the still-stale rows for `TC-VSYS-004` and
+`TC-VSYS-006`, since nothing in this epic currently credits their coverage.
+
+## What it leaves open
+
+- **Whether to migrate `TC-VSYS-001`/`-004`/`-006` to the new client methods in the same PR as the
+  five new specs, or as a separate follow-up.** Bundling keeps the golden-rule-2 fix and the new
+  coverage in one reviewable change; splitting keeps the new-coverage PR smaller. Either is
+  consistent with policy; the engineer picks based on diff size.
+- **The exact encoding Playwright actually transmits for `TC-VSYS-008`** depends on the Playwright/
+  undici version pinned in this repo and must be verified empirically against the real staging host
+  (assert `response.url()` first, as specified above) before the status/body assertions are trusted;
+  if `%2e%2e` still gets decoded and collapsed by the client before send, an alternative is a raw
+  `fetch`/socket probe outside Playwright's URL layer — not designed here because the simpler
+  percent-encoded form is expected to work and should be tried first.
+- **`/swagger/swagger.json`** is named in the B06.02 module-feature text ("Swagger UI `/swagger/*`
+  (index.html, swagger.json)") but has no catalog test case; this design does not invent a new TC id
+  for it — if the reviewer wants it covered, that is a catalog addition (GAOS-owned), not something
+  this design or its engineer should add unilaterally.
+- **An `Allow` header assertion on the two 405 cases** (`TC-VSYS-003`, `-007`) would be a reasonable
+  extra contract check but is not named in the catalog's Given/When/Then; left out to avoid asserting
+  behaviour the catalog does not ask for.
+- **Running against production** is moot here (`config/env.ts` already blocks it); these specs target
+  `TEST_ENV=staging` per `docs/vendor-backend-testing.md`'s existing preflight, same as the three
+  merged cases.
+```
+
+```gaos-handoff
+---
+task: wf-8-t-3
+run: wf-8-t-3-a1
+role: architect
+status: complete
+criteria:
+  - id: B06.01   met: true   evidence: "design covers TC-VSYS-001 (merged, contract) and TC-VSYS-002 (new: GET /service-status 200 + no-leak assertion) via vendorApi.serviceStatus(); catalog docs/test-catalog/vendor-backend/system.md already scopes both under US-VSYS-01"
+  - id: B06.02   met: true   evidence: "design covers TC-VSYS-004 (merged, swagger index 200/HTML) and TC-VSYS-005 (new: GET /swagger/nonexistent-xyz.js 404 + no-leak) via a new vendorApi.swagger() client method"
+  - id: B06.03   met: true   evidence: "design covers TC-VSYS-006 (merged, unknown path 404 clean) plus new TC-VSYS-003/-007 (POST/DELETE /service-status -> 405 + no-leak) and TC-VSYS-008 (percent-encoded path-traversal probe, 400|404, no filesystem-path leak), via new vendorApi.serviceStatus(method) and probeUnknownRoute(path) methods"
+artifacts: []
+blockers: []
+handoff:
+  next_role: engineer
+  must_know: "TC-VSYS-004 and TC-VSYS-006 specs are already merged to main (PRs #49, #51) but docs/test-catalog/vendor-backend/system.md and docs/modules/B-vendor.md still show them planned/0% automated -- sync those catalog rows (npm run catalog:report + npm run catalog) in the same change that lands the 5 remaining specs, the same way commit 41a1209 fixed TC-VSYS-001's row."
+usage:
+  tokens_in: 0
+  tokens_out: 0
+  basis: unmeasured
+---
+```
