@@ -127,6 +127,13 @@ CREATE PROPERTY GaosEdge.createdBy STRING;</pre>
     </tbody>
   </table>
 
+  <p><strong>Since v0.41.0 an event carries the wall-clock time it was emitted at</strong>
+  (<a href="../product/decision-log.html#d-081">D-081</a>): an <code>at</code> key, unix seconds on the dashboard's
+  clock, beside the reducer's delta in <code>payload</code>. <code>ts</code> stays the database's own write time; a row
+  written before v0.41.0 has no <code>at</code> and is read at its <code>ts</code>, corrected by the database's zone. The
+  board reads a card's <code>TaskPlanned</code> and <code>TaskMoved</code> events by that clock to say how long the card
+  spent in each status and how much of it no AI was working on it &mdash; a read, never a stored rollup.</p>
+
   <p><code>Event</code> carries a <code>seq LONG</code> that is <strong>monotonic and gapless per
   tenant</strong>. That invariant is what makes a single writer per tenant a requirement rather
   than a preference — a gap in the sequence is an event that was lost, and a fold cannot tell the

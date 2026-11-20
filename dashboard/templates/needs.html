@@ -132,3 +132,57 @@
   {{end}}
 </div>
 {{end}}
+
+{{/* The timing sheet (D-081, docs/designs/card-timing.md). Opened by a card's
+     lead-time chip: GET ui/timing/{id}/{taskId}. Read-only, a snapshot of the
+     moment it was opened -- the chip on the card is what keeps ticking. Same
+     swap unit and the same enter/exit as the answer sheet. */}}
+{{define "timing-modal"}}
+<div class="modal-back modal-anim" id="timingModal" {{if not .Timing}}hidden{{end}} hx-swap-oob="true">
+  {{with .Timing}}
+  <div class="modal timing" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="timingTitle" aria-describedby="timingMeta">
+    <header>
+      <div class="answer-head">
+        <span class="eyebrow" id="timingMeta">{{.ProductName}} · {{.TaskID}} · {{.Status}}</span>
+        <h3 id="timingTitle" dir="auto">{{.TaskTitle}}</h3>
+      </div>
+      <button type="button" class="icon-btn x" aria-label="Close" title="Close (Esc)" data-close-modal="timingModal">✕</button>
+    </header>
+    <div class="modal-body">
+      {{if .Reason}}<p class="tm-reason">{{.Reason}}</p>{{end}}
+      {{if .Totals}}
+      <dl class="tm-totals">
+        {{range .Totals}}<div{{if .Zero}} class="tm-zero"{{end}}><dt>{{.Label}}</dt><dd class="mono">{{.Value}}</dd></div>{{end}}
+      </dl>
+      <p class="tm-line mono">Created {{.Created}} · {{if .Finished}}finished {{.Finished}}{{else}}still open, measured at {{.AsOf}}{{end}}</p>
+      {{end}}
+
+      <h4 class="tm-h">Status history</h4>
+      {{if .Segments}}
+      <ol class="tm-steps">
+        {{range .Segments}}
+        <li class="tm-step{{if .Open}} is-open{{end}}">
+          <span class="tm-st mono">{{.Status}}</span>
+          <span class="tm-how">{{if .From}}from {{.From}}{{if .Rule}} by {{.Rule}}{{end}}{{else}}planned{{end}}</span>
+          <span class="tm-el mono">{{if .Open}}now — {{.Elapsed}} so far{{else}}{{.Elapsed}}{{end}}</span>
+          <span class="tm-when mono">{{if .EnteredISO}}<time datetime="{{.EnteredISO}}">{{.Entered}}</time>{{end}}</span>
+        </li>
+        {{end}}
+      </ol>
+      {{else}}<p class="tm-line">No status change is recorded for this card.</p>{{end}}
+
+      <h4 class="tm-h">Attempts</h4>
+      {{if .Attempts}}
+      <div class="tm-scroll"><table class="tm-runs">
+        <thead><tr><th>#</th><th>Status</th><th>Model</th><th>Vendor</th><th>Duration</th><th>Tokens</th><th>Cost</th></tr></thead>
+        <tbody>{{range .Attempts}}<tr><td class="mono">{{.Attempt}}</td><td class="mono">{{.Status}}</td><td>{{.Model}}</td><td>{{.Provider}}</td><td class="mono">{{.Duration}}</td><td class="mono">{{.Tokens}}</td><td class="mono">{{.Cost}}</td></tr>{{end}}</tbody>
+      </table></div>
+      {{if .Cost}}<p class="tm-line mono">Cost {{.Cost}}</p>{{end}}
+      {{else}}<p class="tm-line">No attempt has run yet.</p>{{end}}
+
+      {{if .Workflow}}<p class="tm-line mono tm-wf">{{.Workflow}}</p>{{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}

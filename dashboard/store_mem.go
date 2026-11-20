@@ -42,6 +42,14 @@ const liveMode = -1
 type MemStore struct {
 	mu sync.RWMutex
 
+	// The card timing's per-task index into events (timing.go, D-081):
+	// positions of the TaskPlanned and TaskMoved events bearing on each task,
+	// extended from timingN on read. Its own mutex, because a reader holding
+	// mu.RLock extends it.
+	timingMu  sync.Mutex
+	timingIdx map[string][]int
+	timingN   int
+
 	// live is the broker emit publishes to (D-065). Set on the live store
 	// only: a projection built to fold or replay has none, so the past is
 	// never re-announced as if it were happening now.
@@ -441,7 +449,7 @@ func (s *MemStore) emit(t EventType, deskID, text, kind string, p EventPayload) 
 	// shares a slice or a *Meeting with the live floor is an event that changes
 	// after it was written, which BR-04 says cannot happen and which would be
 	// invisible until a replay showed the wrong past.
-	e := Event{Seq: s.seq, Type: t, DeskID: deskID, Text: text, Kind: kind, T: s.clock, Payload: p.Clone()}
+	e := Event{Seq: s.seq, Type: t, DeskID: deskID, Text: text, Kind: kind, T: s.clock, At: time.Now().Unix(), Payload: p.Clone()}
 	if needsNotice(e) {
 		s.notifs++
 	}

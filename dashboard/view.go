@@ -67,6 +67,8 @@ type View struct {
 	Needs int
 	// Answer is the answer sheet, when one is open (M15).
 	Answer *AnswerView
+	// Timing is the open timing sheet (D-081, timing.go), or nil.
+	Timing *TimingView
 
 	// ShowLogin and a non-nil BO are what decide whether each sheet is visible.
 	// The server owns that, not the client: "am I signed in" has exactly one
