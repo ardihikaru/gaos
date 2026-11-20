@@ -353,7 +353,7 @@ func reviewContract(taskID, runID, role string) string {
 	return fmt.Sprintf(reviewContractTemplate,
 		ReviewFence,
 		fence+ReviewFence+"\n"+reviewExample(taskID, runID, role)+"\n"+fence,
-		runID, ReviewFence, ReviewFence, SigReviewMissing)
+		runID, maxFindingNote, ReviewFence, ReviewFence, SigReviewMissing)
 }
 
 // reviewExample is a COMPLETE review block, flush left.
@@ -390,7 +390,8 @@ describe what you actually found:
   scope: "<path>" or "<path>:<line>"   note: "<one line: what is wrong>"
 - scope is a path, optionally with a line number, and nothing else. A scope carrying
   prose is rejected.
-- The note is one line and it says what is WRONG. Do not quote the text you are
+- The note is one line of at most %d characters, and it says what is WRONG. A longer
+  note fails the whole review, so say the defect and its consequence, and stop. Do not quote the text you are
   complaining about: a finding records where the defect is, never what it matched.
 - If you found nothing, write findings with no items under it AND no-findings: true.
   An empty list without that line is rejected: a review that found nothing and a review

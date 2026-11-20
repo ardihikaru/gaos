@@ -36,6 +36,20 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-40-4">v0.40.4 <time datetime="2026-11-21">2026-11-21</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A reviewer is told how long a note may be, and a refused review says why.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> a correct review &mdash; no blockers, one major, two nits &mdash; was refused
+        and its gate stayed blocked because one finding's note ran to 473 characters. The parser caps a note at 300, but
+        the review contract only said the note is one line. The contract now states the limit, from the same constant the
+        parser uses, and says a longer note fails the whole review; the parser is not loosened.</li>
+        <li><span class="chg fix">Fixed</span> the refusal now says what is wrong with the note: its length and the limit,
+        or that it carries a line break or a control character. A review the gate refuses carries that reason on its run's
+        line in the timeline, where before the reason was dropped. Three new tests, TC-461 to TC-463.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-40-3">v0.40.3 <time datetime="2026-11-21">2026-11-21</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A design with code samples in it reaches its reviewer whole.</p>
       <ul>
