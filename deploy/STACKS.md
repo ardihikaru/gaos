@@ -16,7 +16,7 @@ browser
   │  HTTPS
   ▼
 clino — 103.127.134.25, wg 10.10.0.1 — PUBLIC edge VM, 1 vCPU / 957 MiB
-  │  nginx 1.18 terminates TLS (certbot, HTTP-01, two cert lineages)
+  │  nginx 1.30 (nginx.org stable) terminates TLS (certbot, HTTP-01, two cert lineages)
   │  and proxies PLAIN HTTP, setting Host, X-Forwarded-For, X-Forwarded-Proto
   │  NO Docker. NO application state. NO PROXY protocol.
   ▼  WireGuard
