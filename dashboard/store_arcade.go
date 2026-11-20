@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,6 +66,19 @@ type ArcadeStore struct {
 	// evidence a schema change had landed was that the process was still
 	// running, which is an inference rather than a reading.
 	schemaApplied, schemaPresent int
+
+	// written is what the graph holds: a fingerprint per record ("Type/id"), as
+	// of the last transaction that committed it. persist writes a record only
+	// when its fingerprint has moved. staged is the current transaction's half,
+	// folded into written on a successful commit and dropped on any failure, so
+	// a write that never landed is written again by the next persist.
+	//
+	// Before this, every persist rewrote every desk, task, run and context slice
+	// in the floor -- an edge probe per citation per slice -- on every event. On
+	// a slow database that is minutes of statements under mu, and every handler
+	// queued behind it (v0.40.2). Both maps are guarded by mu.
+	written map[string]string
+	staged  map[string]string
 }
 
 // SchemaCounts is what the last apply did: statements newly applied, and
@@ -142,6 +157,8 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 		if err := s.persistAll(ctx); err != nil {
 			return nil, fmt.Errorf("seed: %w", err)
 		}
+	} else {
+		s.markLoaded()
 	}
 	installHook(s.proj)
 	return s, nil
@@ -225,10 +242,110 @@ func (s *ArcadeStore) SetAdapter(a Adapter) { s.proj.SetAdapter(a) }
 // written is a state change that never happened, and a background write that
 // failed is exactly that -- which is why boot reconciliation exists, and why
 // the log line is worded so a human reading it knows the graph is behind.
+//
+// The write is bounded by backgroundPersistBudget, counted from the moment the
+// lock is held. Each statement already has the HTTP client's thirty seconds,
+// but a transaction is many statements, and a database that answers each one
+// slowly would otherwise hold mu -- and every handler waiting on it -- for as
+// long as the sum. A write that runs out of budget is a failed write under the
+// contract above: its events are lost and logged, and the records it carried
+// stay unstaged (see written), so the next persist writes them again.
 func (s *ArcadeStore) persistBackground(ctx context.Context, r Result) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, backgroundPersistBudget)
+	defer cancel()
 	return s.persist(ctx, r)
+}
+
+// backgroundPersistBudget is how long one background write may hold the store
+// lock. A var so a test can shorten it.
+var backgroundPersistBudget = 60 * time.Second
+
+// rollbackBudget bounds the rollback a failed persist sends. The persist's own
+// context may be the thing that expired, and a rollback sent on it would fail
+// before it left; one sent with no bound could hold mu for the client's thirty
+// seconds against the same slow database.
+const rollbackBudget = 5 * time.Second
+
+// fingerprint is a record's content as a digest. A record that will not
+// marshal gets no fingerprint, which reads as "changed" and is written every
+// time, as everything was before the cache.
+func fingerprint(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+// unchanged reports whether the graph already holds v under key, and returns
+// v's fingerprint for stage.
+func (s *ArcadeStore) unchanged(key string, v any) (string, bool) {
+	fp := fingerprint(v)
+	return fp, fp != "" && s.written[key] == fp
+}
+
+// stage records that this transaction wrote key at fp. Outside a staging set
+// (staged nil) it does nothing.
+func (s *ArcadeStore) stage(key, fp string) {
+	if fp != "" && s.staged != nil {
+		s.staged[key] = fp
+	}
+}
+
+// beginStage opens the staging set for one transaction; commitStage folds it
+// into written once the transaction has committed. A persist that leaves
+// without calling commitStage discards it.
+func (s *ArcadeStore) beginStage() { s.staged = map[string]string{} }
+
+func (s *ArcadeStore) commitStage() {
+	if s.written == nil {
+		s.written = map[string]string{}
+	}
+	for k, v := range s.staged {
+		s.written[k] = v
+	}
+	s.staged = nil
+}
+
+// markLoaded records every desk, task, run, slice and handoff the projection
+// holds as already in the graph. Called once load() has rebuilt the projection
+// FROM the graph, so the first write after a restart is the change it carries
+// rather than the whole world again -- which, on the slow database this cache
+// exists for, is the write that never finishes.
+func (s *ArcadeStore) markLoaded() {
+	s.beginStage()
+	for _, d := range s.proj.floor().Desks {
+		s.stage("Workflow/"+d.WorkflowID, fingerprint(d))
+		for _, t := range s.proj.tasksSnapshot(d.ID) {
+			s.stage("Task/"+t.ID, fingerprint(t))
+		}
+		runs, slices := s.proj.runsSnapshot(d.ID)
+		for _, r := range runs {
+			s.stage("TaskRun/"+r.ID, fingerprint(r))
+		}
+		for dg, rec := range slices {
+			s.stage("ContextSlice/"+dg, fingerprint(rec))
+		}
+		for _, a := range s.proj.artifactsSnapshot(d.ID) {
+			s.stage("Artifact/"+a.ID, fingerprint(a))
+		}
+	}
+	s.commitStage()
+}
+
+// soft is optional() for a record whose fingerprint is about to be staged: a
+// refusal it swallows marks the record unclean, so the edge is tried again on
+// the next persist rather than forgotten behind a fingerprint that says the
+// record is written.
+func (s *ArcadeStore) soft(err error, clean *bool) error {
+	if err != nil && s.optional(err) == nil {
+		*clean = false
+		return nil
+	}
+	return err
 }
 
 // Reconcile is boot recovery. T-053.
@@ -348,7 +465,13 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	s.beginStage()
+	defer func() {
+		s.staged = nil // a commit has already folded it in; any other exit discards it
+		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackBudget)
+		defer cancel()
+		tx.Rollback(rctx)
+	}()
 
 	for _, e := range r.NewEvents {
 		if err := s.writeEvent(ctx, tx, e); err != nil {
@@ -401,7 +524,11 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 			}
 		}
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	s.commitStage()
+	return nil
 }
 
 // persistAll writes the whole seeded world. Only ever runs once per database.
@@ -471,7 +598,13 @@ func (s *ArcadeStore) persistAll(ctx context.Context) error {
 	// No snapshot rung here. The seeded world is one FloorOpened event, and a
 	// rung after the first event would save nothing -- the ladder starts paying
 	// for itself at snapshotEvery, and persist writes the rungs from there on.
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	// The seed is the whole world, so the graph now holds everything the
+	// projection does -- the same position load() leaves it in.
+	s.markLoaded()
+	return nil
 }
 
 // ---------------------------------------------------------------- writes
@@ -599,7 +732,24 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 // the scheduler will read; the rest of the desk -- the stage ribbon, the log
 // tail, the score bars -- rides as a document, because it is a rendering of
 // state rather than state the scheduler branches on.
+//
+// A desk whose content has not moved since the graph last took it is skipped
+// (see ArcadeStore.written): the Workflow, its current Task and both edges are
+// all functions of d.
 func (s *ArcadeStore) writeDesk(ctx context.Context, tx *ArcadeTx, d Desk) error {
+	key := "Workflow/" + d.WorkflowID
+	fp, same := s.unchanged(key, d)
+	if same {
+		return nil
+	}
+	if err := s.writeDeskRecord(ctx, tx, d); err != nil {
+		return err
+	}
+	s.stage(key, fp)
+	return nil
+}
+
+func (s *ArcadeStore) writeDeskRecord(ctx context.Context, tx *ArcadeTx, d Desk) error {
 	logs, err := jsonList(d.Logs)
 	if err != nil {
 		return err
@@ -664,12 +814,18 @@ func (s *ArcadeStore) writeDesk(ctx context.Context, tx *ArcadeTx, d Desk) error
 // DDL declares either. The declared columns are the ones the scheduler filters
 // and indexes on; these four are how a row finds its way home.
 //
-// Known cost, written down rather than discovered: this rewrites every task of
-// every desk on every mutation, which is the same profile persist already has
-// for desks. At fixture scale it is a few dozen statements. At real scale it
-// wants to write only the task that changed, and that is a follow-up.
+// It writes only the tasks that changed since the graph last took them (see
+// ArcadeStore.written). It used to rewrite every task of every desk on every
+// mutation, which this comment once called "a follow-up"; in v0.40.2 that
+// follow-up was a board move waiting minutes behind a background write.
 func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID string) error {
 	for _, t := range s.proj.tasksSnapshot(deskID) {
+		key := "Task/" + t.ID
+		fp, same := s.unchanged(key, t)
+		if same {
+			continue
+		}
+		s.stage(key, fp) // discarded with the transaction if anything below fails
 		if err := s.upsert(ctx, tx, "Task", t.ID, map[string]any{
 			"title": t.Title, "status": t.Status, "role": t.Role,
 			"priority": t.Priority, "modelHint": t.Model,
@@ -727,7 +883,20 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 	// next agent only through USES_CONTEXT on that agent's slice" -- a
 	// HAS_ARTIFACT edge beside it would be a second route to the same document,
 	// and the requirement is about there being exactly one.
+	//
+	// Each record below is written only when it changed since the graph last
+	// took it (see ArcadeStore.written). Runs and slices accumulate without
+	// bound, and rewriting all of them -- with an existence probe per citation
+	// edge -- on every event is what held the store lock for minutes in v0.40.1.
+	// A record whose optional edge was refused is not staged, so the edge is
+	// tried again next time, as it always was.
 	for _, a := range s.proj.artifactsSnapshot(deskID) {
+		key := "Artifact/" + a.ID
+		fp, same := s.unchanged(key, a)
+		if same {
+			continue
+		}
+		s.stage(key, fp)
 		if err := s.upsert(ctx, tx, "Artifact", a.ID, map[string]any{
 			"kind": a.Kind, "title": a.Title, "body": a.Body, "mimeType": "text/markdown",
 			"taskId": a.TaskID, "deskId": a.DeskID, "runId": a.RunID, "attempt": a.Attempt,
@@ -746,6 +915,12 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 	sort.Strings(digests)
 	for _, d := range digests {
 		rec := slices[d]
+		key := "ContextSlice/" + d
+		fp, same := s.unchanged(key, rec)
+		if same {
+			continue
+		}
+		clean := true
 		// The citations go on the vertex AND, where they can, on edges.
 		//
 		// Not redundancy. The edge is the traversable form and the one §12's
@@ -772,15 +947,24 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 			if c.NodeID == "" || c.NodeType == "" {
 				continue
 			}
-			if err := s.optional(s.edgeProps(ctx, tx, "USES_CONTEXT",
+			if err := s.soft(s.edgeProps(ctx, tx, "USES_CONTEXT",
 				"ContextSlice", rec.Digest, c.NodeType, c.NodeID,
-				map[string]any{"role": c.Role, "tokens": c.Tokens})); err != nil {
+				map[string]any{"role": c.Role, "tokens": c.Tokens}), &clean); err != nil {
 				return err
 			}
+		}
+		if clean {
+			s.stage(key, fp)
 		}
 	}
 
 	for _, r := range runs {
+		key := "TaskRun/" + r.ID
+		fp, same := s.unchanged(key, r)
+		if same {
+			continue
+		}
+		clean := true
 		props := map[string]any{
 			"attempt": r.Attempt, "status": r.Status, "model": r.Model,
 			"startedAt": unixStamp(r.StartedAt), "invocation": r.Invocation,
@@ -823,19 +1007,22 @@ func (s *ArcadeStore) writeRuns(ctx context.Context, tx *ArcadeTx, deskID string
 		// the edge is optional in exactly the way injectSubgraph's are.
 		if r.BlueprintVersion > 0 {
 			// BR-39: the rules this attempt ran under, as an edge an auditor can walk.
-			if err := s.optional(s.edge(ctx, tx, "PINNED_TO", "TaskRun", r.ID,
-				"BlueprintVersion", blueprintVersionID(r.DeskID, r.BlueprintVersion))); err != nil {
+			if err := s.soft(s.edge(ctx, tx, "PINNED_TO", "TaskRun", r.ID,
+				"BlueprintVersion", blueprintVersionID(r.DeskID, r.BlueprintVersion)), &clean); err != nil {
 				return err
 			}
 		}
-		if err := s.optional(s.edge(ctx, tx, "HAS_RUN", "Task", r.TaskID, "TaskRun", r.ID)); err != nil {
+		if err := s.soft(s.edge(ctx, tx, "HAS_RUN", "Task", r.TaskID, "TaskRun", r.ID), &clean); err != nil {
 			return err
 		}
 		if r.SliceDigest != "" {
-			if err := s.optional(s.edge(ctx, tx, "ASSEMBLED",
-				"TaskRun", r.ID, "ContextSlice", r.SliceDigest)); err != nil {
+			if err := s.soft(s.edge(ctx, tx, "ASSEMBLED",
+				"TaskRun", r.ID, "ContextSlice", r.SliceDigest), &clean); err != nil {
 				return err
 			}
+		}
+		if clean {
+			s.stage(key, fp)
 		}
 	}
 	return nil

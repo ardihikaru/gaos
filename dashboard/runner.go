@@ -551,19 +551,23 @@ func withoutReady(tasks []TaskNode) []TaskNode {
 // computed from a snapshot, and DISPATCHED -> READY is a legal transition: an
 // unconditional move would pull a card the operator dispatched in between back
 // to READY while its turn is live, releasing the BR-38 lease.
+//
+// The moves of one pass are published as ONE write, and a pass that moved
+// nothing publishes nothing. Under the ArcadeDB store every publish is a
+// transaction held under the store lock, and one per card -- one per product,
+// every pass -- multiplied the time a board move waited behind the scheduler.
 func (s *MemStore) readyPending(d ScheduleDecision) {
+	var moved []Event
 	for _, x := range d.Ready {
 		s.mu.Lock()
-		var e Event
-		ok := false
 		if t := s.taskPtr(x.TaskID); t != nil && t.Status == StatusPending {
-			e, ok = s.moveTaskLocked(x.TaskID, StatusReady, MoveSchedule)
+			if e, ok := s.moveTaskLocked(x.TaskID, StatusReady, MoveSchedule); ok {
+				moved = append(moved, e)
+			}
 		}
 		s.mu.Unlock()
-		if ok {
-			s.publish(e)
-		}
 	}
+	s.publish(moved...)
 }
 
 // clearFor freezes and screens the packet for one scheduled task. BR-32: the
