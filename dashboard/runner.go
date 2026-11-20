@@ -293,6 +293,11 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 	var gate *gateOutcome
 	if g, ok := s.gateVerdict(taskID, runID, att); ok {
 		gate = &g
+		// A review the parser refused says why on the run's own line, so the
+		// operator who retries it knows what the reviewer must change.
+		if g.detail != "" {
+			text += "; the review was refused: " + g.detail
+		}
 	}
 	var out []Event
 	if m, ok := s.moveTaskLocked(taskID, to, rule); ok {
