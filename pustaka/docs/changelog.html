@@ -36,6 +36,19 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-40-1">v0.40.1 <time datetime="2026-11-20">2026-11-20</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The scheduler readies work again: a seat on a desk no longer counts as a running agent.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> under <code>GAOS_RUNNER=manual</code> nothing ever moved from backlog to ready.
+        The scheduler read an agent as busy from the desk seats, and an agent seated at two active desks as busy everywhere.
+        The seeded floor seats the only architect at two desks that never finish, and every new workflow seats the only
+        planner on its desk, so every architect and planner task waited on a run that did not exist. An agent is now busy only
+        while it carries a task that is dispatched or running; one live turn per product is still the lease's
+        (<a href="product/brd.html#rules-invariants">BR-38</a>). Two new tests, TC-453 and TC-454.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-40-0">v0.40.0 <time datetime="2026-11-20">2026-11-20</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Run one chosen card at a time. Nothing changes on a deploy that does not set the new value.</p>
       <ul>

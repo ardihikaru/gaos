@@ -109,11 +109,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "three hundred and twenty-eight" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "328" ]; then
+if grep -q "three hundred and thirty" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "330" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says three hundred and twenty-eight"
+  bad "Go test count: $go_tests tests on disk, register says three hundred and thirty"
 fi
 
 prose_check() {
@@ -124,8 +124,8 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "four hundred and fifty-two"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "four hundred and fifty-two"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "four hundred and fifty-four"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "four hundred and fifty-four"
 prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Seventy-nine entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-five in one place"
 prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-six rules"
@@ -138,10 +138,10 @@ readme_check() {
     bad "$label: README.md does not say \"$want\""
   fi
 }
-readme_check "README dashboard test count" "306 tests"
-readme_check "README total test count"    "328 tests"
-readme_check "README case count"          "452 cases"
-readme_check "README version"             "Product version 0.40.0"
+readme_check "README dashboard test count" "308 tests"
+readme_check "README total test count"    "330 tests"
+readme_check "README case count"          "454 cases"
+readme_check "README version"             "Product version 0.40.1"
 
 # ------------------------------------------------------------- 4. rule forks ---
 # A rule restated in two files forks: one harness enforces the new wording and
