@@ -36,6 +36,20 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-40-2">v0.40.2 <time datetime="2026-11-20">2026-11-20</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A slow ArcadeDB no longer freezes the board behind a background write.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> a board move could hang for minutes on the ArcadeDB store. Every write
+        &mdash; including the scheduler's, every pass that readied a card &mdash; rewrote every desk, task, run and context
+        slice in the floor, with one database round trip per citation edge, while holding the store's lock; on a slow
+        database each handler and the question sweep waited behind it. A write now sends only the records that changed
+        since the graph last committed them, a background write gives up after sixty seconds instead of holding the lock
+        indefinitely, and a scheduler pass publishes its readies as one write. A record whose write did not commit is
+        written again by the next one. Three new tests, TC-455 to TC-457.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-40-1">v0.40.1 <time datetime="2026-11-20">2026-11-20</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The scheduler readies work again: a seat on a desk no longer counts as a running agent.</p>
       <ul>

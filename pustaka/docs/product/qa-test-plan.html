@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and fifty-four cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and fifty-seven cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and fifty-four cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and fifty-seven cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -543,6 +543,9 @@
       <tr data-tags="check-stacks compose runner hard-coded one place negative d-080 implemented"><td>TC-452</td><td>check-stacks.sh</td><td>Negative</td><td>The prod compose file sets <code>GAOS_RUNNER</code> in exactly one place, so no spelling of a hard-coded value can sit beside the pass-through.</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler busy seat live turn planner architect manual positive implemented"><td>TC-453</td><td>dashboard (go test)</td><td>Positive</td><td>With the seeded floor untouched and two workflows each seating the planner, no agent is busy while nothing is DISPATCHED or RUNNING, the first workflow's planner task is readied on <code>a-9</code>, and the second's once the first is parked in READY (<code>TestASeatWithNoLiveTurnDoesNotHoldTheAgent</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler busy live turn capability planner negative implemented"><td>TC-454</td><td>dashboard (go test)</td><td>Negative</td><td>A RUNNING task holds one agent of its role, named with its product, so the same role on another product is blocked as <code>every planner agent is busy</code> and the agent is handed nothing else (<code>TestALiveTurnHoldsItsAgent</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb persist write lock slow database changed records negative implemented"><td>TC-455</td><td>dashboard (go test)</td><td>Negative</td><td>Against a fake ArcadeDB, a persist with nothing changed sends no upsert and one event insert, one changed task sends exactly one Task upsert, and a task whose commit failed is written again by the next persist (<code>TestAPersistWritesOnlyTheRecordsThatChanged</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb background write lock budget slow database stall negative implemented"><td>TC-456</td><td>dashboard (go test)</td><td>Negative</td><td>A background write against an ArcadeDB that stalls every statement gives up within its budget, reports the failure and releases the store lock, so a board move is not left waiting behind it (<code>TestABackgroundWriteReleasesTheStoreLockWhenTheGraphStalls</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler manual ready publish one write positive implemented"><td>TC-457</td><td>dashboard (go test)</td><td>Positive</td><td>A manual-runner pass that readies two cards publishes one write carrying both moves, and a pass that moves nothing publishes nothing (<code>TestAManualPassPublishesItsReadiesAsOneWrite</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3356,6 +3359,27 @@
   <code>a-9 is %+v while %s is RUNNING on %s, want busy at %s</code>,
   <code>%s reported %+v while the only planner runs %s, want capability: every planner agent is busy</code> or
   <code>the planner was handed %s while it runs %s</code>.</p>
+
+  <h3 id="go-arcade-write-lock">dashboard &mdash; a slow graph cannot hold the store lock (TC-455&ndash;TC-457)</h3>
+  <p>v0.40.2, in <code>dashboard/store_arcade_writes_test.go</code>, against a fake ArcadeDB. On prod a board move hung
+  for minutes: the scheduler's background write held the ArcadeStore lock while it rewrote every desk, task, run and
+  context slice in the floor &mdash; with an existence probe per citation edge &mdash; against a slow database, and
+  every handler and the question sweep queued behind it. A persist now writes only the records whose content moved
+  since the graph last committed them; a background write is bounded by <code>backgroundPersistBudget</code>; and a
+  manual pass publishes its readies as one write.
+  <strong>TC-455, negative</strong> (<code>TestAPersistWritesOnlyTheRecordsThatChanged</code>): prints
+  <code>a persist with nothing changed sent %d upsert(s); want 0 -- every write rewrote the whole floor, which is what held the store lock for minutes on a slow database</code>,
+  <code>a persist with one event inserted %d event(s); want 1</code>,
+  <code>one changed task produced %d Task upsert(s); want exactly 1</code>,
+  <code>a persist whose commit failed reported success</code> or
+  <code>after a failed commit the next persist upserted %d Task(s); want 1 -- a write that never landed was forgotten as if it had</code>.
+  <strong>TC-456, negative</strong> (<code>TestABackgroundWriteReleasesTheStoreLockWhenTheGraphStalls</code>): prints
+  <code>a background write against a stalled database reported success</code>,
+  <code>the background write held the store lock for %s against a stalled database; want it bounded by backgroundPersistBudget, or a board move waits behind it</code> or
+  <code>the store lock is still held after the background write gave up</code>.
+  <strong>TC-457, positive</strong> (<code>TestAManualPassPublishesItsReadiesAsOneWrite</code>): prints
+  <code>a pass that readied two cards published %d write(s); want 1 carrying both moves -- one transaction per card multiplies the time the store lock is held</code>
+  or, for the negative half, <code>a pass that moved nothing published %d write(s); want 0</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
