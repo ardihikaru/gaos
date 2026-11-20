@@ -10,7 +10,7 @@ on that box depends on. **Run them yourself, in order, and do not skip the
 `nginx -t`.**
 
 ```
-browser --HTTPS--> clino EDGE_IP   nginx 1.18 terminates TLS
+browser --HTTPS--> clino EDGE_IP   nginx 1.30 (nginx.org stable) terminates TLS
        --plain HTTP over WireGuard--> 10.10.0.2:1<env>301 --> per-product Traefik :80
        --> landing / dashboard / docs      (path-routed, one origin)
 ```
