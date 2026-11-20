@@ -340,22 +340,46 @@ func reorderColumn(tasks []TaskRecord, productID, taskID string, index int) int 
 	return index
 }
 
+// liveTurnLocked names another task of product that holds its one live turn
+// (BR-38), or "". Caller holds s.mu.
+func (s *MemStore) liveTurnLocked(productID, taskID string) string {
+	for _, o := range s.tasks {
+		if o.DeskID == productID && o.ID != taskID && (o.Status == StatusDispatched || o.Status == StatusRunning) {
+			return o.ID
+		}
+	}
+	return ""
+}
+
 // dispatchNow is the board's "ready → working": the scheduler's own route for
 // one task, with every gate it applies -- the graph lease (BR-38), the drift
-// gate (BR-39), the egress pass (BR-32) -- and the runner switch, which is the
-// permission to spend.
+// gate (BR-39), the egress pass (BR-32), the readiness floor (BR-07) -- and the
+// runner switch, which is the permission to spend. Under GAOS_RUNNER=manual
+// this is the only route that spends (D-080, BR-56).
 func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (Result, error) {
 	s.mu.Lock()
 	ad := s.adapter
-	if ad == nil || !runnerEnabled() {
+	if ad == nil {
 		s.mu.Unlock()
-		return Result{}, reject("the runner is off (GAOS_RUNNER); dispatching spends money and needs it on")
+		return Result{}, reject("no model adapter is configured (GAOS_MODEL_MODE); nothing can be dispatched")
 	}
-	for _, o := range s.tasks {
-		if o.DeskID == productID && o.ID != taskID && (o.Status == StatusDispatched || o.Status == StatusRunning) {
+	if !runnerMaySpend() {
+		s.mu.Unlock()
+		return Result{}, reject("the runner is off (GAOS_RUNNER); dispatching spends money and needs it on or manual")
+	}
+	// BR-07, which the scheduler applies on every pass (scheduler.go) and this
+	// route did not: under manual a card can sit in ready long after the
+	// record it was readied against has decayed.
+	if m := s.masterPtr(productID); m != nil {
+		if score := m.ReadinessScore(); score < PlanFloor {
 			s.mu.Unlock()
-			return Result{}, reject(fmt.Sprintf("%s already has a live turn (%s); one at a time per product (BR-38)", productID, o.ID))
+			return Result{}, reject(fmt.Sprintf(
+				"readiness %d is below the planning floor of %d; nothing is dispatched (BR-07)", score, PlanFloor))
 		}
+	}
+	if live := s.liveTurnLocked(productID, taskID); live != "" {
+		s.mu.Unlock()
+		return Result{}, reject(fmt.Sprintf("%s already has a live turn (%s); one at a time per product (BR-38)", productID, live))
 	}
 	if _, drift := s.blueprintGate(productID); drift != nil {
 		s.mu.Unlock()
@@ -381,8 +405,29 @@ func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (R
 		s.refuseDispatch(d, v)
 		return Result{}, reject(v.Reason)
 	}
+	// The claim (BR-38) is made atomic with the move: the lock was dropped for
+	// the egress pass, and two dispatches in one product could both have
+	// passed the check above. Re-check under the lock that takes the move, and
+	// start no turn unless this call is the one that moved the task.
 	s.mu.Lock()
-	e, _ := s.moveTaskLocked(taskID, StatusDispatched, MoveDispatch)
+	if live := s.liveTurnLocked(productID, taskID); live != "" {
+		s.mu.Unlock()
+		return Result{}, reject(fmt.Sprintf("%s already has a live turn (%s); one at a time per product (BR-38)", productID, live))
+	}
+	t := s.taskPtr(taskID)
+	if t == nil || t.Status != StatusReady {
+		st := "gone"
+		if t != nil {
+			st = t.Status
+		}
+		s.mu.Unlock()
+		return Result{}, reject(fmt.Sprintf("%s is no longer ready (it is %s)", taskID, st))
+	}
+	e, moved := s.moveTaskLocked(taskID, StatusDispatched, MoveDispatch)
+	if !moved {
+		s.mu.Unlock()
+		return Result{}, reject(fmt.Sprintf("%s is no longer ready (it is %s)", taskID, t.Status))
+	}
 	r := s.result(taskID+": dispatched.", e)
 	s.mu.Unlock()
 	go func() {

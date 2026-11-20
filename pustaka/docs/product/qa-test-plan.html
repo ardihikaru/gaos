@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and forty-two cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
+  four hundred and fifty-two cases, positive and negative, across the four deploy automations, the HISv3 seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and forty-two cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and fifty-two cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -212,8 +212,8 @@
       <tr data-tags="go test unit dashboard schema embed drift go-embed positive"><td>TC-121</td><td>dashboard (go test)</td><td>Positive</td><td>The schema embedded in the binary matches <code>dashboard/schema/</code> file for file and byte for byte (<code>TestEmbeddedSchemaMatchesTheDirectory</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema statement split apply.sh parity positive"><td>TC-122</td><td>dashboard (go test)</td><td>Positive</td><td>The Go statement splitter strips comments, folds multi-line declarations and splits on the terminator exactly as <code>apply.sh</code> does (<code>TestSplitStatementsMatchesTheShellApplier</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema statement split empty comment negative"><td>TC-123</td><td>dashboard (go test)</td><td>Negative</td><td>No statement survives the split empty or still carrying a comment marker, and the total does not collapse (<code>TestEverySchemaStatementSurvivesTheSplit</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All forty-two contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same forty-two cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance memory memstore positive"><td>TC-124</td><td>dashboard (go test)</td><td>Positive</td><td>All forty-five contract cases pass against <code>MemStore</code> (<code>TestStoreConformanceMemory</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard store seam conformance arcadedb positive"><td>TC-125</td><td>dashboard (go test)</td><td>Positive</td><td>The same forty-five cases pass against <code>ArcadeStore</code> on a live ArcadeDB, or skip when none is configured (<code>TestStoreConformanceArcadeDB</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard store arcadedb restart rebuild br-01 positive"><td>TC-126</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant rebuilds the floor, the events and the master record from the graph, so the in-memory projection is a cache rather than a source of truth (<code>TestArcadeStoreRebuildsTheFloorFromTheGraph</code>)</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks store arcadedb graph tier parity positive"><td>TC-127</td><td>check-stacks.sh</td><td>Positive</td><td>Both tiers declare <code>GAOS_STORE: &quot;arcadedb&quot;</code>, so neither is quietly serving fixtures</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks store arcadedb graph tier parity negative"><td>TC-128</td><td>check-stacks.sh</td><td>Negative</td><td>A tier's <code>GAOS_STORE</code> setting is removed or changed away from <code>arcadedb</code></td><td>Implemented</td></tr>
@@ -531,6 +531,16 @@
       <tr data-tags="go test unit dashboard scheduler planner seat create workflow first task capability br-38 positive implemented"><td>TC-440</td><td>dashboard (go test)</td><td>Positive</td><td>The first task of a freshly created workflow is ready and dispatched to the planner CreateWorkflow seated at its own desk, not blocked as &ldquo;every planner agent is busy&rdquo; (<code>TestAFreshWorkflowsFirstPlannerTaskIsSchedulable</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard scheduler seat busy another desk capability negative implemented"><td>TC-441</td><td>dashboard (go test)</td><td>Negative</td><td>An agent seated at one product is still busy for another product's task, and an agent busy at no named desk is busy everywhere (<code>TestASeatedAgentIsStillBusyForAnotherDesk</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard packet task.md brief story acceptance criteria role digest positive implemented"><td>TC-442</td><td>dashboard (go test)</td><td>Positive</td><td>The packet's <code>task.md</code> briefs the dispatched task &mdash; its title, kind, role, story and acceptance criteria &mdash; not the desk's first-task line, and two freezes of one attempt keep one digest (<code>TestTheTaskPacketBriefsTheDispatchedTask</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner manual switch parse fail closed negative d-080 implemented"><td>TC-443</td><td>dashboard (go test)</td><td>Negative</td><td><code>GAOS_RUNNER</code> reads as <code>off</code> unset, empty or unrecognised (a typo fails closed), <code>on</code> for on/1/true/yes, <code>manual</code> for manual in any case and with surrounding space; only on and manual may spend (<code>TestRunnerModeReadsGAOS_RUNNER</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner manual scheduler ready never dispatch negative d-080 implemented"><td>TC-444</td><td>dashboard (go test)</td><td>Negative</td><td>Under a manual runner the control loop moves every task the scheduler would start to READY, one per product per pass, and dispatches nothing: no DISPATCHED task, no TaskRun, no turn at the gateway (<code>TestAManualRunnerReadiesWorkAndNeverDispatchesIt</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner manual stale decision race pending only negative d-080 implemented"><td>TC-445</td><td>dashboard (go test)</td><td>Negative</td><td>The manual ready step moves a task only from PENDING: a stale decision naming a task the operator has since dispatched leaves it DISPATCHED and writes nothing (<code>TestTheManualReadyStepMovesOnlyAPendingTask</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner manual board dispatch spend positive d-080 implemented"><td>TC-446</td><td>dashboard (go test)</td><td>Positive</td><td>Under a manual runner the board move ready &rarr; working dispatches the card, sends exactly one turn and the run exits (<code>TestAManualRunnerDispatchesTheCardTheOperatorMoves</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner board dispatch refusal off adapter readiness floor br-07 desk route negative d-080 implemented"><td>TC-447</td><td>dashboard (go test)</td><td>Negative</td><td>The board dispatch is refused with the runner off, with no adapter, and below the readiness floor (BR-07), writing nothing; under a manual runner the desk route sends no turn (<code>TestTheBoardDispatchRefusesWithoutPermission</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard board dispatch concurrent lease br-38 atomic negative d-080 implemented"><td>TC-448</td><td>dashboard (go test)</td><td>Negative</td><td>Two concurrent board dispatches of two ready cards in one product: exactly one succeeds, the other is refused with BR-38's reason, and the gateway receives one turn (<code>TestTwoBoardDispatchesInOneProductStartOneTurn</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard runner manual question answer resume session positive d-080 implemented"><td>TC-449</td><td>dashboard (go test)</td><td>Positive</td><td>Under a manual runner an answered task waits in READY through a control-loop pass, and the operator's board dispatch resumes it through the answer route under the next attempt's request id, with no ordinary chat post (<code>TestAnAnsweredTaskWaitsInReadyUnderAManualRunner</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard healthz runner mode visible positive d-080 implemented"><td>TC-450</td><td>dashboard (go test)</td><td>Positive</td><td><code>/healthz</code> reports the runner mode: <code>off</code> unset, <code>manual</code> and <code>on</code> when set (<code>TestHealthzSaysWhichRunnerModeIsOn</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks compose runner pass-through default off positive d-080 implemented"><td>TC-451</td><td>check-stacks.sh</td><td>Positive</td><td>The prod compose file passes <code>GAOS_RUNNER</code> from the deploy shell, empty (off) by default.</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks compose runner hard-coded one place negative d-080 implemented"><td>TC-452</td><td>check-stacks.sh</td><td>Negative</td><td>The prod compose file sets <code>GAOS_RUNNER</code> in exactly one place, so no spelling of a hard-coded value can sit beside the pass-through.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1289,7 +1299,7 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-two cases — since v0.33.0 including the vendor policy's round trip — each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-five cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn) — each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
@@ -3276,6 +3286,55 @@
   task</code>, <code>task.md for %s does not say %q</code>, <code>the packet for %s names role %q, want
   the task's own, backend</code> or <code>two freezes of one attempt produced two digests; the brief must
   be a function of the record</code>.</p>
+
+  <h3 id="go-runner-manual">dashboard &mdash; the manual runner (TC-443 to TC-452)</h3>
+  <p><code>GAOS_RUNNER=manual</code> (<a href="decision-log.html#d-080">D-080</a>,
+  <a href="brd.html#rules-gateway">BR-56</a>): the scheduler moves work to READY and no further, and a turn is sent only
+  when an operator moves a ready card to working. <code>dashboard/runner_manual_test.go</code>; the conformance case
+  <code>AManualRunnerReadiesAndNeverDispatches</code> runs the same pass against both stores under
+  <a href="#go-store-seam">TC-124/TC-125</a>.</p>
+  <p><strong>TC-443, negative</strong> (<code>TestRunnerModeReadsGAOS_RUNNER</code>): prints
+  <code>GAOS_RUNNER=%q reads as %q; want %q (anything unrecognised must be off)</code> or
+  <code>GAOS_RUNNER=%q: runnerMaySpend() = %v; want %v</code>.</p>
+  <p><strong>TC-444, negative</strong> (<code>TestAManualRunnerReadiesWorkAndNeverDispatchesIt</code>): prints
+  <code>the first manual pass wrote %d schedule move(s); want exactly 1, one per product per pass</code>,
+  <code>a pass with every eligible card already ready wrote %d event(s); want 0</code>,
+  <code>%s is %s under a manual runner; the scheduler must never dispatch</code>,
+  <code>%d TaskRun(s) exist under a manual runner; nothing was dispatched, so nothing ran</code>,
+  <code>the gateway received %d turn(s) under a manual runner; want 0</code> or
+  <code>%s is %s; the scheduler judged it ready, so a manual pass must leave it READY</code>.</p>
+  <p><strong>TC-445, negative</strong> (<code>TestTheManualReadyStepMovesOnlyAPendingTask</code>): prints
+  <code>a stale decision moved a dispatched task to %s and wrote %d event(s); want it left DISPATCHED and nothing written</code>;
+  the positive half prints <code>a pending task in the decision is %s; want READY</code>.</p>
+  <p><strong>TC-446, positive</strong> (<code>TestAManualRunnerDispatchesTheCardTheOperatorMoves</code>): prints
+  <code>ready -&gt; working under a manual runner gave %v %v; want a dispatch</code> or
+  <code>the gateway received %d turn(s) for one board dispatch; want 1</code>.</p>
+  <p><strong>TC-447, negative</strong> (<code>TestTheBoardDispatchRefusesWithoutPermission</code>, four subtests): a refusal
+  that is not the expected one prints
+  <code>the board dispatch returned %v and wrote %d event(s); want a refusal saying %q and nothing written</code>, where the
+  expected reasons are <code>the runner is off (GAOS_RUNNER); dispatching spends money and needs it on or manual</code>,
+  <code>no model adapter is configured (GAOS_MODEL_MODE); nothing can be dispatched</code> and
+  <code>is below the planning floor</code>; a refusal that moved the card prints
+  <code>a refused dispatch left the card %s; want READY</code>; the desk route prints
+  <code>the desk route sent %d turn(s) under a manual runner; only the board dispatch may spend</code>.</p>
+  <p><strong>TC-448, negative</strong> (<code>TestTwoBoardDispatchesInOneProductStartOneTurn</code>): prints
+  <code>%d of two concurrent dispatches in one product succeeded; want exactly 1 (BR-38)</code>,
+  <code>the losing dispatch returned %v; want the BR-38 refusal</code> or
+  <code>the gateway received %d turn(s) from two concurrent dispatches in one product; want 1</code>.</p>
+  <p><strong>TC-449, positive</strong> (<code>TestAnAnsweredTaskWaitsInReadyUnderAManualRunner</code>): prints
+  <code>an answered task is %s after a manual pass; want READY, waiting for the operator</code>,
+  <code>a manual pass sent the answered turn; only the operator's board move may</code>,
+  <code>the answer route received %+v; want one answer under the next attempt's request id</code> or
+  <code>the answered turn was also posted to /v1/chat; the board route must resume through the answer route</code>.</p>
+  <p><strong>TC-450, positive</strong> (<code>TestHealthzSaysWhichRunnerModeIsOn</code>): prints
+  <code>GAOS_RUNNER=%q: healthz says runner %v; want %q</code>.</p>
+  <p><strong>TC-451, <code>check-stacks.sh</code></strong>: prints
+  <code>ok   prod passes the runner switch from the deploy shell, empty (off) by default</code>, or the same line after
+  <code>FAIL</code> when the pass-through is missing.</p>
+  <p><strong>TC-452, <code>check-stacks.sh</code></strong>: prints
+  <code>ok   prod sets GAOS_RUNNER in exactly one place, the pass-through</code>; with a second
+  <code>GAOS_RUNNER:</code> line it prints
+  <code>FAIL prod sets GAOS_RUNNER in more than one place; the runner must come only from the deploy shell</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

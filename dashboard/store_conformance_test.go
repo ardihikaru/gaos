@@ -83,6 +83,7 @@ var storeContract = []storeCase{
 	{"DispatchScreensBeforeItDispatches", caseDispatchScreens},
 	{"DispatchOnADeskAlreadyRunningIsRejected", caseDispatchBusy},
 	{"ARefusedDispatchBlocksTheDeskAndSaysWhy", caseDispatchRefusedBlocks},
+	{"AManualRunnerReadiesAndNeverDispatches", caseManualRunnerReadiesAndNeverDispatches},
 }
 
 func TestStoreConformanceMemory(t *testing.T) {
@@ -1418,6 +1419,68 @@ func firstMasterID(t *testing.T, s Store) string {
 		t.Fatal("no master records; the fixtures seed five")
 	}
 	return ms[0].ID
+}
+
+// caseManualRunnerReadiesAndNeverDispatches is D-080 at the seam: under
+// GAOS_RUNNER=manual a pass of the control loop moves work to READY and sends
+// nothing, in both stores. SetAdapter and RunOnce are not on Store, so they
+// are reached the way main.go reaches them, by assertion.
+func caseManualRunnerReadiesAndNeverDispatches(t *testing.T, s Store) {
+	g, ok := s.(graphReader)
+	runner, ok2 := s.(interface {
+		SetAdapter(Adapter)
+		RunOnce(context.Context, Adapter) ScheduleDecision
+	})
+	if !ok || !ok2 {
+		t.Skip("this store does not run a control loop")
+	}
+	t.Setenv("GAOS_RUNNER", "manual")
+	ctx := context.Background()
+	id := ""
+	ms, _ := s.Masters(ctx)
+	for _, m := range ms {
+		if len(m.Stories) > 0 && m.ReadinessScore() >= PlanFloor {
+			id = m.ID
+			break
+		}
+	}
+	if id == "" {
+		t.Skip("no seeded master record can be planned")
+	}
+	m, _ := s.Master(ctx, id)
+	draft := WorkflowDraft{ProductID: id, Goal: "Run one chosen card at a time", Stories: []string{m.Stories[0].ID}}
+	plan, err := s.PlanWorkflow(ctx, draft)
+	if err != nil {
+		t.Fatalf("PlanWorkflow: %v", err)
+	}
+	if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	f, ad := newFakeAIM(t)
+	runner.SetAdapter(ad)
+	// Whether anything is ready depends on which seats the seeded floor holds;
+	// what the contract fixes is that whatever the scheduler named is READY,
+	// and that nothing went further.
+	named := map[string]bool{}
+	for i := 0; i < 5; i++ {
+		for _, d := range runner.RunOnce(ctx, ad).Ready {
+			named[d.TaskID] = true
+		}
+	}
+	for _, task := range g.tasksSnapshot(id) {
+		switch {
+		case task.Status == StatusDispatched || task.Status == StatusRunning:
+			t.Fatalf("%s is %s under a manual runner; the scheduler must never dispatch", task.ID, task.Status)
+		case named[task.ID] && task.Status != StatusReady:
+			t.Fatalf("%s was named ready by the scheduler and is %s; a manual pass must leave it READY", task.ID, task.Status)
+		}
+	}
+	f.mu.Lock()
+	posts := len(f.posts)
+	f.mu.Unlock()
+	if posts != 0 {
+		t.Fatalf("the gateway received %d turn(s) under a manual runner; want 0", posts)
+	}
 }
 
 // ---------------------------------------------------------------- the arcade lane
