@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and sixty-five cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and seventy-seven cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and sixty-five cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and seventy-seven cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -554,6 +554,18 @@
       <tr data-tags="go test unit dashboard design gate review replay long note refused timeline reason negative implemented"><td>TC-463</td><td>dashboard (go test)</td><td>Negative</td><td>A real reviewer reply whose note ran past 300 characters is still refused, with the length and the limit in the refusal, and a review refused through the gate is BLOCKED with <code>review-failed</code> and its run line on the timeline carries the parser's reason (<code>TestARealReviewWithALongNoteSaysWhyItWasRefused</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard workflow goal objective packet task.md two workflows same product negative implemented"><td>TC-464</td><td>dashboard (go test)</td><td>Negative</td><td>With two workflows on one product, each task's packet states its own workflow's goal under Objective &mdash; not the desk's, which holds only the latest &mdash; and two freezes give one digest (<code>TestEachTaskIsBriefedWithItsOwnWorkflowsGoal</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test arcadedb dashboard workflow goal restart reopen one desk per product objective negative implemented"><td>TC-465</td><td>dashboard (go test)</td><td>Negative</td><td>After two workflows on one product and a reopened ArcadeStore, the product has one desk, seated on its latest workflow, and each task's packet still states its own workflow's goal; skipped without <code>GAOS_ARCADE_TEST_URL</code> (<code>TestASecondWorkflowKeepsItsGoalAcrossARestart</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing segments move history d-081 positive implemented"><td>TC-466</td><td>dashboard (go test)</td><td>Positive</td><td>A card planned, dispatched twice, asked a question and approved yields ten status segments, each with its from-status, move rule, entered-at, left-at and seconds, and a finished lead of 8000 s (<code>TestCardTimingFollowsEveryMove</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing buckets partition lead idle ai runner mode d-081 positive implemented"><td>TC-467</td><td>dashboard (go test)</td><td>Positive</td><td>Under manual, off and on, AI working + waiting on the operator + queued + blocked + backlog equals the lead time, idle = lead &minus; AI, and READY counts as waiting on the operator unless the runner is on (<code>TestCardTimingBucketsPartitionTheLeadTime</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing open card now relspan d-081 positive implemented"><td>TC-468</td><td>dashboard (go test)</td><td>Positive</td><td>An unfinished card's last segment is open and measured to now, the lead is now &minus; created, and the chip text is that lead in the console's relSpan format (<code>TestCardTimingAnOpenCardRunsToNow</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing unknown time clock step running max d-081 negative implemented"><td>TC-469</td><td>dashboard (go test)</td><td>Negative</td><td>An event with no wall-clock time makes the timing unknown with every number 0; a clock that steps backwards cannot break the partition or make idle negative (<code>TestCardTimingWithoutTimesIsUnknownAndAClockStepCannotBreakThePartition</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing other task other product filter d-081 negative implemented"><td>TC-470</td><td>dashboard (go test)</td><td>Negative</td><td>Another task's moves, the same task id in another product, and non-move events leave a card's timing byte-identical (<code>TestCardTimingIgnoresOtherTasksAndProducts</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing incomplete history status mismatch no plan d-081 negative implemented"><td>TC-471</td><td>dashboard (go test)</td><td>Negative</td><td>A history that ends in another status than the card's, or has no plan event, is reported incomplete with a reason, and the card's own status wins (<code>TestCardTimingThatDisagreesWithTheCardIsIncomplete</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing attempts runs tokens cost basis br-31 allowlist session id positive negative implemented"><td>TC-472</td><td>dashboard (go test)</td><td>Positive</td><td>Per-attempt duration, tokens and cost with its basis; cost totals kept per basis (BR-31); a running attempt measured to now; the JSON carries no session id, request id, log ref or workspace (<code>TestCardTimingAttemptsCarryOnlyTheAllowedFields</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard workflow timing totals lead ai idle d-081 positive implemented"><td>TC-473</td><td>dashboard (go test)</td><td>Positive</td><td>A workflow's timing starts at its first card's plan, finishes only when every card has, sums its cards' AI time, and is unknown when one card is (<code>TestWorkflowTimingTotals</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard card timing route sheet 404 unknown card d-081 negative implemented"><td>TC-474</td><td>dashboard (go test)</td><td>Negative</td><td>For an unknown card the JSON timing route answers 404 <code>{"error":"no such card"}</code> and the timing sheet 404 with the toast &ldquo;That record is gone.&rdquo; (<code>TestTheTimingRoutesAnswer404ForAnUnknownCard</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard board json timing workflows sheet chip render secret positive negative d-081 implemented"><td>TC-475</td><td>dashboard (go test)</td><td>Positive</td><td>The board JSON carries a timing summary on every card and the workflows' totals, the card route its segments and attempt, the sheet one row per segment, the server board a timing chip &mdash; and none of them a run's session or request id (<code>TestTheBoardAndTheSheetCarryTheTiming</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard arcadedb ts zone offset quarter hour d-081 positive negative implemented"><td>TC-476</td><td>dashboard (go test)</td><td>Positive</td><td>The database's zone offset is the clock difference rounded to a quarter hour: seven hours and forty seconds is 25 200 s, forty seconds alone is 0 (<code>TestTheDatabaseZoneOffsetRoundsToAQuarterHour</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test arcadedb dashboard event time at restart ts fallback d-081 positive implemented"><td>TC-477</td><td>dashboard (go test)</td><td>Positive</td><td>Every event's wall-clock time reads back equal after a reopened ArcadeStore, and a row written without <code>at</code> reads its <code>ts</code>; skipped without <code>GAOS_ARCADE_TEST_URL</code> (<code>TestEventTimeSurvivesTheGraphRoundTrip</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1312,7 +1324,7 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-five cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn) — each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-six cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn), since v0.41.0 a planned task's timing (<code>CardTimingOfAPlannedTask</code>, D-081: known, complete, opened on its plan in PENDING, and an unknown card is not found) — each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
@@ -3450,6 +3462,56 @@
   that desk is on the latest workflow, or it prints <code>p-1 is seated on %s after the reopen, want the latest workflow %s</code>;
   and each task still carries its own goal, or it prints
   <code>after the reopen the packet for %s says the objective is %q, want its own workflow's goal %q</code>.</p>
+
+  <h3 id="go-card-timing">dashboard &mdash; card timing: segments, the partition, attempts, the routes (TC-466&ndash;TC-477)</h3>
+  <p>v0.41.0, in <code>dashboard/timing_test.go</code> (<a href="decision-log.html#d-081">D-081</a>,
+  <code>docs/designs/card-timing.md</code>). A card's timing is a pure function of its <code>TaskPlanned</code> and
+  <code>TaskMoved</code> events and its runs; every event now carries the app's wall-clock time, and older rows read
+  the database's <code>ts</code>.
+  <strong>TC-466, positive</strong> (<code>TestCardTimingFollowsEveryMove</code>): ten segments, or it prints
+  <code>the history gave %d segments %+v; want one per status the card stayed in, %d</code>; each exact, or
+  <code>segment %d is %+v; want %s from %q by %q, %d→%d, %ds</code>; and finished with its lead, or
+  <code>the card reads known=%v complete=%v finished=%v created=%d finished=%d lead=%d; want a finished card, lead 8000 s from 1000 to 9000</code>.
+  <strong>TC-467, positive</strong> (<code>TestCardTimingBucketsPartitionTheLeadTime</code>): under each runner mode,
+  <code>under %s the buckets sum to %d and the lead is %d; every second of the lead belongs to exactly one bucket</code>,
+  <code>under %s AI is %d, idle %d, backlog %d; want AI = DISPATCHED+RUNNING = 2215, idle = lead - AI, backlog 600</code> or
+  <code>under %s waiting-on-operator is %d and queued %d; want %d and %d -- READY waits on the operator unless the runner is on</code>.
+  <strong>TC-468, positive</strong> (<code>TestCardTimingAnOpenCardRunsToNow</code>):
+  <code>an open card's last segment is %+v and its lead %d; want it open, measured to now (1000 s), and the lead now - created = 3410</code> or
+  <code>the chip text is %q; want relSpan of the lead, 56m</code>.
+  <strong>TC-469, negative</strong> (<code>TestCardTimingWithoutTimesIsUnknownAndAClockStepCannotBreakThePartition</code>):
+  <code>an event with no time gave known=%v lead=%d ai=%d text=%q reason=%q; want an unknown timing with every number 0 and its segments still listed</code>,
+  <code>a clock that stepped back gave lead %d, bucket sum %d, idle %d; want the partition exact (259) and idle never negative</code> or
+  <code>a clock step produced a negative segment %+v</code>.
+  <strong>TC-470, negative</strong> (<code>TestCardTimingIgnoresOtherTasksAndProducts</code>):
+  <code>another task's move, another product's events and a non-move event changed the timing:\n%s\nvs\n%s</code>.
+  <strong>TC-471, negative</strong> (<code>TestCardTimingThatDisagreesWithTheCardIsIncomplete</code>):
+  <code>a history ending in READY for a DONE card gave complete=%v status=%s reason=%q text=%q; want incomplete, the card's status, and a reason naming both</code> or
+  <code>a history with no plan gave complete=%v reason=%q first=%+v; want incomplete, opened on the first move's FROM for no time</code>.
+  <strong>TC-472, positive and negative</strong> (<code>TestCardTimingAttemptsCarryOnlyTheAllowedFields</code>):
+  <code>the attempts are %+v; want this task's two, in order, 1200 s ended and 185 s running to now</code>,
+  <code>the totals are attempts=%d tokens=%d/%d measured=%v estimated=%v; want 2, 17/8, and the cost kept per basis (BR-31)</code> or
+  <code>the timing JSON carries %q: %s -- an attempt goes out through the AttemptTiming allowlist only</code>.
+  <strong>TC-473, positive</strong> (<code>TestWorkflowTimingTotals</code>):
+  <code>the workflow reads %+v; want started 500, finished 9000, lead 8500, AI the sum of its cards', idle lead - AI</code>,
+  <code>a workflow with an open card reads %+v; want it unfinished and its lead running to now</code> or
+  <code>a workflow with an unknown card reads %+v; want it unknown, with no numbers</code>.
+  <strong>TC-474, negative</strong> (<code>TestTheTimingRoutesAnswer404ForAnUnknownCard</code>):
+  <code>the JSON route for an unknown card answered %d %s; want 404 {"error":"no such card"}</code> or
+  <code>the sheet for an unknown card answered %d; want 404 and the toast "That record is gone."</code>.
+  <strong>TC-475, positive and negative</strong> (<code>TestTheBoardAndTheSheetCarryTheTiming</code>):
+  <code>card %s carries timing %s; want a known, complete summary with a created time and a lead text</code>,
+  <code>the card's timing route answered %d %s; want its segments from the plan, its attempt and its workflow</code>,
+  <code>the timing sheet answered %d without the modal, one row per segment (%d), the idle total or the attempt</code>,
+  <code>the server board's cards carry no timing chip</code> or
+  <code>the %s carries a run's session, request, log or workspace id; only the AttemptTiming allowlist may leave the store</code>.
+  The sheet's keyboard is checked by hand, as the answer sheet's is: open a timing sheet from a chip, press Esc, and focus
+  is back on the chip; then open and send an answer to a question, which must work as before.
+  <strong>TC-476, positive and negative</strong> (<code>TestTheDatabaseZoneOffsetRoundsToAQuarterHour</code>):
+  <code>tzOffset(%d, %d) = %d; want %d -- a zone, never a seconds skew</code>.
+  <strong>TC-477, positive</strong> (<code>TestEventTimeSurvivesTheGraphRoundTrip</code>, ArcadeDB; skipped without
+  <code>GAOS_ARCADE_TEST_URL</code>): <code>event %d had At %d and reads back %d; the wall clock must survive a restart</code> or
+  <code>a row with no "at" read back At %d at %d; want its ts, corrected to the app's clock</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

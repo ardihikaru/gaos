@@ -119,6 +119,10 @@ type Store interface {
 	// The board (M14.6, board.go): a projection of the product's tasks, and a
 	// move on it -- a request the task state machine may refuse (BR-43).
 	Board(ctx context.Context, productID string) (Board, error)
+	// CardTiming is one card's timing history: its status segments, the
+	// totals that partition its lead time, its attempts (D-081,
+	// docs/designs/card-timing.md). ErrNotFound for an unknown card.
+	CardTiming(ctx context.Context, productID, taskID string) (CardTiming, error)
 	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
 	Inject(ctx context.Context, productID string) (Result, error)
 

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -85,6 +86,27 @@ func (s *server) handleMoveCard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeBoardJSON(w, http.StatusOK, map[string]any{"card": nil})
+}
+
+// handleCardTiming is GET /products/{id}/board/cards/{taskId}/timing: one
+// card's whole timing history as JSON (D-081). A store failure answers a fixed
+// body and logs the cause; it never echoes the error to the browser.
+func (s *server) handleCardTiming(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBOJSON(w, r) {
+		return
+	}
+	id, taskID := r.PathValue("id"), r.PathValue("taskId")
+	ct, err := s.store.CardTiming(r.Context(), id, taskID)
+	if errors.Is(err, ErrNotFound) {
+		writeBoardJSON(w, http.StatusNotFound, map[string]string{"error": "no such card"})
+		return
+	}
+	if err != nil {
+		log.Printf("card timing %s/%s: %v", id, taskID, err)
+		writeBoardJSON(w, http.StatusInternalServerError, map[string]string{"error": "timing unavailable"})
+		return
+	}
+	writeBoardJSON(w, http.StatusOK, ct)
 }
 
 // handleCardRefused answers the card operations a board does not have.

@@ -84,6 +84,7 @@ var storeContract = []storeCase{
 	{"DispatchOnADeskAlreadyRunningIsRejected", caseDispatchBusy},
 	{"ARefusedDispatchBlocksTheDeskAndSaysWhy", caseDispatchRefusedBlocks},
 	{"AManualRunnerReadiesAndNeverDispatches", caseManualRunnerReadiesAndNeverDispatches},
+	{"CardTimingOfAPlannedTask", caseCardTimingOfAPlannedTask},
 }
 
 func TestStoreConformanceMemory(t *testing.T) {
@@ -1630,5 +1631,41 @@ func caseQaCatalog(t *testing.T, s Store) {
 	pg2, _ := s.QaCases(ctx, id, QaQuery{After: *pg.Next, Limit: 1})
 	if len(pg2.Items) != 1 || pg2.Next != nil || pg2.Items[0].CaseID == pg.Items[0].CaseID {
 		t.Errorf("the second page must be the other case and the last: %+v", pg2)
+	}
+}
+
+// caseCardTimingOfAPlannedTask is D-081 at the seam: a task a workflow just
+// planned has a known, complete timing that opens on its plan, in both stores,
+// and an unknown card is ErrNotFound.
+func caseCardTimingOfAPlannedTask(t *testing.T, s Store) {
+	g, ok := s.(graphReader)
+	if !ok {
+		t.Skip("this store does not expose the task graph for testing")
+	}
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	m, _ := s.Master(ctx, id)
+	if len(m.Stories) == 0 {
+		t.Skip("the first master record has no stories to plan against")
+	}
+	draft := WorkflowDraft{ProductID: id, Goal: "Time the cards", Stories: []string{m.Stories[0].ID}}
+	plan, err := s.PlanWorkflow(ctx, draft)
+	if err != nil {
+		t.Fatalf("PlanWorkflow: %v", err)
+	}
+	if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	tasks := g.tasksSnapshot(id)
+	if len(tasks) == 0 {
+		t.Fatal("nothing was planned")
+	}
+	ct, err := s.CardTiming(ctx, id, tasks[0].ID)
+	if err != nil || !ct.Known || !ct.Complete || ct.CreatedAt == 0 || len(ct.Segments) == 0 ||
+		ct.Segments[0].Status != StatusPending || ct.Segments[0].Rule != "plan" {
+		t.Fatalf("a planned task's timing is %+v (%v); want known, complete, opened on its plan in PENDING", ct, err)
+	}
+	if _, err := s.CardTiming(ctx, id, "wf-999-t-1"); err != ErrNotFound {
+		t.Fatalf("an unknown card's timing answered %v; want ErrNotFound", err)
 	}
 }

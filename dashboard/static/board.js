@@ -74,12 +74,41 @@ function qaBadge(card) {
   return b;
 }
 
+// The card's lead time (D-081). The server formats the text and the title;
+// an open card's chip holds a <time data-elapsed-since> that live.js re-ticks,
+// so it keeps counting while nothing moves. textContent only.
+function timingChip(product, card) {
+  const t = card.timing;
+  if (!t) return null;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tm-chip mono";
+  b.id = "tm-" + card.id;
+  b.title = t.title || "";
+  b.setAttribute("aria-label", "Timing of " + card.id + ": " + (t.title || ""));
+  b.dataset.timingOpen = "ui/timing/" + encodeURIComponent(product) + "/" + encodeURIComponent(card.id);
+  if (t.known && t.complete && !t.finished && t.createdAt > 0) {
+    const tm = document.createElement("time");
+    tm.dataset.elapsedSince = new Date(t.createdAt * 1000).toISOString();
+    tm.textContent = t.leadText;
+    b.append(tm);
+  } else {
+    b.textContent = t.leadText || "—";
+  }
+  b.addEventListener("keydown", (ev) => {
+    if (["Enter", " ", "F2", "Delete", "Backspace"].includes(ev.key)) ev.stopPropagation();
+  });
+  return b;
+}
+
 function cardFace(product, card, ctx) {
   const face = ctx.defaultRender(card);
   const badge = vendorBadge(card);
   if (badge) (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(badge);
   const qb = qaBadge(card);
   if (qb) (face.querySelector(".sfb-card-content") || face).append(qb);
+  const tc = timingChip(product, card);
+  if (tc) (face.querySelector(".sfb-card-content") || face).append(tc);
   return card.status === AWAITING ? [needsBadge(product, card), face] : face;
 }
 

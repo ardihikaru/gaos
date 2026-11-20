@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Seventy-nine entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1651,6 +1651,34 @@
         <td><a href="qa-test-plan.html#go-runner-manual">TC-443 to TC-452</a>;
         <a href="brd.html#rules-gateway">BR-56</a>;
         <a href="../architecture/gateway.html">Gateway</a></td>
+      </tr>
+      <tr id="d-081">
+        <td>D-081</td><td>2026-11-21</td>
+        <td><strong>Card timing is derived from the event stream: every event carries the app's wall-clock time, and older
+        events read the database's <code>ts</code>.</strong>
+        Context: the product owner asked each card to show how long it spent in each status and how long the task took end
+        to end, including the time no AI was working on it. Every move was already a <code>TaskMoved</code>, but the
+        in-memory event carried no wall-clock time &mdash; <code>Event.T</code> is the simulation clock, 0 in production
+        &mdash; and the database's <code>ts</code> was written and never read back. Decision: <code>Event</code> gains
+        <code>At</code> (unix seconds, the app's clock) on the payload wire as <code>at</code>; a row written before v0.41.0
+        reads its <code>ts</code>, corrected by the database's zone offset rounded to a quarter hour. A card's timing is a
+        pure function of its <code>TaskPlanned</code> and <code>TaskMoved</code> events and its runs: status segments that
+        partition the lead time exactly into AI working (<code>DISPATCHED</code> and <code>RUNNING</code>), waiting on the
+        operator, queued, blocked and backlog; idle is lead minus AI working; costs stay per basis
+        (<a href="brd.html#rules-commercial">BR-31</a>). Wall-clock, not business hours. A history that disagrees with the
+        card's status says it is incomplete rather than guessing. No event type is added (BR-05) and nothing stored is
+        rewritten (BR-04). Rejected: a new event type or a <code>Task.enteredAt</code> column (a second source of truth);
+        reusing <code>Event.T</code>; AI time as the sum of run durations, which does not partition the lead. Reviewed in
+        one round by five goldfish lenses (<code>docs/designs/card-timing.md</code>); approved by the orchestrating agent
+        under the product owner's standing instruction of 2026-11-20/21 to work among the agents without confirmation.
+        <br><br>
+        Consequences: the board's JSON gains a <code>timing</code> summary per card and a <code>workflows</code> list, and
+        <code>GET /events</code> an additive <code>At</code>; per-attempt model, tokens and cost reach the HTTP surface for
+        the first time, through an allowlist that never carries a session, request or log id. <code>READY</code> is
+        classified by the current runner mode, not the one in force when the card waited. Cards from before v0.30.0, and
+        any whose background write was lost, read as incomplete.</td>
+        <td><a href="qa-test-plan.html#go-card-timing">TC-466 to TC-477</a>;
+        <a href="../architecture/graph.html#documents">Event</a></td>
       </tr>
     </tbody>
   </table>
