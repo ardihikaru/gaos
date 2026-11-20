@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and thirty-nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and forty-two cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and thirty-nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and forty-two cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -528,6 +528,9 @@
       <tr data-tags="check-workspace secret scan pbkdf2 hash negative d-079 implemented"><td>TC-437</td><td>check-workspace.sh</td><td>Negative</td><td>A <code>pbkdf2-sha256$&hellip;$</code> hash line in the committed review reports is caught by the secret scan.</td><td>Implemented</td></tr>
       <tr data-tags="rebuild-restart preflight bo-users missing refuse negative d-079 implemented"><td>TC-438</td><td>rebuild-restart.sh</td><td>Negative</td><td>A tag deploy refuses, with a <code>bad</code> line, when <code>prod.bo-users</code> or <code>prod.bo-session-key</code> is missing.</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard qa inbox webhook record failure backoff memory negative d-078 implemented"><td>TC-439</td><td>dashboard (go test)</td><td>Negative</td><td>When recording a delivery attempt fails (a database outage) the webhook still backs off from its in-memory memory of the attempt and is not re-sent every tick (<code>TestAWebhookWhoseRecordFailsIsNotResentEveryTick</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler planner seat create workflow first task capability br-38 positive implemented"><td>TC-440</td><td>dashboard (go test)</td><td>Positive</td><td>The first task of a freshly created workflow is ready and dispatched to the planner CreateWorkflow seated at its own desk, not blocked as &ldquo;every planner agent is busy&rdquo; (<code>TestAFreshWorkflowsFirstPlannerTaskIsSchedulable</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler seat busy another desk capability negative implemented"><td>TC-441</td><td>dashboard (go test)</td><td>Negative</td><td>An agent seated at one product is still busy for another product's task, and an agent busy at no named desk is busy everywhere (<code>TestASeatedAgentIsStillBusyForAnotherDesk</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard packet task.md brief story acceptance criteria role digest positive implemented"><td>TC-442</td><td>dashboard (go test)</td><td>Positive</td><td>The packet's <code>task.md</code> briefs the dispatched task &mdash; its title, kind, role, story and acceptance criteria &mdash; not the desk's first-task line, and two freezes of one attempt keep one digest (<code>TestTheTaskPacketBriefsTheDispatchedTask</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -2356,8 +2359,13 @@
 
   <h3 id="ni-live-aim">live-aim-run.sh — the first turn through the gateway (TC-300…TC-303)</h3>
   <p><code>deploy/acceptance/live-aim-run.sh</code>, the successor of <a href="#sc-live-cli">live-cli-run.sh</a>.
-  It spends one turn, so it does nothing without <code>GAOS_LIVE_OK=1</code> and the three
-  <code>GAOS_AIM_*</code> settings (<a href="decision-log.html#d-025">D-025</a>: the owner runs it). First
+  It spends one turn, so it does nothing without <code>GAOS_LIVE_OK=1</code>, the three
+  <code>GAOS_AIM_*</code> settings and, since v0.39.1, <code>GAOS_ACCEPT_PASSWORD_FILE</code>: the
+  script hashes the file's first line into a one-account users file for the dashboard it boots, signs in
+  (<code>ok signed in to the back office as acceptance@example.test (D-079)</code>, else
+  <code>FAIL the back office refused the sign-in for acceptance@example.test; check
+  GAOS_ACCEPT_PASSWORD_FILE</code>) and sends the cookie jar on every later call. It no longer cancels
+  the desk after planning: the seated planner takes its own desk's first task (TC-440) (<a href="decision-log.html#d-025">D-025</a>: the owner runs it). First
   run 2026-11-02 against ai-manager on <code>rnd-v2-vpn</code>: every line below printed <code>ok</code>.
   <strong>TC-300, positive:</strong> <code>ok dashboard ready in gateway mode — the boot smoke test found
   ai-manager's claude provider</code>, else <code>FAIL the dashboard did not come up in gateway mode</code>.
@@ -3244,6 +3252,30 @@
   registered here): prints <code>the first pass made %d calls; want 1</code>,
   <code>at +%d s the pass re-sent (%d calls); the failed record must still back off</code> and
   <code>after the backoff the pass made %d calls; want 1</code>.</p>
+
+  <h3 id="go-workflow-dispatch">dashboard — a new workflow starts, and its tasks are briefed as themselves (TC-440…TC-442)</h3>
+  <p>v0.39.1, in <code>dashboard/workflow_dispatch_test.go</code>. <code>CreateWorkflow</code> seats the
+  planner on the desk it activates; the scheduler's shell used to count that seat as busy against the
+  desk's own planner task, so no new workflow could start without cancelling its desk. The seat now
+  frees the agent for that desk only (<code>AgentSlot.Desk</code>); one live turn per product is still the
+  graph lease's (<a href="brd.html#rules-invariants">BR-38</a>).
+  <strong>TC-440, positive</strong> (<code>TestAFreshWorkflowsFirstPlannerTaskIsSchedulable</code>): with
+  every other desk idle, the plan's first task is ready on <code>a-9</code>; else
+  <code>the first task of a fresh workflow is blocked (%s: %s); the desk's own seated planner must be free
+  for it</code> or <code>%s was dispatched to %s, want the planner seated at its own desk, a-9</code>.
+  <strong>TC-441, negative</strong> (<code>TestASeatedAgentIsStillBusyForAnotherDesk</code>): a planner
+  seated at <code>p-1</code> is not handed <code>p-2</code>'s task &mdash;
+  <code>a planner seated at p-1 was dispatched to p-2's task: %+v</code>,
+  <code>p-2's planner task reported %+v, want capability: every planner agent is busy</code> &mdash; and
+  an agent busy at no named desk is busy everywhere (<code>an agent busy at no named desk was dispatched:
+  %+v</code>).
+  <strong>TC-442, positive</strong> (<code>TestTheTaskPacketBriefsTheDispatchedTask</code>): the packet of a
+  story's implementation task carries that task in <code>.gaos/packet/task.md</code> &mdash; title,
+  <code>Kind:</code>, <code>Role:</code>, the story and every acceptance criterion &mdash; and names the
+  task's role; else <code>task.md for %s carries the desk's line %q; it must brief the dispatched
+  task</code>, <code>task.md for %s does not say %q</code>, <code>the packet for %s names role %q, want
+  the task's own, backend</code> or <code>two freezes of one attempt produced two digests; the brief must
+  be a function of the record</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
