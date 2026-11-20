@@ -100,6 +100,7 @@ else
   #   GAOS_ARCADE_DB=gaos_sample-product       its database (the user in prod.dashboard.env owns only this one)
   #   GAOS_UID=1000 GAOS_GID=1000         owner of the secret files
   #   GAOS_QA_URL=http://10.10.0.9:8140 GAOS_API_QA_PRODUCTS=p-6   the QA tool's address and scope
+  #   GAOS_RUNNER=manual                  the permission to spend: unset=off, manual=one board-chosen turn at a time (D-080)
   # The post-deploy checks that `ssh clino` fail when run on rnd-v3 itself: probe
   # http://10.10.0.9:18301/api/healthz and https://gaos.sample-product.com/api/healthz by hand instead.
   HOST="${GAOS_HOST:-gaos.mfardiansyah.id}"
@@ -308,6 +309,8 @@ if [ "$ACTION" = deploy ]; then
   dc build $SERVICE || { bad "build failed"; exit 1; }
   echo
   echo "== up -d =="
+  # D-080: record which permission to spend this deploy carries.
+  [ "$ENVIRON" = prod ] && echo "   GAOS_RUNNER=${GAOS_RUNNER:-} (empty = off)"
   dc up -d $SERVICE || { bad "up -d failed"; exit 1; }
 else
   echo "== restart (no rebuild) =="

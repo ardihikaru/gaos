@@ -1,6 +1,6 @@
 # `GAOS_RUNNER=manual`: the scheduler readies, the operator spends
 
-**Status:** Approved (v2). Round 1 reviewed v1 (`reviews/runner-manual-*-1.md`, five lenses); the triage is in `reviews/runner-manual-review-1.md` and every `PROPOSE FIX` is applied below. No Blocker and no Critical/High security finding survives in v2. Approved by the orchestrating agent under the product owner's standing instruction of 2026-11-20 to proceed without confirmation (approval by delegation; §11).
+**Status:** Approved (v2), implemented in v0.40.0 (§12). Round 1 reviewed v1 (`reviews/runner-manual-*-1.md`, five lenses); the triage is in `reviews/runner-manual-review-1.md` and every `PROPOSE FIX` is applied below. No Blocker and no Critical/High security finding survives in v2. Approved by the orchestrating agent under the product owner's standing instruction of 2026-11-20 to proceed without confirmation (approval by delegation; §11).
 **Feature:** `runner-manual`
 **Version target:** v0.40.0
 **Decision number claimed:** D-080. D-079 is the newest row (`pustaka/docs/product/decision-log.html:1605-1606`); D-078 is claimed by the QA-inbox design and not yet in the log (`decision-log.html:1625`). Whichever of the two lands second recomputes the "entries" count on `main` (§8 R3).
@@ -296,3 +296,11 @@ None.
 ## 11. Approval
 
 Approved 2026-11-20, v2, by the orchestrating agent under the product owner's standing instruction of 2026-11-20 to proceed without confirmation (approval by delegation, not by the product owner in person). Basis: round 1's one Blocker (critic, the manual move pulling a live task back) and the one High security finding (SEC-1, the non-atomic BR-38 check) are both fixed in the design (§3.2, §3.3); every Major is fixed, contested or escalated in the triage (`reviews/runner-manual-review-1.md`). No second round was run: no Blocker survives (policy step 7).
+
+## 12. As built (v0.40.0)
+
+- Implemented as §3–§5. Two deviations, both narrower than the design:
+  - The conformance case asserts that every task a manual pass's decision named is READY and that nothing is DISPATCHED/RUNNING and nothing was sent; it does not require a non-empty READY set, because whether the seeded floor has a free seat for the root task is the fixture's business, not the contract's. The non-empty, exact-count assertion lives in the MemStore test (§5's TC-441, fleet idled).
+  - The concurrent-dispatch test (§5's TC-445) frees a second task of its prerequisites in test setup, because a freshly planned product has a single root.
+- **Renumbered at merge.** `fix/workflow-dispatch` (v0.39.1) landed first and took TC-440…TC-442, so this change's rows are **TC-443…TC-452** (§5's TC-440 → TC-443 … TC-449 → TC-452, same order). The counts move from that base: rows 442 + 10 = 452; Go tests 320 + 8 = 328 (dashboard 298 + 8 = 306); contract cases 44 + 1 = 45; decisions 79 and rules 56 as designed (D-078 had not landed). v0.39.1 also fixed a test-only data race in `dashboard/api_v1_test.go` that this change had found independently; the fix on `main` is theirs.
+- Verified: `cd dashboard && go test -race ./...` (306 tests, race-clean); the ArcadeDB conformance half against `deploy/schema/scratch.sh` (the new case passes, not skipped); `cd pustaka && go test ./... && go run . check ./docs`; `./deploy/check-stacks.sh`; `./deploy/check-workspace.sh`.

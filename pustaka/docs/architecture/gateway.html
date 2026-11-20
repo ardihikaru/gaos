@@ -242,7 +242,7 @@ if digest != pinned digest or metadata.context.workspace != pinned version:
       <tr><td><code>GAOS_AIM_TURN_DEADLINE</code></td><td><code>660s</code></td><td>When an unreachable turn is treated as ended</td></tr>
       <tr><td><code>GAOS_AIM_SESSION_MAX_AGE</code></td><td><code>25d</code></td><td>Age at which a task's session is rotated</td></tr>
       <tr><td><code>GAOS_MODEL</code></td><td>—</td><td>Passed as <code>model</code>; ai-manager's documented defaults disagree, so always set it</td></tr>
-      <tr><td><code>GAOS_RUNNER</code></td><td>off</td><td>Unchanged: <code>on</code> is the permission to spend money</td></tr>
+      <tr><td><code>GAOS_RUNNER</code></td><td>off</td><td>The permission to spend money. <code>off</code>: nothing is sent. <code>manual</code>: the scheduler readies work and only a board move ready &rarr; working sends a turn (<a href="../product/decision-log.html#d-080">D-080</a>). <code>on</code>: the scheduler dispatches everything ready. Anything else is off</td></tr>
     </tbody>
   </table>
 
