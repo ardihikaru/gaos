@@ -45,7 +45,7 @@ services:
 
   # The site root. Static, and it owns the origin's 404 — see landing.conf.
   landing:
-    image: nginx:alpine
+    image: nginx:1.31.9-alpine
     restart: unless-stopped
     volumes:
       # Read-only, and served from the working tree: this is the local stack,
