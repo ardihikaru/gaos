@@ -101,18 +101,18 @@ type TaskNode struct {
 	Gate       bool
 }
 
-// AgentSlot is a seat. Busy is computed by the shell from the floor; whether an
+// AgentSlot is a seat. Busy is computed by the shell from the graph; whether an
 // agent is busy is a fact about the world, not something the scheduler infers.
 //
-// Desk is the one product a busy agent is seated at, or "" when it is busy
-// everywhere (seated at more than one live desk, or busy for a reason no desk
-// names). A seat is not a turn: CreateWorkflow seats the planner on the desk
-// it activates, and that agent sitting at THAT desk is the agent for that
-// desk's own task -- counting it as busy against its own desk left the first
-// task of every new workflow blocked as "every planner agent is busy" with
-// nothing anywhere to free it. One live turn per product is the graph lease's
-// job (BR-38), so letting a seated agent take its own desk's task cannot put
-// two turns on one product.
+// Busy means the agent carries a live turn -- a task DISPATCHED or RUNNING
+// (liveAgentSlots, v0.40.1). A seat on a desk is not a turn: the floor seats
+// agents for display, and reading those seats as busy left every planner and
+// architect task on prod blocked with nothing anywhere to free them.
+//
+// Desk is the product of the live turn a busy agent carries, or "" when it is
+// busy for a reason no desk names. A busy agent stays free for a task of that
+// one desk; one live turn per product is the graph lease's job (BR-38), and
+// the lease reports it.
 type AgentSlot struct {
 	ID   string
 	Role string

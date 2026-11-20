@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and fifty-two cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and fifty-four cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and fifty-two cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and fifty-four cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -541,6 +541,8 @@
       <tr data-tags="go test unit dashboard healthz runner mode visible positive d-080 implemented"><td>TC-450</td><td>dashboard (go test)</td><td>Positive</td><td><code>/healthz</code> reports the runner mode: <code>off</code> unset, <code>manual</code> and <code>on</code> when set (<code>TestHealthzSaysWhichRunnerModeIsOn</code>).</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose runner pass-through default off positive d-080 implemented"><td>TC-451</td><td>check-stacks.sh</td><td>Positive</td><td>The prod compose file passes <code>GAOS_RUNNER</code> from the deploy shell, empty (off) by default.</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose runner hard-coded one place negative d-080 implemented"><td>TC-452</td><td>check-stacks.sh</td><td>Negative</td><td>The prod compose file sets <code>GAOS_RUNNER</code> in exactly one place, so no spelling of a hard-coded value can sit beside the pass-through.</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler busy seat live turn planner architect manual positive implemented"><td>TC-453</td><td>dashboard (go test)</td><td>Positive</td><td>With the seeded floor untouched and two workflows each seating the planner, no agent is busy while nothing is DISPATCHED or RUNNING, the first workflow's planner task is readied on <code>a-9</code>, and the second's once the first is parked in READY (<code>TestASeatWithNoLiveTurnDoesNotHoldTheAgent</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard scheduler busy live turn capability planner negative implemented"><td>TC-454</td><td>dashboard (go test)</td><td>Negative</td><td>A RUNNING task holds one agent of its role, named with its product, so the same role on another product is blocked as <code>every planner agent is busy</code> and the agent is handed nothing else (<code>TestALiveTurnHoldsItsAgent</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3335,6 +3337,25 @@
   <code>ok   prod sets GAOS_RUNNER in exactly one place, the pass-through</code>; with a second
   <code>GAOS_RUNNER:</code> line it prints
   <code>FAIL prod sets GAOS_RUNNER in more than one place; the runner must come only from the deploy shell</code>.</p>
+
+  <h3 id="go-busy-live-turn">dashboard &mdash; an agent is busy when it carries a live turn (TC-453, TC-454)</h3>
+  <p>v0.40.1, in <code>dashboard/workflow_dispatch_test.go</code>. The scheduler's shell used to read an agent as busy
+  from the desk seats, and an agent seated at two live desks as busy everywhere. The seeded floor seats <code>a-1</code>,
+  the only architect, at two desks that stay active with nothing running them, and <code>CreateWorkflow</code> seats
+  <code>a-9</code>, the only planner, on every desk it activates &mdash; so on prod under
+  <code>GAOS_RUNNER=manual</code> every architect and planner task stayed in backlog with nothing anywhere to free it.
+  Busy is now read from the graph: each DISPATCHED or RUNNING task holds one agent of its role
+  (<code>liveAgentSlots</code>). TC-440 idles every other desk first, which is why it did not see this.
+  <strong>TC-453, positive</strong> (<code>TestASeatWithNoLiveTurnDoesNotHoldTheAgent</code>): prints
+  <code>agent %s (%s) is busy with no task DISPATCHED or RUNNING anywhere; a seat on a desk is not a turn</code>,
+  <code>%s is blocked (%s: %s) on a floor with no live turn; nothing would ever free it</code>,
+  <code>%s was not readied with the planner a-9; ready = %+v</code>,
+  <code>%s reported %+v in the same pass, want capability: every planner agent is busy</code> or
+  <code>%s was not readied once %s was parked in READY: %+v</code>.
+  <strong>TC-454, negative</strong> (<code>TestALiveTurnHoldsItsAgent</code>): prints
+  <code>a-9 is %+v while %s is RUNNING on %s, want busy at %s</code>,
+  <code>%s reported %+v while the only planner runs %s, want capability: every planner agent is busy</code> or
+  <code>the planner was handed %s while it runs %s</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
