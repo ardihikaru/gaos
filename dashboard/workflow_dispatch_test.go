@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -138,5 +139,134 @@ func TestTheTaskPacketBriefsTheDispatchedTask(t *testing.T) {
 	}
 	if again := s.freezePacketFor(d, impl.ID, 1); digestOf(again.Parts) != digestOf(pkt.Parts) {
 		t.Error("two freezes of one attempt produced two digests; the brief must be a function of the record")
+	}
+}
+
+// v0.40.1: an agent is busy when it carries a live turn, not when a desk shows
+// it seated.
+//
+// Found on prod under GAOS_RUNNER=manual: nothing ever left backlog. The seeded
+// floor seats a-1, the only architect, at p-1 and p-3, and both stay active for
+// ever because nothing runs them; CreateWorkflow seats a-9, the only planner,
+// on every desk it activates, so two products with a workflow each seat it
+// twice. The shell read a seat at two live desks as "busy everywhere", so every
+// architect and planner task on the floor was blocked as "every X agent is
+// busy" with no run anywhere to finish and free them. The v0.39.1 regression
+// above did not see it because it idles every other desk first.
+
+// plannedProducts creates a workflow on the first n plannable products and
+// leaves the seeded floor exactly as NewMemStore built it.
+func plannedProducts(t *testing.T, n int) (*MemStore, []string) {
+	t.Helper()
+	_, s := newTestServer(t)
+	ctx := context.Background()
+	masters, _ := s.Masters(ctx)
+	var desks []string
+	for _, m := range masters {
+		if len(desks) == n {
+			break
+		}
+		if m.ReadinessScore() < PlanFloor || len(m.Stories) == 0 {
+			continue
+		}
+		draft := WorkflowDraft{ProductID: m.ID, Goal: "seats", Stories: []string{m.Stories[0].ID}}
+		plan, err := s.PlanWorkflow(ctx, draft)
+		if err != nil {
+			continue
+		}
+		if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+			continue
+		}
+		desks = append(desks, m.ID)
+	}
+	if len(desks) < n {
+		t.Fatalf("only %d seeded product(s) could be planned, want %d", len(desks), n)
+	}
+	return s, desks
+}
+
+func firstTaskOf(s *MemStore, desk string) TaskRecord {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, tk := range s.tasks {
+		if tk.DeskID == desk && tk.Ordinal == 0 {
+			return tk
+		}
+	}
+	return TaskRecord{}
+}
+
+// TestASeatWithNoLiveTurnDoesNotHoldTheAgent is the regression: with the seeded
+// floor untouched and two workflows each seating the planner, the scheduler
+// must ready the first workflow's planner task and, once that card is parked
+// in READY (manual mode drops it from the input), the second's.
+func TestASeatWithNoLiveTurnDoesNotHoldTheAgent(t *testing.T) {
+	s, desks := plannedProducts(t, 2)
+	first, second := firstTaskOf(s, desks[0]), firstTaskOf(s, desks[1])
+	if first.Role != "planner" || second.Role != "planner" {
+		t.Fatalf("the plans start with %q and %q, want two planner tasks", first.Role, second.Role)
+	}
+
+	in := s.schedulerInput(time.Now().Unix())
+	for _, a := range in.Agents {
+		if a.Busy {
+			t.Errorf("agent %s (%s) is busy with no task DISPATCHED or RUNNING anywhere; a seat on a desk is not a turn", a.ID, a.Role)
+		}
+	}
+	dec := Schedule(in)
+	if b := blockedFor(dec, first.ID); b != nil {
+		t.Fatalf("%s is blocked (%s: %s) on a floor with no live turn; nothing would ever free it", first.ID, b.Reason, b.Detail)
+	}
+	readied := map[string]string{}
+	for _, r := range dec.Ready {
+		readied[r.TaskID] = r.AgentID
+	}
+	if readied[first.ID] != "a-9" {
+		t.Fatalf("%s was not readied with the planner a-9; ready = %+v", first.ID, dec.Ready)
+	}
+	// One planner, one card per pass: the second waits for this pass only.
+	if b := blockedFor(dec, second.ID); b == nil || b.Detail != "every planner agent is busy" {
+		t.Fatalf("%s reported %+v in the same pass, want capability: every planner agent is busy", second.ID, b)
+	}
+
+	// The next manual pass: the first card is READY and left out of the input.
+	setStatus(s, first.ID, StatusReady)
+	in = s.schedulerInput(time.Now().Unix())
+	in.Tasks = withoutReady(in.Tasks)
+	dec = Schedule(in)
+	ok := false
+	for _, r := range dec.Ready {
+		ok = ok || r.TaskID == second.ID
+	}
+	if !ok {
+		t.Fatalf("%s was not readied once %s was parked in READY: %+v", second.ID, first.ID, dec)
+	}
+}
+
+// TestALiveTurnHoldsItsAgent is the negative half: a task that is RUNNING
+// holds one agent of its role, so the same role on another product waits.
+func TestALiveTurnHoldsItsAgent(t *testing.T) {
+	s, desks := plannedProducts(t, 2)
+	first, second := firstTaskOf(s, desks[0]), firstTaskOf(s, desks[1])
+	setStatus(s, first.ID, StatusRunning)
+
+	in := s.schedulerInput(time.Now().Unix())
+	var planner AgentSlot
+	for _, a := range in.Agents {
+		if a.ID == "a-9" {
+			planner = a
+		}
+	}
+	if !planner.Busy || planner.Desk != desks[0] {
+		t.Fatalf("a-9 is %+v while %s is RUNNING on %s, want busy at %s", planner, first.ID, desks[0], desks[0])
+	}
+	dec := Schedule(in)
+	if b := blockedFor(dec, second.ID); b == nil || b.Reason != BlockedByCapability || b.Detail != "every planner agent is busy" {
+		t.Fatalf("%s reported %+v while the only planner runs %s, want capability: every planner agent is busy", second.ID, b, first.ID)
+	}
+	for _, r := range dec.Ready {
+		if r.AgentID == "a-9" {
+			t.Fatalf("the planner was handed %s while it runs %s", r.TaskID, first.ID)
+		}
 	}
 }
