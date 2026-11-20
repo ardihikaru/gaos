@@ -104,6 +104,13 @@ type MemStore struct {
 	// id) is UNIQUE.
 	workflowSeq int
 
+	// workflowGoals is each workflow's own goal, by workflow id (v0.40.5). The
+	// desk is one per product and carries only the LATEST workflow's goal, so a
+	// task of an earlier workflow on the same product briefed from d.Goal was
+	// told somebody else's objective. Restored by ArcadeStore.load from every
+	// Workflow vertex's goal, not only the seated one's.
+	workflowGoals map[string]string
+
 	// events is the record. Append-only and unbounded -- BR-04. There used to be
 	// a 160-entry ring here with the replay cursor shifted whenever the window
 	// moved, which made the oldest history unreachable and the cursor a lie. The
@@ -1332,7 +1339,15 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// planner. The role follows the task for the same reason: the seated agent
 	// is the planner for the whole workflow.
 	brief := d.Task
+	// The objective is the goal of the dispatched task's OWN workflow (v0.40.5).
+	// d.Goal is the desk's, and the desk is one per product: a second workflow
+	// on the product overwrites it, so reading it told a task of either
+	// workflow the other one's objective.
+	goal := d.Goal
 	if t := s.taskByIDLocked(taskID); t != nil {
+		if g := s.workflowGoals[t.WorkflowID]; strings.TrimSpace(g) != "" {
+			goal = g
+		}
 		kind = taskKind(t.Kind)
 		if t.Role != "" {
 			role = t.Role
@@ -1384,7 +1399,7 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 	// reviewer: what is withheld is the author's session state.
 	if kind != TaskKindReview {
 		add(".gaos/packet/task.md", KindTask,
-			"# "+taskID+"\n\n"+brief+"\n\n## Objective\n"+d.Goal+
+			"# "+taskID+"\n\n"+brief+"\n\n## Objective\n"+goal+
 				"\n\n## Definition of done\nThe work above, AND the handoff: one gaos-handoff block at the end "+
 				"of your reply — see .gaos/packet/handoff.md for its exact shape. "+
 				"A reply that does the work and carries no block is recorded as failed.\n")
@@ -2089,6 +2104,10 @@ func (s *MemStore) CreateWorkflow(ctx context.Context, d WorkflowDraft, plan []P
 	dk.Agents = []string{"a-9"}
 	dk.Task = plan[0].Title
 	dk.Goal = d.Goal
+	if s.workflowGoals == nil {
+		s.workflowGoals = map[string]string{}
+	}
+	s.workflowGoals[wf] = d.Goal
 	dk.Meeting = nil
 
 	s.log(dk, fmt.Sprintf("planner read the master record · %d stories, %d rules", len(m.Stories), len(m.BRD.Rules)), "p")
