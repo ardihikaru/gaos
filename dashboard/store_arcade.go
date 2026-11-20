@@ -1448,7 +1448,42 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		return a < b // the same order sortDeskIDs gives
 	})
+	// One desk per product, seated on its LATEST workflow (v0.40.5). Every
+	// workflow ever created on a product is its own Workflow vertex, and this
+	// loop used to seat a desk for each: after a restart sample-product had two, and
+	// deskIdxByID found the older one first -- so the second workflow's tasks
+	// were dispatched from the first one's desk and briefed with its goal. The
+	// running MemStore never has two (CreateWorkflow re-seats the product's one
+	// desk), so this puts back what was there before the restart. Every row
+	// still gives its goal and its spend: the goal is what a task of an earlier
+	// workflow is briefed with, and the spend is the product's total.
+	latest := map[string]string{}
 	for _, r := range wrows {
+		if strings.TrimSpace(r.ID) != "" {
+			if m.workflowGoals == nil {
+				m.workflowGoals = map[string]string{}
+			}
+			m.workflowGoals[r.ID] = r.Goal
+		}
+		if n, ok := workflowNumber(r.ID); ok && n > m.workflowSeq {
+			m.workflowSeq = n
+		}
+		cur, seen := latest[r.ProductID]
+		if !seen {
+			latest[r.ProductID] = r.ID
+			continue
+		}
+		n, okN := workflowNumber(r.ID)
+		c, okC := workflowNumber(cur)
+		if okN && (!okC || n > c) {
+			latest[r.ProductID] = r.ID
+		}
+	}
+	for _, r := range wrows {
+		if latest[r.ProductID] != r.ID {
+			m.spend += r.Spent
+			continue
+		}
 		d := Desk{
 			ID: r.ProductID, Name: r.Title, Repo: r.Repo, Goal: r.Goal,
 			WorkflowID: r.ID, TaskSeq: r.TaskSeq, State: r.DeskState,
