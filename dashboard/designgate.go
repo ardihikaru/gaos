@@ -283,6 +283,11 @@ func ExtractReview(reply, taskID, runID string) (Review, error) {
 	return r, nil
 }
 
+// maxFindingNote is the longest note a finding may carry, in runes. The parser
+// refuses a longer one and the review contract states the same number, so
+// the limit a reviewer is held to is the limit it was told (v0.40.4).
+const maxFindingNote = 300
+
 // ParseReview reads one review block.
 //
 // The `findings:` key is mandatory and may be empty: a review that found
@@ -331,8 +336,14 @@ func ParseReview(b []byte) (Review, error) {
 			// so it is held to the same standard as the scope: one bounded line,
 			// no control characters, and no reserved fence a reviewer could use
 			// to smuggle a contract block into a reply.
-			if len([]rune(f.Note)) > 300 || strings.ContainsAny(f.Note, "\n\r\x00") {
-				return Review{}, fmt.Errorf("%s: the note of a finding is one bounded line", SigReviewMissing)
+			if n := len([]rune(f.Note)); n > maxFindingNote {
+				return Review{}, fmt.Errorf("%s: the note of a finding is %d characters and the limit is %d; "+
+					"shorten it to one line of at most %d characters",
+					SigReviewMissing, n, maxFindingNote, maxFindingNote)
+			}
+			if strings.ContainsAny(f.Note, "\n\r\x00") {
+				return Review{}, fmt.Errorf("%s: the note of a finding carries a line break or a control character; "+
+					"it is one line", SigReviewMissing)
 			}
 			if tag := reservedFenceIn(f.Note); tag != "" {
 				return Review{}, fmt.Errorf("%s: the note of a finding carries a %s block, which is reserved",
@@ -653,6 +664,9 @@ type gateOutcome struct {
 	to     string
 	rule   string
 	reason string
+	// detail is the parser's own refusal when a review did not parse, so the
+	// timeline says WHAT was wrong and not only that something was (v0.40.4).
+	detail string
 }
 
 // gateVerdict is the gate's decision about a finished design or review task.
@@ -714,7 +728,8 @@ func (s *MemStore) gateVerdict(taskID, runID string, att Attempt) (gateOutcome, 
 			// to BLOCKED with reason review-failed, and it consumes no retry,
 			// no escalation and no failure signature (BR-34). The operator's
 			// retry is the only thing that counts one.
-			return gateOutcome{to: StatusBlocked, rule: RuleReviewFailed, reason: ReasonReviewFailed}, true
+			return gateOutcome{to: StatusBlocked, rule: RuleReviewFailed, reason: ReasonReviewFailed,
+				detail: err.Error()}, true
 		}
 		designPin, reviewPin := s.blueprintPinsLocked(taskID)
 		body := renderReviewArtifact(taskID, runID, r, designPin, reviewPin)
