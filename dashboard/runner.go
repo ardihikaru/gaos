@@ -298,6 +298,9 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 		if g.detail != "" {
 			text += "; the review was refused: " + g.detail
 		}
+		if g.note != "" {
+			text += "; " + g.note
+		}
 	}
 	var out []Event
 	if m, ok := s.moveTaskLocked(taskID, to, rule); ok {
@@ -428,17 +431,39 @@ func (s *MemStore) moveTaskByID(id, to, rule string) {
 // already has changes nothing and writes nothing. The caller publishes the
 // returned event once it has let go of the lock.
 func (s *MemStore) moveTaskLocked(id, to, rule string) (Event, bool) {
+	return s.moveTaskWithLocked(id, to, rule, EventPayload{})
+}
+
+// moveTaskWithLocked is moveTaskLocked with the send-back's extra payload: the
+// account that made the move and the operator's triage (D-084). The caption
+// names the account only when there is one, so every other move's caption is
+// unchanged byte for byte.
+//
+// It is also where the one exit from DONE is kept narrow: a move out of DONE
+// is refused unless it is a design task sent back. moveTask knows the task;
+// only this function knows the rule.
+func (s *MemStore) moveTaskWithLocked(id, to, rule string, extra EventPayload) (Event, bool) {
 	for i := range s.tasks {
 		t := &s.tasks[i]
 		if t.ID != id {
 			continue
 		}
 		from := t.Status
+		if from == StatusDone && (rule != MoveSendBack || taskKind(t.Kind) != TaskKindDesign) {
+			return Event{}, false
+		}
 		if from == to || moveTask(t, to) != nil {
 			return Event{}, false
 		}
-		return s.emit(TaskMoved, t.DeskID, fmt.Sprintf("%s: %s (%s → %s)", id, rule, from, to), KindInfo,
-			EventPayload{Task: id, Rule: rule, Reason: from + "→" + to, To: to}), true
+		text := fmt.Sprintf("%s: %s (%s → %s)", id, rule, from, to)
+		if extra.Actor != "" {
+			text += " by " + extra.Actor
+		}
+		p := EventPayload{Task: id, Rule: rule, Reason: from + "→" + to, To: to, Actor: extra.Actor}
+		if len(extra.Triage) > 0 {
+			p.Triage = append([]FindingTriage(nil), extra.Triage...)
+		}
+		return s.emit(TaskMoved, t.DeskID, text, KindInfo, p), true
 	}
 	return Event{}, false
 }

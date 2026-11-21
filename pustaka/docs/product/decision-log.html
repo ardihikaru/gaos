@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-two entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-three entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1748,6 +1748,40 @@
         <td><a href="qa-test-plan.html#go-answer-source">TC-490 to TC-499</a>;
         <a href="brd.html#rules-qa-sync">BR-57, BR-52</a>;
         <a href="../guide/qa-sync-api.html#inbox">QA sync API &sect;inbox</a></td>
+      </tr>
+      <tr id="d-084">
+        <td>D-084</td><td>2026-11-21</td>
+        <td><strong>A design the review blocked is sent back to its author by the operator, revised with its findings in its
+        packet, and reviewed again on a fresh session; three times at most; no clearance without a review.</strong>
+        Context: workflow wf-9 on production stalled — a valid review with one Blocker left the design <code>DONE</code>, the
+        review <code>BLOCKED</code> and the implementation held, with no move that could change the design; and unblocking
+        the review, by hand or by a Blueprint sync, would only re-run it on the same design. Decision: a board action
+        <code>send-back</code> on the blocked review re-opens the design <code>DONE → READY</code> (the one guarded exit from
+        <code>DONE</code>) and puts the review back in <code>PENDING</code> on its dependency; both moves record the
+        signed-in account, the design's carries the operator's optional triage in the four dispositions; the design's next
+        packet carries its previous version, the review artifact and the triage, and an instruction to state its reasons as
+        properties of the design; it resumes its session where the session survives (<a href="#d-056">D-056</a>); the
+        scheduler promotes the review when the revision is delivered, and the review opens a fresh session decided from the
+        event stream (<a href="#d-069">D-069</a>); a review blocked by its own verdict is never unblocked by hand or by the
+        drift release; design and review tasks are no longer approvable. Rejected: re-running the review on the same design
+        (a reroll, not a review); a new task per revision (the graph's edges would move); a new status or event type
+        (closed); an artifact kind for the triage (a schema statement for what the event already carries); a clearance with
+        no review (a gate one account can open alone) — the brief's conditional override is a contested send-back that a
+        fresh review clears; a verbatim check on the revision (it refused what a CONTEST asks the designer to keep, and
+        missed paraphrase). Reviewed in three rounds by the goldfish lenses (<code>docs/designs/design-iterate.md</code>);
+        approved by the orchestrating agent under the product owner's standing instruction to work among the agents without
+        confirmation.
+        <br><br>
+        Consequences: <code>DONE</code> is no longer terminal for a design task — <code>canTaskTransition(DONE, READY)</code>
+        is true and <code>moveTaskLocked</code> keeps it to the send-back; card timing books a left <code>DONE</code> segment
+        as blocked, a convention that keeps the partition exact; the gate reads a review's verdict from its anchored line; a
+        QA-added card is no longer released by a Blueprint sync (<a href="brd.html#rules-qa-sync">BR-54</a>); the revised
+        design may carry the author's reading of the review, and a barely changed revision is a new design whose re-review the
+        cap bounds and the run caption records. The send-back's account is kept in the append-only stream for as long as the
+        stream is (BR-04).</td>
+        <td><a href="qa-test-plan.html#go-send-back">TC-500 to TC-509</a>;
+        <a href="brd.html#rules-design-review">BR-48, BR-58</a>;
+        <a href="../architecture/design-gate.html#send-back">The design gate</a></td>
       </tr>
     </tbody>
   </table>

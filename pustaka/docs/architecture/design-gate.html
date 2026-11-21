@@ -167,7 +167,7 @@
   </div>
 
   <h2 id="the-rules">The rules it is bound by</h2>
-  <p>A <a href="../product/brd.html#rules-design-review">BRD §9.7</a> carries five rules. Every
+  <p>A <a href="../product/brd.html#rules-design-review">BRD §9.7</a> carries six rules. Every
   implementation task has a design artifact and a review, and the review happens before the first
   dispatch. A reviewer sees the design and the rubric, and not the brief, the goal, the handoff, the
   failure lesson, the operator's answer or the acceptance criteria — and it records path and line,
@@ -175,12 +175,39 @@
   stay whole in the reviewer's own workspace, and the author's session state and files are what is
   withheld. A design reaches a reviewer only
   as a GAOS-held artifact, because there is no other route, and the findings travel back the same
-  way. An open Blocker stops the dispatch and the task goes to the operator's queue — and the
-  clearance is refused until the back office has a real identity to check, because
-  <code>signedIn()</code> today accepts a cookie from any request.</p>
+  way. An open Blocker stops the dispatch and the task goes to the operator's queue, and the operator
+  resolves it by <a href="#send-back">sending the design back</a> for a revision and a fresh review.</p>
   <p>The term is <strong>design gate</strong>, distinct from the BRD's existing
   <strong>design review</strong>, which is a meeting after a failure and records a
   <code>Decision</code>. All six of that phrase's occurrences say which they mean.</p>
+
+  <h2 id="send-back">When the review blocks: sending the design back</h2>
+  <p>A review with an open Blocker holds the review <code>BLOCKED</code> with the reason <code>design-blocked</code>, and
+  the implementation waits. Since v0.44.0 (<a href="../product/decision-log.html#d-084">D-084</a>,
+  <a href="../product/brd.html#rules-design-review">BR-58</a>) the operator resolves it from the board: the review card
+  shows its reason and a <strong>Revise design</strong> button, which opens a sheet listing the findings. Each finding may
+  be triaged with one of the four dispositions — CONTEST, ESCALATE, PROPOSE FIX or DECLINE — and a one-line note, or
+  left alone. <strong>Send back to the designer</strong> then:</p>
+  <ul>
+    <li>re-opens the design task <code>DONE → READY</code> — the one exit from <code>DONE</code>, for design tasks only —
+    and moves the review to <code>PENDING</code>, both with the move rule <code>send-back</code> and the signed-in
+    account;</li>
+    <li>gives the design's next attempt its previous design, the review's findings and the triage, quoted, as
+    <code>.gaos/packet/design.md</code> and <code>.gaos/packet/context/findings.md</code>, in the designer's own session
+    where it survives;</li>
+    <li>leaves the review waiting on its dependency: when the revision is delivered, the scheduler promotes it, and it
+    runs on a fresh session that sees the new design and the rubric, never the old findings or the triage.</li>
+  </ul>
+  <p>The gate then clears or blocks as it always does. A design can be sent back three times; after that the review
+  stays blocked and the way out is to cancel it and the work it holds. There is no clearance without a review: a
+  contested finding is argued in the revision and judged by a fresh reviewer, which is the conditional override the
+  product owner asked for, built so that no single account can open the gate alone.</p>
+  <p>The reroll is closed: a design-blocked review cannot be unblocked by hand or released by a Blueprint sync, and a
+  design or review task cannot be approved, so a revision that delivered nothing cannot reach a review. Two limits are
+  stated rather than hidden. The revision is told not to refer to the review, but nothing checks it, so the revised
+  design may carry the author's reading of the findings to the fresh reviewer; and a revision that changes little is
+  still a new design — the run's caption records how many lines it changed, and the cap bounds how often the gate is
+  re-sampled.</p>
 
   <h2 id="the-cost">What it costs</h2>
   <p>Five lenses means five parallel sessions per design, and the harness has no budget cap: the
@@ -209,7 +236,7 @@
   product.
   <a href="../product/decision-log.html#d-069">D-069</a> — the ruling that made it possible, and the
   answer to <a href="../product/open-questions.html#oq-32">OQ-32</a>.
-  <a href="../product/brd.html#rules-design-review">BRD §9.7</a> — the five rules.
+  <a href="../product/brd.html#rules-design-review">BRD §9.7</a> — the six rules.
   <a href="../delivery/implementation-plan.html#m17-design-gate">M17</a> — the work.
   <a href="../product/qa-test-plan.html#cw-workspace">TC-357</a> and
   <a href="../product/qa-test-plan.html#go-designgate">TC-359</a> — what is checked, and what is

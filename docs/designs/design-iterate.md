@@ -484,3 +484,13 @@ Each phase ends with its command green before the next starts. The phases are ch
 | Range map row | `TC-453…TC-499` | `TC-453…TC-487` |
 
 Whichever branch merges second renumbers its own claims at rebase; the code carries no number.
+
+## 14. Implementation notes (v0.44.0)
+
+Where the build differs from the text above, and why. None changes a behaviour the reviews judged.
+
+- The send-back's functions live in a new file, `dashboard/sendback.go`, not appended to `designgate.go` (§7 row 3): `designgate.go` keeps the gate's verdict and release, and only its edits named in §3.3, §3.3a and §3.6a.
+- `feat/conversations` (v0.42.0, D-082) merged first, so §13's first column applies: `EventPayload.Actor` and the `actor` column binding (`actorName`) are conversations'; this change adds `Triage` and `FindingTriage`.
+- The card button opens its sheet through conversations' generic `data-sheet-open` hook rather than a new `data-sendback-open` (§3.9): one click path for every card sheet. `app.js` only adds `sendBackModal` to the focus-return and enter lists and the close-on-2xx hook for `sendBackForm`.
+- The conformance case is `ASendBackRoundTrips`; the store conformance table now holds forty-eight cases.
+- **Renumbered at rebase.** `feat/answer-source` merged as v0.43.0 while this was in review and took D-083, BR-57 and TC-490…TC-499. Per §13's rule (whichever merges second renumbers its own claims), this change ships as **v0.44.0** with **D-084**, **BR-58** and **TC-500…TC-509**, in the same order (TC-490 here is TC-500, TC-499 is TC-509); the register reaches 509 rows and 384 Go tests, the decision log eighty-three entries and the BRD fifty-eight rules. The text above and the review reports keep the numbers they were written with. BR-48 also names answers among the actions that record an actor (D-083 added that).

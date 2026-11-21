@@ -123,7 +123,22 @@ func foldedBoard(s *MemStore, desk string, events []Event) (Board, Board) {
 		live.Cards[i].Timing = nil
 		live.Cards[i].Conversation = nil
 	}
-	return boardOf(desk, m, foldTasks(events, desk)), live
+	// The design gate's decoration (D-084) is read-time too: the block reason
+	// and the send-back state, and the moves it removes. The fold does not
+	// rebuild a BlockReason, so the card is compared without them and with the
+	// moves the folded task's own table gives.
+	folded := boardOf(desk, m, foldTasks(events, desk))
+	moves := map[string][]string{}
+	for _, c := range folded.Cards {
+		moves[c.ID] = c.Moves
+	}
+	for i := range live.Cards {
+		live.Cards[i].Reason, live.Cards[i].SendBack = "", nil
+		if mv, ok := moves[live.Cards[i].ID]; ok {
+			live.Cards[i].Moves = mv
+		}
+	}
+	return folded, live
 }
 
 func TestTheTaskFoldReproducesTheBoard(t *testing.T) {

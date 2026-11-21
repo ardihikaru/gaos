@@ -36,6 +36,23 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-44-0">v0.44.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A design the review blocked can be sent back to its author, and reviewed again.</p>
+      <ul>
+        <li><span class="chg add">Added</span> a review card blocked by its findings shows why and a <strong>Revise
+        design</strong> button. Its sheet lists the findings; triage any of them as CONTEST, ESCALATE, PROPOSE FIX or DECLINE
+        with a note, and send the design back. The design re-opens with its previous version, the findings and your triage;
+        when the revision is delivered the review runs again on a fresh session
+        (<a href="product/decision-log.html#d-084">D-084</a>). Three times at most.</li>
+        <li><span class="chg change">Changed</span> a review blocked by its findings can no longer be unblocked by hand or
+        released by a Blueprint sync, and a design or review card can no longer be approved: the gate decides. A blocked
+        card shows its reason; an unblock clears it. A QA-added card is no longer released by a sync (BR-54).</li>
+        <li><span class="chg change">Changed</span> BR-48 is amended and BR-58 added. The send-back records the signed-in
+        account. Ten new tests, TC-500 to TC-509.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-43-0">v0.43.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The QA tool can answer its own approvals, and every answer says where it came from.</p>
       <ul>

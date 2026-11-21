@@ -404,6 +404,8 @@
         {{with .Qa}}{{template "qa-badge" .}}{{end}}
         {{$card := .ID}}
         {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
+        {{with .Reason}}<div class="mono card-reason">blocked: {{.}}</div>{{end}}
+        {{with .SendBack}}{{if .Open}}<button type="button" class="btn card-sendback" id="sb-{{$card}}" data-sheet-open="{{sendBackURL $id $card}}" aria-label="Send the design {{.Design}} back to its author">Revise design</button>{{else}}<div class="mono card-reason">revision limit reached ({{.Sent}} of {{.Cap}})</div>{{end}}{{end}}
         {{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}{{range .Moves}}
         <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
         {{end}}
