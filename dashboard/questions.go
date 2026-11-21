@@ -71,6 +71,12 @@ type QuestionPayload struct {
 	Deadline   int64  `json:"deadline,omitempty"`  // unix seconds the item expires
 	Status     string `json:"status,omitempty"`    // on ExternalQuestionAnswered: answered | expired
 	AttemptAt  int64  `json:"attemptAt,omitempty"` // on ExternalAnswerDelivery: when this attempt ran
+
+	// D-083 (answer_source.go). AskedBy is the client that asked an external
+	// item ("" = qa-tools, every item asked before D-083); AnsweredBy is who
+	// answered, on QuestionAnswered and ExternalQuestionAnswered, nil before.
+	AskedBy    string        `json:"askedBy,omitempty"`
+	AnsweredBy *AnswerSource `json:"answeredBy,omitempty"`
 }
 
 // Question is one row of the inbox.
@@ -187,7 +193,7 @@ func (s *MemStore) OpenQuestions(ctx context.Context, productID string) ([]Quest
 // queue. The answer does not travel now: the next attempt carries it, through
 // ai-manager's answer route, so the turn it starts is an ordinary TaskRun with
 // a lease, a heartbeat and a record (BR-44).
-func (s *MemStore) AnswerQuestion(ctx context.Context, productID, taskID string, choice int, text string) (Result, error) {
+func (s *MemStore) AnswerQuestion(ctx context.Context, productID, taskID string, choice int, text string, by AnswerSource) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	t := s.taskPtr(taskID)
@@ -203,8 +209,9 @@ func (s *MemStore) AnswerQuestion(ctx context.Context, productID, taskID string,
 	}
 	a := q.QuestionPayload
 	a.Choice, a.Text, a.AnsweredAt = choice, strings.TrimSpace(text), time.Now().Unix()
-	ans := s.emit(QuestionAnswered, productID, fmt.Sprintf("%s: answered — %s", taskID, answerSummary(a)),
-		KindInfo, EventPayload{Task: taskID, Question: &a})
+	a.AnsweredBy = sourceOrNil(by)
+	ans := s.emit(QuestionAnswered, productID, fmt.Sprintf("%s: answered — %s%s", taskID, answerSummary(a), textSuffix(a.AnsweredBy)),
+		KindInfo, EventPayload{Task: taskID, Question: &a, Actor: eventActor(a.AnsweredBy)})
 	ev := []Event{ans}
 	if m, ok := s.moveTaskLocked(taskID, StatusReady, MoveAnswer); ok {
 		ev = append(ev, m)
@@ -246,7 +253,7 @@ func (s *MemStore) ExpireQuestions(ctx context.Context, now int64) (Result, erro
 		if len(xe) == 0 {
 			return Result{}, nil
 		}
-		return Result{NewEvents: xe, Toast: fmt.Sprintf("%d QA tool question(s) expired.", len(xe))}, nil
+		return Result{NewEvents: xe, Toast: fmt.Sprintf("%d inbox question(s) expired.", len(xe))}, nil
 	}
 	ev = append(ev, s.expireExternalLocked(now)...)
 	return s.result(fmt.Sprintf("%d question(s) expired with their session.", len(ev)), ev...), nil
@@ -318,4 +325,42 @@ func questionFromReply(g *GatewayQuestion, runID string, attempt int) *QuestionP
 	}
 	return &QuestionPayload{ID: g.ID, RunID: runID, Attempt: attempt, Question: g.Question,
 		Context: g.Context, Options: append([]QuestionOption(nil), g.Options...), AskedAt: time.Now().Unix()}
+}
+
+// RecentAnswer is one row of the inbox's "Answered recently" list (D-083): a
+// task question that was answered, or an external item that was answered or
+// expired.
+type RecentAnswer struct {
+	Question
+	Expired bool // an external item nobody answered before its deadline
+}
+
+// RecentAnswers lists the newest answers, newest first, at most limit, for one
+// product or ("") all. A lapsed item the sweep has not written yet is in
+// neither this list nor the open one, for at most one sweep.
+func (s *MemStore) RecentAnswers(ctx context.Context, productID string, limit int) ([]RecentAnswer, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []RecentAnswer{}
+	for _, q := range s.questionsLocked() {
+		if !q.Answered || (productID != "" && q.ProductID != productID) {
+			continue
+		}
+		if t := s.taskPtr(q.TaskID); t != nil {
+			q.TaskTitle, q.Role = t.Title, t.Role
+		}
+		out = append(out, RecentAnswer{Question: q})
+	}
+	for _, x := range s.externalItemsLocked() {
+		if (x.Status != ExtAnswered && x.Status != ExtExpired) || (productID != "" && x.ProductID != productID) {
+			continue
+		}
+		out = append(out, RecentAnswer{Question: Question{QuestionPayload: x.QuestionPayload, ProductID: x.ProductID,
+			TaskTitle: x.Title, External: true, Answered: true, ExpiresAt: x.Deadline}, Expired: x.Status == ExtExpired})
+	}
+	sort.SliceStable(out, func(a, b int) bool { return out[a].AnsweredAt > out[b].AnsweredAt })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }

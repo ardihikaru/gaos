@@ -179,11 +179,11 @@ func seedErrFrom(err error) *seedErr {
 }
 
 func (s *server) apiSeedProduct(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeAdmin)
+	scope, cl, ok := s.apiGate(w, r, scopeAdmin)
 	if !ok {
 		return
 	}
-	release, ok := s.beginWrite(w, scope)
+	release, ok := s.beginWrite(w, scope, cl)
 	if !ok {
 		return
 	}

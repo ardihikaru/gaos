@@ -162,8 +162,11 @@ func (s *ArcadeStore) OpenQuestions(ctx context.Context, id string) ([]Question,
 func (s *ArcadeStore) ExpireQuestions(ctx context.Context, now int64) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.ExpireQuestions(ctx, now) })
 }
-func (s *ArcadeStore) AnswerQuestion(ctx context.Context, id, taskID string, choice int, text string) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerQuestion(ctx, id, taskID, choice, text) })
+func (s *ArcadeStore) AnswerQuestion(ctx context.Context, id, taskID string, choice int, text string, by AnswerSource) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerQuestion(ctx, id, taskID, choice, text, by) })
+}
+func (s *ArcadeStore) RecentAnswers(ctx context.Context, id string, limit int) ([]RecentAnswer, error) {
+	return s.proj.RecentAnswers(ctx, id, limit)
 }
 
 // The QA tool's inbox items (external_inbox.go, D-078) are events too: the ask,
@@ -184,8 +187,8 @@ func (s *ArcadeStore) AskExternal(ctx context.Context, id string, in ExternalAsk
 func (s *ArcadeStore) ExternalGet(ctx context.Context, id, externalID string) (ExternalItem, error) {
 	return s.proj.ExternalGet(ctx, id, externalID)
 }
-func (s *ArcadeStore) AnswerExternal(ctx context.Context, id, externalID string, choice int, text string) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerExternal(ctx, id, externalID, choice, text) })
+func (s *ArcadeStore) AnswerExternal(ctx context.Context, id, externalID string, in ExternalAnswer) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.AnswerExternal(ctx, id, externalID, in) })
 }
 func (s *ArcadeStore) ExternalPending(ctx context.Context) ([]ExternalItem, error) {
 	return s.proj.ExternalPending(ctx)

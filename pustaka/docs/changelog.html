@@ -36,6 +36,24 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-43-0">v0.43.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The QA tool can answer its own approvals, and every answer says where it came from.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <code>POST /api/v1/products/{id}/inbox/{externalId}/answer</code>: a client
+        answers an inbox item it asked &mdash; the QA tool's history page can now approve without opening GAOS. The first
+        answer wins, an identical retry is accepted again, and GAOS still delivers every decision on the QA tool's items to
+        it (<a href="product/decision-log.html#d-083">D-083</a>, <a href="guide/qa-sync-api.html#inbox">the API guide</a>).</li>
+        <li><span class="chg add">Added</span> every answer records its source &mdash; in GAOS with the deployment's label
+        and the signed-in account, or via the QA tool with its host name and the user it names &mdash; shown in a new
+        <strong>Answered recently</strong> list under Needs you, in the timeline, in the refusal when someone answered
+        first, and on the card's conversation. Older answers read "source not recorded".</li>
+        <li><span class="chg add">Added</span> machine clients are a registry: a future app is a line in
+        <code>GAOS_API_CLIENTS_FILE</code> and a token file. New setting <code>GAOS_QA_ORIGIN</code>, the QA tool's host
+        name, passed through by the prod stack. Ten new tests, TC-490 to TC-499; BR-57.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-42-0">v0.42.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every card's AI conversation, readable as written; archive it, and prune it for good.</p>
       <ul>

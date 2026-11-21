@@ -452,7 +452,7 @@ func driveRunner(t *testing.T, s *MemStore) {
 	if _, err := s.superviseRun(t.Context(), ad, desk, clearedFor(t, s, desk, "wf-drive-t-2", 1), 1); err != nil {
 		t.Fatalf("supervising an asking turn against the fake gateway failed: %v", err)
 	}
-	if _, err := s.AnswerQuestion(t.Context(), desk, "wf-drive-t-2", ChoiceRecommended, ""); err != nil {
+	if _, err := s.AnswerQuestion(t.Context(), desk, "wf-drive-t-2", ChoiceRecommended, "", AnswerSource{}); err != nil {
 		t.Fatalf("answering the driven question failed: %v", err)
 	}
 	driveExternal(t, s)

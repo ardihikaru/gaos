@@ -1110,10 +1110,27 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .inbox-empty p + p{margin-top:4px}
 .inbox-empty b{color:var(--ink);font-weight:600}
 .inbox-empty .btn{margin-left:6px;padding:3px 9px;font-size:11.5px}
+/* Answered recently (D-083): quieter than the open list -- nothing to do here */
+.inbox-recent{max-width:1040px;margin-top:22px}
+.inbox-recent h3{margin:0 0 8px}
+.inbox-recent ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.inbox-recent li{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"q when" "meta when";
+  gap:3px 18px;padding:8px 14px;border:1px solid var(--line-soft);border-radius:var(--r-s);background:var(--panel);
+}
+.rr-q{grid-area:q;min-width:0;font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rr-meta{grid-area:meta;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:3px 14px;font-size:12px;color:var(--ink-3)}
+.rr-out{color:var(--ink-2);min-width:0;max-width:48ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rr-by{min-width:0;overflow-wrap:anywhere}
+.rr-when{grid-area:when;align-self:center;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cv-by{color:var(--ink-3);overflow-wrap:anywhere}
 @media (max-width:640px){
   .inbox-row{grid-template-columns:minmax(0,1fr);grid-template-areas:"q" "meta" "when"}
   .ir-q{white-space:normal;overflow-wrap:anywhere}
   .ir-when{align-self:start}
+  .inbox-recent li{grid-template-columns:minmax(0,1fr);grid-template-areas:"q" "meta" "when"}
+  .rr-q{white-space:normal;overflow-wrap:anywhere}
+  .rr-when{align-self:start}
 }
 
 /* the answer sheet. Enter 200ms from scale(.96)+opacity, exit 150ms, both on

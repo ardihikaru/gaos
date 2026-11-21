@@ -193,3 +193,57 @@ func TestTheLiveStreamIsNotGzipped(t *testing.T) {
 		t.Fatalf("the stream's first line is %q; want the retry hint, readable as sent", line)
 	}
 }
+
+// D-083: "Answered recently" says who answered what, and from where.
+func TestInboxShowsRecentAnswers(t *testing.T) {
+	srv, st, pids := apiFixture(t, qaWithOrigin)
+	a, b := pids[0], pids[1]
+	ctx := t.Context()
+	mustAsk(t, srv, a, `{"externalId":"ra-qa","question":"Quarantine the flaky specs?","title":"<script>x</script>"}`)
+	call(t, srv, "POST", answerPath(a, "ra-qa"), tokQA, apiAnswerJSON(1, "", "ardi"))
+	mustAsk(t, srv, a, askJSON("ra-bo"))
+	answerPost(t, srv, "/products/"+a+"/inbox/ra-bo/answer", `{"choice":2}`, true)
+	plantQuestion(st, a, "wf-ra-old", "Which cache?", time.Now().Unix()-60)
+	if _, err := st.AnswerQuestion(ctx, a, "wf-ra-old", 4, "Redis, the shared one", AnswerSource{}); err != nil {
+		t.Fatal(err) // no source: an answer given before D-083 reads the same
+	}
+	mustAsk(t, srv, a, `{"externalId":"ra-exp","question":"Ship tonight?","expiresInHours":1}`)
+	st.ExpireQuestions(ctx, time.Now().Unix()+2*3600)
+
+	body := do(t, srv, "GET", "/ui/bo/inbox", nil, boCookies()...).Body.String()
+	for _, want := range []string{
+		`id="recentTitle" class="eyebrow">Answered recently<`,
+		"answered via QA tool (qa.example) by ardi",
+		"answered in GAOS (" + testLabel + ") by " + testEmail,
+		"answered · source not recorded",
+		"own words: Redis, the shared one",
+		"expired unanswered",
+		"&lt;script&gt;x&lt;/script&gt;",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the inbox's Answered recently lacks %q", want)
+		}
+	}
+	if strings.Contains(body, "<script>x</script>") {
+		t.Error("an item's title reached the page unescaped")
+	}
+	if strings.Contains(do(t, srv, "GET", "/ui/bo/inbox?product="+url.QueryEscape(b), nil, boCookies()...).Body.String(), "Answered recently") {
+		t.Error("the inbox filtered to another product still lists this product's answers")
+	}
+
+	for i := 0; i < 25; i++ {
+		id := "ra-many-" + strings.Repeat("x", i+1)
+		st.AskExternal(ctx, a, ExternalAsk{ExternalID: id, Question: "q"})
+		st.AnswerExternal(ctx, a, id, ExternalAnswer{Choice: 1})
+	}
+	body = do(t, srv, "GET", "/ui/bo/inbox", nil, boCookies()...).Body.String()
+	if n := strings.Count(body, `class="rr-q"`); n != recentLimit {
+		t.Errorf("Answered recently lists %d rows; want at most %d", n, recentLimit)
+	}
+	rs, _ := st.RecentAnswers(ctx, "", 0)
+	for i := 1; i < len(rs); i++ {
+		if rs[i].AnsweredAt > rs[i-1].AnsweredAt {
+			t.Fatalf("RecentAnswers is not newest first at %d", i)
+		}
+	}
+}

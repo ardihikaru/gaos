@@ -270,7 +270,10 @@ type EventPayload struct {
 
 	// D-082. Actor is the signed-in account that archived, restored or pruned
 	// a conversation; Prune is a prune's certificate. Set by
-	// ConversationArchived and ConversationPruned and by nothing else.
+	// ConversationArchived and ConversationPruned. D-083: Actor is also set on
+	// QuestionAnswered and ExternalQuestionAnswered -- the session's email, or
+	// "<client>/<handle>" for a machine client's reported, unverified handle
+	// (eventActor, answer_source.go). It fills the Event.actor column.
 	Actor string
 	Prune *PruneRecord
 
@@ -306,6 +309,10 @@ func (p EventPayload) Clone() EventPayload {
 	if p.Question != nil {
 		q := *p.Question
 		q.Options = append([]QuestionOption(nil), p.Question.Options...)
+		if p.Question.AnsweredBy != nil {
+			by := *p.Question.AnsweredBy
+			q.AnsweredBy = &by
+		}
 		c.Question = &q
 	}
 	if p.Prune != nil {

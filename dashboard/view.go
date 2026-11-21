@@ -172,6 +172,8 @@ type BOView struct {
 	Filter     string
 	FilterName string
 	Filters    []InboxFilter
+	// Recent is "Answered recently" (D-083): who answered what, newest first.
+	Recent []RecentRow
 
 	// The Archive page (D-082).
 	Archive *ArchivePage
@@ -185,7 +187,9 @@ type InboxRow struct {
 	ProductName string
 	TaskID      string
 	TaskTitle   string
-	Source      string // "QA tool" for an item that belongs to no task (D-078); "" for a task's question
+	Source      string // the asker's tag ("QA tool", or a client's name) for an item that belongs to no task (D-078); "" for a task's question
+	Asker       string // "the QA tool", or the client's name (D-083)
+	Pushed      bool   // the asker is told by webhook; any other client polls
 	RoleLabel   string
 	RoleStyle   template.CSS
 	Lead        string // the question's first line, clipped
@@ -198,6 +202,20 @@ type InboxRow struct {
 	Urgent      bool   // under urgentBefore left
 	OpenURL     string // GET for the answer sheet
 	DomID       string
+}
+
+// RecentRow is one line of "Answered recently" (D-083). Plain strings: the
+// actor is a client's reported handle, so html/template escapes all of it.
+type RecentRow struct {
+	ProductName string
+	Lead        string // the question's first line, clipped
+	TaskID      string // a task question's task; "" for an inbox item
+	Tag         string // an inbox item's origin tag ("QA tool", a client's name)
+	Title       string
+	Outcome     string // the option's label, "own words: …", or "expired unanswered"
+	By          string // "answered via QA tool (…) by ardi"; "" for an expiry
+	WhenISO     string
+	When        string // "5m ago"
 }
 
 type InboxFilter struct {
@@ -213,6 +231,8 @@ type AnswerView struct {
 	TaskID      string
 	TaskTitle   string
 	Source      string // as on InboxRow
+	Asker       string // as on InboxRow
+	Pushed      bool
 	RoleLabel   string
 	Waiting     string
 	AskedISO    string
