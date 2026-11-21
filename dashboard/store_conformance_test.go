@@ -85,6 +85,7 @@ var storeContract = []storeCase{
 	{"ARefusedDispatchBlocksTheDeskAndSaysWhy", caseDispatchRefusedBlocks},
 	{"AManualRunnerReadiesAndNeverDispatches", caseManualRunnerReadiesAndNeverDispatches},
 	{"CardTimingOfAPlannedTask", caseCardTimingOfAPlannedTask},
+	{"ConversationArchiveRoundTrip", caseConversationArchiveRoundTrip},
 }
 
 func TestStoreConformanceMemory(t *testing.T) {
@@ -836,9 +837,15 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"PublishBlueprint": func() (Result, error) { return ro.PublishBlueprint(ctx, "p-1") },
 		"SyncBlueprint":    func() (Result, error) { return ro.SyncBlueprint(ctx, "p-1") },
 		"MoveCard":         func() (Result, error) { return ro.MoveCard(ctx, "p-1", "t-1", CardMove{Column: ColCanceled}) },
-		"AnswerQuestion":   func() (Result, error) { return ro.AnswerQuestion(ctx, "p-1", "t-1", 1, "") },
-		"ExpireQuestions":  func() (Result, error) { return ro.ExpireQuestions(ctx, 0) },
-		"AnswerExternal":   func() (Result, error) { return ro.AnswerExternal(ctx, "p-1", "x", 1, "") },
+		"ArchiveConversation": func() (Result, error) {
+			return ro.ArchiveConversation(ctx, "p-1", "t-1", "x@example.test", true)
+		},
+		"PruneConversations": func() (Result, error) {
+			return ro.PruneConversations(ctx, "x@example.test", []CardRef{{"p-1", "t-1"}})
+		},
+		"AnswerQuestion":  func() (Result, error) { return ro.AnswerQuestion(ctx, "p-1", "t-1", 1, "") },
+		"ExpireQuestions": func() (Result, error) { return ro.ExpireQuestions(ctx, 0) },
+		"AnswerExternal":  func() (Result, error) { return ro.AnswerExternal(ctx, "p-1", "x", 1, "") },
 		"RecordExternalDelivery": func() (Result, error) {
 			return ro.RecordExternalDelivery(ctx, "p-1", "x", 1, DeliveryDelivered, "", 0)
 		},
@@ -1667,5 +1674,43 @@ func caseCardTimingOfAPlannedTask(t *testing.T, s Store) {
 	}
 	if _, err := s.CardTiming(ctx, id, "wf-999-t-1"); err != ErrNotFound {
 		t.Fatalf("an unknown card's timing answered %v; want ErrNotFound", err)
+	}
+}
+
+// caseConversationArchiveRoundTrip is D-082 at the seam: a cancelled card is
+// refused until it has an attempt; archive then restore round-trips the state
+// in both stores; an unknown card is ErrNotFound.
+func caseConversationArchiveRoundTrip(t *testing.T, s Store) {
+	g, ok := s.(graphReader)
+	if !ok {
+		t.Skip("this store does not expose the task graph for testing")
+	}
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	m, _ := s.Master(ctx, id)
+	if len(m.Stories) == 0 {
+		t.Skip("the first master record has no stories to plan against")
+	}
+	draft := WorkflowDraft{ProductID: id, Goal: "Talk it through", Stories: []string{m.Stories[0].ID}}
+	plan, err := s.PlanWorkflow(ctx, draft)
+	if err != nil {
+		t.Fatalf("PlanWorkflow: %v", err)
+	}
+	if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	task := g.tasksSnapshot(id)[0].ID
+	if _, err := s.MoveCard(ctx, id, task, CardMove{Column: ColCanceled}); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if _, err := s.ArchiveConversation(ctx, id, task, "x@example.test", true); err == nil {
+		t.Fatalf("a card with no attempt was archived; there is no conversation to archive")
+	}
+	if _, err := s.ArchiveConversation(ctx, id, "wf-999-t-1", "x@example.test", true); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("an unknown card answered %v; want ErrNotFound", err)
+	}
+	c, err := s.Conversation(ctx, id, task)
+	if err != nil || c.State.Archived || len(c.Attempts) != 0 {
+		t.Fatalf("a fresh card's conversation is %+v (%v); want active and empty", c, err)
 	}
 }

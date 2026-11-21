@@ -121,6 +121,7 @@ func foldedBoard(s *MemStore, desk string, events []Event) (Board, Board) {
 	live.Workflows = nil
 	for i := range live.Cards {
 		live.Cards[i].Timing = nil
+		live.Cards[i].Conversation = nil
 	}
 	return boardOf(desk, m, foldTasks(events, desk)), live
 }

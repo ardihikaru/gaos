@@ -127,6 +127,13 @@ CREATE PROPERTY GaosEdge.createdBy STRING;</pre>
     </tbody>
   </table>
 
+  <p><strong>v0.42.0 adds two events and no type</strong> (<a href="../product/decision-log.html#d-082">D-082</a>):
+  <code>ConversationArchived</code> (a finished card's conversation archived or restored, by the signed-in account,
+  which now also fills <code>Event.actor</code>) and <code>ConversationPruned</code> (the prune's certificate: which
+  attempts' prompt, reply and question documents were emptied, each one's SHA-256 and length, what survives, and how
+  the gateway sessions fared — never a session id). A prune sets <code>Artifact.body</code> to an empty string; the
+  artifact's row, every event, run record and context slice stay.</p>
+
   <p><strong>Since v0.41.0 an event carries the wall-clock time it was emitted at</strong>
   (<a href="../product/decision-log.html#d-081">D-081</a>): an <code>at</code> key, unix seconds on the dashboard's
   clock, beside the reducer's delta in <code>payload</code>. <code>ts</code> stays the database's own write time; a row
