@@ -1065,11 +1065,14 @@ func (s *ArcadeStore) writeEvent(ctx context.Context, tx *ArcadeTx, e Event) err
 	}
 	return tx.Command(ctx,
 		`INSERT INTO Event SET id = :id, tenantId = :t, seq = :seq, type = :ty,
-		 entityId = :eid, entityType = 'Workflow', actor = 'operator',
+		 entityId = :eid, entityType = 'Workflow', actor = :actor,
 		 ts = sysdate(), payload = :p`,
 		map[string]any{
 			"id": fmt.Sprintf("%s-ev-%d", s.tenant, e.Seq), "t": s.tenant,
 			"seq": e.Seq, "ty": string(e.Type), "eid": e.DeskID, "p": p,
+			// D-082: the signed-in account when an event carries one, bound,
+			// never formatted into the statement.
+			"actor": actorName(e.Payload.Actor),
 		}, nil)
 }
 

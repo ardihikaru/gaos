@@ -36,6 +36,23 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-42-0">v0.42.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every card's AI conversation, readable as written; archive it, and prune it for good.</p>
+      <ul>
+        <li><span class="chg add">Added</span> every card with an attempt has a conversation chip that opens the
+        conversation: for each attempt, what GAOS sent, what the AI replied — markdown with nested lists, code blocks and
+        inline code, rendered safely — and any question it asked with your answer
+        (<a href="product/decision-log.html#d-082">D-082</a>).</li>
+        <li><span class="chg add">Added</span> a finished card's conversation can be archived, which takes it off the card,
+        and restored. The new <strong>Archive</strong> page lists archived conversations, opens them read-only, and prunes
+        them all behind a typed <code>PRUNE</code>: their prompt, reply and question documents are emptied and their gateway
+        sessions deleted, and each card gets a certificate of what was emptied and what survives.</li>
+        <li><span class="chg change">Changed</span> BR-41 now ends where an operator prunes. Back-office pages send a
+        Content-Security-Policy against framing, plugins and foreign form targets. Twelve new tests, TC-478 to TC-489.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-41-0">v0.41.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every card says how long it has taken, and where the time went.</p>
       <ul>

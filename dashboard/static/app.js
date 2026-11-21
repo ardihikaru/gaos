@@ -37,7 +37,7 @@
   }
 
   document.addEventListener("click", function (e) {
-    var t = e.target.closest("[data-close-sheet],[data-close-modal],[data-answer-open],[data-timing-open],[data-toggle],[data-pick],[data-nav],#themeBtn,#boTheme,.story-pick");
+    var t = e.target.closest("[data-close-sheet],[data-close-modal],[data-answer-open],[data-timing-open],[data-sheet-open],[data-toggle],[data-pick],[data-nav],#themeBtn,#boTheme,.story-pick");
     if (!t) return;
 
     if (t.id === "themeBtn" || t.id === "boTheme") { toggleTheme(); return; }
@@ -46,7 +46,7 @@
     // e.detail is 0 for a click synthesised by Enter or Space: a keyboard close.
     if (t.dataset.closeModal) { closeModal(t.dataset.closeModal, e.detail === 0); return; }
     if (t.dataset.answerOpen) { openAnswer(t, e.detail === 0); return; }
-    if (t.dataset.timingOpen) { openTiming(t, e.detail === 0); return; }
+    if (t.dataset.timingOpen || t.dataset.sheetOpen) { openTiming(t, e.detail === 0); return; }
 
     /* An inline form that only exists to be revealed — the BRD editor and the
        new-product block. Server state does not change, so neither should the
@@ -124,7 +124,7 @@
     } else {
       finishClose(back);
     }
-    if (id === "answerModal" || id === "timingModal") returnFocus();
+    if (id === "answerModal" || id === "timingModal" || id === "conversationModal") returnFocus();
   }
   function finishClose(back) {
     back.hidden = true;
@@ -172,7 +172,7 @@
     var card = t.closest("[data-card-id],[data-card]");
     trigger = { id: t.id || "", row: null, card: card ? (card.dataset.cardId || card.dataset.card) : null };
     openedByKey = byKey;
-    htmx.ajax("GET", t.dataset.timingOpen, { target: "#sink", swap: "innerHTML" });
+    htmx.ajax("GET", t.dataset.timingOpen || t.dataset.sheetOpen, { target: "#sink", swap: "innerHTML" });
   }
 
   // Runs when the server swaps the sheet in.
@@ -321,7 +321,7 @@
   function afterSwap(target) {
     if (!target || !target.id) return;
 
-    if (target.id === "answerModal" || target.id === "timingModal") showAnswer(target);
+    if (target.id === "answerModal" || target.id === "timingModal" || target.id === "conversationModal") showAnswer(target);
 
     if (target.id === "toast") {
       clearTimeout(toastTimer);

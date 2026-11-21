@@ -140,6 +140,8 @@ var funcs = template.FuncMap{
 	"confPct":   func(v float64) int { return int(v*100 + 0.5) },
 	// timingURL path-escapes both ids, as the answer sheet's URL does (D-081).
 	"timingURL": timingURL,
+	// conversationURL is a card's conversation sheet (D-082).
+	"conversationURL": conversationURL,
 	// since is a unix time as RFC 3339 UTC, for a <time datetime> live.js ticks.
 	"since": func(sec int64) string { return time.Unix(sec, 0).UTC().Format(time.RFC3339) },
 	// styleWidth exists so a template can size a bar without the caller having

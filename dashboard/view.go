@@ -69,6 +69,8 @@ type View struct {
 	Answer *AnswerView
 	// Timing is the open timing sheet (D-081, timing.go), or nil.
 	Timing *TimingView
+	// Talk is the open conversation sheet (D-082, conversation.go), or nil.
+	Talk *ConversationView
 
 	// ShowLogin and a non-nil BO are what decide whether each sheet is visible.
 	// The server owns that, not the client: "am I signed in" has exactly one
@@ -84,6 +86,7 @@ type View struct {
 
 type BOCounts struct {
 	Products, Stories, Diagrams, Knowledge, Agents int
+	Archived                                       int // D-082: archived conversations
 }
 
 type ProductCard struct {
@@ -169,6 +172,9 @@ type BOView struct {
 	Filter     string
 	FilterName string
 	Filters    []InboxFilter
+
+	// The Archive page (D-082).
+	Archive *ArchivePage
 }
 
 // ---------- "Needs you" (M15) ----------

@@ -123,6 +123,14 @@ type Store interface {
 	// totals that partition its lead time, its attempts (D-081,
 	// docs/designs/card-timing.md). ErrNotFound for an unknown card.
 	CardTiming(ctx context.Context, productID, taskID string) (CardTiming, error)
+
+	// A card's conversation, its archive and its prune (D-082,
+	// docs/designs/conversations.md). Conversation and ArchivedConversations
+	// read; ArchiveConversation and PruneConversations write.
+	Conversation(ctx context.Context, productID, taskID string) (Conversation, error)
+	ArchiveConversation(ctx context.Context, productID, taskID, actor string, archive bool) (Result, error)
+	ArchivedConversations(ctx context.Context) (ArchiveView, error)
+	PruneConversations(ctx context.Context, actor string, cards []CardRef) (Result, error)
 	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
 	Inject(ctx context.Context, productID string) (Result, error)
 
@@ -282,6 +290,12 @@ func (readOnly) AddKnowledgeSource(context.Context, string, KnowledgeSource) (Re
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) PublishBlueprint(context.Context, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) ArchiveConversation(context.Context, string, string, string, bool) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) PruneConversations(context.Context, string, []CardRef) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) MoveCard(context.Context, string, string, CardMove) (Result, error) {

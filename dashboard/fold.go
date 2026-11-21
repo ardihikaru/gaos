@@ -375,6 +375,11 @@ func reduce(st FloorState, e Event) FloorState {
 		// its answer or expiry, and each attempt to tell the QA tool. The inbox
 		// folds them itself (external_inbox.go); the floor has nothing to show.
 
+	case ConversationArchived, ConversationPruned:
+		// D-082. A conversation's archive state and its prune certificates are
+		// a projection of their own (conversation.go); the floor has nothing to
+		// show. A case rather than the default skip, so the silence is decided.
+
 	case QuestionAsked, QuestionAnswered:
 		// M15. Nothing on the floor: the task's status travels in the TaskMoved
 		// beside each of these, and the inbox is its own projection of the

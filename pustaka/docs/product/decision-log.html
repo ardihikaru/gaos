@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-one entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -113,7 +113,7 @@
       </tr>
       <tr>
         <td>D-012</td><td>2026-08-02</td>
-        <td>Retention differs by type: events at full fidelity for 90 days then archived with the fold checkpoint retained, samples raw for 14 days then downsampled, run logs by reference only, and everything else indefinitely — because the audit trail is the product.</td>
+        <td>Retention differs by type: events at full fidelity for 90 days then archived with the fold checkpoint retained, samples raw for 14 days then downsampled, run logs by reference only, and everything else indefinitely — because the audit trail is the product. Exception: <a href="#d-082">D-082</a>, an operator's prune of an archived conversation's documents.</td>
         <td><code>gaos-arcadedb-model.html</code> §13</td>
       </tr>
       <tr id="d-042">
@@ -1678,6 +1678,39 @@
         classified by the current runner mode, not the one in force when the card waited. Cards from before v0.30.0, and
         any whose background write was lost, read as incomplete.</td>
         <td><a href="qa-test-plan.html#go-card-timing">TC-466 to TC-477</a>;
+        <a href="../architecture/graph.html#documents">Event</a></td>
+      </tr>
+      <tr id="d-082">
+        <td>D-082</td><td>2026-11-21</td>
+        <td><strong>A finished card's conversation is readable, archivable and prunable; prune empties the conversation's
+        documents and deletes its sessions, never the record.</strong>
+        Context: the product owner asked to see the AI conversation of every card, readable as written, to archive it, and
+        to prune archived conversations permanently. The prompt, reply and question documents were stored per attempt and
+        read by nothing, and BR-41 kept them forever. Decision: each card shows every attempt's prompt and reply, rendered
+        as escaped markdown (no HTML from the model, https links only, no images), and its question and the operator's
+        answer. A finished card with no open attempt can be archived and restored (<code>ConversationArchived</code>);
+        from the Archive page, with a typed <code>PRUNE</code> bound to the listed cards, archived conversations are pruned
+        (<code>ConversationPruned</code>, two stages): the prompt, reply and question documents are emptied in one
+        transaction with a certificate per card — the account, the time, each document's SHA-256 and length, and what
+        survives — and then the gateway sessions of those cards are deleted through the admin API and their outcome
+        recorded. What survives, said in the form and the certificate: the events (with the full question and answer), the
+        context slices (with the prompt's packet), run records, artifact rows, handoff, design and review documents, the
+        gateway's own question records and turn results until they expire, and backups (L-9). The prune empties the
+        database property and claims nothing about disk-page reclamation (D-043's check is not recorded in
+        <code>dashboard/schema/RECONCILIATION.md</code>). Amends <a href="brd.html#rules-gateway">BR-41</a>; an exception
+        to D-012 and J-6. Back-office responses gain a framing, object, base and form-action Content-Security-Policy.
+        BR-05: the catalog opens by the two names, with their fold cases and the data-model document. Rejected: archive
+        per session; archive of unfinished cards; archive state on a property; deleting events, run records or context
+        slices; a raw-transcript view (the gateway has no read endpoint). Reviewed in two rounds by five goldfish lenses
+        (<code>docs/designs/conversations.md</code>); approved by the orchestrating agent under the product owner's
+        delegation.
+        <br><br>
+        Consequences: what prune actually removes from GAOS is the reply's prose outside its handoff, design and review
+        blocks, and the copies of the prompt and question; from the gateway, the session transcripts with their tool calls.
+        Any signed-in account can prune; the certificate names it. A session deletion that fails is counted and left to the
+        gateway's 30-day expiry. A <code>script-src</code> policy needs an audit of every template and is not in this change.</td>
+        <td><a href="qa-test-plan.html#go-conversations">TC-478 to TC-489</a>;
+        <a href="brd.html#rules-gateway">BR-41</a>;
         <a href="../architecture/graph.html#documents">Event</a></td>
       </tr>
     </tbody>

@@ -29,6 +29,8 @@ var catalog = map[EventType]bool{
 	QuestionAsked: true, QuestionAnswered: true,
 	// execution -- D-078, the QA tool's inbox items
 	ExternalQuestionAsked: true, ExternalQuestionAnswered: true, ExternalAnswerDelivery: true,
+	// execution -- D-082, a card's conversation
+	ConversationArchived: true, ConversationPruned: true,
 	// judgment
 	ReviewCompleted: true, RetryRequested: true, ModelEscalated: true,
 	SafetyVeto: true, GuardExhausted: true,
@@ -275,6 +277,23 @@ func drive(t *testing.T, s *MemStore) {
 	}
 	if _, err := s.MoveCard(ctx, boardDesk, boardTask, CardMove{Column: ColCanceled}); err != nil {
 		t.Fatalf("cancel: %v", err)
+	}
+	// D-082: the cancelled card, given one recorded attempt, is archived,
+	// restored, archived and pruned, so ConversationArchived and
+	// ConversationPruned are on the stream.
+	s.mu.Lock()
+	s.runs = append(s.runs, TaskRunRecord{ID: runIDFor(boardTask, 1), TaskID: boardTask, DeskID: boardDesk,
+		Attempt: 1, Status: RunStatusExited, StartedAt: 1, EndedAt: 2})
+	s.recordHandoff(ArtifactRecord{ID: runIDFor(boardTask, 1) + "-reply", Kind: ArtifactReply,
+		TaskID: boardTask, DeskID: boardDesk, RunID: runIDFor(boardTask, 1), Attempt: 1, Body: "done"})
+	s.mu.Unlock()
+	for _, archive := range []bool{true, false, true} {
+		if _, err := s.ArchiveConversation(ctx, boardDesk, boardTask, "drive@example.test", archive); err != nil {
+			t.Fatalf("archive=%v: %v", archive, err)
+		}
+	}
+	if _, err := s.PruneConversations(ctx, "drive@example.test", []CardRef{{boardDesk, boardTask}}); err != nil {
+		t.Fatalf("prune: %v", err)
 	}
 }
 

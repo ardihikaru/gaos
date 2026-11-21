@@ -47,7 +47,8 @@ func sseName(t EventType) string {
 	switch t {
 	case QuestionAsked, QuestionAnswered, ExternalQuestionAsked, ExternalQuestionAnswered:
 		return "question"
-	case TaskMoved, TaskReordered, RunStarted, RunExited, TaskDispatched:
+	case TaskMoved, TaskReordered, RunStarted, RunExited, TaskDispatched,
+		ConversationArchived, ConversationPruned: // D-082: the card's chip changes
 		return "task"
 	}
 	return "event"

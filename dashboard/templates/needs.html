@@ -186,3 +186,73 @@
   {{end}}
 </div>
 {{end}}
+
+
+{{/* The conversation sheet (D-082, docs/designs/conversations.md §3.4). Opened
+     by a card's conversation chip, or from the Archive page: GET
+     ui/conversation/{id}/{taskId}. Three modes: active (archive when the card
+     is finished), archived (read-only, restore), pruned (headers, what was
+     emptied, what survives). Bodies are model text: renderMarkdown escapes
+     them before any tag is written (markdown.go). */}}
+{{define "conversation-modal"}}
+<div class="modal-back modal-anim" id="conversationModal" {{if not .Talk}}hidden{{end}} hx-swap-oob="true">
+  {{with .Talk}}
+  <div class="modal conversation" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cvTitle" aria-describedby="cvMeta">
+    <header>
+      <div class="answer-head">
+        <span class="eyebrow" id="cvMeta">{{.ProductName}} · {{.TaskID}} · {{.Status}}</span>
+        <h3 id="cvTitle" dir="auto">{{.TaskTitle}}</h3>
+      </div>
+      <button type="button" class="icon-btn x" aria-label="Close" title="Close (Esc)" data-close-modal="conversationModal">✕</button>
+    </header>
+    <div class="modal-body">
+      {{if eq .Mode "archived"}}
+      <p class="cv-banner">Archived {{.ArchivedAt}} by {{if .State.ArchivedBy}}{{.State.ArchivedBy}}{{else}}operator{{end}}. Restore it to show it on its card again.</p>
+      {{else if eq .Mode "pruned"}}
+      <p class="cv-banner">Pruned {{.PrunedAt}} by {{if .State.PrunedBy}}{{.State.PrunedBy}}{{else}}operator{{end}}.</p>
+      {{if .Emptied}}<ul class="cv-emptied mono">{{range .Emptied}}<li>{{.}}</li>{{end}}</ul>{{end}}
+      {{if .Sessions}}<p class="tm-line mono">{{.Sessions}}</p>{{end}}
+      <p class="tm-line">{{.Survives}}</p>
+      {{end}}
+
+      {{if not .Attempts}}<p class="tm-line">No attempt has run on this card yet.</p>{{end}}
+      {{range .Attempts}}
+      <section class="cv-attempt">
+        <h4 class="cv-head mono">Attempt {{.Attempt}} · {{.Model}} · {{.Provider}} · {{.Status}}{{if .Started}} · {{.Started}}{{end}}</h4>
+        {{if ne $.Talk.Mode "pruned"}}
+        <details class="cv-sent">
+          <summary>GAOS sent</summary>
+          {{if .Prompt}}{{.Prompt}}{{else}}<p class="tm-line">No prompt was recorded.</p>{{end}}
+        </details>
+        <div class="cv-reply">
+          <div class="cv-who">AI replied</div>
+          {{if .Reply}}{{.Reply}}{{else}}<p class="tm-line">No reply was recorded.</p>{{end}}
+        </div>
+        {{with .Question}}
+        <div class="cv-q">
+          <div class="cv-who">Asked you</div>
+          <p dir="auto">{{.Question}}</p>
+          {{if .Context}}<p class="tm-line" dir="auto">{{.Context}}</p>{{end}}
+        </div>
+        {{end}}
+        {{if .Options}}<ol class="cv-opts">{{range .Options}}<li dir="auto">{{.}}</li>{{end}}</ol>{{end}}
+        {{if .Question}}<p class="cv-a">{{if .Answer}}<b>You answered</b> <span dir="auto">{{.Answer}}</span> <span class="tm-line mono">{{.Answered}}</span>{{else}}<span class="tm-line">Not answered yet.</span>{{end}}</p>{{end}}
+        {{end}}
+      </section>
+      {{end}}
+    </div>
+    {{if eq .Mode "active"}}
+    <footer>
+      <span class="answer-hint">{{if .CanArchive}}Archiving hides this conversation from its card; the Archive page keeps it.{{else}}Archive is available when the card is done or canceled and no attempt is running.{{end}}</span>
+      <span class="sp">{{if .CanArchive}}<button type="button" class="btn" hx-post="{{.ArchiveURL}}" hx-target="#sink" hx-swap="innerHTML">Archive</button>{{end}}</span>
+    </footer>
+    {{else if eq .Mode "archived"}}
+    <footer>
+      <span class="answer-hint">Restoring puts the conversation back on its card.</span>
+      <span class="sp"><button type="button" class="btn" hx-post="{{.RestoreURL}}" hx-target="#sink" hx-swap="innerHTML">Restore</button></span>
+    </footer>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}

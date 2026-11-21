@@ -391,6 +391,11 @@ func (s *server) routes() http.Handler {
 	handle("GET /ui/answer-ext/{id}/{externalId}", s.handleExternalSheet)
 	// D-081: a card's timing sheet.
 	handle("GET /ui/timing/{id}/{taskId}", s.handleTimingSheet)
+	// D-082: a card's conversation, its archive and its prune.
+	handle("GET /ui/conversation/{id}/{taskId}", s.handleConversationSheet)
+	handle("POST /products/{id}/board/cards/{taskId}/conversation/archive", s.handleArchiveConversation(true))
+	handle("POST /products/{id}/board/cards/{taskId}/conversation/restore", s.handleArchiveConversation(false))
+	handle("POST /conversations/prune", s.handlePrune)
 
 	// --- create workflow ---
 	handle("GET /ui/cw", s.handleCWOpen)

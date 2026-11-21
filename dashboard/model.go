@@ -268,6 +268,12 @@ type EventPayload struct {
 	// (the same question, with the answer filled in), and by nothing else.
 	Question *QuestionPayload
 
+	// D-082. Actor is the signed-in account that archived, restored or pruned
+	// a conversation; Prune is a prune's certificate. Set by
+	// ConversationArchived and ConversationPruned and by nothing else.
+	Actor string
+	Prune *PruneRecord
+
 	// Genesis is set by FloorOpened and by nothing else. It is the seeded floor
 	// -- the `?? empty` half of §08's `snapshot_before(t) ?? empty` -- and it is
 	// what lets a fold from an empty state reproduce a floor that was never
@@ -301,6 +307,13 @@ func (p EventPayload) Clone() EventPayload {
 		q := *p.Question
 		q.Options = append([]QuestionOption(nil), p.Question.Options...)
 		c.Question = &q
+	}
+	if p.Prune != nil {
+		r := *p.Prune
+		r.Runs = append([]string(nil), p.Prune.Runs...)
+		r.Bodies = append([]PrunedBody(nil), p.Prune.Bodies...)
+		r.Kept = append([]string(nil), p.Prune.Kept...)
+		c.Prune = &r
 	}
 	return c
 }
