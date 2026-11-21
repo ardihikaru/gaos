@@ -375,6 +375,7 @@ func (s *server) routes() http.Handler {
 	handle("GET /products/{id}/board", s.handleBoard)
 	handle("GET /products/{id}/board/cards/{taskId}/timing", s.handleCardTiming) // D-081
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
+	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084
 	handle("POST /products/{id}/board/cards", s.handleCardRefused)
 	handle("PUT /products/{id}/board/cards/{taskId}", s.handleCardRefused)
 	handle("DELETE /products/{id}/board/cards/{taskId}", s.handleCardRefused)
@@ -396,6 +397,8 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/board/cards/{taskId}/conversation/archive", s.handleArchiveConversation(true))
 	handle("POST /products/{id}/board/cards/{taskId}/conversation/restore", s.handleArchiveConversation(false))
 	handle("POST /conversations/prune", s.handlePrune)
+	// D-084: the send-back sheet of a design-blocked review.
+	handle("GET /ui/send-back/{id}/{taskId}", s.handleSendBackSheet)
 
 	// --- create workflow ---
 	handle("GET /ui/cw", s.handleCWOpen)

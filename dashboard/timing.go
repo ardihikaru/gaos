@@ -181,6 +181,13 @@ func cardTiming(t TaskRecord, events []Event, runs []TaskRunRecord, now int64, m
 		if n := len(ct.Segments); n > 0 {
 			s := &ct.Segments[n-1]
 			s.LeftAt, s.Seconds = at, at-s.EnteredAt
+			// A terminal segment that is left (a design sent back, D-084) is
+			// booked as blocked: a convention that keeps the partition exact,
+			// since BucketDone is in none of the sums. The time was the
+			// review's turn and the operator's wait.
+			if terminal(s.Status) {
+				s.Bucket = BucketBlocked
+			}
 		}
 	}
 	for _, e := range evs {
@@ -378,6 +385,11 @@ func timingURL(productID, taskID string) string {
 // conversationURL is a card's conversation sheet (D-082), escaped the same way.
 func conversationURL(productID, taskID string) string {
 	return "ui/conversation/" + url.PathEscape(productID) + "/" + url.PathEscape(taskID)
+}
+
+// sendBackURL is the send-back sheet's URL (D-084), both ids path-escaped.
+func sendBackURL(productID, taskID string) string {
+	return "ui/send-back/" + url.PathEscape(productID) + "/" + url.PathEscape(taskID)
 }
 
 // ---------- the store side ----------

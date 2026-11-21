@@ -844,6 +844,39 @@ func (s *server) handleAnswerSheet(w http.ResponseWriter, r *http.Request) {
 	s.rend.Render(w, http.StatusOK, "answer-modal", v)
 }
 
+// SendBackSheetView is the send-back sheet (templates/needs.html,
+// send-back-modal): the store's view and the product's name.
+type SendBackSheetView struct {
+	ProductID, ProductName string
+	SendBackView
+}
+
+// handleSendBackSheet is GET /ui/send-back/{id}/{taskId}: the sheet that sends
+// a design-blocked review's design back to its author (D-084). A card of no
+// product, or of another product, is a 404 and the toast.
+func (s *server) handleSendBackSheet(w http.ResponseWriter, r *http.Request) {
+	if !s.requireBO(w, r) {
+		return
+	}
+	id, taskID := r.PathValue("id"), r.PathValue("taskId")
+	sv, err := s.store.SendBackSheet(r.Context(), id, taskID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	name := id
+	if ps, err := s.store.Products(r.Context()); err == nil {
+		for _, p := range ps {
+			if p.ID == id {
+				name = p.Name
+			}
+		}
+	}
+	v, _ := s.newView(r)
+	v.SendBack = &SendBackSheetView{ProductID: id, ProductName: name, SendBackView: sv}
+	s.rend.Render(w, http.StatusOK, "send-back-modal", v)
+}
+
 // handleTimingSheet is GET /ui/timing/{id}/{taskId}: a card's timing sheet
 // (D-081). An unknown card is a 404 and the toast, as the answer sheet's is.
 func (s *server) handleTimingSheet(w http.ResponseWriter, r *http.Request) {

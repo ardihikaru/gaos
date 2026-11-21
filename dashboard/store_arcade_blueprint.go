@@ -150,6 +150,12 @@ func (s *ArcadeStore) PruneConversations(ctx context.Context, actor string, card
 	})
 }
 
+func (s *ArcadeStore) SendBackDesign(ctx context.Context, id, taskID, actor string, triage []FindingTriage) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SendBackDesign(ctx, id, taskID, actor, triage) })
+}
+func (s *ArcadeStore) SendBackSheet(ctx context.Context, id, taskID string) (SendBackView, error) {
+	return s.proj.SendBackSheet(ctx, id, taskID)
+}
 func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMove) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
 }

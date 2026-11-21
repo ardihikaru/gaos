@@ -142,6 +142,10 @@ var funcs = template.FuncMap{
 	"timingURL": timingURL,
 	// conversationURL is a card's conversation sheet (D-082).
 	"conversationURL": conversationURL,
+	// sendBackURL path-escapes both ids, as timingURL does (D-084).
+	"sendBackURL": sendBackURL,
+	// kib is a byte count in whole KiB, rounded up, for the send-back sheet.
+	"kib": func(n int) int { return (n + 1023) / 1024 },
 	// since is a unix time as RFC 3339 UTC, for a <time datetime> live.js ticks.
 	"since": func(sec int64) string { return time.Unix(sec, 0).UTC().Format(time.RFC3339) },
 	// styleWidth exists so a template can size a bar without the caller having

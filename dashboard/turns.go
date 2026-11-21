@@ -110,6 +110,12 @@ func (s *MemStore) sessionForLocked(taskID string, ta TurnAdapter, vendor, model
 	switch {
 	case last == nil && s.taskIsKindLocked(taskID, TaskKindReview):
 		return "", SessionReviewer
+	// D-084: a review whose design was sent back since its last real attempt
+	// reviews a new design, and a fresh reviewer must not carry the previous
+	// design or its own previous findings. A retry of the re-review that ran
+	// still resumes (D-056).
+	case s.taskIsKindLocked(taskID, TaskKindReview) && s.reviewSentBackSinceRunLocked(taskID):
+		return "", SessionReviewer
 	case last == nil:
 		return "", SessionFirst
 	// Before the empty-session case: a turn whose request was lost never

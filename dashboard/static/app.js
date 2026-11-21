@@ -124,7 +124,7 @@
     } else {
       finishClose(back);
     }
-    if (id === "answerModal" || id === "timingModal" || id === "conversationModal") returnFocus();
+    if (id === "answerModal" || id === "timingModal" || id === "conversationModal" || id === "sendBackModal") returnFocus();
   }
   function finishClose(back) {
     back.hidden = true;
@@ -305,6 +305,13 @@
 
   // The answer landed: close the sheet. A refusal keeps it open, and the
   // toast says why.
+  // The send-back landed (D-084): close its sheet. A refusal keeps it open.
+  document.body.addEventListener("htmx:afterRequest", function (e) {
+    if (!e.detail.elt || e.detail.elt.id !== "sendBackForm") return;
+    var st = e.detail.xhr ? e.detail.xhr.status : 0;
+    if (st >= 200 && st < 300) closeModal("sendBackModal", false);
+  });
+
   document.body.addEventListener("htmx:afterRequest", function (e) {
     if (!e.detail.elt || e.detail.elt.id !== "answerForm") return;
     // Not detail.successful: page.html swaps 4xx bodies (the refusal toast),
@@ -321,7 +328,7 @@
   function afterSwap(target) {
     if (!target || !target.id) return;
 
-    if (target.id === "answerModal" || target.id === "timingModal" || target.id === "conversationModal") showAnswer(target);
+    if (target.id === "answerModal" || target.id === "timingModal" || target.id === "conversationModal" || target.id === "sendBackModal") showAnswer(target);
 
     if (target.id === "toast") {
       clearTimeout(toastTimer);

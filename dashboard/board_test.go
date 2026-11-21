@@ -236,3 +236,93 @@ func firstProductWithoutTasks(t *testing.T, s *MemStore) string {
 	t.Fatal("every seeded product has tasks")
 	return ""
 }
+
+// TestTheGatesVerdictIsNeverRerolled is TC-509 (D-084): a review blocked by its
+// own verdict is never re-run on the same design -- not by an unblock, not by a
+// Blueprint sync's drift release -- and a design or review task is never
+// approved, so a revision that delivered nothing cannot reach DONE.
+func TestTheGatesVerdictIsNeverRerolled(t *testing.T) {
+	ctx := context.Background()
+	f, design, review, impl := blockedGate(t)
+
+	_, err := f.s.MoveCard(ctx, f.desk, review, CardMove{Column: ColReady})
+	want := review + "'s findings block its design; send the design back to its author (Revise design) " +
+		"instead of re-running the review on the same design"
+	if err == nil || err.Error() != want {
+		t.Errorf("unblocking a design-blocked review answered %v; want %q", err, want)
+	}
+	card := func(id string) BoardCard {
+		b, _ := f.s.Board(ctx, f.desk)
+		for _, c := range b.Cards {
+			if c.ID == id {
+				return c
+			}
+		}
+		t.Fatalf("no card %s on the board", id)
+		return BoardCard{}
+	}
+	rc := card(review)
+	for _, m := range rc.Moves {
+		if m == ColReady {
+			t.Error("the board offers ready on a design-blocked review")
+		}
+	}
+	if rc.Reason != ReasonDesignBlocked || rc.SendBack == nil || !rc.SendBack.Open || rc.SendBack.Design != design {
+		t.Errorf("the review card is reason %q, sendBack %+v; want design-blocked and an open send-back of %s", rc.Reason, rc.SendBack, design)
+	}
+
+	// Approve is refused for a design and a review task, and not offered.
+	f.s.mu.Lock()
+	f.s.taskByIDLocked(review).Status = StatusReview
+	f.s.mu.Unlock()
+	for _, id := range []string{review} {
+		_, err := f.s.MoveCard(ctx, f.desk, id, CardMove{Column: ColDone})
+		if err == nil || !strings.Contains(err.Error(), "the design gate decides when it is done, not an approval") {
+			t.Errorf("approving %s answered %v; the gate is the only writer of its DONE", id, err)
+		}
+		for _, m := range card(id).Moves {
+			if m == ColDone {
+				t.Errorf("the board offers done on %s, a gated task in review", id)
+			}
+		}
+	}
+	g := gateFixtureNew(t)
+	gd := g.taskOfKind(t, TaskKindDesign)
+	g.run(t, gd, 1, "no design here\n\n"+fence+HandoffFence+"\n"+handoffExample(gd, gd+"-a1", "architect")+"\n"+fence+"\n", "", 0)
+	if st := g.taskRecord(t, gd).Status; st != StatusReview {
+		t.Fatalf("a design reply with no design block left the task %s; the fixture needs REVIEW", st)
+	}
+	if _, err := g.s.MoveCard(ctx, g.desk, gd, CardMove{Column: ColDone}); err == nil ||
+		!strings.Contains(err.Error(), "is a design task; the design gate decides when it is done, not an approval") {
+		t.Errorf("approving a design that delivered nothing answered %v; it must be refused", err)
+	}
+
+	// An unblock clears the reason of the block it ends.
+	f.s.mu.Lock()
+	r := f.s.taskByIDLocked(review)
+	r.Status, r.BlockReason = StatusBlocked, ReasonReviewFailed
+	f.s.mu.Unlock()
+	if _, err := f.s.MoveCard(ctx, f.desk, review, CardMove{Column: ColReady}); err != nil {
+		t.Fatalf("a review-failed review must still unblock: %v", err)
+	}
+	if rr := f.taskRecord(t, review); rr.Status != StatusReady || rr.BlockReason != "" {
+		t.Errorf("the unblocked review is %s with reason %q; an unblock clears the reason", rr.Status, rr.BlockReason)
+	}
+
+	// The drift release leaves what only an operator may release.
+	f.s.mu.Lock()
+	r.Status, r.BlockReason = StatusBlocked, ReasonDesignBlocked
+	f.s.taskByIDLocked(impl).BlockReason = ReasonDesignUnreviewed
+	f.s.tasks = append(f.s.tasks,
+		TaskRecord{ID: "t-qa", DeskID: f.desk, Status: StatusBlocked, BlockReason: ReasonQaEpicAdded},
+		TaskRecord{ID: "t-drift", DeskID: f.desk, Status: StatusBlocked, BlockReason: "a reason of another block"})
+	i := f.s.deskIdxByID(f.desk)
+	f.s.desks[i].BlockReason = "the workspace does not hold the published Blueprint (BR-39)"
+	f.s.releaseDriftLocked(f.desk)
+	f.s.mu.Unlock()
+	for id, st := range map[string]string{review: StatusBlocked, impl: StatusBlocked, "t-qa": StatusBlocked, "t-drift": StatusReady} {
+		if got := f.taskRecord(t, id).Status; got != st {
+			t.Errorf("after a drift release %s is %s; want %s", id, got, st)
+		}
+	}
+}

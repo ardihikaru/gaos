@@ -344,3 +344,41 @@ func TestEventTimeSurvivesTheGraphRoundTrip(t *testing.T) {
 		t.Fatalf("a row with no \"at\" read back At %d at %d; want its ts, corrected to the app's clock", got, now)
 	}
 }
+
+// TestALeftDoneSegmentIsBookedAsBlocked is D-084's timing half: a design sent
+// back leaves DONE, and the segment it left must still count, or the partition
+// would lose it. It is booked as blocked -- a convention, stated in D-084.
+func TestALeftDoneSegmentIsBookedAsBlocked(t *testing.T) {
+	evs := []Event{
+		tmPlan(1, 1000, "t-1"),
+		tmMove(2, 1100, "t-1", StatusPending, StatusReady, MoveSchedule),
+		tmMove(3, 1200, "t-1", StatusReady, StatusDispatched, MoveDispatch),
+		tmMove(4, 1210, "t-1", StatusDispatched, StatusRunning, MoveStart),
+		tmMove(5, 1810, "t-1", StatusRunning, StatusReview, MoveExit),
+		tmMove(6, 1810, "t-1", StatusReview, StatusDone, RuleDesignDelivered),
+		tmMove(7, 4810, "t-1", StatusDone, StatusReady, MoveSendBack),
+		tmMove(8, 4900, "t-1", StatusReady, StatusDispatched, MoveDispatch),
+		tmMove(9, 4910, "t-1", StatusDispatched, StatusRunning, MoveStart),
+		tmMove(10, 5510, "t-1", StatusRunning, StatusReview, MoveExit),
+		tmMove(11, 5510, "t-1", StatusReview, StatusDone, RuleDesignDelivered),
+	}
+	c := cardTiming(tmTask("t-1", StatusDone), evs, nil, 9999, RunnerManual)
+	if !c.Known || !c.Complete || !c.Finished {
+		t.Fatalf("a design sent back once is not a complete, finished history: %+v", c)
+	}
+	var left *TimingSegment
+	for i := range c.Segments {
+		if c.Segments[i].Status == StatusDone && !c.Segments[i].Open && c.Segments[i].Seconds > 0 {
+			left = &c.Segments[i]
+		}
+	}
+	if left == nil {
+		t.Fatalf("no left DONE segment in %+v", c.Segments)
+	}
+	if left.Bucket != BucketBlocked || left.Seconds != 3000 {
+		t.Errorf("the DONE segment the send-back left is %s for %ds; it must be blocked for 3000s", left.Bucket, left.Seconds)
+	}
+	if c.LeadSeconds != 5510-1000 || partitionSum(c) != c.LeadSeconds {
+		t.Errorf("lead %d, buckets sum %d; both must be %d", c.LeadSeconds, partitionSum(c), 5510-1000)
+	}
+}
