@@ -12,7 +12,7 @@ Overall: the core is the right size — one env value, one condition in each of 
 
 ### The compose pass-through also makes `on` a shell variable in prod, and the design never says so - Severity: Major
 - Affected scope: §3.7, §8, §9
-- Finding: today prod cannot spend without editing a committed file (`compose.prod.yaml:97-98`). The pass-through makes `on` as easy as `manual` — one word on the redeploy line — and through `on` the 47 HISv3 cards would dispatch unasked. The `hasnt` check guards only a hard-coded literal. Neither §8 nor D-080 mention the widening.
+- Finding: today prod cannot spend without editing a committed file (`compose.prod.yaml:97-98`). The pass-through makes `on` as easy as `manual` — one word on the redeploy line — and through `on` the 47 sample-product cards would dispatch unasked. The `hasnt` check guards only a hard-coded literal. Neither §8 nor D-080 mention the widening.
 - Recommendation: state it as an accepted consequence in §8 and D-080, or keep `on` out of reach of the pass-through. One sentence in the decision is the smallest fix.
 
 ### Alternative A3 is rejected for a cost it doesn't have - Severity: Nit

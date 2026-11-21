@@ -8,7 +8,7 @@ import (
 
 // v0.40.5: a second workflow on a product was briefed with the first one's goal.
 //
-// Found on gaos.sismedika.com: HISv3 (p-6) had its seeded workflow, and a
+// Found on a production instance: the sample product (p-6) had its seeded workflow, and a
 // second one was created with a goal of two VSYS cases. Every one of the second
 // workflow's packets said "## Objective" followed by the SEEDED goal, so the
 // planner planned the whole product. Two halves: the Objective was read from

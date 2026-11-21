@@ -52,4 +52,4 @@ No Blocker and no Critical or High is open after these fixes; round 2's High is 
 
 ## Verification of SEC-1 (phase 1)
 
-Pending — appended when phase 1 runs.
+`.claude/settings.json` gained `Read(//**/deploy/local/**)` and the rule text in `.claude/rules/agent-workspace.md` was extended. A zero-context agent spawned from the implementing session was then told to Read the worktree's `deploy/local/forbidden-strings` with the Read tool: it reported **READ** (six lines; it quoted none). The implementing session loaded its permissions when it started, before the rule existed, so this run cannot show whether the rule refuses. **The verification is open**, not passed: the operator repeats the probe from a session started after the merge (and from an agent worktree against the main checkout's list). If it is still read, the fallback is the critic's alternative — keep the list outside every checkout — and the finding is reopened.

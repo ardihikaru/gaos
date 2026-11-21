@@ -4,7 +4,8 @@
       "Read(**/*.bo-*)",
       "Read(**/*.api-*)",
       "Read(**/*.aim-*)",
-      "Read(**/*.env)"
+      "Read(**/*.env)",
+      "Read(//**/deploy/local/**)"
     ]
   }
 }

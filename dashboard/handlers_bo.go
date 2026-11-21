@@ -135,6 +135,7 @@ func (s *server) handleBOSheet(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	v.BO = s.buildBO(r, def(q.Get("view"), "products"), q.Get("product"), def(q.Get("tab"), "brd"))
+	noStoreView(w, v.BO.View)
 	s.rend.Render(w, http.StatusOK, "bo-sheet", v)
 }
 
@@ -145,9 +146,7 @@ func (s *server) handleBOView(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	v, _ := s.newView(r)
 	v.BO = s.buildBO(r, r.PathValue("view"), q.Get("product"), def(q.Get("tab"), "brd"))
-	if v.BO.View == "archive" {
-		w.Header().Set("Cache-Control", "no-store") // D-082: archived conversations
-	}
+	noStoreView(w, v.BO.View) // D-082 archived conversations, D-085 integrations
 	s.rend.Render(w, http.StatusOK, "bo-main-oob", v)
 }
 
@@ -228,6 +227,10 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 
 	case "inbox":
 		s.buildInbox(r, bo, productID, name)
+		return bo
+
+	case "integrations":
+		s.buildIntegrations(r.Context(), bo)
 		return bo
 
 	case "agents":

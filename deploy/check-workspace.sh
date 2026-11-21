@@ -15,6 +15,8 @@
 #      back into the skills, every vendored skill kept its licence and its
 #      provenance, and the trimmed design-engineering skill still matches the
 #      digest its SOURCE.md records
+#   7  no tracked or untracked-not-ignored file names a private instance: the
+#      patterns come from a git-ignored list (D-085), never from this script
 #
 # WHO RUNS IT.  The product owner, by hand, like every other check.  D-025 makes
 # the product owner the runner for every acceptance test and this repository has
@@ -109,11 +111,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "three hundred and eighty-four" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "384" ]; then
+if grep -q "three hundred and eighty-six" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "386" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says three hundred and eighty-four"
+  bad "Go test count: $go_tests tests on disk, register says three hundred and eighty-six"
 fi
 
 prose_check() {
@@ -124,24 +126,27 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "five hundred and nine"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "five hundred and nine"
-prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Eighty-three entries"
-prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-five in one place"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "five hundred and twelve"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "five hundred and twelve"
+prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Eighty-four entries"
+prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-six in one place"
 prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-eight rules"
 
+# The README's figures are compared with what this script computes, never with
+# a fixed string: a pinned string is how the README went stale while this check
+# stayed green (D-085).
+semver=$(grep -oE 'semver: "[0-9]+\.[0-9]+\.[0-9]+"' pustaka/docs/assets/toc.js 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
 readme_check() {
   local label="$1" want="$2"
-  if grep -q "$want" README.md 2>/dev/null; then
-    ok "$label"
+  if grep -qF "$want" README.md 2>/dev/null; then
+    ok "$label matches ($want)"
   else
     bad "$label: README.md does not say \"$want\""
   fi
 }
-readme_check "README dashboard test count" "308 tests"
-readme_check "README total test count"    "330 tests"
-readme_check "README case count"          "454 cases"
-readme_check "README version"             "Product version 0.40.1"
+readme_check "README Go-test count" "$go_tests Go tests"
+readme_check "README case count"    "$qa_rows registered test cases"
+readme_check "README version"       "Product version $semver"
 
 # ------------------------------------------------------------- 4. rule forks ---
 # A rule restated in two files forks: one harness enforces the new wording and
@@ -272,6 +277,89 @@ fi
 [ "$([ -d .claude/skills/emil-design-eng ] && echo yes || echo no)" = "yes" ] \
   && ok "the design-engineering skill is present, trimmed, and carries no framework vocabulary" \
   || bad "the design-engineering skill is missing"
+
+# ----------------------------------------------------- 7. private strings ---
+# A public repository must not name one operator's private instance: its
+# sample product, its organisation, its domain (D-085).  The patterns are NOT
+# in this script -- a list that names them would be the leak it guards
+# against.  They live in a git-ignored file, one extended regex per line,
+# matched case-insensitively against every tracked or untracked-not-ignored
+# file's content and path.  The first non-empty list of: $GAOS_FORBIDDEN_STRINGS,
+# deploy/local/forbidden-strings, and the same path in the main checkout (an
+# agent worktree never receives ignored files).  Without a list, skip and say
+# so.  A matching path is never printed: it is shown by its index and a hash.
+pf_filter() { grep -vE '^[[:space:]]*(#|$)' "$1" 2>/dev/null; }
+pf="" pf_src=""
+if [ -n "${GAOS_FORBIDDEN_STRINGS:-}" ]; then
+  if [ -r "$GAOS_FORBIDDEN_STRINGS" ] && [ -n "$(pf_filter "$GAOS_FORBIDDEN_STRINGS")" ]; then
+    pf="$GAOS_FORBIDDEN_STRINGS" pf_src=env
+  else
+    bad "GAOS_FORBIDDEN_STRINGS names no readable, non-empty list"
+    pf_src=bad
+  fi
+fi
+if [ -z "$pf_src" ]; then
+  main_root="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.."
+  for cand in "deploy/local/forbidden-strings:local" "$main_root/deploy/local/forbidden-strings:main"; do
+    f="${cand%:*}"
+    if [ -r "$f" ] && [ -n "$(pf_filter "$f")" ]; then
+      pf="$f" pf_src="${cand##*:}"
+      break
+    fi
+  done
+fi
+if git ls-files --error-unmatch deploy/local/forbidden-strings >/dev/null 2>&1; then
+  bad "the forbidden-strings list is tracked; it must stay git-ignored"
+fi
+if [ -n "$pf" ]; then
+  pats=$(mktemp)
+  chmod 600 "$pats"
+  trap 'rm -f "$pats"' EXIT
+  pf_filter "$pf" | tr 'A-Z' 'a-z' > "$pats"
+  grep -iE -f "$pats" /dev/null >/dev/null 2>&1
+  if [ $? -gt 1 ]; then
+    bad "the forbidden-strings list holds an invalid pattern"
+  else
+    all_paths=$(git ls-files --cached --others --exclude-standard)
+    show() {  # a path that matches a pattern is shown by index and hash only
+      if printf '%s\n' "$1" | grep -qiE -f "$pats"; then
+        k=$(printf '%s\n' "$all_paths" | grep -nxF -- "$1" | head -1 | cut -d: -f1)
+        printf 'path #%s (%s)' "${k:-?}" "$(printf '%s' "$1" | sha1sum | cut -c1-8)"
+      else
+        printf '%s' "$1"
+      fi
+    }
+    priv=0
+    while IFS= read -r p; do
+      [ -z "$p" ] && continue
+      [ "$p" = "deploy/local/README.md" ] && continue
+      bad "a file under deploy/local/ is tracked: $(show "$p")"
+      priv=$((priv + 1))
+    done < <(git ls-files deploy/local)
+    hits=$(git grep --untracked -I -i -n -E -f "$pats" 2>/dev/null; echo "rc=$?")
+    rc=${hits##*rc=}
+    if [ "$rc" -gt 1 ]; then
+      bad "git grep could not scan the working tree"
+      priv=$((priv + 1))
+    else
+      while IFS= read -r hit; do
+        [ -z "$hit" ] && continue
+        case "$hit" in rc=*) continue ;; esac
+        path=${hit%%:*} rest=${hit#*:} line=${rest%%:*}
+        bad "a tracked file names a private instance: $(show "$path") (line $line)"
+        priv=$((priv + 1))
+      done <<< "$hits"
+    fi
+    while IFS= read -r p; do
+      [ -z "$p" ] && continue
+      bad "a tracked path names a private instance: $(show "$p")"
+      priv=$((priv + 1))
+    done < <(printf '%s\n' "$all_paths" | grep -iE -f "$pats")
+    [ "$priv" -eq 0 ] && ok "no tracked file or path names a private instance ($(wc -l < "$pats" | tr -d ' ') pattern(s) from $pf_src)"
+  fi
+elif [ -z "$pf_src" ]; then
+  info "skip private strings: no forbidden-strings list (deploy/local/README.md says where it goes)"
+fi
 
 # --------------------------------------------------------------------- done ---
 if [ "$fails" -gt 0 ]; then

@@ -34,7 +34,9 @@ docs/designs/
 ## Reviews
 
 Reports are append-only and numbered. Never overwrite a report: the sequence of
-rounds is the record of how the design converged. The author's triage table
+rounds is the record of how the design converged. The one exception is D-085: a
+private string (an operator's instance, product or domain) may be reworded in a
+report, and nothing else in it may change. The author's triage table
 lives at the end of the newest report, one row per finding:
 
 | Finding | Severity | Disposition | Note |

@@ -41,7 +41,7 @@
 
 ### Small count and anchor errors - Severity: Nit
 - Affected scope: §3.2, §0
-- Finding: 19 `newAPIConfig` test calls, not twenty; `compose.prod.yaml:130` passes a variable, not `gaos.sismedika.com` — the only anchor is `docs/designs/bo-login.md:214`.
+- Finding: 19 `newAPIConfig` test calls, not twenty; `compose.prod.yaml:130` passes a variable, not `gaos.example.org` — the only anchor is `docs/designs/bo-login.md:214`.
 - Recommendation: correct the count; label the production value as the operator's deploy-line setting.
 
 ### An unset origin makes `addClients` drop every client that has no origin - Severity: Nit

@@ -36,6 +36,33 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-45-0">v0.45.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Open-source ready: integration docs, an Integrations view, and no private instance in the repository.</p>
+      <ul>
+        <li><span class="chg add">Added</span> an <strong>Integrations</strong> view in the back office: ai-manager (gateway
+        host, runner mode, the boot provider check, providers, the last turn), the QA tools (outbound host, origin, the last
+        webhook delivery, how many wait, how many gave up), the machine API's tokens (configured or not) and every
+        registered client. Read-only, never a token or a credential
+        (<a href="product/decision-log.html#d-085">D-085</a>).</li>
+        <li><span class="chg add">Added</span> an <strong>Integrations</strong> section in these docs:
+        <a href="integrations/overview.html">How integration works</a>,
+        <a href="integrations/webhooks-and-clients.html">Webhooks and external clients</a> with tutorials for the QA tools,
+        ai-manager and a new client, and the <a href="integrations/ai-manager-api.html">ai-manager REST reference</a>
+        &mdash; all eight calls GAOS makes.</li>
+        <li><span class="chg add">Added</span> <code>check-workspace.sh</code> fails when a tracked file or path names a
+        private instance; the patterns come from a git-ignored list, never from the script. An invented example seed
+        (<code>deploy/seed/example/</code>), a generic <code>seed.sh --dir</code>, and a placeholder edge template for a
+        second instance.</li>
+        <li><span class="chg change">Changed</span> one operator's instance material &mdash; a sample product's seed, a
+        second instance's edge blocks and redeploy overrides &mdash; moved to the git-ignored <code>deploy/local/</code>, and
+        every page, design and register that named the sample product or its domain now uses neutral terms. History is
+        unchanged (<a href="product/open-questions.html#oq-36">OQ-36</a>).</li>
+        <li><span class="chg change">Changed</span> the README, rewritten for an open-source reader; its figures are now
+        checked against the registers. The archive is served <code>no-store</code> on both of its routes.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-44-0">v0.44.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A design the review blocked can be sent back to its author, and reviewed again.</p>
       <ul>
@@ -337,7 +364,7 @@
 
     <section class="rel rv">
       <h3 id="v0-37-0">v0.37.0 <time datetime="2026-11-14">2026-11-14</time> <span class="bump minor">minor</span></h3>
-      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A QA catalog per product, a REST API for the QA tools, and HISv3 on the board. One change together.</p>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A QA catalog per product, a REST API for the QA tools, and the sample product on the board. One change together.</p>
       <ul>
         <li><span class="chg add">Added</span> <b>a QA catalog per product</b>: test cases are
         <code>QaCase</code> vertices, never tasks, with one writer per field &mdash; GAOS owns the planning half,
@@ -357,8 +384,8 @@
         epic's board card, and two buttons, <em>Pull</em> and <em>Push</em>, by which GAOS calls the QA tools. The
         buttons stay disabled until the QA tools implement their side
         (<a href="product/decision-log.html#d-075">D-075</a>, <a href="product/open-questions.html#oq-33">OQ-33</a>).</li>
-        <li><span class="chg add">Added</span> <b>a generic product seed</b> and HISv3's data under
-        <code>deploy/seed/hisv3/</code>, loaded by <code>seed.sh</code>; the seed never clears the design gate
+        <li><span class="chg add">Added</span> <b>a generic product seed</b> and the sample product's data under
+        <code>deploy/seed/&lt;sample&gt;/</code>, loaded by <code>seed.sh</code>; the seed never clears the design gate
         (<a href="product/decision-log.html#d-074">D-074</a>).</li>
         <li><span class="chg change">Changed</span> <b>a product made in the back office can now have a workflow</b>:
         it is seated at an idle desk when it is first planned

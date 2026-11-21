@@ -68,7 +68,9 @@ config change and routine maintenance go straight to implementation.
    which *must* produce a report containing a canary. Without that step, a
    probe that can never detect anything is indistinguishable from a clean run.
 4. **Save** the reports to `docs/designs/reviews/<feature>-review-<n>.md` (and
-   `<feature>-security-review-<n>.md`). Append-only, numbered.
+   `<feature>-security-review-<n>.md`). Append-only, numbered. One exception (D-085):
+   a private string — an operator's instance, product or domain — may be reworded
+   in a saved report; no finding, severity or count may change with it.
 5. **Triage.** Every finding gets exactly one disposition:
 
    | Disposition | Use when |

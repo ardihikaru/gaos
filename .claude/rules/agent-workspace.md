@@ -105,6 +105,9 @@ A reviewer may read the repository — that is how it checks the author's
   standing memory, and the whole point of a zero-context review;
 - `*.env`, `*.env.*`, `*.aim-*`, `*.api-*`, `*.bo-*` — the host-side credentials;
 - `*.pem`, `*.key`, `privkey.pem`, `**/credentials*`;
+- `deploy/local/**` — in this checkout and in any other checkout of the
+  repository, the main one included: one operator's private instance material
+  and the forbidden-strings list (D-085);
 - `~/.ssh`, `~/.aws`;
 - any path outside the repository.
 

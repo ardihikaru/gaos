@@ -1,37 +1,45 @@
 #!/usr/bin/env bash
-# Seed HISv3 into a running GAOS: the product, its BRD, stories, Blueprint and workflow, then the test catalog.
+# Seed a product into a running GAOS: the product, its BRD, stories, Blueprint and workflow, then the test catalog.
 #
-#   deploy/seed/hisv3/seed.sh [--base <url>] [--token-file <path>] [--dry-run]
+#   deploy/seed/seed.sh --dir <seed dir> [--base <url>] [--token-file <path>] [--dry-run]
 #
-# Run it ON THE VM that serves the instance, against the tunnel listener -- not through the public edge, so the
-# admin token never crosses the shared edge host (design §4.9, SEC-6). Defaults for the second prod on rnd-v3-vpn:
-#   --base        http://${GAOS_TUNNEL_IP:-10.10.0.2}:18301/api/v1
-#   --token-file  deploy/stacks/prod.api-admin           (gaos_<hex>, mode 600, gitignored)
+# --dir is required: a directory holding product.json and cases.json (deploy/seed/README.md documents both;
+# deploy/seed/example/ is an invented sample). Defaults:
+#   --base        http://127.0.0.1:8083/api/v1                 the local stack (docker compose up -d)
+#   --token-file  deploy/stacks/prod.api-admin                 (gaos_<hex>, mode 600, never committed)
+# For a deployed instance pass --base explicitly and run it ON THE VM that serves the instance, against the
+# tunnel listener (http://<tunnel-ip>:18301/api/v1) -- not through the public edge, so the admin token never
+# crosses the shared edge host (docs/designs/qa-catalog-sync.md section 4.9, SEC-6).
 #
 # The token is read from the file inside python and sent as a header; it is never an argument, never in the
 # environment of a child process and never printed. Needs python3 (stdlib only). IDEMPOTENT: a second run changes
-# nothing. It ends by asserting the catalog's totals are AT LEAST the committed files' and printing one line:
+# nothing. It ends by asserting the catalog's totals are AT LEAST the seed files' and printing one line:
 #   ok   summary matches ...   |   FAIL <what differs>
 set -u
 
 here="$(cd "$(dirname "$0")" && pwd)"
-root="$(cd "$here/../../.." && pwd)"
-base="http://${GAOS_TUNNEL_IP:-10.10.0.2}:18301/api/v1"
+root="$(cd "$here/../.." && pwd)"
+base="http://127.0.0.1:8083/api/v1"
+dir=""
 tokfile="$root/deploy/stacks/prod.api-admin"
 dry=0
 while [ $# -gt 0 ]; do
   case "$1" in
+    --dir) dir="$2"; shift 2 ;;
     --base) base="$2"; shift 2 ;;
     --token-file) tokfile="$2"; shift 2 ;;
     --dry-run) dry=1; shift ;;
-    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
     *) echo "FAIL unknown argument: $1"; exit 2 ;;
   esac
 done
+[ -n "$dir" ] || { echo "FAIL --dir is required: the seed directory holding product.json and cases.json"; exit 2; }
+{ [ -r "$dir/product.json" ] && [ -r "$dir/cases.json" ]; } || { echo "FAIL no product.json and cases.json in $dir"; exit 2; }
+dir="$(cd "$dir" && pwd)"
 command -v python3 >/dev/null 2>&1 || { echo "FAIL python3 is required"; exit 2; }
 [ "$dry" = 1 ] || [ -r "$tokfile" ] || { echo "FAIL cannot read the token file $tokfile"; exit 2; }
 
-exec python3 - "$base" "$tokfile" "$here" "$dry" <<'PY'
+exec python3 - "$base" "$tokfile" "$dir" "$dry" <<'PY'
 import json, sys, urllib.request, urllib.error
 
 base, tokfile, here, dry = sys.argv[1].rstrip('/'), sys.argv[2], sys.argv[3], sys.argv[4] == '1'

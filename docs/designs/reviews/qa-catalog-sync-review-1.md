@@ -1,6 +1,6 @@
-# hisv3-qa-sync — review round 1
+# qa-catalog-sync — review round 1
 
-Design reviewed: `docs/designs/hisv3-qa-sync.md` (draft v1). Five lenses, run in
+Design reviewed: `docs/designs/qa-catalog-sync.md` (draft v1). Five lenses, run in
 parallel with the document path and the rubric paths only.
 
 | Lens | Counts |
@@ -30,7 +30,7 @@ Dispositions: PROPOSE FIX (fixed in v2), CONTEST, ESCALATE, DECLINE.
 | "Operator approves DONE" is unenforced (SEC-2) | High | PROPOSE FIX | Moot: nothing moves a card now. Existing unauthenticated `/tasks/{id}/approve` recorded as a known gap (§8). |
 | BO sync routes reachable with a forged cookie (SEC-1) | High | DECLINE (mitigated) | The user asked for sync buttons. Mitigation: 30 s cooldown, one at a time, one configured origin, inert until the QA tools exist, cannot touch tasks. Stated in §8; real fix is BR-48. |
 | Outbound half repeats the inbound half (zoom-out) | Major | DECLINE | The buttons are an explicit requirement ("sync button in both ways"). Kept, trimmed, inert by default. |
-| Two seed paths; customer data in the binary; licence (zoom-out, critic) | Major | PROPOSE FIX | Generic `POST /v1/seed/product`; one case path (`catalog` + `seed:true`); HISv3 data under `deploy/seed/hisv3/`, outside the binary (N8). |
+| Two seed paths; customer data in the binary; licence (zoom-out, critic) | Major | PROPOSE FIX | Generic `POST /v1/seed/product`; one case path (`catalog` + `seed:true`); the sample product's data under `deploy/seed/<sample>/`, outside the binary (N8). |
 | Two writers of the automation half; "conflicts impossible" false (critic, comprehension; SEC-13) | Major | PROPOSE FIX | Stale-write refusal by `runAt`; claim reworded (§4.1, BR-51). |
 | Push-rejected cases dropped silently (critic) | Major | PROPOSE FIX | `Push.Rejected` (≤20) + `RejectedN`, shown on the tab (§4.10). |
 | REVIEW/DONE epics hide later failures (critic) | Major | PROPOSE FIX | `regressed` list in summary and tab; cards untouched. |

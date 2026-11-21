@@ -56,7 +56,7 @@ Every section could be paraphrased; no comprehension Blocker. The `file:line` cl
 
 ### Facts about the live instance are not anchored - Severity: Nit
 - Affected scope: §1
-- Finding: "p-6 … 47 Automate" and "p-7" have no anchor; they agree with `docs/designs/hisv3-qa-sync.md:25`, `:689`.
+- Finding: "p-6 … 47 Automate" and "p-7" have no anchor; they agree with `docs/designs/qa-catalog-sync.md:25`, `:689`.
 - Recommendation: cite it or label as an assumption.
 
 Counts: B=0 M=3 N=7
