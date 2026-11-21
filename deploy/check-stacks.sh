@@ -140,6 +140,9 @@ for f in deploy/stacks/*.bo-*; do
   fi
 done
 has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
+# D-083: the QA tool's origin is recorded on every answer it sends; prod's
+# GAOS_QA_URL is a tunnel IP, so the name has to come from the deploy shell.
+has $PROD 'GAOS_QA_ORIGIN: "${GAOS_QA_ORIGIN:-}"' "prod passes the QA tool's origin from the deploy shell"
 # D-080: the runner is the permission to spend. It comes from the deploy shell,
 # empty (off) by default, and from nowhere else -- a second GAOS_RUNNER line in
 # any spelling would be a hard-coded value.

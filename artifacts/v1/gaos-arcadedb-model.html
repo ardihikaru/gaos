@@ -1407,9 +1407,9 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
     <thead><tr><th class="mono">Event</th><th>Group</th><th class="mono">Payload</th></tr></thead>
     <tbody>
       <tr><td class="mono">QuestionAsked</td><td>execution</td><td class="mono">taskId, question{id, runId, attempt, question, context, options[3], askedAt}</td></tr>
-      <tr><td class="mono">QuestionAnswered</td><td>execution</td><td class="mono">taskId, question{… , choice 1..4, text, answeredAt}</td></tr>
-      <tr><td class="mono">ExternalQuestionAsked</td><td>execution</td><td class="mono">question{externalId, title, source, question, context, options[2..3], askedAt, deadline} — D-078: a question from the QA tool, bound to no task; entityId is the product</td></tr>
-      <tr><td class="mono">ExternalQuestionAnswered</td><td>execution</td><td class="mono">question{… , status answered|expired, choice 1..4, text, answeredAt}</td></tr>
+      <tr><td class="mono">QuestionAnswered</td><td>execution</td><td class="mono">taskId, question{… , choice 1..4, text, answeredAt, answeredBy{kind, client, origin, actor}}, actor — D-083: where the answer came from; absent before v0.43.0</td></tr>
+      <tr><td class="mono">ExternalQuestionAsked</td><td>execution</td><td class="mono">question{externalId, title, source, question, context, options[2..3], askedAt, deadline, askedBy} — D-078: a question from a machine client, bound to no task; entityId is the product; askedBy (D-083) names the asking client, absent for the QA tool</td></tr>
+      <tr><td class="mono">ExternalQuestionAnswered</td><td>execution</td><td class="mono">question{… , status answered|expired, choice 1..4, text, answeredAt, answeredBy{kind, client, origin, actor}}, actor — D-083: answeredBy on an answer, absent on an expiry and before v0.43.0</td></tr>
       <tr><td class="mono">ConversationArchived</td><td>execution</td><td class="mono">taskId, to archived|active, actor — D-082: a finished card's conversation archived or restored; entityId is the product</td></tr>
       <tr><td class="mono">ConversationPruned</td><td>execution</td><td class="mono">taskId, actor, prune{stage bodies|sessions, runs, bodies[id, kind, sha256, bytes], kept[], sessions named/deleted/gone/failed/shared} — D-082: the prune's certificate; no session id</td></tr>
       <tr><td class="mono">ExternalAnswerDelivery</td><td>execution</td><td class="mono">question{externalId, attempt, attemptAt}, rule delivered|retry|gave-up, reason — one attempt to tell the QA tool</td></tr>

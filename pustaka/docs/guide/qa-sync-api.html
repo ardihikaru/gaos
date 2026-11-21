@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The QA sync API — GAOS</title>
-<meta name="description" content="The public contract for the QA tools: the bearer-token REST API GAOS serves, the two endpoints GAOS calls, and which side owns which field of a test case.">
+<meta name="description" content="The public contract for the QA tools: the bearer-token REST API GAOS serves, the inbox a client asks and answers through, the two endpoints GAOS calls, and which side owns which field of a test case.">
 <link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
 <link rel="stylesheet" href="../assets/site.css">
 </head>
@@ -24,7 +24,7 @@
        data-tags="api, rest, qa, integration, bearer-token"
        data-hashtags="api, qa, integration"
        data-published="2026-11-14"
-       data-updated="2026-11-14"
+       data-updated="2026-11-21"
        data-version-from="0.37.0"
        data-version-to=""></div>
 
@@ -222,6 +222,108 @@
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
   https://gaos.sismedika.com/api/v1/seed/product -d @product.json</pre>
   </div>
+
+  <h2 id="inbox">The inbox: asking the operator, and answering</h2>
+  <p>A client can put a question in the operator's <em>Needs you</em> inbox, read the decision back, and &mdash;
+  since v0.43.0 &mdash; answer the question itself, for example from a button on the QA tool's history page
+  (<a href="../product/decision-log.html#d-083">D-083</a>, <a href="../product/brd.html#rules-qa-sync">BR-57</a>).
+  Every answer records where it came from, whoever gave it. A client reads and answers only the items it asked;
+  any other item is <code>404</code>.</p>
+
+  <h3 id="inbox-clients">Clients and their source</h3>
+  <p>A client is a token with a name, a kind and an origin. The qa token is the client <code>qa-tools</code>,
+  kind <code>qa-tool</code>, origin <code>GAOS_QA_ORIGIN</code> (or the host of <code>GAOS_QA_URL</code> when that
+  is a name rather than an IP). The admin token asks as the QA tool and may read any item, but never answers. Further
+  clients are lines of the file <code>GAOS_API_CLIENTS_FILE</code>; such a client reaches only the three inbox routes
+  of its own products. The source of an answer is built by GAOS from the token, never from the body:</p>
+  <table class="tbl">
+    <thead><tr><th>Answered by</th><th><code>kind</code></th><th><code>client</code></th><th><code>origin</code></th><th><code>actor</code></th></tr></thead>
+    <tbody>
+      <tr><td>The operator, in GAOS</td><td><code>gaos</code></td><td><code>back-office</code></td><td>the deployment's label</td><td><code>operator</code> (the account is kept in GAOS)</td></tr>
+      <tr><td>The QA tool</td><td><code>qa-tool</code></td><td><code>qa-tools</code></td><td><code>GAOS_QA_ORIGIN</code></td><td>the <code>actor.username</code> it sent</td></tr>
+      <tr><td>A client from the clients file</td><td>its kind</td><td>its name</td><td>its origin</td><td>the <code>actor.username</code> it sent</td></tr>
+    </tbody>
+  </table>
+  <p>The origin is the client's registered host, not the address a call came from. The actor is a handle the client
+  reports and GAOS does not verify; it is stored for as long as the event, so send a handle, not an email. It may not
+  be <code>operator</code> or a back-office account.</p>
+
+  <h3 id="inbox-ask">POST /products/{id}/inbox</h3>
+  <p>Asks the operator. Body: <code>{"externalId","question","context"?,"options"?,"expiresInHours"?,"title"?}</code>
+  &mdash; the id is 1 to 80 of <code>A-Z a-z 0-9 . _ : -</code> and starts with a letter or digit; the question is at
+  most 500 characters, the context 4000, the title 120; 2 or 3 options (label up to 60, description up to 200), or
+  none for <em>Approve / Reject / Needs changes</em>; 1 to 720 hours, 168 by default. A new item answers
+  <code>201</code>, the same id again answers <code>200</code> with the item as it is now and writes nothing, and an
+  id another client already uses answers <code>409 id-taken</code> &mdash; choose another; it is never transient. Each
+  client may hold 200 open items per product.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/inbox \
+  -d '{"externalId":"run-42:case-7","question":"Quarantine these 3 specs?","title":"Quarantine"}'</pre>
+  </div>
+
+  <h3 id="inbox-get">GET /products/{id}/inbox/{externalId}</h3>
+  <p>Reads the item. <code>status</code> is <code>open</code>, <code>answered</code> or <code>expired</code>;
+  <code>choice</code> 4 means the answerer's own words, with no <code>optionLabel</code>. <code>source</code> is always
+  present: <code>null</code> while open, after an expiry, and for an answer given before v0.43.0.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"externalId":"run-42:case-7","status":"answered","choice":1,"optionLabel":"Approve",
+ "askedAt":1763000000,"answeredAt":1763000900,"expiresAt":1763604800,
+ "source":{"kind":"qa-tool","client":"qa-tools","origin":"qa-tool.sismedika.com","actor":"ardi"}}</pre>
+  </div>
+
+  <h3 id="inbox-answer">POST /products/{id}/inbox/{externalId}/answer</h3>
+  <p>Answers an item the caller asked. Body: <code>{"choice","text"?,"actor":{"username","display"?}}</code>.
+  <code>choice</code> is 1 to the number of options offered, or 4 with <code>text</code> as the answer; with 1 to 3,
+  <code>text</code> is an optional note. <code>text</code> is at most 4000 characters, <code>actor.username</code> 1 to
+  64 of <code>A-Z a-z 0-9 . _ @ + -</code>, <code>actor.display</code> at most 64 characters and not stored. Every
+  string is screened for secrets, before and after it is cleaned. The first answer wins, from wherever it came.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.sismedika.com/api/v1/products/&lt;PRODUCT_ID&gt;/inbox/run-42:case-7/answer \
+  -d '{"choice":1,"actor":{"username":"ardi"}}'</pre>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>Status</th><th>Body</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>200</td><td>the GET body, with <code>source</code></td><td>this call answered it &mdash; or it repeats this client's first answer exactly (same choice, text and username), and nothing is written</td></tr>
+      <tr><td>409</td><td><code>already_answered</code>, a <code>reason</code> naming the first answer, and the GET body</td><td>somebody answered first: the operator, or this client with a different answer</td></tr>
+      <tr><td>410</td><td><code>expired</code> and the GET body</td><td>the item passed its deadline</td></tr>
+      <tr><td>404</td><td><code>not-found</code></td><td>no such item, a product outside the token's scope, or an item another client asked</td></tr>
+      <tr><td>422</td><td><code>bad-choice</code> or <code>bad-text</code></td><td>a choice that was not offered, 4 without words, or text over 4000 characters</td></tr>
+      <tr><td>400</td><td><code>bad-actor</code>, <code>secret-in-body</code> or <code>bad-json</code></td><td>a missing or malformed username, one naming the operator, a secret, an unknown field</td></tr>
+      <tr><td>403</td><td><code>forbidden</code></td><td>the admin token: it is not a client; answer in the back office</td></tr>
+      <tr><td>429</td><td><code>write-in-flight</code></td><td>this token's previous write is still running &mdash; for the qa token, that includes a results or cases push; retry after <code>Retry-After</code></td></tr>
+    </tbody>
+  </table>
+  <div class="adm note">
+    <p class="adm-title">What the QA tool must do with the answer</p>
+    <p>Record an answer as given only on <code>200</code>. On <code>409</code> or <code>410</code>, adopt the item in
+    the body &mdash; that is the decision of record. GAOS still sends every decision on the QA tool's own items to
+    <code>POST /api/v1/gaos/inbox-answer</code>, including the QA tool's own answers, and it may arrive before the
+    <code>200</code>; it carries the same decision and no source, so take <code>source</code> from the <code>200</code>
+    or from GET. A decision is the operator's only when <code>source.kind</code> is <code>gaos</code>. Any other client
+    is not pushed to: it polls GET.</p>
+  </div>
+
+  <h3 id="inbox-registry">Adding a client</h3>
+  <p>A client is configuration and a token file, not code. Generate a token (<code>gaos_</code> and 32 or more letters
+  and digits) into <code>deploy/stacks/prod.api-client-&lt;name&gt;</code> on the host, mode 600 &mdash; a token file
+  others can read is refused. Add one line to the clients file, mount both read-only, set
+  <code>GAOS_API_CLIENTS_FILE</code>, and restart:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre># name           kind            origin                   token file                                products
+hikaru-android   hikaru-android  android.hikaru.example   /run/secrets/api-client-hikaru-android   p-8</pre>
+  </div>
+  <p>The name and kind are 2 to 32 of <code>a-z 0-9 -</code>; <code>qa-tools</code>, <code>back-office</code>,
+  <code>admin</code>, <code>gaos</code>, <code>qa-tool</code> and <code>operator</code> are reserved. The origin is a host
+  name, or <code>-</code>. A line is skipped, with its number and the reason in the log, when it is malformed, repeats a
+  name, reuses another principal's token, claims the QA tool's origin or the deployment's label, or lists a product the
+  qa token reaches. A name is never reused for someone else: items belong to the name.</p>
 
   <h2 id="ownership">Who owns which field</h2>
   <p>Every field of a case has one writer, so there is no silent loser

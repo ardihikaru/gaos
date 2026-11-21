@@ -661,7 +661,10 @@ type AttemptView struct {
 	Reply    template.HTML
 	Answer   string // "" when not answered
 	Answered string
-	Options  []string
+	// AnsweredBy is where the answer came from (D-083): "in GAOS (…) by …",
+	// or "source not recorded" for an answer given before it was recorded.
+	AnsweredBy string
+	Options    []string
 }
 
 func buildConversationView(c Conversation, canArchive bool) *ConversationView {
@@ -710,6 +713,7 @@ func buildConversationView(c Conversation, canArchive bool) *ConversationView {
 					av.Answer += ": " + q.Text
 				}
 				av.Answered = absTime(q.AnsweredAt)
+				av.AnsweredBy = sheetSentence(q.AnsweredBy)
 			}
 		}
 		v.Attempts = append(v.Attempts, av)

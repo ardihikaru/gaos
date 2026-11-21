@@ -725,10 +725,11 @@ func (s *server) buildInbox(r *http.Request, bo *BOView, filter string, name fun
 		if q.External {
 			// D-078: no task, no role; the source tag and the title stand in.
 			exp, expISO, urgent := expiryAt(q.ExpiresAt, now)
+			asker, pushed := askerLabel(q.QuestionPayload)
 			bo.Inbox = append(bo.Inbox, InboxRow{
 				ProductID: q.ProductID, ProductName: name(q.ProductID),
-				Source: q.Source, TaskTitle: q.Title,
-				Lead: clipEllipsis(def(lead, "(the QA tool sent no question text)"), 160), Question: q.Question,
+				Source: labelOf(q.QuestionPayload), Asker: asker, Pushed: pushed, TaskTitle: q.Title,
+				Lead: clipEllipsis(def(lead, "("+asker+" sent no question text)"), 160), Question: q.Question,
 				Waiting: rel, AskedISO: iso, AskedAbs: abs,
 				Expires: exp, ExpiresISO: expISO, Urgent: urgent,
 				OpenURL: externalSheetURL(q.ProductID, q.ExternalID, filter),
@@ -749,11 +750,64 @@ func (s *server) buildInbox(r *http.Request, bo *BOView, filter string, name fun
 			DomID:   "inbox-" + q.ProductID + "-" + q.TaskID,
 		})
 	}
+	bo.Recent = s.recentRows(r, filter, name, now)
 	// One product's chips are noise; they appear when there is a choice to
 	// make, or a filter to undo.
 	if len(bo.Filters) < 2 && filter == "" {
 		bo.Filters = nil
 	}
+}
+
+// recentLimit is how many answers "Answered recently" shows.
+const recentLimit = 20
+
+// askerLabel is how the back office names an inbox item's asker, and whether
+// that asker is told by webhook (only the QA tool is, D-083).
+func askerLabel(q QuestionPayload) (string, bool) {
+	if effectiveAsker(q) == ClientQATools {
+		return "the QA tool", true
+	}
+	return labelOf(q), false
+}
+
+// recentRows is "Answered recently" (D-083): every answer with where it came
+// from, newest first.
+func (s *server) recentRows(r *http.Request, filter string, name func(string) string, now time.Time) []RecentRow {
+	rs, err := s.store.RecentAnswers(r.Context(), filter, recentLimit)
+	if err != nil {
+		return nil
+	}
+	out := make([]RecentRow, 0, len(rs))
+	for _, a := range rs {
+		lead, _ := splitLead(a.Question.Question)
+		row := RecentRow{ProductName: name(a.ProductID), Lead: clipEllipsis(def(lead, "(no question text)"), 140)}
+		if a.External {
+			row.Tag, row.Title = labelOf(a.QuestionPayload), a.Title
+		} else {
+			row.TaskID, row.Title = a.TaskID, a.TaskTitle
+		}
+		switch {
+		case a.Expired:
+			row.Outcome = "expired unanswered"
+		case a.Choice >= 1 && a.Choice < ChoiceOther && a.Choice <= len(a.Options):
+			row.Outcome = a.Options[a.Choice-1].Label
+		default:
+			row.Outcome = "own words: " + clipEllipsis(a.Text, 80)
+		}
+		if !a.Expired {
+			row.By = recentSentence(a.AnsweredBy)
+		}
+		if a.AnsweredAt > 0 {
+			t := time.Unix(a.AnsweredAt, 0).UTC()
+			d := now.Sub(t)
+			if d < 0 {
+				d = 0
+			}
+			row.WhenISO, row.When = t.Format(time.RFC3339), relSpan(d)+" ago"
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 // handleNeeds is GET /ui/needs: the chip and the nav count, nothing else. The
@@ -841,7 +895,17 @@ func (s *server) handleExternalSheet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if q == nil {
-		s.fail(w, r, reject("That QA tool question is not waiting on an answer any more."))
+		// D-083: say who got there first, when somebody did.
+		why := "That question is not waiting on an answer any more."
+		if x, err := s.store.ExternalGet(r.Context(), id, ext); err == nil {
+			switch x.Status {
+			case ExtAnswered:
+				why = answeredSentence(x.AnsweredBy)
+			case ExtExpired:
+				why = "That question expired before it was answered."
+			}
+		}
+		s.fail(w, r, reject(why))
 		return
 	}
 	v, _ := s.newView(r)
@@ -891,7 +955,8 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 	if q.External {
 		// D-078: the QA tool recommends nothing, and an Approve preselected by
 		// default is a decision nobody made. Nothing is checked; the operator picks.
-		a.Source, a.TaskID, a.TaskTitle, a.RoleLabel, a.Default = q.Source, "", q.Title, "", 0
+		a.Source, a.TaskID, a.TaskTitle, a.RoleLabel, a.Default = labelOf(q.QuestionPayload), "", q.Title, "", 0
+		a.Asker, a.Pushed = askerLabel(q.QuestionPayload)
 	}
 	pq := url.Values{}
 	if f := r.URL.Query().Get("product"); f != "" {
