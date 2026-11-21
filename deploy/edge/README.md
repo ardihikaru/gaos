@@ -160,6 +160,44 @@ The first field of the access-log line is `ClientHost`. It **must** read
 
 ---
 
+## A second instance
+
+Another GAOS instance (its own VM, its own database, its own host name) is
+served by the same edge from **its own file**, never from `gaos.conf`, whose
+tracked copy carries only the two instances above (D-085). Its host name and
+tunnel address are one operator's material and stay out of the repository.
+
+1. Copy `deploy/edge/instance.conf.example` to `deploy/local/edge/gaos-<label>.conf`
+   (git-ignored) and replace every placeholder. Keep the name `gaos-<label>.conf`:
+   it sorts after `clino.conf`, which must stay the implicit `:443` default
+   (rule 3 in `gaos.conf`), and before `gaos.conf`.
+2. The file declares **no `map`** and **no `default_server`**: it reuses
+   `$gaos_connection_upgrade` from `gaos.conf`, and refuses any other Host itself.
+3. Install and test, in this order:
+
+   ```bash
+   scp deploy/local/edge/gaos-<label>.conf clino:/tmp/
+   ssh clino
+   sudo cp /tmp/gaos-<label>.conf /etc/nginx/conf.d/gaos-<label>.conf
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot renew --dry-run --cert-name gaos-<label>
+   curl -sI --resolve instance.example.org:443:<edge-ip> https://instance.example.org/api/healthz
+   ```
+
+4. Only then install a new `gaos.conf` that no longer names the instance, and
+   check that nothing collides and the default did not move:
+
+   ```bash
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo nginx -T 2>&1 | grep -c 'conflicting server name'    # 0
+   sudo nginx -T | grep default_server                          # unchanged
+   ```
+
+A certificate lineage issued under another name keeps working: point the
+`ssl_certificate` lines at it.
+
+---
+
 ## Rolling back
 
 ```bash

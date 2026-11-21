@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>How integration works — GAOS</title>
+<meta name="description" content="Every external system GAOS talks to, which side starts each call, how each is authenticated, and the two round trips that matter: a question answered and a test result pushed.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="integrations-overview">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>How integration works</h1>
+  <p class="lede">GAOS plans and tracks the work; two external systems do the rest. <strong>ai-manager</strong> runs
+  every model turn in the product's own workspace, and the <strong>QA tools</strong> run the test scripts and report
+  back. Any other client &mdash; a mobile app, a chat bot &mdash; can ask the operator a question through the same
+  machine API. This page shows each connection, who starts it, and how it is authenticated.</p>
+
+  <div class="page-meta"
+       data-tags="integration, api, webhook, ai-manager, qa"
+       data-hashtags="integrations, architecture"
+       data-published="2026-11-21"
+       data-updated="2026-11-21"
+       data-version-from="0.45.0"
+       data-version-to=""></div>
+
+  <h2 id="picture">The picture</h2>
+  <p>Read it left to right as the life of a piece of work: a client or the QA tools talk to GAOS's machine API;
+  GAOS keeps the graph, the board and the operator's inbox; every model turn goes out through ai-manager, which runs
+  a worker such as ai-claude-cli inside the product's provisioned workspace. GAOS never runs a model tool itself
+  (<a href="../product/decision-log.html#d-055">D-055</a>).</p>
+  <div class="flow rv">
+    <div class="node"><b>QA tools / clients</b><span>bearer tokens</span></div>
+    <div class="arrow">⇄</div>
+    <div class="node"><b>GAOS machine API</b><span><code>/api/v1</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>GAOS</b><span>graph, board, inbox</span></div>
+    <div class="arrow">⇄</div>
+    <div class="node"><b>ai-manager</b><span><code>/v1</code> and <code>/admin</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Worker</b><span>in the product's workspace</span></div>
+  </div>
+  <p>The back office's <em>Integrations</em> view shows the live state of every connection below: what is
+  configured, the last turn, the last webhook delivery and the registered clients. It never shows a token.</p>
+
+  <h2 id="connections">Every connection</h2>
+  <p>Six connections, and only six. Every credential is a file on the host, mode 600, named by an environment
+  variable; none is ever in the repository, a log line or a page.</p>
+  <table class="tbl">
+    <thead><tr><th>Direction</th><th>Paths</th><th>Auth</th><th>Credential</th><th>Started by</th></tr></thead>
+    <tbody>
+      <tr><td>QA tools → GAOS</td><td><code>/api/v1/products…</code>: summary, cases, results, inbox</td><td>Bearer, QA scope</td><td><code>GAOS_API_QA_TOKEN_FILE</code></td><td>the QA tools, after a CI run or a button</td></tr>
+      <tr><td>A registered client → GAOS</td><td><code>/api/v1/products/{id}/inbox…</code> only</td><td>Bearer, its own token</td><td>a line of <code>GAOS_API_CLIENTS_FILE</code></td><td>the client</td></tr>
+      <tr><td>GAOS → QA tools: sync</td><td><code>GET /api/v1/gaos/results</code>, <code>POST /api/v1/gaos/catalog</code></td><td>Bearer, outbound</td><td><code>GAOS_QA_TOKEN_FILE</code>, base <code>GAOS_QA_URL</code></td><td>the operator's two sync buttons</td></tr>
+      <tr><td>GAOS → QA tools: answer webhook</td><td><code>POST /api/v1/gaos/inbox-answer</code></td><td>Bearer, outbound</td><td>the same file and base</td><td>GAOS, after an answer or an expiry</td></tr>
+      <tr><td>GAOS → ai-manager: turns</td><td><code>/v1/chat</code>, <code>/v1/requests/…</code>, <code>/v1/questions/…</code>, <code>/v1/providers</code></td><td>HTTP Basic</td><td><code>GAOS_AIM_CHAT_AUTH_FILE</code>, base <code>GAOS_AIM_URL</code></td><td>the board or the scheduler</td></tr>
+      <tr><td>GAOS → ai-manager: admin</td><td><code>/admin/workspaces/…</code>, <code>/admin/sessions/…</code></td><td>Bearer, admin key</td><td><code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td>a Blueprint sync, a review, a prune</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="tokens">Three GAOS tokens, never equal</h2>
+  <p>GAOS's own API has three tokens: <strong>admin</strong> (seeding and catalog import, by an operator),
+  <strong>QA</strong> (the QA tools calling GAOS) and <strong>outbound</strong> (GAOS calling the QA tools). If two
+  of them are equal GAOS disables its whole API at boot and logs <code>disabled (two of the admin, QA and outbound
+  tokens are equal)</code>: the QA tools holding admin rights, or replaying GAOS's own credential back at it, is the
+  failure this refuses. A registered client's token must differ from all three and from every other client's.
+  A token is <code>gaos_</code> followed by 32 or more letters and digits; GAOS keeps only its SHA-256 digest.</p>
+
+  <h2 id="question-round-trip">A question round trip</h2>
+  <p>A client asks the operator something; the operator answers in the back office; the answer goes back. The QA
+  tools are told by webhook, any other client polls. The first answer wins, from wherever it came.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>client                     GAOS                                  operator (back office)
+  │ POST /api/v1/products/p-1/inbox  {externalId, question, options}
+  │──────────────────────────▶│ ExternalQuestionAsked
+  │◀──── 201 {status: open} ──│ ──── "Needs you" shows the item ───▶│
+  │                           │                                      │ picks an option
+  │                           │◀──────────── answer ─────────────────│
+  │                           │ ExternalQuestionAnswered (source: gaos, back-office)
+  │                           │
+  │  (QA tools only)          │ worker, within 10 s:
+  │◀─ POST {GAOS_QA_URL}/api/v1/gaos/inbox-answer  {externalId, status, choice, …}
+  │── 2xx ───────────────────▶│ ExternalAnswerDelivery: delivered
+  │   (else: retry after 30 s, 2 min, 10 min, 1 h; gave-up after 5 attempts)
+  │
+  │  (any client, any time)
+  │ GET /api/v1/products/p-1/inbox/{externalId}
+  │◀──── 200 {status: answered, choice, optionLabel, source} ──</pre>
+  </div>
+  <p>A client may also answer its own item (<code>POST …/inbox/{externalId}/answer</code>); the answer records its
+  <code>source</code> &mdash; kind, client, origin and the actor the client reported
+  (<a href="../product/brd.html#rules-qa-sync">BR-57</a>). The details are in
+  <a href="webhooks-and-clients.html">Webhooks and external clients</a> and the
+  <a href="../guide/qa-sync-api.html#inbox">QA sync API</a>.</p>
+
+  <h2 id="results-push">A results push</h2>
+  <p>The QA tools own the automation facts of a test case &mdash; implemented, spec, result, run time &mdash; and GAOS
+  owns the plan. A run's results reach GAOS one of two ways, and both end in the same store operation.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>CI run ends ──▶ QA tools ── POST /api/v1/products/p-1/qa/results  {items[≤200]} ──▶ GAOS
+                                 ◀── 200 {applied, unchanged, rejected[]} ──
+                GAOS: automation facts applied; the epic card's badge moves; no task moves
+
+operator presses "Pull results" on the QA tab
+                GAOS ── GET {GAOS_QA_URL}/api/v1/gaos/results?product=…&amp;after=… ──▶ QA tools
+                     ◀── 200 {items, next, more}  (up to 20 pages, 60 s) ──
+                GAOS: each page applied exactly like a push</pre>
+  </div>
+  <p>A result never moves a card (<a href="../product/open-questions.html#oq-35">OQ-35</a>); the badge on the epic's
+  card is a live view of the catalog. <em>Push catalog</em> is the reverse direction: GAOS sends the planning fields
+  to <code>POST /api/v1/gaos/catalog</code>.</p>
+
+  <h2 id="a-turn">A model turn</h2>
+  <p>When the board (or the scheduler, under <code>GAOS_RUNNER=on</code>) dispatches a task, GAOS freezes the
+  task's context, screens it for secrets, and sends one turn:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>GAOS ── POST /v1/chat  X-Request-ID: gaos.&lt;tenant&gt;.&lt;run&gt;  {prompt, workspace_id | session_id, …} ──▶ ai-manager
+     ◀── 202 ──
+GAOS ── GET /v1/requests/&lt;id&gt;/result  every 2 s, up to 660 s ──▶
+     ◀── 202 (running) … 200 {text, session_id, cost_usd, question?} ──
+GAOS: the reply's handoff block is extracted; the card moves; a question goes to "Needs you"</pre>
+  </div>
+  <p>Before a product's first turn, a Blueprint sync provisions its workspace through
+  <code>POST /admin/workspaces/provision</code>. Every call is listed, with its statuses and its caller, in the
+  <a href="ai-manager-api.html">ai-manager REST reference</a>.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

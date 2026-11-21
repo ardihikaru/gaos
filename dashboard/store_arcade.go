@@ -1456,7 +1456,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 	})
 	// One desk per product, seated on its LATEST workflow (v0.40.5). Every
 	// workflow ever created on a product is its own Workflow vertex, and this
-	// loop used to seat a desk for each: after a restart HISv3 had two, and
+	// loop used to seat a desk for each: after a restart the sample product had two, and
 	// deskIdxByID found the older one first -- so the second workflow's tasks
 	// were dispatched from the first one's desk and briefed with its goal. The
 	// running MemStore never has two (CreateWorkflow re-seats the product's one

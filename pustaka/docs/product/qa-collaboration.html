@@ -29,7 +29,7 @@
        data-version-to=""></div>
 
   <h2 id="overview">The idea in one picture</h2>
-  <p>A product such as HISv3 exists in both systems. In GAOS it is a product with a board: one card per test
+  <p>A product such as the sample product exists in both systems. In GAOS it is a product with a board: one card per test
   epic, each card showing how many of its test cases are automated. In the QA tools it is a product whose test
   cases are read from its automation repository, and whose scripts run in Playwright. Neither system is the
   whole truth, so each owns the part it is good at and tells the other.</p>
@@ -97,7 +97,7 @@
     <li>The push creates the case in GAOS as a <em>planned</em> case and bumps its revision. If the case already
     has a script, <code>implemented</code> and the spec path travel with it; otherwise the script facts follow
     when the script is written and the next sync runs.</li>
-    <li>On HISv3's board the epic's card now counts one more case. When the script exists, the card's
+    <li>On the sample product's board the epic's card now counts one more case. When the script exists, the card's
     <em>automated</em> number rises. Nothing is written to the card's task: the numbers are read from the
     catalog every time the board is drawn.</li>
   </ol>
@@ -122,11 +122,11 @@
   two doors:</p>
   <ul>
     <li><strong>From CI</strong>, one <code>curl</code> step after the tests. The product id here is the
-    <em>QA tools'</em> id for the product (HISv3 is <code>3</code> there), not GAOS's <code>p-6</code>:
+    <em>QA tools'</em> id for the product (the sample product is <code>3</code> there), not GAOS's <code>p-6</code>:
     <div class="codeblock">
       <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
       <pre>curl -sS -X POST -H @header-file --data-binary @results.json \
-  "https://qa-tool.sismedika.com/api/v1/results/playwright?product=&lt;QA_PRODUCT_ID&gt;&amp;run_ref=&lt;CI_RUN_ID&gt;"
+  "https://qa.example.org/api/v1/results/playwright?product=&lt;QA_PRODUCT_ID&gt;&amp;run_ref=&lt;CI_RUN_ID&gt;"
 <span class="c"># header-file holds one line:  Authorization: Bearer &lt;RESULTS_INGEST_TOKEN&gt;
 # keep the token in the CI system's secret store</span></pre>
     </div></li>
@@ -167,7 +167,7 @@
   </ul>
 
   <h2 id="kanban">What you see on the board</h2>
-  <p>HISv3's board has one card per test epic ("Automate: ..."), a design card, a review card and a release
+  <p>The sample product's board has one card per test epic ("Automate: ..."), a design card, a review card and a release
   card. Each epic card carries a small badge: <em>automated / cases</em> with a bar, and a failing marker if
   the last run of one of its cases failed. The badge is a live view of the catalog; it is not stored on the
   task. Cards start in <strong>Blocked</strong> because GAOS's design gate holds all implementation work until a
@@ -190,17 +190,17 @@
     </tbody>
   </table>
   <table class="tbl">
-    <thead><tr><th>Setting</th><th>Where</th><th>Value for HISv3 on rnd-v3-vpn</th></tr></thead>
+    <thead><tr><th>Setting</th><th>Where</th><th>Example value</th></tr></thead>
     <tbody>
-      <tr><td><code>GAOS_API_URL</code></td><td>QA tools</td><td><code>http://10.10.0.9:18301/api/v1</code> (the tunnel; the public one is <code>https://gaos.sismedika.com/api/v1</code>)</td></tr>
-      <tr><td><code>GAOS_QA_URL</code></td><td>GAOS, at deploy time</td><td><code>http://10.10.0.9:8140</code> (the public one is <code>https://qa-tool.sismedika.com</code>)</td></tr>
+      <tr><td><code>GAOS_API_URL</code></td><td>QA tools</td><td><code>http://&lt;tunnel-ip&gt;:18301/api/v1</code> (the tunnel; the public one is <code>https://gaos.example.org/api/v1</code>)</td></tr>
+      <tr><td><code>GAOS_QA_URL</code></td><td>GAOS, at deploy time</td><td><code>http://&lt;tunnel-ip&gt;:8140</code> (the public one is <code>https://qa.example.org</code>)</td></tr>
       <tr><td><code>GAOS_API_QA_PRODUCTS</code></td><td>GAOS, at deploy time</td><td><code>p-6</code>: GAOS product ids, comma separated. Unset means the QA token reaches nothing.</td></tr>
       <tr><td>Integrated flag and GAOS product id</td><td>QA tools, <em>/products</em>, the product's GAOS card (Admin or DevOps)</td><td>on, and <code>p-6</code></td></tr>
     </tbody>
   </table>
-  <p>The order that works, for a new product:</p>
+  <p>The step-by-step tutorial, with every token and variable on both sides, is in <a href="../integrations/webhooks-and-clients.html#tutorial">Webhooks and external clients</a>. The order that works, for a new product:</p>
   <ol>
-    <li>Seed the product in GAOS (<code>deploy/seed/hisv3/seed.sh</code> for HISv3). It prints the product id.</li>
+    <li>Seed the product in GAOS (<code>deploy/seed/seed.sh --dir &lt;seed dir&gt; --base &lt;api url&gt;</code>; <code>deploy/seed/README.md</code> documents the files). It prints the product id.</li>
     <li>Put that id in <code>GAOS_API_QA_PRODUCTS</code> and redeploy GAOS. The deploy command is the one in the
     <a href="../infra/environments.html">environments</a> page, with the extra variables.</li>
     <li>Create the token files before the deploy (the deploy refuses a production tag without them), and put the
@@ -215,7 +215,7 @@
   <h2 id="operate">Checking that it works</h2>
   <ul>
     <li><strong>In GAOS:</strong> the product's QA tab. The totals should match the QA tools'
-    product (HISv3: 1,700 cases). The two last-sync lines say when each button last ran and how it went.</li>
+    product. The two last-sync lines say when each button last ran and how it went.</li>
     <li><strong>In the QA tools:</strong> the product's GAOS card shows the last push, its status and note. A healthy
     push reads <em>rejected 0</em>.</li>
     <li><strong>From a shell on the VM</strong> (the token is read from its file and never printed):
@@ -269,7 +269,7 @@
   <p>The tombstones and the decisions view are merged in the QA tools and become visible with their next
   deploy.</p>
   <p>The decisions behind all of this are <a href="decision-log.html#d-072">D-072</a> to
-  <a href="decision-log.html#d-076">D-076</a>; the design is <code>docs/designs/hisv3-qa-sync.md</code>, and the QA
+  <a href="decision-log.html#d-076">D-076</a>; the design is <code>docs/designs/qa-catalog-sync.md</code>, and the QA
   tools' own side is <code>docs/designs/GAOS_INTEGRATION.md</code> and <code>docs/designs/GAOS_INBOUND.md</code>
   in the qa-automation-tools repository.</p>
 

@@ -15,7 +15,8 @@ import (
 // from it through the store calls an operator would make by hand: the product,
 // its BRD, a story per module, diagrams, decisions, Blueprint policies and
 // sources, a published Blueprint, the QA epics and a gated workflow. GAOS ships
-// no product's content; HISv3's is deploy/seed/hisv3/product.json.
+// no product's content; deploy/seed/example/product.json is an invented one,
+// and a real product's lives under the git-ignored deploy/local/ (D-085).
 //
 // IDEMPOTENT: each step is skipped when it is already true, so a re-run never
 // overwrites what an operator edited since. NOT A SHORTCUT AROUND THE GATE: the

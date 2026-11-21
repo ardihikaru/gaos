@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// The QA catalog (docs/designs/hisv3-qa-sync.md, D-072, D-073).
+// The QA catalog (docs/designs/qa-catalog-sync.md, D-072, D-073).
 //
 // A product's test cases, owned field by field. GAOS writes the PLANNING half
 // (what the case is, what is decided about it); the QA tools write the

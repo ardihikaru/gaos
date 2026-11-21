@@ -15,7 +15,7 @@ The reviewer notes the rubric is out of date on one point: since D-079 the board
 ### SEC-2 The permission to spend becomes ambient shell state at deploy time, and the design leaves out two other places the value can come from - Severity: Medium
 - Component: `deploy/stacks/compose.prod.yaml`, `deploy/rebuild-restart.sh`
 - Evidence: the pass-through `GAOS_RUNNER: "${GAOS_RUNNER:-}"` (`runner-manual.md:154-163`) is filled from the deploying shell and from a `.env` in the project directory; the service also loads `env_file: [./prod.dashboard.env]` (`compose.prod.yaml:64`), which an `environment:` key overrides; the script pins no `--env-file` (`rebuild-restart.sh:109`). Whether `prod.dashboard.env` sets `GAOS_RUNNER` is unverifiable (credential file, not opened).
-- Attack path: a shell that still exports `GAOS_RUNNER=on`, or a stray `.env`, brings prod up with `on` on a routine redeploy, and the scheduler dispatches the 47 HISv3 tasks unattended. If the env file sets the runner, the new key silently overrides it to empty. Nothing records the deployed mode except live `/healthz`.
+- Attack path: a shell that still exports `GAOS_RUNNER=on`, or a stray `.env`, brings prod up with `on` on a routine redeploy, and the scheduler dispatches the 47 sample-product tasks unattended. If the env file sets the runner, the new key silently overrides it to empty. Nothing records the deployed mode except live `/healthz`.
 - Remediation: pick one documented source. If the pass-through stays: print the resolved mode before `up`; refuse `on` without a confirmation flag; pin `--env-file` or check no `.env` exists; compare `/healthz` after deploy. Confirm whether `prod.dashboard.env` sets `GAOS_RUNNER`.
 - Effort: small
 

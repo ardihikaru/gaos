@@ -1,7 +1,7 @@
-# HISv3 as a GAOS product, and a two-way QA sync API
+# the sample product as a GAOS product, and a two-way QA sync API
 
-**Status:** Draft v5. Reviewed in three rounds (`reviews/hisv3-qa-sync-review-1.md`: round 1 on v1, round 2 on v2, round 3 on v4's §4.12). Implementation of P1–P4 followed v3, which the author approved on 2026-11-14 under the product owner's standing "don't ask me"; §4.12 (v4/v5) is implemented only after round 3's findings, all applied below.
-**Feature:** `hisv3-qa-sync`
+**Status:** Draft v5. Reviewed in three rounds (`reviews/qa-catalog-sync-review-1.md`: round 1 on v1, round 2 on v2, round 3 on v4's §4.12). Implementation of P1–P4 followed v3, which the author approved on 2026-11-14 under the product owner's standing "don't ask me"; §4.12 (v4/v5) is implemented only after round 3's findings, all applied below.
+**Feature:** `qa-catalog-sync`
 **Version target:** v0.37.0
 
 ## 0. Glossary (terms this document uses)
@@ -16,17 +16,17 @@
 - **Blueprint** — a product's standing rules, published as immutable versions and (separately, by an operator button) synced into an ai-manager workspace.
 - **BO** — the back office: the browser UI whose only gate today is a forgeable cookie (`dashboard/handlers_bo.go:31-34`; BR-48's open precondition).
 - **QA tools** — the repository `qa-automation-tools`, which will write and run the automated test scripts.
-- **Source repo** — `automation-test-hisv3`: the HISv3 product map and test catalog (markdown), plus the Playwright specs.
+- **Source repo** — `automation-test-sample`: the sample product map and test catalog (markdown), plus the Playwright specs.
 
 ## 1. Problem
 
-HISv3 (Sismedika's hospital information system) has a source repo holding its
+The sample product (a product of the product owner's organisation) has a source repo holding its
 product map (4 parts, 39 modules, 444 features: `docs/modules/*.md`) and a test
 catalog (47 epic files, 258 user stories, 1,700 cases, 494 already automated:
 `docs/test-catalog/**.md`). The QA tools will concentrate on the scripts.
 
-The product owner wants (1) HISv3 added to the GAOS instance at
-`gaos.sismedika.com` with a default Blueprint, BRD, stories, kanban cards and
+The product owner wants (1) the sample product added to the GAOS instance at
+`gaos.example.org` with a default Blueprint, BRD, stories, kanban cards and
 task details; (2) a REST API the QA tools can integrate with later; (3) a
 **sync** in both directions, with a sync button for each.
 
@@ -35,14 +35,14 @@ GAOS has no machine API. Every route is for a browser; the one JSON route
 gate; `GET /tasks/{id}/context` also answers JSON, ungated. A product created in the BO has no desk, and `CreateWorkflow` returns
 `ErrNotFound` for it (`store_mem.go:1955-1958`; desks are built only for the
 seeded products, `store_mem.go:278-291`), so it can have stories but no tasks
-and no board. HISv3 needs both.
+and no board. The sample product needs both.
 
 ## 2. Goals and non-goals
 
 **Goals.** G1 a bearer-token REST surface, fail-closed. G2 a QA catalog per
 product with one writer per field. G3 sync both ways: GAOS serves the endpoints
 the QA tools call, and GAOS calls the QA tools when an operator presses a
-button. G4 a repeatable, idempotent seed that gives HISv3 a BRD, stories, a
+button. G4 a repeatable, idempotent seed that gives the sample product a BRD, stories, a
 Blueprint, a workflow and a populated board. G5 a read-mostly BO "QA" tab with
 the two buttons.
 
@@ -66,8 +66,8 @@ the two buttons.
   precondition and say so (§8).
 - N7. The seed does not run `SyncBlueprint` (a real gateway call); it stays an
   operator button. The seed does not clear the design gate (§4.9).
-- N8. No customer-specific code in the binary: HISv3's content is a data file
-  under `deploy/seed/hisv3/`, loaded through a generic endpoint.
+- N8. No customer-specific code in the binary: the sample product's content is a data file
+  under `deploy/seed/<sample>/`, loaded through a generic endpoint.
 
 ## 3. Alternatives considered
 
@@ -87,7 +87,7 @@ the two buttons.
   review: it overrides other `BLOCKED` reasons, writes `READY` (the
   scheduler's word, `store_mem.go:1980-1983`) and invents `DISPATCHED`/`RUNNING`
   without a run (§N5).
-- **F. HISv3 compiled into the binary** (draft v1). Rejected after review: a
+- **F. The sample product compiled into the binary** (draft v1). Rejected after review: a
   customer's catalog and route in a generic Apache-2.0 binary (N8).
 
 ## 4. Design
@@ -261,7 +261,7 @@ cost** (no floor, §4.4); one that adds a card returns the live floor and costs
 what any ordinary mutation costs (rare: at most 5 per request, §4.12); each new case costs about three statements (upsert, edge probe,
 edge), so 200 cases ≈ 600 statements. The *seed's* `CreateWorkflow` is the
 opposite: every later ordinary mutation in the system rewrites every desk,
-task and edge, so the ~50 HISv3 tasks and ~100 dependency edges added by the
+task and edge, so the ~50 sample-product tasks and ~100 dependency edges added by the
 seed make every BO write dearer for every product. That cost is measured once
 the seed has run (P3 exit) and the batch limit is revised from the number. The
 edge allows 300 s and 4 MiB (`deploy/edge/gaos.conf:147,160`) and is not the
@@ -271,7 +271,7 @@ limit.
 
 **Paths.** Traefik routes `PathPrefix(/api)` to the dashboard **and strips
 `/api`** (`deploy/traefik/dynamic.yml:16-21,58-60`). The Go mux therefore
-registers `/v1/...`; the **public** base is `https://gaos.sismedika.com/api/v1`.
+registers `/v1/...`; the **public** base is `https://gaos.example.org/api/v1`.
 `deploy/traefik/dynamic.yml` is unchanged. A test requests the stripped path.
 
 All bodies are JSON objects. Errors: `{"error":"<code>","reason":"<sentence>"}`.
@@ -357,10 +357,10 @@ as a seeded product's; a parked floor with a runtime desk present does not
 panic and `Snapshot` answers; desk order after a restart with a product id of
 10 or more; `POST /workflows` without a cookie is 401 (all in TC-396).
 
-### 4.9 The product seed (generic) and HISv3's data
+### 4.9 The product seed (generic) and the sample product's data
 
 `POST /v1/seed/product` (admin) takes a **product seed document**; GAOS ships
-no HISv3 content. The document:
+no sample-product content. The document:
 
 ```json
 {"name","owner","repo","goal","priority",
@@ -423,14 +423,14 @@ nothing dispatches; if it is turned on, the gate's own sequence applies and the
 epic tasks are real agent work (write the scripts for that epic) priced like
 any other.
 
-**HISv3's data** (private repo; D-074 records the product owner's approval and
+**The sample product's data** (private repo; D-074 records the product owner's approval and
 the condition that the files leave this repo before it ever becomes public) is
-`deploy/seed/hisv3/product.json` (defaults: BRD, two
+`deploy/seed/<sample>/product.json` (defaults: BRD, two
 diagrams, three ADRs, five policies — `technical`, `coding`, `security`,
 `testing`, and a `custom` `qa-sync` one stating the ownership rule — two
 knowledge sources pinned to the SHAs the seed header records, the epics and
-modules) and `deploy/seed/hisv3/cases.json` (the cases). Both are generated by
-`deploy/seed/hisv3/build-seed.mjs <source-repo-checkout>` (Node ≥ 22, the
+modules) and `deploy/seed/<sample>/cases.json` (the cases). Both are generated by
+`deploy/seed/<sample>/build-seed.mjs <source-repo-checkout>` (Node ≥ 22, the
 source repo's own toolchain; the header of each file records the source commit
 SHA). The generator also **fails** if any text matches a secret pattern, and strips
 backticks, angle brackets, line breaks and a leading `#` from every text
@@ -438,7 +438,7 @@ field it copies (round 1, SEC-9/10: these strings reach agent prompts through
 `20-stories.md`). A refresh must be reviewed as a diff. TC-407 screens the
 whole file with the existing egress detector (`egress.go:466`).
 
-`deploy/seed/hisv3/seed.sh` runs **on the VM**, against the tunnel listener
+`deploy/seed/seed.sh` runs **on the VM**, against the tunnel listener
 (`http://${GAOS_TUNNEL_IP}:18301/api/v1`, not the public edge), reads the admin
 token from its file, passes the header through a mode-600 temp file
 (`curl -H @file`, so it is never in argv), posts the product seed, then the
@@ -497,7 +497,7 @@ GAOS **calls**: `GET /api/v1/gaos/results?after=<opaque ≤128>&limit=<≤200>` 
 → `{"accepted":n,"rejected":[{"caseId","reason"}]}`; bearer `GAOS_QA_TOKEN`.
 
 GAOS **serves**: the `qa`-scope routes of §4.7 at
-`https://gaos.sismedika.com/api/v1`. The QA tools may use either direction or
+`https://gaos.example.org/api/v1`. The QA tools may use either direction or
 both; both end in the same two store methods. The published contract page
 (`pustaka/docs/guide/qa-sync-api.html`) shows one `curl` per call with
 `<TOKEN>` placeholders and no internal addresses.
@@ -506,7 +506,7 @@ both; both end in the same two store methods. The published contract page
 
 The product owner's addition: in the QA tools' `/products`, a product can be
 flagged **integrated with GAOS**; test cases created there then appear in
-HISv3's board in GAOS, and are kept up to date, without a human step. The QA
+the sample product's board in GAOS, and are kept up to date, without a human step. The QA
 tools' own design lives in that repository (`docs/designs/GAOS_INTEGRATION.md`);
 this is the GAOS half, and what the QA token may now do is listed in §8.
 
@@ -595,9 +595,9 @@ status, summary); `dashboard/qacatalog_store.go` (MemStore methods);
 `dashboard/store_arcade_qa.go` (forwards, persist, load); `dashboard/schema/16-qa-catalog.sql`;
 `dashboard/api_v1.go` (auth, scoping, routes, seed handler);
 `dashboard/qaclient.go`; `dashboard/handlers_qa.go` (two BO POSTs + the tab
-view-model); `dashboard/templates/qa.html`; `deploy/seed/hisv3/{build-seed.mjs,seed.sh,product.json,cases.json}`;
+view-model); `dashboard/templates/qa.html`; `deploy/seed/<sample>/{build-seed.mjs,seed.sh,product.json,cases.json}`;
 tests `dashboard/{qacatalog,api_v1,qaclient,seed}_test.go`;
-`pustaka/docs/guide/qa-sync-api.html`; `docs/designs/reviews/hisv3-qa-sync-review-1.md`.
+`pustaka/docs/guide/qa-sync-api.html`; `docs/designs/reviews/qa-catalog-sync-review-1.md`.
 
 Modified: `dashboard/store.go` (seam, `Result.QaCases`, `readOnly`);
 `dashboard/model.go` (`Master.Qa`, `ProductDraft.Priority`);
@@ -631,7 +631,7 @@ pustaka: `delivery/implementation-plan.html`, `product/qa-test-plan.html`, `deci
 
 **Registers (checked against the files, round 1).** Decisions: **D-072**
 ownership split and the REST surface; **D-073** the catalog as its own vertex,
-never a task (and N5/BR-54); **D-074** the generic product seed, HISv3 data
+never a task (and N5/BR-54); **D-074** the generic product seed, the sample product's data
 outside the binary, the gate not cleared; **D-075** the outbound origin and the
 two buttons; **D-076** the desk fix. D-071 is taken
 (`decision-log.html:1404`). Log: seventy-one → **seventy-six** entries. Rules:
@@ -650,7 +650,7 @@ a new milestone **M18** with **T-192…T-196**, one per phase P1…P5 of §10.
 - The migration is `16-qa-catalog.sql`, applied by the new image's boot; purely
   additive. The old image ignores `qaState`, `QaCase` and the extra desk.
 - Tag `v0.37.0`; deploy on rnd-v3-vpn with the override line in the
-  second-prod notes (checkout `/home/sismedika/devel/projects/gaos`).
+  second-prod notes (checkout `/home/<user>/devel/projects/gaos`).
 - Secrets: the admin and QA tokens are generated on the VM
   (`printf 'gaos_%s' "$(openssl rand -hex 32)"`, mode 600, gitignored
   `deploy/stacks/prod.api-admin|api-qa|api-qa-out`, all three created — the
@@ -660,11 +660,11 @@ a new milestone **M18** with **T-192…T-196**, one per phase P1…P5 of §10.
   tools implement §4.11, so the buttons render disabled. To disable the admin
   token after seeding, empty its file and restart the dashboard (tokens are read
   at boot); admin routes then answer 401/503.
-- After healthy: `deploy/seed/hisv3/seed.sh` on the VM (tunnel listener).
+- After healthy: `deploy/seed/seed.sh` on the VM (tunnel listener).
 - Order: deploy → seed (prints the product id) → set `GAOS_API_QA_PRODUCTS=<id>`
   → restart. Verification: `seed.sh` asserts the §7 totals and then repeats the
   summary read through the public edge with the QA token, header from a mode-600
-  file; the BO shows HISv3 with the tab.
+  file; the BO shows the sample product with the tab.
 
 ## 7. Tests (one `func Test…` each; ids follow TC-390)
 
@@ -686,11 +686,11 @@ a new milestone **M18** with **T-192…T-196**, one per phase P1…P5 of §10.
 | TC-404 | `TestPushAdvancesPerBatchAndKeepsRejections` | cursor per 2xx batch; stops at 500; rejected ids kept (≤20) |
 | TC-405 | `TestSyncRefusesRedirectsOverlapAndCooldown` | redirect not followed; `sync-running` and `cooldown` are process-wide; unconfigured → 409; a product outside `GAOS_API_QA_PRODUCTS` → `qa-out-of-scope`; a pull page that does not echo the product is refused |
 | TC-406 | `TestProductSeedIsIdempotentAndMeetsTheFloor` | twice = same; operator-edited BRD/policy untouched; a same-named unseeded product → 409; seed text with a secret → 400 and stripped markup; score ≥ `PlanFloor`; `2 + epics + 1` tasks; Release gated; none `DONE`; refused in replay |
-| TC-407 | `TestTheHISv3SeedIsWellFormed` | the committed files: 39 modules, 444 features, 47 epics, 1,700 unique cases, 494 implemented; patterns; every epic/module resolves; egress detector finds nothing |
+| TC-407 | `TestTheExampleSeedIsWellFormed` | the committed files: 39 modules, 444 features, 47 epics, 1,700 unique cases, 494 implemented; patterns; every epic/module resolves; egress detector finds nothing |
 | TC-408 | `TestQaToolsMayCreateButNeverChangeACase` | QA scope (admin also passes); product-scoped; a new valid case is created `planned`; park/retire, reason, run fields, wrong epic infix, `case-limit` refused with their codes; identical existing = `unchanged`; differing existing = `exists-differs` and unchanged; the `epics` entry for an existing code is ignored; a secret in any text → 400 and nothing written; markup stripped; strict JSON; 201 cases → 413 |
 | TC-409 | `TestANewEpicGetsOneBlockedCardAndNothingElseMoves` | a new epic adds exactly one `Automate:` card, always `BLOCKED` with the QA reason, with one `TaskPlanned` and one `TaskMoved`; `QaEpic.Task` set; the Plan lane without a module; the review having already cleared does not release it; no existing task changes status or reason, including an in-flight gated task of another product; `CreateWorkflow`'s gate loop touches only its own workflow; a second case in the epic adds no card; no workflow or review → `cardsAdded:0` and `no-workflow`; parked floor → card deferred (`replay`) and the live desks unchanged; > 5 new epics per request and > 100 per product → `epic-limit`; the fold continues ordinals; the card persists (live desk) |
 | TC-410 | `TestTheBoardCardCarriesLiveCaseCounts` | `BoardCard.qa` equals the epic's roll-up and moves with every created case and every result; cards of other epics and non-epic cards carry none; the seed stores `QaEpic.Task` for every epic; `qa/summary.noCard` lists an epic with no card |
-| TC-411 | `deploy/seed/hisv3/seed.sh` | on the VM: ends `ok  summary matches` or `FAIL <what>` after asserting the totals are at least the seed's |
+| TC-411 | `deploy/seed/seed.sh` | on the VM: ends `ok  summary matches` or `FAIL <what>` after asserting the totals are at least the seed's |
 
 Totals: register **390 → 411** ("four hundred and eleven"); Go tests
 **273 → 293** (20 new, TC-391…TC-410); dashboard **251 → 271**; pustaka 22. The
@@ -744,9 +744,9 @@ persistence case in the conformance table needs no row.
 
 ## 9. Open points carried into the registers
 
-OQ-33, OQ-34, OQ-35 (§5). Licensing/ownership of the HISv3 catalog files in
+OQ-33, OQ-34, OQ-35 (§5). Licensing/ownership of the sample product's catalog files in
 this repository: they are the product owner's own and ride in `deploy/seed/`
-exactly as the `gaos.sismedika.com` host overrides already do; recorded under
+exactly as the `gaos.example.org` host overrides already do; recorded under
 D-074.
 
 ## 10. Phases and exit conditions

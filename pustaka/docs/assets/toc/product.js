@@ -75,7 +75,7 @@ window.DOCS.nav.push({
         { anchor: "appendix-document-notes", title: "Appendix C — Document notes",
           text: "Which reference template the structure came from, what was dropped and why, and the two structural departures: the decision log and the open questions are separate pages." },
         { anchor: "open-questions", title: "Consolidated open questions",
-          text: "Pointer to the thirty-five-question register, twenty-one of them answered, six raised by the move to the gateway, one by the design gate and three by the QA sync." }
+          text: "Pointer to the thirty-six-question register, twenty-one of them answered, six raised by the move to the gateway, one by the design gate, three by the QA sync and one by the open-source scrub." }
       ]
     },
     {
@@ -107,11 +107,11 @@ window.DOCS.nav.push({
       id: "open-questions",
       file: "product/open-questions.html",
       title: "Open questions",
-      desc: "Thirty-five decisions the BRD refuses to invent — twenty-one now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
+      desc: "Thirty-six decisions the BRD refuses to invent — twenty-one now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
-          text: "All thirty-five questions in one filterable table with theme, what each blocks, and status. Filter by pricing, licence, auth, or any word in a question." },
+          text: "All thirty-six questions in one filterable table with theme, what each blocks, and status. Filter by pricing, licence, auth, or any word in a question." },
         { anchor: "oq-commercial", title: "Commercial",
           text: "OQ-01 to OQ-07 and OQ-14, all answered on 2026-08-08 — open core, the target customer, the auditor persona, quota profiles, pricing basis, who pays the provider, support, and data handling — plus OQ-20 answered as Apache-2.0, OQ-19 answered as the generation pack, and the one still open: OQ-21 the rate card." },
         { anchor: "oq-product", title: "Product & scope",
@@ -126,7 +126,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Eighty-three decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
+      desc: "Eighty-four decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -159,13 +159,13 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates five hundred and nine positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates five hundred and twelve positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All five hundred and nine TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the three hundred and eighty-four unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All five hundred and twelve TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the three hundred and eighty-six unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
           text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the two hundred and eighty-two dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
@@ -186,7 +186,7 @@ window.DOCS.nav.push({
         { anchor: "test-results", title: "Getting test results in", text: "A Playwright JSON report uploaded from CI or by hand, matched to cases by the id at the start of a test title; the latest run per case wins; results reach GAOS by themselves and show as pass, fail and a failing marker on the board." },
         { anchor: "gaos-to-qa", title: "GAOS to QA tools: the two buttons", text: "Pull brings script facts in, Push sends decisions out; the one-at-a-time rule, the 30 second cooldown and the 60 second click." },
         { anchor: "kanban", title: "What you see on the board", text: "Epic cards with live automated counts, why everything starts Blocked, and the QA tab." },
-        { anchor: "setup", title: "Setting it up", text: "The three tokens and where each lives, the URLs and variables for HISv3, and the order to deploy in." },
+        { anchor: "setup", title: "Setting it up", text: "The three tokens and where each lives, the URLs and variables for the sample product, and the order to deploy in." },
         { anchor: "operate", title: "Checking that it works", text: "Where to look in GAOS, in the QA tools and from a shell." },
         { anchor: "troubleshooting", title: "When it does not work", text: "Symptom, meaning and fix: disabled buttons, 409, deadline exceeded, unreadable body, 401, 403, 404, 503, exists-differs, a missing card." },
         { anchor: "security", title: "Security in short", text: "Token files, strict decoding, screening, scoping, redirects refused, and the open back-office login." },

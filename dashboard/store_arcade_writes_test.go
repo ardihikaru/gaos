@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// v0.40.2: a board move hung for minutes on gaos.sismedika.com. The scheduler's
+// v0.40.2: a board move hung for minutes on a production instance. The scheduler's
 // background write held the ArcadeStore lock while it rewrote every desk, task,
 // run and context slice in the floor -- an existence probe per citation edge --
 // against a slow database, and every handler and the question sweep queued
