@@ -375,19 +375,51 @@ func timingURL(productID, taskID string) string {
 	return "ui/timing/" + url.PathEscape(productID) + "/" + url.PathEscape(taskID)
 }
 
+// conversationURL is a card's conversation sheet (D-082), escaped the same way.
+func conversationURL(productID, taskID string) string {
+	return "ui/conversation/" + url.PathEscape(productID) + "/" + url.PathEscape(taskID)
+}
+
 // ---------- the store side ----------
 
-// timingEventsLocked returns the events that can bear on one task: the
-// TaskPlanned events listing it and the TaskMoved events naming it. The
-// stream is unbounded, so it is never rescanned: the per-task index is
-// extended from its high-water mark to the stream's end, whoever appended
+// taskEventsLocked returns the events that can bear on one task: the
+// TaskPlanned events listing it, and the TaskMoved, QuestionAsked,
+// QuestionAnswered, ConversationArchived and ConversationPruned events naming
+// it. The stream is unbounded, so it is never rescanned: the per-task index
+// is extended from its high-water mark to the stream's end, whoever appended
 // those events (emit, or ArcadeStore's load). Caller holds s.mu (read or
 // write), so s.events cannot change underneath.
-func (s *MemStore) timingEventsLocked(taskID string) []Event {
+func (s *MemStore) taskEventsLocked(taskID string) []Event {
 	s.timingMu.Lock()
 	defer s.timingMu.Unlock()
+	s.extendIndexLocked()
+	idx := s.timingIdx[taskID]
+	out := make([]Event, len(idx))
+	for k, i := range idx {
+		out[k] = s.events[i]
+	}
+	return out
+}
+
+// conversationEventsLocked is every ConversationArchived and
+// ConversationPruned on the stream, in order (D-082): the Archive page's
+// source, read without rescanning. Caller holds s.mu.
+func (s *MemStore) conversationEventsLocked() []Event {
+	s.timingMu.Lock()
+	defer s.timingMu.Unlock()
+	s.extendIndexLocked()
+	out := make([]Event, len(s.convIdx))
+	for k, i := range s.convIdx {
+		out[k] = s.events[i]
+	}
+	return out
+}
+
+// extendIndexLocked brings both indexes to the stream's end. Caller holds
+// s.timingMu and s.mu.
+func (s *MemStore) extendIndexLocked() {
 	if s.timingIdx == nil || len(s.events) < s.timingN {
-		s.timingIdx, s.timingN = map[string][]int{}, 0
+		s.timingIdx, s.convIdx, s.timingN = map[string][]int{}, nil, 0
 	}
 	for i := s.timingN; i < len(s.events); i++ {
 		e := s.events[i]
@@ -396,19 +428,18 @@ func (s *MemStore) timingEventsLocked(taskID string) []Event {
 			for _, pt := range e.Payload.Tasks {
 				s.timingIdx[pt.ID] = append(s.timingIdx[pt.ID], i)
 			}
-		case TaskMoved:
-			if e.Payload.Task != "" {
-				s.timingIdx[e.Payload.Task] = append(s.timingIdx[e.Payload.Task], i)
-			}
+			continue
+		case ConversationArchived, ConversationPruned:
+			s.convIdx = append(s.convIdx, i)
+		case TaskMoved, QuestionAsked, QuestionAnswered:
+		default:
+			continue
+		}
+		if e.Payload.Task != "" {
+			s.timingIdx[e.Payload.Task] = append(s.timingIdx[e.Payload.Task], i)
 		}
 	}
 	s.timingN = len(s.events)
-	idx := s.timingIdx[taskID]
-	out := make([]Event, len(idx))
-	for k, i := range idx {
-		out[k] = s.events[i]
-	}
-	return out
 }
 
 // productTimingsLocked computes every card of one product, keyed by task id.
@@ -427,7 +458,7 @@ func (s *MemStore) productTimingsLocked(productID string, now int64) (map[string
 		if t.DeskID != productID {
 			continue
 		}
-		out[t.ID] = cardTiming(t, s.timingEventsLocked(t.ID), runs[t.ID], now, mode)
+		out[t.ID] = cardTiming(t, s.taskEventsLocked(t.ID), runs[t.ID], now, mode)
 		byWF[t.WorkflowID] = append(byWF[t.WorkflowID], t.ID)
 	}
 	return out, byWF

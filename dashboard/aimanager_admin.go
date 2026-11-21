@@ -133,3 +133,34 @@ func (c *AIMClient) PutFiles(ctx context.Context, vendor, id string, files []Wor
 	var m WorkspaceManifest
 	return m, json.Unmarshal(body, &m)
 }
+
+// DeleteSession deletes one gateway session (D-082, a prune). The admin route
+// proxies to the session worker: ai-claude-cli by default, ai-antigravity-cli
+// with ?provider=antigravity, one shared store for every account. It answers
+// bare sentinels only -- admin()'s own errors name the path, and the path
+// names the session, which lets its holder continue the conversation.
+func (c *AIMClient) DeleteSession(ctx context.Context, vendor, id string) error {
+	if c.Creds.AdminKey == "" {
+		return ErrNoAdminKey
+	}
+	code, _, err := c.admin(ctx, http.MethodDelete, "/admin/sessions/"+url.PathEscape(id)+onVendor(vendor), nil)
+	switch {
+	case err != nil:
+		return ErrGatewayTransient
+	case code >= 200 && code < 300:
+		return nil
+	case code == http.StatusNotFound:
+		return ErrSessionNotFound
+	case code == http.StatusConflict:
+		return ErrSessionBusy
+	}
+	return ErrGatewayTransient
+}
+
+// DeleteSession makes the adapter a SessionJanitor.
+func (a *AIMAdapter) DeleteSession(ctx context.Context, vendor, id string) error {
+	if a.Client == nil {
+		return ErrGatewayTransient
+	}
+	return a.Client.DeleteSession(ctx, vendor, id)
+}

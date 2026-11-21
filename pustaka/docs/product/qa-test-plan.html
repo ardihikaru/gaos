@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and seventy-seven cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and eighty-nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and seventy-seven cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and eighty-nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -566,6 +566,18 @@
       <tr data-tags="go test unit dashboard board json timing workflows sheet chip render secret positive negative d-081 implemented"><td>TC-475</td><td>dashboard (go test)</td><td>Positive</td><td>The board JSON carries a timing summary on every card and the workflows' totals, the card route its segments and attempt, the sheet one row per segment, the server board a timing chip &mdash; and none of them a run's session or request id (<code>TestTheBoardAndTheSheetCarryTheTiming</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb ts zone offset quarter hour d-081 positive negative implemented"><td>TC-476</td><td>dashboard (go test)</td><td>Positive</td><td>The database's zone offset is the clock difference rounded to a quarter hour: seven hours and forty seconds is 25 200 s, forty seconds alone is 0 (<code>TestTheDatabaseZoneOffsetRoundsToAQuarterHour</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test arcadedb dashboard event time at restart ts fallback d-081 positive implemented"><td>TC-477</td><td>dashboard (go test)</td><td>Positive</td><td>Every event's wall-clock time reads back equal after a reopened ArcadeStore, and a row written without <code>at</code> reads its <code>ts</code>; skipped without <code>GAOS_ARCADE_TEST_URL</code> (<code>TestEventTimeSurvivesTheGraphRoundTrip</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard markdown nested list fence inline code d-082 positive implemented"><td>TC-478</td><td>dashboard (go test)</td><td>Positive</td><td>A reply with a heading, a three-level nested ordered/unordered list, a fence inside a list item, inline code, bold, italic, an intraword underscore and an https link renders to the exact expected HTML; <code>3.</code> starts <code>&lt;ol start="3"&gt;</code>; a bullet then a number makes two lists (<code>TestMarkdownRendersNestedListsCodeAndInlineCode</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard markdown xss escape link image linear d-082 negative implemented"><td>TC-479</td><td>dashboard (go test)</td><td>Negative</td><td>Script, img/onerror, a quote in a link, javascript:, http:, data:, relative and non-ASCII-host links, bidi overrides, images and HTML inside fences and code all come out escaped or as text; 500 KiB of delimiters render in under 2 s; a 600 KiB body is one escaped block (<code>TestMarkdownEscapesEverythingTheModelWrote</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard conversation attempts question answer d-082 positive implemented"><td>TC-480</td><td>dashboard (go test)</td><td>Positive</td><td>A card's conversation lists every attempt in order with its prompt, reply, the question it asked and the operator's answer; another product's events are ignored (<code>TestTheConversationListsEveryAttemptWithItsQuestionAndAnswer</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard conversation archive restore chip archive page d-082 positive implemented"><td>TC-481</td><td>dashboard (go test)</td><td>Positive</td><td>Archive writes ConversationArchived by the signed-in account, the chip leaves the board (JSON says archived), the Archive page lists the card, the archived sheet is read-only with Restore, and restore brings the chip back (<code>TestArchiveHidesTheChipAndRestoreBringsItBack</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard conversation archive refused unfinished running twice replay d-082 negative implemented"><td>TC-482</td><td>dashboard (go test)</td><td>Negative</td><td>Archive is refused for a READY or AWAITING_INPUT card, a canceled card with a RUNNING attempt, a card with no attempt, twice, and through the replay handle; restore of an active conversation is refused (<code>TestArchiveIsRefusedForAnUnfinishedCardOrTwice</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard prune bodies sessions certificate sha256 kept d-082 positive implemented"><td>TC-483</td><td>dashboard (go test)</td><td>Positive</td><td>Prune empties the prompt, reply and question documents, keeps the handoff and the run records, asks the gateway once per session, and writes a bodies certificate (per-document SHA-256 and length of the original, the Kept list) and a sessions certificate, neither carrying a session id (<code>TestPruneEmptiesDocumentsAndSessionsAndLeavesACertificate</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard prune skipped restored shared session busy failed commit d-082 negative implemented"><td>TC-484</td><td>dashboard (go test)</td><td>Negative</td><td>A card restored after the page rendered is skipped, an unlisted archived card is untouched, a busy session counts as failed without its id, a session shared with an unselected card is kept, and a failed database commit changes nothing (<code>TestPruneSkipsWhatChangedAndKeepsWhatIsShared</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard prune confirm typed 422 d-082 negative implemented"><td>TC-485</td><td>dashboard (go test)</td><td>Negative</td><td>Prune without <code>confirm=PRUNE</code>, or with no card, answers 422 with the exact toast and deletes nothing; the confirmed form prunes (<code>TestPruneWithoutTheTypedConfirmationDeletesNothing</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard conversation routes cross-site origin 403 no-store csp d-082 negative implemented"><td>TC-486</td><td>dashboard (go test)</td><td>Negative</td><td>Archive, restore and prune refuse Sec-Fetch-Site cross-site and a foreign Origin with 403; an unknown card's sheet is 404; the sheet and the Archive view are no-store; the back office carries its CSP; the model's HTML is escaped on the sheet (<code>TestTheConversationRoutesAreBackOfficeAndSameOrigin</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard ai-manager admin delete session sentinel provider d-082 positive negative implemented"><td>TC-487</td><td>dashboard (go test)</td><td>Positive</td><td>DeleteSession sends DELETE /admin/sessions/{id} (?provider=antigravity for that vendor) with the admin bearer; 200 is nil, 404, 409, 5xx, unreachable and no key are sentinels without the id; prune never sends a malformed id or an unknown vendor (<code>TestTheGatewayDeletesASessionAndSaysOnlyWhatFailed</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test arcadedb dashboard conversation prune restart actor d-082 positive implemented"><td>TC-488</td><td>dashboard (go test)</td><td>Positive</td><td>After a reopen the reply is read from the database; after archive, prune and another reopen the bodies are empty in the database, the certificate's digest is the original text's, the question events remain, and the Event actor column is the account; skipped without <code>GAOS_ARCADE_TEST_URL</code> (<code>TestAPrunedConversationStaysPrunedAfterARestart</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard markdown well-formed invariant generated d-082 negative implemented"><td>TC-489</td><td>dashboard (go test)</td><td>Negative</td><td>Two thousand seeded random inputs render only allowlisted tags, balanced, with no raw angle bracket outside a tag (<code>TestMarkdownOutputIsWellFormedForAnyInput</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1324,7 +1336,7 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-six cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn), since v0.41.0 a planned task's timing (<code>CardTimingOfAPlannedTask</code>, D-081: known, complete, opened on its plan in PENDING, and an unknown card is not found) — each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-seven cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn), since v0.41.0 a planned task's timing (<code>CardTimingOfAPlannedTask</code>, D-081: known, complete, opened on its plan in PENDING, and an unknown card is not found), since v0.42.0 a conversation's archive round trip (<code>ConversationArchiveRoundTrip</code>, D-082: a card with no attempt is refused, an unknown card is not found, a fresh card's conversation is active and empty) — each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
@@ -3512,6 +3524,71 @@
   <strong>TC-477, positive</strong> (<code>TestEventTimeSurvivesTheGraphRoundTrip</code>, ArcadeDB; skipped without
   <code>GAOS_ARCADE_TEST_URL</code>): <code>event %d had At %d and reads back %d; the wall clock must survive a restart</code> or
   <code>a row with no "at" read back At %d at %d; want its ts, corrected to the app's clock</code>.</p>
+
+  <h3 id="go-conversations">dashboard &mdash; conversations: safe markdown, archive, prune (TC-478&ndash;TC-489)</h3>
+  <p>v0.42.0, in <code>dashboard/markdown_test.go</code>, <code>dashboard/conversation_test.go</code> and
+  <code>dashboard/aimanager_admin_test.go</code> (<a href="decision-log.html#d-082">D-082</a>,
+  <code>docs/designs/conversations.md</code>). A card's conversation is every attempt's prompt and reply, rendered as
+  escaped markdown, with its question and answer; a finished card's conversation can be archived, restored and pruned.
+  <strong>TC-478, positive</strong> (<code>TestMarkdownRendersNestedListsCodeAndInlineCode</code>): the fixed example, or
+  <code>the fixed example rendered\n%s\nwant\n%s</code>; <code>a list starting at 3 rendered %s; want &lt;ol start=\"3\"&gt;</code>;
+  <code>a bullet then a number at the same depth rendered %s; want two lists</code>.
+  <strong>TC-479, negative</strong> (<code>TestMarkdownEscapesEverythingTheModelWrote</code>):
+  <code>%q rendered %s; it must not contain %q -- model text is text</code>,
+  <code>an unclosed fence rendered %s; want it closed at the end, escaped</code>,
+  <code>500 KiB of %q took %v; the renderer must be linear</code> or
+  <code>a 600 KiB body was parsed; want one escaped &lt;pre&gt;</code>.
+  <strong>TC-480, positive</strong> (<code>TestTheConversationListsEveryAttemptWithItsQuestionAndAnswer</code>):
+  <code>the conversation is %+v (%v); want two attempts in order</code>,
+  <code>attempt 1 is %+v; want its prompt, its reply, the question and the operator's answer</code>,
+  <code>attempt 2 carries a question it never asked: %+v</code> or
+  <code>an unknown card answered %v; want ErrNotFound</code>.
+  <strong>TC-481, positive</strong> (<code>TestArchiveHidesTheChipAndRestoreBringsItBack</code>):
+  <code>archive wrote %+v; want ConversationArchived to archived by the signed-in account</code>,
+  <code>after archive the board JSON says %+v; want archived: true</code>,
+  <code>the server board still shows %s's conversation chip after archive</code>,
+  <code>the Archive page does not list %s for prune</code>,
+  <code>the archived sheet must show the attempts read-only with Restore and no Archive</code> or
+  <code>after restore the board JSON says %+v; want active</code>.
+  <strong>TC-482, negative</strong> (<code>TestArchiveIsRefusedForAnUnfinishedCardOrTwice</code>):
+  <code>archiving a %s card answered %v; want the refusal naming its status</code>,
+  <code>a canceled card with a RUNNING attempt was archived; a turn could still write into it</code>,
+  <code>archiving twice answered %v; want a refusal</code>,
+  <code>archiving a card with no attempt answered %v; want a refusal</code> or
+  <code>the replay handle restored a conversation</code>.
+  <strong>TC-483, positive</strong> (<code>TestPruneEmptiesDocumentsAndSessionsAndLeavesACertificate</code>):
+  <code>%s still holds its body after the prune</code>,
+  <code>prune touched a handoff or a run record; both survive</code>,
+  <code>the gateway was asked %v; want the one session once</code>,
+  <code>the bodies certificate is %+v; want five documents (2 prompts, 2 replies, 1 question) and the Kept list</code>,
+  <code>%s is certified as %s/%d; want the original text's digest and length</code> or
+  <code>a certificate or the toast carries a session id</code>.
+  <strong>TC-484, negative</strong> (<code>TestPruneSkipsWhatChangedAndKeepsWhatIsShared</code>):
+  <code>prune answered %q, %v; want one pruned, one skipped</code>,
+  <code>prune emptied a card that was restored, or one that was not listed</code>,
+  <code>a busy session's id reached the result</code>,
+  <code>a shared session got calls %v and certificate %+v; want it kept, counted shared</code> or
+  <code>a failed commit answered %v, wrote %d events and left the body %q; want nothing changed</code>.
+  <strong>TC-485, negative</strong> (<code>TestPruneWithoutTheTypedConfirmationDeletesNothing</code>):
+  <code>prune with %v answered %d; want 422 and %q</code> or <code>an unconfirmed prune wrote events or emptied a body</code>.
+  <strong>TC-486, negative</strong> (<code>TestTheConversationRoutesAreBackOfficeAndSameOrigin</code>):
+  <code>POST %s with %s: %s answered %d; want 403</code>,
+  <code>an unknown card's sheet answered %d; want 404 and the toast</code>,
+  <code>the sheet answered Cache-Control %q and CSP %q; want no-store and the back-office policy</code> or
+  <code>the sheet emitted the model's HTML as HTML</code>.
+  <strong>TC-487, positive and negative</strong> (<code>TestTheGatewayDeletesASessionAndSaysOnlyWhatFailed</code>):
+  <code>the gateway saw %v; want %v -- the admin route, the vendor's worker, the admin bearer</code>,
+  <code>a %d answered %v; want %v, with no session id in it</code> or
+  <code>prune sent %v and counted %+v; want only the well-formed claude id sent, two failed</code>.
+  <strong>TC-488, positive</strong> (<code>TestAPrunedConversationStaysPrunedAfterARestart</code>, ArcadeDB; skipped
+  without <code>GAOS_ARCADE_TEST_URL</code>): <code>after a reopen the conversation is %+v (%v); want the reply read from the database</code>,
+  <code>after the prune and a reopen the database holds %v (%v); want both bodies empty</code>,
+  <code>the certificate for the reply read from the database is %+v; want the original text's digest</code> or
+  <code>the actor column is %+v (%v); want the account</code>.
+  <strong>TC-489, negative</strong> (<code>TestMarkdownOutputIsWellFormedForAnyInput</code>):
+  <code>input %q rendered %s: %s</code>.
+  By hand, as for the answer and timing sheets: open a conversation from a card's chip, press Esc, and focus is back on
+  the chip; then answer a question, which must work as before.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

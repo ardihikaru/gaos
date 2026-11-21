@@ -145,6 +145,9 @@ func (s *server) handleBOView(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	v, _ := s.newView(r)
 	v.BO = s.buildBO(r, r.PathValue("view"), q.Get("product"), def(q.Get("tab"), "brd"))
+	if v.BO.View == "archive" {
+		w.Header().Set("Cache-Control", "no-store") // D-082: archived conversations
+	}
 	s.rend.Render(w, http.StatusOK, "bo-main-oob", v)
 }
 
@@ -213,8 +216,16 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		bo.Counts.Knowledge += len(m.Decisions)
 	}
 	bo.Counts.Agents = len(agents)
+	archived, _ := s.store.ArchivedConversations(r.Context())
+	bo.Counts.Archived = len(archived.Archived)
 
 	switch view {
+	case "archive":
+		bo.Title = "Archive"
+		bo.Sub = "Conversations archived from finished cards. Open one to read it, restore it to its card, or prune them all."
+		bo.Archive = archivePage(archived)
+		return bo
+
 	case "inbox":
 		s.buildInbox(r, bo, productID, name)
 		return bo

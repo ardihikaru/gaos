@@ -96,6 +96,13 @@ const (
 	ExternalQuestionAsked    EventType = "ExternalQuestionAsked"
 	ExternalQuestionAnswered EventType = "ExternalQuestionAnswered"
 	ExternalAnswerDelivery   EventType = "ExternalAnswerDelivery"
+
+	// D-082: a finished card's conversation was archived or restored (To:
+	// archived | active), and an archived one was pruned (Prune.Stage: bodies,
+	// then sessions). Same BR-05 rule: the fold case, the data model document
+	// section 08 and the catalog test land with these names.
+	ConversationArchived EventType = "ConversationArchived"
+	ConversationPruned   EventType = "ConversationPruned"
 )
 
 // judgment

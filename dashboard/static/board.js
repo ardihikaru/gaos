@@ -101,12 +101,33 @@ function timingChip(product, card) {
   return b;
 }
 
+// The card's conversation (D-082): how many attempts it has; opens the
+// conversation sheet. Shown only while the conversation is active -- an
+// archived one is read from the Archive page. textContent only.
+function conversationChip(product, card) {
+  const c = card.conversation;
+  if (!c || c.archived || c.pruned || !c.attempts) return null;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "cv-chip mono";
+  b.id = "cv-" + card.id;
+  b.textContent = c.attempts + (c.attempts === 1 ? " attempt" : " attempts");
+  b.setAttribute("aria-label", "Conversation of " + card.id + ": " + b.textContent);
+  b.dataset.sheetOpen = "ui/conversation/" + encodeURIComponent(product) + "/" + encodeURIComponent(card.id);
+  b.addEventListener("keydown", (ev) => {
+    if (["Enter", " ", "F2", "Delete", "Backspace"].includes(ev.key)) ev.stopPropagation();
+  });
+  return b;
+}
+
 function cardFace(product, card, ctx) {
   const face = ctx.defaultRender(card);
   const badge = vendorBadge(card);
   if (badge) (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(badge);
   const qb = qaBadge(card);
   if (qb) (face.querySelector(".sfb-card-content") || face).append(qb);
+  const cc = conversationChip(product, card);
+  if (cc) (face.querySelector(".sfb-card-content") || face).append(cc);
   const tc = timingChip(product, card);
   if (tc) (face.querySelector(".sfb-card-content") || face).append(tc);
   return card.status === AWAITING ? [needsBadge(product, card), face] : face;
