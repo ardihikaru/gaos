@@ -90,6 +90,7 @@
       <button{{if eq .BO.View "diagrams"}} aria-current="page"{{end}}  hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num .BO.Counts.Diagrams}}</span></button>
       <button{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></button>
       <button{{if eq .BO.View "agents"}} aria-current="page"{{end}}    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></button>
+      <button{{if eq .BO.View "archive"}} aria-current="page"{{end}}   hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></button>
     </nav>
     {{end}}
 
@@ -119,6 +120,7 @@
   {{with .BO}}
     {{if eq .View "inbox"}}{{template "bo-inbox" .}}
     {{else if eq .View "agents"}}{{template "bo-agents" .}}
+    {{else if eq .View "archive"}}{{template "bo-archive" .}}
     {{else if .Detail}}{{template "bo-product-detail" .}}
     {{else if eq .View "products"}}{{template "bo-product-list" .}}
     {{else}}{{template "bo-rollup" .}}{{end}}
@@ -130,6 +132,9 @@
      to move them. One fragment carries both: the pane that changed and the
      chrome that counts it. */}}
 {{define "bo-main-oob"}}{{template "bo-sheet" .}}{{end}}
+{{/* D-082: after archive, restore or prune the sheet is answered closed --
+     the conversation modal is resent with no conversation, hence hidden. */}}
+{{define "bo-main-close-talk"}}{{template "bo-sheet" .}}{{template "conversation-modal" .}}{{end}}
 
 {{/* Both sheets at once, for the transitions that close one and open the
      other: sign in, sign out, and opening the back office unauthenticated. */}}
@@ -398,6 +403,7 @@
         <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
         {{with .Qa}}{{template "qa-badge" .}}{{end}}
         {{$card := .ID}}
+        {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
         {{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}{{range .Moves}}
         <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
         {{end}}
@@ -638,4 +644,55 @@
   </div>
   {{end}}
 </div>
+{{end}}
+
+{{/* The Archive page (D-082). Archived conversations of finished cards, read
+     and restored from here; "Prune all archived" behind a typed PRUNE, bound
+     to the cards listed; and the certificates of what earlier prunes emptied. */}}
+{{define "bo-archive"}}
+<header><div><span class="eyebrow">conversations</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+{{with .Archive}}
+<div class="block">
+  <h4>Archived conversations</h4>
+  {{if .Archived}}
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <thead><tr><th>Product</th><th>Card</th><th>Attempts</th><th>Archived</th><th></th></tr></thead>
+    <tbody>{{range .Archived}}<tr>
+      <td>{{.ProductName}}</td>
+      <td><span class="mono">{{.TaskID}}</span> <span dir="auto">{{.TaskTitle}}</span></td>
+      <td class="mono">{{.Attempts}}</td>
+      <td class="mono">{{.When}}{{if .ArchivedBy}} · {{.ArchivedBy}}{{end}}</td>
+      <td class="cv-act"><button type="button" class="btn" id="cvo-{{.TaskID}}" data-sheet-open="{{.OpenURL}}">Open</button>
+        <button type="button" class="btn" hx-post="{{.RestoreURL}}" hx-target="#sink" hx-swap="innerHTML">Restore</button></td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  <div class="cv-prune">
+    <button type="button" class="btn" data-toggle="pruneForm">Prune all archived…</button>
+    <form id="pruneForm" class="cv-prune-form" hidden hx-post="conversations/prune" hx-target="#sink" hx-swap="innerHTML">
+      <p>{{.FormText}}</p>
+      {{range .Archived}}<input type="hidden" name="card" value="{{.Card}}">{{end}}
+      <div class="field"><label for="pruneConfirm">Type {{.Confirm}} to confirm</label>
+        <input id="pruneConfirm" name="confirm" autocomplete="off" spellcheck="false" placeholder="{{.Confirm}}"></div>
+      <button type="submit" class="btn btn-danger">Prune {{len .Archived}} conversation{{if ne (len .Archived) 1}}s{{end}}</button>
+    </form>
+  </div>
+  {{else}}<p class="tm-line">No archived conversations.</p>{{end}}
+</div>
+<div class="block">
+  <h4>Pruned — certificates</h4>
+  {{if .Pruned}}
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <thead><tr><th>Product</th><th>Card</th><th>Pruned</th><th>Emptied</th><th>Gateway sessions</th><th></th></tr></thead>
+    <tbody>{{range .Pruned}}<tr>
+      <td>{{.ProductName}}</td>
+      <td><span class="mono">{{.TaskID}}</span> <span dir="auto">{{.TaskTitle}}</span></td>
+      <td class="mono">{{.When}}{{if .PrunedBy}} · {{.PrunedBy}}{{end}}</td>
+      <td class="mono">{{.Docs}}</td>
+      <td class="mono">{{.Sessions}}</td>
+      <td class="cv-act"><button type="button" class="btn" id="cvp-{{.TaskID}}" data-sheet-open="{{.OpenURL}}">Open</button></td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="tm-line">Nothing has been pruned.</p>{{end}}
+</div>
+{{end}}
 {{end}}

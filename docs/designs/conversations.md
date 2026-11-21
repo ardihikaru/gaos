@@ -324,3 +324,15 @@ v0.42.0. No migration. Rollback = revert; an older build's fold skips the two ty
 ## 11. Approval
 
 The product owner's Phase 2 brief, relayed by the orchestrating agent on 2026-11-21 (a conversation message, not a repository file — labelled here as such), says: prune "permanently deletes" archived conversations; "May be deleted: artifact bodies and the ai-manager session transcript"; "Must stay: events, metadata and a tombstone recording who pruned what and when"; "Record the decision as a D-number"; and that approval of this design is delegated to the orchestrating agent ("approval delegated"), under the same standing instruction recorded in `card-timing.md` §11 and `runner-manual.md` §11. v3 deletes exactly what that brief allows and keeps what it requires, and says in the form what else survives. Approved 2026-11-21, v3, by the orchestrating agent under that delegation. Basis: round 1's four Blockers and one High and round 2's two Blockers are fixed (`reviews/conversations-review-1.md`, `-review-2.md`); round 2 raised no Critical or High security finding; no Blocker survives, so no third round (policy step 7).
+
+
+## 12. As built (v0.42.0)
+
+Built as designed, with these differences in naming and placement only:
+
+- The 404 sentinel is `ErrSessionNotFound` — `ErrSessionGone` already names the chat path's 410 (`dashboard/aimanager.go:30`).
+- The four handlers live in a new `dashboard/handlers_conversation.go`, not `handlers_bo.go`; the `archive` view is built in `buildBO` as designed, and its response sets `no-store`.
+- `prunePlan` gains a `guard` so ArcadeStore takes its own lock around the bodies commit (in the same order `mutate` does) and not while the gateway deletes sessions.
+- The sheet's view field is `View.Talk *ConversationView`; after archive, restore or prune the response carries template `bo-main-close-talk` (the sheet plus a hidden `conversation-modal`).
+
+Verified: `go test -race ./...` green on both stores (ArcadeDB on the scratch image); `pustaka check`, pustaka tests, `check-workspace.sh`, `check-stacks.sh` pass; rendered in headless Chrome against the in-memory store — the chip on the card, the sheet with nested lists, a fence inside a list item and the model's `<b>` shown as text, archive closing the sheet, and the Archive page with the prune form.

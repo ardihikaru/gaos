@@ -48,6 +48,7 @@ type MemStore struct {
 	// mu.RLock extends it.
 	timingMu  sync.Mutex
 	timingIdx map[string][]int
+	convIdx   []int // D-082: every ConversationArchived / ConversationPruned
 	timingN   int
 
 	// live is the broker emit publishes to (D-065). Set on the live store

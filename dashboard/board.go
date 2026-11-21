@@ -58,6 +58,17 @@ type BoardCard struct {
 	// Timing is the card's timing summary (D-081, timing.go): display only,
 	// derived from the event stream at read time.
 	Timing *CardTimingSummary `json:"timing,omitempty"`
+	// Conversation says whether the card has attempts to read and whether its
+	// conversation is archived or pruned (D-082). Set for every card with a
+	// run; the chip shows only for an active one.
+	Conversation *BoardConversation `json:"conversation,omitempty"`
+}
+
+// BoardConversation is a card's conversation, as the board shows it.
+type BoardConversation struct {
+	Attempts int  `json:"attempts"`
+	Archived bool `json:"archived"`
+	Pruned   bool `json:"pruned"`
 }
 
 // BoardQa is an epic card's live roll-up from the QA catalog.
@@ -214,6 +225,7 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	b := boardOf(productID, m, s.tasks)
 	s.decorateBoardQa(&b, m)
 	s.decorateBoardTiming(&b, productID, time.Now().Unix())
+	s.decorateBoardConversation(&b, productID)
 	return b, nil
 }
 

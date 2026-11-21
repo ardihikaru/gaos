@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // The Blueprint in ArcadeDB (D-058, schema/11-blueprint.sql).
@@ -36,6 +37,119 @@ func (s *ArcadeStore) Board(ctx context.Context, id string) (Board, error) {
 func (s *ArcadeStore) CardTiming(ctx context.Context, id, taskID string) (CardTiming, error) {
 	return s.proj.CardTiming(ctx, id, taskID)
 }
+
+// ---- D-082: a card's conversation ----
+
+// Conversation answers from the projection, then reads the prompt and reply
+// bodies the boot load left in the database -- one bound-list query, without
+// the store lock.
+func (s *ArcadeStore) Conversation(ctx context.Context, id, taskID string) (Conversation, error) {
+	c, err := s.proj.Conversation(ctx, id, taskID)
+	if err != nil || c.State.Pruned {
+		return c, err
+	}
+	var missing []string
+	for _, a := range c.Attempts {
+		if a.Prompt == "" {
+			missing = append(missing, a.RunID+"-"+ArtifactPrompt)
+		}
+		if a.Reply == "" {
+			missing = append(missing, a.RunID+"-"+ArtifactReply)
+		}
+	}
+	if len(missing) == 0 {
+		return c, nil
+	}
+	bodies, err := s.artifactBodies(ctx, missing)
+	if err != nil {
+		return c, err
+	}
+	for i := range c.Attempts {
+		a := &c.Attempts[i]
+		if a.Prompt == "" {
+			a.Prompt = bodies[a.RunID+"-"+ArtifactPrompt]
+		}
+		if a.Reply == "" {
+			a.Reply = bodies[a.RunID+"-"+ArtifactReply]
+		}
+	}
+	return c, nil
+}
+
+// artifactBodies reads artifact bodies by id: only ids that exist come back.
+func (s *ArcadeStore) artifactBodies(ctx context.Context, ids []string) (map[string]string, error) {
+	var rows []struct {
+		ID   string `json:"id"`
+		Body string `json:"body"`
+	}
+	if err := s.arc.Query(ctx, `SELECT id, body FROM Artifact WHERE tenantId = :t AND id IN :ids`,
+		map[string]any{"t": s.tenant, "ids": ids}, &rows); err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.Body
+	}
+	return out, nil
+}
+
+func (s *ArcadeStore) ArchiveConversation(ctx context.Context, id, taskID, actor string, archive bool) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.ArchiveConversation(ctx, id, taskID, actor, archive) })
+}
+
+func (s *ArcadeStore) ArchivedConversations(ctx context.Context) (ArchiveView, error) {
+	return s.proj.ArchivedConversations(ctx)
+}
+
+// pruneBudget bounds the bodies transaction, which runs while the projection's
+// lock is held (design §3.7 step 3). A var so a test can shorten it.
+var pruneBudget = 30 * time.Second
+
+// PruneConversations runs the projection's prune with the database's halves:
+// bodies not in memory are read from the graph; the emptied bodies and the
+// certificates commit in one transaction before the projection changes; the
+// sessions certificate goes through mutate like any other write.
+//
+// The store's own lock is taken around the commit and around the record, in
+// the same order mutate takes it (this lock, then the projection's), and is
+// not held while the gateway deletes sessions.
+func (s *ArcadeStore) PruneConversations(ctx context.Context, actor string, cards []CardRef) (Result, error) {
+	return s.proj.pruneWith(ctx, actor, cards, prunePlan{
+		loadBodies: s.artifactBodies,
+		guard: func() func() {
+			s.mu.Lock()
+			return s.mu.Unlock
+		},
+		commit: func(evs []Event, emptied []string) error {
+			cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), pruneBudget)
+			defer cancel()
+			tx, err := s.arc.Begin(cctx)
+			if err != nil {
+				return err
+			}
+			defer tx.Rollback(cctx)
+			for _, e := range evs {
+				if err := s.writeEvent(cctx, tx, e); err != nil {
+					return err
+				}
+			}
+			for _, id := range emptied {
+				if err := tx.Command(cctx, `UPDATE Artifact SET body = '' WHERE tenantId = :t AND id = :id`,
+					map[string]any{"t": s.tenant, "id": id}, nil); err != nil {
+					return err
+				}
+			}
+			return tx.Commit(cctx)
+		},
+		record: func(actor string, recs map[CardRef]*PruneRecord) (Result, error) {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			r := s.proj.recordSessions(actor, recs)
+			return r, s.persist(ctx, r)
+		},
+	})
+}
+
 func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMove) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
 }

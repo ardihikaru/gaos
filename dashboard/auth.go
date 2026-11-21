@@ -520,6 +520,10 @@ const (
 // gate wraps the mux. r.Pattern is empty outside the mux, so the matched
 // pattern is looked up with mux.Handler. An empty one (404/405) goes to the
 // mux, which answers as before: nothing is revealed and nothing is public.
+// backOfficeCSP is the back office's Content-Security-Policy (D-082).
+// base-uri is 'self' because page.html sets <base href>.
+const backOfficeCSP = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+
 func (s *server) gate(mux *http.ServeMux, bearer map[string]bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, pat := mux.Handler(r)
@@ -533,6 +537,12 @@ func (s *server) gate(mux *http.ServeMux, bearer map[string]bool) http.Handler {
 			class = classPublic
 		case bearer[pat]:
 			class = classBearer
+		}
+		if class != classBearer {
+			// D-082: the back office renders model-written text. The parts of a
+			// policy that need no audit of the templates' inline handlers: no
+			// framing, no plugins, no foreign <base>, no foreign form target.
+			w.Header().Set("Content-Security-Policy", backOfficeCSP)
 		}
 		if class != classBearer && !crossOriginOK(r) {
 			http.Error(w, "cross-origin request refused", http.StatusForbidden)
