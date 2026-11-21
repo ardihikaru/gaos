@@ -32,8 +32,12 @@ import (
 
 type apiScope int
 
+// The scope ladder. A registry client (D-083) reaches only the inbox routes,
+// so it sits below the QA token: a client on a QA route is 403, exactly as a
+// QA token on an admin route.
 const (
 	scopeNone apiScope = iota
+	scopeClient
 	scopeQA
 	scopeAdmin
 )
@@ -44,18 +48,37 @@ const (
 	apiTokenMinLen = 37 // the prefix plus 32 characters
 )
 
+// apiClient is one named machine client (D-083, answer_source.go): the QA
+// tools, built from the GAOS_API_QA_* variables, and any client the clients
+// file names. Its name, kind and origin are what an answer it gives records.
+type apiClient struct {
+	Name, Kind, Origin string
+	sum                [sha256.Size]byte
+	products           map[string]bool // qa-tools: the same map as apiConfig.qaProducts
+	busy               *atomic.Bool    // qa-tools: &apiConfig.qaBusy; a registry client: its own
+	scope              apiScope        // scopeQA for qa-tools, scopeClient otherwise
+}
+
 // apiConfig is read once at boot. It holds digests, never the tokens.
 type apiConfig struct {
-	adminSum, qaSum [sha256.Size]byte
-	hasAdmin, hasQA bool
-	qaProducts      map[string]bool
-	why             string // why the API is disabled, "" when it is not
+	adminSum, qaSum, outSum [sha256.Size]byte
+	hasAdmin, hasQA, hasOut bool
+	qaProducts              map[string]bool
+	clients                 []*apiClient // qa-tools first when the QA token is set
+	why                     string       // why the API is disabled, "" when it is not
 
 	// One write in flight per principal: each write holds the store's one lock
 	// for its whole transaction, so a looping client must not queue behind
 	// itself.
 	adminBusy, qaBusy atomic.Bool
 }
+
+const (
+	whyEqualTokens = "two of the admin, QA and outbound tokens are equal"
+	whyNoToken     = "no API token is configured"
+)
+
+func sumOf(t string) [sha256.Size]byte { return sha256.Sum256([]byte(t)) }
 
 func validToken(t string) bool {
 	if len(t) < apiTokenMinLen || !strings.HasPrefix(t, apiTokenPrefix) {
@@ -71,17 +94,24 @@ func validToken(t string) bool {
 	return true
 }
 
-// readTokenFile reads one secret file. An empty file is the way to disable a
-// token; an unreadable or malformed one counts as unset and is logged by name,
-// never by content.
+// readTokenFile reads one secret file named by an environment variable. An
+// empty file is the way to disable a token; an unreadable or malformed one
+// counts as unset and is logged by name, never by content.
 func readTokenFile(envName string) string {
 	path := os.Getenv(envName)
 	if path == "" {
 		return ""
 	}
+	return readTokenPath(path, envName)
+}
+
+// readTokenPath reads a token file. A file others can read is warned about
+// (warnIfOpen), as the back office's secrets are.
+func readTokenPath(path, label string) string {
+	warnIfOpen(path, log.Printf)
 	b, err := os.ReadFile(path)
 	if err != nil {
-		log.Printf("api: %s: %v (treated as unset)", envName, err)
+		log.Printf("api: %s: %v (treated as unset)", label, err)
 		return ""
 	}
 	t := strings.TrimSuffix(strings.TrimSuffix(string(b), "\n"), "\r")
@@ -89,16 +119,28 @@ func readTokenFile(envName string) string {
 		return ""
 	}
 	if !validToken(t) {
-		log.Printf("api: %s does not hold a token of the form %s<32+ chars> (treated as unset)", envName, apiTokenPrefix)
+		log.Printf("api: %s does not hold a token of the form %s<32+ chars> (treated as unset)", label, apiTokenPrefix)
 		return ""
 	}
 	return t
 }
 
+// readTokenPathStrict is the clients file's reader: a token file that group or
+// others can read is refused outright. The registry is new and nothing depends
+// on it, so it fails closed (D-083).
+func readTokenPathStrict(path string) string {
+	st, err := os.Stat(path)
+	if err != nil || !st.Mode().IsRegular() || st.Mode().Perm()&0o077 != 0 {
+		return ""
+	}
+	return readTokenPath(path, "a clients-file token")
+}
+
 // newAPIConfig builds the configuration from the three tokens and the QA
 // product list. Two equal tokens disable the whole API: the QA tools holding
 // admin rights, or replaying GAOS's own outbound credential back at it, is the
-// failure this refuses.
+// failure this refuses. The digests are kept either way, so the clients file
+// can be checked against all three (addClients).
 func newAPIConfig(admin, qa, out, products string) *apiConfig {
 	c := &apiConfig{qaProducts: map[string]bool{}}
 	for _, id := range strings.Split(products, ",") {
@@ -106,26 +148,105 @@ func newAPIConfig(admin, qa, out, products string) *apiConfig {
 			c.qaProducts[id] = true
 		}
 	}
-	eq := func(a, b string) bool { return a != "" && a == b }
-	if eq(admin, qa) || eq(admin, out) || eq(qa, out) {
-		c.why = "two of the admin, QA and outbound tokens are equal"
-		return c
-	}
 	if admin != "" {
-		c.adminSum, c.hasAdmin = sha256.Sum256([]byte(admin)), true
+		c.adminSum, c.hasAdmin = sumOf(admin), true
 	}
 	if qa != "" {
-		c.qaSum, c.hasQA = sha256.Sum256([]byte(qa)), true
+		c.qaSum, c.hasQA = sumOf(qa), true
+	}
+	if out != "" {
+		c.outSum, c.hasOut = sumOf(out), true
+	}
+	eq := func(a, b string) bool { return a != "" && a == b }
+	if eq(admin, qa) || eq(admin, out) || eq(qa, out) {
+		c.why = whyEqualTokens
+		return c
+	}
+	if c.hasQA {
+		c.clients = append(c.clients, &apiClient{Name: ClientQATools, Kind: SourceKindQATool, sum: c.qaSum,
+			products: c.qaProducts, busy: &c.qaBusy, scope: scopeQA})
 	}
 	if !c.hasAdmin && !c.hasQA {
-		c.why = "no API token is configured"
+		c.why = whyNoToken
 	}
 	return c
+}
+
+// qaClient is the QA tools' client, nil when the QA token is unset.
+func (c *apiConfig) qaClient() *apiClient {
+	for _, cl := range c.clients {
+		if cl.Name == ClientQATools {
+			return cl
+		}
+	}
+	return nil
+}
+
+// setQAOrigin records the QA tool's origin (qaOrigin, answer_source.go).
+func (c *apiConfig) setQAOrigin(o string) {
+	if cl := c.qaClient(); cl != nil {
+		cl.Origin = o
+	}
+}
+
+// addClients admits the clients file's entries. Equal built-in tokens are
+// final: nothing here re-enables an API they disabled. A client is dropped when
+// its token equals a built-in one or an earlier client's, when its origin is
+// reserved (the QA tool's, the back office's label), or when it lists a
+// product the QA token reaches -- until items are keyed by asker, a client
+// sharing the QA tool's product could take one of its ids.
+func (c *apiConfig) addClients(cs []*apiClient, reservedOrigins []string, logf func(string, ...any)) {
+	if c.why == whyEqualTokens {
+		return
+	}
+	added := 0
+next:
+	for _, cl := range cs {
+		drop := func(why string) { logf("api: clients file: %s: %s (skipped)", cl.Name, why) }
+		if (c.hasAdmin && cl.sum == c.adminSum) || (c.hasQA && cl.sum == c.qaSum) || (c.hasOut && cl.sum == c.outSum) {
+			drop("its token equals a built-in token")
+			continue
+		}
+		for _, o := range c.clients {
+			if o.sum == cl.sum {
+				drop("its token equals " + o.Name + "'s")
+				continue next
+			}
+		}
+		for _, r := range reservedOrigins {
+			if r != "" && cl.Origin != "" && strings.EqualFold(r, cl.Origin) {
+				drop("its origin is reserved")
+				continue next
+			}
+		}
+		for id := range cl.products {
+			if c.qaProducts[id] {
+				drop("it lists " + id + ", which the QA token reaches")
+				continue next
+			}
+		}
+		c.clients = append(c.clients, cl)
+		added++
+	}
+	if c.why == whyNoToken && added > 0 {
+		c.why = ""
+	}
 }
 
 func apiFromEnv() *apiConfig {
 	c := newAPIConfig(readTokenFile("GAOS_API_ADMIN_TOKEN_FILE"), readTokenFile("GAOS_API_QA_TOKEN_FILE"),
 		readTokenFile("GAOS_QA_TOKEN_FILE"), os.Getenv("GAOS_API_QA_PRODUCTS"))
+	o := qaOrigin(os.Getenv("GAOS_QA_ORIGIN"), os.Getenv("GAOS_QA_URL"), log.Printf)
+	c.setQAOrigin(o)
+	if p := os.Getenv("GAOS_API_CLIENTS_FILE"); p != "" {
+		warnIfOpen(p, log.Printf)
+		if f, err := os.Open(p); err != nil {
+			log.Printf("api: GAOS_API_CLIENTS_FILE: %v (no further clients)", err)
+		} else {
+			c.addClients(parseClients(f, readTokenPathStrict, log.Printf), []string{o, os.Getenv("GAOS_BO_LABEL")}, log.Printf)
+			f.Close()
+		}
+	}
 	log.Printf("api: %s", c.Describe())
 	return c
 }
@@ -136,25 +257,28 @@ func (c *apiConfig) Describe() string {
 		return "disabled (" + c.why + ")"
 	}
 	return "enabled (admin=" + strconv.FormatBool(c.hasAdmin) + " qa=" + strconv.FormatBool(c.hasQA) +
-		" qa-products=" + strconv.Itoa(len(c.qaProducts)) + ")"
+		" qa-products=" + strconv.Itoa(len(c.qaProducts)) + " clients=" + strconv.Itoa(len(c.clients)) + ")"
 }
 
 // authorize says who the bearer is. The comparison hashes both sides first so
-// its time does not depend on how much of a guess was right.
-func (c *apiConfig) authorize(r *http.Request) apiScope {
+// its time does not depend on how much of a guess was right. The admin token
+// has no client.
+func (c *apiConfig) authorize(r *http.Request) (apiScope, *apiClient) {
 	h := r.Header.Get("Authorization")
 	const p = "Bearer "
 	if len(h) <= len(p) || !strings.EqualFold(h[:len(p)], p) {
-		return scopeNone
+		return scopeNone, nil
 	}
 	sum := sha256.Sum256([]byte(strings.TrimSpace(h[len(p):])))
 	if c.hasAdmin && subtle.ConstantTimeCompare(sum[:], c.adminSum[:]) == 1 {
-		return scopeAdmin
+		return scopeAdmin, nil
 	}
-	if c.hasQA && subtle.ConstantTimeCompare(sum[:], c.qaSum[:]) == 1 {
-		return scopeQA
+	for _, cl := range c.clients {
+		if subtle.ConstantTimeCompare(sum[:], cl.sum[:]) == 1 {
+			return cl.scope, cl
+		}
 	}
-	return scopeNone
+	return scopeNone, nil
 }
 
 // ---------- answers ----------
@@ -172,38 +296,40 @@ func apiErr(w http.ResponseWriter, status int, code, reason string) {
 
 // apiGate answers for the request or reports the caller's scope. need is the
 // least scope the route accepts.
-func (s *server) apiGate(w http.ResponseWriter, r *http.Request, need apiScope) (apiScope, bool) {
+func (s *server) apiGate(w http.ResponseWriter, r *http.Request, need apiScope) (apiScope, *apiClient, bool) {
 	// Traefik's stripPrefix sets X-Forwarded-Prefix to the prefix it removed: /api
 	// is THE public path of this API and must pass; /app (Mission Control's mount)
 	// and anything else is refused, so an edge control keyed to /api cannot be
 	// walked around through another mount.
 	if p := r.Header.Get("X-Forwarded-Prefix"); p != "" && p != "/api" {
 		apiErr(w, http.StatusNotFound, "not-found", "no such route")
-		return scopeNone, false
+		return scopeNone, nil, false
 	}
 	if s.api == nil || s.api.why != "" {
 		apiErr(w, http.StatusServiceUnavailable, "api-disabled", "the machine API is not configured")
-		return scopeNone, false
+		return scopeNone, nil, false
 	}
-	got := s.api.authorize(r)
+	got, cl := s.api.authorize(r)
 	switch {
 	case got == scopeNone:
 		w.Header().Set("WWW-Authenticate", `Bearer realm="gaos"`)
 		apiErr(w, http.StatusUnauthorized, "unauthorized", "a bearer token is required")
-		return scopeNone, false
+		return scopeNone, nil, false
 	case got < need:
 		apiErr(w, http.StatusForbidden, "forbidden", "this token may not call this route")
-		return scopeNone, false
+		return scopeNone, nil, false
 	}
-	return got, true
+	return got, cl, true
 }
 
-// apiProduct resolves {id} for the caller. The QA token reaches only the
-// products it is scoped to, and any other id is a 404, not a 403: the answer
-// must not say which products exist. Unset scope reaches nothing.
-func (s *server) apiProduct(w http.ResponseWriter, r *http.Request, scope apiScope) (string, bool) {
+// apiProduct resolves {id} for the caller. The admin token reaches every
+// product; a client only the products it is scoped to, and any other id is a
+// 404, not a 403: the answer must not say which products exist. Unset scope
+// reaches nothing. No branch compares the scope with QA's (D-083), so a new
+// client scope cannot fail open here.
+func (s *server) apiProduct(w http.ResponseWriter, r *http.Request, scope apiScope, cl *apiClient) (string, bool) {
 	id := r.PathValue("id")
-	if scope == scopeQA && !s.api.qaProducts[id] {
+	if scope != scopeAdmin && (cl == nil || !cl.products[id]) {
 		apiErr(w, http.StatusNotFound, "not-found", "no such product")
 		return "", false
 	}
@@ -222,10 +348,10 @@ func (s *server) apiProduct(w http.ResponseWriter, r *http.Request, scope apiSco
 // beginWrite takes the principal's single write slot. Authentication has
 // already happened, so an unauthenticated caller cannot hold it, and nothing is
 // read from the body before it is taken.
-func (s *server) beginWrite(w http.ResponseWriter, scope apiScope) (release func(), ok bool) {
-	flag := &s.api.qaBusy
-	if scope == scopeAdmin {
-		flag = &s.api.adminBusy
+func (s *server) beginWrite(w http.ResponseWriter, scope apiScope, cl *apiClient) (release func(), ok bool) {
+	flag := &s.api.adminBusy
+	if scope != scopeAdmin && cl != nil {
+		flag = cl.busy
 	}
 	if !flag.CompareAndSwap(false, true) {
 		w.Header().Set("Retry-After", "2")
@@ -276,6 +402,7 @@ func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
 	handle("POST /v1/products/{id}/qa/catalog", s.apiQaCatalog)
 	handle("POST /v1/products/{id}/inbox", s.apiInboxAsk)
 	handle("GET /v1/products/{id}/inbox/{externalId}", s.apiInboxGet)
+	handle("POST /v1/products/{id}/inbox/{externalId}/answer", s.apiInboxAnswer)
 	handle("POST /v1/seed/product", s.apiSeedProduct)
 }
 
@@ -286,7 +413,7 @@ type apiProductOut struct {
 }
 
 func (s *server) apiProducts(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeQA)
+	scope, cl, ok := s.apiGate(w, r, scopeQA)
 	if !ok {
 		return
 	}
@@ -297,7 +424,7 @@ func (s *server) apiProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []apiProductOut{}
 	for _, p := range ps {
-		if scope == scopeQA && !s.api.qaProducts[p.ID] {
+		if scope != scopeAdmin && (cl == nil || !cl.products[p.ID]) {
 			continue
 		}
 		out = append(out, apiProductOut{ID: p.ID, Name: p.Name, Repo: p.Repo})
@@ -306,11 +433,11 @@ func (s *server) apiProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) apiQaSummary(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeQA)
+	scope, cl, ok := s.apiGate(w, r, scopeQA)
 	if !ok {
 		return
 	}
-	id, ok := s.apiProduct(w, r, scope)
+	id, ok := s.apiProduct(w, r, scope, cl)
 	if !ok {
 		return
 	}
@@ -325,11 +452,11 @@ func (s *server) apiQaSummary(w http.ResponseWriter, r *http.Request) {
 var apiEpicParam = regexp.MustCompile(`^[A-Z]{2,8}$`)
 
 func (s *server) apiQaCases(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeQA)
+	scope, cl, ok := s.apiGate(w, r, scopeQA)
 	if !ok {
 		return
 	}
-	id, ok := s.apiProduct(w, r, scope)
+	id, ok := s.apiProduct(w, r, scope, cl)
 	if !ok {
 		return
 	}
@@ -373,15 +500,15 @@ type apiResultsBody struct {
 }
 
 func (s *server) apiQaResults(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeQA)
+	scope, cl, ok := s.apiGate(w, r, scopeQA)
 	if !ok {
 		return
 	}
-	id, ok := s.apiProduct(w, r, scope)
+	id, ok := s.apiProduct(w, r, scope, cl)
 	if !ok {
 		return
 	}
-	release, ok := s.beginWrite(w, scope)
+	release, ok := s.beginWrite(w, scope, cl)
 	if !ok {
 		return
 	}
@@ -418,15 +545,15 @@ type apiCatalogBody struct {
 }
 
 func (s *server) apiQaCatalog(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeAdmin)
+	scope, cl, ok := s.apiGate(w, r, scopeAdmin)
 	if !ok {
 		return
 	}
-	id, ok := s.apiProduct(w, r, scope)
+	id, ok := s.apiProduct(w, r, scope, cl)
 	if !ok {
 		return
 	}
-	release, ok := s.beginWrite(w, scope)
+	release, ok := s.beginWrite(w, scope, cl)
 	if !ok {
 		return
 	}
@@ -451,15 +578,15 @@ func (s *server) apiQaCatalog(w http.ResponseWriter, r *http.Request) {
 // the request is screened for secrets before anything is written; the store
 // cleans the text it keeps.
 func (s *server) apiQaCreate(w http.ResponseWriter, r *http.Request) {
-	scope, ok := s.apiGate(w, r, scopeQA)
+	scope, cl, ok := s.apiGate(w, r, scopeQA)
 	if !ok {
 		return
 	}
-	id, ok := s.apiProduct(w, r, scope)
+	id, ok := s.apiProduct(w, r, scope, cl)
 	if !ok {
 		return
 	}
-	release, ok := s.beginWrite(w, scope)
+	release, ok := s.beginWrite(w, scope, cl)
 	if !ok {
 		return
 	}

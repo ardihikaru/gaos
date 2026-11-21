@@ -30,7 +30,7 @@ func driveExternal(t *testing.T, s *MemStore) {
 	if _, _, _, err := s.AskExternal(ctx, pid, ask); err != nil {
 		t.Fatalf("asking the driven QA tool question failed: %v", err)
 	}
-	if _, err := s.AnswerExternal(ctx, pid, "drive-1", 1, ""); err != nil {
+	if _, err := s.AnswerExternal(ctx, pid, "drive-1", ExternalAnswer{Choice: 1, Text: ""}); err != nil {
 		t.Fatalf("answering the driven QA tool question failed: %v", err)
 	}
 	if _, err := s.RecordExternalDelivery(ctx, pid, "drive-1", 1, DeliveryDelivered, "", time.Now().Unix()); err != nil {
@@ -173,7 +173,7 @@ func TestAnInboxAskIsIdempotentOnTheExternalID(t *testing.T) {
 	}
 
 	// After it is answered the same id still returns the item and reopens nothing.
-	if _, err := st.AnswerExternal(t.Context(), pid, "run-42:case-7", 2, ""); err != nil {
+	if _, err := st.AnswerExternal(t.Context(), pid, "run-42:case-7", ExternalAnswer{Choice: 2, Text: ""}); err != nil {
 		t.Fatal(err)
 	}
 	code, late := mustAsk(t, srv, pid, askJSON("run-42:case-7"))
@@ -356,7 +356,7 @@ func TestTheQAToolsQuestionIsAnsweredFromTheInbox(t *testing.T) {
 	}
 	// A replayed floor refuses the answer, like every other mutation.
 	mustAsk(t, srv, pid, askJSON("ui-3"))
-	if _, err := (readOnly{st}).AnswerExternal(t.Context(), pid, "ui-3", 1, ""); err == nil {
+	if _, err := (readOnly{st}).AnswerExternal(t.Context(), pid, "ui-3", ExternalAnswer{Choice: 1, Text: ""}); err == nil {
 		t.Error("the read-only handle accepted an answer")
 	}
 }
@@ -366,7 +366,7 @@ func TestTheInboxStatusReadsOpenAnsweredAndExpired(t *testing.T) {
 	pid := pids[0]
 	mustAsk(t, srv, pid, askJSON("s-open"))
 	mustAsk(t, srv, pid, askJSON("s-done"))
-	st.AnswerExternal(t.Context(), pid, "s-done", 1, "go")
+	st.AnswerExternal(t.Context(), pid, "s-done", ExternalAnswer{Choice: 1, Text: "go"})
 	mustAsk(t, srv, pid, askJSON("s-late"))
 
 	// One past its deadline whose expiry the sweep has not written yet reads expired.
@@ -396,7 +396,7 @@ func TestTheInboxStatusReadsOpenAnsweredAndExpired(t *testing.T) {
 	if qs, _ := st.OpenQuestions(t.Context(), pid); len(qs) != 1 || qs[0].ExternalID != "s-open" {
 		t.Errorf("the inbox holds %+v; want only s-open", qs)
 	}
-	if _, err := st.AnswerExternal(t.Context(), pid, "s-late", 1, ""); err == nil {
+	if _, err := st.AnswerExternal(t.Context(), pid, "s-late", ExternalAnswer{Choice: 1, Text: ""}); err == nil {
 		t.Error("an item past its deadline accepted an answer")
 	}
 	// JSON keeps absent facts absent: an open item has no choice or answeredAt.
@@ -437,7 +437,7 @@ func TestAnUnansweredInboxItemExpires(t *testing.T) {
 	if short.Status != ExtExpired || short.AnsweredAt != short.Deadline || short.Choice != 0 {
 		t.Errorf("the expired item reads %+v; want expired, no choice, answeredAt = its deadline", short)
 	}
-	if _, err := st.AnswerExternal(ctx, pid, "short", 1, ""); err == nil {
+	if _, err := st.AnswerExternal(ctx, pid, "short", ExternalAnswer{Choice: 1, Text: ""}); err == nil {
 		t.Error("an expired item accepted an answer")
 	}
 	if qs, _ := st.OpenQuestions(ctx, ""); len(qs) != 2 {
@@ -447,7 +447,7 @@ func TestAnUnansweredInboxItemExpires(t *testing.T) {
 		t.Errorf("a second sweep wrote %d event(s); an item expires once", len(again.NewEvents))
 	}
 	// An answered item is never expired afterwards.
-	if _, err := st.AnswerExternal(ctx, pid, "long", 2, ""); err != nil {
+	if _, err := st.AnswerExternal(ctx, pid, "long", ExternalAnswer{Choice: 2, Text: ""}); err != nil {
 		t.Fatal(err)
 	}
 	if r, _ := st.ExpireQuestions(ctx, now+1000*3600); len(r.NewEvents) != 1 {
@@ -477,8 +477,8 @@ func TestAnInboxItemSurvivesARestart(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	st.AnswerExternal(ctx, pid, "r-done", 2, "because")
-	st.AnswerExternal(ctx, pid, "r-sent", 1, "")
+	st.AnswerExternal(ctx, pid, "r-done", ExternalAnswer{Choice: 2, Text: "because"})
+	st.AnswerExternal(ctx, pid, "r-sent", ExternalAnswer{Choice: 1, Text: ""})
 	st.RecordExternalDelivery(ctx, pid, "r-sent", 1, DeliveryDelivered, "", time.Now().Unix())
 	st.RecordExternalDelivery(ctx, pid, "r-done", 1, "retry", "HTTP 503", 1234)
 	st.ExpireQuestions(ctx, time.Now().Unix()+6*3600) // r-open and r-gone expire
@@ -579,8 +579,8 @@ func TestTheAnswerWebhookDeliversTheDecision(t *testing.T) {
 	if n := w.RunOnce(ctx, time.Now().Unix()); n != 0 {
 		t.Fatalf("a pass over open items made %d call(s); nothing is decided yet", n)
 	}
-	st.AnswerExternal(ctx, pid, "w-pick", 2, "")
-	st.AnswerExternal(ctx, pid, "w-words", 4, "ship on Monday")
+	st.AnswerExternal(ctx, pid, "w-pick", ExternalAnswer{Choice: 2, Text: ""})
+	st.AnswerExternal(ctx, pid, "w-words", ExternalAnswer{Choice: 4, Text: "ship on Monday"})
 	st.ExpireQuestions(ctx, time.Now().Unix()+3601) // the two still open, w-expire and w-open, expire
 	if n := w.RunOnce(ctx, time.Now().Unix()); n != 4 {
 		t.Fatalf("the pass delivered %d item(s); want 4 (two answers, two expiries)", n)
@@ -622,7 +622,7 @@ func TestTheAnswerWebhookDeliversTheDecision(t *testing.T) {
 	// No outbound configured: nothing is attempted and nothing is recorded.
 	idle := newInboxWorker(st, newQaOutbound("", "", nil))
 	st.AskExternal(ctx, pid, ExternalAsk{ExternalID: "w-late", Question: "q", Options: opts})
-	st.AnswerExternal(ctx, pid, "w-late", 1, "")
+	st.AnswerExternal(ctx, pid, "w-late", ExternalAnswer{Choice: 1, Text: ""})
 	seq := st.seq
 	if n := idle.RunOnce(ctx, time.Now().Unix()); n != 0 || st.seq != seq {
 		t.Errorf("an unconfigured worker made %d call(s) and wrote %d event(s); want none", n, st.seq-seq)
@@ -640,7 +640,7 @@ func TestTheAnswerWebhookRetriesWithBackoffThenGivesUp(t *testing.T) {
 	h := &hook{status: 503}
 	w, _ := hookWorker(t, st, h)
 	st.AskExternal(ctx, pid, ExternalAsk{ExternalID: "x1", Question: "q", Options: []QuestionOption{{Label: "A"}, {Label: "B"}}})
-	st.AnswerExternal(ctx, pid, "x1", 1, "")
+	st.AnswerExternal(ctx, pid, "x1", ExternalAnswer{Choice: 1, Text: ""})
 
 	t0 := time.Now().Unix()
 	// A fake clock: each row is when a pass runs and how many calls it makes.
@@ -687,7 +687,7 @@ func TestTheAnswerWebhookRetriesWithBackoffThenGivesUp(t *testing.T) {
 	h2 := &hook{status: 500}
 	w2, _ := hookWorker(t, st, h2)
 	st.AskExternal(ctx, pid, ExternalAsk{ExternalID: "x2", Question: "q", Options: []QuestionOption{{Label: "A"}, {Label: "B"}}})
-	st.AnswerExternal(ctx, pid, "x2", 2, "")
+	st.AnswerExternal(ctx, pid, "x2", ExternalAnswer{Choice: 2, Text: ""})
 	w2.RunOnce(ctx, t0)
 	w2.RunOnce(ctx, t0+30)
 	restarted, _ := hookWorker(t, restartFrom(t, st), h2)
@@ -701,7 +701,7 @@ func TestTheAnswerWebhookRetriesWithBackoffThenGivesUp(t *testing.T) {
 	h3 := &hook{status: 500}
 	w3, _ := hookWorker(t, st, h3)
 	st.AskExternal(ctx, pid, ExternalAsk{ExternalID: "x3", Question: "q", Options: []QuestionOption{{Label: "A"}, {Label: "B"}}})
-	st.AnswerExternal(ctx, pid, "x3", 1, "")
+	st.AnswerExternal(ctx, pid, "x3", ExternalAnswer{Choice: 1, Text: ""})
 	w3.RunOnce(ctx, t0)
 	h3.mu.Lock()
 	h3.status = 204
@@ -774,16 +774,27 @@ func caseExternalInbox(t *testing.T, s Store) {
 	if len(qs) != 1 || !qs[0].External || qs[0].ExternalID != "conf-1" {
 		t.Fatalf("OpenQuestions = %+v; want the one external item", qs)
 	}
-	if _, err := s.AnswerExternal(ctx, pid, "conf-1", 3, ""); err == nil {
+	if _, err := s.AnswerExternal(ctx, pid, "conf-1", ExternalAnswer{Choice: 3, Text: ""}); err == nil {
 		t.Error("an option nobody offered was accepted")
 	}
-	if _, err := s.AnswerExternal(ctx, pid, "conf-1", 2, "n"); err != nil {
+	// D-083: the asker and the answer's source are part of the record.
+	by := AnswerSource{Kind: "qa-tool", Client: ClientQATools, Origin: "qa.example", Actor: "ardi"}
+	if _, err := s.AnswerExternal(ctx, pid, "conf-1", ExternalAnswer{Choice: 2, Text: "n", By: AnswerSource{Kind: "k", Client: "someone-else"}}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a client that did not ask answered %v; want ErrNotFound", err)
+	}
+	if _, err := s.AnswerExternal(ctx, pid, "conf-1", ExternalAnswer{Choice: 2, Text: "n", By: by}); err != nil {
 		t.Fatalf("AnswerExternal: %v", err)
 	}
-	if _, err := s.AnswerExternal(ctx, pid, "conf-1", 1, ""); err == nil {
+	if _, err := s.AnswerExternal(ctx, pid, "conf-1", ExternalAnswer{Choice: 1, Text: ""}); err == nil {
 		t.Error("a second answer was accepted")
 	}
 	got, err := s.ExternalGet(ctx, pid, "conf-1")
+	if err == nil && (got.AnsweredBy == nil || *got.AnsweredBy != by || effectiveAsker(got.QuestionPayload) != ClientQATools) {
+		t.Errorf("the answered item carries source %+v asker %q; want %+v and qa-tools", got.AnsweredBy, got.AskedBy, by)
+	}
+	if rs, err := s.RecentAnswers(ctx, pid, 10); err != nil || len(rs) == 0 || rs[0].ExternalID != "conf-1" || rs[0].AnsweredBy == nil {
+		t.Errorf("RecentAnswers = %+v (%v); want the answered item first, with its source", rs, err)
+	}
 	if err != nil || got.Status != ExtAnswered || got.Choice != 2 || got.OptionLabel() != "No" || got.Text != "n" {
 		t.Fatalf("ExternalGet = %+v err=%v; want answered, 2, No, n", got, err)
 	}
@@ -819,7 +830,7 @@ func TestAWebhookWhoseRecordFailsIsNotResentEveryTick(t *testing.T) {
 	h := &hook{status: 200}
 	w, _ := hookWorker(t, failingRecord{st}, h)
 	st.AskExternal(ctx, pid, ExternalAsk{ExternalID: "r1", Question: "q", Options: []QuestionOption{{Label: "A"}, {Label: "B"}}})
-	st.AnswerExternal(ctx, pid, "r1", 1, "")
+	st.AnswerExternal(ctx, pid, "r1", ExternalAnswer{Choice: 1, Text: ""})
 
 	t0 := time.Now().Unix()
 	if n := w.RunOnce(ctx, t0); n != 1 {

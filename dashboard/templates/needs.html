@@ -37,7 +37,7 @@
       </span>
       <span class="ir-when">
         {{if .AskedISO}}<time datetime="{{.AskedISO}}" data-since="{{.AskedISO}}" title="{{.AskedAbs}}">{{.Waiting}}</time>{{else}}<span title="{{.AskedAbs}}">{{.Waiting}}</span>{{end}}
-        {{if .ExpiresISO}}<time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}" title="{{if .Source}}Closes at its deadline; after that the QA tool is told it expired{{else}}Closes with the agent's session; after that the task is blocked and starts again in a new session{{end}}">{{.Expires}}</time>{{end}}
+        {{if .ExpiresISO}}<time class="ir-exp{{if .Urgent}} urgent{{end}}" datetime="{{.ExpiresISO}}" data-until="{{.ExpiresISO}}" title="{{if .Source}}Closes at its deadline; after that {{.Asker}} {{if .Pushed}}is told{{else}}sees{{end}} that it expired{{else}}Closes with the agent's session; after that the task is blocked and starts again in a new session{{end}}">{{.Expires}}</time>{{end}}
       </span>
     </button>
   </li>
@@ -54,6 +54,28 @@
   <p>When an agent stops to ask a question, its task waits here until you answer, and the count in the top bar goes up.</p>
   {{end}}
 </div>
+{{end}}
+
+{{/* Answered recently (D-083): who answered what, and from where -- the back
+     office, the QA tool or another client. Not buttons: nothing is left to do. */}}
+{{if .Recent}}
+<section class="inbox-recent" aria-labelledby="recentTitle">
+  <h3 id="recentTitle" class="eyebrow">Answered recently</h3>
+  <ol>
+    {{range .Recent}}
+    <li>
+      <span class="rr-q" dir="auto">{{.Lead}}</span>
+      <span class="rr-meta">
+        <span class="ir-prod">{{.ProductName}}</span>
+        {{if .Tag}}<span class="ir-task"><b class="ir-src">{{.Tag}}</b>{{if .Title}} <span dir="auto">{{.Title}}</span>{{end}}</span>{{else}}<span class="ir-task"><b class="mono">{{.TaskID}}</b> <span dir="auto">{{.Title}}</span></span>{{end}}
+        <span class="rr-out" dir="auto">{{.Outcome}}</span>
+        {{if .By}}<span class="rr-by">{{.By}}</span>{{end}}
+      </span>
+      {{if .WhenISO}}<time class="rr-when" datetime="{{.WhenISO}}">{{.When}}</time>{{end}}
+    </li>
+    {{end}}
+  </ol>
+</section>
 {{end}}
 {{end}}
 
@@ -110,13 +132,13 @@
             <span class="opt-tx">
               <label class="opt-label" for="answerOther"><b>Other — write your own</b></label>
               <textarea id="answerOwn" dir="auto" rows="3" maxlength="4000" aria-label="Your own answer"
-                        placeholder="{{if .Source}}Tell the QA tool what to do instead{{else}}Tell the agent what to do instead{{end}}"{{if eq .Default 4}} name="text"{{end}}></textarea>
+                        placeholder="{{if .Source}}Tell {{.Asker}} what to do instead{{else}}Tell the agent what to do instead{{end}}"{{if eq .Default 4}} name="text"{{end}}></textarea>
             </span>
           </div>
         </fieldset>
 
         <div class="field answer-note" id="answerNoteField" {{if eq .Default 4}}hidden{{end}}>
-          <label for="answerNote">Note to the {{if .Source}}QA tool{{else}}agent{{end}} <span class="opt-in">optional</span></label>
+          <label for="answerNote">Note to {{if .Source}}{{.Asker}}{{else}}the agent{{end}} <span class="opt-in">optional</span></label>
           <input id="answerNote" dir="auto" maxlength="4000" autocomplete="off" placeholder="{{if .Source}}Anything it should know about this decision{{else}}Anything it should know when it picks this up{{end}}"{{if ne .Default 4}} name="text"{{end}}>
         </div>
       </div>
@@ -236,7 +258,7 @@
         </div>
         {{end}}
         {{if .Options}}<ol class="cv-opts">{{range .Options}}<li dir="auto">{{.}}</li>{{end}}</ol>{{end}}
-        {{if .Question}}<p class="cv-a">{{if .Answer}}<b>You answered</b> <span dir="auto">{{.Answer}}</span> <span class="tm-line mono">{{.Answered}}</span>{{else}}<span class="tm-line">Not answered yet.</span>{{end}}</p>{{end}}
+        {{if .Question}}<p class="cv-a">{{if .Answer}}<b>Answered</b> <span dir="auto">{{.Answer}}</span> · <span class="cv-by">{{.AnsweredBy}}</span> <span class="tm-line mono">{{.Answered}}</span>{{else}}<span class="tm-line">Not answered yet.</span>{{end}}</p>{{end}}
         {{end}}
       </section>
       {{end}}

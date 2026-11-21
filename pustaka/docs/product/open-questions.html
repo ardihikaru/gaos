@@ -516,7 +516,9 @@
   without it unless it is on a fixed public list or a bearer route. That is the <em>core's own</em> account
   system the paragraphs above describe, and it is sufficient for a lab or a small team. What stays open is what
   D-040 listed beside it: per-tenant scoping (the tenant selector is still cosmetic), an identity-provider
-  integration (<a href="#oq-19">OQ-19</a>), and an actor on every event.</p>
+  integration (<a href="#oq-19">OQ-19</a>), and an actor on every event. Narrowed again by
+  <a href="decision-log.html#d-083">D-083</a>: answers now carry their actor and source, as conversation events have
+  since D-082; the other events still do not.</p>
 
   <h3 id="oq-17">OQ-17 · Which ArcadeDB version, validated when?</h3>
   <p><strong>Why it was open:</strong> no DDL had ever been applied. The data model warns in its own
@@ -808,7 +810,7 @@
   (<a href="brd.html#rules-qa-sync">BR-51</a>). Today it changes only through the admin catalog
   endpoint or a seed re-run, and there is no case editor in the back office on purpose: the back
   office had no identity to check until <a href="decision-log.html#d-079">D-079</a>; its gate now needs a real session, but
-  events carry no actor yet. A case marked
+  most events carry no actor yet (answers do since <a href="decision-log.html#d-083">D-083</a>). A case marked
   <em>needs decision</em> &mdash; a script exists for a parked case &mdash; therefore waits for an admin.
   Answering this question needs an actor recorded on the event, which the new identity makes possible.</p>
 

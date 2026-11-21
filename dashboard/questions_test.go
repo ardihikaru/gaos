@@ -78,7 +78,7 @@ func TestAnAnswerPutsTheTaskBackInTheQueue(t *testing.T) {
 	id := askedTask(t, s, f, ad, "wf-q-t-2")
 	desk := s.desks[0].ID
 
-	r, err := s.AnswerQuestion(t.Context(), desk, id, ChoiceOther, "  Use PostgreSQL 17, the shared cluster.  ")
+	r, err := s.AnswerQuestion(t.Context(), desk, id, ChoiceOther, "  Use PostgreSQL 17, the shared cluster.  ", AnswerSource{})
 	if err != nil {
 		t.Fatalf("answering in the operator's own words failed: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestAnAnswerPutsTheTaskBackInTheQueue(t *testing.T) {
 	if qs, _ := s.OpenQuestions(t.Context(), ""); len(qs) != 0 {
 		t.Fatalf("the inbox still holds %d question(s) after the answer", len(qs))
 	}
-	if _, err := s.AnswerQuestion(t.Context(), desk, id, ChoiceRecommended, ""); !errors.Is(err, ErrRejected) {
+	if _, err := s.AnswerQuestion(t.Context(), desk, id, ChoiceRecommended, "", AnswerSource{}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("a second answer returned %v; want ErrRejected, the question is closed", err)
 	}
 }
@@ -107,11 +107,11 @@ func TestAnInvalidAnswerIsRefusedAndChangesNothing(t *testing.T) {
 		choice int
 		text   string
 	}{{0, ""}, {5, "x"}, {ChoiceOther, "   "}} {
-		if _, err := s.AnswerQuestion(t.Context(), desk, id, c.choice, c.text); !errors.Is(err, ErrRejected) {
+		if _, err := s.AnswerQuestion(t.Context(), desk, id, c.choice, c.text, AnswerSource{}); !errors.Is(err, ErrRejected) {
 			t.Fatalf("choice %d with text %q returned %v; want ErrRejected", c.choice, c.text, err)
 		}
 	}
-	if _, err := s.AnswerQuestion(t.Context(), "p-elsewhere", id, 1, ""); !errors.Is(err, ErrNotFound) {
+	if _, err := s.AnswerQuestion(t.Context(), "p-elsewhere", id, 1, "", AnswerSource{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("an answer through another product returned %v; want ErrNotFound", err)
 	}
 	if len(s.events) != before || taskStatusOf(s, id) != StatusAwaitingInput {
@@ -124,7 +124,7 @@ func TestTheNextTurnResumesThroughTheAnswerRoute(t *testing.T) {
 	f, ad := gatewayOn(t, s)
 	id := askedTask(t, s, f, ad, "wf-q-t-4")
 	desk := s.desks[0].ID
-	if _, err := s.AnswerQuestion(t.Context(), desk, id, 2, "keep it on one node"); err != nil {
+	if _, err := s.AnswerQuestion(t.Context(), desk, id, 2, "keep it on one node", AnswerSource{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -170,7 +170,7 @@ func TestARefusedAnswerRouteFallsBackToAnOrdinaryTurn(t *testing.T) {
 		f, ad := gatewayOn(t, s)
 		id := askedTask(t, s, f, ad, "wf-q-t-5")
 		desk := s.desks[0].ID
-		s.AnswerQuestion(t.Context(), desk, id, 1, "")
+		s.AnswerQuestion(t.Context(), desk, id, 1, "", AnswerSource{})
 		f.answerStatus = status
 
 		c, _, _ := s.clearFor(context.Background(), Dispatch{TaskID: id, DeskID: desk}, 2)
@@ -374,7 +374,7 @@ func TestAnAnswerResumesTheAskingSessionPastTheRotationAge(t *testing.T) {
 		t.Fatalf("an unanswered task's old session gave %q %q; want rotation, as before", sid, why)
 	}
 
-	if _, err := s.AnswerQuestion(t.Context(), s.desks[0].ID, id, 1, ""); err != nil {
+	if _, err := s.AnswerQuestion(t.Context(), s.desks[0].ID, id, 1, "", AnswerSource{}); err != nil {
 		t.Fatal(err)
 	}
 	s.mu.Lock()
