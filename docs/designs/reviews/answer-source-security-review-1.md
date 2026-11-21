@@ -57,14 +57,14 @@ Abuse cases checked: replay (first-wins and the idempotent retry), forged reques
 ### SEC-6 A registry client's kind and origin can copy the QA tool's - Severity: Low
 - Component: registry parsing and the source phrase
 - Evidence: `docs/designs/answer-source.md:133-134`, `:87`.
-- Attack path: a careless registry line with kind `qa-tool` and origin `qa-tool.sample-product.com` produces answers that read exactly like the QA tool's. Needs host access.
+- Attack path: a careless registry line with kind `qa-tool` and origin `qa.example.org` produces answers that read exactly like the QA tool's. Needs host access.
 - Remediation: reserve kind `qa-tool`. Reject an origin equal to the resolved QA origin or to `GAOS_BO_LABEL`.
 - Effort: quick-win
 
 ### SEC-7 "Origin" is a configured label, not where the request came from - Severity: Low
 - Component: the source phrase and the R1 attribution claim
 - Evidence: `docs/designs/answer-source.md:78`, `:90`, `:327`.
-- Attack path: an answer made with a leaked QA token from anywhere is recorded as "via QA tool (qa-tool.sample-product.com)".
+- Attack path: an answer made with a leaked QA token from anywhere is recorded as "via QA tool (qa.example.org)".
 - Remediation: say in BR-57 and the API guide that `origin` is the client's registered host, not an observed one. Optionally log the request's peer address in the server log when the route writes an answer.
 - Effort: quick-win
 

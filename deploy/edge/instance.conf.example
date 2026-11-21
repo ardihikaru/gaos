@@ -1,0 +1,63 @@
+# A second GAOS instance on the edge, beside deploy/edge/gaos.conf (D-085).
+#
+# Copy to deploy/local/edge/gaos-<label>.conf (git-ignored), replace every
+# placeholder, and install it as /etc/nginx/conf.d/gaos-<label>.conf. The steps,
+# in order, are in deploy/edge/README.md, "A second instance".
+#
+#   instance.example.org   the instance's public host name
+#   <tunnel-ip>:<port>     its tunnel listener, e.g. 10.10.0.x:18301
+#   gaos-<label>           its certificate lineage and file name
+#
+# THE NAME MATTERS. gaos-<label>.conf sorts after clino.conf, which must stay the
+# implicit :443 default (rule 3 in gaos.conf), and before gaos.conf, so it wins
+# while both files still name the host.
+#
+# NO map AND NO default_server. Map names are global on this box (rule 1 in
+# gaos.conf): a second `map ... $gaos_connection_upgrade` stops nginx for every
+# product. This file reuses the one gaos.conf declares. The host is not in
+# gaos.conf's backend map, so the :443 block proxies to a literal address
+# and refuses any other Host itself.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name instance.example.org;
+
+    # ACME HTTP-01. Answered HERE, never forwarded (rule 4 in gaos.conf).
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/acme;
+        default_type "text/plain";
+    }
+
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name instance.example.org;
+
+    ssl_certificate     /etc/letsencrypt/live/gaos-<label>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gaos-<label>/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    client_max_body_size 4m;
+
+    if ($host != instance.example.org) { return 444; }
+
+    location / {
+        proxy_pass http://<tunnel-ip>:<port>;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $gaos_connection_upgrade;
+        proxy_read_timeout 300s;
+    }
+}

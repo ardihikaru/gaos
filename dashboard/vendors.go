@@ -275,6 +275,18 @@ type vendorCache struct {
 
 const vendorCacheTTL = 60 * time.Second
 
+// CachedVendorInfo reads the provider list's cache without asking the gateway
+// and without waiting (D-085): busy when a refresh holds the lock, nil infos
+// when nothing was ever cached. The Integrations view must never stall on
+// ai-manager, so it shows what is known and how old it is.
+func (a *AIMAdapter) CachedVendorInfo() (infos []VendorInfo, at time.Time, busy bool) {
+	if !a.vendors.mu.TryLock() {
+		return nil, time.Time{}, true
+	}
+	defer a.vendors.mu.Unlock()
+	return append([]VendorInfo(nil), a.vendors.infos...), a.vendors.at, false
+}
+
 // VendorInfo implements VendorCatalog for ai-manager: its session providers,
 // claude and antigravity, in that order.
 func (a *AIMAdapter) VendorInfo(ctx context.Context) ([]VendorInfo, error) {

@@ -91,6 +91,7 @@
       <button{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></button>
       <button{{if eq .BO.View "agents"}} aria-current="page"{{end}}    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></button>
       <button{{if eq .BO.View "archive"}} aria-current="page"{{end}}   hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></button>
+      <button{{if eq .BO.View "integrations"}} aria-current="page"{{end}} hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</button>
     </nav>
     {{end}}
 
@@ -121,6 +122,7 @@
     {{if eq .View "inbox"}}{{template "bo-inbox" .}}
     {{else if eq .View "agents"}}{{template "bo-agents" .}}
     {{else if eq .View "archive"}}{{template "bo-archive" .}}
+    {{else if eq .View "integrations"}}{{template "bo-integrations" .}}
     {{else if .Detail}}{{template "bo-product-detail" .}}
     {{else if eq .View "products"}}{{template "bo-product-list" .}}
     {{else}}{{template "bo-rollup" .}}{{end}}
@@ -697,4 +699,74 @@
   {{else}}<p class="tm-line">Nothing has been pruned.</p>{{end}}
 </div>
 {{end}}
+{{end}}
+
+{{/* The Integrations page (D-085, docs/designs/open-source-docs.md §3.6). What
+     GAOS is connected to and whether each connection works. Read-only: every
+     value is a host, a mode, a count, a time or a yes/no built by
+     buildIntegrations, never a token, a digest, a credential, a URL path or
+     query, or text an external system wrote. The docs links assume the docs
+     are served beside the dashboard on the same origin (/app/ and /docs/), as
+     the local stack and prod do; a dashboard run on its own has no /docs/. */}}
+{{define "bo-integrations"}}
+<section id="boIntegrations">
+<header><div><span class="eyebrow">connections</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+{{with .Integrations}}
+<div class="block">
+  <h4>ai-manager &middot; {{if .AIM.Configured}}connected{{else}}off{{end}}</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">Adapter</th><td class="mono">{{.AIM.Adapter}}</td></tr>
+      <tr><th scope="row">Gateway</th><td class="mono">{{if .AIM.Host}}{{.AIM.Host}}{{else}}&mdash;{{end}}</td></tr>
+      <tr><th scope="row">Runner</th><td class="mono">{{.AIM.Runner}}</td></tr>
+      <tr><th scope="row">Boot provider check</th><td>{{.AIM.BootCheck}}</td></tr>
+      <tr><th scope="row">Providers</th><td>{{range $i, $p := .AIM.Providers}}{{if $i}}, {{end}}<span class="mono">{{$p}}</span>{{end}}{{if .AIM.ProviderNote}}{{if .AIM.Providers}} &middot; {{end}}{{.AIM.ProviderNote}}{{end}}</td></tr>
+      <tr><th scope="row">Last turn</th><td>{{if .AIM.LastTurn}}{{.AIM.LastTurn}}{{else}}no turn has run{{end}}</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tm-line">Set up: <code>GAOS_MODEL_MODE=aimanager</code>, <code>GAOS_AIM_URL</code>, the chat login file <code>GAOS_AIM_CHAT_AUTH_FILE</code> and the admin key file <code>GAOS_AIM_ADMIN_KEY_FILE</code>; <code>GAOS_RUNNER=manual</code> lets the board dispatch. <a href="../docs/integrations/ai-manager-api.html" target="_blank" rel="noopener">ai-manager REST reference</a></p>
+</div>
+<div class="block">
+  <h4>QA tools &middot; {{if .QA.Outbound}}connected{{else}}outbound off{{end}}</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">Outbound (sync and webhook)</th><td class="mono">{{if .QA.Outbound}}{{.QA.OutboundHost}}{{else}}off &middot; {{.QA.OutboundWhy}}{{end}}</td></tr>
+      <tr><th scope="row">Origin on answers</th><td class="mono">{{if .QA.Origin}}{{.QA.Origin}}{{else}}&mdash;{{end}}</td></tr>
+      <tr><th scope="row">Last webhook delivery</th><td>{{if .QA.LastDelivery}}{{.QA.LastDelivery}}{{else}}no delivery has been attempted{{end}}</td></tr>
+      <tr><th scope="row">Waiting to be delivered</th><td><span class="mono">{{.QA.Pending}}</span>{{if .QA.PendingNote}} &middot; {{.QA.PendingNote}}{{end}}</td></tr>
+      <tr><th scope="row">Given up</th><td class="mono">{{.QA.GaveUp}}</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tm-line">Set up: three different tokens &mdash; <code>GAOS_API_QA_TOKEN_FILE</code> (they call GAOS), <code>GAOS_QA_TOKEN_FILE</code> (GAOS calls them), <code>GAOS_API_ADMIN_TOKEN_FILE</code> (seeding) &mdash; then <code>GAOS_API_QA_PRODUCTS</code>, <code>GAOS_QA_URL</code> and <code>GAOS_QA_ORIGIN</code>. <a href="../docs/integrations/webhooks-and-clients.html#tutorial" target="_blank" rel="noopener">Tutorial</a></p>
+</div>
+<div class="block">
+  <h4>Machine API &middot; {{.API.State}}</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">Admin token</th><td>{{if .API.Admin}}configured{{else}}not set{{end}}</td></tr>
+      <tr><th scope="row">QA token</th><td>{{if .API.QA}}configured{{else}}not set{{end}}</td></tr>
+      <tr><th scope="row">Outbound token</th><td>{{if .API.Outbound}}configured{{else}}not set{{end}}</td></tr>
+      <tr><th scope="row">QA products</th><td class="mono">{{if .API.QAProducts}}{{range $i, $p := .API.QAProducts}}{{if $i}}, {{end}}{{$p}}{{end}}{{else}}none{{end}}</td></tr>
+    </tbody>
+  </table></div>
+</div>
+<div class="block">
+  <h4>Registered clients</h4>
+  {{if .Clients}}
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <thead><tr><th>Name</th><th>Kind</th><th>Origin</th><th>Products</th><th>Scope</th><th>Token</th></tr></thead>
+    <tbody>{{range .Clients}}<tr>
+      <td class="mono">{{.Name}}</td>
+      <td class="mono">{{.Kind}}</td>
+      <td class="mono">{{if .Origin}}{{.Origin}}{{else}}&mdash;{{end}}</td>
+      <td class="mono">{{if .Products}}{{range $i, $p := .Products}}{{if $i}}, {{end}}{{$p}}{{end}}{{else}}none{{end}}</td>
+      <td>{{.Scope}}</td>
+      <td>configured</td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="tm-line">No machine client is registered.</p>{{end}}
+  <p class="tm-line">Set up: one line per client in <code>GAOS_API_CLIENTS_FILE</code> &mdash; name, kind, origin, token file (mode 600), products &mdash; then restart. <a href="../docs/integrations/webhooks-and-clients.html#register" target="_blank" rel="noopener">Webhooks and external clients</a> &middot; <a href="../docs/integrations/overview.html" target="_blank" rel="noopener">How integration works</a></p>
+</div>
+{{end}}
+</section>
 {{end}}

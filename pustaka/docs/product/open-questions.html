@@ -14,7 +14,7 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Thirty-five decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Thirty-six decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Twenty-two are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
@@ -73,7 +73,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All thirty-five in one place. Filter by any word in a question, or by theme.</p>
+  <p>All thirty-six in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -119,6 +119,7 @@
       <tr data-tags="technical qa tools api contract gaos results catalog endpoints sync integration answered"><td><a href="#oq-33">OQ-33</a></td><td>Technical</td><td>The two endpoints GAOS calls on the QA tools (<code>GET /api/v1/gaos/results</code>, <code>POST /api/v1/gaos/catalog</code>) are a contract only. When do the QA tools serve them?</td><td>D-075, the two sync buttons</td><td>Answered → <a href="decision-log.html#d-077">D-077</a></td></tr>
       <tr data-tags="technical qa case decision edit identity authentication back office planned blocked wont new"><td><a href="#oq-34">OQ-34</a></td><td>Technical</td><td>Who may change an existing case's decision (park it, block it, retire it), and through which surface?</td><td>BR-48, BR-51, D-072</td><td>Open — raised 2026-11-14, narrowed by <a href="decision-log.html#d-084">D-084</a></td></tr>
       <tr data-tags="product qa results kanban card move status failing epic new"><td><a href="#oq-35">OQ-35</a></td><td>Product</td><td>Should a QA result ever move an epic's card on the board?</td><td>BR-54, D-073</td><td>Open — raised 2026-11-14 (today: deliberately not)</td></tr>
+      <tr data-tags="operations git history rewrite public repository private instance scrub filter-repo new"><td><a href="#oq-36">OQ-36</a></td><td>Operations</td><td>Is git history rewritten before the repository is made public?</td><td>D-085, making the repository public</td><td>Open — raised 2026-11-21 (today: the repository stays private)</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -672,7 +673,7 @@
   <h3 id="oq-25">OQ-25 · May the sisflow board be vendored?</h3>
   <p><strong>Why it is open:</strong> <a href="decision-log.html#d-061">D-061</a> gives every product a
   kanban, and the best-fitting implementation is the sisflow board — plain ES modules, no build step,
-  a REST provider whose shape GAOS adopted for its own API. It is sample-product's code. The repository has
+  a REST provider whose shape GAOS adopted for its own API. It is code from the product owner's organisation. The repository has
   no <code>LICENSE</code> file, and its third-party notice calls sisflow "original … copyright: project
   owner". GAOS is Apache-2.0 (<a href="decision-log.html#d-035">D-035</a>), and
   <a href="qa-test-plan.html#cs-licences">TC-150/TC-151</a> refuse any vendored asset without its
@@ -875,6 +876,26 @@
   would be no cap at all in CLI mode. And it adds four event names and a task state to a closed
   catalog, which under <a href="brd.html#rules-invariants">BR-05</a> is a schema change to the fold
   and lands in three places together or not at all.</p>
+
+  <h3 id="oq-36">OQ-36 · Is git history rewritten before the repository is made public?</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-085">D-085</a> took one operator's
+  instance material out of every tracked file &mdash; a sample product's name and seed, its organisation, its
+  domain &mdash; and a guard now keeps it out. The commits before v0.45.0 still carry it, and every tag up to
+  v0.44.0 points at them. Anyone who can read the repository can read that history. The repository is private
+  today, so nobody outside the operator can.</p>
+  <p><strong>The options:</strong></p>
+  <ul>
+    <li><strong>Rewrite.</strong> <code>git filter-repo --replace-text</code> plus <code>--path-rename</code> over every
+    ref. Every commit SHA from the first match onward changes, so every tag is rewritten and force-pushed; every
+    clone and worktree, including the VM checkouts the deploy builds from, is re-cloned; open pull requests break;
+    forks keep the old history; GitHub keeps old objects reachable from cached pull-request refs and release
+    archives until its support purges them.</li>
+    <li><strong>Publish a fresh repository</strong> whose first commit is the scrubbed tree, and keep this one
+    private as the record. History is lost to the public; nothing here changes.</li>
+    <li><strong>Stay private.</strong> Nothing to do; the question stays open.</li>
+  </ul>
+  <p><strong>What it blocks:</strong> making the repository public. Each tag added before the answer makes a
+  rewrite more expensive.</p>
 
   <div class="adm warn">
     <p class="adm-title">Nothing here is rhetorical</p>

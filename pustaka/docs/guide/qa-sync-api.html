@@ -37,7 +37,7 @@
   </div>
 
   <h2 id="base-and-auth">Base URL and authentication</h2>
-  <p>The base URL is <code>https://gaos.sample-product.com/api/v1</code>. Every request carries
+  <p>The base URL is <code>https://gaos.example.org/api/v1</code>. Every request carries
   <code>Authorization: Bearer &lt;TOKEN&gt;</code> and every body is a JSON object. A token looks like
   <code>gaos_</code> followed by 64 hexadecimal characters. There are two scopes. The
   <strong>qa</strong> token reads a product's catalog, reports results and creates new cases. The
@@ -46,7 +46,7 @@
   <code>403</code>.</p>
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
-    <pre>curl -sS -H @header-file https://gaos.sample-product.com/api/v1/products
+    <pre>curl -sS -H @header-file https://gaos.example.org/api/v1/products
 <span class="c"># header-file holds one line:  Authorization: Bearer &lt;TOKEN&gt;</span></pre>
   </div>
   <p>The API fails closed. When no token is configured every route answers <code>503</code>; when two
@@ -89,7 +89,7 @@
   sees only the products the operator scoped to it; if none, the list is empty.</p>
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
-    <pre>curl -sS -H @header-file https://gaos.sample-product.com/api/v1/products</pre>
+    <pre>curl -sS -H @header-file https://gaos.example.org/api/v1/products</pre>
   </div>
 
   <h3 id="call-summary">GET /products/{id}/qa/summary</h3>
@@ -99,7 +99,7 @@
   <code>catHead</code>, the product's catalog revision.</p>
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
-    <pre>curl -sS -H @header-file https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/summary</pre>
+    <pre>curl -sS -H @header-file https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/qa/summary</pre>
   </div>
 
   <h3 id="call-cases-get">GET /products/{id}/qa/cases</h3>
@@ -113,7 +113,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -H @header-file \
-  "https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/cases?after=0&amp;limit=100&amp;epic=AUTH"</pre>
+  "https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/qa/cases?after=0&amp;limit=100&amp;epic=AUTH"</pre>
   </div>
   <div class="codeblock">
     <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
@@ -157,7 +157,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
-  https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/cases \
+  https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/qa/cases \
   -d '{"source":"qa-automation-tools",
        "epics":[{"code":"AUTH","title":"Authentication","service":"his-backend",
                  "source":"docs/test-catalog/his-backend/auth.md","module":"A13"}],
@@ -191,7 +191,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
-  https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/results \
+  https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/qa/results \
   -d '{"source":"qa-automation-tools",
        "items":[{"caseId":"TC-AUTH-001","implemented":true,
                  "spec":"tests/api/graphql/user/login.spec.ts",
@@ -207,7 +207,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
-  https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/qa/catalog \
+  https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/qa/catalog \
   -d '{"cases":[ <span class="c">/* planning fields, as in the case above */</span> ]}'</pre>
   </div>
 
@@ -220,7 +220,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
-  https://gaos.sample-product.com/api/v1/seed/product -d @product.json</pre>
+  https://gaos.example.org/api/v1/seed/product -d @product.json</pre>
   </div>
 
   <h2 id="inbox">The inbox: asking the operator, and answering</h2>
@@ -259,7 +259,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
-  https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/inbox \
+  https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/inbox \
   -d '{"externalId":"run-42:case-7","question":"Quarantine these 3 specs?","title":"Quarantine"}'</pre>
   </div>
 
@@ -271,7 +271,7 @@
     <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
     <pre>{"externalId":"run-42:case-7","status":"answered","choice":1,"optionLabel":"Approve",
  "askedAt":1763000000,"answeredAt":1763000900,"expiresAt":1763604800,
- "source":{"kind":"qa-tool","client":"qa-tools","origin":"qa-tool.sample-product.com","actor":"ardi"}}</pre>
+ "source":{"kind":"qa-tool","client":"qa-tools","origin":"qa.example.org","actor":"ardi"}}</pre>
   </div>
 
   <h3 id="inbox-answer">POST /products/{id}/inbox/{externalId}/answer</h3>
@@ -283,7 +283,7 @@
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
-  https://gaos.sample-product.com/api/v1/products/&lt;PRODUCT_ID&gt;/inbox/run-42:case-7/answer \
+  https://gaos.example.org/api/v1/products/&lt;PRODUCT_ID&gt;/inbox/run-42:case-7/answer \
   -d '{"choice":1,"actor":{"username":"ardi"}}'</pre>
   </div>
   <table class="tbl">
@@ -310,20 +310,10 @@
   </div>
 
   <h3 id="inbox-registry">Adding a client</h3>
-  <p>A client is configuration and a token file, not code. Generate a token (<code>gaos_</code> and 32 or more letters
-  and digits) into <code>deploy/stacks/prod.api-client-&lt;name&gt;</code> on the host, mode 600 &mdash; a token file
-  others can read is refused. Add one line to the clients file, mount both read-only, set
-  <code>GAOS_API_CLIENTS_FILE</code>, and restart:</p>
-  <div class="codeblock">
-    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
-    <pre># name           kind            origin                   token file                                products
-hikaru-android   hikaru-android  android.hikaru.example   /run/secrets/api-client-hikaru-android   p-8</pre>
-  </div>
-  <p>The name and kind are 2 to 32 of <code>a-z 0-9 -</code>; <code>qa-tools</code>, <code>back-office</code>,
-  <code>admin</code>, <code>gaos</code>, <code>qa-tool</code> and <code>operator</code> are reserved. The origin is a host
-  name, or <code>-</code>. A line is skipped, with its number and the reason in the log, when it is malformed, repeats a
-  name, reuses another principal's token, claims the QA tool's origin or the deployment's label, or lists a product the
-  qa token reaches. A name is never reused for someone else: items belong to the name.</p>
+  <p>A client is a line of <code>GAOS_API_CLIENTS_FILE</code> and a token file, not code. The line format, every rule
+  and refusal, and a step-by-step tutorial for a new client are in
+  <a href="../integrations/webhooks-and-clients.html#register">Webhooks and external clients</a>; how the pieces fit is
+  in <a href="../integrations/overview.html">How integration works</a>.</p>
 
   <h2 id="ownership">Who owns which field</h2>
   <p>Every field of a case has one writer, so there is no silent loser

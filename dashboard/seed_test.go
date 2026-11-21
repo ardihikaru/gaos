@@ -9,9 +9,11 @@ import (
 	"testing"
 )
 
-// The generic product seed and sample-product's committed data (seed.go, D-074).
+// The generic product seed and the invented example seed (seed.go, D-074, D-085).
+// A private product's seed lives under the git-ignored deploy/local/ and is
+// checked by the server when it is seeded, not by a tracked test.
 
-const seedDir = "../deploy/seed/sample-product/"
+const seedDir = "../deploy/seed/example/"
 
 func readSeedFile(t *testing.T, name string, v any) []byte {
 	t.Helper()
@@ -42,7 +44,7 @@ func TestProductSeedIsIdempotentAndMeetsTheFloor(t *testing.T) {
 
 	code, first, body := seedCall(t, srv, raw)
 	if code != 200 {
-		t.Fatalf("the sample-product seed answered %d: %s", code, body)
+		t.Fatalf("the example seed answered %d: %s", code, body)
 	}
 	wantTasks := 2 + len(product.Epics) + 1
 	if first.Product != "created" || first.Stories != len(product.Modules) || first.Epics != len(product.Epics) || first.Tasks != wantTasks {
@@ -264,18 +266,15 @@ func checkProductSeedRefusals(t *testing.T) {
 	_, _ = st.Replay(ctx, -1)
 }
 
-func TestThesample-productSeedIsWellFormed(t *testing.T) {
+func TestTheExampleSeedIsWellFormed(t *testing.T) {
 	var product ProductSeed
 	var casesDoc struct {
-		Source struct {
-			Commit string `json:"commit"`
-		} `json:"source"`
 		Cases []QaCase `json:"cases"`
 	}
 	praw := readSeedFile(t, "product.json", &product)
 	craw := readSeedFile(t, "cases.json", &casesDoc)
 
-	// The counts are the source repo's at the commit the files record.
+	// The example's own counts: 3 modules, 8 features, 4 epics, 12 cases.
 	feats := 0
 	moduleKeys := map[string]bool{}
 	for _, m := range product.Modules {
@@ -285,13 +284,10 @@ func TestThesample-productSeedIsWellFormed(t *testing.T) {
 			t.Errorf("module %s has pri %q", m.Key, m.Pri)
 		}
 	}
-	if len(product.Modules) != 39 || feats != 444 || len(product.Epics) != 47 || len(casesDoc.Cases) != 1700 {
-		t.Errorf("seed has %d modules, %d features, %d epics, %d cases; want 39, 444, 47, 1700", len(product.Modules), feats, len(product.Epics), len(casesDoc.Cases))
+	if len(product.Modules) != 3 || feats != 8 || len(product.Epics) != 4 || len(casesDoc.Cases) != 12 {
+		t.Errorf("example seed has %d modules, %d features, %d epics, %d cases; want 3, 8, 4, 12", len(product.Modules), feats, len(product.Epics), len(casesDoc.Cases))
 	}
 	sha := regexp.MustCompile(`^[0-9a-f]{40}$`)
-	if !sha.MatchString(casesDoc.Source.Commit) {
-		t.Errorf("cases.json names no source commit: %q", casesDoc.Source.Commit)
-	}
 	for _, k := range product.Sources {
 		if !sha.MatchString(k.Ref) {
 			t.Errorf("knowledge source %s is pinned to %q, want a 40-hex commit", k.URL, k.Ref)
@@ -319,7 +315,7 @@ func TestThesample-productSeedIsWellFormed(t *testing.T) {
 		}
 	}
 	if noModule != 1 {
-		t.Errorf("%d epics have no module, want exactly 1 (the report builder: its stories name no feature)", noModule)
+		t.Errorf("%d epics have no module, want exactly 1 (the report pages)", noModule)
 	}
 	seen := map[string]bool{}
 	implemented, planned := 0, 0
@@ -352,8 +348,8 @@ func TestThesample-productSeedIsWellFormed(t *testing.T) {
 			t.Errorf("%s: unsafe scenario text", c.CaseID)
 		}
 	}
-	if implemented != 494 || planned != 1146 {
-		t.Errorf("%d implemented and %d planned; want 494 and 1146", implemented, planned)
+	if implemented != 5 || planned != 9 {
+		t.Errorf("%d implemented and %d planned; want 5 and 9", implemented, planned)
 	}
 	// The egress detector finds nothing in either file, read as a whole and per string.
 	for name, raw := range map[string][]byte{"product.json": praw, "cases.json": craw} {

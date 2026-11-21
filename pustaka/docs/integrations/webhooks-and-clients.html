@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Webhooks and external clients — GAOS</title>
+<meta name="description" content="How any external platform integrates with GAOS: register a client, ask and answer through the inbox API, receive the answer webhook, verify it, troubleshoot it, with step-by-step tutorials for the QA tools, ai-manager and a new client.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="webhooks-and-clients">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Webhooks and external clients</h1>
+  <p class="lede">How any external platform connects to GAOS: register it as a client with its own token, let it put
+  questions in the operator's inbox and read or give the answer, and &mdash; for the QA tools &mdash; receive every
+  decision by webhook. Then three tutorials: the QA tools, ai-manager, and a new client such as a mobile app.</p>
+
+  <div class="page-meta"
+       data-tags="webhook, client, registry, inbox, tutorial, token"
+       data-hashtags="integrations, webhooks, tutorial"
+       data-published="2026-11-21"
+       data-updated="2026-11-21"
+       data-version-from="0.45.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">Placeholders</p>
+    <p>Hosts are <code>gaos.example.org</code> (GAOS), <code>qa.example.org</code> (the QA tools) and
+    <code>aim.example.org</code> (ai-manager). A token is written <code>gaos_&lt;32+ random characters&gt;</code>, which
+    GAOS itself refuses, so an example can never be pasted into production. Mint a real one with
+    <code>printf 'gaos_%s\n' "$(openssl rand -hex 16)"</code> and keep it in a file only you can read.</p>
+  </div>
+
+  <h2 id="register">Register a client</h2>
+  <p>A client is configuration and a token file, not code. GAOS reads the file named by
+  <code>GAOS_API_CLIENTS_FILE</code> once at boot: one client per line, five fields separated by spaces, and
+  <code>#</code> starts a comment.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre><span class="c"># name        kind      origin            token file                          products</span>
+mobile-app    mobile    app.example.org   /run/secrets/api-client-mobile-app   p-8,p-9
+chat-bot      bot       -                 /run/secrets/api-client-chat-bot     p-8</pre>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><code>name</code></td><td>2 to 32 of <code>a-z 0-9 -</code>, starting with a letter; unique. Reserved: <code>qa-tools</code>, <code>back-office</code>, <code>admin</code>, <code>gaos</code>, <code>qa-tool</code>, <code>operator</code>. Items belong to the name, so a name is never reused for someone else.</td></tr>
+      <tr><td><code>kind</code></td><td>the same alphabet; <code>gaos</code> and <code>qa-tool</code> are reserved. It is what an answer's <code>source.kind</code> says.</td></tr>
+      <tr><td><code>origin</code></td><td>the client's registered host name (optionally <code>:port</code>), or <code>-</code>. Recorded on every answer it gives; it may not be the QA tool's origin or the deployment's back-office label.</td></tr>
+      <tr><td><code>token file</code></td><td>a regular file, mode 600, holding one <code>gaos_</code> token of 32 or more letters and digits. A file group or others can read is refused.</td></tr>
+      <tr><td><code>products</code></td><td>comma-separated GAOS product ids, or <code>-</code>. It may not list a product the QA token reaches.</td></tr>
+    </tbody>
+  </table>
+  <p>A bad line is skipped and logged by number and reason, never by token: <code>api: clients file line 3: the
+  token file is unreadable, empty, malformed or readable by others (skipped)</code>. A line whose token equals a
+  built-in token or another client's is skipped by name: <code>api: clients file: mobile-app: its token equals a
+  built-in token (skipped)</code>. The boot line counts what was admitted: <code>api: enabled (admin=true qa=true
+  qa-products=1 clients=2)</code>. A client reaches only the three inbox routes of its own products; any other route
+  is <code>403</code>.</p>
+
+  <h2 id="inbox-api">Ask, poll and answer</h2>
+  <p>Three calls. The full field rules and every status code are in the
+  <a href="../guide/qa-sync-api.html#inbox">QA sync API reference</a>; this is the shape.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre><span class="c"># header-file holds one line:  Authorization: Bearer gaos_&lt;32+ random characters&gt;</span>
+<span class="c"># ask: 201 for a new item, 200 for the same externalId again (nothing written)</span>
+curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.example.org/api/v1/products/p-8/inbox \
+  -d '{"externalId":"order-17:refund","question":"Refund order 17 in full?","expiresInHours":48}'
+
+<span class="c"># poll: status is open, answered or expired; source says who answered</span>
+curl -sS -H @header-file https://gaos.example.org/api/v1/products/p-8/inbox/order-17:refund
+
+<span class="c"># answer your own item: 200, or 409 / 410 with the item of record</span>
+curl -sS -X POST -H @header-file -H "Content-Type: application/json" \
+  https://gaos.example.org/api/v1/products/p-8/inbox/order-17:refund/answer \
+  -d '{"choice":1,"actor":{"username":"field-agent-4"}}'</pre>
+  </div>
+  <p>Poll gently: a GET a minute is plenty, and an item cannot change after it is answered or expired. The first
+  answer wins wherever it came from; on <code>409</code> or <code>410</code> adopt the item in the body.</p>
+
+  <h2 id="webhook">The answer webhook</h2>
+  <p>When the operator answers one of the QA tool's items, or it expires, GAOS tells the QA tools. Only the QA tools
+  receive it today; a registered client polls (a per-client webhook is not built).</p>
+  <table class="tbl">
+    <thead><tr><th></th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>URL</td><td><code>POST {GAOS_QA_URL}/api/v1/gaos/inbox-answer</code></td></tr>
+      <tr><td>Headers</td><td><code>Authorization: Bearer &lt;the outbound token, GAOS_QA_TOKEN_FILE&gt;</code>, <code>Content-Type: application/json</code>, <code>Accept: application/json</code></td></tr>
+      <tr><td>Body</td><td><code>{"externalId","productId","status":"answered|expired","choice":1-4|0,"optionLabel","text","answeredAt"}</code> &mdash; <code>choice</code> 4 is the operator's own words, 0 an expiry; <code>answeredAt</code> is unix seconds, the deadline when expired</td></tr>
+      <tr><td>Success</td><td>any <code>2xx</code>; the body is not read. A redirect is refused.</td></tr>
+      <tr><td>Timeout</td><td>15 s per call</td></tr>
+      <tr><td>Retries</td><td>5 attempts: the first within 10 s, then after 30 s, 2 min, 10 min and 1 h; then <code>gave-up</code></td></tr>
+      <tr><td>Durability</td><td>each attempt is an event, so a restart resumes exactly the work left</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Idempotency.</strong> Key the receiver on <code>productId</code> + <code>externalId</code>. A retry after a
+  2xx that GAOS never saw re-sends the same body, and the QA tool's own answer is also sent, so the same decision may
+  arrive twice or before the <code>200</code> of its answer call. After <code>gave-up</code> the item stays readable by
+  GET, which is the fallback.</p>
+  <p><strong>The URL rule.</strong> <code>GAOS_QA_URL</code> is a base address with no credentials, query or fragment;
+  https, or plain http only to a loopback or tunnel (<code>10.10.0.0/24</code>) address; never the host of GAOS's
+  own gateway or database. Anything else leaves the outbound off and logs why.</p>
+
+  <h2 id="verify">Verify it</h2>
+  <ul>
+    <li><strong>The back office:</strong> the <em>Integrations</em> view shows the API's state, which built-in tokens
+    are set, every registered client, the outbound host, the last webhook delivery and how many wait.</li>
+    <li><strong>The boot log:</strong> <code>api: enabled (…)</code> and <code>qa sync: outbound to https://qa.example.org</code>,
+    or <code>qa sync: outbound is off (GAOS_QA_URL is not set)</code>.</li>
+    <li><strong>Health:</strong> <code>GET /api/healthz</code> names the adapter and the runner mode.</li>
+    <li><strong>A round trip:</strong> ask with curl, answer in the back office, then GET the item.</li>
+  </ul>
+
+  <h2 id="troubleshooting">Troubleshooting</h2>
+  <table class="tbl">
+    <thead><tr><th>Symptom</th><th>Cause</th></tr></thead>
+    <tbody>
+      <tr><td><code>401</code> on every call</td><td>the token is not one GAOS loaded: wrong file, a typo, or the line was skipped (read the boot log)</td></tr>
+      <tr><td><code>503</code> on every call</td><td>no token at all is configured, or two built-in tokens are equal and the API is disabled</td></tr>
+      <tr><td><code>403</code></td><td>a client on a non-inbox route, or the admin token answering an item</td></tr>
+      <tr><td><code>404</code> on an item</td><td>a product the token does not reach, or another client's item</td></tr>
+      <tr><td><code>409 id-taken</code></td><td>another client already uses that <code>externalId</code>; choose another</td></tr>
+      <tr><td>No webhook arrives</td><td><code>GAOS_QA_URL</code> or the outbound token is unset or refused; the Integrations view says why. Deliveries wait and are sent once it is configured.</td></tr>
+      <tr><td>Last delivery reads <code>retry</code> or <code>gave-up</code></td><td>the QA tools answered non-2xx or could not be reached; the reason is on the line</td></tr>
+      <tr><td>A client is missing from the view</td><td>its line was skipped; the boot log says which and why</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="tutorial">Tutorials</h2>
+  <div class="ctabs">
+    <div class="heads"><button class="on">The QA tools</button><button>ai-manager</button><button>A new client</button></div>
+    <div class="panel on">
+      <p>Three tokens, three purposes, all different. GAOS holds each in a file, mode 600; the QA tools hold the
+      matching value in their environment.</p>
+      <table class="tbl">
+        <thead><tr><th>Purpose</th><th>GAOS (file)</th><th>QA tools (env)</th></tr></thead>
+        <tbody>
+          <tr><td>The QA tools call GAOS</td><td><code>GAOS_API_QA_TOKEN_FILE</code></td><td><code>GAOS_API_TOKEN</code></td></tr>
+          <tr><td>GAOS calls the QA tools (sync and webhook)</td><td><code>GAOS_QA_TOKEN_FILE</code></td><td><code>GAOS_INBOUND_TOKEN</code></td></tr>
+          <tr><td>Seeding and catalog import, by an operator</td><td><code>GAOS_API_ADMIN_TOKEN_FILE</code></td><td>not used</td></tr>
+        </tbody>
+      </table>
+      <ol>
+        <li>Seed the product: <code>deploy/seed/seed.sh --dir &lt;seed dir&gt; --base &lt;api url&gt;</code>. It prints the product id.</li>
+        <li>Mint the three tokens into their files on the GAOS host, mode 600.</li>
+        <li>Set <code>GAOS_API_QA_PRODUCTS</code> to the product id, <code>GAOS_QA_URL</code> to the QA tools' base
+        (<code>https://qa.example.org</code>, or the tunnel address), and <code>GAOS_QA_ORIGIN</code> to their public host
+        name (<code>qa.example.org</code>) &mdash; recorded on every answer they give. Redeploy GAOS.</li>
+        <li>On the QA tools: <code>GAOS_API_URL=https://gaos.example.org/api/v1</code>, the two tokens above, then turn the
+        product's GAOS integration on with the GAOS product id.</li>
+        <li>Verify in the back office's <em>Integrations</em> view, then on the product's QA tab.</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <p>ai-manager runs every model turn; GAOS needs two credentials and two switches.</p>
+      <ol>
+        <li>The chat login: a JSON file <code>{"login_id":"…","secret_key":"…"}</code>, mode 600, named by
+        <code>GAOS_AIM_CHAT_AUTH_FILE</code>.</li>
+        <li>The admin key: a file holding only the key, named by <code>GAOS_AIM_ADMIN_KEY_FILE</code>. Without it, workspace
+        provisioning, Blueprint sync and conversation prune fail.</li>
+        <li><code>GAOS_AIM_URL=https://aim.example.org</code> and <code>GAOS_MODEL_MODE=aimanager</code>. At boot GAOS asks
+        <code>GET /v1/providers</code> and refuses to start unless <code>claude</code> is available.</li>
+        <li><code>GAOS_RUNNER=manual</code>: only a card the operator moves on the board runs; <code>on</code> lets the
+        scheduler dispatch every ready task; unset is off.</li>
+        <li>Publish and sync a product's Blueprint: the first sync provisions its workspace
+        (<code>gaos-&lt;tenant&gt;-&lt;product&gt;</code>).</li>
+        <li>Verify: the <em>Integrations</em> view shows the gateway host, the boot provider check and the last turn.</li>
+      </ol>
+      <p>Every call and status is in the <a href="ai-manager-api.html">ai-manager REST reference</a>.</p>
+    </div>
+    <div class="panel">
+      <p>A mobile app that asks a supervisor to approve a refund, and shows the decision.</p>
+      <ol>
+        <li>Mint a token: <code>printf 'gaos_%s\n' "$(openssl rand -hex 16)" &gt; deploy/stacks/prod.api-client-mobile-app</code>,
+        then <code>chmod 600</code> it.</li>
+        <li>Add a line to the clients file: <code>mobile-app mobile app.example.org /run/secrets/api-client-mobile-app p-8</code>.</li>
+        <li>Mount the clients file and the token file read-only into the dashboard, set <code>GAOS_API_CLIENTS_FILE</code>,
+        restart, and read the boot line: <code>clients=</code> counts it.</li>
+        <li>From the app's backend, ask (<a href="#inbox-api">curl above</a>), then poll the item until
+        <code>status</code> is <code>answered</code> or <code>expired</code>.</li>
+        <li>To let the app's user answer instead, call the answer route with their handle as <code>actor.username</code>.</li>
+      </ol>
+      <p>Keep the token on a server you control, never in the app binary: anyone holding it can ask and answer as the
+      client.</p>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

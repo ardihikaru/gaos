@@ -202,7 +202,7 @@ Each row quotes its exact `t.Fatalf` or script `ok`/`FAIL` string, per `.claude/
 
 ## 6. Rollout and rollback
 
-Two deployments: `gaos.sample-product.com` on rnd-v3-vpn (live) and the original prod on vm-rnd-ardi (not deployed
+Two deployments: `gaos.example.org` on rnd-v3-vpn (live) and the original prod on vm-rnd-ardi (not deployed
 now; done when asked).
 
 1. On the VM, **the agent never sees the password**. A single ssh command generates it with

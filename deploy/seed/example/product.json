@@ -1,0 +1,166 @@
+{
+ "source": {
+  "generator": "hand-written example",
+  "note": "An invented product. Nothing here describes a real system."
+ },
+ "name": "Sample Shop",
+ "owner": "Example QA",
+ "repo": "example-org/sample-shop-tests",
+ "goal": "Automated regression coverage for Sample Shop, an invented web shop, from its product map down to every test case",
+ "priority": "medium",
+ "brd": {
+  "problem": "Sample Shop has eight features across three modules and twelve catalogued test cases, and fewer than half are automated. Regressions in the cart, the checkout and the account pages are found by hand, late, and without a record of what was checked.",
+  "goals": [
+   "Every feature is traceable to a user story, a scenario and an automated test, so a release candidate carries a coverage number rather than an opinion.",
+   "All P0 and P1 cases run unattended against staging and report pass or fail per case.",
+   "A case that cannot be automated says why, in the catalog, with a reason category."
+  ],
+  "scope": [
+   "The product map: A01 catalog and cart, A02 checkout and payment, B01 accounts.",
+   "API tests against the shop's REST backend and web end-to-end tests against staging.",
+   "The report pages, which belong to no module yet."
+  ],
+  "outOfScope": [
+   "Load and performance testing.",
+   "Unit tests, which stay in the product repositories.",
+   "The payment provider's own sandbox behaviour."
+  ],
+  "rules": [
+   "Every test case has a stable id (TC-<EPIC>-NNN), is never reused, and carries a polarity, a level, a priority and a status.",
+   "A case that is blocked, manual-only or wont carries a reason of the form category:detail.",
+   "Tests never use real customer data or real payment details."
+  ],
+  "metrics": [
+   "Automated share of non-wont cases, overall and per epic.",
+   "Automated share of P0 and P1 cases.",
+   "Median time from a red run to a fix."
+  ]
+ },
+ "modules": [
+  {
+   "key": "A01",
+   "title": "Catalog and cart",
+   "pri": "must",
+   "features": [
+    "A01.01 · Catalog · Browse and search products [PROD]",
+    "A01.02 · Cart · Add, update and remove items [PROD]",
+    "A01.03 · Cart · Apply a discount code [DEV-DONE]"
+   ]
+  },
+  {
+   "key": "A02",
+   "title": "Checkout and payment",
+   "pri": "must",
+   "features": [
+    "A02.01 · Checkout · Shipping address and delivery option [PROD]",
+    "A02.02 · Payment · Pay by card through the payment provider [PROD]",
+    "A02.03 · Payment · Refund an order [IN-PROGRESS]"
+   ]
+  },
+  {
+   "key": "B01",
+   "title": "Accounts",
+   "pri": "should",
+   "features": [
+    "B01.01 · Accounts · Sign up, sign in and sign out [PROD]",
+    "B01.02 · Accounts · Order history [PROD]"
+   ]
+  }
+ ],
+ "diagrams": [
+  {
+   "kind": "flow",
+   "title": "How the plan and the scripts stay in step",
+   "src": "catalog (the test repository's docs)\n   |\n   v  seed / catalog endpoint\nGAOS  --- plan: cases, decisions, priority --->  QA tools (scripts)\n   ^                                                 |\n   |   results: implemented, spec, pass/fail, run    |\n   +-------------------------------------------------+"
+  }
+ ],
+ "decisions": [
+  {
+   "id": "ADR-001",
+   "title": "Playwright with TypeScript for API and end-to-end tests; unit tests stay in the product repositories",
+   "confidence": 0.9
+  },
+  {
+   "id": "ADR-002",
+   "title": "The catalog's case id is the join key between the plan and the scripts, and an id is never reused",
+   "confidence": 0.95
+  },
+  {
+   "id": "ADR-003",
+   "title": "Payment tests run only against the provider's sandbox, never with a real card",
+   "confidence": 0.9
+  }
+ ],
+ "policies": [
+  {
+   "key": "technical",
+   "kind": "technical",
+   "title": "Stack and layout of the test repository",
+   "order": 10,
+   "body": "- Tests are Playwright with TypeScript.\n- API clients live under src/api and page objects under src/web; a spec never sends a raw request or uses a raw selector.\n- Targets are chosen by TEST_ENV (local or staging); nothing defaults to production."
+  },
+  {
+   "key": "coding",
+   "kind": "coding",
+   "title": "How a test is written",
+   "order": 20,
+   "body": "- One behaviour per test; the title states the expected behaviour in the present tense.\n- Never sleep; use web-first assertions or expect.poll.\n- Every promise is awaited and no test depends on another's order."
+  },
+  {
+   "key": "security",
+   "kind": "security",
+   "title": "Secrets and test data",
+   "order": 30,
+   "body": "- No credentials, tokens, cookies or real customer data anywhere: code, fixtures, snapshots, logs or test titles.\n- Only *.example env files are committed; real values come from the shell.\n- A test may modify only data it created."
+  },
+  {
+   "key": "testing",
+   "kind": "testing",
+   "title": "The test catalog and the definition of done",
+   "order": 40,
+   "body": "- The catalog lists each case with a status of planned, automated, blocked, manual-only or wont.\n- A case is done when it is automated, its spec exists and it passes on staging.\n- Never delete or renumber a case; retire it with a reason."
+  },
+  {
+   "key": "qa-sync",
+   "kind": "custom",
+   "title": "The two-way sync between GAOS and the QA tools",
+   "order": 50,
+   "body": "- The case id joins the plan and the scripts.\n- GAOS owns the planning fields; the QA tools own the automation facts: implemented, spec, result, run time and run reference.\n- Report a result only for a case that exists in the catalog."
+  }
+ ],
+ "sources": [],
+ "epics": [
+  {
+   "code": "CART",
+   "title": "Catalog and cart",
+   "service": "shop-api",
+   "source": "docs/test-catalog/cart.md",
+   "module": "A01"
+  },
+  {
+   "code": "CHECKOUT",
+   "title": "Checkout and payment",
+   "service": "shop-api",
+   "source": "docs/test-catalog/checkout.md",
+   "module": "A02"
+  },
+  {
+   "code": "ACCOUNT",
+   "title": "Accounts",
+   "service": "shop-web",
+   "source": "docs/test-catalog/account.md",
+   "module": "B01"
+  },
+  {
+   "code": "REPORTS",
+   "title": "Report pages (no module yet)",
+   "service": "shop-web",
+   "source": "docs/test-catalog/reports.md",
+   "module": ""
+  }
+ ],
+ "plan": {
+  "goal": "Automate the Sample Shop test catalog epic by epic, starting from the PROD features, and keep the plan and the results in step",
+  "priority": "medium"
+ }
+}

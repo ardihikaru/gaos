@@ -26,7 +26,7 @@
 
 ## 1. Problem
 
-Found on production (`gaos.sample-product.com`, product p-6, workflow wf-9):
+Found on production (`gaos.example.org`, product p-6, workflow wf-9):
 
 1. Design task **wf-9-t-3** completed with a valid `gaos-design` block. `gateVerdict` recorded the design artifact and moved it `REVIEW → DONE` with rule `design-delivered` (`designgate.go:708`; the two-move order is `runner.go:296-317`).
 2. Review task **wf-9-t-4** returned a valid `gaos-review` with 1 blocker, 1 major, 2 nits. `gateVerdict` recorded the review artifact and moved it to `BLOCKED` with rule and reason `design-blocked` (`designgate.go:745-746`). `gateReleaseLocked` left implementation **wf-9-t-5** `BLOCKED`, reason `design-blocked` (`designgate.go:791-792`).

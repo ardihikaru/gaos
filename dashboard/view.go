@@ -179,6 +179,58 @@ type BOView struct {
 
 	// The Archive page (D-082).
 	Archive *ArchivePage
+
+	// The Integrations page (D-085): read-only, never a secret.
+	Integrations *IntegrationsPage
+}
+
+// ---------- Integrations (D-085) ----------
+
+// IntegrationsPage is what GAOS is connected to and whether each connection
+// works. Every value is a host, a mode, a count, a time or a yes/no: no token,
+// digest, credential, URL path or query, and no text an external system wrote.
+type IntegrationsPage struct {
+	AIM     AIMStatus
+	QA      QAStatus
+	API     APIStatus
+	Clients []ClientRow
+}
+
+// AIMStatus is the ai-manager gateway.
+type AIMStatus struct {
+	Configured   bool
+	Adapter      string // describeAdapter: "ai-manager (gateway)" or "unconfigured"
+	Host         string // scheme://host[:port] of the adapter's base; "" when refused or unset
+	Runner       string // off | manual | on
+	BootCheck    string // "passed at boot, 3h ago" or "not run (no gateway)"
+	Providers    []string
+	ProviderNote string // why there is no list, or the cache's age
+	LastTurn     string // "RunExited · Product · 4m ago"; "" when no turn has run
+}
+
+// QAStatus is the QA tools: the outbound sync and the answer webhook.
+type QAStatus struct {
+	Outbound     bool
+	OutboundHost string
+	OutboundWhy  string
+	Origin       string
+	LastDelivery string // "4m ago · QA tool answer: attempt 2 retry"; "" when none
+	Pending      int
+	PendingNote  string // the newest waiting item's last attempt and GAOS's reason
+	GaveUp       int
+}
+
+// APIStatus is the machine API's own configuration.
+type APIStatus struct {
+	State               string
+	Admin, QA, Outbound bool
+	QAProducts          []string
+}
+
+// ClientRow is one machine client. There is no token field on purpose.
+type ClientRow struct {
+	Name, Kind, Origin, Scope string
+	Products                  []string
 }
 
 // ---------- "Needs you" (M15) ----------

@@ -1,4 +1,4 @@
--- 16 · The QA catalog (D-072, D-073; docs/designs/sample-product-qa-sync.md §4.3).
+-- 16 · The QA catalog (D-072, D-073; docs/designs/qa-catalog-sync.md §4.3).
 --
 -- A product's test cases, one vertex each. The planning half (what the case is,
 -- what is decided about it) is written by GAOS; the automation half
