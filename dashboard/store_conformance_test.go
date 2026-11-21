@@ -843,9 +843,9 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"PruneConversations": func() (Result, error) {
 			return ro.PruneConversations(ctx, "x@example.test", []CardRef{{"p-1", "t-1"}})
 		},
-		"AnswerQuestion":  func() (Result, error) { return ro.AnswerQuestion(ctx, "p-1", "t-1", 1, "") },
+		"AnswerQuestion":  func() (Result, error) { return ro.AnswerQuestion(ctx, "p-1", "t-1", 1, "", AnswerSource{}) },
 		"ExpireQuestions": func() (Result, error) { return ro.ExpireQuestions(ctx, 0) },
-		"AnswerExternal":  func() (Result, error) { return ro.AnswerExternal(ctx, "p-1", "x", 1, "") },
+		"AnswerExternal":  func() (Result, error) { return ro.AnswerExternal(ctx, "p-1", "x", ExternalAnswer{Choice: 1, Text: ""}) },
 		"RecordExternalDelivery": func() (Result, error) {
 			return ro.RecordExternalDelivery(ctx, "p-1", "x", 1, DeliveryDelivered, "", 0)
 		},

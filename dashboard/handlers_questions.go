@@ -62,7 +62,7 @@ func (s *server) handleAnswer(w http.ResponseWriter, r *http.Request) {
 		writeBoardJSON(w, http.StatusBadRequest, map[string]string{"error": `body must be {"choice": 1..4, "text"}`})
 		return
 	}
-	res, err := s.mut(r).AnswerQuestion(r.Context(), id, taskID, choice, text)
+	res, err := s.mut(r).AnswerQuestion(r.Context(), id, taskID, choice, text, s.boSource(r))
 	if err != nil {
 		if wantsHTMX(r) {
 			s.fail(w, r, err)
@@ -110,7 +110,7 @@ func (s *server) handleExternalAnswer(w http.ResponseWriter, r *http.Request) {
 		writeBoardJSON(w, http.StatusBadRequest, map[string]string{"error": `body must be {"choice": 1..4, "text"}`})
 		return
 	}
-	res, err := s.mut(r).AnswerExternal(r.Context(), id, ext, choice, text)
+	res, err := s.mut(r).AnswerExternal(r.Context(), id, ext, ExternalAnswer{Choice: choice, Text: text, By: s.boSource(r)})
 	if err != nil {
 		if wantsHTMX(r) {
 			s.fail(w, r, err)
@@ -133,6 +133,16 @@ func (s *server) handleExternalAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeBoardJSON(w, http.StatusOK, map[string]any{"toast": res.Toast, "events": stripPayloads(res.NewEvents)})
+}
+
+// boSource is where a back-office answer comes from (D-083): GAOS itself, this
+// deployment's label, the signed-in account.
+func (s *server) boSource(r *http.Request) AnswerSource {
+	origin := ""
+	if s.auth != nil {
+		origin = s.auth.label
+	}
+	return AnswerSource{Kind: SourceKindGAOS, Client: ClientBackOffice, Origin: origin, Actor: actorOf(r)}
 }
 
 // renderInbox renders the back office's inbox view after a read or an answer,

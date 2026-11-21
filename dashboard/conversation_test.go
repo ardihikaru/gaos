@@ -489,3 +489,25 @@ func TestAPrunedConversationStaysPrunedAfterARestart(t *testing.T) {
 		t.Fatalf("the actor column is %+v (%v); want the account", actors, err)
 	}
 }
+
+// D-083: the conversation sheet says where an answer came from.
+func TestConversationSheetSaysWhoAnswered(t *testing.T) {
+	srv, s, desk := plannedProduct(t)
+	old := convCard(t, s, desk, 0, StatusDone, cvSession1)
+	now := convCard(t, s, desk, 1, StatusDone, cvSession2)
+	s.mu.Lock()
+	for i := range s.events {
+		if e := &s.events[i]; e.Type == QuestionAnswered && e.Payload.Task == now {
+			e.Payload.Question.AnsweredBy = &AnswerSource{Kind: SourceKindGAOS, Client: ClientBackOffice, Origin: "gaos.example", Actor: cvActor}
+		}
+	}
+	s.mu.Unlock()
+	sheet := do(t, srv, "GET", "/ui/conversation/"+desk+"/"+now, nil, boCookies()...).Body.String()
+	if !strings.Contains(sheet, `<b>Answered</b>`) || !strings.Contains(sheet, `<span class="cv-by">in GAOS (gaos.example) by `+cvActor+`</span>`) {
+		t.Errorf("the sheet of a recorded answer does not say in GAOS, the label and the account")
+	}
+	sheet = do(t, srv, "GET", "/ui/conversation/"+desk+"/"+old, nil, boCookies()...).Body.String()
+	if !strings.Contains(sheet, `<span class="cv-by">source not recorded</span>`) || strings.Contains(sheet, "You answered") {
+		t.Errorf("the sheet of an answer given before D-083 does not say source not recorded")
+	}
+}

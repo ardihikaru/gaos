@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -52,6 +53,45 @@ type ExternalAsk struct {
 	Context        string
 	Options        []QuestionOption // 2..3
 	ExpiresInHours int
+
+	// D-083: the asking client and the origin tag its items carry. Empty means
+	// qa-tools and "QA tool" -- every caller before D-083 (normalised below).
+	AskedBy string
+	Label   string
+}
+
+// effectiveAsker is the client an item belongs to: AskedBy, or qa-tools for an
+// item asked before D-083 (only the QA token, or the admin token acting as the
+// QA tool, could ask one).
+func effectiveAsker(q QuestionPayload) string {
+	if q.AskedBy == "" {
+		return ClientQATools
+	}
+	return q.AskedBy
+}
+
+// ErrIDTaken is an ask whose externalId another client already uses.
+var ErrIDTaken = reject("That externalId is already used by another client; choose another.")
+
+// AnswerClosed refuses an answer to an item that is no longer open. It is a
+// rejection (errors.Is(err, ErrRejected)), so the back office's 409 and toast
+// are unchanged, and it carries the item for the machine API's 409/410 bodies.
+type AnswerClosed struct {
+	Item    ExternalItem
+	Expired bool
+	reason  string
+}
+
+func (e *AnswerClosed) Error() string        { return e.reason }
+func (e *AnswerClosed) Is(target error) bool { return target == ErrRejected }
+
+// ExternalAnswer is one answer to an inbox item. By.Kind "gaos" is the back
+// office and may answer any item; any other source answers only an item its
+// client asked.
+type ExternalAnswer struct {
+	Choice int
+	Text   string
+	By     AnswerSource
 }
 
 // ExternalDelivery is what the stream says about telling the QA tool.
@@ -112,6 +152,10 @@ func (s *MemStore) externalItemsLocked() []ExternalItem {
 			if i, ok := idx[key]; ok && out[i].Status == ExtOpen {
 				out[i].Choice, out[i].Text, out[i].AnsweredAt = q.Choice, q.Text, q.AnsweredAt
 				out[i].Status = q.Status
+				if q.AnsweredBy != nil {
+					by := *q.AnsweredBy
+					out[i].AnsweredBy = &by
+				}
 			}
 		case ExternalAnswerDelivery:
 			if i, ok := idx[key]; ok {
@@ -168,18 +212,27 @@ func (s *MemStore) AskExternal(ctx context.Context, productID string, in Externa
 	if s.masterPtr(productID) == nil {
 		return ExternalItem{}, false, Result{}, ErrNotFound
 	}
+	if in.AskedBy == "" {
+		in.AskedBy = ClientQATools
+	}
+	if in.Label == "" {
+		in.Label = ExternalSource
+	}
 	if x, ok := s.externalLocked(productID, in.ExternalID); ok {
+		if effectiveAsker(x.QuestionPayload) != in.AskedBy {
+			return ExternalItem{}, false, Result{}, ErrIDTaken
+		}
 		return x, false, Result{}, nil
 	}
 	now := time.Now().Unix()
 	open := 0
 	for _, x := range s.externalItemsLocked() {
-		if x.ProductID == productID && x.Status == ExtOpen && !x.lapsed(now) {
+		if x.ProductID == productID && effectiveAsker(x.QuestionPayload) == in.AskedBy && x.Status == ExtOpen && !x.lapsed(now) {
 			open++
 		}
 	}
 	if open >= externalMaxOpen {
-		return ExternalItem{}, false, Result{}, reject(fmt.Sprintf("The inbox already holds %d open QA tool questions for this product; answer some first.", externalMaxOpen))
+		return ExternalItem{}, false, Result{}, reject(fmt.Sprintf("The inbox already holds %d open questions from %s for this product; answer some first.", externalMaxOpen, in.Label))
 	}
 	hours := in.ExpiresInHours
 	if hours <= 0 {
@@ -190,12 +243,19 @@ func (s *MemStore) AskExternal(ctx context.Context, productID string, in Externa
 	if len(opts) == 0 {
 		opts = defaultExternalOptions()
 	}
-	q := &QuestionPayload{ID: in.ExternalID, ExternalID: in.ExternalID, Title: in.Title, Source: ExternalSource,
+	q := &QuestionPayload{ID: in.ExternalID, ExternalID: in.ExternalID, Title: in.Title, Source: in.Label,
 		Question: in.Question, Context: in.Context, Options: opts,
 		AskedAt: now, Deadline: now + int64(hours)*3600}
-	e := s.emit(ExternalQuestionAsked, productID, "QA tool asks: "+clipEllipsis(lead, 120), KindWarn, EventPayload{Question: q})
+	if in.AskedBy != ClientQATools {
+		q.AskedBy = in.AskedBy // qa-tools stays implicit, as every older item is
+	}
+	e := s.emit(ExternalQuestionAsked, productID, in.Label+" asks: "+clipEllipsis(lead, 120), KindWarn, EventPayload{Question: q})
 	x, _ := s.externalLocked(productID, in.ExternalID)
-	return x, true, Result{NewEvents: []Event{e}, Toast: "The QA tool's question is in Needs you."}, nil
+	toast := "The QA tool's question is in Needs you."
+	if in.AskedBy != ClientQATools {
+		toast = in.Label + "'s question is in Needs you."
+	}
+	return x, true, Result{NewEvents: []Event{e}, Toast: toast}, nil
 }
 
 // ExternalGet is one item, with an overdue open one reported as expired.
@@ -212,23 +272,28 @@ func (s *MemStore) ExternalGet(ctx context.Context, productID, externalID string
 	return x, nil
 }
 
-// AnswerExternal records the operator's answer. The same rule as a task's
+// AnswerExternal records an answer: the operator's from the back office, or a
+// machine client's to an item it asked (D-083). The same rule as a task's
 // question (1..3 an offered option, 4 their own words), except that only the
-// options the QA tool actually offered count.
-func (s *MemStore) AnswerExternal(ctx context.Context, productID, externalID string, choice int, text string) (Result, error) {
+// options the asker actually offered count.
+func (s *MemStore) AnswerExternal(ctx context.Context, productID, externalID string, in ExternalAnswer) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	x, ok := s.externalLocked(productID, externalID)
-	if !ok {
+	if !ok || (in.By.Kind != "" && in.By.Kind != SourceKindGAOS && effectiveAsker(x.QuestionPayload) != in.By.Client) {
 		return Result{}, ErrNotFound
 	}
 	now := time.Now().Unix()
 	switch {
 	case x.Status == ExtAnswered:
-		return Result{}, reject("That question was already answered.")
+		return Result{}, &AnswerClosed{Item: x, reason: answeredSentence(x.AnsweredBy)}
 	case x.Status == ExtExpired || x.lapsed(now):
-		return Result{}, reject("That question expired before it was answered.")
+		if x.Status == ExtOpen {
+			x.Status, x.AnsweredAt = ExtExpired, x.Deadline
+		}
+		return Result{}, &AnswerClosed{Item: x, Expired: true, reason: "That question expired before it was answered."}
 	}
+	choice, text := in.Choice, in.Text
 	if err := validAnswer(choice, text); err != nil {
 		return Result{}, err
 	}
@@ -241,9 +306,29 @@ func (s *MemStore) AnswerExternal(ctx context.Context, productID, externalID str
 	}
 	a := x.QuestionPayload
 	a.Choice, a.Text, a.AnsweredAt, a.Status = choice, text, now, ExtAnswered
-	e := s.emit(ExternalQuestionAnswered, productID, "QA tool question answered — "+answerSummary(a), KindInfo,
-		EventPayload{Question: &a})
-	return Result{NewEvents: []Event{e}, Toast: "Answer recorded — the QA tool is told."}, nil
+	a.AnsweredBy = sourceOrNil(in.By)
+	e := s.emit(ExternalQuestionAnswered, productID, labelOf(x.QuestionPayload)+" question answered — "+answerSummary(a)+textSuffix(a.AnsweredBy), KindInfo,
+		EventPayload{Question: &a, Actor: eventActor(a.AnsweredBy)})
+	toast := "Answer recorded — the QA tool is told."
+	if effectiveAsker(x.QuestionPayload) != ClientQATools {
+		toast = "Answer recorded — " + labelOf(x.QuestionPayload) + " reads it on its next poll."
+	}
+	return Result{NewEvents: []Event{e}, Toast: toast}, nil
+}
+
+// labelOf is an item's origin tag, "QA tool" for one that predates it.
+func labelOf(q QuestionPayload) string {
+	if q.Source == "" {
+		return ExternalSource
+	}
+	return q.Source
+}
+
+// asAnswerClosed unwraps the refusal, for the machine API.
+func asAnswerClosed(err error) (*AnswerClosed, bool) {
+	var ac *AnswerClosed
+	ok := errors.As(err, &ac)
+	return ac, ok
 }
 
 // expireExternalLocked closes every open item past its deadline: one
@@ -256,7 +341,7 @@ func (s *MemStore) expireExternalLocked(now int64) []Event {
 		}
 		a := x.QuestionPayload
 		a.Status, a.AnsweredAt = ExtExpired, x.Deadline
-		ev = append(ev, s.emit(ExternalQuestionAnswered, x.ProductID, "QA tool question expired unanswered", KindInfo,
+		ev = append(ev, s.emit(ExternalQuestionAnswered, x.ProductID, labelOf(x.QuestionPayload)+" question expired unanswered", KindInfo,
 			EventPayload{Question: &a}))
 	}
 	return ev
@@ -264,13 +349,15 @@ func (s *MemStore) expireExternalLocked(now int64) []Event {
 
 // ExternalPending lists the answered or expired items whose decision the QA
 // tool has not yet received and the worker has not given up on, oldest first.
-// The worker decides which are due.
+// The worker decides which are due. Only the QA tool's own items are pushed
+// (D-083): any other client polls, so its decisions never reach GAOS_QA_URL.
 func (s *MemStore) ExternalPending(ctx context.Context) ([]ExternalItem, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var out []ExternalItem
 	for _, x := range s.externalItemsLocked() {
-		if (x.Status == ExtAnswered || x.Status == ExtExpired) && x.Delivery.State == DeliveryPending {
+		if (x.Status == ExtAnswered || x.Status == ExtExpired) && x.Delivery.State == DeliveryPending &&
+			effectiveAsker(x.QuestionPayload) == ClientQATools {
 			out = append(out, x)
 		}
 	}

@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-one entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-two entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1712,6 +1712,42 @@
         <td><a href="qa-test-plan.html#go-conversations">TC-478 to TC-489</a>;
         <a href="brd.html#rules-gateway">BR-41</a>;
         <a href="../architecture/graph.html#documents">Event</a></td>
+      </tr>
+      <tr id="d-083">
+        <td>D-083</td><td>2026-11-21</td>
+        <td><strong>An answer records where it came from, and a machine client answers only the inbox items it asked.</strong>
+        Context: the product owner asked for a button on the QA tool's <code>/history</code> page that answers what waits
+        for approval and sends the answer to GAOS, and for GAOS to log the answer's source &mdash; GAOS itself, the QA tool
+        with its domain, or a later platform such as the Hikaru apps. Decision: a new machine route,
+        <code>POST /api/v1/products/{id}/inbox/{externalId}/answer</code>, with the client's own bearer, the back office's
+        choice and text rules and the ask route's two-pass secret screen; the first answer wins, an identical retry by the
+        same client is 200 with the first answer and writes nothing, any other second answer is 409
+        <code>already_answered</code> carrying the item, an expiry is 410. Every answer &mdash; back office or machine
+        &mdash; stores a source <code>{kind, client, origin, actor}</code> as <code>answeredBy</code> on the existing
+        <code>QuestionAnswered</code> or <code>ExternalQuestionAnswered</code> (no event type is added): the back office is
+        kind <code>gaos</code> with the deployment label and the signed-in email; the QA token is client
+        <code>qa-tools</code>, kind <code>qa-tool</code>, origin <code>GAOS_QA_ORIGIN</code> (or the host of a named
+        <code>GAOS_QA_URL</code>). Only the actor's handle comes from the request, recorded as reported. Clients are a
+        registry: <code>GAOS_API_CLIENTS_FILE</code> names further clients (name, kind, origin, token file, products) that
+        reach only the inbox routes of their own products. Everything the inbox does per client follows the asker: the
+        origin tag, the open-item cap, id ownership (409 <code>id-taken</code>), the owner-only GET, and the webhook, which
+        carries only the QA tool's own items; a registry client may not share a product with the QA token, and a client name
+        is never reused. The source is shown in the inbox's "Answered recently", the timeline, the refusal toast and the
+        conversation sheet; an older answer reads "source not recorded". Rejected: trusting a source in the body; a new
+        event type; letting any client answer any item; keying items by asker (every back-office route addresses an item by
+        its id alone); a source in the webhook body (the QA side's contract fixes it); returning the operator's email to
+        machines. Reviewed in two rounds by the goldfish lenses, security included (<code>docs/designs/answer-source.md</code>);
+        approved under the product owner's delegation to the orchestrating agent.
+        <br><br>
+        Consequences: the <code>Event.actor</code> column names the answerer &mdash; the email for the back office,
+        <code>&lt;client&gt;/&lt;handle&gt;</code> for a machine, the prefix marking an identity GAOS did not verify. The
+        machine API returns a back-office answer's actor as <code>operator</code>. BR-57 sits in &sect;9.8 because every
+        rule in it is the machine API's and its inbox's; its one back-office clause is the other half of the same record.
+        Answering task questions over the API &mdash; what the Hikaru apps will need &mdash; is the next extension and needs
+        its own decision about which client may answer which task.</td>
+        <td><a href="qa-test-plan.html#go-answer-source">TC-490 to TC-499</a>;
+        <a href="brd.html#rules-qa-sync">BR-57, BR-52</a>;
+        <a href="../guide/qa-sync-api.html#inbox">QA sync API &sect;inbox</a></td>
       </tr>
     </tbody>
   </table>

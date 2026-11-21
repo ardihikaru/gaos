@@ -137,7 +137,9 @@ type Store interface {
 	// "Needs you" (M15, questions.go): the agents waiting on the operator, one
 	// product's or ("") all, and the answer that puts a task back in the queue.
 	OpenQuestions(ctx context.Context, productID string) ([]Question, error)
-	AnswerQuestion(ctx context.Context, productID, taskID string, choice int, text string) (Result, error)
+	AnswerQuestion(ctx context.Context, productID, taskID string, choice int, text string, by AnswerSource) (Result, error)
+	// RecentAnswers is the inbox's "Answered recently" list (D-083), newest first.
+	RecentAnswers(ctx context.Context, productID string, limit int) ([]RecentAnswer, error)
 	// ExpireQuestions closes the questions that outlived their session
 	// (D-066); main.go sweeps it once a minute.
 	ExpireQuestions(ctx context.Context, now int64) (Result, error)
@@ -149,7 +151,7 @@ type Store interface {
 	// webhook's half (inbox_worker.go).
 	AskExternal(ctx context.Context, productID string, in ExternalAsk) (ExternalItem, bool, Result, error)
 	ExternalGet(ctx context.Context, productID, externalID string) (ExternalItem, error)
-	AnswerExternal(ctx context.Context, productID, externalID string, choice int, text string) (Result, error)
+	AnswerExternal(ctx context.Context, productID, externalID string, in ExternalAnswer) (Result, error)
 	ExternalPending(ctx context.Context) ([]ExternalItem, error)
 	RecordExternalDelivery(ctx context.Context, productID, externalID string, attempt int, outcome, reason string, at int64) (Result, error)
 
@@ -301,7 +303,7 @@ func (readOnly) PruneConversations(context.Context, string, []CardRef) (Result, 
 func (readOnly) MoveCard(context.Context, string, string, CardMove) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
-func (readOnly) AnswerQuestion(context.Context, string, string, int, string) (Result, error) {
+func (readOnly) AnswerQuestion(context.Context, string, string, int, string, AnswerSource) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) ExpireQuestions(context.Context, int64) (Result, error) {
@@ -310,7 +312,7 @@ func (readOnly) ExpireQuestions(context.Context, int64) (Result, error) {
 func (readOnly) AskExternal(context.Context, string, ExternalAsk) (ExternalItem, bool, Result, error) {
 	return ExternalItem{}, false, Result{}, reject(replayRefusal)
 }
-func (readOnly) AnswerExternal(context.Context, string, string, int, string) (Result, error) {
+func (readOnly) AnswerExternal(context.Context, string, string, ExternalAnswer) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) RecordExternalDelivery(context.Context, string, string, int, string, string, int64) (Result, error) {

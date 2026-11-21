@@ -100,6 +100,7 @@ else
   #   GAOS_ARCADE_DB=gaos_sample-product       its database (the user in prod.dashboard.env owns only this one)
   #   GAOS_UID=1000 GAOS_GID=1000         owner of the secret files
   #   GAOS_QA_URL=http://10.10.0.9:8140 GAOS_API_QA_PRODUCTS=p-6   the QA tool's address and scope
+  #   GAOS_QA_ORIGIN=qa-tool.sample-product.com   the QA tool's host name, recorded on its answers (D-083)
   #   GAOS_RUNNER=manual                  the permission to spend: unset=off, manual=one board-chosen turn at a time (D-080)
   # The post-deploy checks that `ssh clino` fail when run on rnd-v3 itself: probe
   # http://10.10.0.9:18301/api/healthz and https://gaos.sample-product.com/api/healthz by hand instead.

@@ -78,6 +78,8 @@ Text is cleaned before it is stored: CRLF becomes LF, control characters and bid
 | 400 | `{"error": code, "reason": …}` with code `bad-external-id`, `bad-question`, `bad-context`, `bad-title`, `bad-options`, `bad-expiry`, `bad-json`, `secret-in-body` | validation |
 | 401 / 404 / 413 / 422 / 429 | as every other door | no/wrong token; out-of-scope or unknown product; body over 1 MiB; 200 open items already on the product; a write by this token in flight |
 
+> **Since v0.43.0** (D-083, `docs/designs/answer-source.md`): a client can also answer an item it asked with `POST /v1/products/{id}/inbox/{externalId}/answer`; every answer records its source; the GET body gains `source`; a client reads only its own items; and the clients are a registry (`GAOS_API_CLIENTS_FILE`). The webhook below carries only the QA tool's own items.
+
 **`GET /v1/products/{id}/inbox/{externalId}`**:
 
 ```json

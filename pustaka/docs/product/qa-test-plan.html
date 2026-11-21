@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and eighty-nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  four hundred and ninety-nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and eighty-nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All four hundred and ninety-nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -578,6 +578,16 @@
       <tr data-tags="go test unit dashboard ai-manager admin delete session sentinel provider d-082 positive negative implemented"><td>TC-487</td><td>dashboard (go test)</td><td>Positive</td><td>DeleteSession sends DELETE /admin/sessions/{id} (?provider=antigravity for that vendor) with the admin bearer; 200 is nil, 404, 409, 5xx, unreachable and no key are sentinels without the id; prune never sends a malformed id or an unknown vendor (<code>TestTheGatewayDeletesASessionAndSaysOnlyWhatFailed</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test arcadedb dashboard conversation prune restart actor d-082 positive implemented"><td>TC-488</td><td>dashboard (go test)</td><td>Positive</td><td>After a reopen the reply is read from the database; after archive, prune and another reopen the bodies are empty in the database, the certificate's digest is the original text's, the question events remain, and the Event actor column is the account; skipped without <code>GAOS_ARCADE_TEST_URL</code> (<code>TestAPrunedConversationStaysPrunedAfterARestart</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard markdown well-formed invariant generated d-082 negative implemented"><td>TC-489</td><td>dashboard (go test)</td><td>Negative</td><td>Two thousand seeded random inputs render only allowlisted tags, balanced, with no raw angle bracket outside a tag (<code>TestMarkdownOutputIsWellFormedForAnyInput</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test api inbox answer qa tool source webhook d-083 positive implemented"><td>TC-490</td><td>dashboard (go test)</td><td>Positive</td><td>The QA tool answers its own inbox item over the API: 200 with the source (kind, client, origin, actor), the event carries it and the client/handle actor, the webhook still owes the decision, GET shows the same source, the display name is dropped, and the server log records the forwarded chain.</td><td>Implemented</td></tr>
+      <tr data-tags="go test api inbox answer first wins idempotent operator email d-083 positive implemented"><td>TC-491</td><td>dashboard (go test)</td><td>Positive</td><td>The first answer wins: an identical retry is 200 with the first answer and writes nothing, a different answer is 409 already_answered naming the first source, the API never returns the operator's email, and the back office is refused with "already answered via QA tool".</td><td>Implemented</td></tr>
+      <tr data-tags="go test api inbox answer refused admin scope expired choice actor secret d-083 negative implemented"><td>TC-492</td><td>dashboard (go test)</td><td>Negative</td><td>The answer route refuses: no token 401, the admin token 403, an out-of-scope product or unknown id 404, an expired or lapsed item 410 with its state, a bad choice or empty own words 422, text over 4000 422, a missing, long, spaced, operator or account-email actor 400, a secret (also split by a bidi mark) 400, an unknown field 400, a held write slot 429.</td><td>Implemented</td></tr>
+      <tr data-tags="go test api client registry token scope webhook id-taken cap d-083 negative implemented"><td>TC-493</td><td>dashboard (go test)</td><td>Negative</td><td>The clients file loads good lines and skips reserved, duplicate, bad-origin, reserved-origin, readable, missing, colliding and QA-product lines; a registry client is 403 on the QA routes, reaches only its products, asks and answers only its own items under its own name and write slot, gets 409 id-taken on another client's id, is never pushed to the QA tool's webhook, and has its own open cap; equal built-in tokens stay 503.</td><td>Implemented</td></tr>
+      <tr data-tags="go test qa origin env url hostname d-083 positive implemented"><td>TC-494</td><td>dashboard (go test)</td><td>Positive</td><td>The QA tool's origin is GAOS_QA_ORIGIN when it is a host name, else the host (without port) of a GAOS_QA_URL that is a name, else empty; an invalid GAOS_QA_ORIGIN is logged and ignored.</td><td>Implemented</td></tr>
+      <tr data-tags="go test back office answer source email label packet d-083 positive implemented"><td>TC-495</td><td>dashboard (go test)</td><td>Positive</td><td>A back-office answer to an inbox item and to a task question records source gaos / back-office / the deployment label / the signed-in email, ends its event text with "in GAOS (…) by …", fills the actor column with the email, and the next packet's answer part does not carry the email.</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit answer source phrase sentence d-083 positive implemented"><td>TC-496</td><td>dashboard (go test)</td><td>Positive</td><td>The source's phrase and its four sentences (refusal, recent row, conversation sheet, event suffix) read as the design's tables say, including no source, no origin and no actor; the API form names the operator, never the account.</td><td>Implemented</td></tr>
+      <tr data-tags="go test ui inbox answered recently source escape filter d-083 positive implemented"><td>TC-497</td><td>dashboard (go test)</td><td>Positive</td><td>The inbox's "Answered recently" lists a QA-tool answer and a back-office answer with their sources, an old answer as "source not recorded", an expiry as "expired unanswered", escaped, filtered by product, newest first and at most twenty.</td><td>Implemented</td></tr>
+      <tr data-tags="go test ui conversation sheet answered source d-083 positive implemented"><td>TC-498</td><td>dashboard (go test)</td><td>Positive</td><td>The card's conversation sheet says "Answered … · in GAOS (…) by …" for a recorded answer and "source not recorded" for one given before D-083.</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks compose prod qa origin env d-083 positive implemented"><td>TC-499</td><td>check-stacks.sh</td><td>Positive</td><td>The prod stack passes GAOS_QA_ORIGIN through from the deploy shell, so the QA tool's answers record its host name.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3589,6 +3599,76 @@
   <code>input %q rendered %s: %s</code>.
   By hand, as for the answer and timing sheets: open a conversation from a card's chip, press Esc, and focus is back on
   the chip; then answer a question, which must work as before.</p>
+
+  <h3 id="go-answer-source">dashboard &mdash; where an answer came from (TC-490&ndash;TC-499)</h3>
+  <p>v0.43.0, in <code>dashboard/answer_source_test.go</code>, <code>dashboard/needs_test.go</code>,
+  <code>dashboard/conversation_test.go</code> and <code>deploy/check-stacks.sh</code>
+  (<a href="decision-log.html#d-083">D-083</a>, <a href="brd.html#rules-qa-sync">BR-57</a>,
+  <code>docs/designs/answer-source.md</code>). A machine client answers the inbox items it asked through
+  <code>POST /v1/products/{id}/inbox/{externalId}/answer</code>, and every answer &mdash; back office or machine &mdash;
+  records its source. The store conformance case for the inbox (under TC-124 and TC-125) also round-trips the asker and
+  the source on both stores.
+  <strong>TC-490, positive</strong> (<code>TestAPIInboxAnswerFromTheQATool</code>):
+  <code>the QA tool's answer answered %d %s; want 200</code>,
+  <code>the answer body is %+v; want answered, choice 1, Approve, source %+v</code>,
+  <code>the answer event is %+v; want answeredBy, actor qa-tools/ardi and the phrase in its text</code>,
+  <code>actor.display was stored or returned; it is accepted and dropped</code>,
+  <code>ExternalPending = %+v; the QA tool's own answer is still owed to its webhook</code>,
+  <code>GET reads source %+v; want %+v</code> or
+  <code>the server log reads %q; want the answer line with the forwarded chain</code>.
+  <strong>TC-491, positive</strong> (<code>TestAPIInboxAnswerFirstWins</code>):
+  <code>an identical retry answered %d %s and wrote %d event(s); want 200 with the first answer and nothing written</code>,
+  <code>a different second answer answered %d %s; want 409 already_answered carrying the first</code>,
+  <code>the QA tool after the operator answered %d %s; want 409 naming the operator, never the account</code>,
+  <code>GET of an operator's answer reads source %+v; want actor operator</code> or
+  <code>the operator after the QA tool answered %d %s; want 409 naming the QA tool's answer</code>.
+  <strong>TC-492, negative</strong> (<code>TestAPIInboxAnswerRefusals</code>): a table of eighteen refusals, each
+  <code>%s: answered %d %s; want %d %s</code>, the 410 bodies <code>%s: the 410 body says status %q; want expired</code>, then
+  <code>an unoffered option answered %d %s; want 422</code>,
+  <code>an answer while the QA tool's write is in flight answered %d; want 429</code> and
+  <code>refused answers changed rf-1 to %q</code>.
+  <strong>TC-493, negative</strong> (<code>TestAPIClientRegistry</code>):
+  <code>the loaded clients are %v; want qa-tools and the three good lines, every bad line skipped</code>,
+  <code>%d skips were logged; want one per bad line, 10</code>,
+  <code>a registry client on %s %s answered %d; want 403</code>,
+  <code>a registry client asking in a product not in its list answered %d; want 404</code>,
+  <code>a client with products - asking answered %d; want 404, it reaches nothing</code>,
+  <code>the registry client's item reads %+v; want it tagged hikaru-app, never QA tool</code>,
+  <code>the inbox does not tag the registry client's item with its name</code>,
+  <code>another client asking a taken id answered %d %s; want 409 id-taken</code>,
+  <code>another client reading the item answered %d; want 404</code>,
+  <code>another client answering the item answered %d; want 404</code>,
+  <code>an answer with its own slot held answered %d; want 429</code>,
+  <code>the registry client's answer (QA slot held) answered %d %s; want 200 with source %+v</code>,
+  <code>ExternalPending holds %+v; a registry client's decision must never go to the QA tool's webhook</code>,
+  <code>another client's full inbox refused this client's ask: %d %s</code>,
+  <code>the 201st open item of one client was accepted</code>,
+  <code>equal admin and QA tokens plus a registry line answered %d; want 503</code> or
+  <code>a registry client alone answered %d; want the API enabled for it</code>.
+  <strong>TC-494, positive</strong> (<code>TestQAOriginResolution</code>):
+  <code>qaOrigin(%q, %q) = %q; want %q</code> or
+  <code>%d warnings were logged; want 1, for the invalid GAOS_QA_ORIGIN</code>.
+  <strong>TC-495, positive</strong> (<code>TestBackOfficeAnswersRecordTheirSource</code>):
+  <code>%s reads %+v %q actor %q; want source %+v and the text ending %q</code>,
+  <code>the next packet's answer part carries the operator's email; the source never reaches a model</code> or
+  <code>%d answer events; want 2</code>.
+  <strong>TC-496, positive</strong> (<code>TestAnswerSourcePhrase</code>):
+  <code>Phrase(%+v) = %q; want %q</code>, <code>answeredSentence(%+v) = %q; want %q</code>,
+  <code>recentSentence(%+v) = %q; want %q</code>, <code>sheetSentence(%+v) = %q; want %q</code>,
+  <code>textSuffix(nil) = %q; an answer without a source gains no suffix</code> or
+  <code>apiSourceOf hands a machine %q; want operator</code>.
+  <strong>TC-497, positive</strong> (<code>TestInboxShowsRecentAnswers</code>):
+  <code>the inbox's Answered recently lacks %q</code>, <code>an item's title reached the page unescaped</code>,
+  <code>the inbox filtered to another product still lists this product's answers</code>,
+  <code>Answered recently lists %d rows; want at most %d</code> or
+  <code>RecentAnswers is not newest first at %d</code>.
+  <strong>TC-498, positive</strong> (<code>TestConversationSheetSaysWhoAnswered</code>):
+  <code>the sheet of a recorded answer does not say in GAOS, the label and the account</code> or
+  <code>the sheet of an answer given before D-083 does not say source not recorded</code>.
+  <strong>TC-499, positive and negative</strong> (<code>deploy/check-stacks.sh</code>): prints
+  <code>ok   prod passes the QA tool's origin from the deploy shell</code> when <code>compose.prod.yaml</code> carries
+  <code>GAOS_QA_ORIGIN: "${GAOS_QA_ORIGIN:-}"</code>, and <code>FAIL prod passes the QA tool's origin from the deploy shell</code>
+  when it does not.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

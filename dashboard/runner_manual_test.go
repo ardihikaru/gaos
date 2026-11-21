@@ -305,7 +305,7 @@ func TestAnAnsweredTaskWaitsInReadyUnderAManualRunner(t *testing.T) {
 	f, ad := gatewayOn(t, s)
 	id := askedTask(t, s, f, ad, "wf-q-t-9")
 	desk := s.desks[0].ID
-	if _, err := s.AnswerQuestion(t.Context(), desk, id, 2, "keep it on one node"); err != nil {
+	if _, err := s.AnswerQuestion(t.Context(), desk, id, 2, "keep it on one node", AnswerSource{}); err != nil {
 		t.Fatal(err)
 	}
 	postsBefore := chatPosts(f)
