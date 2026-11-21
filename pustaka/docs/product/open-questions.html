@@ -100,7 +100,7 @@
       <tr data-tags="product mission-control surface ui console both role-gated answered"><td><a href="#oq-15">OQ-15</a></td><td>Product</td><td>Is Mission Control the product surface, or an internal operations console?</td><td>§16, domain I roadmap</td><td>Answered → <a href="decision-log.html#d-040">D-040</a></td></tr>
       <tr data-tags="technical provider anthropic multi-provider gateway adapter cli mvp tiers answered"><td><a href="#oq-09">OQ-09</a></td><td>Technical</td><td>Anthropic only, or multi-provider behind the model gateway?</td><td>R-08, escalation ladder</td><td>Answered → <a href="decision-log.html#d-041">D-041</a></td></tr>
       <tr data-tags="technical tenancy database isolation shared hybrid repository interface configurable answered"><td><a href="#oq-10">OQ-10</a></td><td>Technical</td><td>Which tenancy strategy at scale — per database, shared, or hybrid?</td><td>J-1, migrations, analytics</td><td>Answered → <a href="decision-log.html#d-042">D-042</a></td></tr>
-      <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a>, <a href="decision-log.html#d-079">D-079</a></td></tr>
+      <tr data-tags="technical authentication auth login sso identity narrowed"><td><a href="#oq-11">OQ-11</a></td><td>Technical</td><td>What is the authentication approach, and how strong must it be before anything binds beyond localhost?</td><td>R-02, F-6</td><td>Open — narrowed by <a href="decision-log.html#d-026">D-026</a>, <a href="decision-log.html#d-079">D-079</a>, <a href="decision-log.html#d-084">D-084</a></td></tr>
       <tr data-tags="technical arcadedb version ddl dialect external pin 26.7.2 answered"><td><a href="#oq-17">OQ-17</a></td><td>Technical</td><td>Which ArcadeDB version is the target, and when is the DDL validated against it?</td><td>R-03, build order step 1</td><td>Answered → <a href="decision-log.html#d-043">D-043</a></td></tr>
       <tr data-tags="technical cost estimation tokens price-table basis cli new narrowed"><td><a href="#oq-22">OQ-22</a></td><td>Technical</td><td>How is token and cost usage obtained when the CLI reports none, and who maintains the price table?</td><td>D-11, J-5, OQ-18</td><td>Open — narrowed by <a href="decision-log.html#d-044">D-044</a>, <a href="decision-log.html#d-051">D-051</a>, <a href="decision-log.html#d-062">D-062</a></td></tr>
       <tr data-tags="technical cli adapter contract supported tools pinning new"><td><a href="#oq-23">OQ-23</a></td><td>Technical</td><td>Which provider CLIs are supported, and what contract must each satisfy?</td><td>D-7, R-08, R-12</td><td>Answered → <a href="decision-log.html#d-049">D-049</a>, <a href="decision-log.html#d-050">D-050</a></td></tr>
@@ -117,7 +117,7 @@
       <tr data-tags="operations question answer wait expiry session lifetime temp bucket answered"><td><a href="#oq-31">OQ-31</a></td><td>Operations</td><td>How long may an agent's question wait for the operator before it expires, and what happens to the task then?</td><td>I-11, BR-44, D-064</td><td>Answered → <a href="decision-log.html#d-066">D-066</a></td></tr>
       <tr data-tags="technical design gate review zero-context isolation blueprint workspace session security answered"><td><a href="#oq-32">OQ-32</a></td><td>Technical</td><td>How does a platform-run reviewer become genuinely zero-context, and what may the standing files it necessarily contains contain?</td><td>D-068, BR-39, BR-42, M17</td><td>Answered → <a href="decision-log.html#d-069">D-069</a></td></tr>
       <tr data-tags="technical qa tools api contract gaos results catalog endpoints sync integration answered"><td><a href="#oq-33">OQ-33</a></td><td>Technical</td><td>The two endpoints GAOS calls on the QA tools (<code>GET /api/v1/gaos/results</code>, <code>POST /api/v1/gaos/catalog</code>) are a contract only. When do the QA tools serve them?</td><td>D-075, the two sync buttons</td><td>Answered → <a href="decision-log.html#d-077">D-077</a></td></tr>
-      <tr data-tags="technical qa case decision edit identity authentication back office planned blocked wont new"><td><a href="#oq-34">OQ-34</a></td><td>Technical</td><td>Who may change an existing case's decision (park it, block it, retire it), and through which surface?</td><td>BR-48, BR-51, D-072</td><td>Open — raised 2026-11-14</td></tr>
+      <tr data-tags="technical qa case decision edit identity authentication back office planned blocked wont new"><td><a href="#oq-34">OQ-34</a></td><td>Technical</td><td>Who may change an existing case's decision (park it, block it, retire it), and through which surface?</td><td>BR-48, BR-51, D-072</td><td>Open — raised 2026-11-14, narrowed by <a href="decision-log.html#d-084">D-084</a></td></tr>
       <tr data-tags="product qa results kanban card move status failing epic new"><td><a href="#oq-35">OQ-35</a></td><td>Product</td><td>Should a QA result ever move an epic's card on the board?</td><td>BR-54, D-073</td><td>Open — raised 2026-11-14 (today: deliberately not)</td></tr>
     </tbody>
   </table>
@@ -519,6 +519,9 @@
   integration (<a href="#oq-19">OQ-19</a>), and an actor on every event. Narrowed again by
   <a href="decision-log.html#d-083">D-083</a>: answers now carry their actor and source, as conversation events have
   since D-082; the other events still do not.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-084">D-084</a>.</strong> A design's send-back records its signed-in
+  account on its events, as answers, archives and prunes do; the other board moves are not attributed yet, so an actor on
+  every event stays open.</p>
 
   <h3 id="oq-17">OQ-17 · Which ArcadeDB version, validated when?</h3>
   <p><strong>Why it was open:</strong> no DDL had ever been applied. The data model warns in its own
@@ -813,6 +816,9 @@
   most events carry no actor yet (answers do since <a href="decision-log.html#d-083">D-083</a>). A case marked
   <em>needs decision</em> &mdash; a script exists for a parked case &mdash; therefore waits for an admin.
   Answering this question needs an actor recorded on the event, which the new identity makes possible.</p>
+  <p><strong>Narrowed by <a href="decision-log.html#d-084">D-084</a>.</strong> The design gate's send-back now records
+  the signed-in account on its events, beside the archive and prune actions (<a href="decision-log.html#d-082">D-082</a>):
+  the mechanism a case editor would use exists. Who may change a case's decision is still unanswered.</p>
 
   <h2 id="oq-operations">Operations</h2>
 

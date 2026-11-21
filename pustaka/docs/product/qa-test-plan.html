@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  four hundred and ninety-nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  five hundred and nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All four hundred and ninety-nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All five hundred and nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -296,7 +296,7 @@
       <tr data-tags="go test unit dashboard planner task id collision unique index workflow counter negative"><td>TC-205</td><td>dashboard (go test)</td><td>Negative</td><td>Two workflows on one desk produce distinct task ids and distinct workflow ids, so neither upserts over the other under <code>Task (tenantId, id) UNIQUE</code> (<code>TestTaskIdsAreUniqueAcrossTwoWorkflowsOnTheSameDesk</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard task graph fold floorstate br-01 t-042 positive"><td>TC-206</td><td>dashboard (go test)</td><td>Positive</td><td>The folded floor is identical with and without a planned graph, and the graph is still there afterwards — it is persisted state, not a reduction (<code>TestTheGraphSurvivesAFoldBecauseItIsNotInTheFloor</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard task status state machine transitions positive"><td>TC-207</td><td>dashboard (go test)</td><td>Positive</td><td>Every transition the task table declares is permitted, including a status moving to itself (<code>TestEveryDeclaredTaskTransitionIsPermitted</code>)</td><td>Implemented</td></tr>
-      <tr data-tags="go test unit dashboard task status state machine transitions negative"><td>TC-208</td><td>dashboard (go test)</td><td>Negative</td><td>Fifteen undeclared task moves are refused, each with the reason it is illegal, and an undeclared status is refused in both directions (<code>TestEveryUndeclaredTaskTransitionIsRefused</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard task status state machine transitions negative"><td>TC-208</td><td>dashboard (go test)</td><td>Negative</td><td>Fourteen undeclared task moves are refused, each with the reason it is illegal, and an undeclared status is refused in both directions (<code>TestEveryUndeclaredTaskTransitionIsRefused</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard task status deferred br-34 budget negative"><td>TC-209</td><td>dashboard (go test)</td><td>Negative</td><td><code>DEFERRED</code> cannot reach <code>FAILED</code>, the refusal names both statuses, and the task is unchanged afterwards (<code>TestADeferredTaskCanNeverGoStraightToFailed</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard schema ddl task status vocabulary positive"><td>TC-210</td><td>dashboard (go test)</td><td>Positive</td><td>The ten Go task statuses and <code>Task.status</code>'s DDL regexp are the same set, checked in both directions (<code>TestTheTaskStatusVocabularyMatchesTheDDL</code>)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard arcadedb restart task graph depends_on br-01 positive"><td>TC-211</td><td>dashboard (go test)</td><td>Positive</td><td>A store reopened on the same tenant returns every task, its ordinal and its prerequisites, and the workflow counter with them (<code>TestTheTaskGraphSurvivesARestart</code>)</td><td>Implemented</td></tr>
@@ -588,6 +588,16 @@
       <tr data-tags="go test ui inbox answered recently source escape filter d-083 positive implemented"><td>TC-497</td><td>dashboard (go test)</td><td>Positive</td><td>The inbox's "Answered recently" lists a QA-tool answer and a back-office answer with their sources, an old answer as "source not recorded", an expiry as "expired unanswered", escaped, filtered by product, newest first and at most twenty.</td><td>Implemented</td></tr>
       <tr data-tags="go test ui conversation sheet answered source d-083 positive implemented"><td>TC-498</td><td>dashboard (go test)</td><td>Positive</td><td>The card's conversation sheet says "Answered … · in GAOS (…) by …" for a recorded answer and "source not recorded" for one given before D-083.</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose prod qa origin env d-083 positive implemented"><td>TC-499</td><td>check-stacks.sh</td><td>Positive</td><td>The prod stack passes GAOS_QA_ORIGIN through from the deploy shell, so the QA tool's answers record its host name.</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 operator triage actor verdict positive implemented"><td>TC-500</td><td>dashboard (go test)</td><td>Positive</td><td>A send-back moves the design DONE&rarr;READY and the review BLOCKED&rarr;PENDING, both TaskMoved carrying the signed-in account, the design's carrying the sorted, trimmed triage; the implementation waits as design-unreviewed; the verdict is read from its anchored line and a cleared review still releases (<code>TestAnOperatorSendsABlockedDesignBackToItsAuthor</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 packet findings triage session positive negative implemented"><td>TC-501</td><td>dashboard (go test)</td><td>Positive / Negative</td><td>The revision's packet carries the sent-back design as design.md and the review artifact plus the rendered triage as findings.md, exactly, with no account in any part or the prompt, and resumes the designer's session; a design never sent back carries neither (<code>TestTheRevisionCarriesItsDesignTheFindingsAndTheTriage</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 re-review scheduler design-missing positive negative implemented"><td>TC-502</td><td>dashboard (go test)</td><td>Positive / Negative</td><td>A delivered revision records a second design artifact and its lines-changed caption, the scheduler promotes the waiting review, and a clearing re-review releases the implementation with the new design and findings; a design forced to DONE with no new artifact leaves its review BLOCKED as design-missing (<code>TestTheReviewReturnsToReadyWhenTheRevisionIsDelivered</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 fresh session reviewer isolation drift positive negative implemented"><td>TC-503</td><td>dashboard (go test)</td><td>Positive / Negative</td><td>After a send-back the re-review opens a fresh reviewer session, even after a dispatch that never ran, and its packet holds the new design and neither the triage nor the old findings; its record names the revision's and the re-review run's Blueprint pins; once it has run, its retry resumes (<code>TestTheReReviewOpensAFreshSessionAndSeesOnlyTheNewDesign</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 state machine done terminal guard negative implemented"><td>TC-504</td><td>dashboard (go test)</td><td>Negative</td><td>Only a design leaves DONE, and only under the send-back rule: moveTask refuses DONE&rarr;READY for implement and review tasks, moveTaskLocked refuses it under every other rule, and DONE&rarr;FAILED and CANCELED&rarr;READY stay illegal (<code>TestOnlyADesignLeavesDoneAndOnlyBySendBack</code>, <code>taskstate_test.go</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 refused validation triage negative implemented"><td>TC-505</td><td>dashboard (go test)</td><td>Negative</td><td>A send-back is refused with its sentence and writes nothing for an empty actor, another product's card, a task that is not a design-blocked review, a design not DONE, a verdict that does not ask, and a triage with a missing or repeated finding, a bad disposition, an over-long note, a line separator, a bidi override, a reserved fence or a credential (<code>TestSendingADesignBackIsRefusedUnlessItsReviewBlockedIt</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 cap limit three negative implemented"><td>TC-506</td><td>dashboard (go test)</td><td>Negative</td><td>Three send-backs succeed and the fourth is refused with the cap sentence; the review card shows sent 3 of 3, closed, with no ready move, and the sheet shows the sentence and no form (<code>TestADesignIsSentBackAtMostThreeTimes</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 routes back office same-origin csrf sheet break-ui positive negative implemented"><td>TC-507</td><td>dashboard (go test)</td><td>Positive / Negative</td><td>The send-back routes are the back office's: 401 or the login sheet without a session, 403 cross-site, same-site or from a foreign origin, 415 for a non-form body, 404 for another product; the sheet lists 41 worst-case findings escaped and warns for a design over a packet part; the board shows the reason and the button; the posted triage and the session's account are recorded, the query string ignored (<code>TestTheSendBackRoutesAreBackOfficeAndSameOrigin</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 card timing partition done segment positive implemented"><td>TC-508</td><td>dashboard (go test)</td><td>Positive</td><td>A design sent back once books the DONE segment it left as blocked, and its lead equals the sum of its buckets (<code>TestALeftDoneSegmentIsBookedAsBlocked</code>, <code>timing_test.go</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard design gate send-back d-084 reroll unblock approve drift release board negative implemented"><td>TC-509</td><td>dashboard (go test)</td><td>Negative</td><td>A design-blocked review is never re-run on the same design: unblock is refused and not offered, approve of a design or review task is refused and not offered, an unblock clears its reason, and a drift release leaves design-blocked, design-unreviewed and qa-epic-added tasks blocked while releasing a drift-blocked one (<code>TestTheGatesVerdictIsNeverRerolled</code>, <code>board_test.go</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1346,7 +1356,7 @@
   <p><code>T-008</code> asks for <code>MemStore</code> to stay the test double and for both
   implementations to run against one interface suite, and the implementation plan gives the reason:
   <em>running both implementations against one interface suite is what stops the seam from
-  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-seven cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn), since v0.41.0 a planned task's timing (<code>CardTimingOfAPlannedTask</code>, D-081: known, complete, opened on its plan in PENDING, and an unknown card is not found), since v0.42.0 a conversation's archive round trip (<code>ConversationArchiveRoundTrip</code>, D-082: a card with no attempt is refused, an unknown card is not found, a fresh card's conversation is active and empty) — each taking
+  rotting</em>. <code>dashboard/store_conformance_test.go</code> holds forty-eight cases — since v0.33.0 including the vendor policy's round trip, since v0.40.0 a manual runner's pass (<code>AManualRunnerReadiesAndNeverDispatches</code>, D-080: whatever the scheduler names is READY, nothing is DISPATCHED or RUNNING, and the fake gateway receives no turn), since v0.41.0 a planned task's timing (<code>CardTimingOfAPlannedTask</code>, D-081: known, complete, opened on its plan in PENDING, and an unknown card is not found), since v0.42.0 a conversation's archive round trip (<code>ConversationArchiveRoundTrip</code>, D-082: a card with no attempt is refused, an unknown card is not found, a fresh card's conversation is active and empty), since v0.44.0 a send-back's round trip (<code>ASendBackRoundTrips</code>, D-084: the design READY, the review PENDING with no reason, two send-back events, a second send-back refused, and in the graph store the actor and the triage survive a reopen) — each taking
   a <code>Store</code> and nothing else — a constraint that is doing real work, because it is what
   stops a case reaching for <code>MemStore.Tick()</code>, which is not on the interface. The four
   tick-driven tests in <code>main_test.go</code> stay where they are for the same reason: they test
@@ -1737,7 +1747,7 @@
   <code>the table declares %s -&gt; %s and canTaskTransition refuses it</code>, and a status may
   always reach itself, because <code>%s -&gt; %s refused; recording a beat on a task that is already
   there is still a write, and every call site would need its own exception</code>.
-  <strong>Negative (TC-208):</strong> fifteen rows, each carrying the reason it is illegal and each
+  <strong>Negative (TC-208):</strong> fourteen rows (since v0.44.0: DONE&rarr;READY left the list as the send-back row, D-084, asserted by TC-504), each carrying the reason it is illegal and each
   printing that reason — <code>%s -&gt; %s is permitted; %s</code> — so a rule nobody can explain
   does not get deleted later as an oversight. An undeclared status is a typo rather than a task that
   cannot move, and gets its own message in both directions:
@@ -2501,7 +2511,7 @@
   history did not reach every actor</code> — every actor wrote its move — <code>the history wrote
   TaskMoved with rules %v and none with %q; every actor that moves a task must name it</code> — and the
   folded board equals the live one: <code>folding the events gave the board %+v; the store reports %+v
-  -- a status change wrote no TaskMoved (T-164, BR-04)</code>.
+  -- a status change wrote no TaskMoved (T-164, BR-04)</code>. Since v0.44.0 the design gate's board decoration &mdash; a blocked card's reason, a review's send-back state and the moves it removes (D-084) &mdash; is read-time, like the timing, and is compared without.
   <strong>TC-316, negative</strong> (<code>TestATaskFoldMissingAMoveDisagreesWithTheBoard</code>): the
   same history with its last <code>TaskMoved</code> dropped must not reproduce the board — <code>a fold
   missing the TaskMoved %q still reproduced the board; the fold is not reading the stream
@@ -3669,6 +3679,71 @@
   <code>ok   prod passes the QA tool's origin from the deploy shell</code> when <code>compose.prod.yaml</code> carries
   <code>GAOS_QA_ORIGIN: "${GAOS_QA_ORIGIN:-}"</code>, and <code>FAIL prod passes the QA tool's origin from the deploy shell</code>
   when it does not.</p>
+
+  <h3 id="go-send-back">dashboard &mdash; the design gate's send-back: a blocked design goes back to its author (TC-500&ndash;TC-509)</h3>
+  <p>v0.44.0, in <code>dashboard/design_iterate_test.go</code>, <code>taskstate_test.go</code>, <code>timing_test.go</code> and
+  <code>board_test.go</code> (<a href="decision-log.html#d-084">D-084</a>, <code>docs/designs/design-iterate.md</code>). A review whose
+  findings block its design is resolved by sending the design back: the design re-opens with its findings and the operator's
+  triage, the review waits on it, and a fresh review judges the revision. At most three times.
+  <strong>TC-500, positive</strong> (<code>TestAnOperatorSendsABlockedDesignBackToItsAuthor</code>):
+  <code>reviewVerdictOf read %q from a rendered review; want %q</code>,
+  <code>reviewVerdictOf read %q from a body whose only verdict is inside a note; want none</code>,
+  <code>a cleared review left the implementation %s; the anchored verdict must still release it</code>,
+  <code>the design is %s after a send-back; it must be READY</code>,
+  <code>the review is %s (%q) after a send-back; it must be PENDING with no reason</code>,
+  <code>the implementation is %s (%s) after a send-back; it must be BLOCKED (design-unreviewed)</code>,
+  <code>the design's send-back carries the triage %+v; want %+v (sorted, trimmed, empty dropped)</code> or
+  <code>a move that is not a send-back carries an actor in its caption: %q</code>.
+  <strong>TC-501, positive and negative</strong> (<code>TestTheRevisionCarriesItsDesignTheFindingsAndTheTriage</code>):
+  <code>a design never sent back carries findings.md; it must carry neither the findings nor the triage</code>,
+  <code>the revision's design.md is %+v (present %v); it must be the design that was sent back</code>,
+  <code>findings.md is\n%s\nwant the review artifact and then\n%s</code>,
+  <code>the revision's part %s carries the operator's account; an email never enters a prompt</code> or
+  <code>the revision opens session %q (%q); it must resume the designer's own session</code>.
+  <strong>TC-502, positive and negative</strong> (<code>TestTheReviewReturnsToReadyWhenTheRevisionIsDelivered</code>):
+  <code>the design task holds %d design artifacts after one revision; want 2</code>,
+  <code>the revision's RunExited caption is %q; it must record how much of the design it changed</code>,
+  <code>the review is %s after the revision was delivered; the scheduler must promote it to READY</code>,
+  <code>the implementation is %s after the re-review cleared; it must be released</code> or
+  <code>a re-review with no new design is %s (%s); it must be BLOCKED (design-missing)</code>.
+  <strong>TC-503, positive and negative</strong> (<code>TestTheReReviewOpensAFreshSessionAndSeesOnlyTheNewDesign</code>):
+  <code>the re-review opens session %q (%q); it must open a fresh one with reason %q</code>,
+  <code>after a requeue with no run the re-review opens %q (%q); it must still be fresh</code>,
+  <code>the re-review's part %s carries the triage or the previous findings; a fresh reviewer sees neither</code>,
+  <code>the re-review's record is\n%s\nit must name the revision's pin and the re-review run's pin</code> or
+  <code>a retry of the re-review opens %q (%q); it must resume the re-review's own session</code>.
+  <strong>TC-504, negative</strong> (<code>TestOnlyADesignLeavesDoneAndOnlyBySendBack</code>):
+  <code>moveTask let a %q task go from DONE to READY; only a design is ever sent back</code>,
+  <code>moveTaskLocked moved a DONE design to READY under rule %q; only send-back may</code>,
+  <code>%s -&gt; %s is permitted; the send-back row is the only exit from a finished task</code> or
+  <code>moveTaskLocked sent a DONE implementation task back; only a design leaves DONE</code>.
+  <strong>TC-505, negative</strong> (<code>TestSendingADesignBackIsRefusedUnlessItsReviewBlockedIt</code>):
+  <code>%s: SendBackDesign answered %v; want a refusal containing %q</code>,
+  <code>%s: a refused send-back wrote %d event(s)</code> or
+  <code>another product's card answered %v; want ErrNotFound</code>.
+  <strong>TC-506, negative</strong> (<code>TestADesignIsSentBackAtMostThreeTimes</code>):
+  <code>the fourth send-back answered %v; want %q</code>,
+  <code>the review card's sendBack is %+v; want sent 3 of 3, closed</code> or
+  <code>the sheet at the cap is %+v (%v); want the cap sentence, no findings, sent 3</code>.
+  <strong>TC-507, positive and negative</strong> (<code>TestTheSendBackRoutesAreBackOfficeAndSameOrigin</code>):
+  <code>a send-back with no session answered %d %s; want 401</code>,
+  <code>a send-back with %v answered %d; want 403</code>,
+  <code>a send-back with content type %q answered %d; want 415</code>,
+  <code>the sheet of another product's card answered %d; want 404</code>,
+  <code>the sheet printed a finding's markup unescaped</code>,
+  <code>the server board does not show the review's block reason and its Revise design button</code> or
+  <code>the send-back event is %+v; its actor must be the session's account and its triage the posted one</code>.
+  <strong>TC-508, positive</strong> (<code>TestALeftDoneSegmentIsBookedAsBlocked</code>):
+  <code>the DONE segment the send-back left is %s for %ds; it must be blocked for 3000s</code> or
+  <code>lead %d, buckets sum %d; both must be %d</code>.
+  <strong>TC-509, negative</strong> (<code>TestTheGatesVerdictIsNeverRerolled</code>):
+  <code>unblocking a design-blocked review answered %v; want %q</code>,
+  <code>the board offers ready on a design-blocked review</code>,
+  <code>approving a design that delivered nothing answered %v; it must be refused</code>,
+  <code>the unblocked review is %s with reason %q; an unblock clears the reason</code> or
+  <code>after a drift release %s is %s; want %s</code>.
+  The client board's elements (<code>static/board.js</code>) and the sheet's focus return are checked by
+  <code>node --check</code> and by hand, not by a Go test.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

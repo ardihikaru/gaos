@@ -71,6 +71,8 @@ type View struct {
 	Timing *TimingView
 	// Talk is the open conversation sheet (D-082, conversation.go), or nil.
 	Talk *ConversationView
+	// SendBack is the open send-back sheet (D-084, sendback.go), or nil.
+	SendBack *SendBackSheetView
 
 	// ShowLogin and a non-nil BO are what decide whether each sheet is visible.
 	// The server owns that, not the client: "am I signed in" has exactly one

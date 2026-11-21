@@ -1503,3 +1503,23 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .md hr{border:0;border-top:1px solid var(--line);margin:10px 0}
 .md a{color:var(--run)}
 .md .md-host{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+/* ---- the send-back (D-084): the block reason on a card, the Revise design
+   button, and its sheet. Existing variables only; the sheet's motion is the
+   modal's own (modal-anim), reduced-motion rule included. */
+.card-reason{margin-top:4px;font-size:10px;line-height:14px;color:var(--ink-3);overflow-wrap:anywhere}
+.card-sendback{margin-top:5px;font-size:10px;padding:2px 6px}
+.sfb-card-content .card-sendback{display:flex;width:max-content}
+.modal.sendback{max-width:640px}
+.modal.sendback > header{align-items:flex-start;flex:0 0 auto}
+.sb-lead{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.sb-lead .mono{color:var(--ink-3);font-size:11px;white-space:nowrap}
+.sb-findings{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.sb-finding{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--panel-2);min-width:0}
+.sb-f-head{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:11px}
+.sb-sev{color:var(--ink-2)}
+.sb-sev.sev-blocker{color:var(--fail)}
+.sb-scope{color:var(--ink-3);overflow-wrap:anywhere;min-width:0}
+.sb-note{margin:4px 0 6px;font-size:12.5px;color:var(--ink);overflow-wrap:anywhere}
+.sb-triage{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:6px}
+.sb-triage select,.sb-triage input{min-width:0;font:inherit;font-size:12px}
+@media (max-width:520px){ .sb-triage{grid-template-columns:1fr} }

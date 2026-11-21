@@ -1461,6 +1461,28 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 			add(path, KindContext, body)
 			cite("Artifact", a.ID, CiteLesson, path, body)
 		}
+
+		// A design sent back (D-084) is revised with what it is revising and
+		// why: its own previous design, the review's findings and the
+		// operator's triage. Not in the session alone -- a rotated or lost
+		// session would lose them. A design never sent back gets neither.
+		if kind == TaskKindDesign {
+			if sent, last := s.sendBacksLocked(taskID); sent > 0 {
+				if reviewID := s.reviewOfDesignLocked(taskID); reviewID != "" {
+					if art, ok := s.reviewArtifactFor(reviewID); ok {
+						const path = ".gaos/packet/context/findings.md"
+						body := art.Body + "\n" + renderTriage(reviewFindingsOf(art.Body), last.Payload.Triage, sent)
+						add(path, KindContext, body)
+						cite("Artifact", art.ID, CiteLesson, path, body)
+					}
+				}
+				if art, ok := s.designArtifactFor(taskID); ok {
+					const path = ".gaos/packet/design.md"
+					add(path, KindDesign, art.Body)
+					cite("Artifact", art.ID, CiteDesign, path, art.Body)
+				}
+			}
+		}
 	}
 
 	m := s.masterPtr(d.ID)

@@ -272,6 +272,7 @@ var readOnlyGET = map[string]string{
 	"GET /products/{id}/board/cards/{taskId}/timing": "reads one card's timing (D-081)",
 	"GET /ui/timing/{id}/{taskId}":                   "renders the timing sheet (D-081)",
 	"GET /ui/conversation/{id}/{taskId}":             "renders the conversation sheet (D-082)",
+	"GET /ui/send-back/{id}/{taskId}":                "renders the send-back sheet",
 }
 
 func samplePath(pattern string) (method, path string) {

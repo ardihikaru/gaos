@@ -276,12 +276,25 @@ type EventPayload struct {
 	// (eventActor, answer_source.go). It fills the Event.actor column.
 	Actor string
 	Prune *PruneRecord
+	// Triage is the operator's disposition of a design review's findings
+	// (D-084), carried by the design's send-back TaskMoved and by nothing
+	// else. The send-back's two TaskMoved events also carry Actor.
+	Triage []FindingTriage
 
 	// Genesis is set by FloorOpened and by nothing else. It is the seeded floor
 	// -- the `?? empty` half of §08's `snapshot_before(t) ?? empty` -- and it is
 	// what lets a fold from an empty state reproduce a floor that was never
 	// itself the product of an event.
 	Genesis []Desk
+}
+
+// FindingTriage is the operator's triage of one finding of a design review
+// (D-084): one of the four dispositions of docs/rules/gaos-design-review.md,
+// or none, and an optional one-line note to the designer.
+type FindingTriage struct {
+	N           int    // the finding's 1-based position in the review artifact
+	Disposition string // "", "CONTEST", "ESCALATE", "PROPOSE FIX", "DECLINE"
+	Note        string // one line, at most maxFindingNote runes
 }
 
 // Clone deep-copies a payload. Same argument as Desk.Clone: a payload handed to
@@ -305,6 +318,9 @@ func (p EventPayload) Clone() EventPayload {
 	}
 	if p.Genesis != nil {
 		c.Genesis = cloneDesks(p.Genesis)
+	}
+	if p.Triage != nil {
+		c.Triage = append([]FindingTriage(nil), p.Triage...)
 	}
 	if p.Question != nil {
 		q := *p.Question

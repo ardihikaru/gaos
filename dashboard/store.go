@@ -132,6 +132,11 @@ type Store interface {
 	ArchivedConversations(ctx context.Context) (ArchiveView, error)
 	PruneConversations(ctx context.Context, actor string, cards []CardRef) (Result, error)
 	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
+	// SendBackDesign sends the design a review blocked back to its author
+	// (D-084); actor is the signed-in account. SendBackSheet is the same
+	// check, read-only, for the sheet. ErrNotFound for a card of no product.
+	SendBackDesign(ctx context.Context, productID, reviewTaskID, actor string, triage []FindingTriage) (Result, error)
+	SendBackSheet(ctx context.Context, productID, reviewTaskID string) (SendBackView, error)
 	Inject(ctx context.Context, productID string) (Result, error)
 
 	// "Needs you" (M15, questions.go): the agents waiting on the operator, one
@@ -301,6 +306,9 @@ func (readOnly) PruneConversations(context.Context, string, []CardRef) (Result, 
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) MoveCard(context.Context, string, string, CardMove) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SendBackDesign(context.Context, string, string, string, []FindingTriage) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) AnswerQuestion(context.Context, string, string, int, string, AnswerSource) (Result, error) {

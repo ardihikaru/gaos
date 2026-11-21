@@ -500,8 +500,10 @@ func (s *MemStore) gateStateLocked(taskID string) (string, bool) {
 		// approve a card, and an approval is not a verdict: a review task that
 		// reached DONE without a recorded finding is a review that never ran,
 		// and the implementation stays held.
-		if art, ok := s.reviewArtifactFor(reviewID); ok &&
-			strings.Contains(art.Body, "verdict: "+VerdictAccept) {
+		// The verdict is read from its anchored line (D-084): a reviewer's note
+		// that says "verdict: accept" somewhere in the body cannot open the
+		// gate.
+		if art, ok := s.reviewArtifactFor(reviewID); ok && reviewVerdictOf(art.Body) == VerdictAccept {
 			return GateCleared, true
 		}
 		return GateFailed, true
@@ -667,6 +669,9 @@ type gateOutcome struct {
 	// detail is the parser's own refusal when a review did not parse, so the
 	// timeline says WHAT was wrong and not only that something was (v0.40.4).
 	detail string
+	// note is a record for the run's caption that is not a refusal: how much
+	// of the design it replaces a revision changed (D-084).
+	note string
 }
 
 // gateVerdict is the gate's decision about a finished design or review task.
@@ -699,13 +704,23 @@ func (s *MemStore) gateVerdict(taskID, runID string, att Attempt) (gateOutcome, 
 			// artifact and no reason looks exactly like a task that finished.
 			return gateOutcome{to: StatusBlocked, rule: RuleDesignScreened, reason: ReasonDesignScreened}, true
 		}
+		// A revision (D-084) records how much of the design it replaces it
+		// changed. A barely changed revision is a new design; the cap bounds
+		// how often the gate is re-sampled, and this line makes it visible.
+		note := ""
+		if sent, _ := s.sendBacksLocked(taskID); sent > 0 {
+			if prev, ok := s.designArtifactFor(taskID); ok {
+				k, m := linesChanged(prev.Body, d.Document)
+				note = fmt.Sprintf("revision %d changes %d of %d lines of the design it replaces", sent, k, m)
+			}
+		}
 		s.recordHandoff(ArtifactRecord{
 			ID: runID + "-design", Kind: ArtifactDesign,
 			Title: "design of " + runID, TaskID: taskID, DeskID: t.DeskID,
 			RunID: runID, Attempt: attemptOfRun(s.runs, runID),
 			Body: d.Document, CreatedAt: time.Now().Unix(),
 		})
-		return gateOutcome{to: StatusDone, rule: RuleDesignDelivered}, true
+		return gateOutcome{to: StatusDone, rule: RuleDesignDelivered, note: note}, true
 
 	case TaskKindReview:
 		// A review with no design has nothing to attack. If the design task
@@ -722,6 +737,13 @@ func (s *MemStore) gateVerdict(taskID, runID string, att Attempt) (gateOutcome, 
 		if _, ok := s.designArtifactFor(designID); !ok {
 			return gateOutcome{to: StatusBlocked, rule: RuleReviewFailed, reason: ReasonDesignMissing}, true
 		}
+		// D-084: after a send-back the review must judge a NEW design. One
+		// design artifact per delivery, and every send-back follows a
+		// delivery, so a re-review needs more artifacts than send-backs;
+		// otherwise it would be judging the design that was sent back.
+		if sent, _ := s.sendBacksLocked(designID); sent > 0 && s.designArtifactsOfLocked(designID) <= sent {
+			return gateOutcome{to: StatusBlocked, rule: RuleReviewFailed, reason: ReasonDesignMissing}, true
+		}
 		r, err := ExtractReview(att.Reply, taskID, runID)
 		if err != nil {
 			// A failed review is not a verdict (D-068 clause 7): the task goes
@@ -731,7 +753,7 @@ func (s *MemStore) gateVerdict(taskID, runID string, att Attempt) (gateOutcome, 
 			return gateOutcome{to: StatusBlocked, rule: RuleReviewFailed, reason: ReasonReviewFailed,
 				detail: err.Error()}, true
 		}
-		designPin, reviewPin := s.blueprintPinsLocked(taskID)
+		designPin, reviewPin := s.blueprintPinsLocked(taskID, runID)
 		body := renderReviewArtifact(taskID, runID, r, designPin, reviewPin)
 		if !s.screenArtifactBody(".gaos/packet/context/findings.md", body) {
 			return gateOutcome{to: StatusBlocked, rule: RuleReviewScreened, reason: ReasonReviewScreened}, true
@@ -804,7 +826,7 @@ func (s *MemStore) gateReleaseLocked(reviewTaskID, reviewTo string) []Event {
 // have moved under it.
 //
 // Caller holds the lock.
-func (s *MemStore) blueprintPinsLocked(reviewTaskID string) (designPin, reviewPin int) {
+func (s *MemStore) blueprintPinsLocked(reviewTaskID, runID string) (designPin, reviewPin int) {
 	t := s.taskByIDLocked(reviewTaskID)
 	if t == nil {
 		return 0, 0
@@ -814,12 +836,9 @@ func (s *MemStore) blueprintPinsLocked(reviewTaskID string) (designPin, reviewPi
 			designPin = s.blueprintPinForRunLocked(art.RunID)
 		}
 	}
-	for _, r := range s.runs {
-		if r.TaskID == reviewTaskID && r.BlueprintVersion > 0 {
-			reviewPin = r.BlueprintVersion
-			break
-		}
-	}
+	// The run being judged, not the review task's first run: a review that
+	// re-runs after a send-back (D-084) may run under a newer Blueprint.
+	reviewPin = s.blueprintPinForRunLocked(runID)
 	return designPin, reviewPin
 }
 

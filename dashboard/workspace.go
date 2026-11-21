@@ -389,7 +389,10 @@ func (s *MemStore) releaseDriftLocked(deskID string) []Event {
 	// One TaskMoved per task released (T-164), then the desk-level TaskResumed.
 	var ev []Event
 	for j := range s.tasks {
-		if s.tasks[j].DeskID == deskID && s.tasks[j].Status == StatusBlocked {
+		// A Blueprint sync releases what drift blocked, not what only an
+		// operator's decision may release: the design gate's verdict and hold
+		// (D-084), and a QA-added card (BR-54).
+		if s.tasks[j].DeskID == deskID && s.tasks[j].Status == StatusBlocked && !operatorHolds(s.tasks[j].BlockReason) {
 			if m, ok := s.moveTaskLocked(s.tasks[j].ID, StatusReady, MoveDriftRelease); ok {
 				ev = append(ev, m)
 			}
