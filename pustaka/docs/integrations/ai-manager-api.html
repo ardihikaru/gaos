@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ai-manager REST reference — GAOS</title>
+<meta name="description" content="Every ai-manager endpoint GAOS calls: method, path, auth, headers, request and response bodies, the status codes GAOS distinguishes and what it does on each, timeouts and polling, and the GAOS function that calls it.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="ai-manager-api">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>ai-manager REST reference</h1>
+  <p class="lede">GAOS makes exactly eight HTTP calls to ai-manager: four on the chat login, to run and answer turns
+  and to list providers, and four on the admin key, to manage workspaces and delete sessions. This page lists each
+  one as GAOS sends it and reads it, with the code that does so, and where GAOS and ai-manager's own documentation
+  differ.</p>
+
+  <div class="page-meta"
+       data-tags="ai-manager, rest, api, gateway, reference"
+       data-hashtags="integrations, api, ai-manager"
+       data-published="2026-11-21"
+       data-updated="2026-11-21"
+       data-version-from="0.45.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">Source of truth</p>
+    <p>Everything here is derived from the code in <code>dashboard/</code>, with the <code>file:line</code> of each
+    caller at v0.45.0. Statements about ai-manager's own behaviour are marked <em>per ai-manager's docs</em>: they come
+    from its REST documentation, read for this page, and are not checked by GAOS's tests. The host is written
+    <code>aim.example.org</code>.</p>
+  </div>
+
+  <h2 id="configuration">Configuration</h2>
+  <p>Read once at boot by <code>ModelConfigFromEnv</code> (<code>modelconfig.go:79-108</code>). An empty value counts as
+  unset; a malformed number falls back to the default.</p>
+  <table class="tbl">
+    <thead><tr><th>Variable</th><th>Default</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_MODEL_MODE</code></td><td><code>off</code></td><td><code>aimanager</code> enables the gateway; <code>off</code> means no adapter; <code>cli</code> (retired in v0.29.0), <code>api</code> (not built) and anything else are refused at boot</td></tr>
+      <tr><td><code>GAOS_AIM_URL</code></td><td>required</td><td>the base, e.g. <code>https://aim.example.org</code>; a trailing <code>/</code> is trimmed</td></tr>
+      <tr><td><code>GAOS_AIM_CHAT_AUTH_FILE</code></td><td>required</td><td>JSON <code>{"login_id","secret_key"}</code>: HTTP Basic for the <code>/v1</code> calls</td></tr>
+      <tr><td><code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td>optional</td><td>a file holding only the admin key: <code>Bearer</code> for the <code>/admin</code> calls; without it they fail before sending</td></tr>
+      <tr><td><code>GAOS_AIM_TENANT</code></td><td><code>GAOS_ARCADE_TENANT</code>, then <code>local</code></td><td>in workspace ids <code>gaos-&lt;tenant&gt;-&lt;product&gt;[-review]</code> and request ids <code>gaos.&lt;tenant&gt;.&lt;run&gt;</code></td></tr>
+      <tr><td><code>GAOS_AIM_POLL_MS</code></td><td><code>2000</code></td><td>the result poll interval</td></tr>
+      <tr><td><code>GAOS_AIM_TURN_DEADLINE</code></td><td><code>660</code> s</td><td>the whole-turn ceiling; also how long a lost turn holds its product</td></tr>
+      <tr><td><code>GAOS_AIM_SESSION_MAX_AGE</code></td><td><code>25</code> days</td><td>an older task session is replaced by a new one</td></tr>
+      <tr><td><code>GAOS_MODEL</code></td><td>empty</td><td>the Claude model sent as <code>model</code>; never sent to another vendor</td></tr>
+      <tr><td><code>GAOS_RUNNER</code></td><td><code>off</code></td><td><code>manual</code>: only a board move dispatches; <code>on</code> (or <code>1</code>, <code>true</code>, <code>yes</code>): the scheduler dispatches too; anything else is off (<code>runner.go:52-60</code>)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="common">Common behaviour</h2>
+  <p>Every chat call goes through <code>AIMClient.do</code> (<code>aimanager.go:140-165</code>): <code>Content-Type:
+  application/json</code> on every method, HTTP Basic from the chat login, <code>X-Request-ID</code> only when GAOS
+  passes a request id, and a body read up to 8 MiB. Every admin call goes through <code>AIMClient.admin</code>
+  (<code>aimanager_admin.go:45-70</code>): it refuses before sending when no admin key is loaded, sets <code>Content-Type</code>
+  and <code>Authorization: Bearer &lt;admin key&gt;</code>, and reads up to 1 MiB. No <code>Accept</code> header is set and
+  nothing streams. The HTTP client has a 30 s timeout per request (<code>aimanager.go:131-136</code>). An error message
+  never carries a credential.</p>
+  <p>Unless a call handles a status itself, <code>statusError</code> (<code>aimanager.go:203-225</code>) maps it:</p>
+  <table class="tbl">
+    <thead><tr><th>Status</th><th>GAOS error</th><th>Effect on a turn</th></tr></thead>
+    <tbody>
+      <tr><td>409</td><td><code>ErrTurnRunning</code></td><td>a run error; the task goes back to READY</td></tr>
+      <tr><td>410</td><td><code>ErrSessionGone</code></td><td>the attempt ends as session-lost; the next attempt opens a new session</td></tr>
+      <tr><td>403, 423</td><td><code>ErrWorkspaceInactive</code></td><td>a run error</td></tr>
+      <tr><td>500 and above, or no answer</td><td><code>ErrGatewayTransient</code></td><td>the attempt ends as gateway-failed</td></tr>
+      <tr><td>anything else</td><td><code>ai-manager answered &lt;code&gt;: &lt;error&gt;</code></td><td>a run error</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="chat">1 · POST /v1/chat</h2>
+  <p>Submits one turn. <strong>Auth:</strong> Basic. <strong>Headers:</strong> <code>X-Request-ID: gaos.&lt;tenant&gt;.&lt;run&gt;</code>,
+  made URL-safe and capped at 128 characters (<code>RequestIDFor</code>, <code>adapter_aimanager.go:100-106</code>).
+  <strong>Built by</strong> <code>AIMClient.Submit</code> (<code>aimanager.go:169-178</code>), called from
+  <code>AIMAdapter.submit</code> (<code>adapter_aimanager.go:202-211</code>) in <code>turn</code> (<code>:153-190</code>).
+  A turn starts from a board move (<code>board.go:497</code>), the scheduler (<code>runner.go:554</code>, under
+  <code>GAOS_RUNNER=on</code>) or <code>POST /tasks/{id}/dispatch</code>.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"prompt": "…the frozen packet…",
+ "model": "&lt;GAOS_MODEL or the packet's&gt;",       <span class="c">// Claude: no "provider"</span>
+ "provider": "antigravity",                       <span class="c">// another vendor only</span>
+ "new_session": true, "workspace_id": "gaos-&lt;tenant&gt;-p-1",   <span class="c">// a fresh session …</span>
+ "session_id": "&lt;uuid&gt;",                          <span class="c">// … or a resumed one, never both</span>
+ "ask_user": true, "caller": "gaos"}</pre>
+  </div>
+  <p><strong>Response:</strong> <code>202</code> (or <code>200</code>) is accepted; the body is not read. Anything else goes
+  through <code>statusError</code>; a session-gone, unknown-request or transient error ends the attempt with that
+  signal, and any other error is a run error. Per ai-manager's docs a repeated request id answers <code>202</code>
+  without a second job, and a body over its request limit is <code>400</code> &mdash; which GAOS reports as an untyped
+  error; GAOS's own egress cap is also 256 KiB (<code>GAOS_EGRESS_MAX_BYTES</code>), before the reply contract is added.</p>
+
+  <h2 id="result">2 · GET /v1/requests/{requestId}/result</h2>
+  <p>Polls a turn. <strong>Auth:</strong> Basic, no request id header. <strong>Built by</strong>
+  <code>AIMClient.Result</code> (<code>aimanager.go:181-199</code>), polled by <code>AIMAdapter.poll</code>
+  (<code>adapter_aimanager.go:228-257</code>) every <code>GAOS_AIM_POLL_MS</code> with no backoff until
+  <code>GAOS_AIM_TURN_DEADLINE</code>; also called by <code>Resume</code> at boot to collect a turn the previous process
+  started (<code>turns.go:222-254</code>).</p>
+  <table class="tbl">
+    <thead><tr><th>Status</th><th>What GAOS does</th></tr></thead>
+    <tbody>
+      <tr><td>202</td><td>still running: wait and poll again</td></tr>
+      <tr><td>200</td><td>decode the reply below; unreadable JSON counts as transient</td></tr>
+      <tr><td>404</td><td><code>ErrRequestUnknown</code>: at boot the task is held as orphaned until its deadline, then requeued</td></tr>
+      <tr><td>other</td><td><code>statusError</code>; past the deadline the attempt ends <em>the turn passed its deadline</em></td></tr>
+    </tbody>
+  </table>
+  <p>Fields read: <code>text</code>, <code>provider</code>, <code>model</code>, <code>input_tokens</code>, <code>output_tokens</code>,
+  <code>cost_usd</code>, <code>session_id</code>, <code>metadata.context.workspace</code> (the files the worker loaded) and
+  <code>metadata.session_warning</code>, and <code>question{id, question, context, options[{label, description}]}</code>.
+  A session warning marks the turn unsaved; a question with exactly three options goes to the operator's inbox;
+  otherwise a reply with no handoff block is <em>handoff missing</em>. A missing <code>cost_usd</code>, or 0 with tokens
+  spent, is recorded as unavailable.</p>
+
+  <h2 id="answer">3 · POST /v1/questions/{questionId}/answer</h2>
+  <p>Answers the question a turn asked, and resumes the session. <strong>Auth:</strong> Basic. <strong>Headers:</strong>
+  <code>X-Request-ID</code> of the new turn. <strong>Body:</strong> <code>{"choice": 1-4, "text"?: "…", "prompt"?: "…the
+  whole packet…"}</code>. <strong>Built by</strong> <code>AIMClient.SubmitAnswer</code>
+  (<code>aimanager_questions.go:70-87</code>), from <code>AIMAdapter.submit</code> when the packet carries the operator's
+  answer and the turn resumes a session.</p>
+  <p><code>202</code>/<code>200</code>: accepted, then polled like call 2. <code>409</code>: already answered;
+  <code>410</code>: expired; <code>404</code>: unknown. On <strong>any</strong> error GAOS falls back to a plain
+  <code>POST /v1/chat</code> with the same request id, and the packet already carries the answer.</p>
+
+  <h2 id="providers">4 · GET /v1/providers</h2>
+  <p>Lists the vendors. <strong>Auth:</strong> Basic. <strong>Response:</strong>
+  <code>{"providers":[{"name","available","default_model","models":[]}]}</code>; a non-200 goes through
+  <code>statusError</code>. <strong>Built by</strong> <code>AIMClient.ProviderInfo</code> (<code>aimanager.go:245-269</code>).
+  Two callers:</p>
+  <ul>
+    <li><strong>The boot check</strong>, <code>AIMAdapter.Smoke</code> (<code>adapter_aimanager.go:57-68</code>, from
+    <code>main.go:197</code>), 15 s: the dashboard does not start unless the call succeeds and <code>claude</code> is
+    available.</li>
+    <li><strong>The vendors pane and a vendor policy save</strong>, <code>AIMAdapter.VendorInfo</code>
+    (<code>vendors.go:280-305</code>), 10 s, cached 60 s on success. The back office's <em>Integrations</em> view reads only
+    that cache and never calls the gateway.</li>
+  </ul>
+
+  <h2 id="provision">5 · POST /admin/workspaces/provision</h2>
+  <p>Creates a product's workspace. <strong>Auth:</strong> admin Bearer. <strong>Query:</strong>
+  <code>?provider=&lt;vendor&gt;</code> for a non-Claude vendor (<code>onVendor</code>, <code>aimanager_admin.go:76-81</code>).
+  <strong>Body:</strong> <code>{"id":"gaos-&lt;tenant&gt;-&lt;product&gt;","files":[{"path","content"}],"active":true}</code>.
+  <strong>Response:</strong> <code>{"workspace":{"id","manifest_digest","files":[{"path","sha256"}],"created"}}</code>;
+  <code>200</code> or <code>201</code> is success, anything else <code>statusError</code>. <strong>Built by</strong>
+  <code>AIMClient.Provision</code> (<code>aimanager_admin.go:85-101</code>), from <code>SyncWorkspace</code>
+  (<code>workspace.go:144</code>, <code>:151</code>) when the workspace does not exist yet. Per ai-manager's docs the id must
+  start with <code>gaos-</code>, which GAOS's always do, and files are limited in path, size and total.</p>
+
+  <h2 id="files-get">6 · GET /admin/workspaces/{id}/files</h2>
+  <p>Reads a workspace's manifest. <strong>Auth:</strong> admin Bearer. <strong>Query:</strong> <code>?provider=</code> as
+  above. <strong>Response:</strong> <code>{"id","manifest_digest","files":[{"path","sha256"}],"created"}</code>.
+  <code>404</code> is <em>not provisioned</em>; <code>409</code> for a non-Claude vendor is <em>the pool disagrees</em>.
+  <strong>Built by</strong> <code>AIMClient.Files</code> (<code>aimanager_admin.go:104-120</code>). Callers:
+  <code>SyncWorkspace</code> (<code>workspace.go:140</code>) and <code>WorkspaceDigest</code> (<code>workspace.go:126-129</code>),
+  the drift check after every turn; an error there counts as no evidence of drift.</p>
+
+  <h2 id="files-put">7 · PUT /admin/workspaces/{id}/files</h2>
+  <p>Replaces a workspace's files with the published Blueprint. <strong>Auth:</strong> admin Bearer. <strong>Query:</strong>
+  <code>?provider=</code>. <strong>Body:</strong> <code>{"files":[{"path","content"}],"prune":true,"if_match":"&lt;digest&gt;"}</code>
+  &mdash; <code>if_match</code> is the current digest, or <code>""</code> for the unconditional write after a pool
+  disagreement. <strong>Response:</strong> the manifest; <code>200</code> is success. A digest after the write that is
+  not the published one is an error. <strong>Built by</strong> <code>AIMClient.PutFiles</code>
+  (<code>aimanager_admin.go:124-135</code>), from <code>SyncWorkspace</code> (<code>workspace.go:152</code>, <code>:155</code>),
+  reached by a Blueprint sync (<code>POST /products/{id}/blueprint/sync</code>) and before every review dispatch
+  (<code>reviewer_workspace.go:98</code>).</p>
+
+  <h2 id="session-delete">8 · DELETE /admin/sessions/{sessionId}</h2>
+  <p>Deletes a gateway session when the operator prunes archived conversations. <strong>Auth:</strong> admin Bearer.
+  <strong>Query:</strong> <code>?provider=</code>. No body either way. <code>2xx</code>: deleted; <code>404</code>: already
+  gone; <code>409</code>: busy; anything else, or no answer: failed. <strong>Built by</strong>
+  <code>AIMClient.DeleteSession</code> (<code>aimanager_admin.go:142-158</code>), from <code>deleteSessions</code>
+  (<code>conversation.go:491-520</code>) for <code>POST /conversations/prune</code>: one session at a time, 10 s each, 60 s
+  in all; an id that is not a UUID, or a vendor other than claude or antigravity, is skipped. Each card's tally is
+  recorded as an event.</p>
+
+  <h2 id="not-called">Calls GAOS never makes</h2>
+  <p>The request status endpoint, the question list, the <code>/v1/workspaces</code> routes, the health routes, the admin
+  workspace list, enable, patch and delete, session patch and bulk delete, shared sessions, admin questions, stats and
+  usage. There is no cancel: a running turn cannot be stopped from GAOS. GAOS's own <code>/api/healthz</code> reports the
+  adapter without calling ai-manager.</p>
+
+  <h2 id="gaps">Known gaps against ai-manager's docs</h2>
+  <p>Documented here, not fixed; each is a candidate for a later change.</p>
+  <ul>
+    <li>A <code>412</code> on call 7 (a stale <code>if_match</code>) is not retried; per ai-manager's docs the client should
+    read the manifest again and retry.</li>
+    <li>A <code>423</code> means the <em>session</em> is inactive per ai-manager's docs; GAOS reports it as a workspace not
+    enabled for chat.</li>
+    <li><code>finish_reason</code> and <code>workspace_id</code> are decoded and never read; <code>Retry-After</code> and the
+    <code>202</code> bodies are ignored.</li>
+    <li>GAOS's 660 s turn deadline is longer than ai-manager's own CLI timeout, per ai-manager's docs.</li>
+    <li>A <code>409</code> on call 6 for Claude is not documented by ai-manager and would read as a running turn.</li>
+  </ul>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

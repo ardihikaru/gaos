@@ -92,18 +92,21 @@ if [ "$ENVIRON" = dev ]; then
 else
   COMPOSE=deploy/stacks/compose.prod.yaml
   PORT=18301
-  # A second prod instance (rnd-v3-vpn, gaos.sample-product.com) overrides several things. Pass ALL of
-  # them or the stack comes up broken (a missing one is a failed port bind or an ArcadeDB crash loop):
-  #   GAOS_TUNNEL_IP=10.10.0.9            bind address (default 10.10.0.2 does not exist on rnd-v3)
-  #   GAOS_HOST=gaos.sample-product.com        host the route check expects
-  #   GAOS_ARCADE_URL=http://10.10.0.4:9480   the ArcadeDB on rnd-v2 (default is clinodb's, wrong user)
-  #   GAOS_ARCADE_DB=gaos_sample-product       its database (the user in prod.dashboard.env owns only this one)
-  #   GAOS_UID=1000 GAOS_GID=1000         owner of the secret files
-  #   GAOS_QA_URL=http://10.10.0.9:8140 GAOS_API_QA_PRODUCTS=p-6   the QA tool's address and scope
-  #   GAOS_QA_ORIGIN=qa-tool.sample-product.com   the QA tool's host name, recorded on its answers (D-083)
-  #   GAOS_RUNNER=manual                  the permission to spend: unset=off, manual=one board-chosen turn at a time (D-080)
-  # The post-deploy checks that `ssh clino` fail when run on rnd-v3 itself: probe
-  # http://10.10.0.9:18301/api/healthz and https://gaos.sample-product.com/api/healthz by hand instead.
+  # A second prod instance on another VM (D-085) overrides ten variables. Pass ALL of them or
+  # the stack comes up broken (a missing one is a failed port bind or an ArcadeDB crash loop):
+  #   GAOS_TUNNEL_IP     its WireGuard bind address
+  #   GAOS_HOST          the host the route check expects
+  #   GAOS_ARCADE_URL    its ArcadeDB
+  #   GAOS_ARCADE_DB     its database (the user in prod.dashboard.env owns only that one)
+  #   GAOS_UID GAOS_GID  the owner of the secret files
+  #   GAOS_QA_URL GAOS_API_QA_PRODUCTS   the QA tool's address and scope
+  #   GAOS_QA_ORIGIN     the QA tool's host name, recorded on its answers (D-083)
+  #   GAOS_RUNNER        the permission to spend: unset=off, manual=one board-chosen turn (D-080)
+  # The values live in deploy/local/instances/<label>.env (git-ignored). Run:
+  #   set -a; . deploy/local/instances/<label>.env; set +a
+  #   ./deploy/rebuild-restart.sh prod deploy --tag vX.Y.Z
+  # The post-deploy checks that `ssh clino` fail when run on that instance's own VM: probe
+  # http://$GAOS_TUNNEL_IP:18301/api/healthz and https://$GAOS_HOST/api/healthz by hand instead.
   HOST="${GAOS_HOST:-gaos.mfardiansyah.id}"
 fi
 TUNNEL="${GAOS_TUNNEL_IP:-10.10.0.2}"

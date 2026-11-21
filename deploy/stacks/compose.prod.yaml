@@ -135,7 +135,7 @@ services:
       GAOS_QA_URL: "${GAOS_QA_URL:-}"
       # The QA tool's public host name, recorded on every answer it sends (D-083).
       # Unset = the host of GAOS_QA_URL when that is a name; the tunnel URL is an
-      # IP, so prod sets it on the redeploy line (GAOS_QA_ORIGIN=qa-tool.sample-product.com).
+      # IP, so prod sets it on the redeploy line (GAOS_QA_ORIGIN=qa.example.org).
       GAOS_QA_ORIGIN: "${GAOS_QA_ORIGIN:-}"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro

@@ -19,13 +19,13 @@ run: wf-8-t-4-a1
 role: qa
 status: complete
 criteria:
-  - id: AC-1   met: true   evidence: "gaos-review block above: findings checked against the real automation-test-sample-product repo state (git log, docs/test-catalog/vendor-backend/system.md, docs/modules/B-vendor.md, src/api/core/base-api-client.ts, src/api/rest/his-vendor-backend/his-vendor-backend.client.ts, src/data/vendor-cases/evaluate.ts, the three merged TC-VSYS specs, AGENTS.md) rather than taken on the design's word"
+  - id: AC-1   met: true   evidence: "gaos-review block above: findings checked against the real automation-test-sample repo state (git log, docs/test-catalog/vendor-backend/system.md, docs/modules/B-vendor.md, src/api/core/base-api-client.ts, src/api/rest/his-vendor-backend/his-vendor-backend.client.ts, src/data/vendor-cases/evaluate.ts, the three merged TC-VSYS specs, AGENTS.md) rather than taken on the design's word"
 artifacts:
   - path: ".gaos/packet/design.md"   kind: doc
 blockers: []
 handoff:
   next_role: architect
-  must_know: "The design's factual claims about the repo (merged specs, stale catalog/module rows, client base URL, DEFAULT_FORBIDDEN contents) all check out against the actual automation-test-sample-product checkout; the one real gap is that the proposed shared leak-marker helper doesn't touch the two existing marker lists it says disagree, so it should either update evaluate.ts's DEFAULT_FORBIDDEN and TC-VSYS-006's inline list to use it, or explain why it deliberately leaves them as a third list."
+  must_know: "The design's factual claims about the repo (merged specs, stale catalog/module rows, client base URL, DEFAULT_FORBIDDEN contents) all check out against the actual automation-test-sample checkout; the one real gap is that the proposed shared leak-marker helper doesn't touch the two existing marker lists it says disagree, so it should either update evaluate.ts's DEFAULT_FORBIDDEN and TC-VSYS-006's inline list to use it, or explain why it deliberately leaves them as a third list."
 usage:
   tokens_in: 0
   tokens_out: 0

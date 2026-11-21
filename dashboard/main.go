@@ -85,6 +85,10 @@ type server struct {
 	// the boot log only -- the dispatch path reaches it through the store,
 	// because a dispatch emits events and only a store may.
 	adapter Adapter
+
+	// bootChecked is when the adapter's boot smoke test (GET /v1/providers)
+	// passed; zero with no adapter. Shown by the Integrations view (D-085).
+	bootChecked time.Time
 }
 
 // describeAdapter is what /healthz and the boot line report.
@@ -189,6 +193,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	// dashboard that would accept a dispatch and produce evidence nobody can
 	// trust. That is worse than a dashboard that did not start, because it
 	// looks completely healthy while doing it.
+	var bootChecked time.Time // D-085: when the boot provider check passed
 	adapter, err := selectAdapter(ModelConfigFromEnv())
 	if err != nil {
 		return err
@@ -197,6 +202,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		if err := adapter.Smoke(ctx); err != nil {
 			return fmt.Errorf("boot smoke test: %w", err)
 		}
+		bootChecked = time.Now()
 		if sa, ok := store.(interface{ SetAdapter(Adapter) }); ok {
 			sa.SetAdapter(adapter)
 		}
@@ -292,7 +298,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	}()
 
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv(), qaOut: qaOutboundFromEnv(),
-		auth: authFromEnv(!dev)}
+		auth: authFromEnv(!dev), bootChecked: bootChecked}
 
 	// D-078: the answer webhook. One worker; with the outbound unconfigured it
 	// idles and the QA tool polls GET /v1/products/{id}/inbox/{externalId}.

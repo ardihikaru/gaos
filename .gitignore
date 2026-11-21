@@ -18,6 +18,13 @@ deploy/stacks/*.bo-*
 # takes any of them back.
 /.worktrees/
 
+# One operator's instance material (D-085): private seeds, a second instance's
+# edge blocks and redeploy overrides, the forbidden-strings list. Never
+# committed; the README beside it is the one tracked file and says what goes
+# where.
+/deploy/local/*
+!/deploy/local/README.md
+
 # Built binaries
 /dashboard/dashboard
 /pustaka/pustaka

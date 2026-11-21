@@ -367,7 +367,7 @@ func TestQAOriginResolution(t *testing.T) {
 	var logged int
 	logf := func(string, ...any) { logged++ }
 	for _, c := range []struct{ env, url, want string }{
-		{"qa-tool.sample-product.com", "http://10.10.0.9:8140", "qa-tool.sample-product.com"},
+		{"qa.example.org", "http://10.10.0.9:8140", "qa.example.org"},
 		{"bad host!", "", ""},
 		{"", "http://qa.example:8140", "qa.example"},
 		{"", "http://10.10.0.9:8140", ""},

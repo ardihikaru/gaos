@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  five hundred and nine cases, positive and negative, across the four deploy automations, the sample-product seed script and the
+  five hundred and twelve cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All five hundred and nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All five hundred and twelve cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -494,12 +494,12 @@
       <tr data-tags="qa client pull cursor stale pages untrusted positive negative m18 implemented"><td>TC-403</td><td>dashboard (go test)</td><td>Positive</td><td>A pull applies each page through the results rules and keeps the cursor; stale and unknown items are counted, and a hostile or malformed page fails the sync and keeps the cursor</td><td>Implemented</td></tr>
       <tr data-tags="qa client push batch cursor rejected 500 positive negative m18 implemented"><td>TC-404</td><td>dashboard (go test)</td><td>Positive</td><td>A push advances its cursor per accepted batch, stops at the first failure, keeps at most the well-formed rejected ids, and resumes from the stored cursor</td><td>Implemented</td></tr>
       <tr data-tags="qa client sync redirect overlap cooldown scope unconfigured negative m18 implemented"><td>TC-405</td><td>dashboard (go test)</td><td>Negative</td><td>The sync buttons refuse a redirect, an overlapping sync, a click inside the process-wide cooldown, an unconfigured client, a product outside GAOS_API_QA_PRODUCTS and replay</td><td>Implemented</td></tr>
-      <tr data-tags="qa seed idempotent readiness floor secret screening adopt 409 422 replay positive negative m18 implemented"><td>TC-406</td><td>dashboard (go test)</td><td>Positive</td><td>The generic product seed is idempotent and meets the readiness floor: the second run changes nothing, an operator's edits survive, no task is moved, and a secret, a thin seed, an unseeded same-named product or replay is refused</td><td>Implemented</td></tr>
-      <tr data-tags="qa seed sample-product data well formed counts egress detector positive m18 implemented"><td>TC-407</td><td>dashboard (go test)</td><td>Positive</td><td>The committed sample-product seed files are well formed: 39 modules, 444 features, 47 epics, 1,700 unique cases, 494 implemented, every reference resolves, and the egress detector finds nothing</td><td>Implemented</td></tr>
+      <tr data-tags="qa seed idempotent readiness floor secret screening adopt 409 422 replay positive negative m18 implemented"><td>TC-406</td><td>dashboard (go test)</td><td>Positive</td><td>The generic product seed, run on the invented example, is idempotent and meets the readiness floor: the second run changes nothing, an operator's edits survive, no task is moved, and a secret, a thin seed, an unseeded same-named product or replay is refused</td><td>Implemented</td></tr>
+      <tr data-tags="qa seed example data well formed counts egress detector positive m18 d-085 implemented"><td>TC-407</td><td>dashboard (go test)</td><td>Positive</td><td>The tracked example seed is well formed: 3 modules, 8 features, 4 epics, 12 unique cases, 5 implemented and 9 planned, every reference resolves, and the egress detector finds nothing</td><td>Implemented</td></tr>
       <tr data-tags="qa create only door decision refuse exists differs secret strip scope limit negative m18 implemented"><td>TC-408</td><td>dashboard (go test)</td><td>Negative</td><td>The QA token may create a case but never change one: a new planned case is created, while parking, run fields, a wrong epic infix, a differing existing case and the case ceiling are refused with their codes</td><td>Implemented</td></tr>
       <tr data-tags="qa epic card blocked one TaskPlanned TaskMoved gate loop caps epic-limit parked fold positive negative m18 implemented"><td>TC-409</td><td>dashboard (go test)</td><td>Positive</td><td>A new epic adds exactly one BLOCKED card and nothing else moves: no existing task changes, a cleared review does not release it, no workflow or a parked floor defers it, and the epic caps hold</td><td>Implemented</td></tr>
       <tr data-tags="qa board card badge live counts no card summary positive m18 implemented"><td>TC-410</td><td>dashboard (go test)</td><td>Positive</td><td>An epic's board card carries live case counts that move with every created case and every result, other cards carry none, and no task is written</td><td>Implemented</td></tr>
-      <tr data-tags="qa seed script sample-product summary totals ok FAIL positive negative m18 implemented"><td>TC-411</td><td>seed.sh</td><td>Positive</td><td>On the VM the seed script ends with ok summary matches, or FAIL naming what differs, after asserting the catalog's totals are at least the committed files'</td><td>Implemented</td></tr>
+      <tr data-tags="qa seed script sample summary totals ok FAIL positive negative m18 implemented"><td>TC-411</td><td>seed.sh</td><td>Positive</td><td>The generic seed script, given a required --dir, ends with ok summary matches, or FAIL naming what differs, after asserting the catalog's totals are at least the seed files'; with no --dir, or a --dir without both files, it refuses</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard board scroll css sisflow overscroll wheel height silent negative"><td>TC-412</td><td>dashboard (go test)</td><td>Negative</td><td>The back office's board host has a bounded height and its scroller lets a scroll reach the page, so the board scrolls both ways (TestTheBoardHostHasABoundedHeight)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard qa inbox api scope bearer 404 forbidden positive negative d-078 implemented"><td>TC-413</td><td>dashboard (go test)</td><td>Positive</td><td>The QA token asks and polls only for the products it is scoped to: an out-of-scope or unknown product is a 404 that writes nothing, a missing, wrong or outbound token is a 401, and the QA token on the catalog, the seed or a back-office answer route is a 403 or a 401 (TestAnInboxAskNeedsTheQAScopeAndTheProduct)</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard qa inbox idempotent externalid duplicate cap positive negative d-078 implemented"><td>TC-414</td><td>dashboard (go test)</td><td>Positive</td><td>Asking again with the same (product, externalId) returns the existing item with created false, whatever state it reached, and writes no second event; a product holding 200 open items refuses the next (TestAnInboxAskIsIdempotentOnTheExternalID)</td><td>Implemented</td></tr>
@@ -598,6 +598,9 @@
       <tr data-tags="go test unit dashboard design gate send-back d-084 routes back office same-origin csrf sheet break-ui positive negative implemented"><td>TC-507</td><td>dashboard (go test)</td><td>Positive / Negative</td><td>The send-back routes are the back office's: 401 or the login sheet without a session, 403 cross-site, same-site or from a foreign origin, 415 for a non-form body, 404 for another product; the sheet lists 41 worst-case findings escaped and warns for a design over a packet part; the board shows the reason and the button; the posted triage and the session's account are recorded, the query string ignored (<code>TestTheSendBackRoutesAreBackOfficeAndSameOrigin</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard design gate send-back d-084 card timing partition done segment positive implemented"><td>TC-508</td><td>dashboard (go test)</td><td>Positive</td><td>A design sent back once books the DONE segment it left as blocked, and its lead equals the sum of its buckets (<code>TestALeftDoneSegmentIsBookedAsBlocked</code>, <code>timing_test.go</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard design gate send-back d-084 reroll unblock approve drift release board negative implemented"><td>TC-509</td><td>dashboard (go test)</td><td>Negative</td><td>A design-blocked review is never re-run on the same design: unblock is refused and not offered, approve of a design or review task is refused and not offered, an unblock clears its reason, and a drift release leaves design-blocked, design-unreviewed and qa-epic-added tasks blocked while releasing a drift-blocked one (<code>TestTheGatesVerdictIsNeverRerolled</code>, <code>board_test.go</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="check-workspace private strings forbidden list guard tracked untracked path index hash d-085 positive negative implemented shell"><td>TC-510</td><td>check-workspace.sh</td><td>Positive</td><td>No tracked or untracked-not-ignored file's content or path matches the git-ignored forbidden-strings list; nothing under deploy/local/ but its README is tracked; the list is not tracked; an invalid pattern or an unusable GAOS_FORBIDDEN_STRINGS fails; a matching path is shown by index and hash, never by name; no list means a printed skip</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard back office integrations view no secret sentinel token digest no-store archive d-085 positive negative implemented"><td>TC-511</td><td>dashboard (go test)</td><td>Positive</td><td>The Integrations view shows ai-manager, the QA tools, the API and every registered client on both view routes, served no-store like the archive, and renders no token, digest, credential, URL path or query</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard back office integrations view session 401 login sheet unconfigured d-085 negative implemented"><td>TC-512</td><td>dashboard (go test)</td><td>Negative</td><td>An unsigned request never renders the Integrations view, on either route; with nothing configured the view says what is missing</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -2771,7 +2774,7 @@
   agent that owns its job, a vendored skill nothing referenced, and four numbers that stopped
   matching their own registers. <code>deploy/check-stacks.sh</code> checks the stack and
   <code>pustaka check</code> checks the docs site's structure; neither looked at
-  <code>.claude/</code>. This script does, in six checks: every path named in
+  <code>.claude/</code>. This script does, in seven checks: every path named in
   <code>.claude/CLAUDE.md</code> exists; every skill is referenced; every count agrees with its
   register; no rule sentence appears in two rule files; no isolation canary was left behind; and
   the review report store carries no secret-shaped string. The sixth check also owns the skills:
@@ -2786,8 +2789,33 @@
   six checks and the run exits 0. <strong>Negative (TC-358, TC-381):</strong> a stale path, a
   drifted count, a skill carrying framework vocabulary, a vendored skill without its licence or
   its provenance, or a trimmed skill whose digest moved prints <code>FAIL &lt;what&gt;</code> and
-  the run exits 1. It is advisory — there is no CI, so the product owner runs it
+  the run exits 1. Since v0.45.0 the README's figures are compared with what the script computes, not with
+  fixed strings: <code>ok   README Go-test count matches (&lt;n&gt; Go tests)</code>,
+  <code>ok   README case count matches (&lt;n&gt; registered test cases)</code> and
+  <code>ok   README version matches (Product version &lt;semver&gt;)</code>, or
+  <code>FAIL README Go-test count: README.md does not say "&lt;n&gt; Go tests"</code> and the same shape for the
+  other two. It is advisory — there is no CI, so the product owner runs it
   (<a href="decision-log.html#d-025">D-025</a>).</p>
+
+  <h3 id="cw-private-strings">check-workspace.sh — no private instance in a tracked file (TC-510)</h3>
+  <p>Section 7, since v0.45.0 (<a href="decision-log.html#d-085">D-085</a>). GAOS is open source, and one
+  operator's instance &mdash; a sample product's name, its organisation, its domain &mdash; must not be named in the
+  repository. The patterns are <strong>not</strong> in the script: they are read from the first non-empty list of
+  <code>$GAOS_FORBIDDEN_STRINGS</code>, <code>deploy/local/forbidden-strings</code> and the same path in the main
+  checkout (an agent worktree never receives ignored files), one extended regex per line, case-insensitive.
+  <code>git grep --untracked</code> scans the tracked and untracked-not-ignored files; the path check covers the
+  same set. A path that matches is printed by its index and a hash, never by name, and the matched text is never
+  printed. <strong>Positive:</strong> <code>ok   no tracked file or path names a private instance (&lt;N&gt;
+  pattern(s) from local|main|env)</code>. <strong>Negative:</strong>
+  <code>FAIL a tracked file names a private instance: &lt;path&gt; (line &lt;n&gt;)</code>,
+  <code>FAIL a tracked path names a private instance: path #&lt;k&gt; (&lt;8 hex&gt;)</code>,
+  <code>FAIL a file under deploy/local/ is tracked: &lt;path&gt;</code>,
+  <code>FAIL the forbidden-strings list is tracked; it must stay git-ignored</code>,
+  <code>FAIL the forbidden-strings list holds an invalid pattern</code>,
+  <code>FAIL GAOS_FORBIDDEN_STRINGS names no readable, non-empty list</code> and
+  <code>FAIL git grep could not scan the working tree</code>. Without a list it prints
+  <code>skip private strings: no forbidden-strings list (deploy/local/README.md says where it goes)</code> and does
+  not fail. Every branch was run once at v0.45.0 and its output piped back through the list: nothing matched.</p>
 
   <h3 id="go-reviewer-workspace">dashboard &mdash; the reviewer's own workspace (TC-382&hellip;TC-390)</h3>
   <p>M17.5, in <code>dashboard/reviewer_workspace.go</code> and
@@ -3128,10 +3156,13 @@
   want none</code>).</p>
 
   <h3 id="go-qa-seed">The product seed and <code>seed.sh</code> (TC-406, TC-407, TC-411)</h3>
-  <p>M18 phase P3, in <code>dashboard/seed_test.go</code> and <code>deploy/seed/sample-product/seed.sh</code>
-  (<a href="decision-log.html#d-074">D-074</a>). The seed is generic; sample-product's content is data under
-  <code>deploy/seed/sample-product/</code>, and the seed never clears the design gate.
-  <strong>TC-406, positive</strong> (<code>TestProductSeedIsIdempotentAndMeetsTheFloor</code>): the first
+  <p>M18 phase P3, in <code>dashboard/seed_test.go</code> and <code>deploy/seed/seed.sh</code>; since v0.45.0
+  (<a href="decision-log.html#d-085">D-085</a>) both tests run on the invented example in <code>deploy/seed/example/</code>,
+  and a real product's seed is private, under the git-ignored <code>deploy/local/</code>
+  (<a href="decision-log.html#d-074">D-074</a>). The seed is generic; the sample product's content is data under
+  <code>deploy/seed/&lt;sample&gt;/</code>, and the seed never clears the design gate.
+  <strong>TC-406, positive</strong> (<code>TestProductSeedIsIdempotentAndMeetsTheFloor</code>): the example seed
+  is accepted (<code>the example seed answered %d: %s</code>); the first
   run creates the product, one story per module, the epics, the policies and a Blueprint version 1, with
   <code>2 + epics + 1</code> tasks (<code>first seed = %+v, want created, %d stories, %d epics, %d
   tasks</code>, <code>first seed = %+v, want a readiness of at least %d, Blueprint version 1 and %d
@@ -3154,23 +3185,24 @@
   answered %d %s, want 409 product-exists-unseeded</code>, <code>two products of one name: answered %d,
   want 409</code>); and during replay the seed is 409 (<code>a seed during replay answered %d %s, want 409
   replay</code>).
-  <strong>TC-407, positive</strong> (<code>TestThesample-productSeedIsWellFormed</code>): the committed files hold
-  39 modules, 444 features, 47 epics and 1,700 cases (<code>seed has %d modules, %d features, %d epics,
-  %d cases; want 39, 444, 47, 1700</code>), 494 implemented and 1,146 planned (<code>%d implemented and
-  %d planned; want 494 and 1146</code>), a 40-hex source commit (<code>cases.json names no source
-  commit: %q</code>, <code>knowledge source %s is pinned to %q, want a 40-hex commit</code>), exactly one
-  epic with no module (<code>%d epics have no module, want exactly 1 (the report builder: its stories
-  name no feature)</code>); every case validates and resolves to a defined epic and module, no id is
+  <strong>TC-407, positive</strong> (<code>TestTheExampleSeedIsWellFormed</code>): the tracked example holds
+  3 modules, 8 features, 4 epics and 12 cases (<code>example seed has %d modules, %d features, %d epics, %d cases;
+  want 3, 8, 4, 12</code>), 5 implemented and 9 planned (<code>%d implemented and %d planned; want 5 and 9</code>),
+  exactly one epic with no module (<code>%d epics have no module, want exactly 1 (the report pages)</code>), and any
+  knowledge source pinned to a 40-hex commit (<code>knowledge source %s is pinned to %q, want a 40-hex commit</code>);
+  every case validates and resolves to a defined epic and module, no id is
   duplicated, an implemented case is planned with a valid spec, and no scenario carries unsafe text
   (<code>%s: %s</code>, <code>duplicate case id %s</code>, <code>%s names epic %s, which the seed does not
   define</code>, <code>%s is implemented but is %s with spec %q</code>, <code>%s: unsafe scenario
   text</code>); and the egress detector finds nothing in either file (<code>%s trips the secret detector
-  %s</code>).
-  <strong>TC-411, positive and negative</strong> (<code>deploy/seed/sample-product/seed.sh</code>, run on the VM
-  against the tunnel listener, not the public edge): it prints <code>seed: %d modules, %d epics, %d cases
+  %s</code>). A private seed is not read by a tracked test: the server checks it when it is seeded.
+  <strong>TC-411, positive and negative</strong> (<code>deploy/seed/seed.sh --dir &lt;seed dir&gt;</code>; for a
+  deployed instance, run on its VM with <code>--base</code> at the tunnel listener, not the public edge; the default
+  base is the local stack, <code>http://127.0.0.1:8083/api/v1</code>): it prints <code>seed: %d modules, %d epics, %d cases
   (%d automated)</code>, then <code>ok   product %s %s: ...</code>, <code>ok   catalog: %d created, %d
   updated, %d unchanged</code> and ends <code>ok   summary matches: %d cases, %d automated, %d epics (at least the seed's %d, %d,
-  %d), coverage %d%%</code>. Its failures are <code>FAIL python3 is required</code>, <code>FAIL cannot read the
+  %d), coverage %d%%</code>. Its failures are <code>FAIL --dir is required: the seed directory holding product.json and cases.json</code>,
+  <code>FAIL no product.json and cases.json in %s</code>, <code>FAIL python3 is required</code>, <code>FAIL cannot read the
   token file %s</code>, <code>FAIL the token file does not hold a gaos_ token (an empty file disables the
   admin token)</code>, <code>FAIL cannot reach %s: %s</code>, <code>FAIL the product seed answered %d: %s
   %s</code>, <code>FAIL catalog slice at %d answered %d: %s %s</code>, <code>FAIL catalog slice at %d
@@ -3477,7 +3509,7 @@
   <code>the run's line on the timeline is %q; it must carry %q, or the operator retries a review without knowing what the reviewer must change</code>.</p>
 
   <h3 id="go-workflow-goal">dashboard &mdash; a task is briefed with its own workflow's goal, across a restart (TC-464&ndash;TC-465)</h3>
-  <p>v0.40.5, in <code>dashboard/workflow_goal_test.go</code>. Found on sample-product: a second workflow, created to automate two
+  <p>v0.40.5, in <code>dashboard/workflow_goal_test.go</code>. Found on the sample product: a second workflow, created to automate two
   VSYS cases, had every packet's <code>## Objective</code> carry the seeded workflow's goal, so the planner planned the whole
   product. The objective was read from the desk, which is one per product and holds the latest workflow's goal; and
   <code>ArcadeStore.load</code> seated one desk per Workflow vertex, so after a restart the product had two and the older
@@ -3744,6 +3776,27 @@
   <code>after a drift release %s is %s; want %s</code>.
   The client board's elements (<code>static/board.js</code>) and the sheet's focus return are checked by
   <code>node --check</code> and by hand, not by a Go test.</p>
+
+  <h3 id="go-integrations">dashboard &mdash; the back office's Integrations view (TC-511, TC-512)</h3>
+  <p>v0.45.0, in <code>dashboard/integrations_test.go</code> (<a href="decision-log.html#d-085">D-085</a>). Every
+  secret in the fixture is a random-hex sentinel made per run: four API tokens and their SHA-256 digests, the
+  gateway's login, secret and admin key, the gateway base's path and query, the QA base's path and the failing QA
+  server's response body.
+  <strong>TC-511, positive and negative</strong>
+  (<code>TestTheIntegrationsViewShowsEachIntegrationAndNoSecret</code>): signed in, both
+  <code>/ui/bo/integrations</code> and <code>/ui/bo?view=integrations</code> answer 200 (<code>the integrations view
+  answered %d on %s</code>) with <code>Cache-Control: no-store</code>, and so do both archive routes
+  (<code>the %s view on %s is not no-store: %q</code>); inside the view's section it shows the gateway host, the
+  runner, the providers, the QA host and origin, the registered client, the products, a real failed delivery and
+  its reason (<code>the integrations view does not show %q</code>); the whole page carries none of the sentinels
+  (<code>the integrations view leaked %q</code>); and <code>urlHost</code> refuses a userinfo-bearing URL whose
+  password holds a <code>/</code>, and an <code>ftp://</code> URL (<code>urlHost(%q) = %q, want ""</code>).
+  <strong>TC-512, negative and positive</strong>
+  (<code>TestTheIntegrationsViewNeedsASessionAndSaysWhatIsMissing</code>): unsigned, on the same fixture,
+  <code>/ui/bo/integrations</code> with and without <code>HX-Request</code> answers 401 (<code>an unsigned request
+  to %s answered %d</code>) and neither it nor <code>/ui/bo?view=integrations</code> renders the view or a client
+  (<code>an unsigned request to %s rendered the view</code>); with nothing configured the view says what is missing
+  (<code>the unconfigured integrations view does not say %q</code>).</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

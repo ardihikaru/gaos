@@ -53,7 +53,7 @@ Design: `docs/designs/runner-manual.md`. Round 1 ran five goldfish lenses on v1 
 | Terms undefined | comprehension | Nit | PROPOSE FIX | glossary |
 | `/healthz` vs `/api/healthz` | comprehension | Nit | PROPOSE FIX | §3.6 |
 | Refusal text without adapter | comprehension, critic | Nit | PROPOSE FIX | §3.3 step 1 own text; §3.6 describes the key |
-| Live-instance facts unanchored | comprehension | Nit | PROPOSE FIX | cites `sample-product-qa-sync.md`, labels the ids as an assumption |
+| Live-instance facts unanchored | comprehension | Nit | PROPOSE FIX | cites `qa-catalog-sync.md`, labels the ids as an assumption |
 | Conformance case needs type assertions | critic | Nit | PROPOSE FIX | §5 |
 | `brd.html:324`; D-079 line | critic | Nit | PROPOSE FIX | §4 row 13; header |
 | TC-441 "≥1" | readiness | Nit | PROPOSE FIX | exactly one on the first pass |

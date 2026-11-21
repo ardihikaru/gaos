@@ -1,35 +1,76 @@
 # GAOS
 
-A graph-native agent operating system. The thesis is in one line: **the graph is
-the primitive, not the prompt.** State lives in vertices and edges rather than a
-conversation, every change emits an event, and the orchestrator holds nothing —
-kill it mid-run and it rebuilds from the graph.
+**A graph-native agent operating system: product and task management for AI
+coding agents.** GAOS holds each product — its requirements, user stories,
+decisions, diagrams and a versioned *Blueprint* of policies — as a graph, plans
+the work as tasks on a kanban, and sends each task to an AI agent one turn at a
+time, with the product's context, through a gateway. The thesis is in one line:
+**the graph is the primitive, not the prompt.** State lives in vertices, edges and
+an append-only event stream, not in a conversation; kill the orchestrator
+mid-run and it rebuilds from the graph.
 
-**Product version 0.40.1** (`pustaka/docs/assets/toc.js`). The graph, the event
-store, readiness, the planner, the scheduler and the attempt record are built, and
-GAOS has made real model calls. What judges a result — review, scoring, the retry
-guards — is not built yet. Every page and every file says which is which.
+**Product version 0.45.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
 
-**GAOS is product and task management.** *ai-claude-cli works the task with
-context, ai-manager shapes it with a workspace, GAOS shapes it with the product, the
-task details and the product's Blueprint.* Since v0.29.0 GAOS runs no model tool
-itself: every attempt is one turn through ai-manager, in the product's own workspace,
-under a versioned Blueprint, tracked on a kanban per product. Start with
-`pustaka/docs/architecture/gateway.html` and `pustaka/docs/product/blueprint.html`;
-the decisions are D-055…D-062. What is left of milestone M14 is the task fold that
-lets the board replay, and vendoring the sisflow board once OQ-25 allows it.
+Three layers, each owning one thing: **GAOS** shapes the work with the product,
+the task and the Blueprint; **ai-manager** runs every model turn in the
+product's own provisioned workspace; a **worker** such as ai-claude-cli works
+the task there. GAOS runs no model tool itself (D-055).
+
+## Features
+
+Each links to the page that describes it, in the docs site under `pustaka/docs/`.
+
+- **Products and readiness** — a record per product (BRD, stories, decisions,
+  diagrams, knowledge) scored for readiness; a record below the floor cannot be
+  planned. `product/brd.html`
+- **The Blueprint** — versioned policies per product, published and synced into
+  the product's workspace as the agent's rules; drift is refused before a
+  dispatch. `product/blueprint.html`
+- **Kanban and the manual runner** — one board per product; a move is a request
+  the task state machine may refuse. `GAOS_RUNNER=manual` makes the operator's
+  board move the only thing that spends. `architecture/gateway.html`
+- **The design gate** — a planned story gets a design task, a zero-context
+  review and only then an implementation task; a design the review blocks goes
+  back to its author and is reviewed again. `architecture/design-gate.html`
+- **Card timing and conversations** — how long each card waited, worked and was
+  blocked; every card's AI conversation, with archive and prune.
+- **The operator's inbox** — an agent's question, or an external client's, waits
+  in *Needs you*; every answer records where it came from.
+- **QA sync** — a test catalog per product, a bearer-token REST API for the QA
+  tools, two sync buttons, an answer webhook, and a registry of further machine
+  clients. `guide/qa-sync-api.html`
+- **Back-office sign-in** — real accounts, signed sessions, every route
+  session-gated unless listed public. `guide/bo-sign-in.html`
+- **An Integrations view** — every connection's live state, read-only, never a
+  secret.
+
+Not built yet, and said so everywhere: the scoring engine, the retry guards and
+the budget guard. The design gate's review is built (D-068, D-084).
+
+## Architecture
 
 ```
-artifacts/v1/   the design — three self-contained documents, the source of truth
-dashboard/      the product master · Go + HTMX · stdlib only · ArcadeDB or in-memory store
+QA tools / clients ──bearer──▶  GAOS machine API (/api/v1)
+                                   │
+                                   ▼
+                   GAOS — graph + event stream (ArcadeDB or in-memory),
+                   board, scheduler, back office, inbox
+                                   │  Basic (/v1) · admin bearer (/admin)
+                                   ▼
+                              ai-manager  ──▶  worker in the product's workspace
+```
+
+```
+dashboard/      GAOS itself · Go stdlib + HTMX · ArcadeDB or in-memory store
 pustaka/        the documentation site (vendored engine, GAOS content)
-landing-page/   the marketing page (vendored, static)
-deploy/         Dockerfiles, Traefik, the tunnelled stacks, the edge config
-docs/           working documents — the design gate's rules, designs and articles
+landing-page/   the marketing page (static)
+deploy/         Dockerfiles, Traefik, stacks, edge config, checks, seed tooling
+docs/           working documents — the design gate's rules, designs, reviews
+artifacts/v1/   the original design documents
 compose.yaml    the local stack — one port, no infrastructure
 ```
 
-## Run it locally
+## Quick start
 
 ```bash
 docker compose up -d
@@ -39,89 +80,78 @@ open http://localhost:8083/
 | path | what |
 |---|---|
 | `/` | landing page — owns the origin's 404 |
-| `/app/` | the dashboard — the product list, each product's Blueprint, Board and Timeline |
+| `/app/` | the dashboard — products, Blueprint, Board, Timeline, back office |
 | `/docs/` | the documentation |
 | `/api/healthz` | health, including ArcadeDB reachability |
 
-Port 8083 rather than 8080, because 8080 is already taken on the development
-box. Override with `GAOS_EDGE_PORT`.
+Port 8083 by default; override with `GAOS_EDGE_PORT`. With no database the
+dashboard runs on its in-memory store and reports `"database":"unconfigured"`.
+To load an invented sample product, see `deploy/seed/README.md`.
 
-## Deployed
+## Configuration
 
-Product slot **03**. Both tiers run on the private VM behind the WireGuard
-tunnel; `clino` is the public edge and runs no containers.
+The common variables. Every credential is a **file** (mode 600) named by a
+variable, never a value in the environment. The full list, with the production
+values' shape, is `pustaka/docs/infra/environments.html`.
 
-| | dev | prod |
-|---|---|---|
-| | `dev.gaos.mfardiansyah.id` | `gaos.mfardiansyah.id` |
-| | `10.10.0.2:19301` | `10.10.0.2:18301` |
-
-Read **`deploy/STACKS.md`** before touching either, and
-**`deploy/edge/README.md`** before touching nginx on `clino` — three of the rules
-there have already cost somebody an outage on that box.
-
-```bash
-./deploy/check-stacks.sh                                  # invariants a running stack hides
-./deploy/rebuild-restart.sh dev  deploy                   # dev first, always
-./deploy/rebuild-restart.sh prod deploy --tag v0.13.0     # prod builds from a tag, never the checkout
-```
-
-## What is designed, and what is built
-
-| | state |
+| Variable | Meaning |
 |---|---|
-| System architecture, control loops, scoring, readiness rubric | **designed** — `artifacts/v1/gaos-architecture.html` |
-| Graph schema: 25 vertex types, 32 edge types, event store | **built** — `dashboard/schema/`, applied to dev and prod, reconciled against ArcadeDB 26.7.2 |
-| Product master UI | **built** — Go + HTMX; the product list is the home page, each product with its record, Blueprint, Board and Timeline. The engineering floor was retired in v0.29.0 |
-| dev + prod stacks, edge config, health probe | **built** — verified end to end over the tunnel |
-| Docs site and landing page | **built** |
-| ArcadeDB schema applied, graph queries | **built** — `dashboard/store_arcade.go` against the `store.go` seam; one conformance suite covers both stores |
-| Append-only event store, the fold, replay | **built** — `dashboard/fold.go`; the stream is unbounded, the reducer is pure/total/order-stable, replay folds from the nearest snapshot through a read-only handle |
-| Task state machine | **built** — `dashboard/state.go`; illegal transitions are refused at the boundary |
-| Scheduler, supervisor, boot recovery | **built** — `dashboard/scheduler.go`, `runner.go`, `turns.go`; one live turn per product (the graph lease), recovery by request id |
-| Attempt record, frozen context slice, reply contract and handoff | **built** — `dashboard/model.go`, `handoff.go`, `handoff_reply.go`; the handoff travels in the reply (D-057) |
-| ai-manager gateway adapter | **built** — `dashboard/adapter_aimanager.go`, `GAOS_MODEL_MODE=aimanager`; the upstream provisioning API is live |
-| Blueprint per product | **built** — policies, knowledge sources, versions, the back-office tab, synced into the product's workspace |
-| One workspace and one live turn per product | **built** — drift gate before dispatch, graph lease in the scheduler (M14.4) |
-| Sessions per task, request-id recovery | **built** — `dashboard/turns.go`; one real turn passed through `live-aim-run.sh` |
-| Kanban per product | **built** — the back office Board tab and `dashboard/board.go`; moves are requests the state machine may refuse |
-| Reviews, scoring, retry guards | **not built** |
-| Authentication | **not built** — the back-office login sets a cookie and checks nothing |
+| `GAOS_ADDR` | listen address (`:8080` in the stacks) |
+| `GAOS_STORE` | `arcadedb` to use ArcadeDB; otherwise in-memory |
+| `GAOS_ARCADE_URL`, `GAOS_ARCADE_DB`, `GAOS_ARCADE_USER`, `GAOS_ARCADE_PASSWORD`, `GAOS_ARCADE_TENANT` | the ArcadeDB connection |
+| `GAOS_MODEL_MODE` | `aimanager` to enable turns; `off` by default |
+| `GAOS_AIM_URL`, `GAOS_AIM_CHAT_AUTH_FILE`, `GAOS_AIM_ADMIN_KEY_FILE` | ai-manager's base, its chat login, its admin key |
+| `GAOS_AIM_TENANT`, `GAOS_AIM_POLL_MS`, `GAOS_AIM_TURN_DEADLINE`, `GAOS_AIM_SESSION_MAX_AGE`, `GAOS_MODEL` | turn tuning |
+| `GAOS_RUNNER` | `off` (default), `manual` (only a board move spends) or `on` (the scheduler dispatches) |
+| `GAOS_API_ADMIN_TOKEN_FILE`, `GAOS_API_QA_TOKEN_FILE` | the machine API's admin and QA tokens |
+| `GAOS_API_QA_PRODUCTS` | product ids the QA token may reach |
+| `GAOS_API_CLIENTS_FILE` | further machine clients, one per line |
+| `GAOS_QA_URL`, `GAOS_QA_TOKEN_FILE`, `GAOS_QA_ORIGIN` | where GAOS calls the QA tools, its token, their host name |
+| `GAOS_BO_USERS_FILE`, `GAOS_BO_SESSION_KEY_FILE`, `GAOS_BO_LABEL`, `GAOS_COOKIE_SECURE` | back-office sign-in |
+| `GAOS_EGRESS_*` | the pre-dispatch egress screen: size caps, path allow/deny lists, redaction |
 
-The event catalog in `dashboard/events.go` is the closed list from the model
-document, so the vocabulary cannot drift while the rest is written. Twelve of its
-names are declared and not yet emitted; they belong to the runner, the review
-engine, the planner's task graph and the budget guard, and a test pins the list
-to those modules so the gap cannot quietly grow or shrink.
+## Integrations
+
+- **How integration works** — every connection, who starts it, how it is
+  authenticated, and a question's and a test result's round trip:
+  `pustaka/docs/integrations/overview.html`
+- **Webhooks and external clients** — register a client, the inbox API, the
+  answer webhook, troubleshooting, and tutorials for the QA tools, ai-manager
+  and a new client: `pustaka/docs/integrations/webhooks-and-clients.html`
+- **ai-manager REST reference** — all eight calls GAOS makes:
+  `pustaka/docs/integrations/ai-manager-api.html`
 
 ## Tests
 
 ```bash
-cd dashboard && go test ./...          # 308 tests, race-clean, no dependencies
+cd dashboard && go test -race ./...    # set GAOS_ARCADE_TEST_URL (deploy/schema/scratch.sh up) for the ArcadeDB half
 cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-stacks.sh
 ./deploy/check-workspace.sh
 ```
 
-The two Go packages hold 330 tests between them — 308 in `dashboard/` and 22 in
-`pustaka/`.
+386 Go tests: 364 in `dashboard/` and 22 in `pustaka/`. Every test case —
+implemented, retired or a forward specification — is in the register,
+`pustaka/docs/product/qa-test-plan.html`: 512 registered test cases. There is
+no CI: the product owner runs the checks (D-025), and a test that is not on that
+page is one nobody knows to run. `check-workspace.sh` keeps the agent
+workspace honest — paths, orphan skills, every count against its register, rule
+forks, leftover canaries, secrets in reports — and fails if a tracked file names
+an operator's private instance (D-085).
 
-Every test case — implemented or still a forward specification — is registered in
-`pustaka/docs/product/qa-test-plan.html` (454 cases, 45 of them retired and struck). There is no CI: the product
-owner runs them (D-025), and a test that is not on that page is one nobody knows
-to run.
+## Deployment
 
-`check-workspace.sh` is the agent workspace's own invariants: that the paths the
-project rules name exist, that no skill is an orphan, that every count agrees
-with its register, that no rule is forked between two files, and that no
-isolation canary or secret was left behind. It is advisory — the product owner
-runs it — and it is the gate that stops the drift from coming back.
+Production builds from a tag on a private VM behind a WireGuard tunnel; a small
+public edge runs nginx only. Read `deploy/STACKS.md` before touching a stack and
+`deploy/edge/README.md` before touching the edge. One operator's own material — a
+second instance's overrides, a private product seed — lives in the git-ignored
+`deploy/local/` (`deploy/local/README.md`), never in the repository.
 
-The dashboard tests deliberately target what fails *silently*: a computed style
-losing its `template.CSS` type (`html/template` emits the literal `ZgotmplZ` and
-the page still renders), a mount-point prefix that stops arriving, a snapshot
-that aliases the live projection, and a back-office route that quietly never had an
-auth check.
+## Contributing
+
+Feature-sized changes start as a design in `docs/designs/` reviewed by
+zero-context reviewers before any code (`docs/rules/gaos-design-review.md`).
+Contributions take a DCO sign-off rather than a CLA — `CONTRIBUTING.md`.
 
 ## Licence
 
@@ -130,10 +160,7 @@ licence key, no trial, and no feature that switches off; this repository is a
 complete system on its own, and no paid component may ever be required to run it.
 
 The name is not covered by the licence: build on GAOS and give your fork its own
-name (`NOTICE`). Contributions take a DCO sign-off rather than a CLA —
-`CONTRIBUTING.md`.
-
-What *is* commercial — optional private submodules, installation, support — and
-what will never be sold, is in the docs under
+name (`NOTICE`). What *is* commercial — optional private submodules,
+installation, support — and what will never be sold is in
 `pustaka/docs/product/faq.html`. You always pay your own model provider; GAOS is
 never in that billing path.

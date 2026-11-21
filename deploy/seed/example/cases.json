@@ -1,0 +1,208 @@
+{
+ "source": {
+  "generator": "hand-written example",
+  "note": "An invented product. Nothing here describes a real system."
+ },
+ "cases": [
+  {
+   "caseId": "TC-CART-001",
+   "epic": "CART",
+   "module": "A01",
+   "features": [
+    "A01.01"
+   ],
+   "userStory": "US-CART-01",
+   "scenario": "Given a product in stock, when the shopper searches for its name, then it is the first result",
+   "polarity": "+",
+   "level": "API",
+   "pri": "P0",
+   "decision": "planned",
+   "reason": "",
+   "implemented": true,
+   "spec": "tests/api/catalog/search.spec.ts"
+  },
+  {
+   "caseId": "TC-CART-002",
+   "epic": "CART",
+   "module": "A01",
+   "features": [
+    "A01.02"
+   ],
+   "userStory": "US-CART-02",
+   "scenario": "Given an empty cart, when the shopper adds one item twice, then the cart holds one line with quantity 2",
+   "polarity": "+",
+   "level": "WEB",
+   "pri": "P0",
+   "decision": "planned",
+   "reason": "",
+   "implemented": true,
+   "spec": "tests/web/cart/add.spec.ts"
+  },
+  {
+   "caseId": "TC-CART-003",
+   "epic": "CART",
+   "module": "A01",
+   "features": [
+    "A01.03"
+   ],
+   "userStory": "US-CART-03",
+   "scenario": "Given an expired discount code, when it is applied, then the total is unchanged and the code is refused",
+   "polarity": "-",
+   "level": "API",
+   "pri": "P1",
+   "decision": "planned",
+   "reason": "",
+   "implemented": false,
+   "spec": ""
+  },
+  {
+   "caseId": "TC-CHECKOUT-001",
+   "epic": "CHECKOUT",
+   "module": "A02",
+   "features": [
+    "A02.01"
+   ],
+   "userStory": "US-CHECKOUT-01",
+   "scenario": "Given a cart and a valid address, when the shopper chooses standard delivery, then the order summary shows the delivery fee",
+   "polarity": "+",
+   "level": "WEB",
+   "pri": "P0",
+   "decision": "planned",
+   "reason": "",
+   "implemented": true,
+   "spec": "tests/web/checkout/delivery.spec.ts"
+  },
+  {
+   "caseId": "TC-CHECKOUT-002",
+   "epic": "CHECKOUT",
+   "module": "A02",
+   "features": [
+    "A02.02"
+   ],
+   "userStory": "US-CHECKOUT-02",
+   "scenario": "Given the sandbox card that is declined, when the shopper pays, then no order is created and the error is shown",
+   "polarity": "-",
+   "level": "E2E",
+   "pri": "P0",
+   "decision": "planned",
+   "reason": "",
+   "implemented": true,
+   "spec": "tests/e2e/checkout/declined.spec.ts"
+  },
+  {
+   "caseId": "TC-CHECKOUT-003",
+   "epic": "CHECKOUT",
+   "module": "A02",
+   "features": [
+    "A02.03"
+   ],
+   "userStory": "US-CHECKOUT-03",
+   "scenario": "Given a paid order, when support refunds it, then the order is marked refunded",
+   "polarity": "+",
+   "level": "API",
+   "pri": "P1",
+   "decision": "blocked",
+   "reason": "blocked:the refund endpoint is not deployed to staging yet",
+   "implemented": false,
+   "spec": ""
+  },
+  {
+   "caseId": "TC-CHECKOUT-004",
+   "epic": "CHECKOUT",
+   "module": "A02",
+   "features": [
+    "A02.02"
+   ],
+   "userStory": "US-CHECKOUT-02",
+   "scenario": "Given a card that needs a 3-D Secure challenge, when the shopper completes it, then the order is paid",
+   "polarity": "+",
+   "level": "E2E",
+   "pri": "P2",
+   "decision": "manual-only",
+   "reason": "manual-only:the sandbox challenge page cannot be automated",
+   "implemented": false,
+   "spec": ""
+  },
+  {
+   "caseId": "TC-ACCOUNT-001",
+   "epic": "ACCOUNT",
+   "module": "B01",
+   "features": [
+    "B01.01"
+   ],
+   "userStory": "US-ACCOUNT-01",
+   "scenario": "Given a new email address, when the shopper signs up, then they are signed in and see an empty order history",
+   "polarity": "+",
+   "level": "WEB",
+   "pri": "P1",
+   "decision": "planned",
+   "reason": "",
+   "implemented": true,
+   "spec": "tests/web/account/signup.spec.ts"
+  },
+  {
+   "caseId": "TC-ACCOUNT-002",
+   "epic": "ACCOUNT",
+   "module": "B01",
+   "features": [
+    "B01.01"
+   ],
+   "userStory": "US-ACCOUNT-01",
+   "scenario": "Given a wrong password, when the shopper signs in, then the generic failure message is shown",
+   "polarity": "-",
+   "level": "API",
+   "pri": "P1",
+   "decision": "planned",
+   "reason": "",
+   "implemented": false,
+   "spec": ""
+  },
+  {
+   "caseId": "TC-ACCOUNT-003",
+   "epic": "ACCOUNT",
+   "module": "B01",
+   "features": [
+    "B01.02"
+   ],
+   "userStory": "US-ACCOUNT-02",
+   "scenario": "Given two past orders, when the shopper opens the history, then both are listed newest first",
+   "polarity": "+",
+   "level": "WEB",
+   "pri": "P2",
+   "decision": "planned",
+   "reason": "",
+   "implemented": false,
+   "spec": ""
+  },
+  {
+   "caseId": "TC-REPORTS-001",
+   "epic": "REPORTS",
+   "module": "",
+   "features": [],
+   "userStory": "",
+   "scenario": "Given a signed-in manager, when the sales report is opened, then today's total is shown",
+   "polarity": "+",
+   "level": "WEB",
+   "pri": "P3",
+   "decision": "planned",
+   "reason": "",
+   "implemented": false,
+   "spec": ""
+  },
+  {
+   "caseId": "TC-REPORTS-002",
+   "epic": "REPORTS",
+   "module": "",
+   "features": [],
+   "userStory": "",
+   "scenario": "Given the legacy CSV export, when it is requested, then it is refused",
+   "polarity": "-",
+   "level": "API",
+   "pri": "P3",
+   "decision": "wont",
+   "reason": "not-needed:the CSV export is being removed",
+   "implemented": false,
+   "spec": ""
+  }
+ ]
+}

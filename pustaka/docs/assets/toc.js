@@ -19,7 +19,7 @@ window.DOCS = {
   },
   product: {
     name: "GAOS",
-    semver: "0.44.0",
+    semver: "0.45.0",
     repo: "https://github.com/ardihikaru/gaos"
   },
   parts: [
@@ -28,6 +28,7 @@ window.DOCS = {
     "assets/toc/delivery.js",
     "assets/toc/architecture.js",
     "assets/toc/infra.js",
+    "assets/toc/integrations.js",
     "assets/toc/guide.js",
     "assets/toc/project.js"
   ],
