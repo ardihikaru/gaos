@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -62,6 +63,76 @@ func (s *server) handleMoveCard(w http.ResponseWriter, r *http.Request) {
 		mv = CardMove{Column: r.FormValue("column"), Row: r.FormValue("row"), Index: atoiDefault(r.FormValue("index"), -1)}
 	}
 	res, err := s.mut(r).MoveCard(r.Context(), id, taskID, mv)
+	if err != nil {
+		if wantsHTMX(r) {
+			s.fail(w, r, err)
+			return
+		}
+		if errors.Is(err, ErrNotFound) {
+			writeBoardJSON(w, http.StatusNotFound, map[string]string{"error": "no such card"})
+			return
+		}
+		refuseCard(w, err.Error())
+		return
+	}
+	if wantsHTMX(r) {
+		s.renderBOAfter(w, r, res, id, "board")
+		return
+	}
+	b, _ := s.store.Board(r.Context(), id)
+	for _, c := range b.Cards {
+		if c.ID == taskID {
+			writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
+			return
+		}
+	}
+	writeBoardJSON(w, http.StatusOK, map[string]any{"card": nil})
+}
+
+// handleSendBack is POST /products/{id}/board/cards/{taskId}/send-back: the
+// operator sends the design a review blocked back to its author (D-084). A
+// form post only, read from the body alone: d<N> is finding N's disposition,
+// n<N> its note. The actor is the session's account, never the request's.
+func (s *server) handleSendBack(w http.ResponseWriter, r *http.Request) {
+	ss, ok := sessionOf(r)
+	if !ok || ss.Email == "" {
+		writeBoardJSON(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})
+		return
+	}
+	id, taskID := r.PathValue("id"), r.PathValue("taskId")
+	fail := func(status int, msg string) {
+		if wantsHTMX(r) {
+			s.fail(w, r, reject(msg))
+			return
+		}
+		writeBoardJSON(w, status, map[string]string{"error": msg})
+	}
+	if ct := r.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
+		fail(http.StatusUnsupportedMediaType, "the send-back is a form post")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
+	if err := r.ParseForm(); err != nil {
+		fail(http.StatusBadRequest, "the triage could not be read")
+		return
+	}
+	var triage []FindingTriage
+	for n := 1; n <= 1000; n++ {
+		d, dok := r.PostForm["d"+strconv.Itoa(n)]
+		note, nok := r.PostForm["n"+strconv.Itoa(n)]
+		if !dok && !nok {
+			break
+		}
+		f := FindingTriage{N: n}
+		if len(d) > 0 {
+			f.Disposition = d[0]
+		}
+		if len(note) > 0 {
+			f.Note = note[0]
+		}
+		triage = append(triage, f)
+	}
+	res, err := s.mut(r).SendBackDesign(r.Context(), id, taskID, ss.Email, triage)
 	if err != nil {
 		if wantsHTMX(r) {
 			s.fail(w, r, err)

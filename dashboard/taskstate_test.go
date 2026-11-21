@@ -44,7 +44,6 @@ func TestEveryUndeclaredTaskTransitionIsRefused(t *testing.T) {
 		{StatusRunning, StatusDone, "REVIEW is not optional; BR-13 scores every attempt"},
 		{StatusDeferred, StatusFailed, "BR-34: a deferral consumes no retry and leaves no failure signature"},
 		{StatusDeferred, StatusDispatched, "a deferred task rejoins the queue at READY, it does not jump it"},
-		{StatusDone, StatusReady, "the work shipped; re-running it is a new task, not a new status"},
 		{StatusDone, StatusFailed, "a finished task cannot be retroactively unfinished"},
 		{StatusCanceled, StatusReady, "cancellation is terminal, or it is a pause with a misleading name"},
 		{StatusBlocked, StatusRunning, "the blocker has to clear through READY so the scheduler sees it"},
@@ -98,5 +97,56 @@ func TestADeferredTaskCanNeverGoStraightToFailed(t *testing.T) {
 	if task.Status != StatusDeferred {
 		t.Errorf("the task is %q after a refused move, want DEFERRED — a rejected transition "+
 			"that still wrote is worse than one that was never checked", task.Status)
+	}
+}
+
+// TestOnlyADesignLeavesDoneAndOnlyBySendBack is D-084's guard. The table has
+// one exit from DONE -- the send-back row -- and it is global in the table, so
+// the two places that know the task and the rule keep it narrow: moveTask
+// refuses it for any task that is not a design, and moveTaskLocked refuses it
+// under any rule but send-back.
+func TestOnlyADesignLeavesDoneAndOnlyBySendBack(t *testing.T) {
+	for _, kind := range []string{TaskKindImplement, TaskKindReview, ""} {
+		tr := TaskRecord{ID: "t-x", Kind: kind, Status: StatusDone}
+		if err := moveTask(&tr, StatusReady); err == nil {
+			t.Errorf("moveTask let a %q task go from DONE to READY; only a design is ever sent back", kind)
+		}
+	}
+	design := TaskRecord{ID: "t-d", Kind: TaskKindDesign, Status: StatusDone}
+	if err := moveTask(&design, StatusReady); err != nil {
+		t.Errorf("moveTask refused the send-back row for a design: %v", err)
+	}
+	for _, pair := range [][2]string{{StatusDone, StatusFailed}, {StatusCanceled, StatusReady}, {StatusDone, StatusCanceled}} {
+		if canTaskTransition(pair[0], pair[1]) {
+			t.Errorf("%s -> %s is permitted; the send-back row is the only exit from a finished task", pair[0], pair[1])
+		}
+	}
+
+	for _, rule := range []string{MoveApprove, MoveRedo, MoveRetry, MoveUnblock, MoveSchedule, RuleRequeued, MoveNotStarted} {
+		s := NewMemStore(1)
+		s.tasks = append(s.tasks, TaskRecord{ID: "t-d", DeskID: "p-1", Kind: TaskKindDesign, Status: StatusDone})
+		s.mu.Lock()
+		_, moved := s.moveTaskLocked("t-d", StatusReady, rule)
+		s.mu.Unlock()
+		if moved {
+			t.Errorf("moveTaskLocked moved a DONE design to READY under rule %q; only send-back may", rule)
+		}
+	}
+	s := NewMemStore(1)
+	s.tasks = append(s.tasks,
+		TaskRecord{ID: "t-d", DeskID: "p-1", Kind: TaskKindDesign, Status: StatusDone},
+		TaskRecord{ID: "t-i", DeskID: "p-1", Kind: TaskKindImplement, Status: StatusDone})
+	s.mu.Lock()
+	e, moved := s.moveTaskWithLocked("t-d", StatusReady, MoveSendBack, EventPayload{Actor: "op@example.test"})
+	_, implMoved := s.moveTaskLocked("t-i", StatusReady, MoveSendBack)
+	s.mu.Unlock()
+	if !moved {
+		t.Fatal("moveTaskLocked refused to send a DONE design back")
+	}
+	if e.Payload.Actor != "op@example.test" || e.Payload.Rule != MoveSendBack || e.Payload.To != StatusReady {
+		t.Errorf("the send-back's TaskMoved carries %+v; it must name the rule, the status and the actor", e.Payload)
+	}
+	if implMoved {
+		t.Error("moveTaskLocked sent a DONE implementation task back; only a design leaves DONE")
 	}
 }

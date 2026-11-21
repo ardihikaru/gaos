@@ -55,7 +55,7 @@ const (
 // until its prerequisites clear, READY until the scheduler picks it, DISPATCHED
 // until the runner has a process, RUNNING until the work exits, then REVIEW.
 //
-// Three rows carry an argument rather than a mechanism, and each is the kind of
+// Four rows carry an argument rather than a mechanism, and each is the kind of
 // row a later reader deletes as an oversight unless it says why it is here:
 //
 //   - READY -> PENDING is the regression row. A prerequisite that was satisfied
@@ -73,9 +73,16 @@ const (
 //     goes back to the queue; it does not fail, because nothing about it was
 //     judged.
 //
-// DONE and CANCELED are terminal and appear with empty sets rather than being
-// left out, so "this status goes nowhere" is a decision somebody made instead
-// of a lookup that happens to miss.
+//   - DONE -> READY is the send-back row (D-084), and it is the one exit from
+//     DONE. A design the design gate's review blocked did not ship, and a new
+//     task per revision would need the review's and the implementation's
+//     DEPENDS_ON edges to move. The row is global in this table and narrow in
+//     practice: moveTask refuses it for every task that is not a design, and
+//     moveTaskLocked (runner.go) refuses it under every rule but send-back.
+//
+// CANCELED is terminal and appears with an empty set rather than being left
+// out, so "this status goes nowhere" is a decision somebody made instead of a
+// lookup that happens to miss.
 var taskTransitions = map[string][]string{
 	StatusPending:    {StatusReady, StatusBlocked, StatusDeferred, StatusCanceled},
 	StatusReady:      {StatusDispatched, StatusPending, StatusBlocked, StatusDeferred, StatusCanceled},
@@ -84,7 +91,7 @@ var taskTransitions = map[string][]string{
 	StatusReview:     {StatusDone, StatusReady, StatusBlocked, StatusFailed, StatusCanceled},
 	StatusBlocked:    {StatusReady, StatusPending, StatusFailed, StatusCanceled},
 	StatusDeferred:   {StatusReady, StatusPending, StatusCanceled},
-	StatusDone:       {},
+	StatusDone:       {StatusReady},
 	StatusFailed:     {StatusReady, StatusCanceled},
 	StatusCanceled:   {},
 	// AWAITING_INPUT leaves by an answer (READY), by the operator giving up
@@ -150,6 +157,12 @@ func moveTask(t *TaskRecord, to string) error {
 		return reject(fmt.Sprintf("Task %s is in unknown status %q.", t.ID, t.Status))
 	}
 	if !canTaskTransition(t.Status, to) {
+		return reject(fmt.Sprintf("A task cannot go from %s to %s.", t.Status, to))
+	}
+	// The send-back row is a design task's alone (D-084). Defensive: the board
+	// refuses any move out of Done before it asks, and moveTaskLocked refuses
+	// the row under any rule but send-back.
+	if t.Status == StatusDone && to != StatusDone && taskKind(t.Kind) != TaskKindDesign {
 		return reject(fmt.Sprintf("A task cannot go from %s to %s.", t.Status, to))
 	}
 	t.Status = to

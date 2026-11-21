@@ -118,6 +118,37 @@ function conversationChip(product, card) {
     if (["Enter", " ", "F2", "Delete", "Backspace"].includes(ev.key)) ev.stopPropagation();
   });
   return b;
+// The design gate's decoration (D-084): why a blocked card is held, and on a
+// design-blocked review the button that sends its design back -- or the line
+// that says the cap is reached. textContent only.
+function gateFace(product, card) {
+  const out = [];
+  if (card.reason) {
+    const r = document.createElement("div");
+    r.className = "mono card-reason";
+    r.textContent = "blocked: " + card.reason;
+    out.push(r);
+  }
+  const sb = card.sendBack;
+  if (sb && sb.open) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn card-sendback";
+    b.id = "sb-" + card.id;
+    b.textContent = "Revise design";
+    b.setAttribute("aria-label", "Send the design " + sb.design + " back to its author");
+    b.dataset.sheetOpen = "ui/send-back/" + encodeURIComponent(product) + "/" + encodeURIComponent(card.id);
+    b.addEventListener("keydown", (ev) => {
+      if (["Enter", " ", "F2", "Delete", "Backspace"].includes(ev.key)) ev.stopPropagation();
+    });
+    out.push(b);
+  } else if (sb) {
+    const l = document.createElement("div");
+    l.className = "mono card-reason";
+    l.textContent = "revision limit reached (" + sb.sent + " of " + sb.cap + ")";
+    out.push(l);
+  }
+  return out;
 }
 
 function cardFace(product, card, ctx) {
@@ -130,6 +161,7 @@ function cardFace(product, card, ctx) {
   if (cc) (face.querySelector(".sfb-card-content") || face).append(cc);
   const tc = timingChip(product, card);
   if (tc) (face.querySelector(".sfb-card-content") || face).append(tc);
+  for (const el of gateFace(product, card)) (face.querySelector(".sfb-card-content") || face).append(el);
   return card.status === AWAITING ? [needsBadge(product, card), face] : face;
 }
 

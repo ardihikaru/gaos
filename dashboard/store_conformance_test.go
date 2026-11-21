@@ -86,6 +86,7 @@ var storeContract = []storeCase{
 	{"AManualRunnerReadiesAndNeverDispatches", caseManualRunnerReadiesAndNeverDispatches},
 	{"CardTimingOfAPlannedTask", caseCardTimingOfAPlannedTask},
 	{"ConversationArchiveRoundTrip", caseConversationArchiveRoundTrip},
+	{"ASendBackRoundTrips", caseSendBackRoundTrips},
 }
 
 func TestStoreConformanceMemory(t *testing.T) {
@@ -1712,5 +1713,104 @@ func caseConversationArchiveRoundTrip(t *testing.T, s Store) {
 	c, err := s.Conversation(ctx, id, task)
 	if err != nil || c.State.Archived || len(c.Attempts) != 0 {
 		t.Fatalf("a fresh card's conversation is %+v (%v); want active and empty", c, err)
+	}
+}
+
+// caseSendBackRoundTrips is D-084 at the seam: a send-back moves the design
+// and the review, writes the actor and the triage on its events, and -- in the
+// graph store -- all of it is still there after a reopen. The gate is driven on
+// the projection, as the runner drives it.
+func caseSendBackRoundTrips(t *testing.T, s Store) {
+	var m *MemStore
+	switch x := s.(type) {
+	case *MemStore:
+		m = x
+	case *ArcadeStore:
+		m = x.proj
+	default:
+		t.Skip("this store has no projection to drive the gate on")
+	}
+	ctx := context.Background()
+	id := firstMasterID(t, s)
+	master, _ := s.Master(ctx, id)
+	if len(master.Stories) == 0 {
+		t.Skip("the first master record has no stories to plan against")
+	}
+	draft := WorkflowDraft{ProductID: id, Goal: "Send a design back", Stories: []string{master.Stories[0].ID}}
+	plan, err := s.PlanWorkflow(ctx, draft)
+	if err != nil {
+		t.Fatalf("PlanWorkflow: %v", err)
+	}
+	if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	var design, review string
+	for _, tk := range m.tasksSnapshot(id) {
+		switch taskKind(tk.Kind) {
+		case TaskKindDesign:
+			if design == "" {
+				design = tk.ID
+			}
+		case TaskKindReview:
+			if review == "" {
+				review = tk.ID
+			}
+		}
+	}
+	if design == "" || review == "" {
+		t.Fatal("the plan holds no design and review pair")
+	}
+	drive := func(task, reply string) {
+		runID := task + "-a1"
+		m.mu.Lock()
+		m.startRun(TaskRunRecord{ID: runID, TaskID: task, DeskID: id, Attempt: 1, Status: RunStatusRunning, Invocation: InvocationGateway, StartedAt: time.Now().Unix()})
+		m.mu.Unlock()
+		m.moveTaskByID(task, StatusReady, MoveSchedule)
+		m.moveTaskByID(task, StatusDispatched, MoveSchedule)
+		m.moveTaskByID(task, StatusRunning, MoveStart)
+		m.finishRun(id, task, runID, Attempt{Invocation: InvocationGateway, Reply: reply, ExitClass: ExitRan, HandoffRaw: reply}, nil)
+	}
+	drive(design, designReply(design, design+"-a1", "# The design\n"))
+	drive(review, reviewReply(review, review+"-a1", `- severity: blocker   scope: "a.go:1"   note: "the order is not stated"`))
+
+	if _, err := s.SendBackDesign(ctx, id, review, "conf@example.test",
+		[]FindingTriage{{N: 1, Disposition: "CONTEST", Note: "it is stated"}}); err != nil {
+		t.Fatalf("SendBackDesign: %v", err)
+	}
+	check := func(label string, st Store, g graphReader, evs []Event) {
+		t.Helper()
+		status := map[string]TaskRecord{}
+		for _, tk := range g.tasksSnapshot(id) {
+			status[tk.ID] = tk
+		}
+		if status[design].Status != StatusReady || status[review].Status != StatusPending || status[review].BlockReason != "" {
+			t.Errorf("%s: the design is %s and the review %s (%q); want READY and PENDING with no reason",
+				label, status[design].Status, status[review].Status, status[review].BlockReason)
+		}
+		var seen int
+		for _, e := range evs {
+			if e.Type == TaskMoved && e.Payload.Rule == MoveSendBack {
+				seen++
+			}
+		}
+		if seen != 2 {
+			t.Errorf("%s: %d send-back events; want 2", label, seen)
+		}
+		v, err := st.SendBackSheet(ctx, id, review)
+		if err != nil || v.Refusal == "" {
+			t.Errorf("%s: the sheet of a review sent back is %+v (%v); it must refuse a second send-back", label, v, err)
+		}
+	}
+	check("live", s, m, m.rawEvents())
+	if a, ok := s.(*ArcadeStore); ok {
+		re, err := NewArcadeStoreFor(ctx, a.arc, 1, a.tenant)
+		if err != nil {
+			t.Fatalf("reopen: %v", err)
+		}
+		check("reopened", re, re, re.proj.rawEvents())
+		n, last := re.proj.sendBacksLocked(design)
+		if n != 1 || last.Payload.Actor != "conf@example.test" || len(last.Payload.Triage) != 1 || last.Payload.Triage[0].Note != "it is stated" {
+			t.Errorf("reopened: the send-back event is %+v (count %d); the actor and the triage must survive", last.Payload, n)
+		}
 	}
 }

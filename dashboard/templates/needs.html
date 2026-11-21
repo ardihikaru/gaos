@@ -278,3 +278,65 @@
   {{end}}
 </div>
 {{end}}
+
+{{/* The send-back sheet (D-084, docs/designs/design-iterate.md). Opened by a
+     design-blocked review card's "Revise design": GET ui/send-back/{id}/{taskId}.
+     Same swap unit, enter/exit and focus handling as the timing sheet. Every
+     value is printed by html/template; nothing here is template.HTML. */}}
+{{define "send-back-modal"}}
+<div class="modal-back modal-anim" id="sendBackModal" {{if not .SendBack}}hidden{{end}} hx-swap-oob="true">
+  {{with .SendBack}}
+  <div class="modal sendback" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="sendBackTitle" aria-describedby="sendBackMeta">
+    <header>
+      <div class="answer-head">
+        <span class="eyebrow" id="sendBackMeta">{{.ProductName}} · {{.Review}}{{if .Design}} · sends {{.Design}} back{{end}}</span>
+        <h3 id="sendBackTitle">Revise design</h3>
+      </div>
+      <button type="button" class="icon-btn x" aria-label="Close" title="Close (Esc)" data-close-modal="sendBackModal">✕</button>
+    </header>
+    {{if .Refusal}}
+    <div class="modal-body">
+      <p class="tm-reason" dir="auto">{{.Refusal}}</p>
+    </div>
+    {{else}}
+    <form id="sendBackForm" class="answer-form" hx-post="products/{{.ProductID}}/board/cards/{{.Review}}/send-back" hx-target="#sink" hx-swap="innerHTML"
+          hx-disabled-elt="find button[type=submit]">
+      <div class="modal-body">
+        <p class="sb-lead">The design goes back to its author with the review's findings below and your triage of them.
+        The review runs again on a fresh session once the revision is delivered. <span class="mono">revision {{add .Sent 1}} of {{.Cap}}</span></p>
+        {{if and .PartLimit (gt .DesignBytes .PartLimit)}}<p class="tm-reason">The design is {{kib .DesignBytes}} KiB and a packet part carries at most {{kib .PartLimit}} KiB; the designer sees it only through its own session.</p>{{end}}
+        {{if .Findings}}
+        <ol class="sb-findings">
+          {{range $i, $f := .Findings}}{{$n := add $i 1}}
+          <li class="sb-finding">
+            <div class="sb-f-head"><span class="sb-sev sev-{{$f.Severity}} mono">{{$f.Severity}}</span> <span class="sb-scope mono">{{$f.Scope}}</span></div>
+            <p class="sb-note" dir="auto">{{$f.Note}}</p>
+            <div class="sb-triage">
+              <label class="sr-only" for="sbD{{$n}}">Disposition of finding {{$n}}</label>
+              <select id="sbD{{$n}}" name="d{{$n}}">
+                <option value="">—</option>
+                <option>CONTEST</option><option>ESCALATE</option><option>PROPOSE FIX</option><option>DECLINE</option>
+              </select>
+              <label class="sr-only" for="sbN{{$n}}">Note on finding {{$n}}</label>
+              <input id="sbN{{$n}}" name="n{{$n}}" maxlength="300" dir="auto" autocomplete="off" placeholder="Note to the designer (optional)">
+            </div>
+          </li>
+          {{end}}
+        </ol>
+        {{else}}
+        <p class="tm-line">The review's findings could not be read; the design can still be sent back without triage.</p>
+        {{end}}
+      </div>
+      <footer>
+        <span class="answer-hint">Triage is optional. Nothing here clears the gate; a fresh review does.</span>
+        <span class="sp">
+          <button type="button" class="btn" data-close-modal="sendBackModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Send back to the designer</button>
+        </span>
+      </footer>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}

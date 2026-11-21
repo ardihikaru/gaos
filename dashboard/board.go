@@ -62,6 +62,12 @@ type BoardCard struct {
 	// conversation is archived or pruned (D-082). Set for every card with a
 	// run; the chip shows only for an active one.
 	Conversation *BoardConversation `json:"conversation,omitempty"`
+	// Reason is why a BLOCKED card is held: its BlockReason. Display only,
+	// read-time decoration (sendback.go, decorateBoardGate).
+	Reason string `json:"reason,omitempty"`
+	// SendBack is set on a review the design gate blocked with
+	// design-blocked: whether its design may be sent back now (D-084).
+	SendBack *BoardSendBack `json:"sendBack,omitempty"`
 }
 
 // BoardConversation is a card's conversation, as the board shows it.
@@ -69,6 +75,14 @@ type BoardConversation struct {
 	Attempts int  `json:"attempts"`
 	Archived bool `json:"archived"`
 	Pruned   bool `json:"pruned"`
+}
+
+// BoardSendBack is a design-blocked review card's send-back state (D-084).
+type BoardSendBack struct {
+	Design string `json:"design"` // the design task id
+	Sent   int    `json:"sent"`   // send-backs so far
+	Cap    int    `json:"cap"`    // maxDesignSendBacks
+	Open   bool   `json:"open"`   // Sent < Cap
 }
 
 // BoardQa is an epic card's live roll-up from the QA catalog.
@@ -153,6 +167,10 @@ const (
 	MoveCancel   = "cancel"
 	// MoveAnswer is the only way out of AWAITING_INPUT but cancel (M15).
 	MoveAnswer = "answer"
+	// MoveSendBack sends a design the review blocked back to its author
+	// (D-084): the design DONE -> READY, the review BLOCKED -> PENDING. It is
+	// not one of legalMove's column moves; it has its own route.
+	MoveSendBack = "send-back"
 )
 
 // The other actors that move a task, named in TaskMoved's Rule (T-164). The
@@ -226,6 +244,7 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	s.decorateBoardQa(&b, m)
 	s.decorateBoardTiming(&b, productID, time.Now().Unix())
 	s.decorateBoardConversation(&b, productID)
+	s.decorateBoardGate(&b)
 	return b, nil
 }
 
@@ -303,6 +322,24 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 			return Result{}, reject(fmt.Sprintf(
 				"%s is held by the design gate: %s has not resolved", t.ID, review))
 		}
+		// D-084: a review blocked by its own verdict is never re-run on the
+		// same design. The way out is to send the design back.
+		if taskKind(t.Kind) == TaskKindReview && t.BlockReason == ReasonDesignBlocked {
+			s.mu.Unlock()
+			return Result{}, reject(fmt.Sprintf(
+				"%s's findings block its design; send the design back to its author (Revise design) "+
+					"instead of re-running the review on the same design", t.ID))
+		}
+	}
+	// D-084 (D-069 clause 6): the gate is the only writer of DONE for a design
+	// or a review task. An approval would let a revision that delivered no
+	// design reach DONE, and its review would run on the previous one.
+	if action == MoveApprove {
+		if k := taskKind(t.Kind); k == TaskKindDesign || k == TaskKindReview {
+			s.mu.Unlock()
+			return Result{}, reject(fmt.Sprintf(
+				"%s is a %s task; the design gate decides when it is done, not an approval", t.ID, k))
+		}
 	}
 	to := map[string]string{MoveApprove: StatusDone, MoveRedo: StatusReady, MoveRetry: StatusReady,
 		MoveUnblock: StatusReady, MoveCancel: StatusCanceled}[action]
@@ -311,6 +348,13 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 		return Result{}, err
 	}
 	e, _ := s.moveTaskLocked(taskID, to, action)
+	// An unblock ends the block, and its reason with it: a reason on a BLOCKED
+	// card always belongs to the block it is in (D-084).
+	if action == MoveUnblock {
+		if p := s.taskByIDLocked(taskID); p != nil {
+			p.BlockReason = ""
+		}
+	}
 	r := s.result(fmt.Sprintf("%s: %s.", taskID, action), e)
 	s.mu.Unlock()
 	return r, nil
