@@ -727,6 +727,18 @@
   <p class="tm-line">Set up: <code>GAOS_MODEL_MODE=aimanager</code>, <code>GAOS_AIM_URL</code>, the chat login file <code>GAOS_AIM_CHAT_AUTH_FILE</code> and the admin key file <code>GAOS_AIM_ADMIN_KEY_FILE</code>; <code>GAOS_RUNNER=manual</code> lets the board dispatch. <a href="../docs/integrations/ai-manager-api.html" target="_blank" rel="noopener">ai-manager REST reference</a></p>
 </div>
 <div class="block">
+  <h4>Brain Town &middot; {{.BrainTown.State}}</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">Receiver</th><td class="mono">{{if .BrainTown.Host}}{{.BrainTown.Host}}{{else}}&mdash;{{end}}</td></tr>
+      <tr><th scope="row">Waiting to send</th><td class="mono">{{.BrainTown.Queue}}</td></tr>
+      <tr><th scope="row">Last delivery</th><td>{{if .BrainTown.Last}}{{.BrainTown.Last}}{{else}}none yet{{end}}</td></tr>
+      <tr><th scope="row">Sent &middot; failed &middot; dropped</th><td class="mono">{{.BrainTown.Sent}} &middot; {{.BrainTown.Failed}} &middot; {{.BrainTown.Dropped}}</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tm-line">Set up: <code>BRAIN_TOWN_ENABLED</code>, <code>BRAIN_TOWN_URL</code>, the token file <code>BRAIN_TOWN_TOKEN_FILE</code> and <code>BRAIN_TOWN_PUBLIC_PRODUCTS</code>. A product not listed is sent as hidden and redacted. <a href="../docs/integrations/brain-town.html" target="_blank" rel="noopener">Brain Town</a></p>
+</div>
+<div class="block">
   <h4>QA tools &middot; {{if .QA.Outbound}}connected{{else}}outbound off{{end}}</h4>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>

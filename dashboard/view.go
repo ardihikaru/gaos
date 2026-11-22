@@ -190,10 +190,11 @@ type BOView struct {
 // works. Every value is a host, a mode, a count, a time or a yes/no: no token,
 // digest, credential, URL path or query, and no text an external system wrote.
 type IntegrationsPage struct {
-	AIM     AIMStatus
-	QA      QAStatus
-	API     APIStatus
-	Clients []ClientRow
+	AIM       AIMStatus
+	QA        QAStatus
+	API       APIStatus
+	Clients   []ClientRow
+	BrainTown BrainTownRow
 }
 
 // AIMStatus is the ai-manager gateway.
@@ -365,3 +366,15 @@ func cwSteps(step int) []CWStep {
 }
 
 func roleShort(key string) string { return roles[key].Short }
+
+// BrainTownRow is the Brain Town feed on the Integrations view (D-086). State, host and
+// counts only: no token, no URL path, no title.
+type BrainTownRow struct {
+	State   string // disabled | enabled | unusable: <reason>
+	Host    string
+	Queue   int
+	Last    string // "202 · 2026-11-22T10:00:00Z" or "timeout · …"
+	Sent    int
+	Failed  int
+	Dropped int
+}

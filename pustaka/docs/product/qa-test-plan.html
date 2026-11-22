@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  five hundred and twelve cases, positive and negative, across the four deploy automations, the product seed script and the
+  five hundred and twenty-three cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All five hundred and twelve cases in one filterable table. Filter by automation, kind, or any
+  <p>All five hundred and twenty-three cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -601,6 +601,17 @@
       <tr data-tags="check-workspace private strings forbidden list guard tracked untracked path index hash d-085 positive negative implemented shell"><td>TC-510</td><td>check-workspace.sh</td><td>Positive</td><td>No tracked or untracked-not-ignored file's content or path matches the git-ignored forbidden-strings list; nothing under deploy/local/ but its README is tracked; the list is not tracked; an invalid pattern or an unusable GAOS_FORBIDDEN_STRINGS fails; a matching path is shown by index and hash, never by name; no list means a printed skip</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard back office integrations view no secret sentinel token digest no-store archive d-085 positive negative implemented"><td>TC-511</td><td>dashboard (go test)</td><td>Positive</td><td>The Integrations view shows ai-manager, the QA tools, the API and every registered client on both view routes, served no-store like the archive, and renders no token, digest, credential, URL path or query</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard back office integrations view session 401 login sheet unconfigured d-085 negative implemented"><td>TC-512</td><td>dashboard (go test)</td><td>Negative</td><td>An unsigned request never renders the Integrations view, on either route; with nothing configured the view says what is missing</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town feed disabled no request d-086 negative implemented"><td>TC-513</td><td>dashboard (go test)</td><td>Negative</td><td>With BRAIN_TOWN_ENABLED not true the feed is off, makes no request and shows state disabled (TestBrainTownDisabledSendsNothing).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town config url https token gaos credential refused d-086 positive negative implemented"><td>TC-514</td><td>dashboard (go test)</td><td>Negative</td><td>The feed's configuration refuses http, userinfo, a query, a deny-listed host, a missing or short or spaced token, a gaos_ token and a GAOS API token, each with a reason; a valid one is usable (TestBrainTownConfigIsValidated).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town mapper gate verdict task qa actor d-086 positive negative implemented"><td>TC-515</td><td>dashboard (go test)</td><td>Positive</td><td>Every GAOS event maps to the right receiver events; a gate event only for a review task; a failed review is no verdict; no body carries the actor; a QA record update is not mapped (TestBrainTownMapsEveryEventType).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town redaction hidden public title secret d-086 positive negative implemented"><td>TC-516</td><td>dashboard (go test)</td><td>Negative</td><td>A product not listed is sent hidden with the alias name and the task id as title; a listed one sends its real name, titles cut to 200 characters, and a credential-looking title becomes the task id (TestBrainTownRedactsHiddenProducts).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town lifecycle order first sight send-back d-086 positive implemented"><td>TC-517</td><td>dashboard (go test)</td><td>Positive</td><td>A task's whole life arrives in order; a move for a task the receiver has not seen is preceded by a task.created; a send-back sends a second task.done (TestBrainTownLifecycleOrderAndFirstSight).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town retry idempotency id 409 429 5xx d-086 positive negative implemented"><td>TC-518</td><td>dashboard (go test)</td><td>Positive</td><td>A retry carries the same id as its Idempotency-Key; 5xx and 429 are retried after 1, 5 and 30 s; another 4xx is not; 409 is success; the id is 26 deterministic characters (TestBrainTownRetriesKeepTheSameID).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town slow receiver non-blocking drop d-086 negative implemented"><td>TC-519</td><td>dashboard (go test)</td><td>Negative</td><td>With the receiver hung, a store write returns in under 100 ms and a flood of events is dropped and counted, never waited on (TestBrainTownSlowReceiverNeverBlocksTheStore).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town token log no leak d-086 negative implemented"><td>TC-520</td><td>dashboard (go test)</td><td>Negative</td><td>No log line or status carries the token, the URL path or the receiver's address, and a rejected token file's reason does not echo its content (TestBrainTownTokenNeverLeaks).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town integrations row no secret d-086 positive negative implemented"><td>TC-521</td><td>dashboard (go test)</td><td>Positive</td><td>The Integrations row shows state, scheme and host and counts only, and the unusable reason (TestBrainTownIntegrationsRowHasNoSecret).</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit dashboard brain town commit tap after commit arcadedb d-086 negative positive implemented"><td>TC-522</td><td>dashboard (go test)</td><td>Negative</td><td>The commit tap sees nothing after a failed ArcadeDB commit, each event once after a good one, and on the memory store fires at emit (TestBrainTownTapFiresOnlyAfterCommit).</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks compose prod brain town token file mount env d-086 positive negative implemented"><td>TC-523</td><td>check-stacks.sh</td><td>Positive</td><td>Prod mounts the Brain Town token file read-only, passes the switch from the deploy shell, empty by default, and never passes the token as an environment variable; a prod.bt-* file is untracked.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3797,6 +3808,58 @@
   to %s answered %d</code>) and neither it nor <code>/ui/bo?view=integrations</code> renders the view or a client
   (<code>an unsigned request to %s rendered the view</code>); with nothing configured the view says what is missing
   (<code>the unconfigured integrations view does not say %q</code>).</p>
+
+  <h3 id="go-brain-town">dashboard &mdash; the Brain Town feed (TC-513 &hellip; TC-523)</h3>
+  <p>v0.46.0, in <code>dashboard/braintown_test.go</code> and <code>deploy/check-stacks.sh</code>
+  (<a href="decision-log.html#d-086">D-086</a>, <a href="../integrations/brain-town.html">Brain Town feed</a>). The receiver
+  is a recording <code>httptest</code> server; the clock is injected, so no test sleeps.
+  <strong>TC-513, negative</strong> (<code>TestBrainTownDisabledSendsNothing</code>): <code>BRAIN_TOWN_ENABLED=false</code>
+  gives a disabled feed (<code>BRAIN_TOWN_ENABLED=false produced an enabled feed</code>, <code>state = %q, want disabled</code>)
+  and a store write makes no request (<code>a disabled feed made %d request(s)</code>).
+  <strong>TC-514, negative and positive</strong> (<code>TestBrainTownConfigIsValidated</code>): thirteen settings, each refused
+  with its reason or accepted (<code>%s: why = %q, want it to contain %q</code>, <code>%s: want a usable feed, got why=%q</code>,
+  <code>%s: the reason carries the token</code>).
+  <strong>TC-515, positive</strong> (<code>TestBrainTownMapsEveryEventType</code>): planned, created, moved, claimed, done,
+  failed, cancelled, the review's requested and decided, the blocked design, a failed review and a released implementation
+  task (<code>seq %d (%s): mapped to %q, want %q</code>), no body carries the actor (<code>seq %d: a body carries the actor: %s</code>),
+  the failed reason is <code>failed</code> or <code>canceled</code> (<code>seq %d: failed reason = %v, want failed or canceled</code>),
+  and a QA record update maps to nothing (<code>a QA record update was mapped: %+v</code>).
+  <strong>TC-516, negative and positive</strong> (<code>TestBrainTownRedactsHiddenProducts</code>): a listed product sends its name
+  and key (<code>public product sent as %+v</code>), titles of 200 runes (<code>public title length = %d runes, want 200</code>), a
+  credential-looking title as the task id (<code>a title with a credential left as %q, want the task id</code>); an unlisted one is
+  hidden (<code>hidden product sent as %+v</code>) and its real name and title never leave
+  (<code>a hidden product's real name or title left GAOS: %s</code>).
+  <strong>TC-517, positive</strong> (<code>TestBrainTownLifecycleOrderAndFirstSight</code>): a task planned and driven to done,
+  sent back and done again arrives in order (<code>lifecycle sent ... want ...</code>); an unseen task's first move is preceded by
+  a <code>task.created</code> in the move's from-column (<code>first sight sent %s, want product.upserted,task.created,task.moved</code>,
+  <code>synthetic task.created column = %q, want ready (the move's from-column)</code>).
+  <strong>TC-518, positive and negative</strong> (<code>TestBrainTownRetriesKeepTheSameID</code>): 503, 429, 202 is three calls with
+  waits of 1 s and 5 s (<code>5xx then 429 then 202: %d calls, waits %v; want 3 calls, waits [1s 5s]</code>), every attempt with one id
+  as <code>Idempotency-Key</code> (<code>attempt %d: id %q key %q auth %q; want one id used as Idempotency-Key</code>); 400 is one call and one
+  log line (<code>400: %d calls, logs %v; want one call, one log line</code>); 409 is success
+  (<code>409: %d calls, logs %v; want success after one call</code>); a persistent 500 is four calls and one log line
+  (<code>persistent 500: %d calls, waits %v, logs %v; want 4 calls, 1s 5s 30s, one log line</code>); the id is 26 deterministic characters
+  (<code>btID = %q: want 26 deterministic characters that differ by index</code>).
+  <strong>TC-519, negative</strong> (<code>TestBrainTownSlowReceiverNeverBlocksTheStore</code>): with the receiver hung,
+  <code>CreateProduct took %v with the receiver hung; want under 100ms</code>, the flood of taps is a non-blocking send
+  (<code>%d taps took %v with the receiver hung; want a non-blocking send</code>) and overflow is counted
+  (<code>overflow dropped nothing; want a counted drop</code>).
+  <strong>TC-520, negative</strong> (<code>TestBrainTownTokenNeverLeaks</code>): after a 500 and a refused connection, the logs
+  and status hold no token, id path or receiver address (<code>log or status contains %q</code>,
+  <code>a log line names the receiver's address</code>, <code>the token reason echoes the file content: %q</code>).
+  <strong>TC-521, positive</strong> (<code>TestBrainTownIntegrationsRowHasNoSecret</code>): <code>row = %s; want state enabled and a scheme://host</code>,
+  <code>row contains %q: %s</code>, <code>unusable state = %q</code>.
+  <strong>TC-522, negative and positive</strong> (<code>TestBrainTownTapFiresOnlyAfterCommit</code>): against a fake ArcadeDB whose
+  commit fails, <code>persist succeeded although the commit failed</code> and <code>tap saw %v after a failed commit; want nothing</code>;
+  after a good commit <code>tap saw %v after a commit; want [1 2]</code>; on the memory store
+  <code>MemStore tap saw %d event(s) (err %v); want emit to be the commit</code>.
+  <strong>TC-523, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok  prod mounts the Brain Town token file read-only</code>,
+  <code>ok  prod passes the Brain Town switch from the deploy shell, empty (off) by default</code>,
+  <code>ok  prod passes the Brain Town token only as a file, never as an environment variable</code>; negative:
+  <code>FAIL  prod passes the Brain Town token only as a file, never as an environment variable</code> when a
+  <code>BRAIN_TOWN_TOKEN:</code> key appears, and <code>FAIL  deploy/stacks/prod.bt-token is tracked by git</code>. The deploy script
+  <code>rebuild-restart.sh</code> also stops with <code>deploy/stacks/prod.bt-token is missing (or is not a regular file)</code>
+  when the file is absent, because a missing mount source becomes a root-owned directory.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

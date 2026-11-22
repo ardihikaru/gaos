@@ -81,6 +81,10 @@ type server struct {
 	// (inbox_worker.go); nil in tests that do not exercise it.
 	inbox *inboxWorker
 
+	// brain is the Brain Town emitter (braintown.go); nil when off. brainOff is the row shown then.
+	brain    *brainTown
+	brainOff BrainTownRow
+
 	// adapter is nil unless GAOS_MODEL_MODE names one. Held for /healthz and
 	// the boot log only -- the dispatch path reaches it through the store,
 	// because a dispatch emits events and only a store may.
@@ -237,6 +241,25 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	// selectAdapter do. A dashboard that could not work out what was running,
 	// then served a floor as if nothing were, looks completely healthy while a
 	// detached process edits a repository nobody is watching.
+	// D-086: the Brain Town emitter. Off by default. The commit tap is registered BEFORE
+	// the reconcile below so boot-time events are seen; the sender starts with the inbox worker.
+	api := apiFromEnv()
+	btCfg := btConfigFromEnv(api)
+	var brain *brainTown
+	brainOff := btState(btCfg)
+	if btCfg.enabled && btCfg.why != "" {
+		log.Printf("brain town: off (%s)", btCfg.why)
+	}
+	if btCfg.enabled && btCfg.why == "" {
+		if cf, ok := store.(commitFeed); ok {
+			brain = newBrainTown(btCfg, store)
+			cf.SetCommitTap(brain.Tap)
+			log.Printf("brain town: sending to %s", urlHost(btCfg.url.String()))
+		} else {
+			brainOff = BrainTownRow{State: "unusable: this store has no commit feed"}
+		}
+	}
+
 	if rc, ok := store.(interface {
 		Reconcile(context.Context) (Result, error)
 	}); ok {
@@ -297,13 +320,16 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 	}()
 
-	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: apiFromEnv(), qaOut: qaOutboundFromEnv(),
+	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: api, brain: brain, brainOff: brainOff, qaOut: qaOutboundFromEnv(),
 		auth: authFromEnv(!dev), bootChecked: bootChecked}
 
 	// D-078: the answer webhook. One worker; with the outbound unconfigured it
 	// idles and the QA tool polls GET /v1/products/{id}/inbox/{externalId}.
 	srv.inbox = newInboxWorker(store, srv.qaOut)
 	go srv.inbox.Run(ctx)
+	if brain != nil {
+		go brain.Run(ctx)
+	}
 
 	h := gzipMiddleware(srv.routes())
 	hs := &http.Server{

@@ -239,7 +239,7 @@ Each phase ends buildable and tested; run its command before the next.
 **Arithmetic.** New register rows: TC-513 … TC-523 = **11**. 512 + 11 = **523** rows; highest TC-523; next
 free TC-524. New Go tests: 513–522 = **10**. 386 + 10 = **396** Go tests; dashboard 364 + 10 = **374**
 (pustaka stays 22; 374 + 22 = 396). Decision log: D-086 added; `decision-log.html:18` says "Eighty-four
-entries" although D-085 exists, so it already lags by one — after this change it reads **eighty-six** and
+entries" although D-085 exists, so it already lags by one — after this change it reads **eighty-five** (one more than today's eighty-four) and
 `check-workspace.sh` pins the same string. BRD rule count and open-question count are unchanged (no new BR,
 no new OQ; the BRD change is one inventory cell). Strings to change, each with before → after: "three
 hundred and eighty-six" → "three hundred and ninety-six" and `386` → `396` (`check-workspace.sh`,

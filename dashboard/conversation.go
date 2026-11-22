@@ -733,6 +733,9 @@ func (s *MemStore) appendPreparedLocked(e Event) {
 	}
 	s.events = append(s.events, e)
 	s.live.Publish(e)
+	if s.tap != nil {
+		s.tap(e)
+	}
 	if e.Seq%snapshotEvery == 0 {
 		s.snaps = append(s.snaps, floorSnapshot{UptoSeq: e.Seq, State: s.foldTo(e.Seq)})
 	}
