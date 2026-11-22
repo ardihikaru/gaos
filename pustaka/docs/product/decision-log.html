@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-four entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-five entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1812,6 +1812,27 @@
         <a href="qa-test-plan.html#go-integrations">TC-511, TC-512</a>;
         <a href="open-questions.html#oq-36">OQ-36</a>;
         <a href="../integrations/overview.html">How integration works</a></td>
+      </tr>
+      <tr id="d-086">
+        <td>D-086</td><td>2026-11-22</td>
+        <td><strong>GAOS may push committed task and product state changes to one operator-chosen public receiver (Brain Town),
+        off by default; a product not listed as public is redacted at the source; delivery is best-effort, in memory and never on a
+        task's path.</strong> Context: the product owner asked for GAOS to tell a public, animated town when work changes, so that
+        each product is a hall and each task a person. The integration brief said to send real names and titles and let the receiver
+        hide them. Decision: four settings (<code>BRAIN_TOWN_ENABLED</code>, <code>_URL</code>, <code>_TOKEN_FILE</code>,
+        <code>_PUBLIC_PRODUCTS</code>); the source is a post-commit tap (after <code>tx.Commit</code> on ArcadeDB, at emit on the
+        memory store), a non-blocking hand-off to one ordered sender with a 3 s timeout and 1, 5 and 30 s retries under one stable
+        id; a product is <code>public</code> only when its id is listed, otherwise <code>hidden</code> with the alias
+        <code>Private product</code> and the task id as every title, <em>before</em> anything leaves &mdash; a deliberate departure
+        from the brief, after the security review rated receiver-side hiding Critical; the token is a file and a GAOS credential is
+        refused; <code>task.qa</code> is not sent because GAOS's QA result event names no task. No event type, status or schema
+        statement is added, so there is no migration. Rejected: tailing <code>Events()</code> with a persisted cursor (it strips
+        payloads); a broker subscription with a settle delay (the database store emits before commit and never rolls back);
+        public by default; a token in the environment. Reviewed in one round by the five goldfish lenses
+        (<code>docs/designs/brain-town-emitter.md</code>); approved by the orchestrating agent under the product owner's
+        instruction to run the task unattended.</td>
+        <td><a href="qa-test-plan.html#go-brain-town">TC-513 &hellip; TC-523</a>;
+        <a href="../integrations/brain-town.html">Brain Town feed</a></td>
       </tr>
     </tbody>
   </table>

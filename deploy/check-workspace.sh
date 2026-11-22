@@ -111,11 +111,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "three hundred and eighty-six" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "386" ]; then
+if grep -q "three hundred and ninety-six" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "396" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says three hundred and eighty-six"
+  bad "Go test count: $go_tests tests on disk, register says three hundred and ninety-six"
 fi
 
 prose_check() {
@@ -126,9 +126,9 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "five hundred and twelve"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "five hundred and twelve"
-prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Eighty-four entries"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "five hundred and twenty-three"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "five hundred and twenty-three"
+prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Eighty-five entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-six in one place"
 prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-eight rules"
 
@@ -200,7 +200,7 @@ done
 # A report that quotes the vocabulary -- the security reviewer's own rules do --
 # is not a leak.  What leaks is a VALUE: a key, a token, a PEM block, or a
 # credential assigned to something.
-SECRET='(pbkdf2-sha256\$[0-9]+\$|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|bearer [A-Za-z0-9._-]{24,}|((api[_-]?key|secret[_-]?key|password|passwd|admin[_-]?key)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._/+-]{12,}))'
+SECRET='(pbkdf2-sha256\$[0-9]+\$|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|bt_live_[A-Za-z0-9]{16,}|bearer [A-Za-z0-9._-]{24,}|((api[_-]?key|secret[_-]?key|password|passwd|admin[_-]?key)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._/+-]{12,}))'
 if [ -d docs/designs/reviews ]; then
   hits=$(grep -rEil "$SECRET" docs/designs/reviews/ 2>/dev/null | wc -l | tr -d ' ')
   # A PEM block is a secret on its own: the header line plus a base64 body.

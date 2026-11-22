@@ -79,6 +79,9 @@ type ArcadeStore struct {
 	// queued behind it (v0.40.2). Both maps are guarded by mu.
 	written map[string]string
 	staged  map[string]string
+
+	// tap is the commit feed's callback (SetCommitTap); guarded by mu.
+	tap func(Event)
 }
 
 // SchemaCounts is what the last apply did: statements newly applied, and
@@ -165,6 +168,18 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 }
 
 func (s *ArcadeStore) Kind() string { return "arcadedb" }
+
+// SetCommitTap installs the callback persist calls, after tx.Commit, for every event it wrote.
+func (s *ArcadeStore) SetCommitTap(f func(Event)) {
+	s.mu.Lock()
+	s.tap = f
+	s.mu.Unlock()
+}
+
+// TaskInfo is the projection's.
+func (s *ArcadeStore) TaskInfo(ctx context.Context, id string) (TaskRecord, bool) {
+	return s.proj.TaskInfo(ctx, id)
+}
 
 // Live is the projection's broker: every event the projection emits is one
 // the graph is about to receive, so the hint and the record leave together.
@@ -528,6 +543,13 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 		return err
 	}
 	s.commitStage()
+	// The commit feed (braintown.go): only an event the graph now holds reaches it. Runs
+	// under mu, so the callback must not block.
+	if s.tap != nil {
+		for _, e := range r.NewEvents {
+			s.tap(e)
+		}
+	}
 	return nil
 }
 

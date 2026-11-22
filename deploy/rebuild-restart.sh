@@ -193,7 +193,16 @@ if [ -z "$INSIDE" ]; then
       done
       ok "the back office's accounts and session-key files exist"
     fi
-    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-*; do
+    # D-086: the Brain Town token file, mounted the same way; empty is fine (feed off).
+    if [ "$ENVIRON" = prod ] && grep -q 'prod.bt-token' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
+      if [ ! -f "deploy/stacks/prod.bt-token" ]; then
+        bad "deploy/stacks/prod.bt-token is missing (or is not a regular file)"
+        info "create it, mode 600 (empty is fine: the feed stays off) -- see compose.prod.yaml -- then re-run."
+        exit 1
+      fi
+      ok "the Brain Town token file exists"
+    fi
+    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-* deploy/stacks/*.bt-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac
       ln -sfn "$PWD/$e" "$WT/$e"

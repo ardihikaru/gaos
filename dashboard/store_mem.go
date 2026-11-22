@@ -78,6 +78,10 @@ type MemStore struct {
 	// case in fold.go says so at more length.
 	tasks []TaskRecord
 
+	// tap is the commit feed's callback (SetCommitTap, braintown.go). It runs under mu and
+	// must not block. Nil on a projection owned by an ArcadeStore: that store taps after commit.
+	tap func(Event)
+
 	// runs is one TaskRunRecord per ATTEMPT -- T-054, D-5, BR-22 -- and slices
 	// are the frozen ContextSlices they were given, keyed by digest (T-055, D-6).
 	//
@@ -456,6 +460,9 @@ func (s *MemStore) emit(t EventType, deskID, text, kind string, p EventPayload) 
 	}
 	s.events = append(s.events, e)
 	s.live.Publish(e) // never blocks; see broker.go
+	if s.tap != nil {
+		s.tap(e) // the commit feed (braintown.go); a memory store has no commit, so emit is commit
+	}
 
 	// The ladder, not the record. See snapshotEvery.
 	if e.Seq%snapshotEvery == 0 {
@@ -2402,4 +2409,23 @@ func firstN(s string, n int) string {
 		return string(r)
 	}
 	return string(r[:n])
+}
+
+// SetCommitTap installs the commit feed's callback: emit and appendPreparedLocked call it for
+// each event, under mu. A memory store has no commit, so emit is commit.
+func (s *MemStore) SetCommitTap(f func(Event)) {
+	s.mu.Lock()
+	s.tap = f
+	s.mu.Unlock()
+}
+
+// TaskInfo is one task's record, or false. Optional interface taskLookup (braintown.go); it is
+// not on Store, so the read-only wrapper and the conformance suite are untouched.
+func (s *MemStore) TaskInfo(_ context.Context, id string) (TaskRecord, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if t := s.taskByIDLocked(id); t != nil {
+		return *t, true
+	}
+	return TaskRecord{}, false
 }
