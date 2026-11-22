@@ -61,25 +61,36 @@ type qaOutbound struct {
 // bearer sent in cleartext to the wrong internal service is the failure this
 // exists to prevent.
 func validQaURL(raw string, denyHosts []string) (*url.URL, string) {
+	return validOutURL(raw, "GAOS_QA_URL", false, denyHosts)
+}
+
+// validOutURL is the rule validQaURL states, for any operator-configured
+// outbound destination. label names the setting in the reasons it returns.
+// httpsOnly refuses the tunnel exception: the Brain Town receiver is a public
+// service, so a bearer is never sent to it in cleartext (design SEC-11).
+func validOutURL(raw, label string, httpsOnly bool, denyHosts []string) (*url.URL, string) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	switch {
 	case err != nil || u.Host == "":
-		return nil, "GAOS_QA_URL is not a URL"
+		return nil, label + " is not a URL"
 	case u.User != nil:
-		return nil, "GAOS_QA_URL may not carry credentials"
+		return nil, label + " may not carry credentials"
 	case u.RawQuery != "" || u.Fragment != "":
-		return nil, "GAOS_QA_URL is a base address, with no query or fragment"
+		return nil, label + " is a base address, with no query or fragment"
 	}
 	host := u.Hostname()
 	for _, d := range denyHosts {
 		if d != "" && strings.EqualFold(d, host) {
-			return nil, "GAOS_QA_URL names a host GAOS already uses for its gateway or database"
+			return nil, label + " names a host GAOS already uses for its gateway or database"
 		}
 	}
 	switch u.Scheme {
 	case "https":
 		return u, ""
 	case "http":
+		if httpsOnly {
+			return nil, label + " is https only"
+		}
 		ip := net.ParseIP(host)
 		_, wg, _ := net.ParseCIDR("10.10.0.0/24")
 		if ip != nil && (ip.IsLoopback() || wg.Contains(ip)) {
@@ -87,7 +98,7 @@ func validQaURL(raw string, denyHosts []string) (*url.URL, string) {
 		}
 		return nil, "plain http is allowed only to a loopback or 10.10.0.0/24 address; use https"
 	}
-	return nil, "GAOS_QA_URL is https (or http inside the tunnel)"
+	return nil, label + " is https (or http inside the tunnel)"
 }
 
 func newQaOutbound(rawURL, token string, denyHosts []string) *qaOutbound {

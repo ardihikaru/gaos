@@ -358,6 +358,7 @@ var detectors = []detector{
 	// A GAOS machine-API token (api_v1.go): minted gaos_<hex>, so that this
 	// table, the report-store scan and a reviewer's eyes can recognise one.
 	{"gaos-api-token", ClassCredentials, regexp.MustCompile(`\bgaos_[0-9A-Za-z]{32,}\b`)},
+	{"brain-town-token", ClassCredentials, regexp.MustCompile(`\bbt_live_[0-9A-Za-z]{16,}\b`)},
 	{"anthropic-key", ClassCredentials, regexp.MustCompile(`\bsk-ant-[A-Za-z0-9_\-]{16,}`)},
 	{"openai-key", ClassCredentials, regexp.MustCompile(`\bsk-(?:proj-)?[A-Za-z0-9]{20,}`)},
 	{"aws-access-key-id", ClassCredentials, regexp.MustCompile(`\b(?:AKIA|ASIA|AGPA|AIDA)[0-9A-Z]{16}\b`)},

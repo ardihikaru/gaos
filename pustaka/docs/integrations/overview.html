@@ -48,7 +48,7 @@
   configured, the last turn, the last webhook delivery and the registered clients. It never shows a token.</p>
 
   <h2 id="connections">Every connection</h2>
-  <p>Six connections, and only six. Every credential is a file on the host, mode 600, named by an environment
+  <p>Seven connections, and only seven. Every credential is a file on the host, mode 600, named by an environment
   variable; none is ever in the repository, a log line or a page.</p>
   <table class="tbl">
     <thead><tr><th>Direction</th><th>Paths</th><th>Auth</th><th>Credential</th><th>Started by</th></tr></thead>
@@ -58,6 +58,7 @@
       <tr><td>GAOS → QA tools: sync</td><td><code>GET /api/v1/gaos/results</code>, <code>POST /api/v1/gaos/catalog</code></td><td>Bearer, outbound</td><td><code>GAOS_QA_TOKEN_FILE</code>, base <code>GAOS_QA_URL</code></td><td>the operator's two sync buttons</td></tr>
       <tr><td>GAOS → QA tools: answer webhook</td><td><code>POST /api/v1/gaos/inbox-answer</code></td><td>Bearer, outbound</td><td>the same file and base</td><td>GAOS, after an answer or an expiry</td></tr>
       <tr><td>GAOS → ai-manager: turns</td><td><code>/v1/chat</code>, <code>/v1/requests/…</code>, <code>/v1/questions/…</code>, <code>/v1/providers</code></td><td>HTTP Basic</td><td><code>GAOS_AIM_CHAT_AUTH_FILE</code>, base <code>GAOS_AIM_URL</code></td><td>the board or the scheduler</td></tr>
+      <tr><td>GAOS → Brain Town (optional)</td><td><code>POST</code> to the one URL you configure</td><td>Bearer, the receiver's token</td><td><code>BRAIN_TOWN_TOKEN_FILE</code>, <code>BRAIN_TOWN_URL</code></td><td>GAOS, after a committed task or product change; off by default (<a href="brain-town.html">Brain Town feed</a>)</td></tr>
       <tr><td>GAOS → ai-manager: admin</td><td><code>/admin/workspaces/…</code>, <code>/admin/sessions/…</code></td><td>Bearer, admin key</td><td><code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td>a Blueprint sync, a review, a prune</td></tr>
     </tbody>
   </table>

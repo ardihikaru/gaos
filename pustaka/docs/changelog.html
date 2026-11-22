@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-46-0">v0.46.0 <time datetime="2026-11-22">2026-11-22</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">An optional Brain Town feed: GAOS pushes each committed task and product change to a public receiver you name, hidden products redacted at the source.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <code>BRAIN_TOWN_ENABLED</code>, <code>BRAIN_TOWN_URL</code>, <code>BRAIN_TOWN_TOKEN_FILE</code> and <code>BRAIN_TOWN_PUBLIC_PRODUCTS</code>: a post-commit feed of eight event types, sent in order by a background worker with a 3 s timeout and 1 s, 5 s, 30 s retries under one stable id. Off by default; see <a href="integrations/brain-town.html">Brain Town feed</a> (D-086).</li>
+        <li><span class="chg add">Added</span> A Brain Town block in the back office's Integrations view: state, receiver host, last delivery and counts, never a token.</li>
+        <li><span class="chg change">Changed</span> A product not listed as public is sent as <code>hidden</code> with an alias name and the task id as every title: redaction happens before anything leaves GAOS. <code>task.qa</code> is not sent (GAOS's QA event names no task).</li>
+        <li><span class="chg change">Changed</span> Production's compose mounts <code>deploy/stacks/prod.bt-token</code>; it must exist (empty is fine) before a deploy.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-45-0">v0.45.0 <time datetime="2026-11-21">2026-11-21</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Open-source ready: integration docs, an Integrations view, and no private instance in the repository.</p>
       <ul>
