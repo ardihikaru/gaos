@@ -139,6 +139,21 @@ for f in deploy/stacks/*.bo-*; do
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
   fi
 done
+for f in deploy/stacks/*.bt-*; do
+  # The Brain Town receiver's token (D-086): a host-side file, never tracked.
+  [ -e "$f" ] || continue
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    bad "$f is tracked by git"
+  else
+    ok "$(basename "$f") is untracked"
+  fi
+  if [ ! -f "$f" ]; then
+    bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
+  fi
+done
+has $PROD 'prod.bt-token:/run/secrets/bt-token:ro' "prod mounts the Brain Town token file read-only"
+has $PROD 'BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"' "prod passes the Brain Town switch from the deploy shell, empty (off) by default"
+hasnt $PROD 'BRAIN_TOWN_TOKEN:' "prod passes the Brain Town token only as a file, never as an environment variable"
 has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
 # D-083: the QA tool's origin is recorded on every answer it sends; prod's
 # GAOS_QA_URL is a tunnel IP, so the name has to come from the deploy shell.

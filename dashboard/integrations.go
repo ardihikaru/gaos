@@ -186,6 +186,11 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 				Scope: scope, Products: sortedKeys(cl.products)})
 		}
 	}
+	if s.brain != nil {
+		p.BrainTown = s.brain.Status()
+	} else {
+		p.BrainTown = s.brainOff
+	}
 	bo.Integrations = p
 }
 

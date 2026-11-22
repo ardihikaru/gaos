@@ -9,7 +9,7 @@ time, with the product's context, through a gateway. The thesis is in one line:
 an append-only event stream, not in a conversation; kill the orchestrator
 mid-run and it rebuilds from the graph.
 
-**Product version 0.45.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
+**Product version 0.46.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
 
 Three layers, each owning one thing: **GAOS** shapes the work with the product,
 the task and the Blueprint; **ai-manager** runs every model turn in the
@@ -108,6 +108,7 @@ values' shape, is `pustaka/docs/infra/environments.html`.
 | `GAOS_API_CLIENTS_FILE` | further machine clients, one per line |
 | `GAOS_QA_URL`, `GAOS_QA_TOKEN_FILE`, `GAOS_QA_ORIGIN` | where GAOS calls the QA tools, its token, their host name |
 | `GAOS_BO_USERS_FILE`, `GAOS_BO_SESSION_KEY_FILE`, `GAOS_BO_LABEL`, `GAOS_COOKIE_SECURE` | back-office sign-in |
+| `BRAIN_TOWN_ENABLED`, `BRAIN_TOWN_URL`, `BRAIN_TOWN_TOKEN_FILE`, `BRAIN_TOWN_PUBLIC_PRODUCTS` | the optional Brain Town feed: off by default; the receiver's ingest URL, a file holding its bearer token, and the product ids sent as public (all others are sent hidden and redacted) |
 | `GAOS_EGRESS_*` | the pre-dispatch egress screen: size caps, path allow/deny lists, redaction |
 
 ## Integrations
@@ -118,6 +119,9 @@ values' shape, is `pustaka/docs/infra/environments.html`.
 - **Webhooks and external clients** — register a client, the inbox API, the
   answer webhook, troubleshooting, and tutorials for the QA tools, ai-manager
   and a new client: `pustaka/docs/integrations/webhooks-and-clients.html`
+- **Brain Town feed** — the optional push of task and product changes to a
+  public receiver, its three settings and what a hidden product leaks:
+  `pustaka/docs/integrations/brain-town.html`
 - **ai-manager REST reference** — all eight calls GAOS makes:
   `pustaka/docs/integrations/ai-manager-api.html`
 
@@ -130,9 +134,9 @@ cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-workspace.sh
 ```
 
-386 Go tests: 364 in `dashboard/` and 22 in `pustaka/`. Every test case —
+396 Go tests: 374 in `dashboard/` and 22 in `pustaka/`. Every test case —
 implemented, retired or a forward specification — is in the register,
-`pustaka/docs/product/qa-test-plan.html`: 512 registered test cases. There is
+`pustaka/docs/product/qa-test-plan.html`: 523 registered test cases. There is
 no CI: the product owner runs the checks (D-025), and a test that is not on that
 page is one nobody knows to run. `check-workspace.sh` keeps the agent
 workspace honest — paths, orphan skills, every count against its register, rule

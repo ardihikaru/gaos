@@ -1,4 +1,4 @@
-/* ToC part — group "Integrations" (v0.45.0, D-085).
+/* ToC part — group "Integrations" (v0.45.0, D-085; the Brain Town feed v0.46.0, D-086).
    Every external system GAOS talks to: the picture, how any client and the
    QA tools connect (with tutorials), and the ai-manager calls in full.
    Page leaves keep the key order id, file, title, desc, tags, sections. */
@@ -48,6 +48,18 @@ window.DOCS.nav.push({
         { anchor: "session-delete", title: "DELETE /admin/sessions/{id}", text: "Delete a gateway session on prune." },
         { anchor: "not-called", title: "Calls GAOS never makes", text: "What GAOS does not use." },
         { anchor: "gaps", title: "Known gaps against ai-manager's docs", text: "412 not retried, 423 read as a workspace, unread fields, the deadline." }
+      ]
+    },
+    {
+      id: "brain-town", file: "integrations/brain-town.html", title: "Brain Town feed",
+      desc: "GAOS can push each committed task and product change to a public receiver, off by default: the four settings, what is sent, what a hidden product leaks, delivery and retries.",
+      tags: ["integration", "brain town", "webhook", "outbound", "privacy"],
+      sections: [
+        { anchor: "settings", title: "The four settings", text: "BRAIN_TOWN_ENABLED, _URL, _TOKEN_FILE and _PUBLIC_PRODUCTS." },
+        { anchor: "events", title: "What is sent", text: "The eight event types, their data, and the one not sent." },
+        { anchor: "privacy", title: "What a hidden product leaks", text: "Nothing that names it: alias name, task id as title." },
+        { anchor: "delivery", title: "Delivery", text: "Ordered, non-blocking, retried with the same id, one log line per failure." },
+        { anchor: "enable", title: "Turn it on", text: "The token file, the redeploy line and the Integrations view." }
       ]
     },
     /* pustaka:insert — `pustaka new` adds entries above this marker */

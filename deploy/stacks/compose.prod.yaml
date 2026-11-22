@@ -137,6 +137,16 @@ services:
       # Unset = the host of GAOS_QA_URL when that is a name; the tunnel URL is an
       # IP, so prod sets it on the redeploy line (GAOS_QA_ORIGIN=qa.example.org).
       GAOS_QA_ORIGIN: "${GAOS_QA_ORIGIN:-}"
+      # D-086: the Brain Town feed. OFF unless BRAIN_TOWN_ENABLED=true is on the redeploy
+      # line, like GAOS_RUNNER. The receiver's URL and the product ids sent as public come
+      # from the deploy shell; the receiver's token is a FILE (deploy/stacks/prod.bt-token,
+      # gitignored, mode 600, must EXIST before `up`; empty = no token = feed off). A token is
+      # never passed as an environment variable. A product not listed is sent hidden and
+      # redacted.
+      BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"
+      BRAIN_TOWN_URL: "${BRAIN_TOWN_URL:-}"
+      BRAIN_TOWN_PUBLIC_PRODUCTS: "${BRAIN_TOWN_PUBLIC_PRODUCTS:-}"
+      BRAIN_TOWN_TOKEN_FILE: "/run/secrets/bt-token"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
       - ./prod.aim-admin-key:/run/secrets/aim-admin-key:ro
@@ -145,6 +155,7 @@ services:
       - ./prod.api-qa-out:/run/secrets/api-qa-out:ro
       - ./prod.bo-users:/run/secrets/bo-users:ro
       - ./prod.bo-session-key:/run/secrets/bo-session-key:ro
+      - ./prod.bt-token:/run/secrets/bt-token:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.

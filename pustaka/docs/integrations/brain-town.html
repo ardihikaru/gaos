@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Brain Town feed — GAOS</title>
+<meta name="description" content="GAOS can push each committed task and product change to a public receiver, off by default: the four settings, what is sent, what a hidden product leaks (nothing), delivery and retries.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="brain-town">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Brain Town feed</h1>
+  <p class="lede">Brain Town is a public, animated town that shows work as it happens: each GAOS product is a
+  hall, each task a person. When you turn the feed on, GAOS sends one HTTP POST to a receiver <strong>you
+  name</strong> after each committed change. <strong>It sends task titles to a third party</strong>, so it is off
+  by default and a product is sent as hidden and redacted unless you list it as public.</p>
+
+  <div class="page-meta"
+       data-tags="integration, brain town, webhook, outbound, privacy"
+       data-hashtags="integrations, privacy"
+       data-published="2026-11-22"
+       data-updated="2026-11-22"
+       data-version-from="0.46.0"
+       data-version-to=""></div>
+
+  <h2 id="settings">The four settings</h2>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>BRAIN_TOWN_ENABLED</code></td><td>off</td><td><code>true</code> or <code>1</code> turns the feed on. Anything else: no listener, no goroutine, no request.</td></tr>
+      <tr><td><code>BRAIN_TOWN_URL</code></td><td>unset</td><td>The receiver's full ingest URL, from its back office (for example <code>https://town.example.org/ingest/gaos/&lt;integration-id&gt;</code>). https only; no userinfo, query or fragment; redirects are refused; it may not name the host of the database, ai-manager or the QA tools.</td></tr>
+      <tr><td><code>BRAIN_TOWN_TOKEN_FILE</code></td><td>unset</td><td>A file holding the receiver's bearer token (16 to 256 printable characters, no spaces), mode 600. In production it is <code>deploy/stacks/prod.bt-token</code>; an empty file leaves the feed off. A token is never an environment variable, and a <code>gaos_</code> token or any GAOS API token is refused.</td></tr>
+      <tr><td><code>BRAIN_TOWN_PUBLIC_PRODUCTS</code></td><td>empty</td><td>Comma-separated product ids (<code>p-6</code>) sent as <code>public</code>. Every other product is sent as <code>hidden</code>.</td></tr>
+    </tbody>
+  </table>
+  <p>An unusable setting never stops GAOS: the feed stays off, the boot log says why
+  (<code>brain town: off (…)</code>) and the back office's <em>Integrations</em> view shows the reason.</p>
+
+  <h2 id="events">What is sent</h2>
+  <p>Only committed changes: on the database store an event reaches the feed after its transaction commits.
+  Each POST carries <code>Authorization: Bearer</code>, <code>Idempotency-Key</code> (the event id) and a JSON
+  body <code>{id, type, at, product, task, data}</code>.</p>
+  <table class="tbl">
+    <thead><tr><th>GAOS moment</th><th><code>type</code></th><th><code>data</code></th></tr></thead>
+    <tbody>
+      <tr><td>A product is created, or is first seen, or its name or visibility changed</td><td><code>product.upserted</code></td><td></td></tr>
+      <tr><td>A task is planned (or first seen after a restart)</td><td><code>task.created</code></td><td></td></tr>
+      <tr><td>Any task status change</td><td><code>task.moved</code></td><td><code>from</code>, <code>to</code> (board columns), <code>agent</code> when the card enters <em>working</em></td></tr>
+      <tr><td>A turn starts</td><td><code>task.claimed</code></td><td><code>agent</code> (the task's role; GAOS has no agent id)</td></tr>
+      <tr><td>A review task becomes ready</td><td><code>gate.requested</code></td><td></td></tr>
+      <tr><td>A review is cleared, or a design is blocked</td><td><code>gate.decided</code></td><td><code>decision</code>: <code>approved</code> or <code>rejected</code></td></tr>
+      <tr><td>A task reaches done</td><td><code>task.done</code></td><td></td></tr>
+      <tr><td>A task fails or is cancelled</td><td><code>task.failed</code></td><td><code>reason</code>: <code>failed</code> or <code>canceled</code></td></tr>
+    </tbody>
+  </table>
+  <p><code>task.qa</code> is <strong>not</strong> sent: GAOS's QA result event names no task. A send-back moves a
+  finished design out of <em>done</em>, so a task can send <code>task.done</code> twice; the receiver must
+  accept a move after done. A failed review is not a verdict, so it sends <code>task.moved</code> and no
+  <code>gate.decided</code>. The <code>column</code> is GAOS's board column id: <code>backlog</code>,
+  <code>ready</code>, <code>working</code>, <code>needs-you</code>, <code>review</code>, <code>blocked</code>,
+  <code>failed</code>, <code>done</code> or <code>canceled</code>.</p>
+
+  <h2 id="privacy">What a hidden product leaks</h2>
+  <p>Nothing that names it. For a product not in <code>BRAIN_TOWN_PUBLIC_PRODUCTS</code>, GAOS redacts
+  <em>before</em> sending: <code>visibility</code> is <code>hidden</code>, <code>product.name</code> is
+  <code>Private product</code> and each <code>task.title</code> is the task id. The product key is the product
+  id. For a public product the real name and titles are sent, titles cut to 200 characters with control
+  characters removed; a title that looks like a credential is replaced by the task id. No operator account,
+  event text or block reason is ever read into a body.</p>
+
+  <h2 id="delivery">Delivery</h2>
+  <ul>
+    <li>A background worker sends in order. A slow or dead receiver never slows a GAOS action: the hand-off is a
+    non-blocking queue of 2000, and a full queue drops the new event and counts it.</li>
+    <li>3 second timeout. Network errors, <code>429</code> and <code>5xx</code> are retried after 1 s, 5 s and
+    30 s with the <strong>same</strong> id; other <code>4xx</code> are not retried; <code>409</code> means already
+    accepted and is success. After three events in a row give up, each event gets one attempt until one
+    succeeds.</li>
+    <li>An event that is dropped or given up on makes GAOS announce its task and product again before the next
+    event for them. Events queued at shutdown are not replayed.</li>
+    <li>One log line per failed delivery: <code>brain town: event &lt;id&gt; &lt;type&gt; status &lt;code or class&gt;</code>.
+    Never the URL, the token, a body or a title.</li>
+  </ul>
+
+  <h2 id="enable">Turn it on</h2>
+  <ol>
+    <li>Create the token file: <code>install -m 600 /dev/null deploy/stacks/prod.bt-token</code>, then put the
+    receiver's token in it. It must exist before <code>up</code>, even empty.</li>
+    <li>Redeploy with the settings on the line, and repeat them on every redeploy:
+    <code>BRAIN_TOWN_ENABLED=true BRAIN_TOWN_URL=https://town.example.org/ingest/gaos/&lt;id&gt; BRAIN_TOWN_PUBLIC_PRODUCTS=p-6 ./deploy/rebuild-restart.sh prod deploy --tag vX.Y.Z</code>.</li>
+    <li>Open the back office's <em>Integrations</em> view: the Brain Town block says <em>enabled</em>, the
+    receiver's host, and the last delivery. Move a card and watch the count.</li>
+  </ol>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
