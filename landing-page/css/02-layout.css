@@ -1,12 +1,14 @@
 /* ============================================================
-   GAOS — landing page, tata letak halaman.
-   Header, hero, angka, fitur, showcase, langkah, penutup, footer.
-   Mockup Board dan Blueprint ada di 03-devices.css.
+   GAOS — landing page, page layout.
+   Header, hero, figures, features, showcase, steps, architecture,
+   quick start, open source, closing, footer.
+   The Board and Blueprint mock-ups are in 03-devices.css; everything
+   that moves is in 04-motion.css.
    ============================================================ */
 
-/* ---------------------------- tanda graph ----------------------------
-   Tiga simpul brass, tiga edge: tanda yang sama dengan header
-   Mission Control (dashboard/templates/chrome.html). */
+/* ---------------------------- the graph mark ----------------------------
+   Three brass nodes, three edges: the same mark as Mission Control's
+   header (dashboard/templates/chrome.html). */
 .mark{width:32px;height:32px;flex:none}
 .mark .mk-box{fill:var(--panel-2);stroke:var(--brass-soft);stroke-width:1}
 .mark .mk-edge{fill:none;stroke:var(--brass-soft);stroke-width:1;stroke-linejoin:round}
@@ -20,13 +22,15 @@
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);
   font-weight:700;font-size:21px;letter-spacing:.04em}
 .nav{margin-left:auto;display:flex;align-items:center;gap:6px}
-.nav .lnk{padding:8px 12px;border-radius:var(--r-s);color:var(--ink-2);font-size:14.5px;font-weight:500}
-.nav .btn{padding:9px 15px;font-size:14px;margin-left:4px}
-.theme{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);
+.nav .lnk{padding:8px 12px;border-radius:var(--r-s);color:var(--ink-2);font-size:14.5px;font-weight:500;
+  white-space:nowrap}
+.nav .lnk[aria-current="true"]{color:var(--ink)}
+.nav .btn{padding:9px 15px;font-size:14px;margin-left:4px;white-space:nowrap}
+.theme,.gh{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);
   border-radius:var(--r-s);background:var(--panel);color:var(--ink-2);cursor:pointer;flex:none;
   -webkit-tap-highlight-color:transparent;transition:transform 160ms var(--ease-out)}
-.theme:active{transform:scale(.97)}
-/* Kedua ikon menumpuk di satu sel; pergantiannya pudar 150ms, tanpa gerak. */
+.theme:active,.gh:active{transform:scale(.97)}
+/* Both icons stack in one cell; they swap with a 150ms fade, no movement. */
 .theme svg{grid-area:1/1;transition:opacity 150ms ease}
 .theme .sun{opacity:0}
 [data-theme="dark"] .theme .sun{opacity:1}
@@ -35,19 +39,35 @@
   html:not([data-theme]) .theme .sun{opacity:1}
   html:not([data-theme]) .theme .moon{opacity:0}
 }
+/* The language switch: two buttons in one frame. The pressed one carries
+   the brass fill; aria-pressed is the state, the colour only shows it. */
+.lang{display:flex;flex:none;height:38px;padding:3px;gap:2px;border:1px solid var(--line);
+  border-radius:var(--r-s);background:var(--panel)}
+.lang button{min-width:34px;padding:0 8px;border:0;border-radius:3px;background:transparent;
+  color:var(--ink-3);font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:.04em;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:background-color 150ms ease,color 150ms ease}
+.lang button[aria-pressed="true"]{background:var(--brass);color:var(--on-brass)}
 @media (hover:hover) and (pointer:fine){
   .nav .lnk:hover{color:var(--ink);background:var(--panel-2)}
-  .theme:hover{color:var(--ink);border-color:var(--brass-soft)}
+  .theme:hover,.gh:hover{color:var(--ink);border-color:var(--brass-soft)}
+  .lang button[aria-pressed="false"]:hover{color:var(--ink)}
 }
-@media (max-width:760px){.nav .lnk{display:none}}
-@media (max-width:380px){.brand span{display:none}}
+/* Five links, a switch, two buttons and the call to action do not fit a
+   tablet: the text links go first, then the GitHub icon, then the word
+   beside the mark. The switch, the theme button and the call to action
+   stay at every width. */
+@media (max-width:980px){.nav .lnk{display:none}}
+@media (max-width:560px){.gh{display:none}.top .wrap{gap:10px}.nav{gap:5px}.nav .btn{padding:9px 11px;font-size:13px;margin-left:0}}
+@media (max-width:480px){.brand span{display:none}}
 
 /* ----------------------------- hero ----------------------------- */
 .hero{padding-top:clamp(40px,6vw,84px);padding-bottom:clamp(48px,6vw,88px);position:relative;
   isolation:isolate;
   background:radial-gradient(1100px 520px at 50% -8%,var(--paper-glow) 0%,transparent 64%)}
-/* Kertas gambar: kisi tipis yang sama dengan latar Mission Control,
-   memudar ke bawah supaya tidak bersaing dengan isi. */
+/* Drawing paper: the same faint grid as Mission Control's background,
+   fading downward so it does not compete with the content. The moving
+   field (js/motion.js) passes behind it. */
 .hero::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
   background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),
                    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
@@ -61,8 +81,8 @@
   font-size:13px;color:var(--ink-2);font-weight:500;margin-bottom:22px}
 .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--done);flex:none;
   box-shadow:0 0 0 3px color-mix(in srgb,var(--done) 22%,transparent)}
-.hero h1{font-size:clamp(36px,6vw,72px);font-weight:700;letter-spacing:-.03em;line-height:1.02;
-  max-width:14ch}
+.hero h1{font-size:clamp(34px,5.4vw,66px);font-weight:700;letter-spacing:-.03em;line-height:1.04;
+  max-width:15ch}
 .hero .sub{color:var(--ink-2);font-size:clamp(15.5px,1.6vw,17.5px);max-width:52ch}
 .hero .cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 .shot-board{margin-top:clamp(36px,5vw,64px)}
@@ -71,41 +91,51 @@
   .hero-side{margin-top:20px}
 }
 
-/* --------------------------- bukti/angka --------------------------- */
+/* ---------------------------- figures ---------------------------- */
 .proof{padding-top:0;padding-bottom:clamp(20px,3vw,40px)}
 .proof ul{list-style:none;display:grid;gap:22px 18px;grid-template-columns:repeat(4,minmax(0,1fr));
   border-top:1px solid var(--line);padding-top:28px}
 .proof b{font-family:var(--font-display);font-size:clamp(32px,4vw,46px);font-weight:600;
   display:block;line-height:1;color:var(--brass);font-variant-numeric:tabular-nums}
-.proof span{color:var(--ink-2);font-size:14px;display:block;margin-top:8px;max-width:24ch}
+.proof li > span{color:var(--ink-2);font-size:14px;display:block;margin-top:8px;max-width:26ch}
+.proof .fig-line{margin-top:4px;font-family:var(--font-mono);font-size:12px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
 @media (max-width:760px){.proof ul{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* ---------------------------- fitur ---------------------------- */
+/* ---------------------------- features ---------------------------- */
 .grid{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr))}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);
-  padding:24px 24px 20px;position:relative;display:flex;flex-direction:column}
-/* Bayangan hover dipudarkan lewat pseudo-elemen: yang bergerak hanya
-   opacity, bukan box-shadow. */
+  padding:24px 24px 20px;position:relative;display:flex;flex-direction:column;isolation:isolate}
+/* The hover shadow fades in on a pseudo-element: what animates is opacity,
+   not box-shadow. */
 .card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
   box-shadow:var(--shadow);opacity:0;transition:opacity 200ms var(--ease-out)}
 .card::before{content:"";position:absolute;left:24px;top:-1px;width:28px;height:2px;background:var(--brass)}
 .card h3{font-size:20px;font-weight:700}
 .card p{color:var(--ink-2);font-size:15px;margin-top:9px}
-.card .on-graph{margin-top:auto;padding-top:16px;font-family:var(--font-mono);font-size:12px;
-  color:var(--ink-3)}
+.card code{font-size:.9em;color:var(--ink)}
+.card .more{margin-top:auto;padding-top:16px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
+  font-size:13.5px;font-weight:600;color:var(--brass)}
+.card .more svg{flex:none;transition:transform 160ms var(--ease-out)}
 .card.wide{grid-column:span 2}
-@media (hover:hover) and (pointer:fine){.card:hover::after{opacity:1}}
-@media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (hover:hover) and (pointer:fine){
+  .card:hover::after{opacity:1}
+  .card .more:hover svg{transform:translateX(3px)}
+  .card .more:hover span{text-decoration:underline;text-underline-offset:3px}
+}
+/* Two columns: the first wide card keeps its row, the last one would leave
+   a hole after an odd card, so it becomes an ordinary card. */
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.card.wide:last-child{grid-column:auto}}
 @media (max-width:620px){.grid{grid-template-columns:1fr}.card.wide{grid-column:auto}}
 
-/* Yang belum dibangun: garis putus-putus, tanpa isian, kontras lebih
-   rendah. Bentuknya sendiri yang mengatakan "belum ada". */
+/* What is not built: a dashed outline, no fill, lower contrast. The shape
+   itself says "not there yet". */
 .unbuilt{margin-top:18px;border:1px dashed var(--line);border-radius:var(--r-l);
   padding:22px 24px;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,2fr);gap:8px 32px}
 .unbuilt h3{font-size:18px;font-weight:600;color:var(--ink-2)}
 .unbuilt-lead{color:var(--ink-3);font-size:14px;margin-top:8px}
 .unbuilt ul{list-style:none;display:grid}
-.unbuilt li{display:grid;grid-template-columns:minmax(0,10em) minmax(0,1fr) auto;gap:4px 18px;
+.unbuilt li{display:grid;grid-template-columns:minmax(0,12em) minmax(0,1fr) auto;gap:4px 18px;
   align-items:baseline;padding:12px 0;border-top:1px dashed var(--line-soft);font-size:14.5px}
 .unbuilt li:first-child{border-top:0;padding-top:0}
 .unbuilt li b{font-weight:600;color:var(--ink-2)}
@@ -119,25 +149,24 @@
   .unbuilt li span{grid-column:1/-1;grid-row:2}
 }
 
-/* --------------------------- showcase blueprint --------------------------- */
-.showcase{background:var(--panel-2);border-block:1px solid var(--line-soft)}
+/* --------------------------- blueprint showcase --------------------------- */
+.showcase,.band{background:var(--panel-2);border-block:1px solid var(--line-soft)}
 .showcase .wrap{display:grid;gap:clamp(30px,4.5vw,60px);
   grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);align-items:center}
 .showcase .sec-head{margin-bottom:22px}
+.showcase .sec-head h2{font-size:clamp(24px,3vw,34px)}
 .showcase-copy ul{list-style:none;display:grid;gap:14px}
-/* Blok, bukan flex: dengan flex si <b> jadi item tersendiri dan kalimatnya
-   terbelah jadi dua kolom. Simpulnya diposisikan absolut. */
+/* A block, not a flex row: with flex the <b> becomes its own item and the
+   sentence splits into two columns. The node is positioned absolutely. */
 .showcase-copy li{position:relative;padding-left:22px;color:var(--ink-2);font-size:15.5px}
 .showcase-copy li b{color:var(--ink);font-weight:600}
 .showcase-copy li::before{content:"";position:absolute;left:1px;top:8px;
   width:8px;height:8px;border-radius:50%;background:var(--brass)}
-.caveat{margin-top:20px;padding-top:14px;border-top:1px dashed var(--line);
-  color:var(--ink-3);font-size:14px}
 @media (max-width:900px){.showcase .wrap{grid-template-columns:1fr}}
 
-/* ---------------------------- cara kerja ----------------------------
-   Langkahnya memang berurutan, jadi garisnya sah: simpul brass
-   dihubungkan satu edge, persis seperti jalurnya di graph. */
+/* ---------------------------- how it works ----------------------------
+   The steps really are in order, so the line is earned: brass nodes
+   joined by one edge, the way the path runs through the graph. */
 .steps{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 22px;
   position:relative}
 .steps::before{content:"";position:absolute;left:7px;right:0;top:7px;height:1px;
@@ -156,7 +185,70 @@
   .step{padding-top:0;padding-left:36px}
 }
 
-/* ---------------------------- penutup ---------------------------- */
+/* ---------------------------- architecture ----------------------------
+   Three layers and the two hand-offs between them. Each connector is a
+   track; the dot that travels along it is in 04-motion.css. */
+.arch{display:grid;grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr) 56px minmax(0,1fr);align-items:stretch}
+.layer{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);padding:22px 22px 24px}
+.layer-n{font-family:var(--font-mono);font-size:12px;color:var(--brass)}
+.layer h3{font-size:20px;font-weight:700;margin-top:6px}
+.layer p:not(.layer-n){color:var(--ink-2);font-size:15px;margin-top:8px}
+.flow{position:relative;align-self:center;height:1px;background:var(--brass-soft)}
+.flow::after{content:"";position:absolute;right:-1px;top:-3px;width:7px;height:7px;
+  border-top:1px solid var(--brass-soft);border-right:1px solid var(--brass-soft);transform:rotate(45deg)}
+.arch-note{color:var(--ink-2);font-size:14.5px;margin-top:14px;max-width:72ch;position:relative;padding-left:18px}
+.arch-note::before{content:"";position:absolute;left:1px;top:9px;width:6px;height:6px;border-radius:50%;background:var(--brass-soft)}
+.arch + .arch-note{margin-top:26px}
+.arch-note code,.qs code,.qs-notes code{font-size:.88em;background:var(--panel);border:1px solid var(--line-soft);
+  border-radius:4px;padding:1px 5px;color:var(--ink);overflow-wrap:anywhere}
+@media (max-width:900px){
+  .arch{grid-template-columns:1fr}
+  .flow{justify-self:center;width:1px;height:40px}
+  .flow::after{right:-3px;top:auto;bottom:-1px;transform:rotate(135deg)}
+}
+
+/* ---------------------------- quick start ---------------------------- */
+.qs{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(24px,4vw,52px);align-items:start}
+/* The terminal keeps its own dark surface in both themes: it is a picture
+   of a terminal, and these three values are that picture's, not the page's. */
+.term{background:#191612;border:1px solid #37322A;border-radius:var(--r-l);overflow:hidden;
+  box-shadow:var(--shadow-l);color:#EFE8DA}
+.term-bar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid #2B2721;background:#211D18}
+.term-bar i{width:10px;height:10px;border-radius:50%;background:#3d372e;flex:none}
+.copy{display:none;margin-left:auto;align-items:center;height:26px;padding:0 10px;border:1px solid #4a4336;
+  border-radius:var(--r-s);background:transparent;color:#B3A992;font-family:var(--font-mono);font-size:12px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 160ms var(--ease-out)}
+html.js .copy{display:inline-grid}
+html.js .copy[hidden]{display:none}
+.copy:active{transform:scale(.97)}
+/* Both labels share one cell, so the button is as wide as the longer one
+   in either language and does not jump when the label changes. */
+.copy span{grid-area:1/1;transition:opacity 150ms ease}
+.copy-done{opacity:0;color:#8FAF6B}
+.copy[data-state="done"] .copy-idle{opacity:0}
+.copy[data-state="done"] .copy-done{opacity:1}
+.term pre{margin:0;padding:18px 18px 20px;overflow-x:auto;font-family:var(--font-mono);font-size:13.5px;line-height:1.9}
+/* The inline-code chip above (.qs code) must not reach the terminal's own
+   <code>: it would paint a light box and the page's ink on a dark surface. */
+.term code{font-family:inherit;font-size:inherit;background:none;border:0;padding:0;border-radius:0;color:inherit;
+  overflow-wrap:normal}
+.term .ln{display:block;white-space:pre}
+.term .pr{color:#CFA047;-webkit-user-select:none;user-select:none;margin-right:2px}
+/* Read by a screen reader when the copy succeeds; never painted. */
+.copy-said{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.qs-then{color:var(--ink-2);font-size:15.5px}
+.paths{margin-top:14px;display:grid;border-top:1px solid var(--line)}
+.paths > div{display:grid;grid-template-columns:minmax(0,8.5em) minmax(0,1fr);gap:4px 16px;
+  align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.paths dt code{background:none;border:0;padding:0;color:var(--brass);font-size:13px}
+.paths dd{color:var(--ink-2);font-size:14.5px}
+.qs-notes{list-style:none;margin-top:18px;display:grid;gap:8px;color:var(--ink-3);font-size:14px}
+.qs-notes a{color:var(--brass);font-weight:500;text-decoration:underline;text-underline-offset:3px}
+@media (hover:hover) and (pointer:fine){.copy:hover{color:#EFE8DA;border-color:#8A6D2C}}
+@media (max-width:900px){.qs{grid-template-columns:1fr}}
+@media (max-width:480px){.term pre{font-size:12px;padding:14px}}
+
+/* ---------------------------- closing ---------------------------- */
 .finale .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);
   padding:clamp(34px,5vw,64px);text-align:center;position:relative;overflow:hidden;isolation:isolate}
 .finale .box::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
@@ -172,8 +264,10 @@
 .finale .cta{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:28px}
 
 /* ---------------------------- footer ---------------------------- */
-.foot{border-top:1px solid var(--line-soft);padding:34px 0 44px;font-size:14px;color:var(--ink-2)}
+.foot{border-top:1px solid var(--line-soft);padding:34px 0 44px;font-size:14px;color:var(--ink-2);
+  background:var(--paper)}
 .foot .wrap{display:flex;flex-wrap:wrap;gap:18px;align-items:center}
-.foot nav{margin-left:auto;display:flex;flex-wrap:wrap;gap:18px}
+.foot nav{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px 18px}
 .foot .note{width:100%;color:var(--ink-3);font-size:13px;border-top:1px dashed var(--line);padding-top:16px;max-width:none}
 @media (hover:hover) and (pointer:fine){.foot a:hover{color:var(--ink);text-decoration:underline}}
+@media (max-width:620px){.foot nav{margin-left:0}}

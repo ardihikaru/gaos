@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  six hundred and twenty-one cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred and twenty-three cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All six hundred and twenty-one cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred and twenty-three cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -710,6 +710,8 @@
       <tr data-tags="go test pull request flow qajobs operator cancel card cancels job d-090 positive implemented"><td>TC-619</td><td>go test</td><td>Positive</td><td>An operator canceling the card cancels its QA job once, and never again</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request flow qajobs cancel failure best effort never keeps card open d-090 negative implemented"><td>TC-620</td><td>go test</td><td>Negative</td><td>A failed cancel call never keeps the card from ending</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request flow qajobs cancel route outbound client 404 500 d-090 positive negative implemented"><td>TC-621</td><td>go test</td><td>Positive</td><td>The cancel call speaks the agreed route, a job the QA tool no longer knows is not an error, and a 500 is</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks landing page i18n language indonesian english dictionary keys drift positive negative implemented"><td>TC-622</td><td>check-stacks.sh</td><td>Positive</td><td>Every key the landing page marks as translatable has an Indonesian entry, the dictionary holds no unused entry and no key twice, and the page declares at least 100 keys</td><td>Implemented</td></tr>
+      <tr data-tags="check-stacks landing page figures schema vertex edge document event catalog count drift positive negative implemented"><td>TC-623</td><td>check-stacks.sh</td><td>Positive</td><td>Each figure the landing page prints &mdash; vertex, edge, document and total graph types, and event types &mdash; equals the count taken from the schema files and the event catalog</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4102,6 +4104,14 @@
   <strong>TC-619, positive and negative</strong> (<code>TestAnOperatorCancelingTheCardCancelsTheQAJob</code>): <code>canceled %v, want the card's job once</code> and <code>a canceled job was canceled again (%d)</code>.
   <strong>TC-620, negative</strong> (<code>TestAFailedCancelNeverKeepsTheCardFromEnding</code>): <code>the card is %s; a failed cancel must not keep it open</code>.
   <strong>TC-621, positive and negative</strong> (<code>TestTheCancelCallSpeaksTheAgreedRoute</code>): <code>cancel: %v %q</code>, <code>a job the QA tool no longer knows is not an error: %v</code> and <code>a 500 was taken for a cancel</code>.</p>
+
+  <h3 id="landing-page-checks">check-stacks.sh &mdash; the landing page (TC-622, TC-623)</h3>
+  <p>The landing page (v0.51.0) is written in English with an Indonesian dictionary beside it, and it prints
+  five figures about the code. Both can go stale without anything failing: a string added in one language
+  only, or a figure typed by hand and never recounted. The page said 71 graph types and 49 event types long
+  after both had moved. These two cases are the recount.</p>
+  <p><strong>TC-622, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok   every translatable string on the landing page has an Indonesian entry</code>, <code>ok   the landing page's Indonesian dictionary has no unused entry</code>, <code>ok   the landing page's Indonesian dictionary declares no key twice</code> and <code>ok   the landing page declares at least 100 translatable keys</code>; negative: each of the first three prints <code>FAIL</code> with the same message and lists the keys beneath it, when a <code>data-i18n</code> key in <code>landing-page/index.html</code> has no line in <code>landing-page/js/i18n.js</code>, when the dictionary keeps a key the page no longer uses, or when a key is declared twice; the fourth prints <code>FAIL the landing page declares <em>n</em> translatable keys, want at least 100</code>, which is what a broken extraction looks like.</p>
+  <p><strong>TC-623, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok   the landing page says 31 vertex types, and the schema declares 31</code>, <code>ok   the landing page says 39 edge types, and the schema declares 39</code>, <code>ok   the landing page says 3 document types, and the schema declares 3</code>, <code>ok   the landing page says 73 graph types, and the schema declares 73</code> and <code>ok   the landing page says 59 event types, and the catalog declares 59</code> &mdash; the numbers are the ones true at v0.51.0, and the script prints whatever it counts; negative: a figure that disagrees prints, for example, <code>FAIL the landing page says 40 edge types, and the schema declares 39</code>, and a figure missing from the page prints <code>FAIL the landing page says nothing for edge types, and the schema declares 39</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
