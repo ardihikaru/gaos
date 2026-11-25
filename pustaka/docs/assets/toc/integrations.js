@@ -51,6 +51,19 @@ window.DOCS.nav.push({
       ]
     },
     {
+      id: "brain-town-consumer", file: "integrations/brain-town-consumer.html", title: "Brain Town reader",
+      desc: "GAOS can pull the town's pull-request events: the six settings, the scope it declares, what the reader sees that the public stream hides, and how a lost event is replayed rather than dropped.",
+      tags: ["integration", "brain town", "github", "pull request", "inbound", "agent"],
+      sections: [
+        { anchor: "why", title: "Why a reader and not the public stream", text: "The public stream masks a hidden product's real name and every title." },
+        { anchor: "settings", title: "The six settings", text: "BRAIN_TOWN_CONSUMER_ENABLED, _URL, _TOKEN_FILE, _CURSOR_FILE, _TYPES and _KINDS." },
+        { anchor: "scope", title: "The scope GAOS declares", text: "Owners, repositories, kinds and event types; filtered again by the products." },
+        { anchor: "events", title: "What the reader sees", text: "The public frame's shape with an unmasked payload, plus productKey and orgLogin." },
+        { anchor: "delivery", title: "Reading, losing and replaying", text: "A full channel replays; the cursor advances only after the hand-over." },
+        { anchor: "enable", title: "Turn it on", text: "Register the scope, create the two files, redeploy with the switch." }
+      ]
+    },
+    {
       id: "brain-town", file: "integrations/brain-town.html", title: "Brain Town feed",
       desc: "GAOS can push each committed task and product change to a public receiver, off by default: the four settings, what is sent, what a hidden product leaks, delivery and retries.",
       tags: ["integration", "brain town", "webhook", "outbound", "privacy"],

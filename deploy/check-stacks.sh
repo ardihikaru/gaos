@@ -154,6 +154,10 @@ done
 has $PROD 'prod.bt-token:/run/secrets/bt-token:ro' "prod mounts the Brain Town token file read-only"
 has $PROD 'BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"' "prod passes the Brain Town switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_TOKEN:' "prod passes the Brain Town token only as a file, never as an environment variable"
+has $PROD 'prod.bt-consumer-token:/run/secrets/bt-consumer-token:ro' "prod mounts the Brain Town consumer token file read-only"
+has $PROD 'prod.bt-consumer-cursor:/run/secrets/bt-consumer-cursor:ro' "prod mounts the Brain Town consumer cursor file read-only"
+has $PROD 'BRAIN_TOWN_CONSUMER_ENABLED: "${BRAIN_TOWN_CONSUMER_ENABLED:-}"' "prod passes the Brain Town reader switch from the deploy shell, empty (off) by default"
+hasnt $PROD 'BRAIN_TOWN_CONSUMER_TOKEN:' "prod passes the Brain Town reader token only as a file, never as an environment variable"
 has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
 # D-083: the QA tool's origin is recorded on every answer it sends; prod's
 # GAOS_QA_URL is a tunnel IP, so the name has to come from the deploy shell.

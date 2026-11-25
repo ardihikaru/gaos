@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  five hundred and twenty-three cases, positive and negative, across the four deploy automations, the product seed script and the
+  five hundred and thirty-three cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All five hundred and twenty-three cases in one filterable table. Filter by automation, kind, or any
+  <p>All five hundred and thirty-three cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -612,6 +612,16 @@
       <tr data-tags="go test unit dashboard brain town integrations row no secret d-086 positive negative implemented"><td>TC-521</td><td>dashboard (go test)</td><td>Positive</td><td>The Integrations row shows state, scheme and host and counts only, and the unusable reason (TestBrainTownIntegrationsRowHasNoSecret).</td><td>Implemented</td></tr>
       <tr data-tags="go test unit dashboard brain town commit tap after commit arcadedb d-086 negative positive implemented"><td>TC-522</td><td>dashboard (go test)</td><td>Negative</td><td>The commit tap sees nothing after a failed ArcadeDB commit, each event once after a good one, and on the memory store fires at emit (TestBrainTownTapFiresOnlyAfterCommit).</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose prod brain town token file mount env d-086 positive negative implemented"><td>TC-523</td><td>check-stacks.sh</td><td>Positive</td><td>Prod mounts the Brain Town token file read-only, passes the switch from the deploy shell, empty by default, and never passes the token as an environment variable; a prod.bt-* file is untracked.</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader negative-and-positive d-087 negative positive implemented"><td>TC-524</td><td>go test</td><td>Negative and positive</td><td>The reader's URL rule refuses an empty value, a value that is not a URL, plain http, a userinfo, a query, a path, an IP address and a loopback host, each with its own reason, and accepts a good https base address</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader negative-and-positive d-087 negative positive implemented"><td>TC-525</td><td>go test</td><td>Negative and positive</td><td>The reader's token file: a bt_c_ token is accepted; a file others can read is refused outright; a bt_live_ token, a gaos_ token and a token with no prefix are each refused with their own reason; a missing file is refused, not a panic</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader negative-and-positive d-087 negative positive implemented"><td>TC-526</td><td>go test</td><td>Negative and positive</td><td>The double filter matches the product's own owner/repo pair, case-insensitively, and refuses the same repository name under another owner and a bare repository name</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader positive d-087 positive implemented"><td>TC-527</td><td>go test</td><td>Positive</td><td>A consumer frame is read into its kind, type, event id, sequence number, owner, repository, pull request number and title, and its key is the flow's key</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader negative d-087 negative positive implemented"><td>TC-528</td><td>go test</td><td>Negative</td><td>A frame whose kind or whose type is outside the configured list is not handed over</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader negative d-087 negative positive implemented"><td>TC-529</td><td>go test</td><td>Negative</td><td>A frame for a repository GAOS does not own is not handed over</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader negative-and-positive d-087 negative positive implemented"><td>TC-530</td><td>go test</td><td>Negative and positive</td><td>An inbound pull request title is capped at 200 characters, stripped of control characters, and dropped when it looks like a credential</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader positive d-087 positive implemented"><td>TC-531</td><td>go test</td><td>Positive</td><td>The cursor file round-trips the last handed-over sequence number and is written mode 0600; a missing cursor is zero</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader positive d-087 positive implemented"><td>TC-532</td><td>go test</td><td>Positive</td><td>A recording server answers the reader's request and the event arrives with its repository and pull request number</td><td>Implemented</td></tr>
+      <tr data-tags="go test brain town consumer reader positive d-087 positive implemented"><td>TC-533</td><td>go test</td><td>Positive</td><td>The Integrations row carries the source host and the counts and no token, and a reader that is off says disabled</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -3860,6 +3870,46 @@
   <code>BRAIN_TOWN_TOKEN:</code> key appears, and <code>FAIL  deploy/stacks/prod.bt-token is tracked by git</code>. The deploy script
   <code>rebuild-restart.sh</code> also stops with <code>deploy/stacks/prod.bt-token is missing (or is not a regular file)</code>
   when the file is absent, because a missing mount source becomes a root-owned directory.</p>
+
+  <h3 id="go-brain-town-consumer">dashboard &mdash; the Brain Town reader (TC-524 &hellip; TC-533)</h3>
+  <p>v0.46.0, in <code>dashboard/braintown_consumer_test.go</code>
+  (<a href="decision-log.html#d-087">D-087</a>,
+  <a href="../integrations/brain-town-consumer.html">Brain Town reader</a>). The reader's own rules, its frame
+  parser, its double filter and its cursor.
+  <strong>TC-524, negative and positive</strong> (<code>TestConsumerURLRules</code>): eight URLs, each refused with its
+  reason or accepted (<code>%s: want a reason containing %q, got %q</code>): empty, not a URL, plain http, a
+  userinfo, a query, a path, an IP address and a loopback host; a good https URL is accepted.
+  <strong>TC-525, negative and positive</strong> (<code>TestConsumerTokenRules</code>): a <code>bt_c_</code> token is
+  accepted (<code>a reader token must be accepted: %q %q</code>); a file others can read is <strong>refused</strong>, not
+  warned about (<code>a loose file must be refused, got %q</code>); a <code>bt_live_</code> token, a <code>gaos_</code> token and
+  a token with no prefix are each refused with their own reason (<code>token %q: want a reason containing %q, got %q</code>);
+  a missing file is refused, not a panic.
+  <strong>TC-526, negative and positive</strong> (<code>TestConsumerScopeFilter</code>): the product's own
+  <code>owner/repo</code> matches (<code>the product's own repository must match</code>), case-insensitively
+  (<code>the match is case-insensitive</code>); the same repository name under another owner does not
+  (<code>the same repository name under another owner must not match</code>) and a bare name does not
+  (<code>a bare repository name must not match</code>).
+  <strong>TC-527, positive</strong> (<code>TestConsumerFrameIsParsedAndBounded</code>): a frame is read into its
+  kind, type, event id, sequence number, owner, repository, pull request number and title
+  (<code>the frame was read wrong: %+v</code>, <code>the pull request was read wrong: %+v</code>) and its key is the
+  flow's (<code>the key is %q</code>).
+  <strong>TC-528, negative</strong> (<code>TestConsumerRejectsTheWrongKindAndType</code>): a frame whose kind or whose type
+  is outside the configured list is not handed over (<code>a frame outside the kinds or types must not be handed over, got %d</code>).
+  <strong>TC-529, negative</strong> (<code>TestConsumerRejectsAnUnownedRepository</code>): a repository GAOS does not own is
+  not handed over (<code>a repository GAOS does not own must not be handed over, got %d</code>).
+  <strong>TC-530, negative and positive</strong> (<code>TestConsumerTitleIsCappedAndScreened</code>): a long title is capped at
+  200 characters (<code>a long title must be capped, got %d</code>), control characters are stripped
+  (<code>control characters must be stripped, got %q</code>) and a title that looks like a credential is dropped
+  (<code>a title that looks like a credential must be dropped, got %q</code>).
+  <strong>TC-531, positive</strong> (<code>TestConsumerCursorRoundTrip</code>): a missing cursor is zero (<code>a missing cursor
+  is 0, got %d</code>), a written cursor round-trips (<code>the cursor must round-trip, got %d</code>) and the file is mode
+  0600 (<code>the cursor file must be mode 0600, got %o</code>).
+  <strong>TC-532, positive</strong> (<code>TestConsumerReadsTheStream</code>): a recording <code>httptest</code> server answers the
+  reader's request with a frame, and the event arrives (<code>the event was read wrong: %+v</code>,
+  <code>no event within five seconds</code>).
+  <strong>TC-533, positive</strong> (<code>TestConsumerStatusCarriesNoSecret</code>): the Integrations row carries the host and
+  the counts and <strong>no token</strong> (<code>the row must carry no token: %+v</code>); a reader that is off says
+  <em>disabled</em>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
