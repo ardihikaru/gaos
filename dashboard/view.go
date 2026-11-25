@@ -182,6 +182,9 @@ type BOView struct {
 
 	// The Integrations page (D-085): read-only, never a secret.
 	Integrations *IntegrationsPage
+
+	// The Auto-fix page (D-091, design §9.2): read-only, never a token or an excerpt.
+	AutoFix *AutoFixPage
 }
 
 // ---------- Integrations (D-085) ----------
@@ -208,6 +211,7 @@ type IntegrationsPage struct {
 // PRFlowRow is the pull-request flow on the Integrations view.
 type PRFlowRow struct {
 	GitHub       string // on | off (<reason>)
+	WriteToken   string // the auto-fix write token's KIND: fine-grained | classic (broad) | not configured
 	StagingState string
 	StagingLast  []StagingSeen
 	WA           waStatus
