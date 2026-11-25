@@ -172,6 +172,12 @@ services:
       GAOS_QA_APPROVAL_WAIT_HOURS: "${GAOS_QA_APPROVAL_WAIT_HOURS:-}"
       GAOS_PR_MAX_OPEN: "${GAOS_PR_MAX_OPEN:-}"
       GAOS_PR_ALLOW_FORKS: "${GAOS_PR_ALLOW_FORKS:-}"
+      # D-091: defect auto-fix. The write token is its own file (never the review token), the
+      # admin list is a file of addresses, and a classic ghp_ token is refused unless the deploy
+      # shell says 1 -- never hard-coded here.
+      GAOS_GITHUB_WRITE_TOKEN_FILE: "/run/secrets/pr-github-write-token"
+      GAOS_AUTOFIX_ADMINS: "/run/secrets/pr-autofix-admins"
+      GAOS_AUTOFIX_ALLOW_CLASSIC: "${GAOS_AUTOFIX_ALLOW_CLASSIC:-}"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
       - ./prod.aim-admin-key:/run/secrets/aim-admin-key:ro
@@ -187,6 +193,8 @@ services:
       - ./prod.pr-staging-auth:/run/secrets/pr-staging-auth:ro
       - ./prod.pr-wa-auth:/run/secrets/pr-wa-auth:ro
       - ./prod.pr-wa-group:/run/secrets/pr-wa-group:ro
+      - ./prod.pr-github-write-token:/run/secrets/pr-github-write-token:ro
+      - ./prod.pr-autofix-admins:/run/secrets/pr-autofix-admins:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.

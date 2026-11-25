@@ -1610,7 +1610,8 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 
 	// A defect's facts and source files, for the triager (D-091).
 	if t := s.taskByIDLocked(taskID); t != nil {
-		for _, part := range s.defectPartsLocked(*t) {
+		parts := append(s.defectPartsLocked(*t), s.fixerPartsLocked(*t)...)
+		for _, part := range parts {
 			pkt.Parts = append(pkt.Parts, part)
 			cite("", "", CiteCode, part.Path, part.Body)
 		}

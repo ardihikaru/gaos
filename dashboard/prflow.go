@@ -471,7 +471,7 @@ const RulePRResolved = "pr-flow"
 var resolveFrom = map[string][]string{
 	StatusRunning:       {StatusPending, StatusReady, StatusRunning, StatusAwaitingInput},
 	StatusAwaitingInput: {StatusRunning},
-	StatusBlocked:       {StatusPending, StatusReady},
+	StatusBlocked:       {StatusPending, StatusReady, StatusReview}, // a fix that GAOS refuses ends BLOCKED
 	StatusDone:          {StatusPending, StatusReady, StatusRunning, StatusReview},
 	StatusFailed:        {StatusPending, StatusReady, StatusDispatched, StatusRunning, StatusReview, StatusAwaitingInput, StatusBlocked},
 }
