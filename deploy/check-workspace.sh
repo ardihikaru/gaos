@@ -126,8 +126,8 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "five hundred and ninety-nine"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "five hundred and ninety-nine"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "six hundred"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "six hundred"
 prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Eighty-seven entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All thirty-eight in one place"
 prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-eight rules"

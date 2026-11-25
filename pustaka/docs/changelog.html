@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-48-1">v0.48.1 <time datetime="2026-11-25">2026-11-25</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The deploy script now links and checks the pull-request flow's four credential files.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <code>rebuild-restart.sh</code> did not link <code>deploy/stacks/prod.pr-*</code> into the tag worktree, so a v0.48.0 deploy would have had Docker create them as root-owned directories. It now links them and refuses a prod tag when one is missing.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-48-0">v0.48.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The pull-request flows: GAOS opens a review card and an e2e card when a pull request opens, a unit-test card when it merges and an e2e run card when staging is deployed, posts the review as a comment, and tells a person when it matters.</p>
       <ul>
