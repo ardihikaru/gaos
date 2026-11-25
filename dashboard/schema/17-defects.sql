@@ -47,12 +47,14 @@ CREATE PROPERTY FixPR.repo       STRING  (mandatory true, notnull true);
 CREATE PROPERTY FixPR.number     INTEGER;
 CREATE PROPERTY FixPR.url        STRING;
 CREATE PROPERTY FixPR.state      STRING  (mandatory true, regexp 'preparing|draft|ready|merged|closed');
-CREATE PROPERTY FixPR.createdAt  LONG    (mandatory true);
-CREATE PROPERTY FixPR.updatedAt  LONG    (mandatory true);
+-- openedAt and changedAt are epoch seconds. They are not createdAt/updatedAt: those
+-- are GaosVertex's own DATETIME properties and ArcadeDB refuses to redeclare them.
+CREATE PROPERTY FixPR.openedAt   LONG    (mandatory true);
+CREATE PROPERTY FixPR.changedAt  LONG    (mandatory true);
 CREATE PROPERTY FixPR.taskId     STRING;
 CREATE PROPERTY FixPR.difficulty STRING;
-CREATE PROPERTY FixPR.before     STRING;
-CREATE PROPERTY FixPR.after      STRING;
+CREATE PROPERTY FixPR.beforeText     STRING;
+CREATE PROPERTY FixPR.afterText      STRING;
 CREATE PROPERTY FixPR.branch     STRING;
 CREATE PROPERTY FixPR.baseSHA    STRING;
 CREATE PROPERTY FixPR.commitSHA  STRING;
@@ -61,3 +63,10 @@ CREATE PROPERTY FixPR.reply      STRING;   -- the stored parsed reply, so a rest
 
 CREATE INDEX IF NOT EXISTS ON Defect (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
+
+-- The role vocabulary on a database that already exists. CREATE PROPERTY above
+-- (04-execution.sql, 05-capacity.sql) keeps the regexp it first declared, so a
+-- deployment older than v0.48.0 would refuse a task or an agent of a newer role
+-- at commit. ALTER is idempotent and applies to every deployment.
+ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
+ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';

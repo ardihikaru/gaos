@@ -120,8 +120,8 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 func (s *ArcadeStore) writeFixPR(ctx context.Context, tx *ArcadeTx, f FixPR) error {
 	return s.upsert(ctx, tx, "FixPR", f.ID, map[string]any{
 		"productId": f.ProductID, "defectKey": f.DefectKey, "repo": f.Repo, "number": f.Number,
-		"url": f.URL, "state": f.State, "createdAt": f.CreatedAt, "updatedAt": f.UpdatedAt,
-		"taskId": f.TaskID, "difficulty": f.Difficulty, "before": f.Before, "after": f.After,
+		"url": f.URL, "state": f.State, "openedAt": f.CreatedAt, "changedAt": f.UpdatedAt,
+		"taskId": f.TaskID, "difficulty": f.Difficulty, "beforeText": f.Before, "afterText": f.After,
 		"branch": f.Branch, "baseSHA": f.BaseSHA, "commitSHA": f.CommitSHA, "waSent": f.WaSent,
 		"reply": f.Reply,
 	})
@@ -136,12 +136,12 @@ func (s *ArcadeStore) loadFixPRs(ctx context.Context) ([]FixPR, error) {
 		Number     int    `json:"number"`
 		URL        string `json:"url"`
 		State      string `json:"state"`
-		CreatedAt  int64  `json:"createdAt"`
-		UpdatedAt  int64  `json:"updatedAt"`
+		CreatedAt  int64  `json:"openedAt"`
+		UpdatedAt  int64  `json:"changedAt"`
 		TaskID     string `json:"taskId"`
 		Difficulty string `json:"difficulty"`
-		Before     string `json:"before"`
-		After      string `json:"after"`
+		Before     string `json:"beforeText"`
+		After      string `json:"afterText"`
 		Branch     string `json:"branch"`
 		BaseSHA    string `json:"baseSHA"`
 		CommitSHA  string `json:"commitSHA"`
@@ -149,8 +149,8 @@ func (s *ArcadeStore) loadFixPRs(ctx context.Context) ([]FixPR, error) {
 		Reply      string `json:"reply"`
 	}
 	if err := s.arc.Query(ctx,
-		`SELECT id, productId, defectKey, repo, number, url, state, createdAt, updatedAt, taskId,
-		        difficulty, before, after, branch, baseSHA, commitSHA, waSent, reply
+		`SELECT id, productId, defectKey, repo, number, url, state, openedAt, changedAt, taskId,
+		        difficulty, beforeText, afterText, branch, baseSHA, commitSHA, waSent, reply
 		 FROM FixPR WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err

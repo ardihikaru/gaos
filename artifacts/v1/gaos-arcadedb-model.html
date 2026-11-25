@@ -631,7 +631,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Agent</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
 <span class="k">CREATE PROPERTY</span> Agent.name             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
 <span class="k">CREATE PROPERTY</span> Agent.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
-                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops'</span>);
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer'</span>);
 <span class="k">CREATE PROPERTY</span> Agent.model            <span class="s">STRING</span>  (notnull <span class="k">true</span>);
 <span class="k">CREATE PROPERTY</span> Agent.availability     <span class="s">STRING</span>  (default <span class="s">'IDLE'</span>,
                  regexp <span class="s">'IDLE|RESERVED|BUSY|IN_MEETING|COOLDOWN|OFFLINE'</span>);
@@ -1543,7 +1543,7 @@ CREATE INDEX IF NOT EXISTS ON HAS_QA_CASE (`@out`, `@in`) UNIQUE;</pre>
     <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
     <tbody>
       <tr><td class="mono">Defect</td><td>One defect key of a product, its verdict and its cards. <span class="mono">excerpt</span> is untrusted text and is emptied 30 days after <span class="mono">lastSeen</span>.</td><td class="mono">id (the key), productId, defectId, caseId, kind xfail|fail|xpass, level, automationType be|e2e, backend, targetRepos, operations, spec, title, excerpt, excerptWithheld, firstSeen, lastSeen, runRef, gen, regression, difficulty, triageClass, repo, files, reason, state open|triaged|fixing|fixed|closed, supersededBy, triageTask, fixTask, fixPR, context</td></tr>
-      <tr><td class="mono">FixPR</td><td>One draft pull request GAOS opened for a defect, and what is needed to resume it.</td><td class="mono">id, productId, defectKey, repo, number, url, state preparing|draft|ready|merged|closed, createdAt, updatedAt, taskId, difficulty, before, after, branch, baseSHA, commitSHA, waSent, reply</td></tr>
+      <tr><td class="mono">FixPR</td><td>One draft pull request GAOS opened for a defect, and what is needed to resume it.</td><td class="mono">id, productId, defectKey, repo, number, url, state preparing|draft|ready|merged|closed, openedAt, changedAt, taskId, difficulty, beforeText, afterText, branch, baseSHA, commitSHA, waSent, reply</td></tr>
     </tbody>
   </table>
 
@@ -1601,12 +1601,12 @@ CREATE PROPERTY FixPR.repo       STRING  (mandatory true, notnull true);
 CREATE PROPERTY FixPR.number     INTEGER;
 CREATE PROPERTY FixPR.url        STRING;
 CREATE PROPERTY FixPR.state      STRING  (mandatory true, regexp 'preparing|draft|ready|merged|closed');
-CREATE PROPERTY FixPR.createdAt  LONG    (mandatory true);
-CREATE PROPERTY FixPR.updatedAt  LONG    (mandatory true);
+CREATE PROPERTY FixPR.openedAt   LONG    (mandatory true);
+CREATE PROPERTY FixPR.changedAt  LONG    (mandatory true);
 CREATE PROPERTY FixPR.taskId     STRING;
 CREATE PROPERTY FixPR.difficulty STRING;
-CREATE PROPERTY FixPR.before     STRING;
-CREATE PROPERTY FixPR.after      STRING;
+CREATE PROPERTY FixPR.beforeText     STRING;
+CREATE PROPERTY FixPR.afterText      STRING;
 CREATE PROPERTY FixPR.branch     STRING;
 CREATE PROPERTY FixPR.baseSHA    STRING;
 CREATE PROPERTY FixPR.commitSHA  STRING;
@@ -1615,6 +1615,12 @@ CREATE PROPERTY FixPR.reply      STRING;   -- the stored parsed reply, so a rest
 
 CREATE INDEX IF NOT EXISTS ON Defect (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
+
+-- The role vocabulary on a database that already exists. CREATE PROPERTY above keeps
+-- the regexp it first declared, so an older deployment would refuse a newer role at
+-- commit. ALTER is idempotent and applies to every deployment.
+ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
+ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
 </pre>
   </div>
 </section>

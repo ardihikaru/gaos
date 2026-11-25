@@ -36,6 +36,16 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-1">v0.52.1 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The schema fix that v0.52.0 needed on a real ArcadeDB.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <code>FixPR</code> redeclared <code>createdAt</code>/<code>updatedAt</code>, which <code>GaosVertex</code> already owns, and used <code>before</code>/<code>after</code>, which are reserved words in ArcadeDB SQL; v0.52.0 could not start on a real database. The properties are now <code>openedAt</code>, <code>changedAt</code>, <code>beforeText</code> and <code>afterText</code>.</li>
+        <li><span class="chg fix">Fixed</span> <code>Agent.role</code> and <code>Task.role</code> never learned the roles added since v0.48.0 on a database that already existed: <code>17-defects.sql</code> now ALTERs both regexps, and the fresh-tenant DDL carries them.</li>
+        <li><span class="chg change">Changed</span> The store suite was run against a scratch ArcadeDB (<code>deploy/schema/scratch.sh</code>) for the first time since v0.47.0; it passes.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-0">v0.52.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS triages the defects the QA tool reports and, for an easy one on a product that has switched it on, fixes it as a draft pull request (D-091). The QA tool's half is qa-automation-tools PR #86.</p>
       <ul>
