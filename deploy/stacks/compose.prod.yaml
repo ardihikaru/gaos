@@ -159,12 +159,17 @@ services:
       BRAIN_TOWN_CONSUMER_CURSOR_FILE: "/run/secrets/bt-consumer-cursor"
       # D-088: the pull-request flow. Every credential is a FILE (deploy/stacks/prod.pr-*,
       # gitignored, mode 600, must EXIST before `up`; empty = that part is off). None is ever
-      # an environment value. GAOS_WA_URL has no default and must be https.
+      # an environment value. GAOS_WA_URL has no default and is https unless GAOS_WA_ALLOW_HTTP says otherwise.
       GAOS_GITHUB_TOKEN_FILE: "/run/secrets/pr-github-token"
       GAOS_STAGING_BASIC_AUTH_FILE: "/run/secrets/pr-staging-auth"
       GAOS_WA_BASIC_AUTH_FILE: "/run/secrets/pr-wa-auth"
       GAOS_WA_GROUP_FILE: "/run/secrets/pr-wa-group"
       GAOS_WA_URL: "${GAOS_WA_URL:-}"
+      # http is refused unless the deploy shell says 1 (a private address only) or
+      # any (a public one); the products the notifier serves are listed by id.
+      GAOS_WA_ALLOW_HTTP: "${GAOS_WA_ALLOW_HTTP:-}"
+      GAOS_WA_PRODUCTS: "${GAOS_WA_PRODUCTS:-}"
+      GAOS_QA_APPROVAL_WAIT_HOURS: "${GAOS_QA_APPROVAL_WAIT_HOURS:-}"
       GAOS_PR_MAX_OPEN: "${GAOS_PR_MAX_OPEN:-}"
       GAOS_PR_ALLOW_FORKS: "${GAOS_PR_ALLOW_FORKS:-}"
     volumes:

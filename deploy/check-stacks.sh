@@ -178,6 +178,11 @@ has $PROD 'prod.pr-wa-auth:/run/secrets/pr-wa-auth:ro' "prod mounts the WhatsApp
 has $PROD 'prod.pr-wa-group:/run/secrets/pr-wa-group:ro' "prod mounts the WhatsApp pinned-group file read-only"
 hasnt $PROD 'GAOS_WA_BASIC_AUTH:' "prod passes the WhatsApp login only as a file, never as an environment variable"
 has $PROD 'GAOS_WA_URL: "${GAOS_WA_URL:-}"' "prod passes the WhatsApp gateway URL from the deploy shell, empty (off) by default, with no default host"
+has $PROD 'GAOS_WA_ALLOW_HTTP: "${GAOS_WA_ALLOW_HTTP:-}"' "prod passes the WhatsApp http switch from the deploy shell, empty (https only) by default"
+has $PROD 'GAOS_WA_PRODUCTS: "${GAOS_WA_PRODUCTS:-}"' "prod passes the products the WhatsApp notifier serves from the deploy shell, empty (none) by default"
+has $PROD 'GAOS_QA_APPROVAL_WAIT_HOURS: "${GAOS_QA_APPROVAL_WAIT_HOURS:-}"' "prod passes the QA approval wait from the deploy shell"
+hasnt $PROD 'GAOS_WA_ALLOW_HTTP: "1"' "prod never hard-codes the WhatsApp http switch"
+hasnt $PROD 'GAOS_WA_ALLOW_HTTP: "any"' "prod never hard-codes the WhatsApp public-http switch"
 has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
 # D-083: the QA tool's origin is recorded on every answer it sends; prod's
 # GAOS_QA_URL is a tunnel IP, so the name has to come from the deploy shell.

@@ -364,7 +364,7 @@ gate. No other route changes.
   exists; if it does not, notifications are disabled and the Integrations view says so (fail
   closed). There is no name lookup, because group names are not unique and anyone can set one.
 - **Settings:** `GAOS_WA_URL` (**no default**; unset means disabled; `https` only, refused
-  otherwise), `GAOS_WA_BASIC_AUTH_FILE` (mode 600), `GAOS_WA_GROUP_FILE` (mode 600). There is no
+  otherwise; *amended by D-089*: `http` is allowed to a private address under `GAOS_WA_ALLOW_HTTP=1`, and the notifier serves only the products in `GAOS_WA_PRODUCTS`), `GAOS_WA_BASIC_AUTH_FILE` (mode 600), `GAOS_WA_GROUP_FILE` (mode 600). There is no
   `GAOS_WA_ENABLED`.
 - **Semantics:** a `200` with a `message_id` means *accepted by WhatsApp*, never "delivered".
 - **Logs:** never a group id, a number or a message body. The log line is
@@ -451,7 +451,7 @@ as earlier event additions were.
 | `prreview.go`, `prreview_test.go` | the `gaos-pr-review` block, the screen, the context cache, the post |
 | `github.go`, `github_test.go` | the client: pages, classes, rate limit, redirect refusal, commit authors |
 | `staging.go`, `staging_test.go` | the Basic callback, per-product credentials, the throttle |
-| `wa.go`, `wa_test.go` | the notifier: https only, pinned group, one retry |
+| `wa.go`, `wa_test.go` | the notifier: https only (amended by D-089), pinned group, one retry |
 | `contacts.go`, `contacts_test.go` | the registry, resolution, masking, the back-office routes' tests |
 | `notify.go`, `notify_test.go` | the notification service |
 | `qajobs.go`, `qajobs_test.go` | the job runner and the two QA calls |
@@ -508,7 +508,7 @@ Each phase ends when its command is green; later phases depend on earlier ones.
 - The GitHub token never reaches an agent, a packet or a workspace file; the review body is screened
   before it is posted.
 - The reviewer's instructions are Blueprint content (§5), never a file from the pull request.
-- The WhatsApp URL is `https` only, has no default, and names no private host in this repository
+- The WhatsApp URL is `https` only (*amended by D-089*: `http` to a private address under an explicit switch), has no default, and names no private host in this repository
   (D-085); the group JID is pinned, never found by name.
 - The staging credential is per product, compared in constant time, throttled, and replay-safe by
   commit.
@@ -572,3 +572,10 @@ Each phase ends when its command is green; later phases depend on earlier ones.
   step is Basic and a bearer client would need a token lifecycle Jenkins does not hold; the cost is
   the D-088 amendment of BR-52/BR-55 for one route. A bearer client in the clients file remains the
   simpler path if Jenkins can send one, and is recorded as the follow-up.
+
+## Follow-ups (v0.49.0)
+
+The first live run changed three things: the card id, the QA approval wait, and the WhatsApp gateway's http
+switch and product list. They are decision D-089 and are designed in `docs/designs/gaos-pr-flows-followups.md`.
+Where this document says "https only" (§8.3, §13) or "the runner never puts a card in AWAITING_INPUT" (§8.1), D-089
+amends it; the tests are TC-601 to TC-616.

@@ -422,6 +422,9 @@ func (s *ArcadeStore) DeleteContact(ctx context.Context, productID, login, actor
 func (s *ArcadeStore) RecordNotification(ctx context.Context, productID, alias, kind, outcome string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.RecordNotification(ctx, productID, alias, kind, outcome) })
 }
+func (s *ArcadeStore) PRCards(ctx context.Context, productID string) ([]TaskRecord, error) {
+	return s.proj.PRCards(ctx, productID)
+}
 func (s *ArcadeStore) CreateProduct(ctx context.Context, d ProductDraft) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.CreateProduct(ctx, d) })
 }

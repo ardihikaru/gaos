@@ -89,3 +89,28 @@ func TestANilNotifierIsSilent(t *testing.T) {
 	n.Notify(context.Background(), TaskRecord{}, "review:high", "x") // must not panic
 	(&notifier{}).Notify(context.Background(), TaskRecord{}, "review:high", "x")
 }
+
+func TestAProductTheGroupIsNotLinkedToIsNeverNotified(t *testing.T) {
+	n, st, phones := notifyFixture(t, 200)
+	task := TaskRecord{ID: "c1", DeskID: "p-2", DedupKey: "loop/api@abc1234:e2e-run"} // the fixture links p-1 only
+	n.Notify(context.Background(), task, "e2e:failure", "x")
+	if len(*phones) != 0 {
+		t.Fatalf("a message went out for a product the group is not linked to: %v", *phones)
+	}
+	for _, e := range st.events {
+		if e.Type == ContactNotified {
+			t.Error("an unlinked product left a ContactNotified event")
+		}
+	}
+}
+
+func TestAnApprovalNoticeGoesToTheGroupNotToTheCommitter(t *testing.T) {
+	n, st, phones := notifyFixture(t, 200)
+	ctx := context.Background()
+	st.UpsertContact(ctx, Contact{GitHubLogin: "dev", Destination: "555@g.us"}, "o@x.y")
+	task := TaskRecord{ID: "c1", DeskID: "p-1", DedupKey: "loop/laundry-api#9:e2e-automation"}
+	n.Notify(ctx, task, "e2e:approval", "e2e spec waits for approval")
+	if len(*phones) != 1 || strings.Contains((*phones)[0], "555@g.us") || !strings.Contains((*phones)[0], testGroup) {
+		t.Fatalf("sent %v, want the pinned group and not the committer's contact", *phones)
+	}
+}

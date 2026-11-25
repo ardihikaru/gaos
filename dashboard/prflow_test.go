@@ -289,3 +289,25 @@ func TestAnOperatorChangesALabelAndItIsAnEvent(t *testing.T) {
 		t.Errorf("an unknown card answered %v, want not found", err)
 	}
 }
+
+func TestTwoCommitsSharingAPrefixGetTwoCards(t *testing.T) {
+	ctx := context.Background()
+	st := NewMemStore(1)
+	a := PREvent{Type: prTypeStaging, Org: "loop", Repo: "laundry-api", Commit: "0123456789abAAAA"}
+	b := PREvent{Type: prTypeStaging, Org: "loop", Repo: "laundry-api", Commit: "0123456789abBBBB"} // same first 12 characters
+	pa, _, _, err := st.PlanPullRequestCards(ctx, "p-1", a)
+	if err != nil || len(pa) != 1 {
+		t.Fatalf("first: %v %v", pa, err)
+	}
+	pb, existing, _, err := st.PlanPullRequestCards(ctx, "p-1", b)
+	if err != nil || len(pb) != 1 || len(existing) != 0 {
+		t.Fatalf("second commit planned %v, found %v, err %v; want its own card", pb, existing, err)
+	}
+	if pa[0] == pb[0] {
+		t.Errorf("both commits got the id %q", pa[0])
+	}
+	// A replay of either is still a no-op.
+	if p, ex, _, _ := st.PlanPullRequestCards(ctx, "p-1", b); len(p) != 0 || len(ex) != 1 {
+		t.Errorf("a replay planned %v, found %v", p, ex)
+	}
+}

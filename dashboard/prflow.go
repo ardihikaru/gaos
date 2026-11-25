@@ -96,6 +96,16 @@ func prCardsFor(ev PREvent) []prCardSpec {
 	return nil
 }
 
+// idSHA is the part of a commit a card id carries: 12 characters, so two
+// commits of one repository sharing a prefix is a 1-in-2^48 event, and the
+// planner still checks the key rather than trusting the id (see freeCardID).
+func idSHA(s string) string {
+	if len(s) > 12 {
+		return s[:12]
+	}
+	return s
+}
+
 func shortSHA(s string) string {
 	if len(s) > 8 {
 		return s[:8]
@@ -131,9 +141,25 @@ func sanitizeIDPart(s string) string {
 // prCardID is a card's id: readable, and unique per key.
 func prCardID(workflow string, ev PREvent, job string) string {
 	if ev.PRNumber == 0 {
-		return workflow + "-" + sanitizeIDPart(ev.Org+"-"+ev.Repo) + "-" + sanitizeIDPart(shortSHA(ev.Commit)) + "-" + job
+		return workflow + "-" + sanitizeIDPart(ev.Org+"-"+ev.Repo) + "-" + sanitizeIDPart(idSHA(ev.Commit)) + "-" + job
 	}
 	return workflow + "-" + sanitizeIDPart(ev.Org+"-"+ev.Repo) + "-" + strconv.Itoa(ev.PRNumber) + "-" + job
+}
+
+// freeCardID answers an id no card holds. The key is the identity, not the id:
+// an id already held by a card with another key (a commit prefix collision) gets
+// a numeric suffix, so the new event plans its own card instead of being read
+// as a replay of the other.
+func (s *MemStore) freeCardID(id string) string {
+	if s.taskByIDLocked(id) == nil {
+		return id
+	}
+	for n := 2; ; n++ {
+		cand := id + "-" + strconv.Itoa(n)
+		if s.taskByIDLocked(cand) == nil {
+			return cand
+		}
+	}
 }
 
 // taskByDedupKeyLocked finds the card that already carries a key.
@@ -236,11 +262,7 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 	plannedTasks := make([]PlannedTask, 0, len(fresh))
 	for _, spec := range fresh {
 		key := ev.Key(spec.Job)
-		id := prCardID(wf, ev, spec.Job)
-		if s.taskByIDLocked(id) != nil {
-			existing = append(existing, id)
-			continue
-		}
+		id := s.freeCardID(prCardID(wf, ev, spec.Job))
 		ordinal++
 		task := TaskRecord{
 			ID: id, WorkflowID: wf, DeskID: productID,
@@ -436,12 +458,27 @@ func (s *MemStore) SetTaskLabel(ctx context.Context, productID, taskID, label, a
 // RulePRResolved names the actor of the move that ends a pull-request card.
 const RulePRResolved = "pr-flow"
 
-// ResolvePRCard moves a pull-request card to DONE or FAILED and records why on
-// the card (D-088). Nothing else moves; a card that is not a PR card, or a
-// target other than those two, is refused.
+// resolveFrom is, per target, the statuses ResolvePRCard may move a card from.
+// The QA tool's report must never override a person: a card an operator
+// blocked or canceled stays where they put it, and a finished card never comes
+// back. The runner walks the machine because an e2e card never ran through an
+// agent; every hop is a TaskMoved naming the rule "pr-flow", so the stream shows
+// who moved it (D-088, D-089).
+var resolveFrom = map[string][]string{
+	StatusRunning:       {StatusPending, StatusReady, StatusRunning, StatusAwaitingInput},
+	StatusAwaitingInput: {StatusRunning},
+	StatusBlocked:       {StatusPending, StatusReady},
+	StatusDone:          {StatusPending, StatusReady, StatusRunning, StatusReview},
+	StatusFailed:        {StatusPending, StatusReady, StatusDispatched, StatusRunning, StatusReview, StatusAwaitingInput, StatusBlocked},
+}
+
+// ResolvePRCard moves a pull-request card to RUNNING, AWAITING_INPUT, BLOCKED,
+// DONE or FAILED and records why on the card (D-088). A target outside those,
+// a card that is not a PR card, or a start state the table above does not
+// allow is refused.
 func (s *MemStore) ResolvePRCard(ctx context.Context, productID, taskID, to, reason string) (Result, error) {
-	if to != StatusDone && to != StatusFailed && to != StatusRunning && to != StatusBlocked {
-		return Result{}, reject("A pull-request card moves to DONE, FAILED, RUNNING or BLOCKED.")
+	if _, ok := resolveFrom[to]; !ok {
+		return Result{}, reject("A pull-request card moves to RUNNING, AWAITING_INPUT, BLOCKED, DONE or FAILED.")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -452,6 +489,13 @@ func (s *MemStore) ResolvePRCard(ctx context.Context, productID, taskID, to, rea
 	t := s.taskByIDLocked(taskID)
 	if t == nil || t.DeskID != productID || t.DedupKey == "" {
 		return Result{}, ErrNotFound
+	}
+	allowed := false
+	for _, from := range resolveFrom[to] {
+		allowed = allowed || from == t.Status
+	}
+	if !allowed {
+		return Result{}, reject("The card is " + t.Status + "; it does not move to " + to + " from there.")
 	}
 	path := statusPath(t.Status, to)
 	if path == nil {
@@ -487,6 +531,10 @@ func statusPath(from, to string) []string {
 			if _, seen := prev[nx]; seen {
 				continue
 			}
+			// A walk never passes through a finished state.
+			if nx != to && (nx == StatusDone || nx == StatusFailed || nx == StatusCanceled) {
+				continue
+			}
 			prev[nx] = cur
 			if nx == to {
 				var rev []string
@@ -515,4 +563,17 @@ func (f *prFlow) fetchContext(ctx context.Context, ev PREvent, pr ghPR) {
 	}
 	f.ctx.put(ev.Key(prJobReviewer), prContext{
 		Title: pr.Title, Body: pr.Body, Author: pr.User.Login, Diff: renderDiff(files)})
+}
+
+// PRCards are a product's pull-request cards, as copies.
+func (s *MemStore) PRCards(ctx context.Context, productID string) ([]TaskRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []TaskRecord
+	for _, t := range s.tasks {
+		if t.DeskID == productID && t.DedupKey != "" {
+			out = append(out, t.Clone())
+		}
+	}
+	return out, nil
 }
