@@ -16,6 +16,13 @@ type fakeQAJobs struct {
 	statuses    []string
 	polls       int
 	started     []string
+	canceled    []string
+	cancelErr   error
+}
+
+func (f *fakeQAJobs) cancelJob(_ context.Context, id string) error {
+	f.canceled = append(f.canceled, id)
+	return f.cancelErr
 }
 
 func (f *fakeQAJobs) startAutomation(_ context.Context, product, code, mode string) (string, int, error) {
@@ -351,5 +358,109 @@ func TestTheQAToolsReportCannotOverrideAnOperatorsMove(t *testing.T) {
 		if step == StatusDone || step == StatusFailed || step == StatusCanceled {
 			t.Errorf("the walk passes through %s", step)
 		}
+	}
+}
+
+func TestEveryWayGAOSGivesUpOnAJobCancelsItAtTheQATool(t *testing.T) {
+	ctx := context.Background()
+	cases := map[string]func(r *qaJobRunner, now *time.Time, qa *fakeQAJobs){
+		"approval timeout": func(r *qaJobRunner, now *time.Time, qa *fakeQAJobs) {
+			qa.statuses = []string{"awaiting_approval"}
+			r.approvalWait = time.Hour
+			r.Tick(ctx)
+			*now = now.Add(time.Minute)
+			r.Tick(ctx)
+			*now = now.Add(2 * time.Hour)
+			r.Tick(ctx)
+		},
+		"work timeout": func(r *qaJobRunner, now *time.Time, qa *fakeQAJobs) {
+			qa.statuses = []string{"running"}
+			r.Tick(ctx)
+			*now = now.Add(r.timeout + time.Minute)
+			r.Tick(ctx)
+		},
+	}
+	for name, run := range cases {
+		qa := &fakeQAJobs{}
+		r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+		now := time.Now()
+		r.now = func() time.Time { return now }
+		run(r, &now, qa)
+		if len(qa.canceled) != 1 {
+			t.Errorf("%s: the QA tool was asked to cancel %d times, want once", name, len(qa.canceled))
+		}
+		if got := prCards(t, st, "p-1")[e2e].Status; got != StatusFailed {
+			t.Errorf("%s: the card is %s, want FAILED", name, got)
+		}
+	}
+	// A flapping job is canceled too.
+	flap := make([]string, 0, 40)
+	for i := 0; i < 20; i++ {
+		flap = append(flap, "awaiting_approval", "running")
+	}
+	qa := &fakeQAJobs{statuses: flap}
+	r, _, _, _ := e2eFixture(t, qa, "QA-case: A-1")
+	for i := 0; i < 30; i++ {
+		r.Tick(ctx)
+	}
+	if len(qa.canceled) != 1 {
+		t.Errorf("flapping: canceled %d times, want once", len(qa.canceled))
+	}
+}
+
+func TestAnOperatorCancelingTheCardCancelsTheQAJob(t *testing.T) {
+	ctx := context.Background()
+	qa := &fakeQAJobs{statuses: []string{"running"}}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	r.Tick(ctx) // starts
+	st.mu.Lock()
+	st.taskByIDLocked(e2e).Status = StatusCanceled // the operator's board move
+	st.mu.Unlock()
+	r.Tick(ctx)
+	if len(qa.canceled) != 1 || qa.canceled[0] != "job-1" {
+		t.Fatalf("canceled %v, want the card's job once", qa.canceled)
+	}
+	r.Tick(ctx)
+	if len(qa.canceled) != 1 {
+		t.Errorf("a canceled job was canceled again (%d)", len(qa.canceled))
+	}
+}
+
+func TestAFailedCancelNeverKeepsTheCardFromEnding(t *testing.T) {
+	qa := &fakeQAJobs{statuses: []string{"running"}, cancelErr: errors.New("the QA tool is down")}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	now := time.Now()
+	r.now = func() time.Time { return now }
+	r.Tick(context.Background())
+	now = now.Add(r.timeout + time.Minute)
+	r.Tick(context.Background())
+	if got := prCards(t, st, "p-1")[e2e].Status; got != StatusFailed {
+		t.Errorf("the card is %s; a failed cancel must not keep it open", got)
+	}
+}
+
+func TestTheCancelCallSpeaksTheAgreedRoute(t *testing.T) {
+	var gotPath string
+	status := 200
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.Method + " " + r.URL.Path
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(`{"job_id":"j-9","status":"failed","canceled":true}`))
+	}))
+	defer srv.Close()
+	o := newQaOutbound(srv.URL, "tok-tok-tok-tok-tok-tok-tok-tok-tok-tok", nil)
+	if o == nil {
+		t.Skip("the test URL is not an allowed outbound origin")
+	}
+	if err := o.cancelJob(context.Background(), "j-9"); err != nil || gotPath != "POST /api/v1/gaos/jobs/j-9/cancel" {
+		t.Fatalf("cancel: %v %q", err, gotPath)
+	}
+	status = 404
+	if err := o.cancelJob(context.Background(), "gone"); err != nil {
+		t.Errorf("a job the QA tool no longer knows is not an error: %v", err)
+	}
+	status = 500
+	if err := o.cancelJob(context.Background(), "j-9"); err == nil {
+		t.Error("a 500 was taken for a cancel")
 	}
 }

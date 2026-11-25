@@ -103,7 +103,7 @@ the parent design) + 2 new = 26. Go tests 478 -> 486 (+8: TC-608..615); register
 
 ## 8. Non-goals
 
-- A cancel call to the QA tool (it has none; see §10).
+- Interrupting the case in flight inside a run-all (the run-all stops after it).
 - GAOS answering an approval itself.
 - Making http the default, or inferring it from the host.
 - Per-contact product lists (the product list is one setting).
@@ -122,8 +122,8 @@ the parent design) + 2 new = 26. Go tests 478 -> 486 (+8: TC-608..615); register
 - **Make http the default.** Rejected: a credential in clear text must be a choice.
 - **Link the group to every product by default.** Rejected: the group belongs to one product's team.
 - A QA tool that never leaves `awaiting_approval` fails the card at the budget with its own reason.
-- **Residual:** the QA tool has no cancel call, so a spec approved after GAOS failed its card still opens its pull
-  request; the QA tool's reject is the remedy, and a person rejecting a spec shows as `qa-job-failed`.
+- **Residual, closed by v0.50.0 (D-090):** the QA tool now has a cancel call, and GAOS uses it whenever it gives up
+  on a job, so a spec cannot be approved after the card failed. A person rejecting a spec still shows as `qa-job-failed`.
 - **Residual:** a public http gateway (`any`) sends the login in clear text.
 
 ## 11. Done when
@@ -134,3 +134,19 @@ the parent design) + 2 new = 26. Go tests 478 -> 486 (+8: TC-608..615); register
 - [x] An http gateway is refused without the switch, refused at a public address without `any`, and shown as
       unencrypted; a product the notifier does not serve never notifies.
 - [x] TC-601 to TC-616 are registered.
+
+## 12. Follow-up 2 (v0.50.0)
+
+D-090, TC-617 to TC-621.
+
+- **Cancel.** The work timeout, the approval timeout, the flapping cap and an operator canceling the card each call
+  `POST /api/v1/gaos/jobs/{id}/cancel` once (qa-automation-tools PR #85). The route stops the run and rejects the
+  open approval, is idempotent, and leaves a finished job alone (`canceled:false`). Best effort: a failed cancel is
+  logged and never keeps the card open. Residual: the case in flight inside a `*` run-all is not interrupted, and a
+  canceled approval's GAOS Inbox item is left as it is.
+- **Token file.** The GitHub token reader trims all surrounding whitespace; a trailing blank line had made the
+  Authorization header invalid.
+- **Token breadth.** The token on both prods is the operator's classic personal token (it includes `repo`,
+  `workflow`, `admin:org`, `admin:enterprise`), accepted for now; a fine-grained pull-request-only token is the
+  recommended replacement.
+- **Registers.** 616 -> 621 rows; 486 -> 491 Go tests (469 in `dashboard/`, 22 in `pustaka/`); next free TC-622.
