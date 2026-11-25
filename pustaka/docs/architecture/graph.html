@@ -14,7 +14,7 @@
 
   <p class="eyebrow">Architecture</p>
   <h1>The graph</h1>
-  <p class="lede">25 vertex types, 3 document types, 32 edge types in ArcadeDB — one engine
+  <p class="lede">32 vertex types, 3 document types, 38 edge types in ArcadeDB — one engine
   covering graph, document and event store. This is the shape, the conventions every type obeys,
   and the handful of decisions that are expensive to reverse.</p>
 
@@ -126,6 +126,16 @@ CREATE PROPERTY GaosEdge.createdBy STRING;</pre>
       <tr><td><code>Sample</code></td><td>8</td><td>Time series; no relationship to express</td></tr>
     </tbody>
   </table>
+
+  <p><strong>v0.52.0 adds six events and two types</strong> (<a href="../product/decision-log.html#d-091">D-091</a>):
+  <code>DefectReported</code> (a defect of a case was recorded, by its key and kind, never its text),
+  <code>DefectTriaged</code> (the verdict and, for a downgrade, its code), <code>DefectStateChanged</code> (a defect moved
+  between open, triaged, fixing, fixed and closed, by a rule), <code>FixPROpened</code> (GAOS opened a draft pull
+  request: repository, number and branch), <code>FixPRStateChanged</code> (the pull request went draft, ready, merged or
+  closed) and <code>AutoFixConfigured</code> (an operator changed a product's auto-fix settings: the alias, the new values
+  and the kind of write token, never the template text). The new types are <code>Defect</code>, one record per reported
+  defect, and <code>FixPR</code>, one per pull request GAOS opened; neither is in an event beyond its key.
+  <code>Task</code> gains <code>autoAt</code>.</p>
 
   <p><strong>v0.48.0 adds five events and one type</strong> (<a href="../product/decision-log.html#d-088">D-088</a>):
   <code>PullRequestOpened</code>, <code>PullRequestMerged</code> and <code>StagingDeployed</code> (a pull-request event or the

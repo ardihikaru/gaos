@@ -14,12 +14,12 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Thirty-eight decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Forty decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Twenty-two are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
   database version, which CLI ships first, whether the sisflow board may be vendored, and how a
-  platform-run reviewer is made genuinely zero-context. Of the fifteen
+  platform-run reviewer is made genuinely zero-context. Of the seventeen
   still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
   that move makes GAOS depend on without yet controlling — two are left from the three that arrived on
   2026-11-14 with the QA sync (<a href="#oq-33">OQ-33</a> has since been answered), and the rest are older.</p>
@@ -73,7 +73,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All thirty-eight in one place. Filter by any word in a question, or by theme.</p>
+  <p>All forty in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -122,6 +122,8 @@
       <tr data-tags="operations git history rewrite public repository private instance scrub filter-repo new"><td><a href="#oq-36">OQ-36</a></td><td>Operations</td><td>Is git history rewritten before the repository is made public?</td><td>D-085, making the repository public</td><td>Open — raised 2026-11-21 (today: the repository stays private)</td></tr>
       <tr data-tags="operations back office roles account permission label contact operator new"><td><a href="#oq-37">OQ-37</a></td><td>Operations</td><td>Should a back-office account have a role, so that changing a card's label or a contact is not open to every signed-in account?</td><td>D-088, D-079</td><td>Open — raised 2026-11-25 (today: every signed-in account is an operator, and every change names its alias)</td></tr>
       <tr data-tags="technical qa tool routes automation job dependency repository new"><td><a href="#oq-38">OQ-38</a></td><td>Technical</td><td>When does the QA tool serve the two routes GAOS calls to write and run an e2e spec?</td><td>D-088, the e2e cards</td><td>Open — raised 2026-11-25 (today: the e2e cards fail with <code>qa-routes-missing</code>)</td></tr>
+      <tr data-tags="technical auto-fix test runner verified after sample executed agent-reported new"><td><a href="#oq-39">OQ-39</a></td><td>Technical</td><td>Should a verified test runner execute the 'after' sample of an auto-fix, instead of taking the agent's word for it?</td><td>D-091, the Auto-fix view</td><td>Open — raised 2026-11-26 (today: the 'after' is shown as agent-reported, not run)</td></tr>
+      <tr data-tags="technical auto-fix fork branch ci exposure same repository new"><td><a href="#oq-40">OQ-40</a></td><td>Technical</td><td>Should an auto-fix branch live in a fork instead of the application repository, so a pull request from it runs CI without secrets?</td><td>D-091, the CI check</td><td>Open — raised 2026-11-26 (today: a same-repository branch, guarded by the CI check and <code>CIConfirmed</code>)</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -919,6 +921,24 @@
   <p><strong>The options:</strong> build the two routes in the QA tool first; or ship the review and unit-test
   flows now and the e2e cards when the routes land (today's behaviour).</p>
   <p><strong>What it blocks:</strong> the e2e cards, and nothing else in the pull-request flow.</p>
+
+  <h3 id="oq-39">OQ-39 · Should a verified runner execute the "after" sample?</h3>
+  <p><strong>Why it is open:</strong> the fix agent's reply carries a "before" and an "after": a sample input and what
+  it returns today and after the fix. GAOS has no checkout and runs nothing, so the pull request shows the "after" as
+  agent-reported, never as executed (<a href="decision-log.html#d-091">D-091</a>). A reviewer must trust it or run it.</p>
+  <p><strong>The options:</strong> a runner in a sandbox with the pull request's branch, which executes the new test
+  and the sample and reports the result; or keep the label and leave the check to the reviewer and the repository's
+  own CI (today's behaviour).</p>
+  <p><strong>What it blocks:</strong> nothing today; it decides whether the cap on easy fixes could ever rise.</p>
+
+  <h3 id="oq-40">OQ-40 · Should auto-fix branches live in a fork?</h3>
+  <p><strong>Why it is open:</strong> GAOS pushes <code>gaos/fix-&hellip;</code> branches into the application
+  repository itself, so a workflow triggered by <code>push</code> or <code>pull_request</code> may run with the
+  repository's secrets. Today that is guarded by reading the workflows before the first write and by the operator's
+  <code>CIConfirmed</code> consent.</p>
+  <p><strong>The options:</strong> one fork per application repository, so the fork-pull-request no-secrets rule applies
+  by construction; or keep same-repository branches with the check.</p>
+  <p><strong>What it blocks:</strong> nothing today; it needs a fork to be created and kept for each repository.</p>
 
   <div class="adm warn">
     <p class="adm-title">Nothing here is rhetorical</p>

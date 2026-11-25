@@ -66,6 +66,21 @@ window.DOCS.nav.push({
       ]
     },
     {
+      id: "autofix", file: "integrations/autofix.html", title: "Defect auto-fix",
+      desc: "How GAOS triages a defect the QA tool reports and opens a draft pull request for an easy one: the nine steps, what easy means, the settings, the QA tool's route, the caps, the Auto-fix view and what GAOS never does.",
+      tags: ["integration", "auto-fix", "defect", "triage", "github", "pull request", "qa tool"],
+      sections: [
+        { anchor: "steps", title: "What auto-fix does", text: "The nine steps from a reported defect to a draft pull request." },
+        { anchor: "easy", title: "What easy means", text: "Validation, formatting and minimum-value fixes; medium and complex; the re-check." },
+        { anchor: "settings", title: "The settings", text: "The admin list, the write token, the classic switch and the per-product configuration." },
+        { anchor: "route", title: "The QA tool's route", text: "POST qa/defects: fields, limits and what a report does." },
+        { anchor: "caps", title: "The caps", text: "Three files, 40 and 120 changed lines, daily dispatches, draft only." },
+        { anchor: "view", title: "The Auto-fix view", text: "Tiles, table, filters and the detail drawer." },
+        { anchor: "never", title: "What GAOS never does", text: "Ready, merge, run tests, bypass the switch." },
+        { anchor: "failure", title: "When something fails", text: "Each block reason and what it does to the card." }
+      ]
+    },
+    {
       id: "brain-town-consumer", file: "integrations/brain-town-consumer.html", title: "Brain Town reader",
       desc: "GAOS can pull the town's pull-request events: the six settings, the scope it declares, what the reader sees that the public stream hides, and how a lost event is replayed rather than dropped.",
       tags: ["integration", "brain town", "github", "pull request", "inbound", "agent"],

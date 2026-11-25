@@ -36,6 +36,20 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-0">v0.52.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS triages the defects the QA tool reports and, for an easy one on a product that has switched it on, fixes it as a draft pull request (D-091). The QA tool's half is qa-automation-tools PR #86.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <b>Defect intake.</b> <code>POST /api/v1/products/{id}/qa/defects</code> records an expected failure, an unexpected failure or a pinned failure that now passes, with its limits (256 KiB, 50 items, 50 new keys per product per day), and plans a triage card. A repeat plans nothing; a pass cancels the open cards; a failure after a fix is a regression.</li>
+        <li><span class="chg add">Added</span> <b>Two roles and four labels.</b> The Defect Triager classifies a defect as easy, medium or complex from the product's own policy and GAOS re-checks an easy verdict; the Defect Fixer answers with edits and tests. Cards carry <code>defect:triage</code>, <code>defect:easy</code>, <code>defect:medium</code> or <code>defect:complex</code>, which only the planner sets.</li>
+        <li><span class="chg add">Added</span> <b>Six events and two vertex types:</b> <code>DefectReported</code>, <code>DefectTriaged</code>, <code>DefectStateChanged</code>, <code>FixPROpened</code>, <code>FixPRStateChanged</code> and <code>AutoFixConfigured</code>; <code>Defect</code> and <code>FixPR</code>. None carries a defect's text.</li>
+        <li><span class="chg add">Added</span> <b>Automatic dispatch with caps.</b> An easy backend fix card of a product whose auto-fix is on is dispatched without an operator move, through every gate an operator's move applies, up to a per-day cap. <code>GAOS_RUNNER=on</code> does not bypass the switch. See <a href="integrations/autofix.html">Defect auto-fix</a>.</li>
+        <li><span class="chg add">Added</span> <b>A draft pull request opened by GAOS</b>, never by the agent, with a separate write token (<code>GAOS_GITHUB_WRITE_TOKEN_FILE</code>): at most 3 files and 40 non-test and 120 test changed lines, on a branch <code>gaos/fix-&hellip;</code>, never marked ready or merged. The settings are edited by the accounts in <code>GAOS_AUTOFIX_ADMINS</code> through <code>POST /products/{id}/autofix</code>, and an optional per-product base branch is supported.</li>
+        <li><span class="chg add">Added</span> <b>The Auto-fix view</b> in the back office (tiles, a filtered table, a detail drawer) and the poller that follows each pull request through draft, ready, merged and closed.</li>
+        <li><span class="chg add">Added</span> Deploy: <code>prod.pr-github-write-token</code> and <code>prod.pr-autofix-admins</code> mounts in <code>compose.prod.yaml</code>, checked by <code>check-stacks.sh</code> (TC-687) and required by <code>rebuild-restart.sh</code> (TC-688). The register grows to TC-688 with TC-624 to TC-686 for the Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-51-0">v0.51.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The landing page is rewritten in English with an Indonesian version, gains the sections an open-source project page needs, and moves.</p>
       <ul>

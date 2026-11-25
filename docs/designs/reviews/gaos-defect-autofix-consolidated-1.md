@@ -37,3 +37,9 @@ attach `.claude/CLAUDE.md` (the nested-memory loader), which `omitClaudeMd` (ses
 2, told not to open anything under `.claude/`, saw only the path-scoped rule files that attach on reading `docs/`.
 The five definitions and the design-review skill now say so. The positive control of 2026-11-25 (a normal agent saw
 the `CLAUDE.md` sentence, a reviewer did not) still holds for the session-start load.
+
+## Implementation
+
+The design was implemented in v0.52.0 (D-091) as revision 3; a third review round was not run and the revision was
+approved by delegation. Every round-2 finding landed as its fix above. The deviations of the build are listed in the
+design's section 18, none of which reopens a finding.
