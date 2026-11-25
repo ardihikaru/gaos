@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  five hundred and ninety-nine cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All five hundred and ninety-nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -688,6 +688,7 @@
       <tr data-tags="go test pull request flow qajobs staging run every case d-088 positive implemented"><td>TC-597</td><td>go test</td><td>Positive</td><td>A staging run asks for every case</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request flow qajobs outbound client routes d-088 positive implemented"><td>TC-598</td><td>go test</td><td>Positive</td><td>The outbound client speaks the agreed start and status routes</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose prod pull request github staging whatsapp token file mount env d-088 positive negative implemented"><td>TC-599</td><td>check-stacks.sh</td><td>Positive</td><td>Prod mounts the pull-request flow's four credential files read-only, never passes the GitHub, staging or WhatsApp login as an environment variable, and takes the WhatsApp URL from the deploy shell with no default host</td><td>Implemented</td></tr>
+      <tr data-tags="rebuild-restart preflight pr credential files missing refuse link negative d-088 implemented"><td>TC-600</td><td>rebuild-restart.sh</td><td>Negative</td><td>A prod tag deploy refuses, with a <code>bad</code> line, when any of the four <code>prod.pr-*</code> credential files is missing, and links them into the tag worktree when they exist.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4050,6 +4051,11 @@
   <strong>TC-597, positive</strong> (<code>TestAStagingRunAsksForEveryCase</code>): <code>started %v, want the run of every case</code>.
   <strong>TC-598, positive</strong> (<code>TestTheOutboundClientSpeaksTheAgreedRoutes</code>): <code>start: %q %d %v %q %q</code> and <code>status: %+v %v %q</code>.
   <strong>TC-599, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok   prod mounts the GitHub token file read-only</code>, <code>ok   prod passes the GitHub token only as a file, never as an environment variable</code>, <code>ok   prod mounts the staging callback's credential file read-only</code>, <code>ok   prod passes the staging credential only as a file, never as an environment variable</code>, <code>ok   prod mounts the WhatsApp login file read-only</code>, <code>ok   prod mounts the WhatsApp pinned-group file read-only</code>, <code>ok   prod passes the WhatsApp login only as a file, never as an environment variable</code>, <code>ok   prod passes the WhatsApp gateway URL from the deploy shell, empty (off) by default, with no default host</code>; negative: each of the four mount lines prints <code>FAIL</code> with the same message when the mount is missing, and each of the three environment-variable lines when a <code>GAOS_GITHUB_TOKEN:</code>, <code>GAOS_STAGING_BASIC_AUTH:</code> or <code>GAOS_WA_BASIC_AUTH:</code> key appears. Any file matching <code>deploy/stacks/*.pr-*</code> that git tracks fails with <code>FAIL  &lt;file&gt; is tracked by git</code>.</p>
+  <p><strong>TC-600, <code>rebuild-restart.sh</code></strong>: a prod tag deploy whose compose mounts
+  <code>prod.pr-github-token</code> prints <code>FAIL deploy/stacks/prod.pr-github-token is missing (or is not a regular file)</code>
+  (or the same for <code>prod.pr-staging-auth</code>, <code>prod.pr-wa-auth</code> or <code>prod.pr-wa-group</code>)
+  and exits 1; with all four present it prints <code>ok  the pull-request flow's credential files exist</code> and
+  the files are linked into the worktree beside the others (D-088, v0.48.1).</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
