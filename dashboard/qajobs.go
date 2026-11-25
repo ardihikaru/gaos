@@ -87,8 +87,24 @@ func (o *qaOutbound) jobStatus(ctx context.Context, id string) (qaJob, int, erro
 	return j, code, nil
 }
 
+// cancelJob asks the QA tool to stop a job and reject its open approval, so a
+// spec approved late cannot open a pull request against a card GAOS has ended.
+func (o *qaOutbound) cancelJob(ctx context.Context, id string) error {
+	code, _, err := o.do(ctx, "POST", "/api/v1/gaos/jobs/"+url.PathEscape(id)+"/cancel", nil, nil)
+	switch {
+	case err != nil:
+		return err
+	case code == 404:
+		return nil // the QA tool no longer knows the job: nothing to stop
+	case code < 200 || code > 299:
+		return fmt.Errorf("the QA tools answered HTTP %d", code)
+	}
+	return nil
+}
+
 // qaJobClient is the part of the outbound client the runner needs.
 type qaJobClient interface {
+	cancelJob(ctx context.Context, id string) error
 	startAutomation(ctx context.Context, productID, caseCode, mode string) (string, int, error)
 	jobStatus(ctx context.Context, id string) (qaJob, int, error)
 }
@@ -288,6 +304,13 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 			t.active += now.Sub(t.lastPoll)
 		}
 		t.lastPoll = now
+		// A card an operator canceled ends the job too: the QA tool stops it and
+		// rejects its approval, so nothing opens a pull request for a dead card.
+		if r.cardCanceled(ctx, t.card) {
+			delete(r.jobs, id)
+			r.cancel(ctx, t.jobID)
+			continue
+		}
 		// Ask first, then apply the limits, so an approval given in the last
 		// interval before a cap is seen.
 		j, _, err := r.qa.jobStatus(ctx, t.jobID)
@@ -307,6 +330,7 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 				t.waits++
 				if t.waits > qaMaxWaits {
 					delete(r.jobs, id)
+					r.cancel(ctx, t.jobID)
 					r.fail(ctx, t.card, "qa-job-flapping")
 					continue
 				}
@@ -326,14 +350,38 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 		}
 		if t.waited > r.approvalWait {
 			delete(r.jobs, id)
+			r.cancel(ctx, t.jobID)
 			r.fail(ctx, t.card, "qa-approval-timeout")
 			continue
 		}
 		if t.active > r.timeout {
 			delete(r.jobs, id)
+			r.cancel(ctx, t.jobID)
 			r.fail(ctx, t.card, "qa-job-timeout")
 		}
 	}
+}
+
+// cancel asks the QA tool to stop a job. Best effort: a failure is logged and
+// never blocks the card from ending.
+func (r *qaJobRunner) cancel(ctx context.Context, jobID string) {
+	if err := r.qa.cancelJob(ctx, jobID); err != nil {
+		r.logf("qajobs: the QA tool could not cancel a job: %v", err)
+	}
+}
+
+// cardCanceled reports whether an operator canceled the card.
+func (r *qaJobRunner) cardCanceled(ctx context.Context, card TaskRecord) bool {
+	cards, err := r.st.PRCards(ctx, card.DeskID)
+	if err != nil {
+		return false
+	}
+	for _, c := range cards {
+		if c.ID == card.ID {
+			return c.Status == StatusCanceled
+		}
+	}
+	return false
 }
 
 // fail ends the card FAILED with a class and tells the person who must act.

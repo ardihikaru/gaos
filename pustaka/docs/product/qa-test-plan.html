@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  six hundred and sixteen cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred and twenty-one cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All six hundred and sixteen cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred and twenty-one cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -705,6 +705,11 @@
       <tr data-tags="go test pull request flow whatsapp status unencrypted no product boot group check skipped d-089 negative positive implemented"><td>TC-614</td><td>go test</td><td>Negative</td><td>The status always says unencrypted for http and says no product is linked, and the boot group check sends no credential with no product linked</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request flow notify approval notice pinned group not committer e2e:approval d-089 positive implemented"><td>TC-615</td><td>go test</td><td>Positive</td><td>An approval notice goes to the pinned group and never to the committer's contact</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose prod whatsapp http switch products approval wait env no hard-code d-089 positive negative implemented"><td>TC-616</td><td>check-stacks.sh</td><td>Positive</td><td>Prod passes the WhatsApp http switch, the WhatsApp product list and the QA approval wait from the deploy shell, empty by default, and never hard-codes the http switch to 1 or any</td><td>Implemented</td></tr>
+      <tr data-tags="go test github token file trailing blank lines trimmed authorization header d-090 negative positive implemented"><td>TC-617</td><td>go test</td><td>Negative</td><td>A GitHub token file ending in blank lines is accepted and its token carries no surrounding whitespace</td><td>Implemented</td></tr>
+      <tr data-tags="go test pull request flow qajobs cancel give up timeout approval flapping qa tool d-090 positive implemented"><td>TC-618</td><td>go test</td><td>Positive</td><td>Every way GAOS gives up on a job (work timeout, approval timeout, flapping) cancels it at the QA tool exactly once and fails the card</td><td>Implemented</td></tr>
+      <tr data-tags="go test pull request flow qajobs operator cancel card cancels job d-090 positive implemented"><td>TC-619</td><td>go test</td><td>Positive</td><td>An operator canceling the card cancels its QA job once, and never again</td><td>Implemented</td></tr>
+      <tr data-tags="go test pull request flow qajobs cancel failure best effort never keeps card open d-090 negative implemented"><td>TC-620</td><td>go test</td><td>Negative</td><td>A failed cancel call never keeps the card from ending</td><td>Implemented</td></tr>
+      <tr data-tags="go test pull request flow qajobs cancel route outbound client 404 500 d-090 positive negative implemented"><td>TC-621</td><td>go test</td><td>Positive</td><td>The cancel call speaks the agreed route, a job the QA tool no longer knows is not an error, and a 500 is</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4073,9 +4078,9 @@
   and exits 1; with all four present it prints <code>ok  the pull-request flow's credential files exist</code> and
   the files are linked into the worktree beside the others (D-088, v0.48.1).</p>
 
-  <h3 id="go-pr-agent-followups">dashboard &mdash; the pull-request flows' follow-ups (TC-601 &hellip; TC-616)</h3>
+  <h3 id="go-pr-agent-followups">dashboard &mdash; the pull-request flows' follow-ups (TC-601 &hellip; TC-621)</h3>
   <p>In <code>prflow_test.go</code>, <code>qajobs_test.go</code>, <code>wa_test.go</code> and <code>notify_test.go</code>
-  (<a href="decision-log.html#d-089">D-089</a>, v0.49.0): the card id, the approval wait, the restart recovery, the runner's allowed moves and the WhatsApp gateway's switches; TC-616 is the deploy half.
+  (<a href="decision-log.html#d-089">D-089</a>, v0.49.0): the card id, the approval wait, the restart recovery, the runner's allowed moves and the WhatsApp gateway's switches; TC-616 is the deploy half; TC-617 to TC-621 (<a href="decision-log.html#d-090">D-090</a>, v0.50.0) are the token trim and the cancel at the QA tool.
   <strong>TC-601, positive and negative</strong> (<code>TestTwoCommitsSharingAPrefixGetTwoCards</code>): two commits sharing their first 12 characters get two cards: <code>first: %v %v</code>, <code>second commit planned %v, found %v, err %v; want its own card</code>, <code>both commits got the id %q</code> and, for a replay, <code>a replay planned %v, found %v</code>.
   <strong>TC-602, positive</strong> (<code>TestAnApprovalWaitStopsTheClockAndPutsTheCardInNeedsYou</code>): <code>the card is %s while the spec waits for a person, want AWAITING_INPUT</code>, <code>after six hours of waiting the card is %s, want it still waiting for the person</code>, <code>after the approval the card is %s, want RUNNING</code> and <code>the card is %s, want DONE</code>.
   <strong>TC-603, negative</strong> (<code>TestAnApprovalNobodyAnswersFailsTheCardWithItsOwnReasonAndNotifiesOnce</code>): <code>inside the wait the card is %s</code>, <code>status %s reason %q; want FAILED qa-approval-timeout</code> and <code>%d approval notices, want exactly one</code>.
@@ -4091,7 +4096,12 @@
   <strong>TC-613, negative and positive</strong> (<code>TestAnHTTPLinkIsOnlyToAPrivateAddressUnlessAnyIsSaid</code>): <code>privateAddr(%s) = %v, want %v</code>, <code>a public http gateway was dialled with GAOS_WA_ALLOW_HTTP=1: %v</code> and <code>a loopback http gateway was refused: %v</code>.
   <strong>TC-614, negative</strong> (<code>TestTheStatusAlwaysSaysUnencryptedAndSaysNoProductAndSkipsTheBootSend</code>): <code>status %q must say both facts</code>, <code>a disabled http notifier hides the clear link: %q</code> and <code>the group check sent the credential %d time(s) with no product linked</code>.
   <strong>TC-615, positive</strong> (<code>TestAnApprovalNoticeGoesToTheGroupNotToTheCommitter</code>): <code>sent %v, want the pinned group and not the committer's contact</code>.
-  <strong>TC-616, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok   prod passes the WhatsApp http switch from the deploy shell, empty (https only) by default</code>, <code>ok   prod passes the products the WhatsApp notifier serves from the deploy shell, empty (none) by default</code>, <code>ok   prod passes the QA approval wait from the deploy shell</code>, <code>ok   prod never hard-codes the WhatsApp http switch</code> and <code>ok   prod never hard-codes the WhatsApp public-http switch</code>; negative: each prints <code>FAIL</code> with the same message when the line is missing, or, for the last two, present.</p>
+  <strong>TC-616, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok   prod passes the WhatsApp http switch from the deploy shell, empty (https only) by default</code>, <code>ok   prod passes the products the WhatsApp notifier serves from the deploy shell, empty (none) by default</code>, <code>ok   prod passes the QA approval wait from the deploy shell</code>, <code>ok   prod never hard-codes the WhatsApp http switch</code> and <code>ok   prod never hard-codes the WhatsApp public-http switch</code>; negative: each prints <code>FAIL</code> with the same message when the line is missing, or, for the last two, present.
+  <strong>TC-617, negative and positive</strong> (<code>TestAGitHubTokenFileEndingInBlankLinesIsAccepted</code>): <code>a token with surrounding whitespace was refused or kept it: why=%q, len=%d</code> and <code>the token still carries whitespace and would make the Authorization header invalid</code>.
+  <strong>TC-618, positive</strong> (<code>TestEveryWayGAOSGivesUpOnAJobCancelsItAtTheQATool</code>): <code>%s: the QA tool was asked to cancel %d times, want once</code>, <code>%s: the card is %s, want FAILED</code> and <code>flapping: canceled %d times, want once</code>.
+  <strong>TC-619, positive and negative</strong> (<code>TestAnOperatorCancelingTheCardCancelsTheQAJob</code>): <code>canceled %v, want the card's job once</code> and <code>a canceled job was canceled again (%d)</code>.
+  <strong>TC-620, negative</strong> (<code>TestAFailedCancelNeverKeepsTheCardFromEnding</code>): <code>the card is %s; a failed cancel must not keep it open</code>.
+  <strong>TC-621, positive and negative</strong> (<code>TestTheCancelCallSpeaksTheAgreedRoute</code>): <code>cancel: %v %q</code>, <code>a job the QA tool no longer knows is not an error: %v</code> and <code>a 500 was taken for a cancel</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

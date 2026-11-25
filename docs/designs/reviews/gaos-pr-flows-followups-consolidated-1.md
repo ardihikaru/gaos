@@ -2,7 +2,7 @@
 
 - Document: `docs/designs/gaos-pr-flows-followups.md`
 - Lenses: critic (B2 M6 N5), readiness (B2 M4 N3), security (High 1, Medium 5, Low 2).
-- Isolation: the canary positive control was not run. All three lenses reported that the harness attached
+- Isolation: see the probe at the end of this file. All three lenses reported that the harness attached
   `.claude/CLAUDE.md` to their context unasked; none used it.
 - Process note: the change was coded before the document, which the gate forbids; the review is of a finished
   change and its findings were fixed in place.
@@ -23,5 +23,14 @@ Full lens reports were returned in-session and are summarised by theme; severiti
 | A short sha in the staging callback makes a short id | critic | Minor | Fixed: a full 40/64-hex commit, else 422 |
 | The collision is described as seen | readiness | Minor | Fixed: the document says it was a latent risk found by reading the code |
 | Missing change list, phases, non-goals, registers, restart section, BR-44 amendment | readiness | Blocker / Major | Fixed: sections 4 to 9 and D-089 |
-| The QA tool has no cancel call: a spec approved after GAOS failed the card still opens its pull request | security | Low | **Not fixed; documented residual** (D-089, document section 10) |
-| The canary positive control | process | Minor | **Not run** |
+| The QA tool has no cancel call: a spec approved after GAOS failed the card still opens its pull request | security | Low | Documented residual in v0.49.0; **closed in v0.50.0** (D-090) |
+| The canary positive control | process | Minor | Run later; see the isolation probe below |
+
+## Isolation probe, 2026-11-25
+
+Two controlled results. Positive control: a normal agent saw the `CLAUDE.md` sentence, and a reviewer started with
+`omitClaudeMd: true` did not, either before or after reading a docs file. So `omitClaudeMd: true` does keep
+`CLAUDE.md` out of reviewer context. The earlier "the harness attached CLAUDE.md" reports were the path-scoped rule
+`.claude/rules/agent-workspace.md`, which attaches to every agent that reads under `docs/` or `.claude/` and mentions
+`CLAUDE.md` by name; they were not the file itself. The procedure is in
+`.claude/skills/gaos-design-review/SKILL.md`. D-090.
