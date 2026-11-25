@@ -403,6 +403,7 @@
         {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
         <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
         <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
+        {{with .Labels}}<div class="mono card-labels" style="font-size:10px;color:var(--ink-3);margin-top:2px">{{range .}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
         {{with .Qa}}{{template "qa-badge" .}}{{end}}
         {{$card := .ID}}
         {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
@@ -737,6 +738,58 @@
     </tbody>
   </table></div>
   <p class="tm-line">Set up: <code>BRAIN_TOWN_ENABLED</code>, <code>BRAIN_TOWN_URL</code>, the token file <code>BRAIN_TOWN_TOKEN_FILE</code> and <code>BRAIN_TOWN_PUBLIC_PRODUCTS</code>. A product not listed is sent as hidden and redacted. <a href="../docs/integrations/brain-town.html" target="_blank" rel="noopener">Brain Town</a></p>
+</div>
+<div class="block">
+  <h4>Brain Town reader &middot; {{.BrainTownConsumer.State}}</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">Source</th><td class="mono">{{if .BrainTownConsumer.Host}}{{.BrainTownConsumer.Host}}{{else}}&mdash;{{end}}</td></tr>
+      <tr><th scope="row">Last event</th><td>{{if .BrainTownConsumer.Last}}{{.BrainTownConsumer.Last}}{{else}}none yet{{end}}</td></tr>
+      <tr><th scope="row">Handed over &middot; skipped</th><td class="mono">{{.BrainTownConsumer.Sent}} &middot; {{.BrainTownConsumer.Failed}}</td></tr>
+      <tr><th scope="row">Waiting to hand over</th><td class="mono">{{.BrainTownConsumer.Queue}}</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tm-line">The other direction: GAOS reads the town's pull-request events. Set up <code>BRAIN_TOWN_CONSUMER_ENABLED</code>, <code>BRAIN_TOWN_CONSUMER_URL</code>, the token file <code>BRAIN_TOWN_CONSUMER_TOKEN_FILE</code> and the cursor file <code>BRAIN_TOWN_CONSUMER_CURSOR_FILE</code>. The reader is scoped to the repositories the products declare. <a href="../docs/integrations/brain-town-consumer.html" target="_blank" rel="noopener">Brain Town reader</a></p>
+</div>
+<div class="block">
+  <h4>Pull-request flow</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">GitHub client</th><td class="mono">{{.PR.GitHub}}</td></tr>
+      <tr><th scope="row">Staging callback</th><td class="mono">{{.PR.StagingState}}</td></tr>
+      <tr><th scope="row">Last staging callback</th><td>{{range .PR.StagingLast}}<span class="mono">{{.Product}}</span> {{.At}} &middot; {{else}}none yet{{end}}</td></tr>
+      <tr><th scope="row">WhatsApp</th><td class="mono">{{.PR.WA.State}}{{if .PR.WA.Host}} &middot; {{.PR.WA.Host}}{{end}}</td></tr>
+      <tr><th scope="row">Accepted &middot; failed</th><td class="mono">{{.PR.WA.Sent}} &middot; {{.PR.WA.Fail}}{{if .PR.WA.Last}} &middot; {{.PR.WA.Last}}{{end}}</td></tr>
+      <tr><th scope="row">Contacts</th><td class="mono">{{len .PR.Contacts}}</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tm-line">Set up: <code>GAOS_GITHUB_TOKEN_FILE</code>; <code>GAOS_STAGING_BASIC_AUTH_FILE</code> (lines <code>productId:user:password</code>); <code>GAOS_WA_URL</code> (https), <code>GAOS_WA_BASIC_AUTH_FILE</code> and <code>GAOS_WA_GROUP_FILE</code>. <a href="../docs/integrations/pr-agents.html" target="_blank" rel="noopener">Pull-request agents</a></p>
+</div>
+<div class="block">
+  <h4>Contacts</h4>
+  {{if .PR.Contacts}}
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <thead><tr><th>Account</th><th>Name</th><th>Product</th><th>Destination</th><th>Notify on</th><th></th></tr></thead>
+    <tbody>
+    {{range .PR.Contacts}}
+      <tr><td class="mono">{{.Login}}</td><td>{{.Name}}</td><td class="mono">{{if .ProductID}}{{.ProductID}}{{else}}all{{end}}</td><td class="mono">{{.Destination}}</td><td class="mono">{{if .NotifyOn}}{{.NotifyOn}}{{else}}everything{{end}}</td>
+        <td><form hx-post="contacts/delete" hx-target="#sink" hx-swap="innerHTML"><input type="hidden" name="productId" value="{{.ProductID}}"><input type="hidden" name="githubLogin" value="{{.Login}}"><button class="btn" type="submit">Remove</button></form></td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{else}}<p class="tm-line">None. A finding with no contact goes to the pinned group.</p>{{end}}
+  <form hx-post="contacts" hx-target="#sink" hx-swap="innerHTML">
+    <div class="field row">
+      <div><label for="ctLogin">GitHub account</label><input id="ctLogin" name="githubLogin" required></div>
+      <div><label for="ctName">Name</label><input id="ctName" name="displayName"></div>
+      <div><label for="ctProduct">Product (empty: all)</label><input id="ctProduct" name="productId" placeholder="p-1"></div>
+    </div>
+    <div class="field row">
+      <div><label for="ctDest">Destination (a group id or a number)</label><input id="ctDest" name="destination" required autocomplete="off"></div>
+      <div><label for="ctOn">Notify on</label><input id="ctOn" name="notifyOn" placeholder="review:medium, e2e:failure, unit:failure"></div>
+    </div>
+    <button class="btn btn-primary" type="submit">Save contact</button>
+  </form>
 </div>
 <div class="block">
   <h4>QA tools &middot; {{if .QA.Outbound}}connected{{else}}outbound off{{end}}</h4>

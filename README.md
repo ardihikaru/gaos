@@ -9,7 +9,7 @@ time, with the product's context, through a gateway. The thesis is in one line:
 an append-only event stream, not in a conversation; kill the orchestrator
 mid-run and it rebuilds from the graph.
 
-**Product version 0.46.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
+**Product version 0.48.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
 
 Three layers, each owning one thing: **GAOS** shapes the work with the product,
 the task and the Blueprint; **ai-manager** runs every model turn in the
@@ -134,9 +134,9 @@ cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-workspace.sh
 ```
 
-396 Go tests: 374 in `dashboard/` and 22 in `pustaka/`. Every test case —
+471 Go tests: 449 in `dashboard/` and 22 in `pustaka/`. Every test case —
 implemented, retired or a forward specification — is in the register,
-`pustaka/docs/product/qa-test-plan.html`: 523 registered test cases. There is
+`pustaka/docs/product/qa-test-plan.html`: 599 registered test cases. There is
 no CI: the product owner runs the checks (D-025), and a test that is not on that
 page is one nobody knows to run. `check-workspace.sh` keeps the agent
 workspace honest — paths, orphan skills, every count against its register, rule

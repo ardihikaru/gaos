@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Brain Town reader — GAOS</title>
+<meta name="description" content="GAOS can read the town's pull-request events: the six settings, the scope it declares, what the reader sees that the public stream hides, and how a lost event is replayed rather than dropped.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="brain-town-consumer">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Brain Town reader</h1>
+  <p class="lede">The <a href="brain-town.html">Brain Town feed</a> is GAOS <em>pushing</em> its own changes out.
+  This page is the other direction: <strong>GAOS pulling</strong> the town's pull-request events, so a card can
+  open when a pull request appears and another when it merges. The reader is <strong>off by default</strong> and
+  reads only what the operator declares it needs.</p>
+
+  <div class="page-meta"
+       data-tags="integration, brain town, github, pull request, inbound, agent"
+       data-hashtags="integrations"
+       data-published="2026-11-25"
+       data-updated="2026-11-25"
+       data-version-from="0.46.0"
+       data-version-to=""></div>
+
+  <h2 id="why">Why a reader and not the public stream</h2>
+  <p>The public stream is masked on purpose: a hidden product appears under its alias and every title is
+  removed. That is right for a public town and wrong for a platform that has to <em>act</em> on a pull
+  request &mdash; GAOS needs the repository's real name and the pull request's title the moment the event
+  arrives.</p>
+  <p>So GAOS reads a <strong>scoped</strong> path: a machine token that opens one stream, filtered by the
+  owners, repositories, kinds and event types the operator registered in Brain Town. Brain Town keeps the
+  payload it already stores; the reader gets the repository's real name and the pull request's title, and
+  <strong>no diff, no pull-request body and no login</strong>, because Brain Town never stored them.</p>
+
+  <h2 id="settings">The six settings</h2>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>BRAIN_TOWN_CONSUMER_ENABLED</code></td><td>off</td><td><code>true</code> or <code>1</code> turns the reader on. Anything else: no listener, no goroutine, no request.</td></tr>
+      <tr><td><code>BRAIN_TOWN_CONSUMER_URL</code></td><td>unset</td><td>The town's base address (for example <code>https://town.example.org</code>). https only; no path, userinfo, query or fragment; redirects are refused; an address or a loopback host is refused.</td></tr>
+      <tr><td><code>BRAIN_TOWN_CONSUMER_TOKEN_FILE</code></td><td>unset</td><td>A file holding the reader's bearer token, mode 600. In production it is <code>deploy/stacks/prod.bt-consumer-token</code>. The token must start with <code>bt_c_</code>: a <code>bt_live_</code> token (the town's <em>input</em> credential) and a <code>gaos_</code> token are refused. A file others can read is refused, not warned about.</td></tr>
+      <tr><td><code>BRAIN_TOWN_CONSUMER_CURSOR_FILE</code></td><td>unset</td><td>A file, mode 600, holding the last event the reader handed over. It is what makes a restart resume instead of replaying the whole retention.</td></tr>
+      <tr><td><code>BRAIN_TOWN_CONSUMER_TYPES</code></td><td><code>pr.opened,pr.merged</code></td><td>The town event types the reader accepts. An empty list means these two.</td></tr>
+      <tr><td><code>BRAIN_TOWN_CONSUMER_KINDS</code></td><td><code>github</code></td><td>The event kinds the reader accepts. It is sent as the stream's <code>kind</code> parameter and filtered again on the client.</td></tr>
+    </tbody>
+  </table>
+  <p>An unusable setting never stops GAOS: the reader stays off, the boot log says why
+  (<code>brain town: consumer unusable (…)</code>) and the back office's <em>Integrations</em> view shows the
+  reason.</p>
+
+  <h2 id="scope">The scope GAOS declares</h2>
+  <p>The operator registers the scope in Brain Town's back office: the owners, the repositories, the kinds
+  and the event types the reader may see. Brain Town filters by it.</p>
+  <p>GAOS filters <strong>again</strong>, by the repositories its own products declare
+  (<code>owner/repo</code> pairs). The match is owner-qualified: a repository of the same name under another
+  owner does not match, and a bare name never matches. So a scope that is broader than GAOS's products still
+  cannot make GAOS act on a repository it does not own &mdash; and the repository GAOS acts on is always the
+  <em>product's</em>, never the event's.</p>
+  <p>One scope per GAOS instance. GAOS runs a second instance with its own database; two instances pointing
+  at one scope would each open the same cards.</p>
+
+  <h2 id="events">What the reader sees</h2>
+  <p>The frame has the public frame's own shape &mdash; <code>seq</code>, <code>id</code>, <code>type</code>,
+  <code>source</code>, <code>at</code>, <code>payload</code> &mdash; with the payload <strong>unmasked</strong>,
+  plus <code>productKey</code> and <code>orgLogin</code> from the town's store:</p>
+  <pre>id: 1975
+event: pr.opened
+data: {"seq":1975,"id":"gh-…","type":"pr.opened","source":"github","at":"…",
+       "productKey":"sample-service","orgLogin":"acme-org",
+       "payload":{"product":{"key":"sample-service","name":"sample-service","visibility":"hidden"},
+                  "task":{"id":"4931","kind":"pr","title":"Fix export"},
+                  "data":{"pr":4931,"draft":false}}}</pre>
+  <p>The pull request's title is <strong>untrusted text</strong>: it is capped at 200 characters, stripped of
+  control characters and screened for anything that looks like a credential before it reaches a card.</p>
+
+  <h2 id="delivery">Reading, losing and replaying</h2>
+  <ul>
+    <li>One goroutine, one stream. Nothing here blocks a GAOS action: a slow or dead town slows nothing.</li>
+    <li>The hand-over is a bounded channel of 256. A full channel does <strong>not</strong> drop the event:
+    the reader keeps it and does not advance the cursor, so the event is replayed on the next reconnect. An
+    event that was never handed over is a state change that never happened, and it must not be lost.</li>
+    <li>The waits before the second, third and fourth attempt are 1 s, 5 s and 30 s; after the fourth
+    consecutive failure the reader holds at 30 s. A <code>401</code> or a <code>403</code> stops the reader and
+    says so &mdash; but the token file is re-read on the next attempt, so a rotated token is picked up without
+    a restart.</li>
+    <li>There is no whole-request timeout on a stream; a 45 s watchdog (three heartbeats) notices a
+    half-open connection and reconnects.</li>
+    <li>One log line per skipped frame, and never a token, a path or a title.</li>
+  </ul>
+
+  <h2 id="enable">Turn it on</h2>
+  <ol>
+    <li>In the town's back office, open <em>Consumers</em>, create one for GAOS and give it the scope: the
+    owners, the repositories, the kinds and the event types. Copy the token &mdash; it is shown once.</li>
+    <li>Create the two files:
+    <code>install -m 600 /dev/null deploy/stacks/prod.bt-consumer-token</code> and
+    <code>install -m 600 /dev/null deploy/stacks/prod.bt-consumer-cursor</code>, then put the token in the
+    first one. Both must exist before <code>up</code>.</li>
+    <li>Redeploy with the settings on the line, and repeat them on every redeploy:
+    <code>BRAIN_TOWN_CONSUMER_ENABLED=true BRAIN_TOWN_CONSUMER_URL=https://town.example.org ./deploy/rebuild-restart.sh prod deploy --tag vX.Y.Z</code>.</li>
+    <li>Open the back office's <em>Integrations</em> view: the <em>Brain Town reader</em> block says
+    <em>enabled</em>, the host, and how many events were handed over.</li>
+  </ol>
+  <p>The town must already serve the reader's path. A GAOS that ships the reader first leaves it off with
+  the reason <em>the stream answers 404</em>, which is the expected state until the town ships it.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -195,6 +195,31 @@ type IntegrationsPage struct {
 	API       APIStatus
 	Clients   []ClientRow
 	BrainTown BrainTownRow
+	// BrainTownConsumer is the Brain Town *reader* (D-087): GAOS pulling the
+	// town's pull-request events. It is the opposite direction of BrainTown
+	// above, which is GAOS pushing its own changes out.
+	BrainTownConsumer BrainTownRow
+	// PR is the pull-request flow (D-088): the GitHub client, the staging
+	// callback, WhatsApp and the contact registry. Counts, hosts, modes and
+	// times; the contact list carries the destination masked, never whole.
+	PR PRFlowRow
+}
+
+// PRFlowRow is the pull-request flow on the Integrations view.
+type PRFlowRow struct {
+	GitHub       string // on | off (<reason>)
+	StagingState string
+	StagingLast  []StagingSeen
+	WA           waStatus
+	Contacts     []ContactRow
+}
+
+// StagingSeen is the last accepted staging callback of a product.
+type StagingSeen struct{ Product, At string }
+
+// ContactRow is one contact, masked.
+type ContactRow struct {
+	ProductID, Login, Name, Destination, NotifyOn string
 }
 
 // AIMStatus is the ai-manager gateway.

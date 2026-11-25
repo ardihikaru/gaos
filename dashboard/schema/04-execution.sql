@@ -27,7 +27,16 @@ CREATE PROPERTY Task.title            STRING  (mandatory true, notnull true);
 CREATE PROPERTY Task.status           STRING  (mandatory true, notnull true, default 'PENDING',
                  regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED|AWAITING_INPUT');
 CREATE PROPERTY Task.role             STRING  (mandatory true, notnull true,
-                 regexp 'planner|architect|backend|frontend|qa|security|devops');
+                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test');
+-- The labels of a task (D-088). One JSON array, because a property per label
+-- would make "does this card carry this label" a graph query rather than a
+-- read. The vocabulary is closed and lives in dashboard/labels.go.
+CREATE PROPERTY Task.labels           STRING;
+-- The de-duplication key of a pull-request card (D-088): owner/repo#n:role, or
+-- owner/repo@sha:e2e-run. Indexed, so a replay finds the card that exists
+-- instead of planning a second one (NOTUNIQUE: a null on every other task).
+CREATE PROPERTY Task.dedupKey         STRING;
+CREATE INDEX IF NOT EXISTS ON Task (dedupKey) NOTUNIQUE;
 CREATE PROPERTY Task.riskClass        STRING  (default 'normal',
                  regexp 'low|normal|high|critical');
 CREATE PROPERTY Task.modelHint        STRING;
@@ -84,3 +93,16 @@ CREATE PROPERTY Workspace.state      STRING (mandatory true, notnull true, defau
                  regexp 'ALLOCATED|PREPARED|ACTIVE|SNAPSHOTTED|RELEASED');
 CREATE PROPERTY Workspace.leaseUntil DATETIME;
 CREATE PROPERTY Workspace.leasedBy   STRING;
+
+-- The contact registry (D-088, docs/designs/gaos-pr-agent-flows.md section 8.4).
+-- A GitHub account mapped to a notification destination. Deliberately NOT on
+-- Master and in no event: a phone number is personal data and the event bus
+-- feeds a public town.
+CREATE VERTEX TYPE Contact IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY Contact.productId     STRING;
+CREATE PROPERTY Contact.githubLogin   STRING  (mandatory true, notnull true);
+CREATE PROPERTY Contact.displayName   STRING  (mandatory true, notnull true);
+CREATE PROPERTY Contact.channel       STRING  (mandatory true, notnull true, default 'whatsapp', regexp 'whatsapp');
+CREATE PROPERTY Contact.destination   STRING  (mandatory true, notnull true);
+CREATE PROPERTY Contact.notifyOn      STRING;
+CREATE INDEX IF NOT EXISTS ON Contact (tenantId, id) UNIQUE;

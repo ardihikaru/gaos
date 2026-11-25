@@ -31,6 +31,9 @@ var catalog = map[EventType]bool{
 	ExternalQuestionAsked: true, ExternalQuestionAnswered: true, ExternalAnswerDelivery: true,
 	// execution -- D-082, a card's conversation
 	ConversationArchived: true, ConversationPruned: true,
+	// execution -- D-088, the pull-request flows
+	PullRequestOpened: true, PullRequestMerged: true, StagingDeployed: true,
+	ContactNotified: true, TaskLabeled: true,
 	// judgment
 	ReviewCompleted: true, RetryRequested: true, ModelEscalated: true,
 	SafetyVeto: true, GuardExhausted: true,
@@ -126,6 +129,20 @@ func TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules(t *testing.T)
 func drive(t *testing.T, s *MemStore) {
 	t.Helper()
 	ctx := t.Context()
+
+	// D-088: the pull-request flow, so its events are on the stream.
+	planned, _, _, perr := s.PlanPullRequestCards(ctx, "p-1", prEvent(prTypeOpened, "laundry-api", 901))
+	if perr != nil || len(planned) == 0 {
+		t.Fatalf("PlanPullRequestCards: %v %v", planned, perr)
+	}
+	if _, err := s.SetTaskLabel(ctx, "p-1", planned[0], LabelPRReviewManual, "ops@example.com"); err != nil {
+		t.Fatalf("SetTaskLabel: %v", err)
+	}
+	s.PlanPullRequestCards(ctx, "p-1", prEvent(prTypeMerged, "laundry-api", 901))
+	if _, err := s.RecordNotification(ctx, "p-1", "group", "review:high", "accepted"); err != nil {
+		t.Fatalf("RecordNotification: %v", err)
+	}
+	s.PlanPullRequestCards(ctx, "p-1", PREvent{Type: prTypeStaging, Org: "loop", Repo: "laundry-api", Commit: "0123456789abcdef"})
 
 	id := "p-2"
 	// Filled in properly, not just a problem statement. The record has to land in

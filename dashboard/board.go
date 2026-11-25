@@ -45,6 +45,11 @@ type BoardCard struct {
 	Status string `json:"status"` // the exact status; a column groups several
 	Role   string `json:"role"`
 	Rank   int    `json:"rank"`
+	// Labels say what kind of work the card is (D-088): a closed vocabulary,
+	// rendered as chips. Empty on a card that predates it.
+	Labels []string `json:"labels,omitempty"`
+	// DedupKey is a pull-request card's key (D-088). Server-side only.
+	DedupKey string `json:"-"`
 	// Vendor is where the card's next turn goes under the product's policy
 	// (M16): claude or antigravity.
 	Vendor string `json:"vendor"`
@@ -265,7 +270,8 @@ func boardOf(productID string, m *Master, tasks []TaskRecord) Board {
 			continue
 		}
 		b.Cards = append(b.Cards, BoardCard{ID: t.ID, Label: t.Title, Column: columnOf(t.Status), Row: laneOf(t),
-			Status: t.Status, Role: t.Role, Rank: t.Rank, Vendor: m.Vendors.VendorFor(t.Role), Moves: legalMoves(t)})
+			Status: t.Status, Role: t.Role, Rank: t.Rank, Labels: t.Labels, DedupKey: t.DedupKey,
+			Vendor: m.Vendors.VendorFor(t.Role), Moves: legalMoves(t)})
 	}
 	order := map[string]int{}
 	for i, c := range boardColumns {
