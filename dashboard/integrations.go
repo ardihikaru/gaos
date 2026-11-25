@@ -191,6 +191,11 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 	} else {
 		p.BrainTown = s.brainOff
 	}
+	if s.btConsumer != nil {
+		p.BrainTownConsumer = s.btConsumer.Status()
+	} else {
+		p.BrainTownConsumer = s.btConsumerOff
+	}
 	bo.Integrations = p
 }
 

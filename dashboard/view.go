@@ -195,6 +195,10 @@ type IntegrationsPage struct {
 	API       APIStatus
 	Clients   []ClientRow
 	BrainTown BrainTownRow
+	// BrainTownConsumer is the Brain Town *reader* (D-087): GAOS pulling the
+	// town's pull-request events. It is the opposite direction of BrainTown
+	// above, which is GAOS pushing its own changes out.
+	BrainTownConsumer BrainTownRow
 }
 
 // AIMStatus is the ai-manager gateway.

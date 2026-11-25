@@ -84,6 +84,9 @@ type server struct {
 	// brain is the Brain Town emitter (braintown.go); nil when off. brainOff is the row shown then.
 	brain    *brainTown
 	brainOff BrainTownRow
+	// btConsumer is the Brain Town reader (braintown_consumer.go); nil when off.
+	btConsumer    *btConsumer
+	btConsumerOff BrainTownRow
 
 	// adapter is nil unless GAOS_MODEL_MODE names one. Held for /healthz and
 	// the boot log only -- the dispatch path reaches it through the store,
@@ -320,7 +323,24 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 	}()
 
-	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: api, brain: brain, brainOff: brainOff, qaOut: qaOutboundFromEnv(),
+	// The Brain Town reader: one goroutine that pulls the town's pull-request
+	// events. It is separate from the emitter above, which pushes GAOS's own
+	// changes out.
+	var btCons *btConsumer
+	btConsOff := BrainTownRow{State: "disabled"}
+	if cc := btConsumerFromEnv(api); !cc.enabled {
+		log.Printf("brain town: consumer off")
+	} else if cc.why != "" {
+		btConsOff = BrainTownRow{State: "unusable: " + cc.why}
+		log.Printf("brain town: consumer unusable (%s)", cc.why)
+	} else {
+		btCons = newBTConsumer(cc, store)
+		btConsOff = BrainTownRow{State: "enabled"}
+		log.Printf("brain town: reading from %s", urlHost(cc.url.String()))
+	}
+
+	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: api, brain: brain, brainOff: brainOff,
+		btConsumer: btCons, btConsumerOff: btConsOff, qaOut: qaOutboundFromEnv(),
 		auth: authFromEnv(!dev), bootChecked: bootChecked}
 
 	// D-078: the answer webhook. One worker; with the outbound unconfigured it
@@ -329,6 +349,9 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	go srv.inbox.Run(ctx)
 	if brain != nil {
 		go brain.Run(ctx)
+	}
+	if btCons != nil {
+		go btCons.Run(ctx)
 	}
 
 	h := gzipMiddleware(srv.routes())

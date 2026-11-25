@@ -739,6 +739,18 @@
   <p class="tm-line">Set up: <code>BRAIN_TOWN_ENABLED</code>, <code>BRAIN_TOWN_URL</code>, the token file <code>BRAIN_TOWN_TOKEN_FILE</code> and <code>BRAIN_TOWN_PUBLIC_PRODUCTS</code>. A product not listed is sent as hidden and redacted. <a href="../docs/integrations/brain-town.html" target="_blank" rel="noopener">Brain Town</a></p>
 </div>
 <div class="block">
+  <h4>Brain Town reader &middot; {{.BrainTownConsumer.State}}</h4>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">Source</th><td class="mono">{{if .BrainTownConsumer.Host}}{{.BrainTownConsumer.Host}}{{else}}&mdash;{{end}}</td></tr>
+      <tr><th scope="row">Last event</th><td>{{if .BrainTownConsumer.Last}}{{.BrainTownConsumer.Last}}{{else}}none yet{{end}}</td></tr>
+      <tr><th scope="row">Handed over &middot; skipped</th><td class="mono">{{.BrainTownConsumer.Sent}} &middot; {{.BrainTownConsumer.Failed}}</td></tr>
+      <tr><th scope="row">Waiting to hand over</th><td class="mono">{{.BrainTownConsumer.Queue}}</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tm-line">The other direction: GAOS reads the town's pull-request events. Set up <code>BRAIN_TOWN_CONSUMER_ENABLED</code>, <code>BRAIN_TOWN_CONSUMER_URL</code>, the token file <code>BRAIN_TOWN_CONSUMER_TOKEN_FILE</code> and the cursor file <code>BRAIN_TOWN_CONSUMER_CURSOR_FILE</code>. The reader is scoped to the repositories the products declare. <a href="../docs/integrations/brain-town-consumer.html" target="_blank" rel="noopener">Brain Town reader</a></p>
+</div>
+<div class="block">
   <h4>QA tools &middot; {{if .QA.Outbound}}connected{{else}}outbound off{{end}}</h4>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>

@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-five entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-six entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1833,6 +1833,30 @@
         instruction to run the task unattended.</td>
         <td><a href="qa-test-plan.html#go-brain-town">TC-513 &hellip; TC-523</a>;
         <a href="../integrations/brain-town.html">Brain Town feed</a></td>
+      </tr>
+      <tr id="d-087">
+        <td>D-087</td><td>2026-11-25</td>
+        <td><strong>GAOS may pull the town's pull-request events over a scoped, revocable reader token; the
+        operator declares the scope in the town's back office and GAOS filters again by the repositories its
+        products declare; a lost event is replayed rather than dropped, and no reader credential is ever a
+        sender's credential or GAOS's own.</strong> Context: the product owner wants GAOS to react to pull-request
+        activity on a product's main repository &mdash; open a review card when one appears, a test card when it
+        merges &mdash; and the town already receives the GitHub webhook. The town's public stream is masked on
+        purpose, so a hidden product appears under its alias with no title, which is not enough to act on.
+        Decision: the town serves a second path, <code>GET /consumer/events</code>, authenticated by a
+        <code>bt_c_</code> token and filtered by the scope the operator registered; the frame keeps the public
+        frame's shape with an unmasked payload and adds <code>productKey</code> and <code>orgLogin</code>; the
+        repository GAOS acts on is the <em>product's</em>, never the event's, so a scope that is broader than
+        GAOS's products still cannot make GAOS act on a repository it does not own; the hand-over channel does
+        not drop, and the cursor advances only after the hand-over, so an event that was never handed over is
+        replayed; the token file is refused when others can read it, and a <code>bt_live_</code> or
+        <code>gaos_</code> token is refused outright. Rejected: reading the town's admin stream (it needs an
+        operator's session); reading the public stream and mapping the aliases (a second source of truth for
+        something the town already knows); the town pushing to GAOS (it inverts who declares what is needed);
+        GAOS receiving the GitHub webhook directly (it would duplicate the town's whole receiver).
+        </td>
+        <td><a href="qa-test-plan.html#go-brain-town-consumer">TC-524&hellip;TC-533</a>;
+        <a href="../integrations/brain-town-consumer.html">Brain Town reader</a></td>
       </tr>
     </tbody>
   </table>
