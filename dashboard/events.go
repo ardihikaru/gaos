@@ -121,6 +121,27 @@ const (
 	ApprovalRejected  EventType = "ApprovalRejected"
 )
 
+// The pull-request agents (D-088). Each one says that work was planned from
+// a GitHub event, so the timeline shows why a card exists without the card
+// having to be read.
+const (
+	// PullRequestOpened is emitted when a pull request opened and its cards
+	// were planned.
+	PullRequestOpened EventType = "PullRequestOpened"
+	// PullRequestMerged is emitted when a pull request merged and its card was
+	// planned.
+	PullRequestMerged EventType = "PullRequestMerged"
+	// StagingDeployed is emitted when the staging callback landed and its card
+	// was planned.
+	StagingDeployed EventType = "StagingDeployed"
+	// ContactNotified is emitted when a WhatsApp message went out. It carries
+	// the target's alias, never the number and never the message.
+	ContactNotified EventType = "ContactNotified"
+	// TaskLabeled is emitted when an operator changes a card's label. It names
+	// the task, the old and the new label and the actor's alias (BR-02).
+	TaskLabeled EventType = "TaskLabeled"
+)
+
 // collaboration
 const (
 	MeetingStarted   EventType = "MeetingStarted"

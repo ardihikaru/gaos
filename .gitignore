@@ -12,6 +12,9 @@ deploy/stacks/*.api-*
 deploy/stacks/*.bo-*
 # The Brain Town receiver's bearer token (D-086): prod.bt-token, mode 600, may be empty.
 deploy/stacks/*.bt-*
+# The pull-request flow's credentials (D-088): the GitHub token, the staging callback's
+# per-product Basic credentials, the WhatsApp gateway login and its pinned group. Mode 600.
+deploy/stacks/*.pr-*
 !deploy/stacks/*.env.example
 
 # Detached worktrees created by `rebuild-restart.sh --tag`. Each is a checkout

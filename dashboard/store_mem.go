@@ -195,6 +195,23 @@ type MemStore struct {
 	// GAOS reads no folder on this host since M14.7 (BR-42), and the seam is
 	// kept so the allowlist half of the egress pass still has a caller.
 	repoParts func(deskID string) []PacketPart
+
+	// prParts and afterRun are the pull-request flow's two seams (D-088). The
+	// first adds a pull request's text to a reviewer's packet; the second reads
+	// a finished reviewer's reply and posts the review. nil unless the GitHub
+	// client is configured.
+	// contacts is the notification registry (D-088). Never rendered whole.
+	contacts ContactBook
+
+	prParts  func(TaskRecord) []PacketPart
+	afterRun func(TaskRecord, string)
+}
+
+// SetPRHooks installs the pull-request flow's seams.
+func (s *MemStore) SetPRHooks(parts func(TaskRecord) []PacketPart, after func(TaskRecord, string)) {
+	s.mu.Lock()
+	s.prParts, s.afterRun = parts, after
+	s.mu.Unlock()
 }
 
 // setEgressForTest overrides the deployment's egress policy.
@@ -1574,6 +1591,16 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 		}
 	}
 
+	// A pull request's text, for a PR reviewer card (D-088).
+	if s.prParts != nil {
+		if t := s.taskByIDLocked(taskID); t != nil {
+			for _, part := range s.prParts(*t) {
+				pkt.Parts = append(pkt.Parts, part)
+				cite("", "", CiteCode, part.Path, part.Body)
+			}
+		}
+	}
+
 	// The repository half. Every part is still screened against the
 	// allowlist, and sorted so the digest does not depend on who supplied it.
 	if s.repoParts != nil {
@@ -2270,6 +2297,7 @@ func (s *MemStore) schedulerInputLocked(now int64) SchedulerInput {
 			Title: t.Title, Role: t.Role, Model: t.Model, Status: t.Status,
 			Deps:     append([]string(nil), t.Deps...),
 			Priority: t.Priority, Ordinal: t.Ordinal, Gate: t.Gate,
+			Labels: append([]string(nil), t.Labels...),
 		})
 	}
 	for i := range s.masters {

@@ -437,6 +437,7 @@ func reduce(st FloorState, e Event) FloorState {
 		d.Cost = p.Cost
 
 	case KnowledgeExtracted, KnowledgeInjected, KnowledgeReused,
+		PullRequestOpened, PullRequestMerged, StagingDeployed, ContactNotified, TaskLabeled,
 		ProductCreated, RecordUpdated, ReadinessEvaluate, ReadinessDropped, BlueprintPublished,
 		WorkspaceProvisioned, BlueprintSynced, SessionOpened, SessionLost, TaskMoved, TaskReordered,
 		DecisionSuperseded, DependencyRewired,

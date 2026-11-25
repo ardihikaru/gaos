@@ -99,6 +99,9 @@ type TaskNode struct {
 	Priority   int
 	Ordinal    int
 	Gate       bool
+	// Labels are the card's labels (D-088); the scheduler reads them only to
+	// leave a manual or QA-tool card alone.
+	Labels []string
 }
 
 // AgentSlot is a seat. Busy is computed by the shell from the graph; whether an
@@ -276,6 +279,11 @@ func Schedule(in SchedulerInput) ScheduleDecision {
 	var out ScheduleDecision
 	for _, t := range tasks {
 		if t.Status != StatusPending && t.Status != StatusReady {
+			continue
+		}
+		// A card a person owns, or the QA-tool job runner drives, is never
+		// handed to an agent (D-088).
+		if !labelsAllowDispatch(t.Labels) {
 			continue
 		}
 		reasons := map[string]string{}

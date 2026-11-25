@@ -147,6 +147,26 @@ services:
       BRAIN_TOWN_URL: "${BRAIN_TOWN_URL:-}"
       BRAIN_TOWN_PUBLIC_PRODUCTS: "${BRAIN_TOWN_PUBLIC_PRODUCTS:-}"
       BRAIN_TOWN_TOKEN_FILE: "/run/secrets/bt-token"
+      # D-087: the Brain Town READER, the other direction. GAOS pulls the town's
+      # pull-request events. The token is a FILE (deploy/stacks/prod.bt-consumer-token,
+      # gitignored, mode 600) and the cursor is a FILE too (prod.bt-consumer-cursor), so
+      # a restart resumes where it stopped instead of replaying the whole retention.
+      BRAIN_TOWN_CONSUMER_ENABLED: "${BRAIN_TOWN_CONSUMER_ENABLED:-}"
+      BRAIN_TOWN_CONSUMER_URL: "${BRAIN_TOWN_CONSUMER_URL:-}"
+      BRAIN_TOWN_CONSUMER_TYPES: "${BRAIN_TOWN_CONSUMER_TYPES:-}"
+      BRAIN_TOWN_CONSUMER_KINDS: "${BRAIN_TOWN_CONSUMER_KINDS:-}"
+      BRAIN_TOWN_CONSUMER_TOKEN_FILE: "/run/secrets/bt-consumer-token"
+      BRAIN_TOWN_CONSUMER_CURSOR_FILE: "/run/secrets/bt-consumer-cursor"
+      # D-088: the pull-request flow. Every credential is a FILE (deploy/stacks/prod.pr-*,
+      # gitignored, mode 600, must EXIST before `up`; empty = that part is off). None is ever
+      # an environment value. GAOS_WA_URL has no default and must be https.
+      GAOS_GITHUB_TOKEN_FILE: "/run/secrets/pr-github-token"
+      GAOS_STAGING_BASIC_AUTH_FILE: "/run/secrets/pr-staging-auth"
+      GAOS_WA_BASIC_AUTH_FILE: "/run/secrets/pr-wa-auth"
+      GAOS_WA_GROUP_FILE: "/run/secrets/pr-wa-group"
+      GAOS_WA_URL: "${GAOS_WA_URL:-}"
+      GAOS_PR_MAX_OPEN: "${GAOS_PR_MAX_OPEN:-}"
+      GAOS_PR_ALLOW_FORKS: "${GAOS_PR_ALLOW_FORKS:-}"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
       - ./prod.aim-admin-key:/run/secrets/aim-admin-key:ro
@@ -156,6 +176,12 @@ services:
       - ./prod.bo-users:/run/secrets/bo-users:ro
       - ./prod.bo-session-key:/run/secrets/bo-session-key:ro
       - ./prod.bt-token:/run/secrets/bt-token:ro
+      - ./prod.bt-consumer-token:/run/secrets/bt-consumer-token:ro
+      - ./prod.bt-consumer-cursor:/run/secrets/bt-consumer-cursor:ro
+      - ./prod.pr-github-token:/run/secrets/pr-github-token:ro
+      - ./prod.pr-staging-auth:/run/secrets/pr-staging-auth:ro
+      - ./prod.pr-wa-auth:/run/secrets/pr-wa-auth:ro
+      - ./prod.pr-wa-group:/run/secrets/pr-wa-group:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.

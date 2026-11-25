@@ -560,7 +560,11 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <span class="k">CREATE PROPERTY</span> Task.status           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'PENDING'</span>,
                  regexp <span class="s">'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED'</span>);
 <span class="k">CREATE PROPERTY</span> Task.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
-                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops'</span>);
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test'</span>);
+<span class="c">-- D-088: the labels (a JSON array; the vocabulary is closed in dashboard/labels.go)
+-- and the de-duplication key of a pull-request card.</span>
+<span class="k">CREATE PROPERTY</span> Task.labels           <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Task.dedupKey         <span class="s">STRING</span>;
 <span class="k">CREATE PROPERTY</span> Task.riskClass        <span class="s">STRING</span>  (default <span class="s">'normal'</span>,
                  regexp <span class="s">'low|normal|high|critical'</span>);
 <span class="k">CREATE PROPERTY</span> Task.modelHint        <span class="s">STRING</span>;
@@ -765,7 +769,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <tbody>
       <tr><td class="mono">master</td><td class="mono">ProductCreated · RecordUpdated · KnowledgeInjected · ReadinessEvaluated · ReadinessDropped</td></tr>
       <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned (a plan, or an addition to one — §16) · DependencyRewired · WorkflowCanceled</td></tr>
-      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered · ExternalQuestionAsked · ExternalQuestionAnswered · ExternalAnswerDelivery · ConversationArchived · ConversationPruned</td></tr>
+      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered · ExternalQuestionAsked · ExternalQuestionAnswered · ExternalAnswerDelivery · ConversationArchived · ConversationPruned · PullRequestOpened · PullRequestMerged · StagingDeployed · ContactNotified · TaskLabeled</td></tr>
       <tr><td class="mono">judgment</td><td class="mono">ReviewCompleted · RetryRequested · ModelEscalated · SafetyVeto · GuardExhausted</td></tr>
       <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
       <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
@@ -1412,6 +1416,11 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
       <tr><td class="mono">ExternalQuestionAnswered</td><td>execution</td><td class="mono">question{… , status answered|expired, choice 1..4, text, answeredAt, answeredBy{kind, client, origin, actor}}, actor — D-083: answeredBy on an answer, absent on an expiry and before v0.43.0</td></tr>
       <tr><td class="mono">ConversationArchived</td><td>execution</td><td class="mono">taskId, to archived|active, actor — D-082: a finished card's conversation archived or restored; entityId is the product</td></tr>
       <tr><td class="mono">ConversationPruned</td><td>execution</td><td class="mono">taskId, actor, prune{stage bodies|sessions, runs, bodies[id, kind, sha256, bytes], kept[], sessions named/deleted/gone/failed/shared} — D-082: the prune's certificate; no session id</td></tr>
+      <tr><td class="mono">PullRequestOpened</td><td>execution</td><td class="mono">repo, number, taskIds — D-088: a pr.opened event arrived and its cards were planned</td></tr>
+      <tr><td class="mono">PullRequestMerged</td><td>execution</td><td class="mono">repo, number, taskId — D-088</td></tr>
+      <tr><td class="mono">StagingDeployed</td><td>execution</td><td class="mono">repo, commit, taskId — D-088: the staging callback landed</td></tr>
+      <tr><td class="mono">ContactNotified</td><td>execution</td><td class="mono">alias, kind, outcome — D-088: never the destination, never the body</td></tr>
+      <tr><td class="mono">TaskLabeled</td><td>execution</td><td class="mono">taskId, from, to, actor — D-088: an operator changed a label</td></tr>
       <tr><td class="mono">ExternalAnswerDelivery</td><td>execution</td><td class="mono">question{externalId, attempt, attemptAt}, rule delivered|retry|gave-up, reason — one attempt to tell the QA tool</td></tr>
     </tbody>
   </table>
@@ -1439,6 +1448,8 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
 <section id="qa-catalog">
   <h2><span class="num">16</span> The QA catalog</h2>
   <p class="lede">Decided on 2026-11-14 (D-072, D-073). <b>Applied in v0.37.0</b> as <code>dashboard/schema/16-qa-catalog.sql</code> — one vertex type, one edge type and three indexes, every statement <span class="mono">IF NOT EXISTS</span>, applied at every boot and purely additive: the previous image ignores the new type. A product's test cases are their own vertices and never tasks: a case is a fact about a script, not work for an agent.</p>
+
+  <p><b>D-088 (pull-request flows):</b> one more vertex type, <span class="mono">Contact</span> (29 become 30) — a GitHub account mapped to a notification destination, in <code>04-execution.sql</code>, never in an event; <span class="mono">Task</span> gains <span class="mono">labels</span> and <span class="mono">dedupKey</span>, and the <span class="mono">Task.role</span> regexp admits <span class="mono">pr-reviewer</span> and <span class="mono">unit-test</span>. Five event types join the catalog: PullRequestOpened, PullRequestMerged, StagingDeployed, ContactNotified, TaskLabeled.</p>
 
   <h4>New vertex type · 28 become 29</h4>
   <table>

@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-five entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-seven entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1833,6 +1833,60 @@
         instruction to run the task unattended.</td>
         <td><a href="qa-test-plan.html#go-brain-town">TC-513 &hellip; TC-523</a>;
         <a href="../integrations/brain-town.html">Brain Town feed</a></td>
+      </tr>
+      <tr id="d-087">
+        <td>D-087</td><td>2026-11-25</td>
+        <td><strong>GAOS may pull the town's pull-request events over a scoped, revocable reader token; the
+        operator declares the scope in the town's back office and GAOS filters again by the repositories its
+        products declare; a lost event is replayed rather than dropped, and no reader credential is ever a
+        sender's credential or GAOS's own.</strong> Context: the product owner wants GAOS to react to pull-request
+        activity on a product's main repository &mdash; open a review card when one appears, a test card when it
+        merges &mdash; and the town already receives the GitHub webhook. The town's public stream is masked on
+        purpose, so a hidden product appears under its alias with no title, which is not enough to act on.
+        Decision: the town serves a second path, <code>GET /consumer/events</code>, authenticated by a
+        <code>bt_c_</code> token and filtered by the scope the operator registered; the frame keeps the public
+        frame's shape with an unmasked payload and adds <code>productKey</code> and <code>orgLogin</code>; the
+        repository GAOS acts on is the <em>product's</em>, never the event's, so a scope that is broader than
+        GAOS's products still cannot make GAOS act on a repository it does not own; the hand-over channel does
+        not drop, and the cursor advances only after the hand-over, so an event that was never handed over is
+        replayed; the token file is refused when others can read it, and a <code>bt_live_</code> or
+        <code>gaos_</code> token is refused outright. Rejected: reading the town's admin stream (it needs an
+        operator's session); reading the public stream and mapping the aliases (a second source of truth for
+        something the town already knows); the town pushing to GAOS (it inverts who declares what is needed);
+        GAOS receiving the GitHub webhook directly (it would duplicate the town's whole receiver).
+        </td>
+        <td><a href="qa-test-plan.html#go-brain-town-consumer">TC-524&hellip;TC-533</a>;
+        <a href="../integrations/brain-town-consumer.html">Brain Town reader</a></td>
+      </tr>
+      <tr id="d-088">
+        <td>D-088</td><td>2026-11-25</td>
+        <td><strong>GAOS reacts to pull-request activity: an opened pull request plans a review card and an e2e
+        automation card, a merge plans a unit-test card, and the staging deploy plans an e2e run card; the cards
+        are born ready under an operator's standing <code>pr-review:auto</code> label, GAOS (never the agent)
+        posts the screened review as a comment, the QA tool writes and runs the e2e specs, and the one staging
+        route answers HTTP Basic with a credential per product.</strong> Context: the product owner wants
+        pull requests reviewed and proved without a person starting each one, and the town already receives the
+        webhook (D-087). Decision: the PR reviewer is an <code>implement</code> task with its own
+        <code>gaos-pr-review</code> reply block, outside BR-46 and BR-47, because a GAOS &ldquo;review&rdquo; task
+        is the reviewer of a written design; cards live on a separate PR workflow and never reset a product's
+        plan; a draft, a fork or a stranger's pull request opens nothing, and a per-product cap bounds the
+        open cards; the key <code>owner/repo#n:role</code> (or <code>owner/repo@sha:e2e-run</code>) is stored on
+        the card, so a replay plans nothing; the GitHub write token lives in the dashboard process alone and the
+        review body is screened by the egress detectors before it is posted; the e2e work is the QA tool's
+        (<code>caseauto.Machine</code>), driven by a GAOS-side job runner with no model turn; the staging
+        callback is HTTP Basic, one credential per product, a credential for another product is 404, failures
+        are throttled (BR-52 amended for that one route; BR-55 holds because the route is a registered
+        bearer-class route with its own gate); WhatsApp is https only with no default host, sends to a pinned
+        group JID and never to a group found by name, and a failed send never fails the work; the contact
+        registry is its own <code>Contact</code> vertex, never on <code>Master</code>, never in an event; five
+        event types join the closed catalog (<code>PullRequestOpened</code>, <code>PullRequestMerged</code>,
+        <code>StagingDeployed</code>, <code>ContactNotified</code>, <code>TaskLabeled</code>). Rejected: the
+        agent posting its own review (it would put a write token into a workspace that reads strangers' text);
+        a bearer client for Jenkins (its credential step speaks Basic; kept as the simpler follow-up if it can
+        send a bearer); naming a WhatsApp group by its display name (names are not unique).</td>
+        <td><a href="qa-test-plan.html#go-pr-agent-flows">TC-534&hellip;TC-599</a>;
+        <a href="../integrations/pr-agents.html">Pull-request agents</a>;
+        <code>docs/designs/gaos-pr-agent-flows.md</code> and its review round</td>
       </tr>
     </tbody>
   </table>

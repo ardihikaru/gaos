@@ -133,6 +133,11 @@ func RenderPrompt(c Cleared) string {
 // no other way to know: it sees the packet and nothing else.
 func contractsFor(kind, taskID, runID, role string) string {
 	handoff := gatewayContract(taskID, runID, role)
+	// The PR reviewer owes its own block, then the handoff (D-088). It is an
+	// implement task, so the role and not the kind selects the contract.
+	if role == "pr-reviewer" && taskKind(kind) == TaskKindImplement {
+		return prReviewContract(taskID, runID, role)
+	}
 	switch taskKind(kind) {
 	case TaskKindDesign:
 		return designContract(taskID, runID, role) + "\n===== the handoff =====\n" + handoff
