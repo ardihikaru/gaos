@@ -42,7 +42,7 @@ func stagingCall(srv *server, product, user, pass, body string) *httptest.Respon
 	return rec
 }
 
-const stagingOK = `{"repo":"loop/laundry-api","branch":"staging","commit":"0123456789abcdef","environment":"staging"}`
+const stagingOK = `{"repo":"loop/laundry-api","branch":"staging","commit":"0123456789abcdef0123456789abcdef01234567","environment":"staging"}`
 
 func TestTheStagingCallbackPlansACardAndAReplayPlansNone(t *testing.T) {
 	srv, st := stagingServer(t)
@@ -106,6 +106,7 @@ func TestTheStagingCallbackRefusesARepositoryTheProductDoesNotOwn(t *testing.T) 
 	for name, body := range map[string]string{
 		"foreign repo": strings.Replace(stagingOK, "loop/laundry-api", "loop/other", 1),
 		"bad sha":      strings.Replace(stagingOK, "0123456789abcdef", "not-a-sha", 1),
+		"short sha":    strings.Replace(stagingOK, "0123456789abcdef0123456789abcdef01234567", "0123456789ab", 1),
 		"bad env":      strings.Replace(stagingOK, `"environment":"staging"`, `"environment":"prod"`, 1),
 		"unknown key":  strings.Replace(stagingOK, `"branch"`, `"extra":1,"branch"`, 1),
 	} {

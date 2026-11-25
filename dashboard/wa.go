@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -64,7 +65,18 @@ type waConfig struct {
 	user  string
 	pass  string
 	group string // the pinned group JID
-	why   string // non-empty: GAOS_WA_URL was set and the notifier is unusable
+	// clearText is true when the operator allowed an http gateway: the login and
+	// the message then cross the network unencrypted. GAOS_WA_ALLOW_HTTP=1 allows
+	// it for a loopback, private, CGNAT or link-local address only, enforced on
+	// every connection; GAOS_WA_ALLOW_HTTP=any also allows a public address, and
+	// publicHTTP records that choice (it is shown in the status).
+	clearText  bool
+	publicHTTP bool
+	// products are the products whose cards may notify (GAOS_WA_PRODUCTS, a
+	// comma list of ids). Empty means none: the group is linked to products by
+	// name, never to all of them by default.
+	products map[string]bool
+	why      string // non-empty: GAOS_WA_URL was set and the notifier is unusable
 }
 
 // on reports whether the notifier was asked for.
@@ -82,9 +94,23 @@ func waConfigFromEnv() waConfig {
 		c.why = "GAOS_WA_URL is not a URL"
 		return c
 	}
-	if u.Scheme != "https" {
-		c.why = "GAOS_WA_URL must be https: the credential and the message must not cross a network in clear"
+	allowHTTP := strings.TrimSpace(os.Getenv("GAOS_WA_ALLOW_HTTP"))
+	switch {
+	case u.Scheme == "https":
+	case u.Scheme == "http" && (allowHTTP == "1" || allowHTTP == "any"):
+		c.clearText, c.publicHTTP = true, allowHTTP == "any"
+	case u.Scheme == "http":
+		c.why = "GAOS_WA_URL must be https: the credential and the message must not cross a network in clear (GAOS_WA_ALLOW_HTTP=1 allows http to a private address, =any to any address)"
 		return c
+	default:
+		c.why = "GAOS_WA_URL must be an https (or, with GAOS_WA_ALLOW_HTTP=1, http) address"
+		return c
+	}
+	c.products = map[string]bool{}
+	for _, id := range strings.Split(os.Getenv("GAOS_WA_PRODUCTS"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			c.products[id] = true
+		}
 	}
 	c.base = strings.TrimRight(raw, "/")
 
@@ -152,11 +178,56 @@ func newWANotifier(cfg waConfig) *waNotifier {
 		return nil
 	}
 	return &waNotifier{cfg: cfg, logf: log.Printf, wait: time.Sleep, hc: &http.Client{
-		Timeout: waTimeout,
+		Timeout:   waTimeout,
+		Transport: waTransport(cfg),
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("the WhatsApp gateway answered with a redirect; redirects are refused")
 		},
 	}}
+}
+
+// privateAddr reports whether an address is one an unencrypted link may go to:
+// loopback, RFC 1918, CGNAT (RFC 6598, which tunnels and tailnets use) or
+// link-local.
+func privateAddr(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
+		return true
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return v4[0] == 100 && v4[1]&0xC0 == 64 // 100.64.0.0/10
+	}
+	return false
+}
+
+// waTransport dials the gateway. For an http gateway without the "any" opt-in it
+// checks the ADDRESS EACH CONNECTION RESOLVED TO, not the name once at boot, so
+// a DNS answer that changes cannot send the credential to a public host.
+func waTransport(cfg waConfig) http.RoundTripper {
+	if !cfg.clearText || cfg.publicHTTP {
+		return http.DefaultTransport
+	}
+	d := &net.Dialer{Timeout: waTimeout}
+	return &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+			if err != nil {
+				return nil, err
+			}
+			for _, ia := range ips {
+				if !privateAddr(ia.IP) {
+					return nil, errors.New("the WhatsApp gateway resolves to a public address and GAOS_WA_ALLOW_HTTP is not \"any\"")
+				}
+			}
+			if len(ips) == 0 {
+				return nil, errors.New("the WhatsApp gateway did not resolve")
+			}
+			return d.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+		},
+	}
 }
 
 // waStatus is the Integrations row. It never carries the group id, a number or
@@ -176,9 +247,25 @@ func (w *waNotifier) Status() waStatus {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	state := "enabled"
+	// The label is built from parts so that "unencrypted" is never hidden by
+	// another state: an operator must always be able to see the link is clear.
+	parts := []string{"enabled"}
+	if w.cfg.clearText {
+		if w.cfg.publicHTTP {
+			parts = append(parts, "over http to any address (unencrypted)")
+		} else {
+			parts = append(parts, "over http to a private address (unencrypted)")
+		}
+	}
+	if len(w.cfg.products) == 0 {
+		parts = append(parts, "linked to no product (GAOS_WA_PRODUCTS)")
+	}
+	state := strings.Join(parts, ", ")
 	if w.disabled != "" {
 		state = "disabled: " + w.disabled
+		if w.cfg.clearText {
+			state += " (the gateway is http, unencrypted)"
+		}
 	}
 	return waStatus{State: state, Host: urlHost(w.cfg.base), Sent: w.sent, Fail: w.fail, Last: w.last}
 }
@@ -189,6 +276,11 @@ func (w *waNotifier) Status() waStatus {
 // the only thing that is ever sent to.
 func (w *waNotifier) VerifyGroup(ctx context.Context) {
 	if w == nil {
+		return
+	}
+	if len(w.cfg.products) == 0 {
+		// Nothing will be sent, so the credential is not sent either.
+		w.logf("wa: no product is linked (GAOS_WA_PRODUCTS); the group check is skipped")
 		return
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, w.cfg.base+"/user/my/groups", nil)
@@ -214,6 +306,11 @@ func (w *waNotifier) VerifyGroup(ctx context.Context) {
 	w.disabled = "the pinned group is not in the device's group list"
 	w.mu.Unlock()
 	w.logf("wa: notifications disabled: the pinned group is not in the device's group list")
+}
+
+// covers reports whether the group is linked to a product.
+func (w *waNotifier) covers(productID string) bool {
+	return w != nil && w.cfg.products[productID]
 }
 
 // Group is the pinned JID, for the notifier's own use. It never reaches a log.
