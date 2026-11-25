@@ -85,6 +85,7 @@ func autoFixFromForm(r *http.Request) (AutoFix, error) {
 		TestGlobs: formLines(r.PostFormValue("testGlobs")), PRTemplate: strings.TrimSpace(r.PostFormValue("prTemplate")),
 		CIConfirmed: formBool(r.PostFormValue("ciConfirmed")),
 		BaseBranch:  strings.TrimSpace(r.PostFormValue("baseBranch")),
+		TargetRepos: formLines(r.PostFormValue("targetRepos")),
 	}, nil
 }
 

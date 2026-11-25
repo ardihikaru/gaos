@@ -434,6 +434,10 @@ type AutoFix struct {
 	// BaseBranch is the branch fixes are read from and opened against. Empty = the
 	// repository's default branch. The product owner decides; never the agent.
 	BaseBranch string
+	// TargetRepos are the application repositories a defect fix may be opened
+	// in (owner/repo). They are the product's repositories for this feature only:
+	// the PR-review flow keeps reading Master.Repos.
+	TargetRepos []string
 }
 
 // Auto-fix cap defaults and ceilings (design §6.1).

@@ -280,6 +280,12 @@ func screenDefectText(title, excerpt string) (t, e string, withheld bool) {
 	return t, e, withheld
 }
 
+// defectOwnedRepos are the repositories a defect may name: the product's own and
+// the application repositories its auto-fix settings list.
+func defectOwnedRepos(m Master) []string {
+	return append(append([]string(nil), m.Repos...), m.AutoFix.TargetRepos...)
+}
+
 // ownedRepos keeps the entries of the report the product owns, without repeats.
 func ownedRepos(owned, named []string) []string {
 	var out []string
@@ -499,7 +505,7 @@ func (s *MemStore) newDefectLocked(m *Master, key string, it DefectItem, now int
 	d := &Defect{
 		Key: key, ProductID: m.ID, DefectID: it.DefectID, CaseID: it.CaseID, Kind: it.Kind,
 		Level: it.Level, AutomationType: it.AutomationType, Backend: it.Backend,
-		TargetRepos: ownedRepos(m.Repos, it.TargetRepos), Operations: append([]string(nil), it.Operations...),
+		TargetRepos: ownedRepos(defectOwnedRepos(*m), it.TargetRepos), Operations: append([]string(nil), it.Operations...),
 		Spec: it.Spec, Title: title, Excerpt: excerpt, ExcerptWithheld: withheld,
 		FirstSeen: now, LastSeen: now, RunRef: it.RunRef, Gen: 1, State: DefectStateOpen,
 	}
@@ -526,7 +532,7 @@ func (s *MemStore) reopenDefectLocked(m *Master, d *Defect, it DefectItem, now i
 	d.Context = DefectContext{}
 	d.Excerpt, d.ExcerptWithheld = excerpt, withheld
 	d.LastSeen, d.RunRef = max(d.LastSeen, now), it.RunRef
-	d.TargetRepos = ownedRepos(m.Repos, it.TargetRepos)
+	d.TargetRepos = ownedRepos(defectOwnedRepos(*m), it.TargetRepos)
 	d.State = from // setDefectStateLocked records the move from it
 	evs := []Event{s.setDefectStateLocked(d, DefectStateOpen, RuleDefectRegression, "")}
 	_, planned := s.planDefectCardLocked(d, "triage", StatusPending, "", LabelDefectTriage)
