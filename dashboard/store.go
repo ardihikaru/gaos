@@ -153,6 +153,10 @@ type Store interface {
 	CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error)
 	FixPRs(ctx context.Context, productID string) ([]FixPR, error)
 	UpsertFixPR(ctx context.Context, f FixPR) (Result, error)
+	// AutoDispatch dispatches one READY defect card behind the product's switch and
+	// caps (autofix.go); OpenFixPR records a draft pull request and ends its card.
+	AutoDispatch(ctx context.Context, productID, taskID string) (Result, error)
+	OpenFixPR(ctx context.Context, productID, taskID string, f FixPR) (Result, error)
 	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
