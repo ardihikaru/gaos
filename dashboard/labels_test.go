@@ -37,6 +37,19 @@ func TestTheTaskRoleVocabularyMatchesTheDDL(t *testing.T) {
 	for v := range roles {
 		inGo[v] = true
 	}
+	// Agent.role has its own regexp (05-capacity.sql), and a database that already
+	// exists keeps the regexp it first declared, so 17-defects.sql ALTERs both.
+	// Found live: a fresh tenant refused the agent of a newer role at seed.
+	want := m[1]
+	if am := regexp.MustCompile(`Agent\.role[^;]*regexp '([^']+)'`).FindStringSubmatch(schemaSQL(t)["05-capacity.sql"]); am == nil || am[1] != want {
+		t.Errorf("Agent.role regexp in 05-capacity.sql is %v; it must equal Task.role's %q", am, want)
+	}
+	alter := schemaSQL(t)["17-defects.sql"]
+	for _, prop := range []string{"Task.role", "Agent.role"} {
+		if !regexp.MustCompile(`ALTER PROPERTY ` + regexp.QuoteMeta(prop) + `\s+REGEXP '` + regexp.QuoteMeta(want) + `'`).MatchString(alter) {
+			t.Errorf("17-defects.sql does not ALTER %s to %q: an existing database would refuse a newer role at commit", prop, want)
+		}
+	}
 
 	for v := range inGo {
 		if !inDDL[v] {
