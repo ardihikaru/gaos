@@ -1,25 +1,29 @@
-/* GAOS landing page — tema, reveal, dan putaran Board. Satu-satunya skrip
- * di halaman ini.
+/* GAOS landing page — theme, reveal, the board loop and the copy button.
  *
- * DIMUAT SECARA BLOCKING DI <head>, bukan dengan defer, dan bukan sebagai
- * skrip inline. Blocking karena data-theme harus sudah tertulis sebelum
- * paint pertama, kalau tidak halaman berkedip terang dulu di mode gelap.
- * Eksternal karena index.html mengunci CSP ke 'self': skrip inline butuh
- * 'unsafe-inline' atau hash yang basi setiap kali file disunting.
+ * LOADED BLOCKING IN <head>, not deferred and not inline. Blocking because
+ * data-theme has to be written before first paint, or a dark-mode visitor
+ * sees the page flash light. External because index.html locks its CSP to
+ * 'self': an inline script needs 'unsafe-inline' or a hash that goes stale
+ * every time the file is edited.
  *
- * Klasik, bukan modul, dan tanpa 'use strict'. */
+ * This is the script that adds the class `js` to <html>, and every start
+ * state that hides something (a reveal, the steps line, the terminal lines)
+ * is written under html.js. So the script that hides is the script that
+ * shows: nothing here depends on motion.js having loaded.
+ *
+ * Classic script, not a module, and no 'use strict'. */
 
 var GAOS_THEME_KEY = 'gaos.landing.theme';
 
 (function () {
   var root = document.documentElement;
-  root.classList.add('js');            // membuka gaya reveal di 01-tokens.css
+  root.classList.add('js');            // opens the reveal styles in 01-tokens.css
   var saved = null;
   try { saved = localStorage.getItem(GAOS_THEME_KEY) } catch (e) { }
   if (saved === 'dark' || saved === 'light') root.dataset.theme = saved;
-  // Tanpa pilihan tersimpan data-theme sengaja dibiarkan kosong, supaya
-  // media query prefers-color-scheme yang menentukan — termasuk kalau
-  // preferensi sistem berubah selagi halaman terbuka.
+  // With no saved choice data-theme is left empty on purpose, so the
+  // prefers-color-scheme media query decides — including when the system
+  // preference changes while the page is open.
 })();
 
 function gaosToggleTheme() {
@@ -30,35 +34,71 @@ function gaosToggleTheme() {
   var next = dark ? 'light' : 'dark';
   root.dataset.theme = next;
   try { localStorage.setItem(GAOS_THEME_KEY, next) } catch (e) { }
-  var btn = document.querySelector('.theme');
-  if (btn) btn.setAttribute('aria-label', next === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap');
+  // The button's label names both states, so it does not change here; it is
+  // translated like every other string (js/i18n.js).
+}
+
+/* The quick-start commands, copied as three lines. The text is already in
+ * the page and selectable; this is a convenience. When the clipboard is
+ * missing or refuses, the button goes away rather than pretend. */
+function gaosBindCopy() {
+  var btn = document.querySelector('.copy');
+  if (!btn) return;
+  if (!navigator.clipboard || !navigator.clipboard.writeText) { btn.hidden = true; return }
+  var timer = 0;
+  var idle = btn.querySelector('.copy-idle'), done = btn.querySelector('.copy-done');
+  var said = document.querySelector('.copy-said');
+  // Both labels are in the button and one is transparent — which a screen
+  // reader does not know. aria-hidden follows the state, so the button has
+  // one name at a time, and the status line announces the copy.
+  function show(state) {
+    btn.dataset.state = state;
+    if (idle) idle.setAttribute('aria-hidden', state === 'done' ? 'true' : 'false');
+    if (done) done.setAttribute('aria-hidden', state === 'done' ? 'false' : 'true');
+    if (said) said.textContent = state === 'done' && done ? done.textContent : '';
+  }
+  btn.addEventListener('click', function () {
+    var lines = [];
+    document.querySelectorAll('.term [data-cmd]').forEach(function (el) { lines.push(el.getAttribute('data-cmd')) });
+    navigator.clipboard.writeText(lines.join('\n')).then(function () {
+      show('done');
+      clearTimeout(timer);
+      timer = setTimeout(function () { show('idle') }, 1600);
+    }, function () { btn.hidden = true });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  var y = document.getElementById('tahun');
+  var y = document.getElementById('year');
   if (y) y.textContent = new Date().getFullYear();
 
-  // Diikat di sini, bukan lewat onclick=, supaya CSP-nya tetap
-  // `script-src 'self'` tanpa 'unsafe-inline'.
+  // Bound here, not through onclick=, so the CSP stays `script-src 'self'`
+  // with no 'unsafe-inline'.
   var btn = document.querySelector('.theme');
   if (btn) btn.addEventListener('click', gaosToggleTheme);
+  gaosBindCopy();
 
-  // Indeks jeda: urutan .rv di antara saudara-saudaranya, 50ms per langkah
-  // (--i di 01-tokens.css). Dibatasi 5, supaya kelompok sebesar apa pun
-  // selesai muncul dalam 300ms + 250ms. Lewat CSSOM, bukan atribut style,
-  // jadi CSP `style-src 'self'` tidak tersentuh.
-  var targets = document.querySelectorAll('.rv');
-  targets.forEach(function (el) {
+  // Stagger index: an .rv element's position among its .rv siblings, 50ms a
+  // step (--i in 01-tokens.css). Capped at 5 so a group of any size finishes
+  // within 300ms + 250ms. Through CSSOM, not a style attribute, so the CSP's
+  // `style-src 'self'` is untouched.
+  var reveals = document.querySelectorAll('.rv');
+  reveals.forEach(function (el) {
     var i = 0, s = el.previousElementSibling;
     while (s) { if (s.classList.contains('rv')) i++; s = s.previousElementSibling }
     if (i) el.style.setProperty('--i', Math.min(i, 5));
   });
 
-  var board = document.querySelector('.board');
+  // [data-io] elements get the same .in class without the reveal's own fade:
+  // the steps line and the terminal lines key their CSS off it.
+  var targets = document.querySelectorAll('.rv, [data-io]');
+  // .is-live marks a loop as allowed to run: the board's card and the
+  // architecture's travelling dots are paused while off-screen.
+  var loops = document.querySelectorAll('.board, [data-live]');
 
   if (!('IntersectionObserver' in window)) {
-    // Tanpa observer semuanya langsung terlihat, dan Board tetap diam.
-    // Konten tidak boleh tergantung pada animasi yang gagal jalan.
+    // Without an observer everything is simply visible and the loops stay
+    // still. Content must not depend on an animation that failed to start.
     targets.forEach(function (el) { el.classList.add('in') });
     return;
   }
@@ -72,11 +112,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
   targets.forEach(function (el) { io.observe(el) });
 
-  // Putaran Board hanya berjalan selagi Board terlihat. Di luar layar
-  // kelasnya dilepas dan animasinya dijeda (animation-play-state).
-  if (board) {
-    new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { board.classList.toggle('is-live', en.isIntersecting) });
-    }, { threshold: .3 }).observe(board);
-  }
+  var live = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) { en.target.classList.toggle('is-live', en.isIntersecting) });
+  }, { threshold: .3 });
+  loops.forEach(function (el) { live.observe(el) });
 });

@@ -1,19 +1,26 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Terkunci ke 'self', TANPA 'unsafe-inline' untuk skrip maupun gaya:
-     halaman ini mengikat kontrolnya lewat addEventListener, bukan onclick=,
-     dan tidak punya atribut style. Nol sumber pihak ketiga — font di-vendor,
-     tanpa CDN. -->
+<!-- Locked to 'self', with NO 'unsafe-inline' for scripts or styles: the page
+     binds its controls with addEventListener, never onclick=, and carries no
+     style attribute. No third-party source: the fonts are vendored, and
+     connect-src 'none' means the page calls nothing — language detection
+     included (js/i18n.js reads the device's time zone, not the network). -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'self'; object-src 'none'; form-action 'none'; frame-ancestors 'none'">
-<title>GAOS — manajemen produk dan tugas untuk agen, berbasis graph</title>
-<meta name="description" content="GAOS menyimpan produk, tugas, dan Blueprint berversi di dalam graph. Setiap percobaan adalah satu giliran lewat ai-manager, di ruang kerja produk itu sendiri, dan setiap perubahan menulis event yang bisa diputar ulang.">
+<!-- English is the text in this file. Every element with a data-i18n
+     attribute (or data-i18n-attr, written attribute:key) has an Indonesian
+     string under the same key in js/i18n.js; deploy/check-stacks.sh fails
+     when the two drift. data-i18n goes on a leaf only: the element's whole
+     content is the string. -->
+<title data-i18n="meta.title">GAOS — product and task management for AI coding agents</title>
+<meta name="description" data-i18n-attr="content:meta.desc" content="GAOS is an open-source, self-hosted system that keeps a product's requirements, tasks and policies in a graph and sends each task to an AI coding agent one turn at a time. Apache-2.0.">
 <meta name="theme-color" content="#151310">
+<!-- Static and English: link-preview crawlers do not run the script. -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="GAOS — yang jadi primitif itu graph-nya, bukan prompt-nya">
-<meta property="og:description" content="Manajemen produk dan tugas untuk agen. Status di graph, setiap percobaan terikat pada satu versi Blueprint, dan setiap perubahan menulis event.">
+<meta property="og:title" content="GAOS — product and task management for AI coding agents">
+<meta property="og:description" content="GAOS is an open-source, self-hosted system that keeps a product's requirements, tasks and policies in a graph and sends each task to an AI coding agent one turn at a time. Apache-2.0.">
 <meta property="og:image" content="img/og-image.png">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="img/icon.svg" type="image/svg+xml">
@@ -22,15 +29,22 @@
 <link rel="stylesheet" href="css/01-tokens.css">
 <link rel="stylesheet" href="css/02-layout.css">
 <link rel="stylesheet" href="css/03-devices.css">
-<!-- Blocking, dan itu disengaja: data-theme harus tertulis sebelum paint. -->
+<link rel="stylesheet" href="css/04-motion.css">
+<!-- Blocking on purpose: data-theme and lang must be written before paint. -->
 <script src="js/theme.js"></script>
+<script src="js/i18n.js"></script>
+<!-- async, not defer: a deferred script delays DOMContentLoaded, and the
+     Indonesian text is applied on that event. Nothing that hides content
+     depends on this file. -->
+<script src="js/motion.js" async></script>
 </head>
 <body>
-<a class="skip" href="#utama">Lewati ke konten</a>
+<canvas class="field" aria-hidden="true"></canvas>
+<a class="skip" href="#main" data-i18n="a11y.skip">Skip to content</a>
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="./" aria-label="GAOS, ke awal halaman">
+    <a class="brand" href="./" data-i18n-attr="aria-label:a11y.brand" aria-label="GAOS, back to the top of the page">
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
         <rect class="mk-box" x=".5" y=".5" width="31" height="31" rx="7"/>
         <path class="mk-edge" d="M10 10H22L16 22Z"/>
@@ -38,36 +52,50 @@
       </svg>
       <span>GAOS</span>
     </a>
-    <nav class="nav" aria-label="Utama">
-      <a class="lnk" href="#fitur">Fitur</a><a class="lnk" href="#cara">Cara kerja</a><a class="lnk" href="/docs/">Dokumentasi</a>
-      <button class="theme" type="button" aria-label="Ganti mode gelap atau terang">
+    <nav class="nav" data-i18n-attr="aria-label:nav.label" aria-label="Main">
+      <a class="lnk" href="#features" data-i18n="nav.features">Features</a>
+      <a class="lnk" href="#how-it-works" data-i18n="nav.how">How it works</a>
+      <a class="lnk" href="#quick-start" data-i18n="nav.quick">Quick start</a>
+      <a class="lnk" href="/docs/" data-i18n="nav.docs">Docs</a>
+      <a class="gh" href="https://github.com/ardihikaru/gaos" rel="noopener" data-i18n-attr="aria-label:nav.github" aria-label="GAOS on GitHub">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      </a>
+      <div class="lang" role="group" data-i18n-attr="aria-label:nav.lang" aria-label="Language">
+        <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="true">EN</button>
+        <button type="button" data-lang="id" lang="id" aria-label="Bahasa Indonesia" aria-pressed="false">ID</button>
+      </div>
+      <button class="theme" type="button" data-i18n-attr="aria-label:nav.theme" aria-label="Switch between light and dark theme">
         <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
         <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
-      <a class="btn primary keep" href="/app/">Buka Mission Control</a>
+      <a class="btn primary keep" href="/app/" data-i18n="nav.open">Open Mission Control</a>
     </nav>
   </div>
+  <span class="progress" aria-hidden="true"></span>
 </header>
 
-<main id="utama">
+<main id="main">
 
   <!-- ================================ HERO ================================ -->
   <section class="hero">
+    <div class="hero-fx" aria-hidden="true"><span class="glow"></span></div>
     <div class="wrap">
       <div class="hero-copy">
-        <p class="pill"><span class="dot"></span>Intinya sudah berjalan; penilaian hasil belum dibangun</p>
-        <h1>Yang jadi primitif itu graph-nya, bukan prompt-nya.</h1>
+        <p class="pill"><span class="dot"></span><span>Open source · Apache-2.0 · Self-hosted</span></p>
+        <h1 data-i18n="hero.title">Product and task management for AI coding agents</h1>
         <div class="hero-side">
-          <p class="sub">GAOS adalah manajemen produk dan tugas untuk agen. Ia memegang produknya, rincian tugasnya, dan Blueprint berversi. Setiap percobaan adalah satu giliran lewat ai-manager, di ruang kerja produk itu sendiri, terikat pada satu versi Blueprint. Yang mengerjakan tugasnya ai-claude-cli.</p>
-          <div class="cta"><a class="btn primary big" href="/app/">Buka Mission Control</a><a class="btn ghost big" href="/docs/">Baca dokumentasi</a></div>
+          <p class="sub" data-i18n="hero.sub">GAOS stores each product's requirements, user stories, decisions and policies in a graph. It plans the work as tasks on a kanban board and sends each task to an agent one turn at a time, in a workspace that already holds the product's rules. State is kept in the graph and an append-only event stream, so an orchestrator that stops mid-task rebuilds from them.</p>
+          <div class="cta"><a class="btn primary big" href="#quick-start" data-i18n="hero.start">Get started</a><a class="btn ghost big" href="/docs/" data-i18n="hero.docs">Read the documentation</a></div>
         </div>
       </div>
 
-      <!-- Board: digambar ulang dengan HTML/CSS, bukan tangkapan layar, supaya
-           tajam di semua resolusi dan ikut mengecil utuh. Kolomnya sama dengan
-           dashboard/board.go; Blocked, Failed, dan Canceled tidak digambar. -->
-      <div class="shot shot-board rv">
-        <div class="frame board" role="img" aria-label="Board produk Laundry Membership di Mission Control. Kolom Backlog, Ready, Working, Needs you, Review, dan Done, dengan dua lajur: cerita US-02 Harga per wilayah, dan lajur Plan untuk tugas di luar cerita. Tugas T-214, migrasi harga ke layanan pricing, sedang dikerjakan pada Blueprint v7 lalu pindah ke Review. Tugas T-215 menunggu jawaban operator.">
+      <!-- The board is drawn in HTML and CSS, not a screenshot, so it stays
+           sharp at every resolution and scales as one piece. Its columns are
+           the ones in dashboard/board.go; Blocked, Failed and Canceled are
+           not drawn. The entrance animates .shot-board and the pointer tilt
+           writes to .board, so no two effects own the same transform. -->
+      <div class="shot shot-board">
+        <div class="frame board" role="img" data-i18n-attr="aria-label:board.aria" aria-label="The board of a sample product, Laundry Membership, in Mission Control. Columns Backlog, Ready, Working, Needs you, Review and Done, in two lanes: the story US-02, Regional pricing, and a Plan lane for tasks outside a story. Task T-214 is being worked under Blueprint v7 and then moves to Review. Task T-215 waits for the operator's answer.">
           <div class="f-bar">
             <svg class="mark" viewBox="0 0 32 32"><rect class="mk-box" x=".5" y=".5" width="31" height="31" rx="7"/><path class="mk-edge" d="M10 10H22L16 22Z"/><circle class="mk-node" cx="10" cy="10" r="2.4"/><circle class="mk-node" cx="22" cy="10" r="2.4"/><circle class="mk-node" cx="16" cy="22" r="2.4"/></svg>
             <span class="f-title">Laundry Membership</span>
@@ -84,26 +112,26 @@
               <b class="c-done"><i class="d-done"></i>Done</b>
             </div>
 
-            <p class="kb-lane">US-02 · Harga per wilayah</p>
+            <p class="kb-lane" data-i18n="board.lane">US-02 · Regional pricing</p>
             <div class="kb-row">
-              <div class="c-backlog"><div class="kc"><span class="kc-id">T-219</span><span class="kc-t">Laporan selisih harga per cabang</span><span class="kc-m">menunggu T-214</span></div></div>
-              <div class="c-ready"><div class="kc"><span class="kc-id">T-216</span><span class="kc-t">Validasi tarif minimum di API</span><span class="kc-m">siap dikirim</span></div></div>
+              <div class="c-backlog"><div class="kc"><span class="kc-id">T-219</span><span class="kc-t" data-i18n="board.t219">Price variance report per branch</span><span class="kc-m" data-i18n="board.t219m">waiting on T-214</span></div></div>
+              <div class="c-ready"><div class="kc"><span class="kc-id">T-216</span><span class="kc-t" data-i18n="board.t216">Validate the minimum rate in the API</span><span class="kc-m" data-i18n="board.t216m">ready to dispatch</span></div></div>
               <div class="c-working">
-                <div class="kc-slot"><div class="kc mover"><span class="kc-id">T-214</span><span class="kc-t">Migrasi harga ke layanan pricing</span><span class="kc-m"><span class="st st-run">A-3 · berjalan</span><span class="st st-rev">A-3 · selesai, v7</span></span></div></div>
+                <div class="kc-slot"><div class="kc mover"><span class="kc-id">T-214</span><span class="kc-t" data-i18n="board.t214">Migrate prices to the pricing service</span><span class="kc-m"><span class="st st-run" data-i18n="board.run">A-3 · running</span><span class="st st-rev" data-i18n="board.rev">A-3 · finished, v7</span></span></div></div>
               </div>
-              <div class="c-needs"><div class="kc ask"><span class="kc-id">T-215</span><span class="kc-t">Pembulatan harga: ke atas atau ke terdekat?</span><span class="kc-m"><span class="badge">Needs you</span></span></div></div>
+              <div class="c-needs"><div class="kc ask"><span class="kc-id">T-215</span><span class="kc-t" data-i18n="board.t215">Price rounding: up or to the nearest?</span><span class="kc-m"><span class="badge">Needs you</span></span></div></div>
               <div class="c-review"><div class="kc-slot land"></div></div>
-              <div class="c-done"><div class="kc done"><span class="kc-id">T-211</span><span class="kc-t">Skema tabel tarif wilayah</span><span class="kc-m">A-1 · v6</span></div></div>
+              <div class="c-done"><div class="kc done"><span class="kc-id">T-211</span><span class="kc-t" data-i18n="board.t211">Regional rate table schema</span><span class="kc-m">A-1 · v6</span></div></div>
             </div>
 
             <p class="kb-lane">Plan</p>
             <div class="kb-row">
-              <div class="c-backlog"><div class="kc"><span class="kc-id">T-220</span><span class="kc-t">Uji beban endpoint harga</span><span class="kc-m">belum siap</span></div></div>
+              <div class="c-backlog"><div class="kc"><span class="kc-id">T-220</span><span class="kc-t" data-i18n="board.t220">Load-test the price endpoint</span><span class="kc-m" data-i18n="board.t220m">not ready</span></div></div>
               <div class="c-ready"></div>
-              <div class="c-working"><div class="kc"><span class="kc-id">T-218</span><span class="kc-t">Siapkan data contoh cabang</span><span class="kc-m">A-1 · berjalan</span></div></div>
+              <div class="c-working"><div class="kc"><span class="kc-id">T-218</span><span class="kc-t" data-i18n="board.t218">Prepare sample branch data</span><span class="kc-m" data-i18n="board.t218m">A-1 · running</span></div></div>
               <div class="c-needs"></div>
-              <div class="c-review"><div class="kc"><span class="kc-id">T-212</span><span class="kc-t">Dokumentasi API tarif</span><span class="kc-m">A-2 · v7</span></div></div>
-              <div class="c-done"><div class="kc done"><span class="kc-id">T-209</span><span class="kc-t">Kerangka layanan pricing</span><span class="kc-m">A-1 · v6</span></div></div>
+              <div class="c-review"><div class="kc"><span class="kc-id">T-212</span><span class="kc-t" data-i18n="board.t212">Rate API documentation</span><span class="kc-m">A-2 · v7</span></div></div>
+              <div class="c-done"><div class="kc done"><span class="kc-id">T-209</span><span class="kc-t" data-i18n="board.t209">Pricing service skeleton</span><span class="kc-m">A-1 · v6</span></div></div>
             </div>
           </div>
         </div>
@@ -111,85 +139,96 @@
     </div>
   </section>
 
-  <!-- ================================ ANGKA ================================
-       Dihitung ulang dari kodenya, bukan dari ingatan:
-         grep -h 'CREATE VERTEX TYPE'   dashboard/schema/*.sql | wc -l   → 29
-         grep -h 'CREATE EDGE TYPE'     dashboard/schema/*.sql | wc -l   → 39
-         grep -h 'CREATE DOCUMENT TYPE' dashboard/schema/*.sql | wc -l   → 3
-         grep -c 'EventType = "' dashboard/events.go                     → 49 -->
-  <section class="proof" aria-label="Angka">
+  <!-- =============================== FIGURES ===============================
+       Not typed from memory: deploy/check-stacks.sh recomputes each one and
+       fails when an element with data-fig disagrees with the code.
+         grep -hE '^\s*CREATE VERTEX TYPE'   dashboard/schema/*.sql | wc -l
+         grep -hE '^\s*CREATE EDGE TYPE'     dashboard/schema/*.sql | wc -l
+         grep -hE '^\s*CREATE DOCUMENT TYPE' dashboard/schema/*.sql | wc -l
+         grep -cE '^\s*[A-Za-z]+\s+EventType = "' dashboard/events.go
+       The line start matters: a bare grep also counts a SQL comment. -->
+  <section class="proof" data-i18n-attr="aria-label:proof.label" aria-label="Project figures">
     <div class="wrap">
       <ul>
-        <li class="rv"><b>71</b><span>tipe di graph: 29 vertex, 39 edge, 3 dokumen</span></li>
-        <li class="rv"><b>49</b><span>tipe event, dan daftarnya tertutup</span></li>
-        <li class="rv"><b>0</b><span>dependensi pihak ketiga di dasbor, tanpa go.sum</span></li>
-        <li class="rv"><b>1</b><span>port yang dibuka per tingkat penempatan</span></li>
+        <li class="rv"><b data-fig="types">73</b><span data-i18n="proof.types">types in the graph schema</span><span class="fig-line"><span data-fig="vertex">31</span> vertex · <span data-fig="edge">39</span> edge · <span data-fig="document">3</span> document</span></li>
+        <li class="rv"><b data-fig="events">59</b><span data-i18n="proof.events">event types, in a closed catalog</span></li>
+        <li class="rv"><b>0</b><span data-i18n="proof.deps">third-party Go dependencies; neither module has a go.sum</span></li>
+        <li class="rv"><b>1</b><span data-i18n="proof.port">port published by the local stack</span></li>
       </ul>
     </div>
   </section>
 
-  <!-- ================================ FITUR ================================ -->
-  <section id="fitur">
+  <!-- =============================== FEATURES =============================== -->
+  <section id="features">
     <div class="wrap">
       <div class="sec-head">
-        <h2>Yang sudah berjalan hari ini, dan yang belum.</h2>
-        <p>Lima bagian di bawah ini ada kodenya dan berjalan di atas ArcadeDB. Yang menilai hasil kerja agen belum ada, dan ditulis terpisah supaya tidak tertukar.</p>
+        <h2 data-i18n="feat.title">What GAOS does today</h2>
+        <p data-i18n="feat.lead">The features below are implemented and covered by tests. Planned work that is not built yet is listed separately.</p>
       </div>
 
       <div class="grid">
-        <article class="card wide rv">
-          <h3>Board per produk</h3>
-          <p>Kanban untuk setiap produk: Backlog, Ready, Working, Needs you, Review, Done, plus Blocked, Failed, dan Canceled. Lajurnya cerita pengguna, dan satu lajur Plan untuk tugas di luar cerita. Kolomnya proyeksi dari status tugas di graph, bukan papan yang disimpan terpisah.</p>
-          <p class="on-graph">di graph: Task</p>
+        <article class="card wide rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.board.h">A kanban board per product</h3>
+          <p data-i18n="feat.board.p">Each product has one board with nine columns: Backlog, Ready, Working, Needs you, Review and Done, plus Blocked, Failed and Canceled. The columns are computed from task status in the graph; the board stores no state of its own. Moving a card is a request that the task state machine can refuse.</p>
+          <a class="more" href="/docs/architecture/gateway.html"><span data-i18n="feat.more">Read more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </article>
-        <article class="card rv">
-          <h3>Blueprint berversi</h3>
-          <p>BRD, kebijakan teknis dan koding, serta repositori acuan, sebagai satu unit berversi yang ditulis ke ruang kerja produk.</p>
-          <p class="on-graph">di graph: Policy, KnowledgeSource, BlueprintVersion</p>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.bp.h">Versioned Blueprint</h3>
+          <p data-i18n="feat.bp.p">A product's requirements, technical and coding policies, and reference repositories are published as one versioned unit and synced into the product's workspace as the agent's rules. A dispatch is refused when the workspace no longer matches the published version.</p>
+          <a class="more" href="/docs/product/blueprint.html"><span data-i18n="feat.more">Read more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </article>
-        <article class="card rv">
-          <h3>Kesiapan dan planner</h3>
-          <p>Catatan produk dinilai sampai 100 oleh aturan yang bisa diperiksa mesin. Di bawah 45, planner menolak merencanakan. Di atasnya, planner menyusun graph tugas tanpa siklus.</p>
-          <p class="on-graph">di graph: Product, Requirement, Task</p>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.ready.h">Readiness scoring</h3>
+          <p data-i18n="feat.ready.p">Each product record is scored out of 100 by rules a machine can check. Below 45 the planner refuses to plan and returns the list of what is missing.</p>
+          <a class="more" href="/docs/product/brd.html"><span data-i18n="feat.more">Read more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </article>
-        <article class="card rv">
-          <h3>Penjadwal dan catatan percobaan</h3>
-          <p>Penjadwal mengirim tugas yang siap. Setiap percobaan adalah satu giliran lewat ai-manager, dan tercatat lengkap dengan versi Blueprint-nya.</p>
-          <p class="on-graph">di graph: TaskRun</p>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.gate.h">Design gate</h3>
+          <p data-i18n="feat.gate.p">A planned story starts with a design task. A reviewer without access to the author's context reads the design, and the implementation task starts only after the review passes. A blocked design returns to its author and is reviewed again.</p>
+          <a class="more" href="/docs/architecture/design-gate.html"><span data-i18n="feat.more">Read more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </article>
-        <article class="card rv">
-          <h3>Linimasa dan putar ulang</h3>
-          <p>Setiap perubahan menulis event. Status pada waktu t adalah lipatan atas alirannya, jadi masa lalu bisa diputar ulang, bukan ditebak.</p>
-          <p class="on-graph">di graph: Event</p>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.inbox.h">Operator inbox</h3>
+          <p data-i18n="feat.inbox.p">When an agent or an external client asks a question, the task waits in Needs you until a person answers. Each answer records where it came from.</p>
+        </article>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.time.h">Timeline and replay</h3>
+          <p data-i18n="feat.time.p">Changes are written as events to an append-only stream, and the timeline replays a product's history from that stream. If the orchestrator stops in the middle of an attempt, it rebuilds its state from the graph.</p>
+        </article>
+        <article class="card wide rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="feat.api.h">Machine API and QA sync</h3>
+          <p data-i18n="feat.api.p">QA tools and other clients connect through a REST API with bearer tokens. GAOS keeps a test catalog per product, syncs it with the QA tools, and calls a webhook when an operator answers a client's question. The Integrations view shows the live state of each connection and never displays a secret.</p>
+          <a class="more" href="/docs/guide/qa-sync-api.html"><span data-i18n="feat.more">Read more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </article>
       </div>
 
+      <!-- The only place the page lists what is missing. README.md carries
+           the same three; change both together. -->
       <div class="unbuilt rv">
-        <div class="unbuilt-head"><h3>Belum dibangun</h3>
-        <p class="unbuilt-lead">Rancangannya sudah ditulis di dokumentasi. Kodenya belum ada, dan sampai ada, tidak ada yang menilai hasil kerja agen secara otomatis.</p></div>
+        <div class="unbuilt-head"><h3 data-i18n="unbuilt.h">Not built yet</h3>
+        <p class="unbuilt-lead" data-i18n="unbuilt.lead">These three parts are specified in the documentation and not yet implemented.</p></div>
         <ul>
-          <li><b>Review</b><span>Peninjau yang membaca hasil percobaan terhadap kriteria penerimaan tugasnya.</span><em class="tag">Dirancang</em></li>
-          <li><b>Penilaian</b><span>Lima dimensi berbobot menjadi satu angka, dengan batas keamanan yang menghentikan kerja berapa pun totalnya.</span><em class="tag">Dirancang</em></li>
-          <li><b>Pagar percobaan ulang</b><span>Berhenti dan meminta keputusan ketika percobaan gagal dengan cara yang sama dua kali.</span><em class="tag">Belum dibangun</em></li>
+          <li><b data-i18n="unbuilt.score.h">Result scoring engine</b><span data-i18n="unbuilt.score.p">Combines five weighted dimensions of an agent's result into one score, with a safety limit that stops the work regardless of the total.</span><em class="tag" data-i18n="unbuilt.tag">Planned</em></li>
+          <li><b data-i18n="unbuilt.retry.h">Retry guards</b><span data-i18n="unbuilt.retry.p">Stop and ask for a decision when an attempt fails the same way twice.</span><em class="tag" data-i18n="unbuilt.tag">Planned</em></li>
+          <li><b data-i18n="unbuilt.budget.h">Budget guard</b><span data-i18n="unbuilt.budget.p">Refuses to dispatch once a product reaches its spending cap. It does not stop an attempt that is already in progress.</span><em class="tag" data-i18n="unbuilt.tag">Planned</em></li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- ============================ SHOWCASE BLUEPRINT ============================ -->
+  <!-- ============================ BLUEPRINT SHOWCASE ============================ -->
   <section class="showcase" id="blueprint">
     <div class="wrap">
       <div class="showcase-copy">
-        <div class="sec-head"><h2>Blueprint-nya ditulis ke ruang kerja, dan setiap percobaan tahu versinya.</h2></div>
+        <div class="sec-head"><h2 data-i18n="bp.title">The Blueprint is written into the workspace, and every attempt records its version</h2></div>
         <ul>
-          <li><b>Satu unit berversi.</b> Kebutuhan bisnis, kebijakan teknis dan koding, dan repositori yang harus diikuti polanya.</li>
-          <li><b>Tinggal di ruang kerja, bukan di prompt.</b> Ditulis sebagai CLAUDE.md dan .claude/rules, jadi dimuat di setiap giliran, termasuk giliran yang dilanjutkan.</li>
-          <li><b>Versi yang terbit tidak berubah.</b> Pengiriman ditolak sampai ruang kerja memegang versi yang terbit, dan setiap percobaan mencatat versi tempat ia berjalan.</li>
+          <li data-i18n="bp.one"><b>One versioned unit.</b> Business requirements, technical and coding policies, and the repositories whose patterns the agent follows.</li>
+          <li data-i18n="bp.two"><b>Loaded on every turn.</b> It is written as CLAUDE.md and .claude/rules, so the agent loads it on every turn, including a resumed one.</li>
+          <li data-i18n="bp.three"><b>A published version does not change.</b> A dispatch is refused until the workspace holds the published version, and each attempt records the version it ran under.</li>
         </ul>
-        <p class="caveat">Belum ada: membandingkan apa yang benar-benar dimuat agen dengan manifesnya setelah giliran selesai.</p>
       </div>
       <div class="shot shot-bp rv">
-        <div class="frame bp" role="img" aria-label="Tab Blueprint di Mission Control. Versi 7 sudah terbit dan disinkronkan ke ruang kerja; versi 6 dan 5 di bawahnya. Isinya CLAUDE.md dan delapan berkas aturan: kontrak GAOS, BRD, cerita, keputusan, kebijakan teknis, kebijakan koding, kebijakan keamanan, dan sumber pengetahuan. Percobaan A-3 untuk tugas T-214 terikat pada Blueprint v7.">
+        <div class="frame bp" role="img" data-i18n-attr="aria-label:bp.aria" aria-label="The Blueprint tab in Mission Control. Version 7 is published and synced to the workspace; versions 6 and 5 are below it. It contains CLAUDE.md and eight rule files: the GAOS contract, the BRD, stories, decisions, technical policy, coding policy, security policy and knowledge sources. Attempt A-3 of task T-214 is bound to Blueprint v7.">
           <div class="f-bar">
             <svg class="mark" viewBox="0 0 32 32"><rect class="mk-box" x=".5" y=".5" width="31" height="31" rx="7"/><path class="mk-edge" d="M10 10H22L16 22Z"/><circle class="mk-node" cx="10" cy="10" r="2.4"/><circle class="mk-node" cx="22" cy="10" r="2.4"/><circle class="mk-node" cx="16" cy="22" r="2.4"/></svg>
             <span class="f-title">Laundry Membership</span>
@@ -197,27 +236,27 @@
           </div>
           <div class="bp-body">
             <aside class="bp-rail">
-              <b class="v on"><span>v7</span><em>terbit · di ruang kerja</em></b>
-              <b class="v"><span>v6</span><em>terbit</em></b>
-              <b class="v"><span>v5</span><em>terbit</em></b>
-              <b class="v draft"><span>draf</span><em>2 kebijakan diubah</em></b>
+              <b class="v on"><span>v7</span><em data-i18n="bp.v7">published · in workspace</em></b>
+              <b class="v"><span>v6</span><em data-i18n="bp.pub">published</em></b>
+              <b class="v"><span>v5</span><em data-i18n="bp.pub">published</em></b>
+              <b class="v draft"><span data-i18n="bp.draft">draft</span><em data-i18n="bp.changed">2 policies changed</em></b>
             </aside>
             <div class="bp-main">
               <div class="bp-head"><h4>Blueprint v7</h4><span class="bp-dig">sha256:4be1c0…9a2f</span></div>
               <ol class="tree">
                 <li class="dir">gaos-t214-p1/</li>
-                <li><span>CLAUDE.md</span><em>2,1 KiB</em></li>
+                <li><span>CLAUDE.md</span><em>2.1 KiB</em></li>
                 <li class="dir sub">.claude/rules/</li>
-                <li class="in"><span>00-gaos-contract.md</span><em>1,4 KiB</em></li>
-                <li class="in"><span>10-brd.md</span><em>6,8 KiB</em></li>
-                <li class="in"><span>20-stories.md</span><em>1,9 KiB</em></li>
-                <li class="in"><span>30-decisions.md</span><em>3,2 KiB</em></li>
-                <li class="in"><span>40-technical-policy.md</span><em>4,0 KiB</em></li>
-                <li class="in"><span>50-coding-policy.md</span><em>5,5 KiB</em></li>
-                <li class="in"><span>60-security-policy.md</span><em>2,2 KiB</em></li>
-                <li class="in"><span>70-knowledge-sources.md</span><em>0,9 KiB</em></li>
+                <li class="in"><span>00-gaos-contract.md</span><em>1.4 KiB</em></li>
+                <li class="in"><span>10-brd.md</span><em>6.8 KiB</em></li>
+                <li class="in"><span>20-stories.md</span><em>1.9 KiB</em></li>
+                <li class="in"><span>30-decisions.md</span><em>3.2 KiB</em></li>
+                <li class="in"><span>40-technical-policy.md</span><em>4.0 KiB</em></li>
+                <li class="in"><span>50-coding-policy.md</span><em>5.5 KiB</em></li>
+                <li class="in"><span>60-security-policy.md</span><em>2.2 KiB</em></li>
+                <li class="in"><span>70-knowledge-sources.md</span><em>0.9 KiB</em></li>
               </ol>
-              <div class="bp-pin"><span class="kc-id">T-214 · A-3</span><span>satu giliran lewat ai-manager</span><b>blueprint v7</b></div>
+              <div class="bp-pin"><span class="kc-id">T-214 · A-3</span><span data-i18n="bp.turn">one turn through ai-manager</span><b>blueprint v7</b></div>
             </div>
           </div>
         </div>
@@ -225,32 +264,108 @@
     </div>
   </section>
 
-  <!-- ============================== CARA KERJA ============================== -->
-  <section id="cara">
+  <!-- ============================== HOW IT WORKS ============================== -->
+  <section id="how-it-works">
     <div class="wrap">
-      <div class="sec-head"><h2>Empat langkah, dan yang kedua boleh menolak.</h2>
-        <p>Setiap langkah menulis ke graph. Garis di bawah ini adalah jalurnya: dari catatan produk ke tugas, dari tugas ke percobaan, dari percobaan ke event.</p></div>
-      <ol class="steps">
+      <div class="sec-head"><h2 data-i18n="how.title">From a product record to a recorded attempt, in four steps</h2>
+        <p data-i18n="how.lead">Each step writes to the graph. The label above a step names the record it writes.</p></div>
+      <ol class="steps" data-io>
         <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">Product</p>
-          <h3>Isi catatan produknya</h3><p>Masalah, tujuan, cakupan, aturan domain, cerita pengguna dan kriteria penerimaannya.</p></li>
-        <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">skor kesiapan</p>
-          <h3>Gerbang kesiapan</h3><p>Catatannya dinilai sampai 100. Di bawah 45, planner menolak: spesifikasi yang mengambang menghasilkan rencana yang mengambang.</p></li>
+          <h3 data-i18n="how.s1.h">Describe the product</h3><p data-i18n="how.s1.p">Record the problem, the goals, the scope, the domain rules, and the user stories with their acceptance criteria.</p></li>
+        <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes" data-i18n="how.s2.w">readiness score</p>
+          <h3 data-i18n="how.s2.h">Pass the readiness gate</h3><p data-i18n="how.s2.p">The record is scored out of 100. The planner accepts a score of 45 or above.</p></li>
         <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">Task</p>
-          <h3>Planner menyusun graph tugas</h3><p>Satu tugas, satu perkara, minimal satu kriteria penerimaan. Ketergantungannya diperiksa bebas siklus pada setiap penulisan.</p></li>
+          <h3 data-i18n="how.s3.h">Plan the tasks</h3><p data-i18n="how.s3.p">The planner turns stories into tasks. Each task covers one concern and has at least one acceptance criterion, and its dependencies are checked for cycles on every write.</p></li>
         <li class="step rv"><span class="node" aria-hidden="true"></span><p class="writes">TaskRun, Event</p>
-          <h3>Setiap percobaan lewat ai-manager</h3><p>Satu giliran di ruang kerja produk, di bawah Blueprint yang terbit. ai-claude-cli mengerjakannya; GAOS mencatat percobaan dan event-nya.</p></li>
+          <h3 data-i18n="how.s4.h">Run each task through the gateway</h3><p data-i18n="how.s4.p">ai-manager runs one turn in the product's workspace under the published Blueprint. A worker such as ai-claude-cli does the work, and GAOS records the attempt and its events.</p></li>
       </ol>
     </div>
   </section>
 
-  <!-- ================================ PENUTUP ================================ -->
+  <!-- ============================== ARCHITECTURE ============================== -->
+  <section id="architecture" class="band">
+    <div class="wrap">
+      <div class="sec-head"><h2 data-i18n="arch.title">Three layers, each with one responsibility</h2></div>
+      <div class="arch" data-live>
+        <article class="layer rv"><p class="layer-n">01</p><h3>GAOS</h3>
+          <p data-i18n="arch.gaos.p">Holds the product record, the tasks and the Blueprint, and decides what to dispatch. GAOS runs no model tool itself.</p></article>
+        <span class="flow" aria-hidden="true"><i></i></span>
+        <article class="layer rv"><p class="layer-n">02</p><h3>ai-manager</h3>
+          <p data-i18n="arch.aim.p">The gateway. It runs every model turn in the workspace provisioned for the product.</p></article>
+        <span class="flow flow-2" aria-hidden="true"><i></i></span>
+        <article class="layer rv"><p class="layer-n">03</p><h3 data-i18n="arch.worker.h">Worker</h3>
+          <p data-i18n="arch.worker.p">An agent such as ai-claude-cli that carries out the task in that workspace.</p></article>
+      </div>
+      <p class="arch-note" data-i18n="arch.note1">Model turns are off by default. Set <code>GAOS_MODEL_MODE=aimanager</code> and point <code>GAOS_AIM_URL</code> at an ai-manager gateway to turn them on.</p>
+      <p class="arch-note" data-i18n="arch.note2">You pay your own model provider. GAOS is never in that billing path.</p>
+    </div>
+  </section>
+
+  <!-- =============================== QUICK START =============================== -->
+  <section id="quick-start">
+    <div class="wrap">
+      <div class="sec-head"><h2 data-i18n="qs.title">Run it locally</h2>
+        <p data-i18n="qs.lead">The local stack needs Docker and publishes one port.</p></div>
+      <div class="qs">
+        <!-- The commands are in the markup, selectable and readable without
+             script. The copy button is shown only when theme.js has run. -->
+        <div class="term rv" data-io role="group" data-i18n-attr="aria-label:qs.term" aria-label="Quick start commands">
+          <div class="term-bar"><i></i><i></i><i></i>
+            <button class="copy" type="button" data-state="idle"><span class="copy-idle" data-i18n="qs.copy">Copy</span><span class="copy-done" aria-hidden="true" data-i18n="qs.copied">Copied</span></button>
+            <span class="copy-said" role="status"></span>
+          </div>
+          <pre><code><span class="ln" data-cmd="git clone https://github.com/ardihikaru/gaos.git"><span class="pr">$</span> git clone https://github.com/ardihikaru/gaos.git</span><span class="ln" data-cmd="cd gaos"><span class="pr">$</span> cd gaos</span><span class="ln" data-cmd="docker compose up -d"><span class="pr">$</span> docker compose up -d<span class="caret"></span></span></code></pre>
+        </div>
+        <div class="qs-side">
+          <p class="qs-then" data-i18n="qs.then">Then open <code>http://localhost:8083/</code>:</p>
+          <dl class="paths">
+            <div><dt><code>/</code></dt><dd data-i18n="qs.p1">the landing page</dd></div>
+            <div><dt><code>/app/</code></dt><dd data-i18n="qs.p2">Mission Control: products, Blueprint, board and timeline</dd></div>
+            <div><dt><code>/docs/</code></dt><dd data-i18n="qs.p3">the documentation</dd></div>
+            <div><dt><code>/api/healthz</code></dt><dd data-i18n="qs.p4">the health check, including database reachability</dd></div>
+          </dl>
+          <ul class="qs-notes">
+            <li data-i18n="qs.n1">Without a database the dashboard runs on an in-memory store. Set <code>GAOS_STORE=arcadedb</code> to use ArcadeDB.</li>
+            <li data-i18n="qs.n2">Change the port with <code>GAOS_EDGE_PORT</code>.</li>
+            <li><a href="/docs/infra/environments.html" data-i18n="qs.n3">The full list of settings is in the documentation.</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============================== OPEN SOURCE =============================== -->
+  <section id="open-source">
+    <div class="wrap">
+      <div class="sec-head"><h2 data-i18n="oss.title">Open source, and complete on its own</h2></div>
+      <div class="grid">
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="oss.lic.h">Apache-2.0 license</h3>
+          <p data-i18n="oss.lic.p">You may use, modify and redistribute it. There is no license key, no trial and no feature that switches off. A fork needs its own name; the NOTICE file explains why.</p>
+          <a class="more" href="https://github.com/ardihikaru/gaos/blob/main/LICENSE" rel="noopener"><span data-i18n="oss.lic.a">Read the license</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </article>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="oss.con.h">Contributing</h3>
+          <p data-i18n="oss.con.p">Contributions require a DCO sign-off (<code>git commit -s</code>); there is no CLA. A feature-sized change starts as a design document, and independent reviewers read it before any code is written.</p>
+          <a class="more" href="https://github.com/ardihikaru/gaos/blob/main/CONTRIBUTING.md" rel="noopener"><span data-i18n="oss.con.a">Read the contributing guide</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </article>
+        <article class="card rv"><span class="spot" aria-hidden="true"></span>
+          <h3 data-i18n="oss.stack.h">Built with</h3>
+          <p data-i18n="oss.stack.p">The Go standard library and htmx for the dashboard, ArcadeDB for the graph, and Docker Compose for deployment. The Go modules have no third-party dependencies.</p>
+          <a class="more" href="https://github.com/ardihikaru/gaos" rel="noopener"><span data-i18n="oss.stack.a">Browse the source</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================= CLOSING ================================= -->
   <section class="finale">
     <div class="wrap">
       <div class="box rv">
         <svg class="mark big" viewBox="0 0 32 32" aria-hidden="true"><path class="mk-edge" d="M10 10H22L16 22Z"/><circle class="mk-node" cx="10" cy="10" r="2"/><circle class="mk-node" cx="22" cy="10" r="2"/><circle class="mk-node" cx="16" cy="22" r="2"/></svg>
-        <h2>Graph-nya sudah ada. Mulai dari catatan produknya.</h2>
-        <p>Mission Control berjalan di atas ArcadeDB, sudah melakukan panggilan model sungguhan lewat ai-manager, dan mengatakan terus terang bagian mana yang belum ada.</p>
-        <div class="cta"><a class="btn primary big" href="/app/">Buka Mission Control</a><a class="btn ghost big" href="/docs/">Baca dokumentasi</a></div>
+        <h2 data-i18n="end.title">Start with one product record</h2>
+        <p data-i18n="end.p">Run the local stack, describe a product, and read what the readiness gate reports.</p>
+        <div class="cta"><a class="btn primary big" href="#quick-start" data-i18n="end.start">Get started</a><a class="btn ghost big" href="https://github.com/ardihikaru/gaos" rel="noopener" data-i18n="end.github">View on GitHub</a></div>
       </div>
     </div>
   </section>
@@ -259,9 +374,9 @@
 
 <footer class="foot">
   <div class="wrap">
-    <span>© <span id="tahun">2026</span> GAOS</span>
-    <nav aria-label="Kaki halaman"><a href="/app/">Mission Control</a><a href="/docs/">Dokumentasi</a><a href="#fitur">Fitur</a><a href="#cara">Cara kerja</a></nav>
-    <p class="note">GAOS masih dalam pengembangan aktif. Graph, event store, kesiapan, planner, penjadwal, catatan percobaan, Board, dan Blueprint sudah ada kodenya. Review, penilaian, dan pagar percobaan ulang belum, dan halaman ini tidak akan berpura-pura sebaliknya.</p>
+    <span class="foot-copy">© <span id="year">2026</span> <span data-i18n="foot.copy">GAOS contributors. Apache-2.0.</span></span>
+    <nav data-i18n-attr="aria-label:foot.label" aria-label="Footer"><a href="/app/">Mission Control</a><a href="/docs/" data-i18n="foot.docs">Documentation</a><a href="/docs/changelog.html" data-i18n="foot.log">Changelog</a><a href="https://github.com/ardihikaru/gaos/blob/main/LICENSE" rel="noopener" data-i18n="foot.lic">License</a><a href="https://github.com/ardihikaru/gaos/blob/main/CONTRIBUTING.md" rel="noopener" data-i18n="foot.con">Contributing</a><a href="https://github.com/ardihikaru/gaos" rel="noopener">GitHub</a></nav>
+    <p class="note" data-i18n="foot.note">GAOS is under active development. The changelog records what each release adds.</p>
   </div>
 </footer>
 </body>
