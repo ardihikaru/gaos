@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -94,6 +95,9 @@ func validateAutoFix(a AutoFix, tokenKind string) error {
 	return nil
 }
 
+// baseBranchRe is what a base branch may look like.
+var baseBranchRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
+
 // autoFixPreconditions are the conditions a product must meet for auto-fix to
 // be on. They are re-checked before a pull request, whoever dispatched the card.
 func autoFixPreconditions(a AutoFix, tokenKind string) error {
@@ -102,6 +106,8 @@ func autoFixPreconditions(a AutoFix, tokenKind string) error {
 		return reject("Auto-fix needs at least one allowed path.")
 	case len(a.TestGlobs) == 0:
 		return reject("Auto-fix needs at least one test glob.")
+	case a.BaseBranch != "" && !baseBranchRe.MatchString(a.BaseBranch):
+		return reject("The base branch is not a valid branch name.")
 	case !a.CIConfirmed:
 		return reject("Confirm that the repositories' CI runs no secrets on gaos/fix-* branches.")
 	case tokenKind == "":

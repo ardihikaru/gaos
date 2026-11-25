@@ -73,7 +73,7 @@ func sampleDefect() Defect {
 func TestDefectSearchErrorIsNotEmpty(t *testing.T) {
 	// A 503 is an error, retried and then a block; it never reads as "nothing found".
 	f := &fakeGitHub{searchStatus: 503}
-	_, err := buildDefectContext(context.Background(), newFakeCode(t, f), sampleDefect(), noSleep)
+	_, err := buildDefectContext(context.Background(), newFakeCode(t, f), sampleDefect(), "", noSleep)
 	if !errors.Is(err, errSearchFailed) {
 		t.Fatalf("a 503 search gave %v, want errSearchFailed", err)
 	}
@@ -82,7 +82,7 @@ func TestDefectSearchErrorIsNotEmpty(t *testing.T) {
 	}
 	// An empty answer is an empty context, not an error.
 	empty := &fakeGitHub{}
-	c, err := buildDefectContext(context.Background(), newFakeCode(t, empty), sampleDefect(), noSleep)
+	c, err := buildDefectContext(context.Background(), newFakeCode(t, empty), sampleDefect(), "", noSleep)
 	if err != nil || !c.Built || len(c.Files) != 0 || c.HeadOf(defRepo) != "abc123head" {
 		t.Errorf("an empty search gave %+v %v, want a built context with no files", c, err)
 	}
@@ -117,7 +117,7 @@ func TestDefectContextKeepsPathsAndLimits(t *testing.T) {
 	}
 	d := sampleDefect()
 	d.Operations = []string{"a", "b", "c", "d", "e"}
-	c, err := buildDefectContext(context.Background(), newFakeCode(t, f), d, noSleep)
+	c, err := buildDefectContext(context.Background(), newFakeCode(t, f), d, "", noSleep)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func (p *lockProbe) probe() {
 	}
 	p.s.mu.Unlock()
 }
-func (p *lockProbe) defaultHead(context.Context, string, string) (string, error) {
+func (p *lockProbe) defaultHead(context.Context, string, string, string) (string, error) {
 	p.probe()
 	return "h1", nil
 }

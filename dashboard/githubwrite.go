@@ -32,7 +32,7 @@ func escPath(p string) string {
 
 // defaultHead reads the head SHA of the repository's default branch. The branch
 // name is GitHub's, never the caller's.
-func (c *ghClient) defaultHead(ctx context.Context, owner, repo string) (string, error) {
+func (c *ghClient) defaultHead(ctx context.Context, owner, repo, branch string) (string, error) {
 	var r struct {
 		DefaultBranch string `json:"default_branch"`
 	}
@@ -40,7 +40,10 @@ func (c *ghClient) defaultHead(ctx context.Context, owner, repo string) (string,
 	if err := c.get(ctx, base, &r); err != nil {
 		return "", err
 	}
-	if r.DefaultBranch == "" {
+	if branch == "" {
+		branch = r.DefaultBranch
+	}
+	if branch == "" {
 		return "", errors.New("the repository names no default branch")
 	}
 	var ref struct {
@@ -48,7 +51,7 @@ func (c *ghClient) defaultHead(ctx context.Context, owner, repo string) (string,
 			SHA string `json:"sha"`
 		} `json:"object"`
 	}
-	if err := c.get(ctx, base+"/git/ref/heads/"+escPath(r.DefaultBranch), &ref); err != nil {
+	if err := c.get(ctx, base+"/git/ref/heads/"+escPath(branch), &ref); err != nil {
 		return "", err
 	}
 	if ref.Object.SHA == "" {
@@ -183,13 +186,17 @@ func (w *ghWriter) post(ctx context.Context, u string, in, out any) error {
 	return json.Unmarshal(raw, out)
 }
 
-// head reads the default branch's name and head commit.
-func (w *ghWriter) head(ctx context.Context, owner, repo string) (branch, sha string, err error) {
+// head reads the base branch's name and head commit: the product's configured
+// base branch, else the repository's default branch.
+func (w *ghWriter) head(ctx context.Context, owner, repo, override string) (branch, sha string, err error) {
 	var r struct {
 		DefaultBranch string `json:"default_branch"`
 	}
 	if err := w.c.get(ctx, w.repoURL(owner, repo), &r); err != nil {
 		return "", "", err
+	}
+	if override != "" {
+		r.DefaultBranch = override
 	}
 	if r.DefaultBranch == "" {
 		return "", "", errors.New("the repository names no default branch")
