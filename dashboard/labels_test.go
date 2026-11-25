@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -137,5 +139,44 @@ func TestNormalizeLabelsKeepsTheVocabularyOrder(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("normalizeLabels = %v, want %v", got, want)
 		}
+	}
+}
+
+// TestDefectLabelFamilyIsPlannerOnly holds D-091's two refusals: the scheduler
+// never dispatches a defect:* card, and an operator can never set one.
+func TestDefectLabelFamilyIsPlannerOnly(t *testing.T) {
+	ctx := context.Background()
+	family := []string{LabelDefectTriage, LabelDefectEasy, LabelDefectMedium, LabelDefectComplex}
+	for _, l := range family {
+		if !ValidLabel(l) {
+			t.Errorf("%s is not in the closed vocabulary", l)
+		}
+		if labelsAllowDispatch([]string{l}) {
+			t.Errorf("the scheduler may dispatch a card labelled %s", l)
+		}
+	}
+	s, pid := defectFixture(t)
+	report(t, s, pid, defItem(DefectKindXfail, "DEF-101", defCase1))
+	card := cardByKey(s, defectCardKey(pid+"/DEF-101", 1, "triage"))
+	for _, l := range family {
+		if _, err := s.SetTaskLabel(ctx, pid, card.ID, l, "ops"); !errors.Is(err, ErrRejected) {
+			t.Errorf("SetTaskLabel(%s) = %v, want ErrRejected (422)", l, err)
+		}
+	}
+	// A card of the PR flow still takes its own family.
+	planned, _, _, err := s.PlanPullRequestCards(ctx, pid, PREvent{Kind: "github", Type: prTypeOpened, EventID: "gh-1", Seq: 1,
+		Org: "acme-org", Repo: "sample-service", PRNumber: 5, Title: "x"})
+	if err != nil || len(planned) == 0 {
+		t.Fatalf("plan: %v %v", planned, err)
+	}
+	if _, err := s.SetTaskLabel(ctx, pid, planned[0], LabelPRReviewManual, "ops"); err != nil {
+		t.Errorf("a pr-review label was refused: %v", err)
+	}
+	// And over HTTP the refusal is a 422.
+	srv, _ := newTestServer(t)
+	srv.store = s
+	rec := formPost(t, srv, "/products/"+pid+"/board/cards/"+card.ID+"/label", "label="+LabelDefectEasy, true)
+	if rec.Code != 422 {
+		t.Errorf("the label route answered %d for defect:easy, want 422", rec.Code)
 	}
 }

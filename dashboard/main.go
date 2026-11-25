@@ -65,6 +65,9 @@ type server struct {
 	staging *stagingAuth
 	// ghState is the GitHub client's row on the Integrations view.
 	ghState string
+	// codeSrc reads application source for a defect's packet (D-091); nil when
+	// the GitHub client is off.
+	codeSrc codeSource
 	// wa is the WhatsApp notifier (wa.go); nil when off.
 	wa   *waNotifier
 	auth *authority // back-office sessions (auth.go); nil signs nobody in
@@ -366,6 +369,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	if ghc != nil {
 		flow.gh = ghc
 		authors = ghc
+		srv.codeSrc = ghc
 		srv.ghState = "on"
 		log.Printf("pull requests: GitHub client on")
 	} else {
@@ -399,6 +403,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		SetPRHooks(func(TaskRecord) []PacketPart, func(TaskRecord, string))
 	}); ok {
 		rv := &prReviewer{st: store, logf: log.Printf, notify: nt.Notify}
+		dt := &defectTriager{st: store, logf: log.Printf, notify: nt.Notify}
 		if ghc != nil {
 			rv.gh = ghc
 		}
@@ -408,6 +413,8 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 				switch {
 				case t.Role == "pr-reviewer":
 					rv.afterRun(context.Background(), t, reply)
+				case t.Role == "triager":
+					dt.afterRun(context.Background(), t, reply)
 				case t.Role == "unit-test" && t.DedupKey != "" && t.Status == StatusFailed:
 					nt.Notify(context.Background(), t, "unit:failure", "unit tests failed")
 				}

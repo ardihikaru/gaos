@@ -186,6 +186,9 @@ const (
 	MoveRefused      = "refused"       // a dispatch the egress pass or the drift gate refused
 	MoveNotStarted   = "not-started"   // a dispatched turn that never reached the gateway
 	MoveDriftRelease = "drift-release" // a sync released what Blueprint drift had blocked
+	// MoveAutoFix is the automatic dispatch of a defect card (D-091). Defined
+	// here; the dispatch that uses it lands with the caps.
+	MoveAutoFix = "autofix"
 )
 
 // legalMove is the table (D-061). It answers the action a move means, or the

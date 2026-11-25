@@ -498,6 +498,7 @@ const schedulerTick = 2 * time.Second
 func (s *MemStore) RunOnce(ctx context.Context, ad Adapter) ScheduleDecision {
 	now := time.Now().Unix()
 	mode := runnerMode()
+	s.readyDefectCards()
 	if ad != nil && mode == RunnerManual {
 		// D-080: the scheduler's verdict is recorded as READY and acted on by
 		// nobody but the operator. READY tasks are left out of the input so a
