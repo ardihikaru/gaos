@@ -1,6 +1,6 @@
 # Defect triage and auto-fix — a defect becomes a labelled task, an easy one becomes a draft pull request
 
-> **Status:** Draft, revision 3 (review rounds 1 and 2: `docs/designs/reviews/gaos-defect-autofix-consolidated-1.md`)
+> **Status:** Implemented (revision 3; round 3 not run, approved by delegation) (review rounds 1 and 2: `docs/designs/reviews/gaos-defect-autofix-consolidated-1.md`)
 > **Author:** the GAOS team
 > **Reviewers:** the `gaos-goldfish-*` agents (`docs/rules/gaos-design-review.md`)
 > **Policy:** `docs/rules/gaos-design-review.md`
@@ -445,24 +445,30 @@ office. A neutral copy ships in `deploy/seed/example/product.json` as a `custom`
 - Fixing the defect in the **automation** repository (the spec stays pinned until the fix merges).
 - A GitHub App, a task-manager ticket, a new Blueprint policy kind, per-account roles (OQ-37).
 
-## 15. Change list (reconciled with `git status` when the change is made)
+## 15. Change list (reconciled with `git diff main --stat` and `git status --short` when the change was made)
 
-**New, GAOS — Go, 8 implementations and 8 tests (16):** `dashboard/defects.go`, `defecttriage.go`, `autofix.go`,
-`githubwrite.go`, `prbody.go`, `fixprpoll.go`, `handlers_autofix.go`, `store_arcade_defects.go` — each with its
-`_test.go` (`store_arcade_defects_test.go` holds the persistence tests). **New, other (4):**
-`dashboard/schema/17-defects.sql`, `dashboard/templates/autofix.html`, `pustaka/docs/integrations/autofix.html`,
-`deploy/stacks` is **not** a new file (the mount is a line in the existing compose file).
-**Changed, Go (21):** `model.go`, `labels.go`, `labels_test.go`, `fixtures.go`, `events.go`, `events_test.go`,
-`fold.go`, `store.go`, `store_mem.go`, `store_arcade.go`, `api_v1.go`, `board.go`, `prflow.go`, `scheduler.go`,
-`adapter_aimanager.go`, `notify.go`, `integrations.go`, `view.go`, `main.go`, `schema_test.go`,
-`designgate_test.go` (the closed-vocabulary test). **Changed, other (22):** `static/app.css`,
-`artifacts/v1/gaos-arcadedb-model.html`, `deploy/seed/example/product.json`, `deploy/stacks/compose.prod.yaml`,
-`deploy/check-stacks.sh`, `deploy/rebuild-restart.sh`, `deploy/check-workspace.sh`, `.gitignore`,
-`.claude/rules/qa-test-plan.md`, `README.md`, and the twelve pustaka pages `docs/product/{brd,decision-log,
-open-questions,qa-test-plan}.html`, `docs/architecture/graph.html`, `docs/changelog.html`, `docs/assets/toc.js`,
-`docs/assets/toc/{product,integrations}.js`, `docs/integrations/pr-agents.html`, `docs/integrations/webhooks-and-clients.html`.
-Arithmetic: 16 + 3 new other (`17-defects.sql`, `autofix.html` template, `autofix.html` page) + 21 + 22 =
-**62 files**. The counts are re-checked against `git status` at the end and corrected here.
+**New, Go and DDL (22):** 12 implementations (`dashboard/autofix.go`, `autofix_view.go`, `autofixcheck.go`,
+`autofixglob.go`, `autofixpr.go`, `defects.go`, `defecttriage.go`, `fixprpoll.go`, `githubwrite.go`,
+`handlers_autofix.go`, `prbody.go`, `store_arcade_defects.go`), 9 test files (`autofix_test.go`, `autofix_view_test.go`,
+`autofixglob_test.go`, `defects_test.go`, `defecttriage_test.go`, `fixpr_fake_test.go`, `fixpr_test.go`,
+`fixprpoll_test.go`, `store_arcade_defects_test.go`) and `dashboard/schema/17-defects.sql`.
+**Changed, Go and DDL (35 files in the commits, of which 29 are code):** `model.go`, `labels.go`, `labels_test.go`,
+`fixtures.go`, `events.go`, `events_test.go`, `fold.go`, `store.go`, `store_mem.go`, `store_arcade.go`,
+`store_conformance_test.go`, `api_v1.go`, `board.go`, `prflow.go`, `runner.go`, `adapter_aimanager.go`, `github.go`,
+`notify.go`, `integrations.go`, `view.go`, `handlers_bo.go`, `main.go`, `auth_test.go`, `schema_test.go`,
+`schema/04-execution.sql`, `static/app.css`, `static/app.js`, `templates/backoffice.html` (the Auto-fix view lives in
+the back-office template; there is no separate `autofix.html` template), plus `artifacts/v1/gaos-arcadedb-model.html`,
+`deploy/check-stacks.sh`, `deploy/rebuild-restart.sh`, `deploy/stacks/compose.prod.yaml`,
+`pustaka/docs/assets/toc/product.js`, `pustaka/docs/product/qa-test-plan.html` and `.claude/rules/qa-test-plan.md`.
+**Docs, registers and landing page, written after the code (12 more files):** `README.md`,
+`deploy/check-workspace.sh`, `landing-page/index.html`, `pustaka/docs/architecture/graph.html`,
+`pustaka/docs/assets/toc.js`, `pustaka/docs/assets/toc/integrations.js`, `pustaka/docs/changelog.html`,
+`pustaka/docs/integrations/pr-agents.html`, `pustaka/docs/product/{brd,decision-log,open-questions}.html` and the
+new `pustaka/docs/integrations/autofix.html`.
+Arithmetic: 22 new + 35 changed = **57 files** in the commits against `main` (`git diff main..HEAD`), + 12 docs
+files = **69**, + this document and the consolidated review = 71. Not changed, against the first plan: `scheduler.go`
+(`labelsAllowDispatch` lives in `labels.go`), `designgate_test.go`, `deploy/seed/example/product.json`, `.gitignore`
+and `webhooks-and-clients.html`; the new `matchGlob` and the separate `autofix.html` template were not needed.
 
 ## 16. Phases and exits (`cd dashboard && go test -run '<regexp>' ./...`; every exit also runs the whole package)
 
@@ -476,8 +482,9 @@ Arithmetic: 16 + 3 new other (`17-defects.sql`, `autofix.html` template, `autofi
 | 6 | The Auto-fix view and the poller (TC-664..672, 9) | 5 | `TestAutoFixViewTiles`, `…Filters`, `…Drawer`, `…OffState`, `…NoExcerptOrSecret`, `…TokenKindShown`, `TestFixPRPollerStates`, `…Backoff`, `…ExcerptRetention`; then a stated browser checklist (tiles, chips, filters in the URL, drawer, the four empty states) |
 | 7 | Deploy (TC-673 `check-stacks.sh`, TC-674 `rebuild-restart.sh`) both prods, VM checkout first, and the live run | 1–6 | §17 |
 
-Registers: **D-091**; **TC-624..TC-674** (51 rows; the register becomes 674, "six hundred and seventy-four", the Go-test
-count and the four count strings follow); release **v0.52.0**.
+Registers: **D-091**; **TC-624..TC-688** (65 rows: 63 Go tests, TC-687 for `check-stacks.sh` and TC-688 for
+`rebuild-restart.sh`; the register is 688, "six hundred and eighty-eight", and the Go tests are 554); release
+**v0.52.0**.
 
 ## 17. Done when
 
@@ -496,3 +503,34 @@ count and the four count strings follow); release **v0.52.0**.
 - [ ] The Auto-fix view lists the draft, follows its state, and renders no excerpt or secret.
 - [ ] The sample defect end to end on the real product; a `complex` defect triaged with a notice and no pull request.
 - [ ] `go test -race ./...`, `pustaka check`, `check-stacks.sh`, `check-workspace.sh` are green and every test is registered.
+
+## 18. As built
+
+The deviations from this design, stated as they are:
+
+- **No new `matchGlob`.** The one in `egress.go` is reused (`autofixglob.go` holds the glob rules and their tests).
+- **`Defect.class` is stored as `triageClass`**, on the assumption that `class` is a reserved word in ArcadeDB. That
+  assumption is untested against a real ArcadeDB.
+- `Defect` also stores `regression`, `repo` and `files`.
+- **`readyDefectCards` runs at the start of `RunOnce`**, because the scheduler skips defect cards and something must
+  ready them.
+- **`Store.OpenFixPR` was added:** the record, `FixPROpened`, the defect's `fixing` state and the card's `DONE` are one
+  transaction.
+- `resolveFrom[BLOCKED]` is widened to include `REVIEW`.
+- **The write client has `findPR`**, so a crash cannot open a second pull request.
+- A `422` from GitHub records only a `Draft` flag, never the response body.
+- **The close route needs only a signed-in operator**; the admin list guards the configuration.
+- A **non-eligible fixer card just stays in `REVIEW`**: the run's reply artifact holds the edits.
+- The bidi, long-line and secret checks run on **changed lines only**.
+- **A failed label or comment keeps the branch** and the pull request.
+- `WaSent` means the line was handed to the notifier, not delivered.
+- **The `preparing` record is stored after the read-only checks and before the first write.**
+- **A blocked or failed fix closes its `FixPR` record**, so a record with `Number` 0 in state `closed` can exist.
+- The CI scanner matches `pull_request` filters against the base branch as well as `gaos/fix-*`.
+- **An egress refusal of an auto-dispatched card sets `BlockReason` `autofix-egress`.**
+- `autoFixLoop` and the resume job start inside the PR-hooks block in `main.go`.
+- **A pull request closed unmerged sets the defect's difficulty to `medium`**, so a person moving the blocked card
+  cannot open an automatic pull request.
+- The dispatch tile sums the caps over **enabled products only**.
+- The live-turn signal is read from **PR cards only**.
+- **`AutoFix.BaseBranch` was added**: optional, validated; the default is the repository's default branch.

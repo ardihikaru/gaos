@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-nine entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1948,6 +1948,36 @@
         <td><a href="qa-test-plan.html#go-pr-agent-followups">TC-617&hellip;TC-621</a>;
         <a href="../integrations/pr-agents.html">Pull-request agents</a>;
         <code>docs/designs/gaos-pr-flows-followups.md</code></td>
+      </tr>
+      <tr id="d-091">
+        <td>D-091</td><td>2026-11-26</td>
+        <td><strong>GAOS triages a reported defect and, for an easy one on a product that has switched it on, dispatches the fix itself and opens a draft pull request with a separate write token.</strong>
+        Context: the QA tool pins known defects as expected failures, so GAOS never heard about them, and nobody classified
+        how hard each was to fix. Decision: (1) A new route, <code>POST /api/v1/products/{id}/qa/defects</code>, records a
+        defect (<code>DefectReported</code>) and plans a triage card; the <code>triager</code> and <code>fixer</code> roles
+        are added, so <a href="decision-log.html#d-088">D-088</a> &sect;14 (&ldquo;a fifth agent&rdquo;) is amended. (2) For
+        <code>defect:easy</code> fixes only, <strong>GAOS, not the agent</strong>, opens a <em>draft</em> pull request;
+        D-088 &sect;14 and &sect;7 are amended accordingly, with a second token file, <code>GAOS_GITHUB_WRITE_TOKEN_FILE</code>,
+        used for that path only and never read by the review flow. GAOS never marks a pull request ready, approves or
+        merges it. (3) <a href="brd.html#business-rules">BR-54</a> is amended honestly: a QA token can now plan cards that
+        may be dispatched, only for a product whose operator has recorded the auto-fix switch, within its caps; a QA result
+        still never moves an existing card. (4) <a href="brd.html#business-rules">BR-56</a> is amended for
+        <code>defect:triage</code> and <code>defect:easy</code>: they are dispatched automatically through
+        <code>dispatchNow</code>&rsquo;s gates (BR-07, BR-38, BR-39, dependencies, BR-32); BR-35 is not among them,
+        because it is not wired into any dispatch path, and the caps are the only spend bound.
+        <code>GAOS_RUNNER=on</code> cannot bypass the switch: the scheduler never dispatches a <code>defect:*</code> card in
+        any mode. (5) Defect cards are exempt from BR-46 and BR-47, as D-088&rsquo;s pull-request cards are. (6) BR-32: a
+        fetched private source file goes to the model provider; a detector hit refuses the dispatch. (7)
+        <a href="brd.html#business-rules">BR-53</a> is extended with a per-product limit of 50 new defect keys a day.
+        (8) Eligibility to open a pull request is decided from the defect record (difficulty easy, backend only, not a
+        regression, this card) and the product&rsquo;s preconditions, never from a label, and whoever dispatched the card.
+        Residual: the &ldquo;after&rdquo; sample is agent-reported, not run
+        (<a href="open-questions.html#oq-39">OQ-39</a>); branches live in the application repository, not a fork
+        (<a href="open-questions.html#oq-40">OQ-40</a>).</td>
+        <td><a href="qa-test-plan.html#go-defect-autofix">TC-631&hellip;TC-688</a>;
+        <a href="qa-test-plan.html#go-autofix-view">TC-624&hellip;TC-630</a>;
+        <a href="../integrations/autofix.html">Defect auto-fix</a>;
+        <code>docs/designs/gaos-defect-autofix.md</code></td>
       </tr>
     </tbody>
   </table>
