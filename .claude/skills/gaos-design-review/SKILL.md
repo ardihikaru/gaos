@@ -87,11 +87,18 @@ before the first answer**:
 2. *The test* — a `gaos-goldfish-*` agent, the same question, **must answer NO**;
    then have it `Read` one file under `docs/` and ask again: **still NO**.
 
-Expected side effect, not a leak: reading under `docs/` or `.claude/` attaches the
-path-scoped rule `.claude/rules/agent-workspace.md` as a system reminder to every
-agent, reviewers included. It is a rubric file a reviewer may read (it mentions
-`CLAUDE.md` by name, which earlier rounds misread as `CLAUDE.md` being loaded). The
-canaries for the *rules* files are verified by a reviewer that is made to read one.
+Two side effects, one of them a real leak that is now closed (verified 2026-11-26):
+
+- Reading under `docs/` or the registers attaches the path-scoped rule files
+  (`.claude/rules/agent-workspace.md`, `qa-test-plan.md`) to every agent, reviewers
+  included. That is the rubric; it mentions `CLAUDE.md` by name, which earlier rounds
+  misread as `CLAUDE.md` being loaded.
+- **Opening a file under `.claude/` makes the harness attach `.claude/CLAUDE.md`**
+  (the nested-memory loader), even with `omitClaudeMd: true`, which only covers the
+  session-start load. Round 1 of the auto-fix review saw this in all three lenses
+  because the agent definitions told them to read `.claude/rules/*`; round 2, told not
+  to open anything under `.claude/`, saw only the rule files. The five reviewer
+  definitions now say so, and a prompt must never send a reviewer into `.claude/`.
 
 ### 5. Remove the canaries
 
