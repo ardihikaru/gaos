@@ -202,7 +202,20 @@ if [ -z "$INSIDE" ]; then
       fi
       ok "the Brain Town token file exists"
     fi
-    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-* deploy/stacks/*.bt-*; do
+    # D-088: the pull-request flow's four credential files, mounted the same way;
+    # each may be empty (that part stays off), but a missing one would be created
+    # by Docker as a root-owned directory.
+    if [ "$ENVIRON" = prod ] && grep -q 'prod.pr-github-token' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
+      for f in prod.pr-github-token prod.pr-staging-auth prod.pr-wa-auth prod.pr-wa-group; do
+        if [ ! -f "deploy/stacks/$f" ]; then
+          bad "deploy/stacks/$f is missing (or is not a regular file)"
+          info "create it, mode 600 (empty is fine: that part stays off) -- see compose.prod.yaml -- then re-run."
+          exit 1
+        fi
+      done
+      ok "the pull-request flow's credential files exist"
+    fi
+    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-* deploy/stacks/*.bt-* deploy/stacks/*.pr-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac
       ln -sfn "$PWD/$e" "$WT/$e"
