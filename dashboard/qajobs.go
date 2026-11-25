@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,6 +34,10 @@ type qaJob struct {
 	JobType string `json:"job_type"`
 	Error   string `json:"error"`
 }
+
+// waiting reports whether the job waits for a person: the QA tool holds an open
+// approval of the spec it wrote. That is a human wait, not work in progress.
+func (j qaJob) waiting() bool { return strings.ToLower(j.Status) == "awaiting_approval" }
 
 // final reports whether a status ends the job, and how.
 func (j qaJob) final() (done, ok bool) {
@@ -87,9 +94,17 @@ type qaJobClient interface {
 }
 
 type qaTracked struct {
-	jobID   string
-	started time.Time
-	card    TaskRecord
+	jobID string
+	card  TaskRecord
+	// active is the time the job spent working; the timeout counts this, not the
+	// time a person took to approve. waited is the time it spent waiting, summed
+	// over every wait of the job, and is never reset: one budget per job.
+	active   time.Duration
+	waited   time.Duration
+	lastPoll time.Time
+	waiting  bool
+	noticed  bool // the approval notice goes out once per job, not once per wait
+	waits    int  // how many times the job entered the wait
 }
 
 type qaJobRunner struct {
@@ -100,9 +115,12 @@ type qaJobRunner struct {
 	nt       *notifier
 	logf     func(string, ...any)
 	interval time.Duration
-	timeout  time.Duration
-	now      func() time.Time
-	jobs     map[string]*qaTracked
+	timeout  time.Duration // active (non-waiting) time
+	// approvalWait is how long, in total, a job may wait for a person to approve
+	// a spec before the card fails (GAOS_QA_APPROVAL_WAIT_HOURS, default 24).
+	approvalWait time.Duration
+	now          func() time.Time
+	jobs         map[string]*qaTracked
 }
 
 const (
@@ -110,9 +128,23 @@ const (
 	qaJobTimeout  = 40 * time.Minute
 )
 
+// qaApprovalWaitFromEnv is how long a spec may wait for its approval.
+func qaApprovalWaitFromEnv() time.Duration {
+	n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("GAOS_QA_APPROVAL_WAIT_HOURS")))
+	switch {
+	case err != nil || n <= 0:
+		return 24 * time.Hour
+	case n > 720: // thirty days; a larger value would also overflow a Duration
+		log.Printf("qajobs: GAOS_QA_APPROVAL_WAIT_HOURS=%d is over 720; using 720", n)
+		return 720 * time.Hour
+	}
+	return time.Duration(n) * time.Hour
+}
+
 func newQAJobRunner(st Store, qa qaJobClient, cache *prContextCache, nt *notifier, src prSource) *qaJobRunner {
 	return &qaJobRunner{st: st, qa: qa, cache: cache, nt: nt, src: src, logf: func(string, ...any) {},
-		interval: qaJobInterval, timeout: qaJobTimeout, now: time.Now, jobs: map[string]*qaTracked{}}
+		interval: qaJobInterval, timeout: qaJobTimeout, approvalWait: qaApprovalWaitFromEnv(),
+		now: time.Now, jobs: map[string]*qaTracked{}}
 }
 
 // Run drives the cards until the context ends.
@@ -147,23 +179,28 @@ func (r *qaJobRunner) Tick(ctx context.Context) {
 		return
 	}
 	for _, m := range masters {
-		b, err := r.st.Board(ctx, m.ID)
+		cards, err := r.st.PRCards(ctx, m.ID)
 		if err != nil {
 			continue
 		}
-		for _, c := range b.Cards {
+		for _, c := range cards {
 			mode, ok := isE2ECard(c.Labels)
-			if !ok || r.jobs[c.ID] != nil || (c.Status != StatusPending && c.Status != StatusReady) {
+			if !ok || r.jobs[c.ID] != nil {
 				continue
 			}
-			r.start(ctx, m.ID, c, mode)
+			switch c.Status {
+			case StatusPending, StatusReady, StatusRunning, StatusAwaitingInput:
+				// RUNNING and AWAITING_INPUT with no tracked job are cards the
+				// process lost on a restart: the job id is on the card.
+				r.start(ctx, m.ID, c, mode)
+			}
 		}
 	}
 }
 
 // caseCodeFor is the QA case a card is for: every automated case for a run,
 // and the pull request's `QA-case: <code>` line for a new automation.
-func (r *qaJobRunner) caseCodeFor(ctx context.Context, c BoardCard, mode string) string {
+func (r *qaJobRunner) caseCodeFor(ctx context.Context, c TaskRecord, mode string) string {
 	if mode == "run" {
 		return "*"
 	}
@@ -188,8 +225,32 @@ func (r *qaJobRunner) caseCodeFor(ctx context.Context, c BoardCard, mode string)
 	return ""
 }
 
-func (r *qaJobRunner) start(ctx context.Context, product string, c BoardCard, mode string) {
+// The card keeps its job id in its reason, as "qa-job:<id> <text>".
+const qaJobPrefix = "qa-job:"
+
+func qaJobReason(id, text string) string { return qaJobPrefix + id + " " + text }
+
+// jobIDFromReason reads the job id a card's reason carries, or "".
+func jobIDFromReason(reason string) string {
+	if !strings.HasPrefix(reason, qaJobPrefix) {
+		return ""
+	}
+	id := strings.Fields(strings.TrimPrefix(reason, qaJobPrefix))
+	if len(id) == 0 || !validCursor(id[0]) {
+		return ""
+	}
+	return id[0]
+}
+
+func (r *qaJobRunner) start(ctx context.Context, product string, c TaskRecord, mode string) {
 	card := TaskRecord{ID: c.ID, DeskID: product, DedupKey: c.DedupKey, Labels: c.Labels}
+	// A card that already names its job (a restart lost the runner's memory, or
+	// an operator released a requeued card) is picked up, never started again:
+	// a second `create` job could open a second pull request.
+	if id := jobIDFromReason(c.BlockReason); id != "" {
+		r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now(), waiting: c.Status == StatusAwaitingInput}
+		return
+	}
 	code := r.caseCodeFor(ctx, c, mode)
 	if code == "" {
 		// Nothing is guessed: the card waits for a person to name the case.
@@ -206,33 +267,72 @@ func (r *qaJobRunner) start(ctx context.Context, product string, c BoardCard, mo
 		r.fail(ctx, card, "qa-start-failed")
 		return
 	}
-	if _, err := r.st.ResolvePRCard(ctx, product, c.ID, StatusRunning, "qa job started"); err != nil {
+	if _, err := r.st.ResolvePRCard(ctx, product, c.ID, StatusRunning, qaJobReason(id, "started")); err != nil {
 		r.logf("qajobs: the card could not be marked running")
 	}
-	r.jobs[c.ID] = &qaTracked{jobID: id, started: r.now(), card: card}
+	r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now()}
 }
+
+// qaMaxWaits bounds how many times one job may enter the approval wait: a QA
+// tool that flaps between waiting and running must not hold a card, or the
+// notifier, for ever.
+const qaMaxWaits = 5
 
 func (r *qaJobRunner) poll(ctx context.Context) {
 	for id, t := range r.jobs {
-		if r.now().Sub(t.started) > r.timeout {
+		now := r.now()
+		// Time is charged to the state the job was in since the last look.
+		if t.waiting {
+			t.waited += now.Sub(t.lastPoll)
+		} else {
+			t.active += now.Sub(t.lastPoll)
+		}
+		t.lastPoll = now
+		// Ask first, then apply the limits, so an approval given in the last
+		// interval before a cap is seen.
+		j, _, err := r.qa.jobStatus(ctx, t.jobID)
+		if err == nil {
+			if done, ok := j.final(); done {
+				delete(r.jobs, id)
+				if ok {
+					_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusRunning, qaJobReason(t.jobID, "finished")) // a no-op unless it waited
+					_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusDone, "qa job succeeded")
+				} else {
+					r.fail(ctx, t.card, "qa-job-failed")
+				}
+				continue
+			}
+			switch {
+			case j.waiting() && !t.waiting:
+				t.waits++
+				if t.waits > qaMaxWaits {
+					delete(r.jobs, id)
+					r.fail(ctx, t.card, "qa-job-flapping")
+					continue
+				}
+				// A person must approve the spec: Needs you, the clock stops.
+				t.waiting = true
+				_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusAwaitingInput,
+					qaJobReason(t.jobID, "the QA tool waits for you to approve the spec (open the QA Inbox)"))
+				if !t.noticed && r.nt != nil {
+					t.noticed = true
+					r.nt.Notify(ctx, t.card, "e2e:approval", "e2e spec waits for approval")
+				}
+			case !j.waiting() && t.waiting:
+				// Answered: the job works again, and so does the clock.
+				t.waiting = false
+				_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusRunning, qaJobReason(t.jobID, "resumed after approval"))
+			}
+		}
+		if t.waited > r.approvalWait {
+			delete(r.jobs, id)
+			r.fail(ctx, t.card, "qa-approval-timeout")
+			continue
+		}
+		if t.active > r.timeout {
 			delete(r.jobs, id)
 			r.fail(ctx, t.card, "qa-job-timeout")
-			continue
 		}
-		j, _, err := r.qa.jobStatus(ctx, t.jobID)
-		if err != nil {
-			continue // a poll that failed is tried again; the timeout bounds it
-		}
-		done, ok := j.final()
-		if !done {
-			continue
-		}
-		delete(r.jobs, id)
-		if ok {
-			_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusDone, "qa job succeeded")
-			continue
-		}
-		r.fail(ctx, t.card, "qa-job-failed")
 	}
 }
 

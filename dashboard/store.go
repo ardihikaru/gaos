@@ -140,6 +140,9 @@ type Store interface {
 	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
 	// SetTaskLabel changes a card's label and emits TaskLabeled (D-088).
 	SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error)
+	// PRCards are a product's pull-request cards (those carrying a dedup key), as
+	// copies: the QA-job runner reads their status, labels and reason (D-088).
+	PRCards(ctx context.Context, productID string) ([]TaskRecord, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)

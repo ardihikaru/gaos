@@ -80,7 +80,10 @@ body: the review, at most 6000 characters, each finding with a file:line and a R
     <tbody>
       <tr><td><code>GAOS_GITHUB_TOKEN_FILE</code></td><td>A file, mode 600, holding a token with <code>pull_requests: write</code> on the product's repositories. A Brain Town or GAOS token is refused. Unset or empty: no review is posted and no fork check is made.</td></tr>
       <tr><td><code>GAOS_STAGING_BASIC_AUTH_FILE</code></td><td>A file, mode 600, one line per product: <code>productId:user:password</code>, password of at least 12 characters. Unset or empty: the callback answers 503.</td></tr>
-      <tr><td><code>GAOS_WA_URL</code></td><td>The WhatsApp gateway's address. <strong>https only, no default.</strong> Unset: no notifications.</td></tr>
+      <tr><td><code>GAOS_WA_URL</code></td><td>The WhatsApp gateway's address. <strong>https by default, no default host.</strong> An <code>http</code> address is refused unless <code>GAOS_WA_ALLOW_HTTP=1</code>; any other scheme always is. Unset: no notifications.</td></tr>
+      <tr><td><code>GAOS_WA_ALLOW_HTTP</code></td><td><code>1</code> lets the gateway be <code>http</code> on a private link only (loopback, RFC 1918, CGNAT, link-local), checked on every connection. <code>any</code> also allows a public address, which sends the login in clear text. The status always says the link is unencrypted. Unset: https only.</td></tr>
+      <tr><td><code>GAOS_WA_PRODUCTS</code></td><td>The products the notifier serves, group and contacts alike, comma separated. Empty: none, and it stays silent. With none linked, the boot group check (which would send the login) is skipped. A v0.48 deployment that sets <code>GAOS_WA_URL</code> must now set this too.</td></tr>
+      <tr><td><code>GAOS_QA_APPROVAL_WAIT_HOURS</code></td><td>The total time one QA job may wait for a person to approve its spec. Default 24, at most 720.</td></tr>
       <tr><td><code>GAOS_WA_BASIC_AUTH_FILE</code>, <code>GAOS_WA_GROUP_FILE</code></td><td>Files, mode 600: the gateway login <code>user:password</code> and the pinned group id (<code>&hellip;@g.us</code>).</td></tr>
       <tr><td><code>GAOS_PR_MAX_OPEN</code>, <code>GAOS_PR_ALLOW_FORKS</code></td><td>The cap on open PR cards (5) and whether forks open cards (no).</td></tr>
     </tbody>
@@ -103,7 +106,7 @@ Content-Type: application/json
       <tr><td><code>200 {"duplicate":true,&hellip;}</code></td><td>The same commit again: nothing new was planned.</td></tr>
       <tr><td><code>401</code> with <code>WWW-Authenticate: Basic realm="gaos"</code></td><td>No credential, or a wrong one.</td></tr>
       <tr><td><code>404</code></td><td>A credential that belongs to another product, or a product that does not exist.</td></tr>
-      <tr><td><code>422</code></td><td>The repository is not one of the product's, the commit is not a hex sha, or the environment is not <code>staging</code>.</td></tr>
+      <tr><td><code>422</code></td><td>The repository is not one of the product's, the commit is not a full 40- or 64-character hex sha, or the environment is not <code>staging</code>.</td></tr>
       <tr><td><code>429</code> with <code>Retry-After</code></td><td>Five failed attempts from one source lock it for five minutes.</td></tr>
       <tr><td><code>409</code></td><td>The product already holds its cap of open PR cards.</td></tr>
       <tr><td><code>503</code></td><td>The callback is not configured.</td></tr>
@@ -119,6 +122,15 @@ Content-Type: application/json
   40 minutes, and closes the card from the job's own status. A new automation names its case with a line
   <code>QA-case: &lt;code&gt;</code> in the pull request description; without one the card waits, blocked, for a person.
   A staging run asks for every automated case.</p>
+  <p>When the job's status is <code>awaiting_approval</code>, a person must approve the spec in the QA tool. That is a
+  human wait: the card moves to <em>Needs you</em> with a reason carrying <code>qa-job:&lt;id&gt;</code>, and the 40-minute work
+  clock stops. The wait budget is cumulative per job (<code>GAOS_QA_APPROVAL_WAIT_HOURS</code>, 24 hours by default, at
+  most 720); past it the card fails with <code>qa-approval-timeout</code>, after the last poll has been read, so an approval
+  given in the final interval is seen. One notice of kind <code>e2e:approval</code> is sent per job, always to the pinned
+  group and never to a committer. More than five waits fail the card with <code>qa-job-flapping</code>. After a restart GAOS
+  re-adopts a running or waiting e2e card from the job id in its reason and starts no second job. The QA tool has no cancel
+  call: a spec approved after GAOS failed the card still opens its pull request, and the QA tool's reject is the remedy.
+  A card id carries 12 characters of the commit; an id already held by a card with another key gets a suffix.</p>
   <div class="adm warn">
     <p class="adm-title">The two routes live in the QA tool</p>
     <p>They are a change in the QA tool's repository, not in GAOS. Until they exist the e2e card fails with
@@ -141,7 +153,7 @@ Content-Type: application/json
   </ul>
   <p>The contacts are managed at the foot of the back office's <em>Integrations</em> view: a GitHub account, a name, a
   product (or all), a destination and what it wants (<code>review:medium</code>, <code>review:high</code>,
-  <code>e2e:failure</code>, <code>unit:failure</code>; a review value includes the worse severities). The registry is
+  <code>e2e:failure</code>, <code>e2e:approval</code>, <code>unit:failure</code>; a review value includes the worse severities). The registry is
   its own <code>Contact</code> record: it is not part of the product, so it is never rendered into a Blueprint or a
   workspace, and it is in no event. The list shows each destination masked.</p>
 
