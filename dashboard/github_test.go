@@ -223,3 +223,19 @@ func TestGHCommitAuthorsAreLastFirst(t *testing.T) {
 		t.Errorf("got %v, %v; want [last first]", got, err)
 	}
 }
+
+func TestAGitHubTokenFileEndingInBlankLinesIsAccepted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "token")
+	tok := "ghp_" + strings.Repeat("a", 36)
+	if err := os.WriteFile(path, []byte("\n  "+tok+" \r\n\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GAOS_GITHUB_TOKEN_FILE", path)
+	cfg := ghConfigFromEnv()
+	if cfg.why != "" || cfg.token != tok {
+		t.Fatalf("a token with surrounding whitespace was refused or kept it: why=%q, len=%d", cfg.why, len(cfg.token))
+	}
+	if strings.ContainsAny(cfg.token, "\r\n \t") {
+		t.Error("the token still carries whitespace and would make the Authorization header invalid")
+	}
+}

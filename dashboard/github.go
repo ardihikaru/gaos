@@ -119,7 +119,9 @@ func ghConfigFromEnv() ghConfig {
 		c.why = "the GitHub token file cannot be read"
 		return c
 	}
-	tok := strings.TrimSuffix(strings.TrimSuffix(string(b), "\n"), "\r")
+	// Every kind of surrounding whitespace goes, not just one newline: a token file
+	// that ends with a blank line made the Authorization header invalid (found live).
+	tok := strings.TrimSpace(string(b))
 	switch {
 	case tok == "":
 		c.why = "the GitHub token file holds no token"

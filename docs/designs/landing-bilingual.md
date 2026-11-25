@@ -1,7 +1,7 @@
 # Landing page: professional copy, two languages, richer motion
 
 **Status:** Approved (round 1: no Blocker; every Major dispositioned — see §11 and `reviews/landing-bilingual-review-1.md`)
-**Target release:** v0.50.0 (minor)
+**Target release:** v0.51.0 (minor). Written as v0.50.0 with `TC-617`/`TC-618`; another change took that version and `TC-617`–`TC-621` before this one merged, so the release is **v0.51.0**, the cases are **`TC-622`** (keys) and **`TC-623`** (figures), and the register goes 621 → 623. Read every "v0.50.0", "TC-617" and "TC-618" below with that substitution.
 **Author's note on approval (an assumption — it has no anchor in the
 repository):** in the conversation that requested this change the operator
 wrote "NEVER ask me for confirmation or any decision. work among agents to
