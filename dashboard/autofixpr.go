@@ -218,7 +218,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 			packet[f.Path] = f
 		}
 	}
-	base, head, err := p.gh.head(ctx, owner, repo)
+	base, head, err := p.gh.head(ctx, owner, repo, af.BaseBranch)
 	if err != nil {
 		p.failed(ctx, t, rec, err)
 		return

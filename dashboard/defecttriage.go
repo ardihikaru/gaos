@@ -183,7 +183,7 @@ type ghBlob struct {
 
 // codeSource is the read-only slice of GitHub the context needs.
 type codeSource interface {
-	defaultHead(ctx context.Context, owner, repo string) (string, error)
+	defaultHead(ctx context.Context, owner, repo, branch string) (string, error)
 	searchCode(ctx context.Context, owner, repo, term string) ([]ghCodeHit, error)
 	// fileAt answers found=false for a path that is not there, is not a plain
 	// file or is too large.
@@ -255,7 +255,7 @@ func contextPathOK(p string) bool {
 // the operations (at most 10 searches in all) and fetches at most 6 files and
 // 64 KiB at the pinned head. A search or fetch error is errSearchFailed after
 // the retries; an empty result is an empty context. It takes no store lock.
-func buildDefectContext(ctx context.Context, src codeSource, d Defect, sleep func(context.Context, time.Duration)) (DefectContext, error) {
+func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranch string, sleep func(context.Context, time.Duration)) (DefectContext, error) {
 	out := DefectContext{Built: true}
 	type cand struct {
 		repo, path string
@@ -268,7 +268,7 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, sleep fun
 			continue
 		}
 		var head string
-		if err := retried(ctx, sleep, func() (e error) { head, e = src.defaultHead(ctx, o, n); return }); err != nil {
+		if err := retried(ctx, sleep, func() (e error) { head, e = src.defaultHead(ctx, o, n, baseBranch); return }); err != nil {
 			return DefectContext{}, fmt.Errorf("%w: %s", errSearchFailed, ghErrorClass(err))
 		}
 		out.Repos = append(out.Repos, DefectContextRepo{Repo: repo, Head: head})
@@ -341,7 +341,8 @@ func buildAndStoreDefectContext(ctx context.Context, st Store, src codeSource, p
 	if d.Context.Built || src == nil {
 		return nil
 	}
-	c, err := buildDefectContext(ctx, src, d, sleep)
+	af, _ := st.AutoFixOf(ctx, productID)
+	c, err := buildDefectContext(ctx, src, d, af.BaseBranch, sleep)
 	if err != nil {
 		if d.TriageTask != "" {
 			_, _ = st.ResolvePRCard(ctx, productID, d.TriageTask, StatusBlocked, BlockSearchFailed)

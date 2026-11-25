@@ -431,6 +431,9 @@ type AutoFix struct {
 	PRTemplate string
 	// CIConfirmed: the operator confirms CI runs no secrets on gaos/fix-*.
 	CIConfirmed bool
+	// BaseBranch is the branch fixes are read from and opened against. Empty = the
+	// repository's default branch. The product owner decides; never the agent.
+	BaseBranch string
 }
 
 // Auto-fix cap defaults and ceilings (design §6.1).

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -474,5 +476,42 @@ func TestAutoFixRelabelledCardNeverOpensAPR(t *testing.T) {
 	}
 	if len(e.gh.calls) != 0 || len(e.notes) != 0 {
 		t.Errorf("a relabelled card reached GitHub (%d requests) or the group (%d)", len(e.gh.calls), len(e.notes))
+	}
+}
+
+func TestAutoFixBaseBranchIsUsedAndValidated(t *testing.T) {
+	// The product owner may name a base branch; the default branch is the fallback.
+	var refs []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/repos/acme-org/sample-service"):
+			_, _ = w.Write([]byte(`{"default_branch":"develop"}`))
+		case strings.Contains(r.URL.Path, "/git/ref/heads/"):
+			refs = append(refs, strings.TrimPrefix(r.URL.Path[strings.Index(r.URL.Path, "/git/ref/heads/"):], "/git/ref/heads/"))
+			_, _ = w.Write([]byte(`{"object":{"sha":"abc123"}}`))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+	w := &ghWriter{c: &ghClient{token: "ghp_" + strings.Repeat("a", 36), base: srv.URL, hc: srv.Client(), logf: func(string, ...any) {}}}
+	if base, sha, err := w.head(context.Background(), "acme-org", "sample-service", ""); err != nil || base != "develop" || sha != "abc123" {
+		t.Fatalf("default: %q %q %v", base, sha, err)
+	}
+	if base, _, err := w.head(context.Background(), "acme-org", "sample-service", "staging"); err != nil || base != "staging" {
+		t.Fatalf("override: %q %v", base, err)
+	}
+	if len(refs) != 2 || refs[0] != "develop" || refs[1] != "staging" {
+		t.Errorf("the refs read were %v, want develop then staging", refs)
+	}
+	good := AutoFix{AllowedGlobs: []string{"pkg/**"}, TestGlobs: []string{"**/*_test.go"}, CIConfirmed: true, BaseBranch: "staging"}
+	if err := autoFixPreconditions(good, "fine-grained"); err != nil {
+		t.Errorf("a valid base branch was refused: %v", err)
+	}
+	for _, bad := range []string{"-x", "a b", "../x", "x;y", strings.Repeat("a", 101)} {
+		good.BaseBranch = bad
+		if err := autoFixPreconditions(good, "fine-grained"); err == nil {
+			t.Errorf("the base branch %q was accepted", bad)
+		}
 	}
 }
