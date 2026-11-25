@@ -157,6 +157,9 @@ type Store interface {
 	// caps (autofix.go); OpenFixPR records a draft pull request and ends its card.
 	AutoDispatch(ctx context.Context, productID, taskID string) (Result, error)
 	OpenFixPR(ctx context.Context, productID, taskID string, f FixPR) (Result, error)
+	// AdvanceFixPR and ExpireExcerpts are the poller's writes (fixprpoll.go).
+	AdvanceFixPR(ctx context.Context, productID string, f FixPR) (Result, error)
+	ExpireExcerpts(ctx context.Context, now int64) (Result, error)
 	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).

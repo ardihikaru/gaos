@@ -384,6 +384,33 @@
   document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); syncMenu(); });
   document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); if (e.target.id === "boSheet") syncMenu(); });
 
+  /* ---------- the Auto-fix drawer ----------
+     The server renders the drawer; the client only moves focus, because a swap
+     destroys the element that had it. Opening puts focus on the drawer, closing
+     (the x, or Esc) puts it back on the row that opened it. */
+  var afLastRow = null;
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("[data-af-row]");
+    if (a) afLastRow = a.getAttribute("data-af-row");
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || e.defaultPrevented || openModal()) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName || "").toUpperCase())) return;
+    var close = document.querySelector("#afDrawer [data-af-close]");
+    if (close) { e.preventDefault(); close.click(); }
+  });
+  document.body.addEventListener("htmx:afterSettle", function () {
+    var d = document.getElementById("afDrawer");
+    if (d) {
+      if (d.hasAttribute("data-fresh")) { d.removeAttribute("data-fresh"); d.focus(); }
+      return;
+    }
+    if (!afLastRow) return;
+    var row = document.querySelector('[data-af-row="' + (window.CSS && CSS.escape ? CSS.escape(afLastRow) : afLastRow) + '"]');
+    afLastRow = null;
+    if (row) row.focus();
+  });
+
   /* Boot: reflect the theme label. */
   applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
   mountBoard(document);

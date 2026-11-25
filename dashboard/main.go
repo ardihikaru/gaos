@@ -70,6 +70,8 @@ type server struct {
 	codeSrc codeSource
 	// writeTokenKind is the kind of the auto-fix write token in use ("" = none).
 	writeTokenKind string
+	// fixPoll is the pull-request poller, for the Auto-fix view's GitHub status; nil when off.
+	fixPoll fixPollSource
 	// wa is the WhatsApp notifier (wa.go); nil when off.
 	wa   *waNotifier
 	auth *authority // back-office sessions (auth.go); nil signs nobody in
@@ -418,6 +420,9 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		fx := &defectFixer{st: store, gh: ghw, tokenKind: srv.writeTokenKind, notify: nt.Notify, logf: log.Printf}
 		go autoFixLoop(ctx, store, srv.codeSrc)
 		go fx.resumeFixPRs(ctx)
+		poller := newFixPRPoller(store, ghc)
+		srv.fixPoll = poller
+		go poller.Run(ctx)
 		if ghc != nil {
 			rv.gh = ghc
 		}
@@ -503,6 +508,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /auth/logout", s.handleLogout)
 	handle("GET /ui/bo", s.handleBOSheet)
 	handle("GET /ui/bo/{view}", s.handleBOView)
+	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive) // the Auto-fix view's 30 s poll
 
 	handle("GET /products", s.handleProductList)
 	handle("POST /products", s.handleProductCreate)

@@ -25,7 +25,7 @@ import (
 // (archived conversations, D-082) and the integrations (topology, D-085). Both
 // view routes call it, so the sheet route cannot be the way around it.
 func noStoreView(w http.ResponseWriter, view string) {
-	if view == "archive" || view == "integrations" {
+	if view == "archive" || view == "integrations" || view == "autofix" {
 		w.Header().Set("Cache-Control", "no-store")
 	}
 }
@@ -203,7 +203,7 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 // prFlowRow is the pull-request flow's rows (D-088). A destination is masked
 // here, so no template can render one whole.
 func (s *server) prFlowRow(ctx context.Context, products []Product, now time.Time) PRFlowRow {
-	r := PRFlowRow{GitHub: s.ghState, WA: s.wa.Status()}
+	r := PRFlowRow{GitHub: s.ghState, WA: s.wa.Status(), WriteToken: tokenKindLabel(s.writeTokenKind)}
 	if r.GitHub == "" {
 		r.GitHub = "off"
 	}
