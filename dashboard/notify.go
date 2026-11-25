@@ -32,7 +32,9 @@ type notifier struct {
 // loginFor finds the account a notification is for. Any failure answers "",
 // which sends to the group.
 func (n *notifier) loginFor(ctx context.Context, t TaskRecord, kind string) string {
-	if n.gh == nil || t.DedupKey == "" {
+	// An approval notice is for whoever approves specs in the QA Inbox, not for the
+	// committer: it goes to the group.
+	if kind == "e2e:approval" || n.gh == nil || t.DedupKey == "" {
 		return ""
 	}
 	if owner, repo, num, ok := prKeyParts(t.DedupKey); ok {
@@ -64,8 +66,8 @@ func (n *notifier) loginFor(ctx context.Context, t TaskRecord, kind string) stri
 // Notify sends one line about a card. kind is "review:<severity>",
 // "e2e:failure" or "unit:failure".
 func (n *notifier) Notify(ctx context.Context, t TaskRecord, kind, text string) {
-	if n == nil || n.wa == nil {
-		return
+	if n == nil || n.wa == nil || !n.wa.covers(t.DeskID) {
+		return // off, or the group is not linked to this product
 	}
 	book := ContactBook{}
 	if cs, err := n.st.ListContacts(ctx); err == nil {

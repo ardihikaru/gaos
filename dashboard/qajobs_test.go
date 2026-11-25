@@ -157,3 +157,199 @@ func TestTheOutboundClientSpeaksTheAgreedRoutes(t *testing.T) {
 		t.Fatalf("status: %+v %v %q", j, err, gotPath)
 	}
 }
+
+func TestAnApprovalWaitStopsTheClockAndPutsTheCardInNeedsYou(t *testing.T) {
+	qa := &fakeQAJobs{statuses: []string{"running", "awaiting_approval", "awaiting_approval", "running", "succeeded"}}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	now := time.Now()
+	r.now = func() time.Time { return now }
+	ctx := context.Background()
+	status := func() string { return prCards(t, st, "p-1")[e2e].Status }
+
+	r.Tick(ctx) // starts the job
+	now = now.Add(10 * time.Minute)
+	r.Tick(ctx) // running
+	now = now.Add(10 * time.Minute)
+	r.Tick(ctx) // awaiting approval
+	if got := status(); got != StatusAwaitingInput {
+		t.Fatalf("the card is %s while the spec waits for a person, want AWAITING_INPUT", got)
+	}
+	// Hours pass while a person is away: well past the 40-minute work limit,
+	// inside the approval wait. The card must not fail.
+	now = now.Add(6 * time.Hour)
+	r.Tick(ctx)
+	if got := status(); got != StatusAwaitingInput {
+		t.Fatalf("after six hours of waiting the card is %s, want it still waiting for the person", got)
+	}
+	// Approved: the job works again and finishes.
+	now = now.Add(time.Minute)
+	r.Tick(ctx)
+	if got := status(); got != StatusRunning {
+		t.Errorf("after the approval the card is %s, want RUNNING", got)
+	}
+	now = now.Add(time.Minute)
+	r.Tick(ctx)
+	if got := status(); got != StatusDone {
+		t.Errorf("the card is %s, want DONE", got)
+	}
+}
+
+func TestAnApprovalNobodyAnswersFailsTheCardWithItsOwnReasonAndNotifiesOnce(t *testing.T) {
+	qa := &fakeQAJobs{statuses: []string{"awaiting_approval"}}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	n, _, _ := notifyFixture(t, 200)
+	n.st = st
+	r.nt = n
+	now := time.Now()
+	r.now = func() time.Time { return now }
+	r.approvalWait = 2 * time.Hour
+	ctx := context.Background()
+	r.Tick(ctx)
+	now = now.Add(time.Minute)
+	r.Tick(ctx) // enters the wait: one notice
+	now = now.Add(time.Hour)
+	r.Tick(ctx) // still inside the wait
+	if got := prCards(t, st, "p-1")[e2e].Status; got != StatusAwaitingInput {
+		t.Fatalf("inside the wait the card is %s", got)
+	}
+	now = now.Add(2 * time.Hour)
+	r.Tick(ctx)
+	for _, tk := range st.tasks {
+		if tk.ID == e2e && (tk.Status != StatusFailed || tk.BlockReason != "qa-approval-timeout") {
+			t.Errorf("status %s reason %q; want FAILED qa-approval-timeout", tk.Status, tk.BlockReason)
+		}
+	}
+	asked := 0
+	for _, e := range st.events {
+		if e.Type == ContactNotified && strings.Contains(e.Text, "e2e:approval") {
+			asked++
+		}
+	}
+	if asked != 1 {
+		t.Errorf("%d approval notices, want exactly one", asked)
+	}
+}
+
+func TestTheApprovalWaitIsConfigurable(t *testing.T) {
+	t.Setenv("GAOS_QA_APPROVAL_WAIT_HOURS", "3")
+	if got := qaApprovalWaitFromEnv(); got != 3*time.Hour {
+		t.Errorf("got %v, want 3h", got)
+	}
+	t.Setenv("GAOS_QA_APPROVAL_WAIT_HOURS", "")
+	if got := qaApprovalWaitFromEnv(); got != 24*time.Hour {
+		t.Errorf("default %v, want 24h", got)
+	}
+}
+
+func TestARestartPicksTheJobUpFromTheCardAndNeverStartsASecond(t *testing.T) {
+	qa := &fakeQAJobs{statuses: []string{"succeeded"}}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	ctx := context.Background()
+	// The card was RUNNING with its job id when the process died.
+	if _, err := st.ResolvePRCard(ctx, "p-1", e2e, StatusRunning, qaJobReason("job-777", "started")); err != nil {
+		t.Fatal(err)
+	}
+	r.Tick(ctx) // a fresh runner: adopts the job
+	if len(qa.started) != 0 {
+		t.Fatalf("a second job was started: %v", qa.started)
+	}
+	r.Tick(ctx) // polls it: succeeded
+	if got := prCards(t, st, "p-1")[e2e].Status; got != StatusDone {
+		t.Errorf("the adopted job's card is %s, want DONE", got)
+	}
+	// A card waiting for approval is adopted too, and goes on waiting.
+	r2, st2, _, e2e2 := e2eFixture(t, &fakeQAJobs{statuses: []string{"awaiting_approval"}}, "QA-case: A-1")
+	st2.ResolvePRCard(ctx, "p-1", e2e2, StatusRunning, qaJobReason("job-778", "started"))
+	st2.ResolvePRCard(ctx, "p-1", e2e2, StatusAwaitingInput, qaJobReason("job-778", "waits"))
+	r2.Tick(ctx)
+	r2.Tick(ctx)
+	if got := prCards(t, st2, "p-1")[e2e2].Status; got != StatusAwaitingInput {
+		t.Errorf("the adopted waiting card is %s, want AWAITING_INPUT", got)
+	}
+	if jobIDFromReason("qa-job:job-9 something") != "job-9" || jobIDFromReason("no job here") != "" || jobIDFromReason("qa-job:") != "" {
+		t.Error("jobIDFromReason reads the wrong id")
+	}
+}
+
+func TestAJobThatFlapsBetweenWaitingAndRunningIsFailedAndNotifiesOnce(t *testing.T) {
+	flap := make([]string, 0, 40)
+	for i := 0; i < 20; i++ {
+		flap = append(flap, "awaiting_approval", "running")
+	}
+	qa := &fakeQAJobs{statuses: flap}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	n, _, _ := notifyFixture(t, 200)
+	n.st = st
+	r.nt = n
+	now := time.Now()
+	r.now = func() time.Time { return now }
+	for i := 0; i < 30; i++ {
+		now = now.Add(time.Minute)
+		r.Tick(context.Background())
+	}
+	for _, tk := range st.tasks {
+		if tk.ID == e2e && (tk.Status != StatusFailed || tk.BlockReason != "qa-job-flapping") {
+			t.Fatalf("status %s reason %q; want FAILED qa-job-flapping", tk.Status, tk.BlockReason)
+		}
+	}
+	notices := 0
+	for _, e := range st.events {
+		if e.Type == ContactNotified && strings.Contains(e.Text, "e2e:approval") {
+			notices++
+		}
+	}
+	if notices != 1 {
+		t.Errorf("%d approval notices over %d waits, want one per job", notices, qaMaxWaits)
+	}
+}
+
+func TestAnApprovalGivenInTheLastIntervalBeforeTheCapIsSeen(t *testing.T) {
+	qa := &fakeQAJobs{statuses: []string{"awaiting_approval", "succeeded"}}
+	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
+	now := time.Now()
+	r.now = func() time.Time { return now }
+	r.approvalWait = time.Hour
+	ctx := context.Background()
+	r.Tick(ctx) // start
+	now = now.Add(time.Minute)
+	r.Tick(ctx)                  // waits
+	now = now.Add(2 * time.Hour) // past the cap; the job has since succeeded
+	r.Tick(ctx)
+	if got := prCards(t, st, "p-1")[e2e].Status; got != StatusDone {
+		t.Errorf("the card is %s; the finished job must be seen before the cap is applied", got)
+	}
+}
+
+func TestTheApprovalWaitHasAnUpperBound(t *testing.T) {
+	t.Setenv("GAOS_QA_APPROVAL_WAIT_HOURS", "999999999999")
+	if got := qaApprovalWaitFromEnv(); got != 720*time.Hour {
+		t.Errorf("got %v, want the 720 h bound", got)
+	}
+}
+
+func TestTheQAToolsReportCannotOverrideAnOperatorsMove(t *testing.T) {
+	ctx := context.Background()
+	st := NewMemStore(1)
+	planned, _, _, _ := st.PlanPullRequestCards(ctx, "p-1", prEvent(prTypeOpened, "laundry-api", 61))
+	card := planned[1] // the e2e card
+	if _, err := st.ResolvePRCard(ctx, "p-1", card, StatusBlocked, "operator parked it"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.ResolvePRCard(ctx, "p-1", card, StatusRunning, "qa job resumed"); err == nil {
+		t.Error("a running report moved a card an operator blocked")
+	}
+	if got := prCards(t, st, "p-1")[card].Status; got != StatusBlocked {
+		t.Errorf("the card is %s, want BLOCKED", got)
+	}
+	// A finished card never comes back.
+	st.ResolvePRCard(ctx, "p-1", planned[0], StatusFailed, "x")
+	if _, err := st.ResolvePRCard(ctx, "p-1", planned[0], StatusRunning, "late"); err == nil {
+		t.Error("a FAILED card was brought back to RUNNING")
+	}
+	// No walk passes through a finished state.
+	for _, step := range statusPath(StatusAwaitingInput, StatusRunning) {
+		if step == StatusDone || step == StatusFailed || step == StatusCanceled {
+			t.Errorf("the walk passes through %s", step)
+		}
+	}
+}

@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Eighty-seven entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Eighty-eight entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1887,6 +1887,40 @@
         <td><a href="qa-test-plan.html#go-pr-agent-flows">TC-534&hellip;TC-599</a>;
         <a href="../integrations/pr-agents.html">Pull-request agents</a>;
         <code>docs/designs/gaos-pr-agent-flows.md</code> and its review round</td>
+      </tr>
+      <tr id="d-089">
+        <td>D-089</td><td>2026-11-25</td>
+        <td><strong>The pull-request flows' follow-ups: a card id carries 12 characters of the commit, a QA job waiting for a person to approve the spec is a human wait with its own budget, and the WhatsApp gateway may be http only on a private link, for named products only.</strong>
+        Context: reading the code after the first live run of D-088 found a latent id collision (never observed), a job
+        <code>awaiting_approval</code> that would fail its card at the 40-minute work limit while a person was merely slow,
+        and a gateway reachable only over http. Decision: (1) a card id carries 12 characters of the commit, and an id held
+        by a card with another key gets a suffix, so two commits sharing a prefix get two cards; the staging callback now
+        requires a full 40- or 64-hex commit (a short one is 422). (2) A QA job whose status is <code>awaiting_approval</code>
+        puts the card in <code>AWAITING_INPUT</code> (Needs you) with a reason carrying <code>qa-job:&lt;id&gt;</code>; the
+        work clock stops; the wait budget is cumulative per job (<code>GAOS_QA_APPROVAL_WAIT_HOURS</code>, default 24,
+        maximum 720) and fails the card <code>qa-approval-timeout</code>, applied after the last poll so an approval in the
+        final interval is seen; one notice per job (kind <code>e2e:approval</code>), always to the pinned group, never to a
+        committer; more than five waits fails the card <code>qa-job-flapping</code>; a restart re-adopts
+        <code>RUNNING</code> and <code>AWAITING_INPUT</code> e2e cards from the job id kept in the card's reason, so no second
+        job starts. The runner's moves are limited by an allowed-start table, never pass through <code>DONE</code>,
+        <code>FAILED</code> or <code>CANCELED</code>, and every hop is a <code>TaskMoved</code> with the rule
+        <code>pr-flow</code> (so the stream shows <code>READY</code> and <code>DISPATCHED</code> hops the agent never made).
+        (3) <code>GAOS_WA_ALLOW_HTTP=1</code> allows an http gateway only at a loopback, RFC 1918, CGNAT or link-local address,
+        checked on every connection; <code>any</code> allows a public address. The status always says
+        <em>unencrypted</em>; with no product linked the boot group check (which would send the credential) is skipped; https
+        stays the default and any other scheme is refused. <code>GAOS_WA_PRODUCTS</code> lists the products the notifier
+        serves, group and contacts alike; empty means none and the notifier is silent. <strong>Upgrade note:</strong> a v0.48
+        deployment that sets <code>GAOS_WA_URL</code> must now also set <code>GAOS_WA_PRODUCTS</code>.
+        <strong>Amends BR-44:</strong> besides an agent, the QA-job runner may put an e2e card in <code>AWAITING_INPUT</code>
+        while the QA tool waits for a person; it leaves by the job resuming (<code>RUNNING</code>), failing, or a cancel.
+        Residual risks: the QA tool has no cancel call, so a spec approved after GAOS failed its card still opens its pull
+        request (the QA tool's reject is the remedy; a person rejecting a spec shows as <code>qa-job-failed</code>); a public
+        http gateway sends the login in clear text. Rejected: raising the poll limit (it fails a card just because a person is
+        slow), and making http the default.</td>
+        <td><a href="qa-test-plan.html#go-pr-agent-followups">TC-601&hellip;TC-616</a>;
+        <a href="brd.html#business-rules">BR-44</a>;
+        <a href="../integrations/pr-agents.html">Pull-request agents</a>;
+        <code>docs/designs/gaos-pr-flows-followups.md</code></td>
       </tr>
     </tbody>
   </table>

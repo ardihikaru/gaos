@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-49-0">v0.49.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Pull-request follow-ups: unique card ids, an approval wait of its own, and an http WhatsApp gateway on a trusted link (D-089).</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> Two commits sharing a short prefix shared one card. A card id now carries 12 characters of the commit, and an id held by a card with another key gets a suffix.</li>
+        <li><span class="chg add">Added</span> A QA job waiting for a person to approve the spec (<code>awaiting_approval</code>) moves the card to Needs you, stops the 40-minute work clock and sends one notice (<code>e2e:approval</code>). <code>GAOS_QA_APPROVAL_WAIT_HOURS</code> (default 24) fails the card <code>qa-approval-timeout</code>.</li>
+        <li><span class="chg add">Added</span> <code>GAOS_WA_ALLOW_HTTP=1</code> allows an http WhatsApp gateway on a trusted link; the status says it is unencrypted. <code>GAOS_WA_PRODUCTS</code> lists the products the group is linked to; empty means none.</li>
+        <li><span class="chg change">Changed</span> The WhatsApp gateway is https by default; a scheme other than http or https is always refused.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-48-1">v0.48.1 <time datetime="2026-11-25">2026-11-25</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The deploy script now links and checks the pull-request flow's four credential files.</p>
       <ul>

@@ -180,7 +180,10 @@ func stagingSource(r *http.Request) string {
 	return src
 }
 
-var shaRe = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
+// A full commit id, 40 hex (sha1) or 64 (sha256): a short one would key two
+// spellings of one commit as two cards, and two commits sharing a short prefix
+// as one.
+var shaRe = regexp.MustCompile(`^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$`)
 
 type stagingBody struct {
 	Repo        string `json:"repo"`
@@ -235,7 +238,7 @@ func (s *server) apiStaging(w http.ResponseWriter, r *http.Request) {
 	}
 	owner, repo, okp := ghOwnerRepo(b.Repo)
 	if !okp || !shaRe.MatchString(b.Commit) || (b.Environment != "" && b.Environment != "staging") {
-		apiErr(w, http.StatusUnprocessableEntity, "rejected", "repo must be owner/repo, commit a hex sha, environment staging")
+		apiErr(w, http.StatusUnprocessableEntity, "rejected", "repo must be owner/repo, commit a full 40- or 64-hex sha, environment staging")
 		return
 	}
 	masters, err := s.store.Masters(r.Context())
