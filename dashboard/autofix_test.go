@@ -508,6 +508,16 @@ func TestAutoFixBaseBranchIsUsedAndValidated(t *testing.T) {
 	if err := autoFixPreconditions(good, "fine-grained"); err != nil {
 		t.Errorf("a valid base branch was refused: %v", err)
 	}
+	// The application repositories the settings list count as the product's for defects.
+	m := Master{Repos: []string{"acme-org/automation"}, AutoFix: AutoFix{TargetRepos: []string{"acme-org/sample-service"}}}
+	if got := ownedRepos(defectOwnedRepos(m), []string{"acme-org/sample-service", "evil/other", "acme-org/automation"}); len(got) != 2 {
+		t.Errorf("owned targets = %v, want the two the product or its settings own", got)
+	}
+	good.TargetRepos = []string{"not-a-pair"}
+	if err := autoFixPreconditions(good, "fine-grained"); err == nil {
+		t.Error("a target repository that is not owner/repo was accepted")
+	}
+	good.TargetRepos = nil
 	for _, bad := range []string{"-x", "a b", "../x", "x;y", strings.Repeat("a", 101)} {
 		good.BaseBranch = bad
 		if err := autoFixPreconditions(good, "fine-grained"); err == nil {

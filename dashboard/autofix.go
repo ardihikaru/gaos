@@ -98,6 +98,19 @@ func validateAutoFix(a AutoFix, tokenKind string) error {
 // baseBranchRe is what a base branch may look like.
 var baseBranchRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
 
+// validTargetRepos reports whether every entry is an owner/repo pair.
+func validTargetRepos(rs []string) bool {
+	if len(rs) > 8 {
+		return false
+	}
+	for _, r := range rs {
+		if _, _, ok := ghOwnerRepo(r); !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // autoFixPreconditions are the conditions a product must meet for auto-fix to
 // be on. They are re-checked before a pull request, whoever dispatched the card.
 func autoFixPreconditions(a AutoFix, tokenKind string) error {
@@ -108,6 +121,8 @@ func autoFixPreconditions(a AutoFix, tokenKind string) error {
 		return reject("Auto-fix needs at least one test glob.")
 	case a.BaseBranch != "" && !baseBranchRe.MatchString(a.BaseBranch):
 		return reject("The base branch is not a valid branch name.")
+	case !validTargetRepos(a.TargetRepos):
+		return reject("Each target repository must be owner/repo, at most 8.")
 	case !a.CIConfirmed:
 		return reject("Confirm that the repositories' CI runs no secrets on gaos/fix-* branches.")
 	case tokenKind == "":
