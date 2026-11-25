@@ -244,6 +244,53 @@ has deploy/traefik/dynamic.yml "/docs$"      "the /docs trailing-slash redirect 
 has deploy/traefik/dynamic.yml "priority: 1" "the landing catch-all has the lowest priority"
 
 echo
+echo "== the landing page's two languages cover the same keys =="
+# English is the text in landing-page/index.html; Indonesian is one line per
+# key in landing-page/js/i18n.js. A key the page uses and the dictionary lacks
+# shows English in the middle of an Indonesian page; a key the dictionary keeps
+# and the page dropped is a translation nobody reads. Neither is visible unless
+# you read the page in both languages, top to bottom, every release.
+LP=landing-page/index.html
+LD=landing-page/js/i18n.js
+lp_keys=$(grep -oE 'data-i18n(-attr)?="[^"]+"' "$LP" | sed -E 's/.*="([a-z-]+:)?([^"]+)"/\2/' | sort -u)
+ld_all=$(grep -oE "^[[:space:]]*'[a-z0-9.-]+':" "$LD" | tr -d " ':" | sort)
+ld_keys=$(printf '%s\n' "$ld_all" | sort -u)
+listed() { [ -z "$2" ] && ok "$1" || { bad "$1"; printf '%s\n' "$2" | sed 's/^/         /'; }; }
+listed "every translatable string on the landing page has an Indonesian entry" \
+       "$(comm -23 <(printf '%s\n' "$lp_keys") <(printf '%s\n' "$ld_keys"))"
+listed "the landing page's Indonesian dictionary has no unused entry" \
+       "$(comm -13 <(printf '%s\n' "$lp_keys") <(printf '%s\n' "$ld_keys"))"
+listed "the landing page's Indonesian dictionary declares no key twice" \
+       "$(printf '%s\n' "$ld_all" | uniq -d)"
+# The guard against all three passing because the extraction matched nothing.
+n=$(printf '%s\n' "$lp_keys" | grep -c .)
+[ "$n" -ge 100 ] && ok "the landing page declares at least 100 translatable keys" \
+                 || bad "the landing page declares $n translatable keys, want at least 100"
+
+echo
+echo "== the landing page's figures match the schema and the event catalog =="
+# The page once said 71 types and 49 events for months after both had moved:
+# the figures were typed in by hand and nothing recounted them. Each figure is
+# now the whole text of an element marked data-fig, and is compared with the
+# count taken from the code. The line start matters -- a bare grep for
+# 'CREATE EDGE TYPE' also counts a comment in 09-indexes.sql.
+fig() { grep -oE "data-fig=\"$1\">[0-9]+<" "$LP" | grep -oE '[0-9]+' | head -n 1; }
+n_vertex=$(grep -hE '^[[:space:]]*CREATE VERTEX TYPE'   dashboard/schema/*.sql | wc -l | tr -d ' ')
+n_edge=$(grep -hE   '^[[:space:]]*CREATE EDGE TYPE'     dashboard/schema/*.sql | wc -l | tr -d ' ')
+n_doc=$(grep -hE    '^[[:space:]]*CREATE DOCUMENT TYPE' dashboard/schema/*.sql | wc -l | tr -d ' ')
+n_event=$(grep -cE  '^[[:space:]]*[A-Za-z]+[[:space:]]+EventType = "' dashboard/events.go)
+figure() { # figure <data-fig name> <what the page calls it> <computed> <where it is declared>
+  local said; said=$(fig "$1")
+  [ "${said:-none}" = "$3" ] && ok  "the landing page says $3 $2, and $4 $3" \
+                             || bad "the landing page says ${said:-nothing for} $2, and $4 $3"
+}
+figure vertex   "vertex types"   "$n_vertex" "the schema declares"
+figure edge     "edge types"     "$n_edge"   "the schema declares"
+figure document "document types" "$n_doc"    "the schema declares"
+figure types    "graph types"    "$((n_vertex + n_edge + n_doc))" "the schema declares"
+figure events   "event types"    "$n_event"  "the catalog declares"
+
+echo
 if [ "$fails" -eq 0 ]; then
   printf '\033[32mall checks passed\033[0m\n'
 else

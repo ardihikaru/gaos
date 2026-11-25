@@ -1,19 +1,18 @@
 /* ============================================================
    GAOS — landing page, design tokens.
 
-   Palet yang sama dengan Mission Control (dashboard/static/app.css):
-   grafit hangat, cahaya lampu brass, tinta pigmen. Brass untuk
-   struktur, tinta untuk status. Mockup di halaman ini memakai token
-   yang sama dengan halamannya sendiri, karena dasbornya memang punya
-   mode terang dan gelap — layar terang di sana bukan janji kosong.
+   The same palette as Mission Control (dashboard/static/app.css): warm
+   graphite, brass lamplight, pigment inks. Brass is for structure, ink
+   is for status. The mock-ups on this page use the page's own tokens,
+   because the dashboard really has a light and a dark mode.
 
-   Setiap token didefinisikan tiga kali: terang (bawaan), gelap
-   (data-theme), dan gelap lewat prefers-color-scheme ketika JavaScript
-   mati. Token baru yang hanya ada di satu tema tidak boleh mendarat.
+   Every token is defined three times: light (the default), dark
+   (data-theme), and dark through prefers-color-scheme when JavaScript
+   is off. A new token that exists in one theme only must not land.
    ============================================================ */
 
 :root{
-  /* ---- permukaan: kertas linen ---- */
+  /* ---- surfaces: linen paper ---- */
   --paper:#EEEBE2;
   --paper-glow:#F7F5EF;
   --panel:#FAF8F2;
@@ -23,18 +22,18 @@
   --line-soft:#DCD7C8;
   --grid-line:rgba(90,78,52,.07);
 
-  /* ---- teks ---- */
+  /* ---- text ---- */
   --ink:#22211C;
   --ink-2:#55524A;
   --ink-3:#736E5F;
 
-  /* ---- brass: struktur ---- */
+  /* ---- brass: structure ---- */
   --brass:#8A6716;
   --brass-soft:#B79A55;
   --on-brass:#FAF8F2;
   --brass-wash:rgba(138,103,22,.10);
 
-  /* ---- tinta status, sama dengan dasbor ---- */
+  /* ---- status inks, the same as the dashboard ---- */
   --run:#2C63A6;
   --done:#4C7534;
   --block:#96681A;
@@ -45,9 +44,9 @@
   --shadow:0 18px 34px -20px rgba(58,50,30,.42);
   --shadow-l:0 34px 60px -30px rgba(58,50,30,.50);
 
-  /* ---- gerak (kurva Emil Kowalski; sama persis dengan app.css) ---- */
-  --ease-out:cubic-bezier(0.23, 1, 0.32, 1);       /* masuk dan keluar   */
-  --ease-in-out:cubic-bezier(0.77, 0, 0.175, 1);   /* bergerak di layar  */
+  /* ---- motion (Emil Kowalski's curves; identical to app.css) ---- */
+  --ease-out:cubic-bezier(0.23, 1, 0.32, 1);       /* entering, leaving  */
+  --ease-in-out:cubic-bezier(0.77, 0, 0.175, 1);   /* moving on screen   */
 
   --font-display:'Chakra Petch',ui-sans-serif,system-ui,sans-serif;
   --font-body:'Rubik',ui-sans-serif,system-ui,sans-serif;
@@ -85,9 +84,9 @@
   color-scheme:dark;
 }
 
-/* Tanpa JavaScript tidak ada data-theme sama sekali, jadi preferensi
-   sistem tetap dihormati. Dengan JavaScript, theme.js menulis
-   data-theme sebelum paint hanya bila ada pilihan tersimpan. */
+/* Without JavaScript there is no data-theme at all, so the system
+   preference is still honoured. With JavaScript, theme.js writes
+   data-theme before paint only when a choice was saved. */
 @media (prefers-color-scheme:dark){
   html:not([data-theme]){
     --paper:#151310;
@@ -124,7 +123,7 @@ body{
   background:var(--paper); color:var(--ink);
   line-height:1.6; font-size:16px; -webkit-font-smoothing:antialiased;
   overflow-x:clip;
-  /* Perubahan warna saat ganti tema: warna, bukan gerak, jadi `ease`. */
+  /* A theme change is a colour change, not movement, so `ease`. */
   transition:background-color .25s ease, color .25s ease;
 }
 h1,h2,h3,h4{font-family:var(--font-display);line-height:1.12;letter-spacing:-.01em;text-wrap:balance}
@@ -134,6 +133,13 @@ a{color:inherit;text-decoration:none}
 img,svg{max-width:100%;display:block}
 ::selection{background:var(--brass);color:var(--on-brass)}
 :focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:6px}
+
+/* The Indonesian text is applied on DOMContentLoaded; until then the body
+   is hidden so the English never flashes (js/i18n.js). The animation is the
+   safety net that needs no script: whatever happens, the page is visible
+   after 1.2s. An English visitor never gets this class. */
+html.i18n-wait body{visibility:hidden;animation:i18n-failsafe 1ms 1.2s forwards}
+@keyframes i18n-failsafe{to{visibility:visible}}
 
 .skip{position:absolute;left:-9999px;top:8px;background:var(--brass);color:var(--on-brass);
   padding:10px 16px;border-radius:var(--r-s);font-weight:600;z-index:99}
@@ -145,7 +151,7 @@ section{padding:clamp(56px,7vw,104px) 0}
 .sec-head h2{font-size:clamp(27px,3.6vw,42px);font-weight:700}
 .sec-head p{color:var(--ink-2);margin-top:12px;font-size:clamp(15px,1.6vw,17.5px)}
 
-/* ------------------------------ tombol ------------------------------ */
+/* ------------------------------ buttons ------------------------------ */
 .btn{display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border-radius:var(--r-s);
   font-weight:600;font-size:15px;border:1px solid transparent;cursor:pointer;
   -webkit-tap-highlight-color:transparent;
@@ -154,24 +160,24 @@ section{padding:clamp(56px,7vw,104px) 0}
 .btn.primary{background:var(--brass);color:var(--on-brass)}
 .btn.ghost{border-color:var(--line);background:var(--panel);color:var(--ink)}
 .btn.big{padding:15px 26px;font-size:16px}
-/* Hover hanya warna, dan hanya untuk penunjuk yang benar-benar bisa
-   melayang: sentuhan memicu hover palsu pada ketukan. */
+/* Hover changes colour only, and only for a pointer that can really
+   hover: a touch fires a false hover on tap. */
 @media (hover:hover) and (pointer:fine){
   .btn.primary:hover{background:color-mix(in srgb,var(--brass) 88%,var(--ink))}
   .btn.ghost:hover{border-color:var(--brass-soft)}
 }
 
 /* ------------------------------ reveal ------------------------------
-   Tanpa JavaScript .rv tidak pernah mendapat .in, jadi keadaan awalnya
-   harus tetap terbaca — karena itu opacity diturunkan lewat html.js,
-   bukan di sini. --i ditulis theme.js: urutan elemen di dalam
-   kelompoknya, untuk jeda 50ms per elemen. */
+   Without JavaScript .rv never gets .in, so its start state has to
+   stay readable — which is why the opacity is lowered under html.js
+   and not here. --i is written by theme.js: the element's position in
+   its group, for a 50ms delay per element. */
 html.js .rv{opacity:0;transform:translateY(8px)}
 html.js .rv.in{opacity:1;transform:none;
   transition:opacity 300ms var(--ease-out) calc(var(--i,0) * 50ms),
              transform 300ms var(--ease-out) calc(var(--i,0) * 50ms)}
 
-/* Gerak dikurangi: pudar tetap ada, semua perpindahan dan skala hilang. */
+/* Reduced motion: the fade stays, every movement and scale goes. */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   html.js .rv{transform:none}

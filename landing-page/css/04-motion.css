@@ -1,0 +1,146 @@
+/* ============================================================
+   GAOS — landing page, motion.
+
+   Three rules hold for everything in this file.
+
+   1. A START STATE THAT HIDES SOMETHING IS WRITTEN UNDER html.js, and
+      theme.js — the script that adds that class — is the script that
+      lifts it (.in, .is-live). Nothing here waits for js/motion.js;
+      that file only adds effects on top of a page that already reads.
+      html.motion is set by motion.js when it starts, and no rule under
+      it hides content.
+   2. Transform and opacity only. No `transition: all`.
+   3. Every effect has a stated reduced-motion form, in the block at the
+      end of the file.
+   ============================================================ */
+
+/* ------------------------- the graph field -------------------------
+   One fixed canvas behind the page, drawn by js/motion.js: drifting
+   nodes joined by edges, which react to the pointer and to scrolling.
+   body's background paints on the viewport, so z-index:-1 sits above
+   the paper and below every section. Sections with their own opaque
+   surface (the two bands, the cards, the footer) cover it. */
+.field{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;
+  opacity:0;transition:opacity 600ms ease}
+html.motion .field{opacity:.5}
+[data-theme="dark"].motion .field{opacity:.9}
+@media (prefers-color-scheme:dark){html.motion:not([data-theme]) .field{opacity:.9}}
+/* A blur over a layer that repaints every frame is recomputed every frame.
+   While the field runs the header trades its blur for a more opaque fill. */
+@media (prefers-reduced-motion:no-preference){
+  html.motion .top{backdrop-filter:none;background:color-mix(in srgb,var(--paper) 94%,transparent)}
+}
+
+/* --------------------------- header state --------------------------- */
+.top::after{content:"";position:absolute;inset:auto 0 -1px 0;height:14px;pointer-events:none;
+  transform:translateY(100%);
+  background:linear-gradient(color-mix(in srgb,var(--ink) 9%,transparent),transparent);
+  opacity:0;transition:opacity 200ms ease}
+html.scrolled .top::after{opacity:1}
+/* Scroll position, as a line. It is an indicator, so it runs under
+   reduced motion too; scaleX is written by motion.js, once a frame. */
+.progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--brass);
+  transform:scaleX(0);transform-origin:left;pointer-events:none;opacity:0}
+html.motion .progress{opacity:1}
+
+/* --------------------------- hero entrance ---------------------------
+   Lead, support, detail: the pill and the headline arrive first, the
+   paragraph and buttons follow, the mock-up lands last. 60ms apart, the
+   whole sequence inside 800ms. The board's entrance owns .shot-board's
+   transform; the pointer tilt writes to .board inside it. */
+html.js .hero .pill,html.js .hero h1,html.js .hero .hero-side,html.js .shot-board{
+  animation:rise 500ms var(--ease-out) both}
+html.js .hero h1{animation-delay:60ms}
+html.js .hero .hero-side{animation-delay:130ms}
+html.js .shot-board{animation-delay:240ms;animation-duration:650ms}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+
+/* The glow that follows the pointer across the hero. motion.js moves it
+   with translate3d; it exists only for a pointer that can hover. */
+.hero-fx{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none}
+.glow{position:absolute;left:0;top:0;width:560px;height:560px;margin:-280px 0 0 -280px;border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--brass) 20%,transparent),transparent);
+  opacity:0;transition:opacity 400ms ease;will-change:transform}
+html.motion .hero.is-near .glow{opacity:1}
+
+/* The board tilts a few degrees toward the pointer (motion.js). */
+html.motion .shot-board{perspective:1400px}
+html.motion .board{transform-origin:50% 60%;will-change:transform}
+
+/* --------------------------- card spotlight ---------------------------
+   A soft brass light under the pointer. --mx/--my are written on the
+   hovered card only, never on :root, so one card repaints and not the
+   page. Its own element: ::before is the tick and ::after the shadow. */
+.spot{position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;opacity:0;
+  background:radial-gradient(280px circle at var(--mx,50%) var(--my,0%),var(--brass-wash),transparent 72%);
+  transition:opacity 220ms var(--ease-out)}
+@media (hover:hover) and (pointer:fine){html.motion .card:hover .spot{opacity:1}}
+
+/* ----------------------------- the steps -----------------------------
+   The line draws itself from the first node when the list scrolls in. */
+html.js .steps[data-io]::before{transform:scaleX(0);transform-origin:left center}
+html.js .steps[data-io].in::before{transform:none;transition:transform 900ms var(--ease-in-out) 150ms}
+@media (max-width:900px){
+  html.js .steps[data-io]::before{transform:scaleY(0);transform-origin:center top}
+}
+
+/* --------------------------- architecture ---------------------------
+   A dot travels each hand-off: GAOS → ai-manager, then ai-manager →
+   worker, half a cycle later. The <i> is as long as its track, so
+   translating it by 100% carries the dot from one end to the other. */
+.flow i{position:absolute;inset:0;opacity:0}
+.flow i::before{content:"";position:absolute;left:-3px;top:-3px;width:7px;height:7px;border-radius:50%;
+  background:var(--brass);box-shadow:0 0 0 3px var(--brass-wash)}
+html.js .arch .flow i{animation:flow-x 2.4s linear infinite;animation-play-state:paused}
+html.js .arch .flow-2 i{animation-delay:1.2s}
+html.js .arch.is-live .flow i{animation-play-state:running}
+@keyframes flow-x{
+  0%{transform:translateX(0);opacity:0}
+  12%,82%{opacity:1}
+  100%{transform:translateX(100%);opacity:0}
+}
+@media (max-width:900px){
+  html.js .arch .flow i{animation-name:flow-y}
+}
+@keyframes flow-y{
+  0%{transform:translateY(0);opacity:0}
+  12%,82%{opacity:1}
+  100%{transform:translateY(100%);opacity:0}
+}
+
+/* ---------------------------- the terminal ----------------------------
+   The commands arrive one line at a time once the terminal is in view.
+   Opacity only: the text is in the page from the start, selectable and
+   read by assistive technology whatever its opacity. */
+html.js .term[data-io] .ln{opacity:0}
+html.js .term[data-io].in .ln{opacity:1;transition:opacity 240ms ease 350ms}
+html.js .term[data-io].in .ln:nth-child(2){transition-delay:750ms}
+html.js .term[data-io].in .ln:nth-child(3){transition-delay:1150ms}
+.caret{display:inline-block;width:.55em;height:1.05em;margin-left:.35em;vertical-align:-.18em;
+  background:#CFA047;animation:caret 1.1s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+
+/* ------------------------- the language switch -------------------------
+   The old text leaves in 90ms, the new text arrives in 180ms, and the two
+   are never on screen together (js/i18n.js swaps them at the 90ms mark). */
+main{transition:opacity 180ms var(--ease-out)}
+html.i18n-fade main{opacity:0;transition-duration:90ms}
+
+/* ---------------------------- reduced motion ----------------------------
+   01-tokens.css already collapses every animation to its end state, which
+   is the right form for the hero entrance. What is left is stated here,
+   effect by effect. motion.js draws the field once and stops, and never
+   starts the glow, the tilt, the spotlight or the count-up. */
+@media (prefers-reduced-motion:reduce){
+  /* Not merely shortened: a delay with a backwards fill would still hold
+     each piece of the hero invisible until its turn. */
+  html.js .hero .pill,html.js .hero h1,html.js .hero .hero-side,html.js .shot-board{animation:none}
+  html.js .steps[data-io]::before,html.js .steps[data-io].in::before{transform:none;transition:none}
+  html.js .term[data-io] .ln,html.js .term[data-io].in .ln{opacity:1;transition:none}
+  .flow i{display:none}
+  .caret{animation:none}
+  .glow,.spot{display:none}
+  .board{transform:none !important}
+  main,html.i18n-fade main{opacity:1;transition:none}
+  .field{transition:none}
+}

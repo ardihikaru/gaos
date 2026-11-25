@@ -1,14 +1,14 @@
 /* ============================================================
-   GAOS — mockup layar: Board (hero) dan Blueprint (showcase).
+   GAOS — screen mock-ups: the Board (hero) and the Blueprint (showcase).
 
-   SATU TOMBOL SKALA. Setiap ukuran di dalam bingkai ditulis dalam
-   `em`, dan font-size bingkainya dihitung dari lebar wadahnya
-   (container query: 100cqi dibagi lebar bingkai dalam em). Jadi
-   seluruh mockup mengecil utuh dan pas, tanpa geser mendatar, dan
-   tanpa media query untuk isinya — kecuali yang menyembunyikan kolom.
+   ONE SCALE KNOB. Every size inside a frame is written in `em`, and the
+   frame's font-size is computed from its container's width (container
+   query: 100cqi divided by the frame's width in em). So the whole
+   mock-up shrinks as one piece and fits, with no sideways scroll and
+   no media query for its contents — except the one that hides columns.
 
-   Isi layar memakai token halaman, bukan palet tetap: Mission Control
-   punya mode terang dan gelap, jadi mockup-nya juga.
+   The screens use the page's tokens, not a fixed palette: Mission
+   Control has a light and a dark mode, so its mock-up does too.
    ============================================================ */
 
 .shot{container-type:inline-size;min-width:0}
@@ -17,7 +17,7 @@
   font-size:clamp(6px,calc(100cqi / var(--bem)),var(--max-fs))}
 .frame .mark{width:1.9em;height:1.9em}
 
-/* bilah atas: tanda, nama produk, tab */
+/* top bar: mark, product name, tabs */
 .f-bar{display:flex;align-items:center;gap:.8em;padding:.75em 1em;border-bottom:1px solid var(--line-soft);
   background:var(--panel-2);white-space:nowrap}
 .f-title{font-family:var(--font-display);font-weight:700;font-size:1.1em;min-width:0;max-width:24em;
@@ -32,7 +32,7 @@
 /* ------------------------------ Board ------------------------------ */
 .board{--col:12.5em;--gap:.7em;--bem:80.5;--max-fs:15px}
 .kb{padding:.9em;display:grid;gap:.55em;
-  --hop:calc(2 * (var(--col) + var(--gap)))}   /* Working → Review: dua kolom */
+  --hop:calc(2 * (var(--col) + var(--gap)))}   /* Working → Review: two columns */
 .kb-row{display:grid;grid-template-columns:repeat(6,var(--col));gap:var(--gap);align-items:start}
 .kb-head b{display:flex;align-items:center;gap:.5em;font-family:var(--font-mono);font-size:.8em;
   font-weight:500;color:var(--ink-2);padding:.2em .15em .5em;border-bottom:1px solid var(--line-soft)}
@@ -46,8 +46,9 @@
 .kb-row > div{display:grid;grid-template-columns:minmax(0,1fr);gap:.5em;min-height:6.6em;border-radius:.6em;background:var(--panel-2)}
 .kb-row > div:empty{background:repeating-linear-gradient(135deg,transparent 0 .5em,var(--grid-line) .5em 1em)}
 
-/* Kartu tugas: tinggi tetap dan judul dua baris, supaya kartu yang
-   berpindah selalu pas di slotnya, berapa pun panjang judulnya. */
+/* A task card: fixed height and a two-line title, so the card that
+   moves always fits its slot however long the title is — in either
+   language. */
 .kc{height:6.6em;display:flex;flex-direction:column;gap:.15em;padding:.6em .7em;
   background:var(--panel);border:1px solid var(--line);border-radius:.6em;overflow:hidden;min-width:0}
 .kc-id{font-family:var(--font-mono);font-size:.74em;color:var(--ink-3)}
@@ -60,8 +61,8 @@
 .badge{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;color:var(--ask);border:1px solid color-mix(in srgb,var(--ask) 55%,transparent);
   border-radius:999px;padding:.05em .6em}
 
-/* Slot: tempat kartu berangkat dan tempat ia mendarat. Garis
-   putus-putusnya hanya terlihat ketika kartunya sedang tidak di sana. */
+/* A slot: where the card leaves from and where it lands. The dashed
+   outline shows only while the card is elsewhere. */
 .kc-slot{height:6.6em;border:1px dashed var(--line);border-radius:.6em;position:relative}
 .kc-slot > .kc{margin:-1px}
 .mover{position:relative;z-index:3;box-shadow:var(--shadow)}
@@ -69,10 +70,12 @@
 .st-run{color:var(--run)}
 .st-rev{color:var(--know);opacity:0}
 
-/* Satu-satunya putaran dekoratif di halaman: T-214 berpindah dari Working
-   ke Review. Berhenti di posisi awal sampai theme.js menambahkan .is-live
-   (IntersectionObserver), jadi tidak berjalan di luar layar, dan tanpa
-   JavaScript kartunya diam di Working. Hanya transform dan opacity. */
+/* The board's loop: T-214 moves from Working to Review. It holds its
+   start position until theme.js adds .is-live (IntersectionObserver), so
+   it does not run off-screen, and without JavaScript the card stays in
+   Working. Transform and opacity only. The page's other loops are the
+   architecture dots and the terminal caret (04-motion.css) and the
+   background field (js/motion.js). */
 .mover,.st{animation-duration:8s;animation-iteration-count:infinite;animation-play-state:paused;
   animation-fill-mode:both}
 .mover{animation-name:kb-move}
@@ -81,7 +84,7 @@
 .board.is-live .mover,.board.is-live .st{animation-play-state:running}
 @keyframes kb-move{
   0%,50%{transform:translateX(0);opacity:1;
-    /* var(--ease-in-out); ditulis harfiah karena berlaku per keyframe */
+    /* var(--ease-in-out); written literally because it applies per keyframe */
     animation-timing-function:cubic-bezier(0.77, 0, 0.175, 1)}
   58%,92%{transform:translateX(var(--hop));opacity:1;animation-timing-function:cubic-bezier(0.23, 1, 0.32, 1)}
   95%{transform:translateX(var(--hop));opacity:0}
@@ -91,8 +94,8 @@
 @keyframes kb-run{0%,54%{opacity:1} 57%,95%{opacity:0} 97%,100%{opacity:1}}
 @keyframes kb-rev{0%,54%{opacity:0} 57%,95%{opacity:1} 97%,100%{opacity:0}}
 
-/* Layar sempit: tiga kolom yang menceritakan perpindahannya —
-   Working, Needs you, Review. Lompatannya tetap dua kolom. */
+/* Narrow screens: the three columns that tell the move — Working,
+   Needs you, Review. The hop is still two columns. */
 @media (max-width:640px){
   .board{--bem:41}
   .kb-row{grid-template-columns:repeat(3,var(--col))}
@@ -134,8 +137,8 @@
   .bp-rail{display:none}
 }
 
-/* Gerak dikurangi: tidak ada kemiringan, tidak ada putaran. Kartunya
-   diam di Working dengan label berjalannya. */
+/* Reduced motion: no tilt, no loop. The card stays in Working with its
+   running label. */
 @media (prefers-reduced-motion:reduce){
   .bp,.shot-bp:hover .bp{transform:none;transition:none}
   .mover,.st{animation:none}
