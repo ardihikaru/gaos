@@ -34,6 +34,9 @@ var catalog = map[EventType]bool{
 	// execution -- D-088, the pull-request flows
 	PullRequestOpened: true, PullRequestMerged: true, StagingDeployed: true,
 	ContactNotified: true, TaskLabeled: true,
+	// execution -- D-091, defect triage and auto-fix
+	DefectReported: true, DefectTriaged: true, DefectStateChanged: true,
+	FixPROpened: true, FixPRStateChanged: true, AutoFixConfigured: true,
 	// judgment
 	ReviewCompleted: true, RetryRequested: true, ModelEscalated: true,
 	SafetyVeto: true, GuardExhausted: true,
@@ -98,6 +101,8 @@ func TestTheUnemittedNamesAreExactlyTheOnesStillOwedToLaterModules(t *testing.T)
 		BudgetThresholdReached: "M10.3 -- the budget guard",
 		BudgetCapReached:       "M10.3 -- the budget guard",
 		TaskDeferred:           "M10.3 -- the budget guard",
+		FixPROpened:            "D-091 phase 5 -- the fix agent and the pull request",
+		FixPRStateChanged:      "D-091 phase 6 -- the pull-request poller",
 	}
 
 	s := runAWorkflow(t, 41, 400)
@@ -143,6 +148,9 @@ func drive(t *testing.T, s *MemStore) {
 		t.Fatalf("RecordNotification: %v", err)
 	}
 	s.PlanPullRequestCards(ctx, "p-1", PREvent{Type: prTypeStaging, Org: "loop", Repo: "laundry-api", Commit: "0123456789abcdef"})
+
+	// D-091: a defect, its verdict and the auto-fix configuration.
+	defectDrive(t, s)
 
 	id := "p-2"
 	// Filled in properly, not just a problem statement. The record has to land in
@@ -499,4 +507,31 @@ func driveRecovery(t *testing.T, s *MemStore) {
 		t.Fatalf("boot reconciliation failed: %v", err)
 	}
 	waitForRun(t, s, run, RunStatusOrphaned)
+}
+
+// defectDrive puts the defect events on the stream: a report, a verdict, an
+// xpass and a configuration change.
+// qaFixtureRepo2 gives a store's p-1 the invented repository.
+func qaFixtureRepo2(s *MemStore) (*MemStore, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.masterPtr("p-1")
+	m.Repos = append(m.Repos, defRepo)
+	return s, "p-1"
+}
+
+func defectDrive(t *testing.T, s *MemStore) {
+	t.Helper()
+	ctx := t.Context()
+	_, pid := qaFixtureRepo2(s)
+	importCases(t, s, pid, false, qaCase(defCase1), qaCase(defCase2))
+	report(t, s, pid, defItem(DefectKindXfail, "DEF-101", defCase1), defItem(DefectKindXfail, "DEF-102", defCase2))
+	tri := cardByKey(s, defectCardKey(pid+"/DEF-101", 1, "triage"))
+	if _, err := s.ResolveTriage(ctx, pid, tri.ID, TriageVerdict{Difficulty: "medium", Class: "unknown"}); err != nil {
+		t.Fatalf("ResolveTriage: %v", err)
+	}
+	report(t, s, pid, defItem(DefectKindXpass, "DEF-102", defCase2))
+	if _, err := s.SetAutoFix(ctx, pid, AutoFix{}, "ops", "fine-grained"); err != nil {
+		t.Fatalf("SetAutoFix: %v", err)
+	}
 }

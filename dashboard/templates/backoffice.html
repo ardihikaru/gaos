@@ -92,6 +92,7 @@
       <button{{if eq .BO.View "agents"}} aria-current="page"{{end}}    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></button>
       <button{{if eq .BO.View "archive"}} aria-current="page"{{end}}   hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></button>
       <button{{if eq .BO.View "integrations"}} aria-current="page"{{end}} hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</button>
+      <button{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</button>
     </nav>
     {{end}}
 
@@ -123,6 +124,7 @@
     {{else if eq .View "agents"}}{{template "bo-agents" .}}
     {{else if eq .View "archive"}}{{template "bo-archive" .}}
     {{else if eq .View "integrations"}}{{template "bo-integrations" .}}
+    {{else if eq .View "autofix"}}{{template "bo-autofix" .}}
     {{else if .Detail}}{{template "bo-product-detail" .}}
     {{else if eq .View "products"}}{{template "bo-product-list" .}}
     {{else}}{{template "bo-rollup" .}}{{end}}
@@ -756,6 +758,7 @@
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
       <tr><th scope="row">GitHub client</th><td class="mono">{{.PR.GitHub}}</td></tr>
+      <tr><th scope="row">Auto-fix write token</th><td class="mono">{{.PR.WriteToken}}</td></tr>
       <tr><th scope="row">Staging callback</th><td class="mono">{{.PR.StagingState}}</td></tr>
       <tr><th scope="row">Last staging callback</th><td>{{range .PR.StagingLast}}<span class="mono">{{.Product}}</span> {{.At}} &middot; {{else}}none yet{{end}}</td></tr>
       <tr><th scope="row">WhatsApp</th><td class="mono">{{.PR.WA.State}}{{if .PR.WA.Host}} &middot; {{.PR.WA.Host}}{{end}}</td></tr>
@@ -763,7 +766,7 @@
       <tr><th scope="row">Contacts</th><td class="mono">{{len .PR.Contacts}}</td></tr>
     </tbody>
   </table></div>
-  <p class="tm-line">Set up: <code>GAOS_GITHUB_TOKEN_FILE</code>; <code>GAOS_STAGING_BASIC_AUTH_FILE</code> (lines <code>productId:user:password</code>); <code>GAOS_WA_URL</code> (https), <code>GAOS_WA_BASIC_AUTH_FILE</code> and <code>GAOS_WA_GROUP_FILE</code>. <a href="../docs/integrations/pr-agents.html" target="_blank" rel="noopener">Pull-request agents</a></p>
+  <p class="tm-line">Set up: <code>GAOS_GITHUB_TOKEN_FILE</code>; <code>GAOS_GITHUB_WRITE_TOKEN_FILE</code> (auto-fix only; the view shows its kind, never the token); <code>GAOS_STAGING_BASIC_AUTH_FILE</code> (lines <code>productId:user:password</code>); <code>GAOS_WA_URL</code> (https), <code>GAOS_WA_BASIC_AUTH_FILE</code> and <code>GAOS_WA_GROUP_FILE</code>. <a href="../docs/integrations/pr-agents.html" target="_blank" rel="noopener">Pull-request agents</a></p>
 </div>
 <div class="block">
   <h4>Contacts</h4>
@@ -834,4 +837,213 @@
 </div>
 {{end}}
 </section>
+{{end}}
+
+{{/* The Auto-fix page (D-091, docs/designs/gaos-defect-autofix.md 9.2). The
+     product owner's window onto autonomous work. Read-only. Every string here
+     was made plain text by autofix_view.go and is escaped by html/template; no
+     token, no failure excerpt and no HTML from a defect's text can reach it.
+     The sheet answers the whole page; the 30 s poll answers only #afLive, as
+     one out-of-band element ("af-live" with OOB set), so this template never
+     nests one oob element in another. */}}
+{{define "bo-autofix"}}
+<section id="boAutoFix">
+{{with .AutoFix}}
+<header>
+  <div><span class="eyebrow">autonomous work</span><h2>{{$.Title}}</h2><p>{{$.Sub}}</p></div>
+  <div class="sp af-head">
+    <span class="af-token af-token--{{.Token.Tone}}" title="{{.Token.Hint}}"><span class="af-token-k">Write token</span> <b>{{.Token.Kind}}</b></span>
+  </div>
+</header>
+<div id="afView" class="af{{if .Drawer}} has-drawer{{end}}" hx-indicator="#afView">
+  {{template "af-live" .}}
+  {{with .Drawer}}{{template "af-drawer" .}}{{end}}
+</div>
+{{end}}
+</section>
+{{end}}
+
+{{define "af-live"}}
+<div id="afLive" class="af-main"{{if .OOB}} hx-swap-oob="true"{{end}} hx-get="{{.PollURL}}" hx-trigger="every 30s [!document.hidden &amp;&amp; !document.getElementById('afLive').matches(':focus-within')]" hx-target="#sink" hx-swap="innerHTML" hx-indicator="#afPulse">
+  <div class="af-status">
+    <span class="af-pulse" id="afPulse" aria-hidden="true"></span>
+    <span class="af-status-t">{{if .GitHub.Checked}}Pull requests {{.GitHub.Checked}}{{else}}Pull requests not checked yet{{end}} &middot; refreshes every 30 s</span>
+    <span class="af-busy" role="status">Updating&hellip;</span>
+  </div>
+
+  {{if .GitHub.Down}}<p class="af-note af-note--fail" role="alert"><b>GitHub</b> {{.GitHub.Message}}</p>{{end}}
+
+  <div class="af-body">
+  <div class="af-tiles">
+    {{range .Tiles}}
+    <div class="af-tile{{if .Tone}} af-tone-{{.Tone}}{{end}}{{if .Zero}} is-zero{{end}}">
+      <span class="af-tile-l">{{.Label}}</span>
+      <b class="af-tile-v">{{.Value}}</b>
+      <span class="af-tile-n">{{.Note}}</span>
+    </div>
+    {{end}}
+    <div class="af-tile af-tile--wide">
+      <span class="af-tile-l">Automatic dispatches today <span class="af-tile-u">resets 00:00 UTC</span></span>
+      <div class="af-disp">
+        <div class="af-disp-r"><b class="af-tile-v">{{.Disp.Fix.Used}} <i>/</i> {{if .Disp.Fix.Cap}}{{.Disp.Fix.Cap}}{{else}}&mdash;{{end}}</b><span class="af-disp-k">fix</span>
+          <span class="af-meter{{if .Disp.Fix.Full}} is-full{{end}}" role="img" aria-label="{{.Disp.Fix.Used}} of {{.Disp.Fix.Cap}} fix dispatches used"><i style="{{styleWidth .Disp.Fix.Pct}}"></i></span></div>
+        <div class="af-disp-r"><b class="af-tile-v">{{.Disp.Triage.Used}} <i>/</i> {{if .Disp.Triage.Cap}}{{.Disp.Triage.Cap}}{{else}}&mdash;{{end}}</b><span class="af-disp-k">triage</span>
+          <span class="af-meter{{if .Disp.Triage.Full}} is-full{{end}}" role="img" aria-label="{{.Disp.Triage.Used}} of {{.Disp.Triage.Cap}} triage dispatches used"><i style="{{styleWidth .Disp.Triage.Pct}}"></i></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block af-block">
+    <h4>Auto-fix by product</h4>
+    {{if .Products}}
+    <ul class="af-prods">
+      {{range .Products}}
+      <li class="af-prod af-prod--{{.State}}">
+        <span class="af-prod-n"><a href="products/{{.ID}}" hx-get="products/{{.ID}}" hx-target="#sink" hx-swap="innerHTML">{{.Name}}</a></span>
+        <span class="af-sw af-sw--{{.State}}">{{if eq .State "on"}}On{{else if eq .State "stuck"}}On, not ready{{else}}Off{{end}}</span>
+        <span class="af-prod-c mono" title="Automatic dispatches today, of the daily cap">fix {{.Fix.Used}}/{{.Fix.Cap}} &middot; triage {{.Triage.Used}}/{{.Triage.Cap}}</span>
+        {{if .Reason}}<span class="af-prod-why">{{if eq .State "off"}}<b>Auto-fix is off for this product.</b> {{end}}{{.Reason}}</span>{{end}}
+      </li>
+      {{end}}
+    </ul>
+    {{if .AnyOff}}<p class="tm-line af-where">Turn auto-fix on in the product&rsquo;s auto-fix settings: <code>POST /products/{id}/autofix</code>, for the accounts listed in <code>GAOS_AUTOFIX_ADMINS</code>. It needs an allowed-path list, a test-glob list, the CI confirmation and the write token above.</p>{{end}}
+    {{if .ProductsMore}}<p class="tm-line">and {{num .ProductsMore}} more products. Filter by product to see them.</p>{{end}}
+    {{else}}<p class="tm-line">No product exists yet. Create one under Products; auto-fix is configured per product.</p>{{end}}
+  </div>
+
+  {{if .Waiting}}
+  <div class="block af-block">
+    <h4>Cards waiting <span class="sp">{{len .Waiting}}{{if .WaitingMore}} + {{num .WaitingMore}} more{{end}}</span></h4>
+    <ul class="af-wait">
+      {{range .Waiting}}
+      <li class="af-w{{if .Person}} is-person{{end}}">
+        <span class="af-w-k">{{if .Person}}Person{{else}}Held{{end}}</span>
+        <span class="af-w-t"><b class="mono">{{.Ref}}</b> {{.Title}}</span>
+        <span class="af-w-why">{{.Why}}</span>
+        <span class="af-w-c mono">{{.Card}} &middot; {{.Job}}{{if .Product}} &middot; {{.Product}}{{end}}</span>
+      </li>
+      {{end}}
+    </ul>
+  </div>
+  {{end}}
+
+  <div class="block af-block af-prs">
+    <h4>Fix pull requests <span class="sp">{{num .RowsTotal}}</span></h4>
+    <div id="afFilters" class="af-filters">
+      <nav class="af-seg" aria-label="Pull request state">
+        {{range .StateTabs}}<a href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
+      </nav>
+      <form class="af-form" method="get" action="ui/bo/autofix" hx-get="ui/bo/autofix" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
+        {{if .Filter.State}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
+        <label><span class="sr-only">Product</span>
+          <select name="product">{{range .ProductOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+        <label><span class="sr-only">Difficulty</span>
+          <select name="difficulty">{{range .DiffOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+        <noscript><button class="btn" type="submit">Apply</button></noscript>
+        {{if or .Filter.Product .Filter.State .Filter.Difficulty}}<a class="af-reset" href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+      </form>
+    </div>
+
+    {{if .Rows}}
+    <div class="tm-scroll af-scroll">
+      <table class="af-table">
+        <caption class="sr-only">Fix pull requests, active ones first</caption>
+        <thead><tr>
+          <th scope="col">State</th><th scope="col">Defect</th><th scope="col">Difficulty</th>
+          <th scope="col" class="af-md">Product</th><th scope="col">Pull request</th><th scope="col" class="af-md">Card</th>
+          <th scope="col">Age</th><th scope="col"><span class="sr-only">WhatsApp </span>Sent</th>
+        </tr></thead>
+        <tbody>
+        {{range .Rows}}
+          <tr class="af-r{{if .Open}} is-open{{end}}">
+            <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span></td>
+            <td class="af-defect"><a data-af-row="{{.ID}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Ref}}</span></a></td>
+            <td>{{if .Diff}}<span class="badge af-d af-d--{{.Diff}}">{{.Diff}}</span>{{else}}<span class="af-dash" aria-label="not judged yet">&mdash;</span>{{end}}</td>
+            <td class="af-md af-prod-cell" title="{{.Product}}">{{.Product}}</td>
+            <td>{{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer" title="{{.Repo}}#{{.Number}}">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{else}}<span class="af-dash" title="The pull request is not opened yet">not opened</span>{{end}}</td>
+            <td class="af-md mono">{{.Card}}</td>
+            <td class="af-age mono">{{if .Age}}<span title="{{.AgeTitle}}">{{.Age}}</span>{{else}}<span class="af-dash">&mdash;</span>{{end}}</td>
+            <td>{{if .WA}}<span class="af-wa is-on">Sent</span>{{else}}<span class="af-wa"><span aria-hidden="true">&mdash;</span><span class="sr-only">not sent</span></span>{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{if .RowsMore}}<p class="tm-line">Showing the first {{num (len .Rows)}} of {{num .RowsTotal}}. Filter by product, state or difficulty to see the rest.</p>{{end}}
+    {{else if eq .Empty "none"}}
+      <p class="af-empty"><b>No defect has been reported yet.</b> When a QA tool reports one, GAOS triages it, and an easy fix appears here as a draft pull request.</p>
+    {{else if eq .Empty "nopr"}}
+      <p class="af-empty"><b>No fix pull request yet.</b> {{num .Defects}} {{if eq .Defects 1}}defect is{{else}}defects are{{end}} being triaged or fixed by a person; a draft appears here when an easy fix is ready.</p>
+    {{else}}
+      <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see all of them.</p>
+    {{end}}
+  </div>
+  </div>
+</div>
+{{end}}
+
+{{define "af-drawer"}}
+<aside id="afDrawer" class="af-drawer" role="region" aria-label="Fix details for {{.Ref}}" tabindex="-1" data-fresh>
+  <header class="af-dr-head">
+    <div class="af-dr-top">
+      <span class="af-st af-st--{{.State}}">{{.StateLabel}}</span>
+      {{if .Diff}}<span class="badge af-d af-d--{{.Diff}}">{{.Diff}}</span>{{end}}
+      <a class="af-x" data-af-close href="{{.CloseHref}}" hx-get="{{.CloseHref}}" hx-target="#sink" hx-swap="innerHTML" aria-label="Close the details (Esc)" title="Close (Esc)">&times;</a>
+    </div>
+    <h3 class="af-dr-title">{{.Title}}</h3>
+    <p class="af-dr-sub"><span class="mono">{{.Ref}}</span> &middot; {{.Product}}{{if .URL}} &middot; <a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{end}}</p>
+  </header>
+
+  <div class="af-dr-body">
+    <dl class="af-facts">
+      {{if .Card}}<div><dt>Card</dt><dd class="mono">{{.Card}}</dd></div>{{end}}
+      {{if .Branch}}<div><dt>Branch</dt><dd class="mono">{{.Branch}}</dd></div>{{end}}
+      {{if .Class}}<div><dt>Class</dt><dd class="mono">{{.Class}}</dd></div>{{end}}
+      {{if .Opened}}<div><dt>Opened</dt><dd title="{{.OpenedTitle}}">{{.Opened}}</dd></div>{{end}}
+      {{if .Updated}}<div><dt>Last change</dt><dd title="{{.UpdatedTitle}}">{{.Updated}}</dd></div>{{end}}
+      <div><dt>WhatsApp</dt><dd>{{if .WA}}sent to the group{{else}}not sent{{end}}</dd></div>
+    </dl>
+
+    <h4 class="af-h">Before and after</h4>
+    <p class="tm-line">As the agent reported them. GAOS did not run the code.</p>
+    {{if or .Before .After}}
+    <div class="af-ba">
+      <figure><figcaption>Before</figcaption><pre>{{if .Before}}{{.Before}}{{else}}(not reported){{end}}</pre></figure>
+      <figure><figcaption>After</figcaption><pre>{{if .After}}{{.After}}{{else}}(not reported){{end}}</pre></figure>
+    </div>
+    {{else}}<p class="tm-line">The agent reported no before and after.</p>{{end}}
+
+    <h4 class="af-h">Changed files</h4>
+    {{if .Files}}
+    <ul class="af-files">
+      {{range .Files}}<li><span class="mono af-fp" title="{{.Path}}">{{.Path}}</span>{{if .Test}}<span class="af-ft">{{if .New}}new test{{else}}test{{end}}</span>{{end}}{{if .Lines}}<span class="af-fl mono">{{.Lines}} {{if eq .Lines 1}}line{{else}}lines{{end}}</span>{{end}}</li>{{end}}
+    </ul>
+    {{else}}<p class="tm-line">No file list is stored for this pull request.</p>{{end}}
+    {{if .FilesNote}}<p class="tm-line">{{.FilesNote}}</p>{{end}}
+
+    <h4 class="af-h">The caps</h4>
+    <ul class="af-caps">
+      {{range .Limits}}{{template "af-limit" .}}{{end}}
+      {{range .Caps}}{{template "af-limit" .}}{{end}}
+    </ul>
+
+    <h4 class="af-h">Timeline</h4>
+    {{if .Timeline}}
+    <ol class="tm-steps">
+      {{range .Timeline}}
+      <li class="tm-step"><span class="tm-st">{{.Kind}}</span><span class="tm-how">{{.Text}}</span>{{if .Rel}}<span class="tm-el" title="{{.At}}">{{.Rel}}</span>{{end}}</li>
+      {{end}}
+    </ol>
+    {{else}}<p class="tm-line">No event is recorded for this defect yet.</p>{{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "af-limit"}}
+<li class="af-cap{{if .Over}} is-over{{end}}">
+  <span class="af-cap-l">{{.Label}}</span>
+  <b class="af-cap-v mono">{{.Used}} <i>/</i> {{.Max}}</b>
+  <span class="af-meter{{if or .Over (ge .Used .Max)}} is-full{{end}}" role="img" aria-label="{{.Used}} of {{.Max}}"><i style="{{styleWidth .Pct}}"></i></span>
+  {{if .Note}}<span class="af-cap-n">{{.Note}}</span>{{end}}
+</li>
 {{end}}

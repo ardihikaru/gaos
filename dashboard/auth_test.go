@@ -260,6 +260,7 @@ var readOnlyGET = map[string]string{
 	"GET /events/stream":                             "a hint stream",
 	"GET /tasks/{id}/context":                        "reads one packet",
 	"GET /ui/bo/{view}":                              "renders a back-office pane",
+	"GET /ui/bo/autofix/live":                        "renders the Auto-fix poll fragment",
 	"GET /products":                                  "lists products",
 	"GET /products/{id}":                             "renders one product",
 	"GET /products/{id}/board":                       "renders the board",

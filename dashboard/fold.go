@@ -438,6 +438,7 @@ func reduce(st FloorState, e Event) FloorState {
 
 	case KnowledgeExtracted, KnowledgeInjected, KnowledgeReused,
 		PullRequestOpened, PullRequestMerged, StagingDeployed, ContactNotified, TaskLabeled,
+		DefectReported, DefectTriaged, DefectStateChanged, FixPROpened, FixPRStateChanged, AutoFixConfigured,
 		ProductCreated, RecordUpdated, ReadinessEvaluate, ReadinessDropped, BlueprintPublished,
 		WorkspaceProvisioned, BlueprintSynced, SessionOpened, SessionLost, TaskMoved, TaskReordered,
 		DecisionSuperseded, DependencyRewired,

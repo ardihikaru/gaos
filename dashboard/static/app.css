@@ -1525,3 +1525,216 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .sb-triage{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:6px}
 .sb-triage select,.sb-triage input{min-width:0;font:inherit;font-size:12px}
 @media (max-width:520px){ .sb-triage{grid-template-columns:1fr} }
+
+/* ---- the Auto-fix view (D-091, design 9.2) ----
+   Existing variables only; nothing here adds a colour, so both themes follow.
+   Movement is the drawer's entrance and nothing else: the poll, the tabs and
+   the rows are seen tens of times a day and change colour or opacity only. */
+.af{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.af-main{min-width:0}
+.af-status{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:11.5px;color:var(--ink-3)}
+.af-pulse{width:6px;height:6px;border-radius:50%;background:var(--line);flex:0 0 6px;transition:background-color 150ms var(--ease-out)}
+.af-pulse.htmx-request{background:var(--run)}
+.af-busy{display:none;color:var(--run)}
+#afView.htmx-request .af-busy,.af-main.htmx-request .af-busy{display:inline}
+.af-body{transition:opacity 150ms var(--ease-out)}
+#afView.htmx-request .af-body{opacity:.55;transition-delay:120ms}
+.af-head{align-items:center}
+.af-token{
+  display:inline-flex;align-items:baseline;gap:7px;padding:4px 10px;border:1px solid var(--line);
+  border-radius:999px;font-family:var(--font-mono);font-size:11px;color:var(--ink-2);white-space:nowrap;
+}
+.af-token b{font-weight:600;color:var(--ink)}
+.af-token-k{color:var(--ink-3)}
+.af-token--ok{border-color:var(--done)}
+.af-token--ok b{color:var(--done)}
+.af-token--warn{border-color:var(--block)}
+.af-token--warn b{color:var(--block)}
+.af-token--off b{color:var(--ink-3)}
+
+.af-note{margin:0 0 12px;padding:9px 12px;font-size:12.5px;line-height:1.6;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-soft);border-left:2px solid var(--block);border-radius:0 var(--r-s) var(--r-s) 0;overflow-wrap:anywhere}
+.af-note b{color:var(--ink);margin-right:6px}
+.af-note--fail{border-left-color:var(--fail)}
+
+/* tiles: one number each, the dispatch tile twice as wide */
+.af-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:14px}
+.af-tile{display:flex;flex-direction:column;gap:1px;min-width:0;padding:12px 14px;border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel)}
+.af-tile-l{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.af-tile-u{letter-spacing:0;text-transform:none;margin-left:6px;opacity:.8}
+.af-tile-v{font-family:var(--font-display);font-size:28px;line-height:1.15;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.af-tile-v{white-space:nowrap}
+.af-tile-v i{font-style:normal;color:var(--ink-3);font-weight:400}
+.af-tile-n{font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.af-tone-run .af-tile-v{color:var(--run)}
+.af-tone-ask .af-tile-v{color:var(--ask)}
+.af-tone-done .af-tile-v{color:var(--done)}
+.af-tone-block .af-tile-v{color:var(--block)}
+.af-tile.is-zero .af-tile-v{color:var(--ink-3)}
+.af-tile--wide{grid-column:span 2}
+.af-disp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px;margin-top:4px}
+.af-disp-r{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"v k" "m m";align-items:baseline;column-gap:8px;row-gap:4px}
+.af-disp-r .af-tile-v{grid-area:v}
+.af-disp-k{grid-area:k;font-size:11.5px;color:var(--ink-3)}
+.af-disp-r .af-meter{grid-area:m}
+@media (max-width:640px){ .af-tile--wide{grid-column:1 / -1} }
+
+/* a number against its limit */
+.af-meter{display:block;height:4px;border-radius:2px;background:var(--panel-3);overflow:hidden;min-width:48px}
+.af-meter i{display:block;height:100%;background:var(--run)}
+.af-meter.is-full i{background:var(--block)}
+
+.af-block{margin-bottom:14px}
+.af-block h4 .sp{color:var(--ink-3)}
+
+/* by product */
+.af-prods,.af-wait,.af-files,.af-caps{list-style:none;margin:0;padding:0}
+.af-prod{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:2px 14px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line-soft)}
+.af-prod:first-child{border-top:0;padding-top:0}
+.af-prod-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.af-prod-n a{color:var(--ink)}
+.af-prod-c{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.af-prod-why{grid-column:1 / -1;font-size:12px;color:var(--ink-3);overflow-wrap:anywhere}
+.af-prod-why b{color:var(--ink-2);font-weight:600}
+.af-where{color:var(--ink-3)}
+.af-where code{font-size:11px}
+.af-sw{font-family:var(--font-mono);font-size:10.5px;padding:1px 8px;border:1px solid var(--line);border-radius:999px;color:var(--ink-3);white-space:nowrap}
+.af-sw--on{color:var(--done);border-color:var(--done)}
+.af-sw--stuck{color:var(--block);border-color:var(--block)}
+
+/* waiting cards */
+.af-w{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line-soft);font-size:12.5px}
+.af-w:first-child{border-top:0;padding-top:0}
+.af-w-k{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:0 6px;white-space:nowrap}
+.af-w.is-person .af-w-k{color:var(--block);border-color:var(--block)}
+.af-w-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.af-w-t b{color:var(--ink-3);font-weight:500;margin-right:4px}
+.af-w-c{grid-column:2 / -1;font-size:10.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.af-w-why{grid-column:2 / -1;color:var(--ink-2);overflow-wrap:anywhere}
+
+/* filters */
+.af-filters{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:-2px 0 10px}
+.af-seg{display:flex;flex-wrap:wrap;gap:2px;padding:2px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel-2)}
+.af-seg a{
+  display:inline-flex;align-items:baseline;gap:6px;padding:4px 10px;border-radius:var(--r-s);font-size:12px;color:var(--ink-3);
+  transition:background-color 120ms var(--ease-out),color 120ms var(--ease-out),transform 120ms var(--ease-out);
+}
+.af-seg a .n{font-family:var(--font-mono);font-size:10.5px;font-variant-numeric:tabular-nums}
+.af-seg a[aria-current="true"]{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.af-seg a:active{transform:scale(.97)}
+.af-form{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.af-form select{
+  max-width:200px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-s);
+  padding:5px 8px;color:var(--ink);font:inherit;font-size:12px;
+}
+.af-form select:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+.af-reset{font-size:12px;color:var(--ink-3);text-decoration:underline;text-underline-offset:3px}
+@media (hover:hover) and (pointer:fine){
+  .af-seg a:hover{color:var(--ink)}
+  .af-reset:hover{color:var(--ink)}
+}
+
+/* the table */
+.af-scroll{margin:0 -4px;padding:0 4px}
+.af-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.af-table th{
+  text-align:left;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;
+  color:var(--ink-3);padding:6px 12px 6px 0;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+.af-table td{padding:9px 12px 9px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle;white-space:nowrap}
+.af-r{transition:background-color 120ms var(--ease-out)}
+.af-r.is-open{background:var(--panel-2);box-shadow:inset 2px 0 0 var(--brass)}
+.af-r.is-open td:first-child{padding-left:10px}
+@media (hover:hover) and (pointer:fine){ .af-r:hover{background:var(--panel-2)} }
+.af-table td.af-defect{white-space:normal;width:100%;min-width:200px;max-width:0}
+.af-defect a{display:flex;flex-direction:column;gap:1px;min-width:0;color:var(--ink);border-radius:var(--r-s)}
+.af-defect a:focus-visible{outline-offset:2px}
+.af-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.af-ref{font-size:10.5px;color:var(--ink-3)}
+.af-prod-cell{max-width:16ch;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.af-pr{display:inline-block;max-width:26ch;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom;font-size:11.5px;color:var(--run)}
+.af-pr:hover{text-decoration:underline;text-underline-offset:3px}
+.af-age{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.af-dash{color:var(--ink-3);font-size:11.5px}
+.af-wa{color:var(--ink-3);font-size:11.5px}
+.af-wa.is-on{color:var(--done)}
+@media (max-width:1000px){ .af-md{display:none} }
+
+/* chips: a shape and a word, so the state does not rest on colour alone */
+.af-st{
+  display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 8px;border:1px solid var(--line);border-radius:999px;
+  font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--ink-2);white-space:nowrap;
+}
+.af-st::before{content:"";width:7px;height:7px;border-radius:50%;box-sizing:border-box;border:1.5px solid currentColor;flex:0 0 7px}
+.af-st--preparing{border-style:dashed;color:var(--ink-3)}
+.af-st--draft{color:var(--run);border-color:var(--run)}
+.af-st--ready{color:var(--ask);border-color:var(--ask)}
+.af-st--ready::before{background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
+.af-st--merged{color:var(--done);border-color:var(--done)}
+.af-st--merged::before{background:currentColor}
+.af-st--closed{color:var(--ink-3)}
+.af-st--closed::before{border-radius:1px;height:2px;border-width:0;background:currentColor}
+.af-d--easy{color:var(--done);border-color:var(--done)}
+.af-d--medium{color:var(--block);border-color:var(--block)}
+.af-d--complex{color:var(--fail);border-color:var(--fail)}
+.af-empty{margin:6px 0 0;padding:22px 4px;font-size:13px;color:var(--ink-2);max-width:62ch}
+.af-empty b{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}
+.af-empty a{color:var(--run);text-decoration:underline;text-underline-offset:3px}
+
+/* the drawer: a column beside the table when there is room, above it when not */
+@media (min-width:1180px){ .af.has-drawer{grid-template-columns:minmax(0,1fr) 390px} }
+.af-drawer{
+  min-width:0;border:1px solid var(--line);border-radius:var(--r-l);background:var(--panel);box-shadow:var(--shadow);
+  position:sticky;top:8px;max-height:calc(100vh - 96px);overflow:auto;
+  opacity:1;transform:none;transition:opacity 200ms var(--ease-out),transform 200ms var(--ease-out);
+}
+@starting-style{ .af-drawer{opacity:0;transform:translateX(12px)} }
+@media (max-width:1179px){ .af-drawer{position:static;max-height:none;order:-1} }
+@media (prefers-reduced-motion:reduce){ @starting-style{ .af-drawer{transform:none} } }
+.af-drawer:focus{outline:0}
+.af-drawer:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.af-dr-head{padding:14px 16px 10px;border-bottom:1px solid var(--line-soft)}
+.af-dr-top{display:flex;align-items:center;gap:8px}
+.af-x{
+  margin-left:auto;width:26px;height:26px;display:grid;place-items:center;border-radius:var(--r-s);font-size:18px;line-height:1;color:var(--ink-3);
+  transition:background-color 120ms var(--ease-out),color 120ms var(--ease-out),transform 120ms var(--ease-out);
+}
+.af-x:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){ .af-x:hover{background:var(--panel-3);color:var(--ink)} }
+.af-dr-title{margin:8px 0 2px;font-family:var(--font-display);font-size:16px;line-height:1.35;font-weight:700;overflow-wrap:anywhere}
+.af-dr-sub{margin:0;font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.af-dr-sub a{color:var(--run)}
+.af-dr-body{padding:4px 16px 16px}
+.af-h{margin:16px 0 6px;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.af-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:12px 0 0}
+.af-facts dt{font-size:10.5px;color:var(--ink-3)}
+.af-facts dd{margin:0;font-size:12.5px;color:var(--ink);overflow-wrap:anywhere}
+.af-ba{display:grid;gap:8px}
+.af-ba figure{margin:0;min-width:0}
+.af-ba figcaption{font-size:10.5px;color:var(--ink-3);margin-bottom:3px}
+.af-ba pre{
+  margin:0;padding:8px 10px;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
+  font-family:var(--font-mono);font-size:11.5px;line-height:1.55;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--r-s);
+}
+.af-ba figure:last-child pre{border-left:2px solid var(--done)}
+.af-files li{display:flex;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--line-soft);font-size:12px}
+.af-files li:first-child{border-top:0}
+.af-fp{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+.af-ft{font-family:var(--font-mono);font-size:10px;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:0 5px;white-space:nowrap}
+.af-fl{font-size:10.5px;color:var(--ink-3);white-space:nowrap}
+.af-cap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;align-items:baseline;padding:5px 0}
+.af-cap-l{font-size:12px;color:var(--ink-2)}
+.af-cap-v{font-size:12px;font-weight:500;font-variant-numeric:tabular-nums}
+.af-cap-v i{font-style:normal;color:var(--ink-3)}
+.af-cap .af-meter{grid-column:1 / -1}
+.af-cap-n{grid-column:1 / -1;font-size:10.5px;color:var(--ink-3)}
+.af-cap.is-over .af-cap-v{color:var(--fail)}
+.af-cap.is-over .af-meter i{background:var(--fail)}
+@media (max-width:520px){ .af-facts{grid-template-columns:1fr} }
+/* the page head sits in a <section>, so the bar's `.bo-main > header` rule does not reach it */
+#boAutoFix > header{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+#boAutoFix > header .sp{margin-left:auto}
+.af-defect a,.af-prod-n a,.af-seg a,.af-pr,.af-reset{text-decoration:none}
+.af-reset{text-decoration:underline}
+@media (hover:hover) and (pointer:fine){ .af-defect a:hover .af-t,.af-prod-n a:hover{text-decoration:underline;text-underline-offset:3px} }
+/* with the drawer open the table loses the columns the drawer repeats */
+.af.has-drawer .af-md{display:none}

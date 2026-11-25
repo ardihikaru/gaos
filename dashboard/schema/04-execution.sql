@@ -27,7 +27,7 @@ CREATE PROPERTY Task.title            STRING  (mandatory true, notnull true);
 CREATE PROPERTY Task.status           STRING  (mandatory true, notnull true, default 'PENDING',
                  regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED|AWAITING_INPUT');
 CREATE PROPERTY Task.role             STRING  (mandatory true, notnull true,
-                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test');
+                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer');
 -- The labels of a task (D-088). One JSON array, because a property per label
 -- would make "does this card carry this label" a graph query rather than a
 -- read. The vocabulary is closed and lives in dashboard/labels.go.
@@ -37,6 +37,8 @@ CREATE PROPERTY Task.labels           STRING;
 -- instead of planning a second one (NOTUNIQUE: a null on every other task).
 CREATE PROPERTY Task.dedupKey         STRING;
 CREATE INDEX IF NOT EXISTS ON Task (dedupKey) NOTUNIQUE;
+-- D-091: the Unix second of an automatic defect dispatch; the daily caps count it.
+CREATE PROPERTY Task.autoAt           INTEGER;
 CREATE PROPERTY Task.riskClass        STRING  (default 'normal',
                  regexp 'low|normal|high|critical');
 CREATE PROPERTY Task.modelHint        STRING;
