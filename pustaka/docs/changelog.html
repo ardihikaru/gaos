@@ -36,6 +36,15 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-50-0">v0.50.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS cancels a QA job at the QA tool whenever it gives up on it, and reads a GitHub token file with trailing blank lines (D-090).</p>
+      <ul>
+        <li><span class="chg add">Added</span> A job GAOS gives up on (work timeout, approval timeout, flapping) or whose card an operator cancels is canceled at the QA tool, which stops the run and rejects the open approval, so no pull request opens. A failed cancel is logged and never keeps the card open.</li>
+        <li><span class="chg fix">Fixed</span> A GitHub token file ending in a blank line made the Authorization header invalid; the reader now trims all surrounding whitespace.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-49-0">v0.49.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Pull-request follow-ups: unique card ids, an approval wait of its own, and an http WhatsApp gateway on a trusted link (D-089).</p>
       <ul>
