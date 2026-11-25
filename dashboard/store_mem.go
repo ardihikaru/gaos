@@ -205,6 +205,11 @@ type MemStore struct {
 
 	prParts  func(TaskRecord) []PacketPart
 	afterRun func(TaskRecord, string)
+
+	// defects and fixPRs are the auto-fix records (D-091), keyed by defect key
+	// and by FixPR id. Never part of the floor.
+	defects map[string]*Defect
+	fixPRs  map[string]FixPR
 }
 
 // SetPRHooks installs the pull-request flow's seams.
@@ -292,6 +297,8 @@ func newProjection() *MemStore {
 		slices:      map[string]SliceRecord{},
 		artifacts:   map[string]ArtifactRecord{},
 		qa:          map[string]map[string]QaCase{},
+		defects:     map[string]*Defect{},
+		fixPRs:      map[string]FixPR{},
 
 		// The documented defaults of §7.6.1, so a store built without a
 		// configuration still screens. An egress policy that defaulted to
@@ -1598,6 +1605,15 @@ func (s *MemStore) freezePacketFor(d Desk, taskID string, attempt int) Packet {
 				pkt.Parts = append(pkt.Parts, part)
 				cite("", "", CiteCode, part.Path, part.Body)
 			}
+		}
+	}
+
+	// A defect's facts and source files, for the triager (D-091).
+	if t := s.taskByIDLocked(taskID); t != nil {
+		parts := append(s.defectPartsLocked(*t), s.fixerPartsLocked(*t)...)
+		for _, part := range parts {
+			pkt.Parts = append(pkt.Parts, part)
+			cite("", "", CiteCode, part.Path, part.Body)
 		}
 	}
 

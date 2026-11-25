@@ -98,11 +98,16 @@ type ghConfig struct {
 }
 
 // ghConfigFromEnv reads the two settings.
-func ghConfigFromEnv() ghConfig {
+func ghConfigFromEnv() ghConfig { return ghConfigFromVar("GAOS_GITHUB_TOKEN_FILE") }
+
+// ghConfigFromVar reads a token file named by an environment variable. The
+// read-and-comment token and the auto-fix write token (githubwrite.go) use the
+// same loader and never share a file.
+func ghConfigFromVar(name string) ghConfig {
 	c := ghConfig{base: "https://api.github.com"}
-	path := strings.TrimSpace(os.Getenv("GAOS_GITHUB_TOKEN_FILE"))
+	path := strings.TrimSpace(os.Getenv(name))
 	if path == "" {
-		c.why = "GAOS_GITHUB_TOKEN_FILE is not set"
+		c.why = name + " is not set"
 		return c
 	}
 	st, err := os.Stat(path)
@@ -263,6 +268,10 @@ const ghMaxBody = 4 << 20
 type ghError struct {
 	Status int
 	Retry  time.Duration
+	// Draft is set on a 422 whose message mentions drafts: the one fact of a body
+	// the auto-fix needs (a plan without private-repository drafts). The text
+	// itself is never kept.
+	Draft bool
 }
 
 func (e *ghError) Error() string { return fmt.Sprintf("github answered %d", e.Status) }
@@ -319,6 +328,9 @@ func (c *ghClient) do(ctx context.Context, method, u string, body []byte) ([]byt
 			return out, nil
 		}
 		ge := &ghError{Status: resp.StatusCode}
+		if resp.StatusCode == 422 && bytes.Contains(bytes.ToLower(out), []byte("draft")) {
+			ge.Draft = true
+		}
 		limited := resp.StatusCode == 429 || (resp.StatusCode == 403 && resp.Header.Get("X-RateLimit-Remaining") == "0")
 		if !limited || attempt == 2 {
 			return nil, ge

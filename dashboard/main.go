@@ -65,6 +65,13 @@ type server struct {
 	staging *stagingAuth
 	// ghState is the GitHub client's row on the Integrations view.
 	ghState string
+	// codeSrc reads application source for a defect's packet (D-091); nil when
+	// the GitHub client is off.
+	codeSrc codeSource
+	// writeTokenKind is the kind of the auto-fix write token in use ("" = none).
+	writeTokenKind string
+	// fixPoll is the pull-request poller, for the Auto-fix view's GitHub status; nil when off.
+	fixPoll fixPollSource
 	// wa is the WhatsApp notifier (wa.go); nil when off.
 	wa   *waNotifier
 	auth *authority // back-office sessions (auth.go); nil signs nobody in
@@ -366,11 +373,21 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	if ghc != nil {
 		flow.gh = ghc
 		authors = ghc
+		srv.codeSrc = ghc
 		srv.ghState = "on"
 		log.Printf("pull requests: GitHub client on")
 	} else {
 		srv.ghState = "off (" + gcfg.why + ")"
 		log.Printf("pull requests: GitHub client off (%s); no fork check, no review post", gcfg.why)
+	}
+	// The auto-fix's write token: its own file, its own client (D-091).
+	wtcfg := ghWriteConfigFromEnv()
+	ghw := newGHWriter(wtcfg)
+	if ghw != nil {
+		srv.writeTokenKind = ghTokenKind(wtcfg.token)
+		log.Printf("auto-fix: write token on (%s)", srv.writeTokenKind)
+	} else {
+		log.Printf("auto-fix: write token off (%s)", wtcfg.why)
 	}
 	wcfg := waConfigFromEnv()
 	wa := newWANotifier(wcfg)
@@ -399,6 +416,13 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		SetPRHooks(func(TaskRecord) []PacketPart, func(TaskRecord, string))
 	}); ok {
 		rv := &prReviewer{st: store, logf: log.Printf, notify: nt.Notify}
+		dt := &defectTriager{st: store, logf: log.Printf, notify: nt.Notify}
+		fx := &defectFixer{st: store, gh: ghw, tokenKind: srv.writeTokenKind, notify: nt.Notify, logf: log.Printf}
+		go autoFixLoop(ctx, store, srv.codeSrc)
+		go fx.resumeFixPRs(ctx)
+		poller := newFixPRPoller(store, ghc)
+		srv.fixPoll = poller
+		go poller.Run(ctx)
 		if ghc != nil {
 			rv.gh = ghc
 		}
@@ -408,6 +432,10 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 				switch {
 				case t.Role == "pr-reviewer":
 					rv.afterRun(context.Background(), t, reply)
+				case t.Role == "triager":
+					dt.afterRun(context.Background(), t, reply)
+				case t.Role == "fixer":
+					fx.afterRun(context.Background(), t, reply)
 				case t.Role == "unit-test" && t.DedupKey != "" && t.Status == StatusFailed:
 					nt.Notify(context.Background(), t, "unit:failure", "unit tests failed")
 				}
@@ -480,6 +508,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /auth/logout", s.handleLogout)
 	handle("GET /ui/bo", s.handleBOSheet)
 	handle("GET /ui/bo/{view}", s.handleBOView)
+	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive) // the Auto-fix view's 30 s poll
 
 	handle("GET /products", s.handleProductList)
 	handle("POST /products", s.handleProductCreate)
@@ -499,6 +528,8 @@ func (s *server) routes() http.Handler {
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084
 	handle("POST /products/{id}/board/cards/{taskId}/label", s.handleSetLabel)     // D-088
+	handle("POST /products/{id}/autofix", s.handleSaveAutoFix)                     // D-091
+	handle("POST /products/{id}/defects/{ref}/close", s.handleCloseDefect)         // D-091
 	handle("POST /contacts", s.handleContactSave)                                  // D-088
 	handle("POST /contacts/delete", s.handleContactDelete)                         // D-088
 	handle("POST /products/{id}/board/cards", s.handleCardRefused)

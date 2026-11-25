@@ -142,6 +142,23 @@ const (
 	TaskLabeled EventType = "TaskLabeled"
 )
 
+// Defect triage and auto-fix (D-091, docs/designs/gaos-defect-autofix.md §5.4).
+// None of them carries a defect's title or excerpt: an event is read by the town.
+const (
+	// DefectReported: a new defect key arrived from the QA tool.
+	DefectReported EventType = "DefectReported"
+	// DefectTriaged: a verdict was accepted (Rule: the class, To: the difficulty).
+	DefectTriaged EventType = "DefectTriaged"
+	// DefectStateChanged: a defect record moved (To: its new state).
+	DefectStateChanged EventType = "DefectStateChanged"
+	// FixPROpened: a draft pull request exists for a defect.
+	FixPROpened EventType = "FixPROpened"
+	// FixPRStateChanged: a fix pull request changed state (To).
+	FixPRStateChanged EventType = "FixPRStateChanged"
+	// AutoFixConfigured: an operator changed a product's auto-fix settings.
+	AutoFixConfigured EventType = "AutoFixConfigured"
+)
+
 // collaboration
 const (
 	MeetingStarted   EventType = "MeetingStarted"

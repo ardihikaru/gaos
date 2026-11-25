@@ -29,7 +29,17 @@ const (
 	LabelE2ERun = "e2e:run"
 	// LabelUnitTest is the unit test builder and runner.
 	LabelUnitTest = "unit:test"
+
+	// The defect family (D-091). Only the planner sets it; the scheduler never
+	// dispatches it in any mode (the auto-fix loop does, with its caps).
+	LabelDefectTriage  = "defect:triage"
+	LabelDefectEasy    = "defect:easy"
+	LabelDefectMedium  = "defect:medium"
+	LabelDefectComplex = "defect:complex"
 )
+
+// labelFamilyDefect is the planner-only family.
+const labelFamilyDefect = "defect"
 
 // labelSet is the closed vocabulary.
 var labelSet = map[string]bool{
@@ -39,6 +49,10 @@ var labelSet = map[string]bool{
 	LabelE2EAutomation:       true,
 	LabelE2ERun:              true,
 	LabelUnitTest:            true,
+	LabelDefectTriage:        true,
+	LabelDefectEasy:          true,
+	LabelDefectMedium:        true,
+	LabelDefectComplex:       true,
 }
 
 // labelOrder is the vocabulary in the order the docs list it, so a rendered
@@ -50,6 +64,10 @@ var labelOrder = []string{
 	LabelE2EAutomation,
 	LabelE2ERun,
 	LabelUnitTest,
+	LabelDefectTriage,
+	LabelDefectEasy,
+	LabelDefectMedium,
+	LabelDefectComplex,
 }
 
 // ValidLabel reports whether a label is in the closed vocabulary.
@@ -88,11 +106,12 @@ func normalizeLabels(labels []string) []string {
 // labelsAllowDispatch reports whether the scheduler may hand a card with these
 // labels to an agent. A card a person reviews (pr-review:manual or
 // pr-review:needs-manual) and a card the QA-tool job runner drives
-// (e2e:automation, e2e:run) are never dispatched (D-088).
+// (e2e:automation, e2e:run) are never dispatched (D-088); nor is any defect:* card (D-091).
 func labelsAllowDispatch(labels []string) bool {
 	for _, l := range labels {
 		switch l {
-		case LabelPRReviewManual, LabelPRReviewNeedsManual, LabelE2EAutomation, LabelE2ERun:
+		case LabelPRReviewManual, LabelPRReviewNeedsManual, LabelE2EAutomation, LabelE2ERun,
+			LabelDefectTriage, LabelDefectEasy, LabelDefectMedium, LabelDefectComplex:
 			return false
 		}
 	}

@@ -34,7 +34,9 @@ type notifier struct {
 func (n *notifier) loginFor(ctx context.Context, t TaskRecord, kind string) string {
 	// An approval notice is for whoever approves specs in the QA Inbox, not for the
 	// committer: it goes to the group.
-	if kind == "e2e:approval" || n.gh == nil || t.DedupKey == "" {
+	// A defect card has no author to find: its message goes to the pinned group,
+	// by design (D-091).
+	if kind == "e2e:approval" || n.gh == nil || t.DedupKey == "" || strings.HasPrefix(t.DedupKey, "defect:") {
 		return ""
 	}
 	if owner, repo, num, ok := prKeyParts(t.DedupKey); ok {

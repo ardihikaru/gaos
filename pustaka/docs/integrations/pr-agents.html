@@ -88,9 +88,13 @@ body: the review, at most 6000 characters, each finding with a file:line and a R
       <tr><td><code>GAOS_PR_MAX_OPEN</code>, <code>GAOS_PR_ALLOW_FORKS</code></td><td>The cap on open PR cards (5) and whether forks open cards (no).</td></tr>
     </tbody>
   </table>
-  <p>In production the four files are <code>deploy/stacks/prod.pr-github-token</code>, <code>prod.pr-staging-auth</code>,
-  <code>prod.pr-wa-auth</code> and <code>prod.pr-wa-group</code>. They are gitignored and must exist before
+  <p>In production the files are <code>deploy/stacks/prod.pr-github-token</code>, <code>prod.pr-staging-auth</code>,
+  <code>prod.pr-wa-auth</code>, <code>prod.pr-wa-group</code> and, for <a href="autofix.html">defect auto-fix</a>,
+  <code>prod.pr-github-write-token</code> and <code>prod.pr-autofix-admins</code> (mounted as <code>/run/secrets/pr-github-write-token</code> and <code>pr-autofix-admins</code>). They are gitignored and must exist before
   <code>up</code>; an empty one leaves that part off.</p>
+
+  <p>The pull requests GAOS opens itself for an easy defect are a separate flow with its own write token:
+  see <a href="autofix.html">Defect auto-fix</a>.</p>
 
   <h2 id="staging">The staging callback</h2>
   <p>Jenkins calls GAOS when the staging deploy has finished:</p>

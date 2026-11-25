@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Defect auto-fix — GAOS</title>
+<meta name="description" content="How GAOS triages a defect the QA tool reports and, for an easy one on a product that has switched it on, opens a draft pull request: the steps, what easy means, the settings, the route, the caps, the view and what GAOS never does.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="autofix">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Defect auto-fix</h1>
+  <p class="lede">The QA tool pins a known defect as an expected failure, so a defect used to be invisible to GAOS
+  and equally queued whether it was a one-line validation or a billing problem. Now the QA tool reports it, GAOS
+  classifies it from the product's own policy, and a defect that is easy to fix ends as a <strong>draft pull
+  request</strong> that a person reviews. It is narrow on purpose: a backend-only defect, three kinds of fix, a few
+  files, an explicit switch per product, and daily caps (<a href="../product/decision-log.html#d-091">D-091</a>).</p>
+
+  <div class="page-meta"
+       data-tags="integration, auto-fix, defect, triage, github, pull request, qa tool"
+       data-hashtags="integrations"
+       data-published="2026-11-26"
+       data-updated="2026-11-26"
+       data-version-from="0.52.0"
+       data-version-to=""></div>
+
+  <h2 id="steps">What auto-fix does</h2>
+  <table class="tbl">
+    <thead><tr><th>Step</th><th>What happens</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>The QA tool reports a defect of a case: a pinned expected failure, an unexpected failure, or a pinned failure that now passes.</td><td>QA tool</td></tr>
+      <tr><td>2</td><td>GAOS records it (<code>DefectReported</code>) and plans a triage card labelled <code>defect:triage</code>.</td><td>GAOS</td></tr>
+      <tr><td>3</td><td>The Defect Triager reads the product's <code>defect-triage</code> policy, the facts and the source files GAOS found, and answers easy, medium or complex.</td><td>Agent</td></tr>
+      <tr><td>4</td><td>GAOS re-checks the verdict, records it (<code>DefectTriaged</code>) and plans a fix card born with its label <code>defect:easy</code>, <code>defect:medium</code> or <code>defect:complex</code>.</td><td>GAOS</td></tr>
+      <tr><td>5</td><td>Easy, backend-only, switch on, cap left: the fix card is dispatched with no operator move. Otherwise it waits in READY, or is born BLOCKED (a complex defect also sends a notice).</td><td>GAOS</td></tr>
+      <tr><td>6</td><td>The Defect Fixer answers with edits and tests, never whole files.</td><td>Agent</td></tr>
+      <tr><td>7</td><td>GAOS applies the edits, enforces the caps, creates a branch and a draft pull request through the GitHub API, labels it and posts the before and after as a comment.</td><td>GAOS</td></tr>
+      <tr><td>8</td><td>GAOS sends one WhatsApp line with the link; the fix card ends DONE.</td><td>GAOS</td></tr>
+      <tr><td>9</td><td>GAOS follows the pull request (draft, ready, merged, closed) and shows it in the Auto-fix view.</td><td>GAOS</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="easy">What easy means</h2>
+  <p>The policy is a product's own, written in its Blueprint under the key <code>defect-triage</code>. The shape GAOS
+  ships is neutral:</p>
+  <table class="tbl">
+    <thead><tr><th>Verdict</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Easy</td><td>A fix a reviewer can judge from the diff alone, in one resolver or route, with a unit test: a missing or wrong <strong>validation</strong> (a date format, a length the contract does not enforce, an inverted check), a <strong>formatting</strong> problem in input parameters, or a <strong>minimum or maximum</strong> check (a negative or zero amount accepted).</td></tr>
+      <tr><td>Medium</td><td>A business rule or a state guard inside one service that needs a person's judgement: a duplicate accepted, a status that should block an action, a missing nil guard.</td></tr>
+      <tr><td>Complex</td><td>Authentication, authorisation or anonymous access; billing, price or stock; a schema or migration; more than one service or repository; anything whose expected behaviour is a business decision.</td></tr>
+    </tbody>
+  </table>
+  <p>An easy fix never edits generated code, a schema, a migration, a dependency file, CI, authentication or anything
+  that prices or stocks, never changes more than three files, and never lacks a unit test.</p>
+  <div class="adm note">
+    <p class="adm-title">GAOS checks the verdict</p>
+    <p>An easy verdict is accepted only if its class is validation, format or min-value, the repository is one the
+    product owns, and every file is one GAOS put in the packet and the product's allowed paths admit. Otherwise it is
+    downgraded to medium and the reason is recorded. The deterministic gate is the path set, not the class. A
+    defect in <code>acme-org/sample-service</code> reported as <code>DEF-101</code> that fails this check simply
+    waits for a person.</p>
+  </div>
+
+  <h2 id="settings">The settings</h2>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_AUTOFIX_ADMINS</code></td><td>A file, mode 600, of the addresses that may change a product's auto-fix settings. No file, a world-readable file or an unlisted account: <code>403</code>.</td></tr>
+      <tr><td><code>GAOS_GITHUB_WRITE_TOKEN_FILE</code></td><td>A file, mode 600: the token GAOS writes with. A fine-grained token with <strong>Contents</strong>, <strong>Pull requests</strong> and <strong>Issues</strong> read and write on the application repositories only is recommended. It is separate from the review flow's token, which stays read and comment. Unset: auto-fix cannot be switched on.</td></tr>
+      <tr><td><code>GAOS_AUTOFIX_ALLOW_CLASSIC</code></td><td>Set to <code>1</code> in the deploy shell to accept a classic token. Empty by default, which refuses one. The view and the configuration event show which kind is in use.</td></tr>
+    </tbody>
+  </table>
+  <p>In production the two files are <code>deploy/stacks/prod.pr-github-write-token</code> and
+  <code>prod.pr-autofix-admins</code>. They are gitignored and must exist before <code>up</code>; an empty one
+  leaves auto-fix off.</p>
+
+  <h3 id="config">The per-product configuration</h3>
+  <p><code>POST /products/{id}/autofix</code>, back office, restricted to the admin list. Every change is an
+  <code>AutoFixConfigured</code> event with the actor's alias, the new values (never the template text) and the kind of
+  token.</p>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Meaning</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>enabled</code></td><td>The standing consent for automatic dispatch. Refused (<code>422</code>) unless the paths, the test globs, <code>ciConfirmed</code> and the write token are in place.</td><td>off</td></tr>
+      <tr><td><code>fixCap</code>, <code>triageCap</code></td><td>Automatic dispatches per product per UTC day.</td><td>3 (at most 10), 10 (at most 50)</td></tr>
+      <tr><td><code>allowedGlobs</code></td><td>The only paths an easy fix may edit.</td><td>required</td></tr>
+      <tr><td><code>forbiddenGlobs</code></td><td>Extra paths never touched, on top of the built-in list (generated code, migrations, SQL, dependency files, CI, Dockerfiles, authentication, billing, secrets).</td><td>optional</td></tr>
+      <tr><td><code>testGlobs</code></td><td>What counts as a test file; each must contain a test marker and may not be <code>*</code> or <code>**</code>.</td><td>required</td></tr>
+      <tr><td><code>prTemplate</code></td><td>The pull-request body with the slots <code>{{defect}}</code>, <code>{{title}}</code>, <code>{{summary}}</code>, <code>{{before}}</code>, <code>{{after}}</code>, <code>{{files}}</code> and <code>{{limits}}</code>; it must hold <code>{{before}}</code> and <code>{{after}}</code>.</td><td>a neutral default</td></tr>
+      <tr><td><code>ciConfirmed</code></td><td>The operator confirms that the repositories' CI runs no secrets on <code>gaos/fix-*</code> branches. GAOS also reads the workflows itself.</td><td>false</td></tr>
+      <tr><td><code>baseBranch</code></td><td>The branch the fix branches from and the pull request targets.</td><td>the repository's default branch</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="route">The QA tool's route</h2>
+  <pre>POST /api/v1/products/{id}/qa/defects
+Authorization: Bearer &lt;QA token&gt;
+
+{"source":"push","items":[{
+  "caseId":"TC-SAMPLE-008", "defectId":"DEF-101", "kind":"xfail",
+  "level":"GQL", "automationType":"be", "backend":"graphql",
+  "targetRepos":["acme-org/sample-service"], "operations":["editSampleRecord"],
+  "spec":"tests/api/graphql/sample-service/records/edit.spec.ts",
+  "title":"a negative quantity is accepted and stored",
+  "excerpt":"&lt;failure output, at most 4 KiB&gt;",
+  "runRef":"run-1", "runAt":1764060000}]}</pre>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><code>caseId</code></td><td>A case of the product's catalog.</td></tr>
+      <tr><td><code>kind</code></td><td><code>xfail</code>, <code>fail</code> or <code>xpass</code>.</td></tr>
+      <tr><td><code>defectId</code></td><td><code>DEF-</code> and 1 to 6 digits; required for <code>xfail</code> and <code>xpass</code>.</td></tr>
+      <tr><td><code>automationType</code>, <code>backend</code>, <code>level</code></td><td><code>be</code> or <code>e2e</code>; <code>graphql</code>, <code>rest</code> or empty; <code>API</code>, <code>GQL</code>, <code>WEB</code> or <code>E2E</code>.</td></tr>
+      <tr><td><code>targetRepos</code></td><td><code>owner/repo</code>, at most 8. GAOS keeps only repositories the product owns.</td></tr>
+      <tr><td><code>operations</code></td><td>At most 5 names, used only as search terms; they never widen what a fix may touch.</td></tr>
+      <tr><td><code>spec</code>, <code>title</code>, <code>excerpt</code></td><td>A valid spec path; at most 200 characters; at most 4 KiB.</td></tr>
+      <tr><td>Request</td><td>At most 256 KiB (<code>413 too-large</code>) and 50 items; an unknown field is <code>400</code>; at most 50 new defect keys per product per UTC day.</td></tr>
+    </tbody>
+  </table>
+  <p>The answer is <code>200 {"applied":n,"unchanged":n,"rejected":[{caseId,reason}]}</code>: a bad item is rejected
+  with a reason and the rest apply. A repeat updates the last-seen time and plans nothing; an <code>xpass</code> marks
+  the defect fixed and cancels its open cards; a <code>fail</code> after a fix is a regression, whose fix card is
+  born BLOCKED and is never fixed automatically. Everything in an item is untrusted: its text is stripped of backticks,
+  angle brackets and line breaks, screened for secrets, reaches an agent only as data and appears in no event, card
+  title or log line.</p>
+
+  <h2 id="caps">The caps</h2>
+  <table class="tbl">
+    <thead><tr><th>Cap</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Files in a fix</td><td>3, at least one of them a test</td></tr>
+      <tr><td>Changed lines (added plus removed)</td><td>40 outside tests, 120 in tests</td></tr>
+      <tr><td>Automatic dispatches</td><td>The fix and triage caps above, per product per UTC day. They count dispatches, not pull requests, and are the only spend bound for these cards.</td></tr>
+      <tr><td>Branch</td><td><code>gaos/fix-&lt;slug&gt;</code>, never moved or overwritten</td></tr>
+      <tr><td>Pull request</td><td>Draft only; never ready, approved or merged by GAOS</td></tr>
+    </tbody>
+  </table>
+  <p>A failing cap does not retry: the card is blocked with its reason and the verdict is kept.</p>
+
+  <h2 id="view">The Auto-fix view</h2>
+  <p>The back office's Auto-fix view lists every product's drafts. Its tiles count open drafts, ready for review,
+  merged in seven days, defects awaiting triage, cards waiting for a person and today's automatic dispatches. The
+  table has a state chip, the defect, its difficulty, the pull request's link and age, and whether WhatsApp was
+  told; filters for product, state and difficulty live in the URL; a detail drawer shows the before and after, the
+  changed files and the timeline. It refreshes every 30 seconds, says why auto-fix is off for a product, announces an
+  unreachable GitHub, and shows the kind of write token in use. It never shows a token or a failure excerpt.</p>
+
+  <h2 id="never">What GAOS never does</h2>
+  <ul>
+    <li>Marks a pull request ready, approves it or merges it, or pushes to a default branch.</li>
+    <li>Lets the agent hold the write token or open the pull request.</li>
+    <li>Fixes a medium, complex, regression or end-to-end defect automatically, or opens a pull request from a card that fails the record-based check, however it was dispatched or relabelled.</li>
+    <li>Starts a fix under <code>GAOS_RUNNER=on</code> when a product's switch is off: the scheduler never dispatches a defect card in any mode.</li>
+    <li>Runs the tests. The &ldquo;after&rdquo; in the pull request is the agent's report, and the body says so (<a href="../product/open-questions.html#oq-39">OQ-39</a>).</li>
+    <li>Puts a defect's text in an event, a card title or the WhatsApp line.</li>
+  </ul>
+  <p>Private source files GAOS fetches for the packet go to the model provider, as D-091 records; a secret detector hit
+  refuses the dispatch.</p>
+
+  <h2 id="failure">When something fails</h2>
+  <table class="tbl">
+    <thead><tr><th>What happens</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Over 50 new keys in a day</td><td>The item is rejected <code>defect-limit</code>.</td></tr>
+      <tr><td>The triager's reply is unreadable</td><td>The triage card fails; the defect stays open.</td></tr>
+      <tr><td>GitHub search fails</td><td>The triage card is blocked <code>autofix-search-failed</code>; an empty search is not an error.</td></tr>
+      <tr><td>No repository the product owns</td><td>The fix card is born blocked <code>autofix-no-repo</code>.</td></tr>
+      <tr><td>Medium, complex or regression</td><td>The fix card is born blocked <code>autofix-not-easy</code>.</td></tr>
+      <tr><td>The fixer's reply is unreadable</td><td>Blocked <code>autofix-unreadable</code>.</td></tr>
+      <tr><td>A cap is exceeded</td><td>Blocked <code>autofix-limits</code>; nothing is written to GitHub.</td></tr>
+      <tr><td>A file changed since the packet</td><td>Blocked <code>autofix-base-moved</code>.</td></tr>
+      <tr><td>The private source trips the detectors</td><td>Blocked <code>autofix-egress</code>.</td></tr>
+      <tr><td>CI runs secrets on the branch</td><td>Blocked <code>autofix-ci-secrets</code>.</td></tr>
+      <tr><td>The branch exists and is not ours</td><td>Blocked <code>autofix-branch-exists</code>; it is never used or deleted.</td></tr>
+      <tr><td>GitHub refuses a draft</td><td>Blocked <code>autofix-draft-unsupported</code>; there is no non-draft fallback.</td></tr>
+      <tr><td>The pull request is closed unmerged</td><td>A new person-only card, blocked <code>autofix-pr-closed</code>.</td></tr>
+      <tr><td>GitHub refuses a write</td><td>The fix card fails <code>github-token</code>; a branch this run created is deleted.</td></tr>
+      <tr><td>GAOS restarts mid-way</td><td>The stored reply is resumed; no second agent turn and no second pull request.</td></tr>
+      <tr><td>WhatsApp is down</td><td>The pull request stays; one failed <code>ContactNotified</code> is recorded.</td></tr>
+      <tr><td>The switch is off, a cap is spent or a turn is live</td><td>The card stays READY and the view says why.</td></tr>
+    </tbody>
+  </table>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

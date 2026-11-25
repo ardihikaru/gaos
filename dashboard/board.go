@@ -186,6 +186,9 @@ const (
 	MoveRefused      = "refused"       // a dispatch the egress pass or the drift gate refused
 	MoveNotStarted   = "not-started"   // a dispatched turn that never reached the gateway
 	MoveDriftRelease = "drift-release" // a sync released what Blueprint drift had blocked
+	// MoveAutoFix is the automatic dispatch of a defect card (D-091), behind the
+	// product's switch and caps (autofix.go).
+	MoveAutoFix = "autofix"
 )
 
 // legalMove is the table (D-061). It answers the action a move means, or the
@@ -424,6 +427,19 @@ func (s *MemStore) liveTurnLocked(productID, taskID string) string {
 // runner switch, which is the permission to spend. Under GAOS_RUNNER=manual
 // this is the only route that spends (D-080, BR-56).
 func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (Result, error) {
+	return s.dispatch(ctx, productID, taskID, MoveDispatch, nil)
+}
+
+// dispatchClaim is the automatic path's extra gate (D-091, design §6.3). It runs
+// inside dispatch's two locked sections with s.mu held: stamp=false only checks,
+// stamp=true checks again and marks the task, under the same lock as the move.
+type dispatchClaim func(t *TaskRecord, stamp bool) error
+
+// dispatch is dispatchNow with the move rule and an optional claim. The
+// operator's path passes MoveDispatch and no claim; the automatic path passes
+// MoveAutoFix and a claim that re-checks the switch and the cap. Every other gate
+// is the same function's, so neither path can skip one.
+func (s *MemStore) dispatch(ctx context.Context, productID, taskID, move string, claim dispatchClaim) (Result, error) {
 	s.mu.Lock()
 	ad := s.adapter
 	if ad == nil {
@@ -448,6 +464,17 @@ func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (R
 		s.mu.Unlock()
 		return Result{}, reject(fmt.Sprintf("%s already has a live turn (%s); one at a time per product (BR-38)", productID, live))
 	}
+	if claim != nil {
+		t := s.taskPtr(taskID)
+		if t == nil || t.DeskID != productID {
+			s.mu.Unlock()
+			return Result{}, ErrNotFound
+		}
+		if err := claim(t, false); err != nil {
+			s.mu.Unlock()
+			return Result{}, err
+		}
+	}
 	if _, drift := s.blueprintGate(productID); drift != nil {
 		s.mu.Unlock()
 		return Result{}, reject(drift.Reason)
@@ -470,6 +497,13 @@ func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (R
 	c, v, err := s.clearFor(ctx, d, attempt)
 	if err != nil {
 		s.refuseDispatch(d, v)
+		if move == MoveAutoFix {
+			s.mu.Lock()
+			if t := s.taskPtr(taskID); t != nil {
+				t.BlockReason = BlockEgress
+			}
+			s.mu.Unlock()
+		}
 		return Result{}, reject(v.Reason)
 	}
 	// The claim (BR-38) is made atomic with the move: the lock was dropped for
@@ -490,8 +524,16 @@ func (s *MemStore) dispatchNow(ctx context.Context, productID, taskID string) (R
 		s.mu.Unlock()
 		return Result{}, reject(fmt.Sprintf("%s is no longer ready (it is %s)", taskID, st))
 	}
-	e, moved := s.moveTaskLocked(taskID, StatusDispatched, MoveDispatch)
+	prevAuto := t.AutoAt
+	if claim != nil {
+		if err := claim(t, true); err != nil {
+			s.mu.Unlock()
+			return Result{}, err
+		}
+	}
+	e, moved := s.moveTaskLocked(taskID, StatusDispatched, move)
 	if !moved {
+		t.AutoAt = prevAuto
 		s.mu.Unlock()
 		return Result{}, reject(fmt.Sprintf("%s is no longer ready (it is %s)", taskID, t.Status))
 	}
