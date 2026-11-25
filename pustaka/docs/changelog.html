@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-51-0">v0.51.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The landing page is rewritten in English with an Indonesian version, gains the sections an open-source project page needs, and moves.</p>
+      <ul>
+        <li><span class="chg change">Changed</span> <b>The landing page's copy is rewritten.</b> It now describes what GAOS does in plain sentences, corrects its figures (73 graph types and 59 event types; it said 71 and 49), and lists the three parts that are not built: the result scoring engine, the retry guards and the budget guard.</li>
+        <li><span class="chg add">Added</span> <b>Two languages.</b> English is the default; a visitor whose device is set to an Indonesian time zone gets Indonesian. A switch in the header changes it and the choice is remembered; <code>?lang=en</code> and <code>?lang=id</code> force one. The page still calls nothing: its policy stays <code>connect-src 'none'</code>.</li>
+        <li><span class="chg add">Added</span> Architecture, quick start and open-source sections: the three layers, the three commands that start the local stack, the licence, how to contribute, and links to the source.</li>
+        <li><span class="chg add">Added</span> Motion: a graph field behind the page that reacts to the pointer and to scrolling, a staged hero entrance, a board that leans toward the pointer, a light under the pointer on each card, figures that count up, a scroll line under the header, and a dot travelling each hand-off in the architecture. All of it stops under reduced motion, and the page reads in full without JavaScript.</li>
+        <li><span class="chg add">Added</span> <code>check-stacks.sh</code> fails when the page and its Indonesian dictionary disagree on a key (TC-622), and when a figure on the page differs from the count taken from the code (TC-623).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-50-0">v0.50.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">GAOS cancels a QA job at the QA tool whenever it gives up on it, and reads a GitHub token file with trailing blank lines (D-090).</p>
       <ul>
