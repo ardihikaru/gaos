@@ -21,12 +21,13 @@ break it.
 1. **The design document** you are told to review — normally
    `docs/designs/<feature>.md`.
 2. **The rubric**, in this order:
-   - `.claude/rules/rule-index.md`
-   - `.claude/rules/qa-test-plan.md`
-   - `.claude/rules/agent-workspace.md`
+   - `docs/rules/gaos-design-review.md` and `docs/designs/README.md`, plus the
+     path-scoped rule files the harness attaches by itself when you read under
+     `docs/`, `pustaka/` or the registers. **Do not open anything under
+     `.claude/`**: reading there makes the harness also attach
+     `.claude/CLAUDE.md`, which is off limits (verified 2026-11-26).
 
-   `rule-index.md` also names the authoritative domain sources a review must
-   read: `pustaka/docs/product/brd.html` (the business rules and requirement
+   The authoritative domain sources a review must read are: `pustaka/docs/product/brd.html` (the business rules and requirement
    domains), `pustaka/docs/product/decision-log.html` and
    `pustaka/docs/product/open-questions.html`. Read the parts of those the
    document's claims touch.
