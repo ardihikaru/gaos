@@ -404,6 +404,9 @@ func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
 	handle("GET /v1/products/{id}/inbox/{externalId}", s.apiInboxGet)
 	handle("POST /v1/products/{id}/inbox/{externalId}/answer", s.apiInboxAnswer)
 	handle("POST /v1/seed/product", s.apiSeedProduct)
+	// D-088: Basic, per product, its own gate (staging.go). BR-52/BR-55 are
+	// amended for this one route.
+	handle("POST /v1/products/{id}/staging", s.apiStaging)
 }
 
 type apiProductOut struct {

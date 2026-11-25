@@ -116,6 +116,12 @@ type Store interface {
 	// pass refuses the files.
 	SyncBlueprint(ctx context.Context, productID string) (Result, error)
 
+	// PlanPullRequestCards plans the cards a pull-request event needs (D-088).
+	// It answers the ids of the cards it planned and the ids of the ones that
+	// were already there -- a reader replays, and a replay must not open a
+	// second card. The events ride in the Result.
+	PlanPullRequestCards(ctx context.Context, productID string, ev PREvent) (planned []string, existing []string, res Result, err error)
+
 	// The board (M14.6, board.go): a projection of the product's tasks, and a
 	// move on it -- a request the task state machine may refuse (BR-43).
 	Board(ctx context.Context, productID string) (Board, error)
@@ -132,6 +138,16 @@ type Store interface {
 	ArchivedConversations(ctx context.Context) (ArchiveView, error)
 	PruneConversations(ctx context.Context, actor string, cards []CardRef) (Result, error)
 	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
+	// SetTaskLabel changes a card's label and emits TaskLabeled (D-088).
+	SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error)
+	// The contact registry and the one event a notification leaves (D-088).
+	ListContacts(ctx context.Context) ([]Contact, error)
+	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)
+	DeleteContact(ctx context.Context, productID, login, actor string) (Result, error)
+	RecordNotification(ctx context.Context, productID, alias, kind, outcome string) (Result, error)
+	// ResolvePRCard moves a pull-request card to DONE or FAILED with a reason
+	// (D-088): the outcome of the review post or of a QA-tool job.
+	ResolvePRCard(ctx context.Context, productID, taskID, to, reason string) (Result, error)
 	// SendBackDesign sends the design a review blocked back to its author
 	// (D-084); actor is the signed-in account. SendBackSheet is the same
 	// check, read-only, for the sheet. ErrNotFound for a card of no product.
@@ -196,6 +212,10 @@ type Result struct {
 	// QaCases are the catalog cases this mutation changed; ArcadeStore writes
 	// them in the same transaction as the events.
 	QaCases []QaCase
+
+	// Contacts are registry changes ArcadeStore writes in the same transaction
+	// (D-088). They never ride an event.
+	Contacts []ContactOp
 }
 
 // Sentinel errors. ErrRejected is the "rejection reason" half of the §09 rule:
@@ -303,6 +323,21 @@ func (readOnly) ArchiveConversation(context.Context, string, string, string, boo
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) PruneConversations(context.Context, string, []CardRef) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetTaskLabel(context.Context, string, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) ResolvePRCard(context.Context, string, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) UpsertContact(context.Context, Contact, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) DeleteContact(context.Context, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) RecordNotification(context.Context, string, string, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) MoveCard(context.Context, string, string, CardMove) (Result, error) {

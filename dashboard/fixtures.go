@@ -10,7 +10,8 @@ package main
 // When store_arcade.go lands, this file becomes the bootstrap fixture: the same
 // records, written into the graph once, and MemStore stops being the default.
 
-var roleOrder = []string{"architect", "backend", "frontend", "qa", "security", "devops", "planner"}
+var roleOrder = []string{"architect", "backend", "frontend", "qa", "security", "devops", "planner",
+	"pr-reviewer", "unit-test"}
 
 var roles = map[string]Role{
 	"architect": {"architect", "System Architect", "SA", "var(--role-architect)", "architecture", "claude-opus-5"},
@@ -20,6 +21,12 @@ var roles = map[string]Role{
 	"security":  {"security", "Security Reviewer", "SR", "var(--role-security)", "architecture", "claude-opus-5"},
 	"devops":    {"devops", "DevOps", "DO", "var(--role-devops)", "release", "claude-sonnet-5"},
 	"planner":   {"planner", "Planner", "PL", "var(--role-planner)", "knowledge", "claude-sonnet-5"},
+	// The pull-request agents (D-088). The reviewer judges a diff, so it is the
+	// strongest tier and sits in architecture (review is a stage, not a room);
+	// the unit-test agent writes code, so it is the middle tier. The e2e work
+	// is the QA tool's and uses the existing qa role.
+	"pr-reviewer": {"pr-reviewer", "PR Reviewer", "PR", "var(--role-security)", "architecture", "claude-opus-5"},
+	"unit-test":   {"unit-test", "Unit Test Builder", "UT", "var(--role-qa)", "qa", "claude-sonnet-5"},
 }
 
 var agents = []Agent{
@@ -32,6 +39,8 @@ var agents = []Agent{
 	{"a-7", "Grove", "security"},
 	{"a-8", "Halo", "devops"},
 	{"a-9", "Iris", "planner"},
+	{"a-10", "Juno", "pr-reviewer"},
+	{"a-11", "Kite", "unit-test"},
 }
 
 func agentByID(id string) *Agent {

@@ -158,6 +158,26 @@ has $PROD 'prod.bt-consumer-token:/run/secrets/bt-consumer-token:ro' "prod mount
 has $PROD 'prod.bt-consumer-cursor:/run/secrets/bt-consumer-cursor:ro' "prod mounts the Brain Town consumer cursor file read-only"
 has $PROD 'BRAIN_TOWN_CONSUMER_ENABLED: "${BRAIN_TOWN_CONSUMER_ENABLED:-}"' "prod passes the Brain Town reader switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_CONSUMER_TOKEN:' "prod passes the Brain Town reader token only as a file, never as an environment variable"
+for f in deploy/stacks/*.pr-*; do
+  # The pull-request flow's credentials (D-088): host-side files, never tracked.
+  [ -e "$f" ] || continue
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    bad "$f is tracked by git"
+  else
+    ok "$(basename "$f") is untracked"
+  fi
+  if [ ! -f "$f" ]; then
+    bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
+  fi
+done
+has $PROD 'prod.pr-github-token:/run/secrets/pr-github-token:ro' "prod mounts the GitHub token file read-only"
+hasnt $PROD 'GAOS_GITHUB_TOKEN:' "prod passes the GitHub token only as a file, never as an environment variable"
+has $PROD 'prod.pr-staging-auth:/run/secrets/pr-staging-auth:ro' "prod mounts the staging callback's credential file read-only"
+hasnt $PROD 'GAOS_STAGING_BASIC_AUTH:' "prod passes the staging credential only as a file, never as an environment variable"
+has $PROD 'prod.pr-wa-auth:/run/secrets/pr-wa-auth:ro' "prod mounts the WhatsApp login file read-only"
+has $PROD 'prod.pr-wa-group:/run/secrets/pr-wa-group:ro' "prod mounts the WhatsApp pinned-group file read-only"
+hasnt $PROD 'GAOS_WA_BASIC_AUTH:' "prod passes the WhatsApp login only as a file, never as an environment variable"
+has $PROD 'GAOS_WA_URL: "${GAOS_WA_URL:-}"' "prod passes the WhatsApp gateway URL from the deploy shell, empty (off) by default, with no default host"
 has $PROD 'GAOS_BO_LABEL' "prod passes the deployment label that binds a session to it"
 # D-083: the QA tool's origin is recorded on every answer it sends; prod's
 # GAOS_QA_URL is a tunnel IP, so the name has to come from the deploy shell.

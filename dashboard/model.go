@@ -735,7 +735,14 @@ type TaskRecord struct {
 	// clause 9). It is what the packet builder branches on, what the reply
 	// contract is chosen by, and what the gate acts on. A task written before
 	// the migration has no kind, and an empty kind is an implement task.
-	Kind        string
+	Kind string
+	// Labels say what kind of work this card is (D-088). The vocabulary is
+	// closed: dashboard/labels.go refuses anything outside it, and the DDL
+	// stores them as one JSON array.
+	Labels []string
+	// DedupKey is a pull-request card's de-duplication key (D-088):
+	// owner/repo#n:role or owner/repo@sha:e2e-run. Empty on every other card.
+	DedupKey    string
 	Deps        []string
 	Priority    int
 	Ordinal     int
@@ -759,6 +766,7 @@ type TaskRecord struct {
 func (t TaskRecord) Clone() TaskRecord {
 	c := t
 	c.Deps = append([]string(nil), t.Deps...)
+	c.Labels = append([]string(nil), t.Labels...)
 	return c
 }
 
@@ -1010,6 +1018,9 @@ type PlannedTask struct {
 	// as an implement task, and the review branch is dead code on a board
 	// that was rebuilt from the stream.
 	Kind string
+	// Labels and DedupKey ride the stream so a replay keeps them (D-088).
+	Labels   []string
+	DedupKey string
 }
 
 type ProductDraft struct {

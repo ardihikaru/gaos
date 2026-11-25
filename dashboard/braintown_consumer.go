@@ -93,22 +93,26 @@ var btConsumerWaits = []time.Duration{time.Second, 5 * time.Second, 30 * time.Se
 // The pull request's diff, body and author are not here -- Brain Town never
 // stored them -- and the GitHub client fetches what the agents need.
 type PREvent struct {
-	Kind     string    // the source kind, from the frame's "source"
-	Type     string    // "pr.opened", "pr.merged"
-	EventID  string    // the town's event id (gh-<delivery id>)
-	Seq      int64     // the town's sequence number
-	Org      string    // the owner login
-	Repo     string    // the bare repository name
-	PRNumber int       // the pull request number
-	Title    string    // the pull request's title
-	Draft    bool      // the pull request is a draft
+	Kind     string // the source kind, from the frame's "source"
+	Type     string // "pr.opened", "pr.merged"
+	EventID  string // the town's event id (gh-<delivery id>)
+	Seq      int64  // the town's sequence number
+	Org      string // the owner login
+	Repo     string // the bare repository name
+	PRNumber int    // the pull request number
+	Title    string // the pull request's title
+	Draft    bool   // the pull request is a draft
+	Commit   string // a staging deploy's commit sha (type "staging.deployed")
 	At       time.Time
 }
 
 // Key is the flow's de-duplication key. The flow owns the set; the card
 // carries the key, so a restart rebuilds it from the graph.
 func (e PREvent) Key(role string) string {
-	return e.Repo + "#" + strconv.Itoa(e.PRNumber) + ":" + role
+	if e.Commit != "" && e.PRNumber == 0 {
+		return e.Org + "/" + e.Repo + "@" + e.Commit + ":" + role
+	}
+	return e.Org + "/" + e.Repo + "#" + strconv.Itoa(e.PRNumber) + ":" + role
 }
 
 // btConsumerConfig is the reader's configuration. An unusable setting leaves

@@ -1010,3 +1010,53 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 	}
 	return a
 }
+
+// The contact registry's back-office routes (D-088). A form post each, behind
+// the session; the actor is the session's account, and the log line names its
+// alias and the contact's alias, never a destination.
+
+func (s *server) renderBOView(w http.ResponseWriter, r *http.Request, res Result, view string) {
+	v := s.applyResult(r, res)
+	v.BO = s.buildBO(r, view, "", "")
+	s.rend.RenderWithChrome(w, "bo-main-oob", v)
+}
+
+func (s *server) handleContactSave(w http.ResponseWriter, r *http.Request) {
+	ss, ok := sessionOf(r)
+	if !ok || ss.Email == "" {
+		s.requireBO(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	_ = r.ParseForm()
+	var on []string
+	for _, k := range strings.FieldsFunc(r.PostFormValue("notifyOn"), func(c rune) bool { return c == ',' || c == ' ' }) {
+		on = append(on, k)
+	}
+	res, err := s.mut(r).UpsertContact(r.Context(), Contact{
+		ProductID: strings.TrimSpace(r.PostFormValue("productId")), GitHubLogin: r.PostFormValue("githubLogin"),
+		DisplayName: r.PostFormValue("displayName"), Channel: "whatsapp",
+		Destination: strings.TrimSpace(r.PostFormValue("destination")), NotifyOn: on,
+	}, ss.Email)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOView(w, r, res, "integrations")
+}
+
+func (s *server) handleContactDelete(w http.ResponseWriter, r *http.Request) {
+	ss, ok := sessionOf(r)
+	if !ok || ss.Email == "" {
+		s.requireBO(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	_ = r.ParseForm()
+	res, err := s.mut(r).DeleteContact(r.Context(), r.PostFormValue("productId"), r.PostFormValue("githubLogin"), ss.Email)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.renderBOView(w, r, res, "integrations")
+}

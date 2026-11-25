@@ -400,6 +400,28 @@ func (s *ArcadeStore) RetryTask(ctx context.Context, i int) (Result, error) {
 func (s *ArcadeStore) CancelTask(ctx context.Context, i int) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.CancelTask(ctx, i) })
 }
+func (s *ArcadeStore) SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SetTaskLabel(ctx, productID, taskID, label, actor) })
+}
+func (s *ArcadeStore) ResolvePRCard(ctx context.Context, productID, taskID, to, reason string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.ResolvePRCard(ctx, productID, taskID, to, reason) })
+}
+// SetPRHooks installs the pull-request flow's seams on the projection.
+func (s *ArcadeStore) SetPRHooks(parts func(TaskRecord) []PacketPart, after func(TaskRecord, string)) {
+	s.proj.SetPRHooks(parts, after)
+}
+func (s *ArcadeStore) ListContacts(ctx context.Context) ([]Contact, error) {
+	return s.proj.ListContacts(ctx)
+}
+func (s *ArcadeStore) UpsertContact(ctx context.Context, c Contact, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.UpsertContact(ctx, c, actor) })
+}
+func (s *ArcadeStore) DeleteContact(ctx context.Context, productID, login, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.DeleteContact(ctx, productID, login, actor) })
+}
+func (s *ArcadeStore) RecordNotification(ctx context.Context, productID, alias, kind, outcome string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.RecordNotification(ctx, productID, alias, kind, outcome) })
+}
 func (s *ArcadeStore) CreateProduct(ctx context.Context, d ProductDraft) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.CreateProduct(ctx, d) })
 }
@@ -415,6 +437,19 @@ func (s *ArcadeStore) AddDiagram(ctx context.Context, id string, g Diagram) (Res
 func (s *ArcadeStore) AddDecision(ctx context.Context, id string, a Decision) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.AddDecision(ctx, id, a) })
 }
+// PlanPullRequestCards plans the pull-request cards under the same lock as
+// every other mutation, so the graph and the desk agree on what exists.
+func (s *ArcadeStore) PlanPullRequestCards(ctx context.Context, productID string, ev PREvent) ([]string, []string, Result, error) {
+	var planned, existing []string
+	var res Result
+	_, err := s.mutate(ctx, func() (Result, error) {
+		var e error
+		planned, existing, res, e = s.proj.PlanPullRequestCards(ctx, productID, ev)
+		return res, e
+	})
+	return planned, existing, res, err
+}
+
 func (s *ArcadeStore) SavePolicy(ctx context.Context, id string, p Policy) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SavePolicy(ctx, id, p) })
 }
@@ -520,6 +555,11 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 	}
 	for _, c := range r.QaCases {
 		if err := s.writeQaCase(ctx, tx, c); err != nil {
+			return err
+		}
+	}
+	for _, op := range r.Contacts {
+		if err := s.writeContact(ctx, tx, op); err != nil {
 			return err
 		}
 	}
@@ -860,6 +900,10 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 			// restored graph: the review task takes the implement branch and is
 			// handed the author's brief, handoff and operator answer.
 			"kind": t.Kind,
+			// The labels, as one JSON array (D-088). The vocabulary is closed,
+			// so what is written is always a subset of dashboard/labels.go.
+			"labels":   labelsJSON(t.Labels),
+			"dedupKey": t.DedupKey,
 		}); err != nil {
 			return err
 		}
@@ -1569,10 +1613,12 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Esc        int    `json:"escalationCount"`
 		Block      string `json:"blockReason"`
 		Kind       string `json:"kind"`
+		Labels     string `json:"labels"`
+		DedupKey   string `json:"dedupKey"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, workflowId, deskId, title, role, story, modelHint, status,
-		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind
+		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind, labels, dedupKey
 		 FROM Task WHERE tenantId = :t AND workflowId IS NOT NULL
 		 ORDER BY workflowId, ordinal`,
 		map[string]any{"t": s.tenant}, &trows); err != nil {
@@ -1602,6 +1648,13 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			// implement task, and an unknown one is refused rather than guessed.
 			Kind: taskKind(r.Kind),
 		}
+		// The labels are one JSON array on the property (D-088). A record
+		// written before the property existed carries none, and that is not an
+		// error: a card with no labels is a card that predates the vocabulary.
+		if r.Labels != "" {
+			_ = json.Unmarshal([]byte(r.Labels), &t.Labels)
+		}
+		t.DedupKey = r.DedupKey
 		for _, d := range deps {
 			t.Deps = append(t.Deps, d.ID)
 		}
@@ -1851,6 +1904,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	m.restoreQa(cases)
+	contacts, err := s.loadContacts(ctx)
+	if err != nil {
+		return false, err
+	}
+	m.restoreContacts(contacts)
 	s.proj = m
 	return true, nil
 }
@@ -1969,6 +2027,20 @@ func unixStamp(sec int64) string {
 // jsonMap and jsonList move a Go value through JSON so it reaches ArcadeDB as a
 // document rather than as a string holding JSON. The difference matters on the
 // way back: a document is queryable, a string is opaque.
+// labelsJSON is the labels array on the task's property (D-088). An empty
+// list is an empty string, not "null": the column is optional and a card
+// written before the vocabulary existed carries none.
+func labelsJSON(labels []string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(labels)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
 func jsonMap(v any) (map[string]any, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
