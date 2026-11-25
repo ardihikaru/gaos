@@ -141,7 +141,7 @@ func TestConsumerFrameIsParsedAndBounded(t *testing.T) {
 	if ev.PRNumber != 4931 || ev.Title != "Fix export" {
 		t.Errorf("the pull request was read wrong: %+v", ev)
 	}
-	if ev.Key("pr-reviewer") != "laundry-api#4931:pr-reviewer" {
+	if ev.Key("pr-reviewer") != "loop/laundry-api#4931:pr-reviewer" {
 		t.Errorf("the key is %q", ev.Key("pr-reviewer"))
 	}
 }

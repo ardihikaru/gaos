@@ -1,0 +1,518 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// The pull-request flow (D-088, docs/designs/gaos-pr-agent-flows.md §6).
+//
+// A pull-request event arrives from Brain Town's reader, and GAOS plans the
+// cards the work needs:
+//
+//	pr.opened          -> a PR review card and an e2e automation card
+//	pr.merged          -> a unit test card
+//	staging.deployed   -> an e2e run card (the staging callback, §8.2)
+//
+// The cards live on the product's PR workflow, never on the desk's own, so a
+// pull request cannot reset the product's plan, progress or score.
+//
+// Three rules matter:
+//
+//   - The repository GAOS acts on is the PRODUCT's. The event says which
+//     repository it saw; the product says which repositories it owns.
+//   - A card carries its de-duplication key. A pull request that arrives twice
+//     (the reader reconnects and replays) finds the card already there and
+//     plans nothing. The store IS the record, so a restart forgets nothing.
+//   - A draft, a fork and a burst are refused before they cost a model turn.
+
+// ErrPRSkipped says an event was understood and deliberately not acted on. The
+// message names the class and nothing the author controls.
+var ErrPRSkipped = errors.New("pull request skipped")
+
+// prWorkflowID is the product's PR workflow.
+func prWorkflowID(productID string) string { return "wf-pr-" + productID }
+
+// The jobs a card can be, and the key suffix each one carries.
+const (
+	prJobReviewer   = "pr-reviewer"
+	prJobE2EBuild   = "e2e-automation"
+	prJobE2ERun     = "e2e-run"
+	prJobUnitTest   = "unit-test"
+	prTypeOpened    = "pr.opened"
+	prTypeMerged    = "pr.merged"
+	prTypeStaging   = "staging.deployed"
+	prDefaultMaxOpn = 5
+)
+
+// prMaxOpen is the number of open PR cards a product may hold (GAOS_PR_MAX_OPEN,
+// default 5). A burst of pull requests is refused past it, so it cannot starve
+// the product's own work.
+func prMaxOpen() int {
+	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("GAOS_PR_MAX_OPEN"))); err == nil && n > 0 {
+		return n
+	}
+	return prDefaultMaxOpn
+}
+
+// prAllowForks reports whether a pull request from a fork may open cards
+// (GAOS_PR_ALLOW_FORKS=1). Off by default: a stranger's pull request would
+// otherwise spend a model turn.
+func prAllowForks() bool { return strings.TrimSpace(os.Getenv("GAOS_PR_ALLOW_FORKS")) == "1" }
+
+// prCardSpec is one card of the routing table.
+type prCardSpec struct {
+	Job    string
+	Role   string
+	Labels []string
+	Title  string
+}
+
+// prCardsFor is the routing table (§6.1). Every card is an implement task: a
+// "review" task in GAOS is the reviewer of a written design, which a pull
+// request is not.
+func prCardsFor(ev PREvent) []prCardSpec {
+	ref := ev.Repo + "#" + strconv.Itoa(ev.PRNumber)
+	switch ev.Type {
+	case prTypeOpened:
+		return []prCardSpec{
+			{Job: prJobReviewer, Role: "pr-reviewer", Labels: []string{LabelPRReviewAuto}, Title: "Review " + ref},
+			{Job: prJobE2EBuild, Role: "qa", Labels: []string{LabelE2EAutomation}, Title: "E2E automation for " + ref},
+		}
+	case prTypeMerged:
+		return []prCardSpec{
+			{Job: prJobUnitTest, Role: "unit-test", Labels: []string{LabelUnitTest}, Title: "Unit tests for " + ref},
+		}
+	case prTypeStaging:
+		return []prCardSpec{
+			{Job: prJobE2ERun, Role: "qa", Labels: []string{LabelE2ERun},
+				Title: "E2E run on staging " + ev.Repo + "@" + shortSHA(ev.Commit)},
+		}
+	}
+	return nil
+}
+
+func shortSHA(s string) string {
+	if len(s) > 8 {
+		return s[:8]
+	}
+	return s
+}
+
+// prTitle is a card title made safe: it is capped, stripped of control
+// characters and screened before it reaches a card, because the outbound Brain
+// Town feed republishes titles. A title that fails the screen is replaced by
+// the card's id (§7.1).
+func prTitle(title, id string) string { return btTitle(true, id, title) }
+
+// sanitizeIDPart keeps the letters, digits and dashes of a name, and turns
+// everything else into a dash.
+func sanitizeIDPart(s string) string {
+	var sb strings.Builder
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			sb.WriteRune(r)
+		default:
+			sb.WriteRune('-')
+		}
+	}
+	out := strings.Trim(sb.String(), "-")
+	if out == "" {
+		out = "x"
+	}
+	return out
+}
+
+// prCardID is a card's id: readable, and unique per key.
+func prCardID(workflow string, ev PREvent, job string) string {
+	if ev.PRNumber == 0 {
+		return workflow + "-" + sanitizeIDPart(ev.Org+"-"+ev.Repo) + "-" + sanitizeIDPart(shortSHA(ev.Commit)) + "-" + job
+	}
+	return workflow + "-" + sanitizeIDPart(ev.Org+"-"+ev.Repo) + "-" + strconv.Itoa(ev.PRNumber) + "-" + job
+}
+
+// taskByDedupKeyLocked finds the card that already carries a key.
+func (s *MemStore) taskByDedupKeyLocked(key string) *TaskRecord {
+	for i := range s.tasks {
+		if s.tasks[i].DedupKey == key {
+			return &s.tasks[i]
+		}
+	}
+	return nil
+}
+
+// openPRCardsLocked counts a product's PR cards that are not finished.
+func (s *MemStore) openPRCardsLocked(productID string) int {
+	n := 0
+	for i := range s.tasks {
+		t := &s.tasks[i]
+		if t.DeskID != productID || t.DedupKey == "" {
+			continue
+		}
+		switch t.Status {
+		case StatusDone, StatusFailed, StatusCanceled:
+		default:
+			n++
+		}
+	}
+	return n
+}
+
+// RulePRMerged names the actor of the move that cancels a card made moot.
+const RulePRMerged = "pr-merged"
+
+// PlanPullRequestCards plans the cards a pull-request event needs.
+//
+// It answers the ids of the cards it planned and of the ones already there;
+// a replay plans nothing. A skipped event (a draft, the cap) answers
+// ErrPRSkipped wrapped with its class. The events ride in the Result, like
+// every other mutation's, so the caller commits them.
+func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, ev PREvent) (planned []string, existing []string, res Result, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	m := s.masterPtr(productID)
+	if m == nil {
+		return nil, nil, Result{}, ErrNotFound
+	}
+	idx := s.deskIdxByID(productID)
+	if idx < 0 {
+		return nil, nil, Result{}, fmt.Errorf("no such product")
+	}
+	specs := prCardsFor(ev)
+	if len(specs) == 0 {
+		return nil, nil, Result{}, nil
+	}
+	if !productOwns(m.Repos, ev.Org, ev.Repo) {
+		return nil, nil, Result{}, fmt.Errorf("the product does not own %s/%s", ev.Org, ev.Repo)
+	}
+	if ev.Draft {
+		return nil, nil, Result{}, fmt.Errorf("%w: draft", ErrPRSkipped)
+	}
+	d := s.desks[idx]
+	wf := prWorkflowID(productID)
+
+	// Which of the cards already exist.
+	var fresh []prCardSpec
+	for _, spec := range specs {
+		if t := s.taskByDedupKeyLocked(ev.Key(spec.Job)); t != nil {
+			existing = append(existing, t.ID)
+			continue
+		}
+		fresh = append(fresh, spec)
+	}
+	var events []Event
+
+	// A merge makes a review or an e2e build that has not started moot.
+	if ev.Type == prTypeMerged {
+		for _, job := range []string{prJobReviewer, prJobE2EBuild} {
+			t := s.taskByDedupKeyLocked(ev.Key(job))
+			if t == nil || (t.Status != StatusPending && t.Status != StatusReady) {
+				continue
+			}
+			if mv, ok := s.moveTaskLocked(t.ID, StatusCanceled, RulePRMerged); ok {
+				events = append(events, mv)
+			}
+		}
+	}
+	if len(fresh) == 0 && len(events) == 0 {
+		return nil, existing, Result{}, nil
+	}
+	if len(fresh) > 0 && s.openPRCardsLocked(productID) >= prMaxOpen() {
+		return nil, existing, Result{}, fmt.Errorf("%w: cap", ErrPRSkipped)
+	}
+
+	ordinal := 0
+	for i := range s.tasks {
+		if s.tasks[i].DeskID == productID && s.tasks[i].WorkflowID == wf {
+			ordinal++
+		}
+	}
+	plannedTasks := make([]PlannedTask, 0, len(fresh))
+	for _, spec := range fresh {
+		key := ev.Key(spec.Job)
+		id := prCardID(wf, ev, spec.Job)
+		if s.taskByIDLocked(id) != nil {
+			existing = append(existing, id)
+			continue
+		}
+		ordinal++
+		task := TaskRecord{
+			ID: id, WorkflowID: wf, DeskID: productID,
+			Title: prTitle(spec.Title, id), Role: spec.Role, Model: roles[spec.Role].Model,
+			Kind: TaskKindImplement, Status: StatusPending, Labels: normalizeLabels(spec.Labels),
+			DedupKey: key, Priority: 50, Ordinal: ordinal,
+		}
+		s.tasks = append(s.tasks, task)
+		planned = append(planned, id)
+		plannedTasks = append(plannedTasks, PlannedTask{ID: id, Title: task.Title, Role: task.Role,
+			Model: task.Model, Priority: task.Priority, Kind: task.Kind, Labels: task.Labels, DedupKey: key})
+	}
+	if len(planned) > 0 {
+		p := deskPayload(d)
+		p.WorkflowID = wf
+		p.Tasks = plannedTasks
+		events = append(events, s.emit(TaskPlanned,
+			productID, fmt.Sprintf("%d task(s) planned from %s on %s", len(planned), ev.Type, ev.Repo), KindKnow, p))
+		switch ev.Type {
+		case prTypeOpened:
+			events = append(events, s.emit(PullRequestOpened, productID,
+				"pull request opened: "+ev.Repo+"#"+strconv.Itoa(ev.PRNumber), KindKnow, deskPayload(d)))
+		case prTypeMerged:
+			events = append(events, s.emit(PullRequestMerged, productID,
+				"pull request merged: "+ev.Repo+"#"+strconv.Itoa(ev.PRNumber), KindKnow, deskPayload(d)))
+		case prTypeStaging:
+			events = append(events, s.emit(StagingDeployed, productID,
+				"staging deployed: "+ev.Repo+"@"+shortSHA(ev.Commit), KindKnow, deskPayload(d)))
+		}
+	}
+	c := m.Clone()
+	res = Result{Master: &c, NewEvents: events,
+		Toast: fmt.Sprintf("%d task(s) planned from %s on %s.", len(planned), ev.Type, ev.Repo)}
+	return planned, existing, res, nil
+}
+
+// productOwns reports whether the product's repositories include owner/repo.
+func productOwns(repos []string, owner, repo string) bool {
+	pair := owner + "/" + repo
+	for _, r := range repos {
+		if strings.EqualFold(strings.TrimSpace(r), pair) {
+			return true
+		}
+	}
+	return false
+}
+
+// prSource is the slice of the GitHub client the flow needs.
+type prSource interface {
+	pullRequest(ctx context.Context, owner, repo string, number int) (ghPR, error)
+	pullFiles(ctx context.Context, owner, repo string, number int) ([]ghFile, error)
+}
+
+// prFlow is the reader's consumer: it turns one pull-request event into the
+// cards the work needs.
+type prFlow struct {
+	st Store
+	gh prSource // nil: the fork check is skipped and only the event's draft flag is read
+	// ctx holds the fetched pull request until the reviewer card is dispatched.
+	ctx  *prContextCache
+	logf func(string, ...any)
+}
+
+// prAssociationOK reports whether the author's association may open cards.
+func prAssociationOK(a string) bool {
+	switch strings.ToUpper(a) {
+	case "OWNER", "MEMBER", "COLLABORATOR", "":
+		return true
+	}
+	return false
+}
+
+// handle plans the cards for one event. It returns only after the cards are
+// committed, so the reader advances its cursor past a frame that is safe
+// (§6.5). It always answers true: a refused or failed event is logged, and the
+// stream moves on.
+func (f *prFlow) handle(ctx context.Context, ev PREvent) bool {
+	if ev.Type != prTypeOpened && ev.Type != prTypeMerged {
+		return true
+	}
+	masters, err := f.st.Masters(ctx)
+	if err != nil {
+		f.logf("prflow: the products could not be read: %v", err)
+		return true
+	}
+	for _, m := range masters {
+		if !productOwns(m.Repos, ev.Org, ev.Repo) {
+			continue
+		}
+		var pr ghPR
+		if ev.Type == prTypeOpened && f.gh != nil && !ev.Draft {
+			var err error
+			pr, err = f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber)
+			switch {
+			case err != nil:
+				// The check could not be made; open nothing rather than spend on a stranger.
+				f.logf("prflow: skip pr-lookup-failed")
+				return true
+			case pr.Draft:
+				ev.Draft = true
+			case !prAllowForks() && pr.Head.Repo.FullName != "" && !strings.EqualFold(pr.Head.Repo.FullName, pr.Base.Repo.FullName):
+				f.logf("prflow: skip fork")
+				return true
+			case !prAssociationOK(pr.AuthorAssociation):
+				f.logf("prflow: skip association")
+				return true
+			}
+		}
+		planned, existing, _, err := f.st.PlanPullRequestCards(ctx, m.ID, ev)
+		switch {
+		case errors.Is(err, ErrPRSkipped):
+			f.logf("prflow: skip %s", strings.TrimPrefix(err.Error(), ErrPRSkipped.Error()+": "))
+		case err != nil:
+			f.logf("prflow: planning failed: %v", err)
+		case len(planned) > 0:
+			f.logf("prflow: planned %d card(s) on %s", len(planned), m.ID)
+			if ev.Type == prTypeOpened && f.gh != nil && f.ctx != nil {
+				f.fetchContext(ctx, ev, pr)
+			}
+		case len(existing) > 0:
+			f.logf("prflow: duplicate")
+		}
+		return true
+	}
+	f.logf("prflow: no product owns this repository; skipped")
+	return true
+}
+
+// labelFamily is the part of a label before the colon: one label per family.
+func labelFamily(l string) string {
+	if i := strings.Index(l, ":"); i > 0 {
+		return l[:i]
+	}
+	return l
+}
+
+// actorAlias is the alias an event names for a signed-in account: the local
+// part of the address, as a slug. The address itself never reaches an event.
+func actorAlias(email string) string {
+	if i := strings.Index(email, "@"); i > 0 {
+		email = email[:i]
+	}
+	return sanitizeIDPart(email)
+}
+
+// SetTaskLabel changes a card's label (D-088). The new label replaces the one
+// the card holds in the same family, so `pr-review:*` labels exclude each
+// other. A label outside the vocabulary is refused. The change is a state
+// change, so it is an event (BR-02) naming the actor's alias.
+func (s *MemStore) SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.masterPtr(productID)
+	if m == nil {
+		return Result{}, ErrNotFound
+	}
+	if !ValidLabel(label) {
+		return Result{}, reject("That label is not one of: " + strings.Join(labelOrder, ", ") + ".")
+	}
+	var t *TaskRecord
+	for i := range s.tasks {
+		if s.tasks[i].ID == taskID && s.tasks[i].DeskID == productID {
+			t = &s.tasks[i]
+		}
+	}
+	if t == nil {
+		return Result{}, ErrNotFound
+	}
+	fam := labelFamily(label)
+	old := ""
+	kept := make([]string, 0, len(t.Labels)+1)
+	for _, l := range t.Labels {
+		if labelFamily(l) == fam {
+			old = l
+			continue
+		}
+		kept = append(kept, l)
+	}
+	if old == label {
+		return Result{}, nil
+	}
+	t.Labels = normalizeLabels(append(kept, label))
+	idx := s.deskIdxByID(productID)
+	p := deskPayload(s.desks[idx])
+	p.Actor = actorAlias(actor)
+	p.Reason = old + "→" + label
+	p.Rule = "label"
+	ev := s.emit(TaskLabeled, productID, "label "+taskID+": "+old+" → "+label+" by "+p.Actor, KindInfo, p)
+	c := m.Clone()
+	return Result{Master: &c, NewEvents: []Event{ev}, Toast: "Label set to " + label + "."}, nil
+}
+
+// RulePRResolved names the actor of the move that ends a pull-request card.
+const RulePRResolved = "pr-flow"
+
+// ResolvePRCard moves a pull-request card to DONE or FAILED and records why on
+// the card (D-088). Nothing else moves; a card that is not a PR card, or a
+// target other than those two, is refused.
+func (s *MemStore) ResolvePRCard(ctx context.Context, productID, taskID, to, reason string) (Result, error) {
+	if to != StatusDone && to != StatusFailed && to != StatusRunning && to != StatusBlocked {
+		return Result{}, reject("A pull-request card moves to DONE, FAILED, RUNNING or BLOCKED.")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.masterPtr(productID)
+	if m == nil {
+		return Result{}, ErrNotFound
+	}
+	t := s.taskByIDLocked(taskID)
+	if t == nil || t.DeskID != productID || t.DedupKey == "" {
+		return Result{}, ErrNotFound
+	}
+	path := statusPath(t.Status, to)
+	if path == nil {
+		return Result{}, reject("The card cannot move to " + to + " from " + t.Status + ".")
+	}
+	t.BlockReason = reason
+	var evs []Event
+	for _, step := range path {
+		mv, ok := s.moveTaskLocked(taskID, step, RulePRResolved)
+		if !ok {
+			return Result{}, reject("The card cannot move to " + step + " from " + t.Status + ".")
+		}
+		evs = append(evs, mv)
+	}
+	c := m.Clone()
+	return Result{Master: &c, NewEvents: evs}, nil
+}
+
+// statusPath is the shortest run of legal moves from one status to another,
+// excluding the start and including the end. A card the QA-tool job runner
+// drives never ran through an agent, so it walks the machine instead of
+// jumping it. nil means there is no path.
+func statusPath(from, to string) []string {
+	if from == to {
+		return []string{}
+	}
+	prev := map[string]string{from: ""}
+	queue := []string{from}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, nx := range taskTransitions[cur] {
+			if _, seen := prev[nx]; seen {
+				continue
+			}
+			prev[nx] = cur
+			if nx == to {
+				var rev []string
+				for at := to; at != from; at = prev[at] {
+					rev = append(rev, at)
+				}
+				for i, j := 0, len(rev)-1; i < j; i, j = i+1, j-1 {
+					rev[i], rev[j] = rev[j], rev[i]
+				}
+				return rev
+			}
+			queue = append(queue, nx)
+		}
+	}
+	return nil
+}
+
+// fetchContext reads the pull request's diff and keeps it for the reviewer.
+// The title is untrusted and is kept as it is; the egress pass screens the
+// packet it ends up in.
+func (f *prFlow) fetchContext(ctx context.Context, ev PREvent, pr ghPR) {
+	files, err := f.gh.pullFiles(ctx, ev.Org, ev.Repo, ev.PRNumber)
+	if err != nil {
+		f.logf("prflow: the diff could not be read: %s", ghErrorClass(err))
+		return
+	}
+	f.ctx.put(ev.Key(prJobReviewer), prContext{
+		Title: pr.Title, Body: pr.Body, Author: pr.User.Login, Diff: renderDiff(files)})
+}

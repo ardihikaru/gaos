@@ -69,7 +69,7 @@ func agoAt(at int64, now time.Time) string {
 // buildIntegrations fills the Integrations view.
 func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 	bo.Title = "Integrations"
-	bo.Sub = "What GAOS is connected to, and whether each connection works. Read-only; no secret is shown."
+	bo.Sub = "What GAOS is connected to, and whether each connection works. No secret is shown; the contact list below is the one place it can be edited."
 	now := time.Now()
 	p := &IntegrationsPage{}
 
@@ -196,7 +196,37 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 	} else {
 		p.BrainTownConsumer = s.btConsumerOff
 	}
+	p.PR = s.prFlowRow(ctx, products, now)
 	bo.Integrations = p
+}
+
+// prFlowRow is the pull-request flow's rows (D-088). A destination is masked
+// here, so no template can render one whole.
+func (s *server) prFlowRow(ctx context.Context, products []Product, now time.Time) PRFlowRow {
+	r := PRFlowRow{GitHub: s.ghState, WA: s.wa.Status()}
+	if r.GitHub == "" {
+		r.GitHub = "off"
+	}
+	switch {
+	case s.staging.enabled():
+		r.StagingState = "enabled"
+	case s.staging != nil && s.staging.why != "":
+		r.StagingState = "unusable: " + s.staging.why
+	default:
+		r.StagingState = "disabled"
+	}
+	for _, p := range products {
+		if at, ok := s.staging.LastCallback(p.ID); ok {
+			r.StagingLast = append(r.StagingLast, StagingSeen{Product: p.Name, At: relSpan(now.Sub(at)) + " ago"})
+		}
+	}
+	if cs, err := s.store.ListContacts(ctx); err == nil {
+		for _, c := range cs {
+			r.Contacts = append(r.Contacts, ContactRow{ProductID: c.ProductID, Login: c.GitHubLogin, Name: c.DisplayName,
+				Destination: maskDestination(c.Destination), NotifyOn: strings.Join(c.NotifyOn, ", ")})
+		}
+	}
+	return r
 }
 
 func nonEmpty(xs ...string) []string {

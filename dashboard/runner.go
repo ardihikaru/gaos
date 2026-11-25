@@ -344,11 +344,23 @@ func (s *MemStore) finishRun(deskID, taskID, runID string, att Attempt, runErr e
 		}
 	}
 	out = append(out, s.emit(RunExited, deskID, text, kind, p))
+	var hookTask *TaskRecord
+	if s.afterRun != nil {
+		if t := s.taskByIDLocked(taskID); t != nil {
+			c := t.Clone()
+			hookTask = &c
+		}
+	}
+	after := s.afterRun
 	s.mu.Unlock()
 
 	// Outside the lock on purpose: publish is a database round trip, and one
 	// slow write must not hold the floor closed against every reader.
 	s.publish(out...)
+	// The pull-request flow reads the reply once the run is recorded (D-088).
+	if hookTask != nil && after != nil {
+		go after(*hookTask, att.Reply)
+	}
 }
 
 // beat runs until the run is over. Its own goroutine because the adapter call

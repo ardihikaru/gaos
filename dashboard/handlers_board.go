@@ -192,3 +192,39 @@ func (s *server) handleCardRefused(w http.ResponseWriter, r *http.Request) {
 	}[r.Method]
 	refuseCard(w, reason)
 }
+
+// handleSetLabel is POST /products/{id}/board/cards/{taskId}/label: an operator
+// changes a card's label (D-088). A form post with one field, `label`. The
+// actor is the session's account, never the request's, and the event names the
+// alias, never the address.
+func (s *server) handleSetLabel(w http.ResponseWriter, r *http.Request) {
+	ss, ok := sessionOf(r)
+	if !ok || ss.Email == "" {
+		writeBoardJSON(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})
+		return
+	}
+	id, taskID := r.PathValue("id"), r.PathValue("taskId")
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if err := r.ParseForm(); err != nil {
+		writeBoardJSON(w, http.StatusBadRequest, map[string]string{"error": "the label could not be read"})
+		return
+	}
+	res, err := s.mut(r).SetTaskLabel(r.Context(), id, taskID, strings.TrimSpace(r.PostFormValue("label")), ss.Email)
+	if err != nil {
+		if wantsHTMX(r) {
+			s.fail(w, r, err)
+			return
+		}
+		if errors.Is(err, ErrNotFound) {
+			writeBoardJSON(w, http.StatusNotFound, map[string]string{"error": "no such card"})
+			return
+		}
+		writeBoardJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		return
+	}
+	if wantsHTMX(r) {
+		s.renderBOAfter(w, r, res, id, "board")
+		return
+	}
+	writeBoardJSON(w, http.StatusOK, map[string]string{"ok": "label set"})
+}

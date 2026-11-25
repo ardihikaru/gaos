@@ -61,6 +61,12 @@ func envOr(k, def string) string {
 }
 
 type server struct {
+	// staging is the Jenkins callback's credentials (staging.go); never nil.
+	staging *stagingAuth
+	// ghState is the GitHub client's row on the Integrations view.
+	ghState string
+	// wa is the WhatsApp notifier (wa.go); nil when off.
+	wa   *waNotifier
 	auth *authority // back-office sessions (auth.go); nil signs nobody in
 	// patterns and bearer are what routes() registered, for the route-table test.
 	patterns []string
@@ -341,7 +347,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: api, brain: brain, brainOff: brainOff,
 		btConsumer: btCons, btConsumerOff: btConsOff, qaOut: qaOutboundFromEnv(),
-		auth: authFromEnv(!dev), bootChecked: bootChecked}
+		auth: authFromEnv(!dev), bootChecked: bootChecked, staging: stagingAuthFromEnv()}
 
 	// D-078: the answer webhook. One worker; with the outbound unconfigured it
 	// idles and the QA tool polls GET /v1/products/{id}/inbox/{externalId}.
@@ -350,8 +356,69 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	if brain != nil {
 		go brain.Run(ctx)
 	}
+	// The pull-request flow's outside calls (D-088): GitHub, WhatsApp and the
+	// seams the runner reads. They do not depend on the reader being on: the
+	// staging callback uses them too.
+	gcfg := ghConfigFromEnv()
+	ghc := newGHClient(gcfg)
+	flow := &prFlow{st: store, ctx: &prContextCache{}, logf: log.Printf}
+	var authors authorSource
+	if ghc != nil {
+		flow.gh = ghc
+		authors = ghc
+		srv.ghState = "on"
+		log.Printf("pull requests: GitHub client on")
+	} else {
+		srv.ghState = "off (" + gcfg.why + ")"
+		log.Printf("pull requests: GitHub client off (%s); no fork check, no review post", gcfg.why)
+	}
+	wcfg := waConfigFromEnv()
+	wa := newWANotifier(wcfg)
+	switch {
+	case wa != nil:
+		wa.VerifyGroup(ctx)
+		log.Printf("whatsapp: notifier on (%s)", urlHost(wcfg.base))
+	case wcfg.why != "":
+		log.Printf("whatsapp: notifier off (%s)", wcfg.why)
+	}
+	nt := &notifier{st: store, wa: wa, gh: authors, logf: log.Printf}
+	srv.wa = wa
+	// The QA tool writes and runs the e2e specs; GAOS only asks and polls.
+	if srv.qaOut != nil {
+		jr := newQAJobRunner(store, srv.qaOut, flow.ctx, nt, flow.gh)
+		jr.logf = log.Printf
+		go jr.Run(ctx)
+	}
+	switch {
+	case srv.staging.enabled():
+		log.Printf("staging: callback on for %d product(s)", len(srv.staging.sums))
+	case srv.staging.why != "":
+		log.Printf("staging: callback off (%s)", srv.staging.why)
+	}
+	if h, ok := store.(interface {
+		SetPRHooks(func(TaskRecord) []PacketPart, func(TaskRecord, string))
+	}); ok {
+		rv := &prReviewer{st: store, logf: log.Printf, notify: nt.Notify}
+		if ghc != nil {
+			rv.gh = ghc
+		}
+		h.SetPRHooks(
+			func(t TaskRecord) []PacketPart { return prPacketParts(flow.ctx, t) },
+			func(t TaskRecord, reply string) {
+				switch {
+				case t.Role == "pr-reviewer":
+					rv.afterRun(context.Background(), t, reply)
+				case t.Role == "unit-test" && t.DedupKey != "" && t.Status == StatusFailed:
+					nt.Notify(context.Background(), t, "unit:failure", "unit tests failed")
+				}
+			})
+	}
+
 	if btCons != nil {
 		go btCons.Run(ctx)
+		// The reader's consumer: the pull-request flow. It runs on its own
+		// goroutine and never blocks the reader.
+		go btCons.Drain(ctx, flow.handle)
 	}
 
 	h := gzipMiddleware(srv.routes())
@@ -431,6 +498,9 @@ func (s *server) routes() http.Handler {
 	handle("GET /products/{id}/board/cards/{taskId}/timing", s.handleCardTiming) // D-081
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084
+	handle("POST /products/{id}/board/cards/{taskId}/label", s.handleSetLabel)     // D-088
+	handle("POST /contacts", s.handleContactSave)                                  // D-088
+	handle("POST /contacts/delete", s.handleContactDelete)                         // D-088
 	handle("POST /products/{id}/board/cards", s.handleCardRefused)
 	handle("PUT /products/{id}/board/cards/{taskId}", s.handleCardRefused)
 	handle("DELETE /products/{id}/board/cards/{taskId}", s.handleCardRefused)

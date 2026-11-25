@@ -40,7 +40,7 @@ const schemaDir = "schema"
 // GaosVertex and GaosEdge are supertypes that everything else EXTENDS and are
 // deliberately outside those numbers.
 const (
-	wantVertexTypes   = 29
+	wantVertexTypes   = 30
 	wantDocumentTypes = 3
 	wantEdgeTypes     = 38
 )
