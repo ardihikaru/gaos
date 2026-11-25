@@ -177,7 +177,8 @@ func (s *MemStore) openPRCardsLocked(productID string) int {
 	n := 0
 	for i := range s.tasks {
 		t := &s.tasks[i]
-		if t.DeskID != productID || t.DedupKey == "" {
+		// Defect cards have their own caps (D-091 §5.3).
+		if t.DeskID != productID || t.DedupKey == "" || strings.HasPrefix(t.DedupKey, "defect:") {
 			continue
 		}
 		switch t.Status {
@@ -422,6 +423,9 @@ func (s *MemStore) SetTaskLabel(ctx context.Context, productID, taskID, label, a
 	if !ValidLabel(label) {
 		return Result{}, reject("That label is not one of: " + strings.Join(labelOrder, ", ") + ".")
 	}
+	if labelFamily(label) == labelFamilyDefect {
+		return Result{}, reject("The defect labels are set by the planner only.")
+	}
 	var t *TaskRecord
 	for i := range s.tasks {
 		if s.tasks[i].ID == taskID && s.tasks[i].DeskID == productID {
@@ -490,28 +494,40 @@ func (s *MemStore) ResolvePRCard(ctx context.Context, productID, taskID, to, rea
 	if t == nil || t.DeskID != productID || t.DedupKey == "" {
 		return Result{}, ErrNotFound
 	}
+	evs, err := s.resolveCardLocked(t, to, reason, RulePRResolved)
+	if err != nil {
+		return Result{}, err
+	}
+	c := m.Clone()
+	return Result{Master: &c, NewEvents: evs, Floor: s.floor()}, nil
+}
+
+// resolveCardLocked walks a card to a status resolveFrom allows and records why
+// on it. rule names the actor of every hop. The guarantees of ResolvePRCard
+// hold for every caller: a card an operator blocked or canceled stays there and
+// a finished card never comes back.
+func (s *MemStore) resolveCardLocked(t *TaskRecord, to, reason, rule string) ([]Event, error) {
 	allowed := false
 	for _, from := range resolveFrom[to] {
 		allowed = allowed || from == t.Status
 	}
 	if !allowed {
-		return Result{}, reject("The card is " + t.Status + "; it does not move to " + to + " from there.")
+		return nil, reject("The card is " + t.Status + "; it does not move to " + to + " from there.")
 	}
 	path := statusPath(t.Status, to)
 	if path == nil {
-		return Result{}, reject("The card cannot move to " + to + " from " + t.Status + ".")
+		return nil, reject("The card cannot move to " + to + " from " + t.Status + ".")
 	}
 	t.BlockReason = reason
 	var evs []Event
 	for _, step := range path {
-		mv, ok := s.moveTaskLocked(taskID, step, RulePRResolved)
+		mv, ok := s.moveTaskLocked(t.ID, step, rule)
 		if !ok {
-			return Result{}, reject("The card cannot move to " + step + " from " + t.Status + ".")
+			return nil, reject("The card cannot move to " + step + " from " + t.Status + ".")
 		}
 		evs = append(evs, mv)
 	}
-	c := m.Clone()
-	return Result{Master: &c, NewEvents: evs}, nil
+	return evs, nil
 }
 
 // statusPath is the shortest run of legal moves from one status to another,

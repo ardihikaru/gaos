@@ -143,6 +143,18 @@ type Store interface {
 	// PRCards are a product's pull-request cards (those carrying a dedup key), as
 	// copies: the QA-job runner reads their status, labels and reason (D-088).
 	PRCards(ctx context.Context, productID string) ([]TaskRecord, error)
+	// Defects and auto-fix (D-091, defects.go, defecttriage.go). Every write is
+	// one transaction: the record, its cards and its events together.
+	ReportDefects(ctx context.Context, productID string, in DefectReportIn) (DefectReportOut, Result, error)
+	Defects(ctx context.Context, productID string) ([]Defect, error)
+	DefectByKey(ctx context.Context, productID, key string) (Defect, error)
+	SetDefectContext(ctx context.Context, productID, key string, c DefectContext) (Result, error)
+	ResolveTriage(ctx context.Context, productID, taskID string, v TriageVerdict) (Result, error)
+	CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error)
+	FixPRs(ctx context.Context, productID string) ([]FixPR, error)
+	UpsertFixPR(ctx context.Context, f FixPR) (Result, error)
+	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
+	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)
@@ -219,6 +231,11 @@ type Result struct {
 	// Contacts are registry changes ArcadeStore writes in the same transaction
 	// (D-088). They never ride an event.
 	Contacts []ContactOp
+
+	// Defects and FixPRs are the records a defect mutation changed (D-091);
+	// ArcadeStore writes them in the same transaction.
+	Defects []Defect
+	FixPRs  []FixPR
 }
 
 // Sentinel errors. ErrRejected is the "rejection reason" half of the §09 rule:
@@ -385,4 +402,23 @@ func (readOnly) QaRecordSync(context.Context, string, string, QaSyncSide) (Resul
 }
 func (readOnly) QaCreate(context.Context, string, QaCreateIn) (QaCreateOut, Result, error) {
 	return QaCreateOut{}, Result{}, reject(replayRefusal)
+}
+
+func (readOnly) ReportDefects(context.Context, string, DefectReportIn) (DefectReportOut, Result, error) {
+	return DefectReportOut{}, Result{}, reject(replayRefusal)
+}
+func (readOnly) SetDefectContext(context.Context, string, string, DefectContext) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) ResolveTriage(context.Context, string, string, TriageVerdict) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) CloseDefect(context.Context, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) UpsertFixPR(context.Context, FixPR) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetAutoFix(context.Context, string, AutoFix, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
 }

@@ -87,6 +87,7 @@ var storeContract = []storeCase{
 	{"CardTimingOfAPlannedTask", caseCardTimingOfAPlannedTask},
 	{"ConversationArchiveRoundTrip", caseConversationArchiveRoundTrip},
 	{"ASendBackRoundTrips", caseSendBackRoundTrips},
+	{"ADefectReportRoundTrips", caseDefectReportRoundTrips},
 }
 
 func TestStoreConformanceMemory(t *testing.T) {
@@ -855,6 +856,15 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 			return r, err
 		},
 		"CreateWorkflow": func() (Result, error) { return ro.CreateWorkflow(ctx, WorkflowDraft{}, nil) },
+		"ReportDefects": func() (Result, error) {
+			_, r, err := ro.ReportDefects(ctx, "p-1", DefectReportIn{})
+			return r, err
+		},
+		"CloseDefect": func() (Result, error) { return ro.CloseDefect(ctx, "p-1", "DEF-1", "x") },
+		"ResolveTriage": func() (Result, error) {
+			return ro.ResolveTriage(ctx, "p-1", "t-1", TriageVerdict{})
+		},
+		"SetAutoFix": func() (Result, error) { return ro.SetAutoFix(ctx, "p-1", AutoFix{}, "x", "") },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+
@@ -1812,5 +1822,28 @@ func caseSendBackRoundTrips(t *testing.T, s Store) {
 		if n != 1 || last.Payload.Actor != "conf@example.test" || len(last.Payload.Triage) != 1 || last.Payload.Triage[0].Note != "it is stated" {
 			t.Errorf("reopened: the send-back event is %+v (count %d); the actor and the triage must survive", last.Payload, n)
 		}
+	}
+}
+
+// caseDefectReportRoundTrips: a report is recorded once, repeats change
+// nothing, a verdict plans the fix card, and the configuration reads back.
+func caseDefectReportRoundTrips(t *testing.T, s Store) {
+	ctx := context.Background()
+	pid := "p-1" // a seeded product has the desk the planner needs
+	if _, _, err := s.ReportDefects(ctx, pid, DefectReportIn{Source: "push"}); err != nil {
+		t.Fatalf("an empty batch: %v", err)
+	}
+	if _, _, err := s.ReportDefects(ctx, "p-none", DefectReportIn{Source: "push"}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("an unknown product gave %v, want ErrNotFound", err)
+	}
+	if _, err := s.DefectByKey(ctx, pid, pid+"/DEF-1"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("an unknown record gave %v, want ErrNotFound", err)
+	}
+	if _, err := s.SetAutoFix(ctx, pid, AutoFix{Enabled: true, TriageCap: 99, AllowedGlobs: []string{"pkg/**"}}, "ops", "fine-grained"); err != nil {
+		t.Fatalf("SetAutoFix: %v", err)
+	}
+	af, err := s.AutoFixOf(ctx, pid)
+	if err != nil || !af.Enabled || af.TriageCap != autoFixTriageCapMax || af.FixCap != autoFixFixCapDefault || len(af.AllowedGlobs) != 1 {
+		t.Errorf("AutoFixOf = %+v %v, want enabled, triage cap clamped to %d, fix cap defaulted", af, err, autoFixTriageCapMax)
 	}
 }

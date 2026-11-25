@@ -422,6 +422,43 @@ func (s *ArcadeStore) DeleteContact(ctx context.Context, productID, login, actor
 func (s *ArcadeStore) RecordNotification(ctx context.Context, productID, alias, kind, outcome string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.RecordNotification(ctx, productID, alias, kind, outcome) })
 }
+func (s *ArcadeStore) ReportDefects(ctx context.Context, productID string, in DefectReportIn) (DefectReportOut, Result, error) {
+	var out DefectReportOut
+	var res Result
+	_, err := s.mutate(ctx, func() (Result, error) {
+		var e error
+		out, res, e = s.proj.ReportDefects(ctx, productID, in)
+		return res, e
+	})
+	return out, res, err
+}
+func (s *ArcadeStore) Defects(ctx context.Context, productID string) ([]Defect, error) {
+	return s.proj.Defects(ctx, productID)
+}
+func (s *ArcadeStore) DefectByKey(ctx context.Context, productID, key string) (Defect, error) {
+	return s.proj.DefectByKey(ctx, productID, key)
+}
+func (s *ArcadeStore) SetDefectContext(ctx context.Context, productID, key string, c DefectContext) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SetDefectContext(ctx, productID, key, c) })
+}
+func (s *ArcadeStore) ResolveTriage(ctx context.Context, productID, taskID string, v TriageVerdict) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.ResolveTriage(ctx, productID, taskID, v) })
+}
+func (s *ArcadeStore) CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseDefect(ctx, productID, ref, actor) })
+}
+func (s *ArcadeStore) FixPRs(ctx context.Context, productID string) ([]FixPR, error) {
+	return s.proj.FixPRs(ctx, productID)
+}
+func (s *ArcadeStore) UpsertFixPR(ctx context.Context, f FixPR) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.UpsertFixPR(ctx, f) })
+}
+func (s *ArcadeStore) AutoFixOf(ctx context.Context, productID string) (AutoFix, error) {
+	return s.proj.AutoFixOf(ctx, productID)
+}
+func (s *ArcadeStore) SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SetAutoFix(ctx, productID, a, actor, tokenKind) })
+}
 func (s *ArcadeStore) PRCards(ctx context.Context, productID string) ([]TaskRecord, error) {
 	return s.proj.PRCards(ctx, productID)
 }
@@ -563,6 +600,16 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 	}
 	for _, op := range r.Contacts {
 		if err := s.writeContact(ctx, tx, op); err != nil {
+			return err
+		}
+	}
+	for _, d := range r.Defects {
+		if err := s.writeDefect(ctx, tx, d); err != nil {
+			return err
+		}
+	}
+	for _, f := range r.FixPRs {
+		if err := s.writeFixPR(ctx, tx, f); err != nil {
 			return err
 		}
 	}
@@ -757,6 +804,10 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	if err != nil {
 		return err
 	}
+	autoFix, err := jsonMap(m.AutoFix)
+	if err != nil {
+		return err
+	}
 	props := map[string]any{
 		"code": m.Code, "owner": m.Owner, "priority": m.Priority,
 		"brd": brd, "stories": stories, "diagrams": diagrams,
@@ -766,6 +817,7 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 		"vendorPolicy": vendors,   // which AI vendors run its tasks, M16
 		"qaState":      qaState,   // the QA catalog's modules, epics, head and sync state, D-072
 	}
+	props["autoFix"] = autoFix // the defect auto-fix policy, D-091
 	if m.Stage != "" {
 		props["stage"] = m.Stage
 	}
@@ -907,6 +959,8 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 			// so what is written is always a subset of dashboard/labels.go.
 			"labels":   labelsJSON(t.Labels),
 			"dedupKey": t.DedupKey,
+			// D-091: the automatic dispatch's Unix second, counted by the caps.
+			"autoAt": t.AutoAt,
 		}); err != nil {
 			return err
 		}
@@ -1424,10 +1478,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Workspace json.RawMessage `json:"workspace"`
 		Vendors   json.RawMessage `json:"vendorPolicy"`
 		QaState   json.RawMessage `json:"qaState"`
+		AutoFix   json.RawMessage `json:"autoFix"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, name, repo, goal, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState
+		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1476,6 +1531,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		if len(r.QaState) > 0 && string(r.QaState) != "null" {
 			if err := decodeInto(r.QaState, &mr.Qa); err != nil {
+				return false, err
+			}
+		}
+		if len(r.AutoFix) > 0 && string(r.AutoFix) != "null" {
+			if err := decodeInto(r.AutoFix, &mr.AutoFix); err != nil {
 				return false, err
 			}
 		}
@@ -1618,10 +1678,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Kind       string `json:"kind"`
 		Labels     string `json:"labels"`
 		DedupKey   string `json:"dedupKey"`
+		AutoAt     int64  `json:"autoAt"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, workflowId, deskId, title, role, story, modelHint, status,
-		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind, labels, dedupKey
+		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind, labels, dedupKey, autoAt
 		 FROM Task WHERE tenantId = :t AND workflowId IS NOT NULL
 		 ORDER BY workflowId, ordinal`,
 		map[string]any{"t": s.tenant}, &trows); err != nil {
@@ -1658,6 +1719,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 			_ = json.Unmarshal([]byte(r.Labels), &t.Labels)
 		}
 		t.DedupKey = r.DedupKey
+		t.AutoAt = r.AutoAt
 		for _, d := range deps {
 			t.Deps = append(t.Deps, d.ID)
 		}
@@ -1912,6 +1974,15 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	m.restoreContacts(contacts)
+	defects, err := s.loadDefects(ctx)
+	if err != nil {
+		return false, err
+	}
+	fixprs, err := s.loadFixPRs(ctx)
+	if err != nil {
+		return false, err
+	}
+	m.restoreDefects(defects, fixprs)
 	s.proj = m
 	return true, nil
 }

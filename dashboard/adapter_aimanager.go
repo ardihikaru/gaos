@@ -138,6 +138,10 @@ func contractsFor(kind, taskID, runID, role string) string {
 	if role == "pr-reviewer" && taskKind(kind) == TaskKindImplement {
 		return prReviewContract(taskID, runID, role)
 	}
+	// The defect triager owes a gaos-triage block, then the handoff (D-091).
+	if role == "triager" && taskKind(kind) == TaskKindImplement {
+		return triageContract(taskID, runID, role)
+	}
 	switch taskKind(kind) {
 	case TaskKindDesign:
 		return designContract(taskID, runID, role) + "\n===== the handoff =====\n" + handoff

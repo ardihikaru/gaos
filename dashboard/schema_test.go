@@ -37,10 +37,11 @@ const schemaDir = "schema"
 // 3 document types, 32 edge types", and §15 (D-058, 11-blueprint.sql) adds
 // Policy, KnowledgeSource and BlueprintVersion and five edges -- 28 and 37.
 // D-072 (16-qa-catalog.sql) adds QaCase and HAS_QA_CASE -- 29 and 38.
+// D-088 adds Contact (30) and D-091 (17-defects.sql) adds Defect and FixPR (32).
 // GaosVertex and GaosEdge are supertypes that everything else EXTENDS and are
 // deliberately outside those numbers.
 const (
-	wantVertexTypes   = 30
+	wantVertexTypes   = 32
 	wantDocumentTypes = 3
 	wantEdgeTypes     = 38
 )

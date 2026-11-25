@@ -11,7 +11,7 @@ package main
 // records, written into the graph once, and MemStore stops being the default.
 
 var roleOrder = []string{"architect", "backend", "frontend", "qa", "security", "devops", "planner",
-	"pr-reviewer", "unit-test"}
+	"pr-reviewer", "unit-test", "triager", "fixer"}
 
 var roles = map[string]Role{
 	"architect": {"architect", "System Architect", "SA", "var(--role-architect)", "architecture", "claude-opus-5"},
@@ -27,6 +27,9 @@ var roles = map[string]Role{
 	// is the QA tool's and uses the existing qa role.
 	"pr-reviewer": {"pr-reviewer", "PR Reviewer", "PR", "var(--role-security)", "architecture", "claude-opus-5"},
 	"unit-test":   {"unit-test", "Unit Test Builder", "UT", "var(--role-qa)", "qa", "claude-sonnet-5"},
+	// The defect agents (D-091): the triager classifies, the fixer proposes edits.
+	"triager": {"triager", "Defect Triager", "DT", "var(--role-qa)", "qa", "claude-opus-5"},
+	"fixer":   {"fixer", "Defect Fixer", "DF", "var(--role-backend)", "backend", "claude-sonnet-5"},
 }
 
 var agents = []Agent{
@@ -41,6 +44,8 @@ var agents = []Agent{
 	{"a-9", "Iris", "planner"},
 	{"a-10", "Juno", "pr-reviewer"},
 	{"a-11", "Kite", "unit-test"},
+	{"a-12", "Lark", "triager"},
+	{"a-13", "Mica", "fixer"},
 }
 
 func agentByID(id string) *Agent {

@@ -408,6 +408,63 @@ type Master struct {
 	// revision counter and the last outbound sync (qacatalog.go, D-072). The
 	// cases themselves are QaCase vertices, not part of this document.
 	Qa QaState
+
+	// AutoFix is the product's defect auto-fix policy (D-091). Structured,
+	// because GAOS enforces it; never rendered into the Blueprint.
+	AutoFix AutoFix
+}
+
+// AutoFix is a product's defect auto-fix configuration (design §6.1). The zero
+// value is off, with no allowed paths.
+type AutoFix struct {
+	// Enabled is the standing consent for automatic dispatch.
+	Enabled bool
+	// FixCap and TriageCap are automatic dispatches per UTC day (0 = default).
+	FixCap, TriageCap int
+	// AllowedGlobs are the only paths an easy fix may edit.
+	AllowedGlobs []string
+	// ForbiddenGlobs are extra paths never touched, on top of the built-ins.
+	ForbiddenGlobs []string
+	// TestGlobs say what counts as a test file.
+	TestGlobs []string
+	// PRTemplate is the pull-request body with named slots; empty = default.
+	PRTemplate string
+	// CIConfirmed: the operator confirms CI runs no secrets on gaos/fix-*.
+	CIConfirmed bool
+}
+
+// Auto-fix cap defaults and ceilings (design §6.1).
+const (
+	autoFixFixCapDefault    = 3
+	autoFixFixCapMax        = 10
+	autoFixTriageCapDefault = 10
+	autoFixTriageCapMax     = 50
+)
+
+// Caps are the effective daily caps: the defaults for 0, the ceiling for more.
+func (a AutoFix) Caps() (fix, triage int) {
+	fix, triage = a.FixCap, a.TriageCap
+	if fix <= 0 {
+		fix = autoFixFixCapDefault
+	}
+	if fix > autoFixFixCapMax {
+		fix = autoFixFixCapMax
+	}
+	if triage <= 0 {
+		triage = autoFixTriageCapDefault
+	}
+	if triage > autoFixTriageCapMax {
+		triage = autoFixTriageCapMax
+	}
+	return fix, triage
+}
+
+// Clone deep-copies the slices.
+func (a AutoFix) Clone() AutoFix {
+	a.AllowedGlobs = append([]string(nil), a.AllowedGlobs...)
+	a.ForbiddenGlobs = append([]string(nil), a.ForbiddenGlobs...)
+	a.TestGlobs = append([]string(nil), a.TestGlobs...)
+	return a
 }
 
 func (m Master) Clone() Master {
@@ -429,6 +486,7 @@ func (m Master) Clone() Master {
 	c.Decisions = append([]Decision(nil), m.Decisions...)
 	c.Blueprint = m.Blueprint.Clone()
 	c.Qa = m.Qa.Clone()
+	c.AutoFix = m.AutoFix.Clone()
 	return c
 }
 
@@ -742,7 +800,10 @@ type TaskRecord struct {
 	Labels []string
 	// DedupKey is a pull-request card's de-duplication key (D-088):
 	// owner/repo#n:role or owner/repo@sha:e2e-run. Empty on every other card.
-	DedupKey    string
+	DedupKey string
+	// AutoAt is the Unix second of the automatic dispatch of a defect card
+	// (D-091); the daily caps count it. Zero on every other card.
+	AutoAt      int64
 	Deps        []string
 	Priority    int
 	Ordinal     int

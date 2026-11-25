@@ -209,6 +209,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
   <a href="#gateway-additions"><i>15</i>Gateway, Blueprint &amp; Board</a>
   <h3>Since v0.37.0</h3>
   <a href="#qa-catalog"><i>16</i>The QA catalog</a>
+  <a href="#defects"><i>17</i>Defect triage &amp; auto-fix</a>
 
   <button class="dl" id="dlBtn"><span>download</span>gaos-schema.sql — every DDL block on this page</button>
 </nav>
@@ -560,11 +561,13 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <span class="k">CREATE PROPERTY</span> Task.status           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'PENDING'</span>,
                  regexp <span class="s">'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED'</span>);
 <span class="k">CREATE PROPERTY</span> Task.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
-                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test'</span>);
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer'</span>);
 <span class="c">-- D-088: the labels (a JSON array; the vocabulary is closed in dashboard/labels.go)
 -- and the de-duplication key of a pull-request card.</span>
 <span class="k">CREATE PROPERTY</span> Task.labels           <span class="s">STRING</span>;
 <span class="k">CREATE PROPERTY</span> Task.dedupKey         <span class="s">STRING</span>;
+<span class="c">-- D-091: the Unix second of an automatic defect dispatch; the daily caps count it.</span>
+<span class="k">CREATE PROPERTY</span> Task.autoAt           <span class="s">INTEGER</span>;
 <span class="k">CREATE PROPERTY</span> Task.riskClass        <span class="s">STRING</span>  (default <span class="s">'normal'</span>,
                  regexp <span class="s">'low|normal|high|critical'</span>);
 <span class="k">CREATE PROPERTY</span> Task.modelHint        <span class="s">STRING</span>;
@@ -769,7 +772,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <tbody>
       <tr><td class="mono">master</td><td class="mono">ProductCreated · RecordUpdated · KnowledgeInjected · ReadinessEvaluated · ReadinessDropped</td></tr>
       <tr><td class="mono">planning</td><td class="mono">WorkflowCreated · TaskPlanned (a plan, or an addition to one — §16) · DependencyRewired · WorkflowCanceled</td></tr>
-      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered · ExternalQuestionAsked · ExternalQuestionAnswered · ExternalAnswerDelivery · ConversationArchived · ConversationPruned · PullRequestOpened · PullRequestMerged · StagingDeployed · ContactNotified · TaskLabeled</td></tr>
+      <tr><td class="mono">execution</td><td class="mono">TaskDispatched · RunStarted · Heartbeat · RunExited · TaskBlocked · TaskResumed · TaskOrphaned · QuestionAsked · QuestionAnswered · ExternalQuestionAsked · ExternalQuestionAnswered · ExternalAnswerDelivery · ConversationArchived · ConversationPruned · PullRequestOpened · PullRequestMerged · StagingDeployed · ContactNotified · TaskLabeled · DefectReported · DefectTriaged · DefectStateChanged · FixPROpened · FixPRStateChanged · AutoFixConfigured</td></tr>
       <tr><td class="mono">judgment</td><td class="mono">ReviewCompleted · RetryRequested · ModelEscalated · SafetyVeto · GuardExhausted</td></tr>
       <tr><td class="mono">gates</td><td class="mono">ApprovalRequested · ApprovalGranted · ApprovalRejected</td></tr>
       <tr><td class="mono">collaboration</td><td class="mono">MeetingStarted · ProposalRecorded · DecisionRecorded · MeetingClosed</td></tr>
@@ -1421,6 +1424,12 @@ ALTER PROPERTY Artifact.kind REGEXP 'sequence|erd|flow|diff|commit|report|log|up
       <tr><td class="mono">StagingDeployed</td><td>execution</td><td class="mono">repo, commit, taskId — D-088: the staging callback landed</td></tr>
       <tr><td class="mono">ContactNotified</td><td>execution</td><td class="mono">alias, kind, outcome — D-088: never the destination, never the body</td></tr>
       <tr><td class="mono">TaskLabeled</td><td>execution</td><td class="mono">taskId, from, to, actor — D-088: an operator changed a label</td></tr>
+      <tr><td class="mono">DefectReported</td><td>execution</td><td class="mono">defect key, kind — D-091: a new defect key; never the title or the excerpt</td></tr>
+      <tr><td class="mono">DefectTriaged</td><td>execution</td><td class="mono">defect key, difficulty, class, reason — D-091: the verdict GAOS accepted or downgraded</td></tr>
+      <tr><td class="mono">DefectStateChanged</td><td>execution</td><td class="mono">defect key, to open|triaged|fixing|fixed|closed, rule, actor alias — D-091</td></tr>
+      <tr><td class="mono">FixPROpened</td><td>execution</td><td class="mono">defect key, repo, number — D-091: a draft pull request exists</td></tr>
+      <tr><td class="mono">FixPRStateChanged</td><td>execution</td><td class="mono">defect key, repo, number, to draft|ready|merged|closed — D-091</td></tr>
+      <tr><td class="mono">AutoFixConfigured</td><td>execution</td><td class="mono">actor alias, the new values (never the template text), the kind of GitHub token in use — D-091</td></tr>
       <tr><td class="mono">ExternalAnswerDelivery</td><td>execution</td><td class="mono">question{externalId, attempt, attemptAt}, rule delivered|retry|gave-up, reason — one attempt to tell the QA tool</td></tr>
     </tbody>
   </table>
@@ -1523,6 +1532,92 @@ CREATE INDEX IF NOT EXISTS ON HAS_QA_CASE (`@out`, `@in`) UNIQUE;</pre>
   </table>
 </section>
 
+
+<!-- ============================================================ -->
+<section id="defects">
+  <h2><span class="num">17</span> Defect triage and auto-fix</h2>
+  <p class="lede">Decided in D-091 (<code>docs/designs/gaos-defect-autofix.md</code>). Applied as <code>dashboard/schema/17-defects.sql</code> — two vertex types and two indexes, every statement <span class="mono">IF NOT EXISTS</span>, purely additive. A defect the QA tool reported is a <span class="mono">Defect</span> vertex; the draft pull request an easy one produced is a <span class="mono">FixPR</span>. Neither is folded from the stream: both are written in the transaction of the change and read once at boot.</p>
+
+  <h4>New vertex types · 30 become 32</h4>
+  <table>
+    <thead><tr><th class="mono">Type</th><th>Purpose</th><th class="mono">Declared properties</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Defect</td><td>One defect key of a product, its verdict and its cards. <span class="mono">excerpt</span> is untrusted text and is emptied 30 days after <span class="mono">lastSeen</span>.</td><td class="mono">id (the key), productId, defectId, caseId, kind xfail|fail|xpass, level, automationType be|e2e, backend, targetRepos, operations, spec, title, excerpt, excerptWithheld, firstSeen, lastSeen, runRef, gen, regression, difficulty, triageClass, repo, files, reason, state open|triaged|fixing|fixed|closed, supersededBy, triageTask, fixTask, fixPR, context</td></tr>
+      <tr><td class="mono">FixPR</td><td>One draft pull request GAOS opened for a defect, and what is needed to resume it.</td><td class="mono">id, productId, defectKey, repo, number, url, state preparing|draft|ready|merged|closed, createdAt, updatedAt, taskId, difficulty, before, after, branch, baseSHA, commitSHA, waSent, reply</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Also new</h4>
+  <p><span class="mono">Task.autoAt</span> (INTEGER, in <code>04-execution.sql</code>) is the Unix second of an automatic defect dispatch; the daily caps count it. <span class="mono">Task.role</span> admits <span class="mono">triager</span> and <span class="mono">fixer</span>. <span class="mono">Master.AutoFix</span> rides on the <span class="mono">Product</span> record as the document <span class="mono">autoFix</span> (D-009) and needs no DDL. Six event types join the catalog (§08): DefectReported, DefectTriaged, DefectStateChanged, FixPROpened, FixPRStateChanged, AutoFixConfigured.</p>
+
+  <div class="code" data-sql>
+    <div class="bar"><b>17-defects.sql</b><span class="sp"><button class="cp">Copy</button></span></div>
+    <pre>-- 17 · Defect triage and auto-fix (D-091; docs/designs/gaos-defect-autofix.md §5.1, §9.1).
+--
+-- A defect the QA tool reported, one vertex per key, and the draft pull request
+-- an easy one produced. Neither is part of the floor and neither is rebuilt from
+-- the event stream: both are written in the transaction of the change and read
+-- once at boot. `excerpt` is the untrusted failure text; a retention job empties
+-- it 30 days after `lastSeen`. `context` is the packet's source slice (at most
+-- 96 KiB); it is never in an event.
+--
+-- The vertex id of a Defect is its key, "&lt;productId&gt;/&lt;defectId or caseId&gt;".
+
+CREATE VERTEX TYPE Defect IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY Defect.productId       STRING  (mandatory true, notnull true);
+CREATE PROPERTY Defect.defectId        STRING;
+CREATE PROPERTY Defect.caseId          STRING  (mandatory true, notnull true);
+CREATE PROPERTY Defect.kind            STRING  (mandatory true, regexp 'xfail|fail|xpass');
+CREATE PROPERTY Defect.level           STRING;
+CREATE PROPERTY Defect.automationType  STRING  (mandatory true, regexp 'be|e2e');
+CREATE PROPERTY Defect.backend         STRING;
+CREATE PROPERTY Defect.targetRepos     STRING;   -- a JSON array, the owned ones only
+CREATE PROPERTY Defect.operations      STRING;   -- a JSON array, search terms only
+CREATE PROPERTY Defect.spec            STRING;
+CREATE PROPERTY Defect.title           STRING;
+CREATE PROPERTY Defect.excerpt         STRING;
+CREATE PROPERTY Defect.excerptWithheld BOOLEAN (default false);
+CREATE PROPERTY Defect.firstSeen       LONG    (mandatory true);
+CREATE PROPERTY Defect.lastSeen        LONG    (mandatory true);
+CREATE PROPERTY Defect.runRef          STRING;
+CREATE PROPERTY Defect.gen             INTEGER (mandatory true, min 1);
+CREATE PROPERTY Defect.regression      BOOLEAN (default false);
+CREATE PROPERTY Defect.difficulty      STRING  (regexp 'easy|medium|complex');
+CREATE PROPERTY Defect.triageClass      STRING;   -- the verdict class (not named `class`: a reserved word in the SQL dialect)
+CREATE PROPERTY Defect.repo            STRING;   -- the verdict's repository
+CREATE PROPERTY Defect.files           STRING;   -- a JSON array, the verdict's files
+CREATE PROPERTY Defect.reason          STRING;
+CREATE PROPERTY Defect.state           STRING  (mandatory true, regexp 'open|triaged|fixing|fixed|closed');
+CREATE PROPERTY Defect.supersededBy    STRING;
+CREATE PROPERTY Defect.triageTask      STRING;
+CREATE PROPERTY Defect.fixTask         STRING;
+CREATE PROPERTY Defect.fixPR           STRING;
+CREATE PROPERTY Defect.context         STRING;   -- the packet's source slice, at most 96 KiB
+
+CREATE VERTEX TYPE FixPR IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY FixPR.productId  STRING  (mandatory true, notnull true);
+CREATE PROPERTY FixPR.defectKey  STRING  (mandatory true, notnull true);
+CREATE PROPERTY FixPR.repo       STRING  (mandatory true, notnull true);
+CREATE PROPERTY FixPR.number     INTEGER;
+CREATE PROPERTY FixPR.url        STRING;
+CREATE PROPERTY FixPR.state      STRING  (mandatory true, regexp 'preparing|draft|ready|merged|closed');
+CREATE PROPERTY FixPR.createdAt  LONG    (mandatory true);
+CREATE PROPERTY FixPR.updatedAt  LONG    (mandatory true);
+CREATE PROPERTY FixPR.taskId     STRING;
+CREATE PROPERTY FixPR.difficulty STRING;
+CREATE PROPERTY FixPR.before     STRING;
+CREATE PROPERTY FixPR.after      STRING;
+CREATE PROPERTY FixPR.branch     STRING;
+CREATE PROPERTY FixPR.baseSHA    STRING;
+CREATE PROPERTY FixPR.commitSHA  STRING;
+CREATE PROPERTY FixPR.waSent     BOOLEAN (default false);
+CREATE PROPERTY FixPR.reply      STRING;   -- the stored parsed reply, so a restart pays for no second turn
+
+CREATE INDEX IF NOT EXISTS ON Defect (tenantId, id) UNIQUE;
+CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
+</pre>
+  </div>
+</section>
 
 <footer class="doc">
   GAOS · data model companion to the architecture document and the Mission Control prototype. Schema statements follow the ArcadeDB SQL dialect; verify constraint and index syntax against your target version before running them in anger.

@@ -363,16 +363,22 @@ func (s *server) beginWrite(w http.ResponseWriter, scope apiScope, cl *apiClient
 
 // apiDecode reads one strictly-typed JSON body of at most apiMaxBody.
 func apiDecode(w http.ResponseWriter, r *http.Request, v any) bool {
+	return apiDecodeLimit(w, r, v, apiMaxBody)
+}
+
+// apiDecodeLimit is apiDecode with the limit as a parameter. A body past it is
+// a 413 that names the limit.
+func apiDecodeLimit(w http.ResponseWriter, r *http.Request, v any, limit int64) bool {
 	// A slow client must not hold the principal's one write slot: the body has
 	// 30 seconds (the server sets only a header timeout).
 	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(30 * time.Second))
-	err := decodeStrict(http.MaxBytesReader(w, r.Body, apiMaxBody), v)
+	err := decodeStrict(http.MaxBytesReader(w, r.Body, limit), v)
 	if err == nil {
 		return true
 	}
 	var tooBig *http.MaxBytesError
 	if errors.As(err, &tooBig) {
-		apiErr(w, http.StatusRequestEntityTooLarge, "too-large", "the body exceeds 1 MiB")
+		apiErr(w, http.StatusRequestEntityTooLarge, "too-large", "the body exceeds "+limitText(limit))
 		return false
 	}
 	apiErr(w, http.StatusBadRequest, "bad-json", "the body is not the JSON this route takes: "+qaTrim(err.Error(), 120))
@@ -400,6 +406,8 @@ func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
 	handle("POST /v1/products/{id}/qa/cases", s.apiQaCreate)
 	handle("POST /v1/products/{id}/qa/results", s.apiQaResults)
 	handle("POST /v1/products/{id}/qa/catalog", s.apiQaCatalog)
+	// D-091: a defect the QA tool found; its own strict decoder and limit.
+	handle("POST /v1/products/{id}/qa/defects", s.apiQaDefects)
 	handle("POST /v1/products/{id}/inbox", s.apiInboxAsk)
 	handle("GET /v1/products/{id}/inbox/{externalId}", s.apiInboxGet)
 	handle("POST /v1/products/{id}/inbox/{externalId}/answer", s.apiInboxAnswer)
