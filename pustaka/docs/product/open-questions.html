@@ -14,12 +14,12 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Thirty-six decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Thirty-eight decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Twenty-two are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
   database version, which CLI ships first, whether the sisflow board may be vendored, and how a
-  platform-run reviewer is made genuinely zero-context. Of the thirteen
+  platform-run reviewer is made genuinely zero-context. Of the fifteen
   still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
   that move makes GAOS depend on without yet controlling — two are left from the three that arrived on
   2026-11-14 with the QA sync (<a href="#oq-33">OQ-33</a> has since been answered), and the rest are older.</p>
@@ -73,7 +73,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All thirty-six in one place. Filter by any word in a question, or by theme.</p>
+  <p>All thirty-eight in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -120,6 +120,8 @@
       <tr data-tags="technical qa case decision edit identity authentication back office planned blocked wont new"><td><a href="#oq-34">OQ-34</a></td><td>Technical</td><td>Who may change an existing case's decision (park it, block it, retire it), and through which surface?</td><td>BR-48, BR-51, D-072</td><td>Open — raised 2026-11-14, narrowed by <a href="decision-log.html#d-084">D-084</a></td></tr>
       <tr data-tags="product qa results kanban card move status failing epic new"><td><a href="#oq-35">OQ-35</a></td><td>Product</td><td>Should a QA result ever move an epic's card on the board?</td><td>BR-54, D-073</td><td>Open — raised 2026-11-14 (today: deliberately not)</td></tr>
       <tr data-tags="operations git history rewrite public repository private instance scrub filter-repo new"><td><a href="#oq-36">OQ-36</a></td><td>Operations</td><td>Is git history rewritten before the repository is made public?</td><td>D-085, making the repository public</td><td>Open — raised 2026-11-21 (today: the repository stays private)</td></tr>
+      <tr data-tags="operations back office roles account permission label contact operator new"><td><a href="#oq-37">OQ-37</a></td><td>Operations</td><td>Should a back-office account have a role, so that changing a card's label or a contact is not open to every signed-in account?</td><td>D-088, D-079</td><td>Open — raised 2026-11-25 (today: every signed-in account is an operator, and every change names its alias)</td></tr>
+      <tr data-tags="technical qa tool routes automation job dependency repository new"><td><a href="#oq-38">OQ-38</a></td><td>Technical</td><td>When does the QA tool serve the two routes GAOS calls to write and run an e2e spec?</td><td>D-088, the e2e cards</td><td>Open — raised 2026-11-25 (today: the e2e cards fail with <code>qa-routes-missing</code>)</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -896,6 +898,27 @@
   </ul>
   <p><strong>What it blocks:</strong> making the repository public. Each tag added before the answer makes a
   rewrite more expensive.</p>
+
+  <h3 id="oq-37">OQ-37 · Should a back-office account have a role?</h3>
+  <p><strong>Why it is open:</strong> the back office has no roles (<a href="decision-log.html#d-079">D-079</a>): every
+  account that can sign in can do everything. <a href="decision-log.html#d-088">D-088</a> adds two things an
+  operator can change that matter more than most: a card's label (<code>pr-review:manual</code> stops an automated
+  review) and a contact's destination (where a finding is sent). Both are recorded &mdash; the label change as a
+  <code>TaskLabeled</code> event naming the actor's alias, the contact change as a log line &mdash; but neither is
+  restricted.</p>
+  <p><strong>The options:</strong> a role per account in the accounts file, with a label and contact right held by
+  one of them; or leave it, because the accounts are the operator's own and the actions are recorded.</p>
+  <p><strong>What it blocks:</strong> nothing today; it grows more pressing with every account added.</p>
+
+  <h3 id="oq-38">OQ-38 · When does the QA tool serve the routes GAOS calls?</h3>
+  <p><strong>Why it is open:</strong> the e2e cards of the pull-request flow call
+  <code>POST /api/v1/gaos/automation</code> and <code>GET /api/v1/gaos/jobs/{id}</code> on the QA tool, a thin
+  authenticated shim over the machine that already writes, runs, repairs and pushes a spec. They live in the QA
+  tool's own repository and are designed and reviewed there. Until they exist GAOS answers a <code>404</code>
+  with a card that fails <code>qa-routes-missing</code>, which is visible and harmless.</p>
+  <p><strong>The options:</strong> build the two routes in the QA tool first; or ship the review and unit-test
+  flows now and the e2e cards when the routes land (today's behaviour).</p>
+  <p><strong>What it blocks:</strong> the e2e cards, and nothing else in the pull-request flow.</p>
 
   <div class="adm warn">
     <p class="adm-title">Nothing here is rhetorical</p>

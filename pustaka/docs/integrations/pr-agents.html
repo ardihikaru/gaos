@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pull-request agents — GAOS</title>
+<meta name="description" content="GAOS reacts to pull-request activity: which cards a pull request, a merge and a staging deploy open, the labels, the review it posts, the staging callback Jenkins calls, and the WhatsApp notice and contact registry.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="pr-agents">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Pull-request agents</h1>
+  <p class="lede">A product's main repository receives pull requests, and somebody has to review them and prove they
+  still work. With the <a href="brain-town-consumer.html">Brain Town reader</a> on, GAOS opens the cards for that work
+  when a pull request opens, when it merges and when the staging deploy finishes. Two of the four are agents;
+  two are jobs GAOS hands to the QA tool.</p>
+
+  <div class="page-meta"
+       data-tags="integration, github, pull request, review, staging, jenkins, whatsapp, qa tool"
+       data-hashtags="integrations"
+       data-published="2026-11-25"
+       data-updated="2026-11-25"
+       data-version-from="0.48.0"
+       data-version-to=""></div>
+
+  <h2 id="routing">What opens what</h2>
+  <table class="tbl">
+    <thead><tr><th>Trigger</th><th>GAOS opens</th><th>Worked by</th></tr></thead>
+    <tbody>
+      <tr><td>A pull request opens (not a draft, not from a fork)</td><td>A PR review card</td><td>The <code>pr-reviewer</code> agent</td></tr>
+      <tr><td>The same event</td><td>An e2e automation card</td><td>The QA tool (a job GAOS starts and polls)</td></tr>
+      <tr><td>A pull request merges</td><td>A unit-test card; a review or e2e card that has not started is canceled</td><td>The <code>unit-test</code> agent</td></tr>
+      <tr><td>The staging deploy finishes</td><td>An e2e run card</td><td>The QA tool</td></tr>
+    </tbody>
+  </table>
+  <p>The cards live on a separate <em>PR workflow</em> of the product, so a pull request never resets the product's own
+  plan. A replay plans nothing: the card carries its key, <code>owner/repo#n:role</code>, and a second event with the
+  same key is a no-op. A draft, a pull request from a fork and one from an author who is not an owner, member or
+  collaborator open nothing; <code>GAOS_PR_MAX_OPEN</code> (default 5) bounds the open cards of a product;
+  <code>GAOS_PR_ALLOW_FORKS=1</code> admits forks.</p>
+
+  <h2 id="labels">The labels</h2>
+  <p>A card carries at most one label per family, and the vocabulary is closed: another word is refused with 422.
+  An operator changes a label on the board, and the change is a <code>TaskLabeled</code> event naming the account's
+  alias.</p>
+  <table class="tbl">
+    <thead><tr><th>Label</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>pr-review:auto</code></td><td>An agent reviews the pull request. The default.</td></tr>
+      <tr><td><code>pr-review:manual</code></td><td>A person reviews it. The scheduler never dispatches the card.</td></tr>
+      <tr><td><code>pr-review:needs-manual</code></td><td>The agent found something high or critical, or its reply could not be posted. A person takes over.</td></tr>
+      <tr><td><code>e2e:automation</code>, <code>e2e:run</code></td><td>The QA-tool jobs. Never dispatched to an agent.</td></tr>
+      <tr><td><code>unit:test</code></td><td>The unit-test card.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="review">The review</h2>
+  <p>The pull request's title, description and diff are <strong>untrusted text</strong> and reach the agent as data in
+  the packet, behind the egress pass: a secret in the diff refuses the dispatch, and the card waits for a person.
+  The reviewer's instructions are Blueprint content, never a file from the pull request.</p>
+  <p>The agent ends its reply with one block, and <strong>GAOS</strong>, not the agent, posts it. The GitHub token is
+  in the dashboard process and nowhere else.</p>
+  <pre>```gaos-pr-review
+severity: none | low | medium | high | critical
+body: the review, at most 6000 characters, each finding with a file:line and a Reason:
+```</pre>
+  <p>The body is screened by the egress detectors before it is posted; a body that carries a secret is not posted and
+  the card goes to a person. It is posted as a <strong>comment</strong>, never an approval. GitHub's answers map to a
+  reason on the card: <code>github-token</code> (401, 403, 404: the token may not write there),
+  <code>github-refused</code> (422), <code>github-rate</code>, <code>github-error</code>.</p>
+
+  <h2 id="settings">The settings</h2>
+  <table class="tbl">
+    <thead><tr><th>Setting</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_GITHUB_TOKEN_FILE</code></td><td>A file, mode 600, holding a token with <code>pull_requests: write</code> on the product's repositories. A Brain Town or GAOS token is refused. Unset or empty: no review is posted and no fork check is made.</td></tr>
+      <tr><td><code>GAOS_STAGING_BASIC_AUTH_FILE</code></td><td>A file, mode 600, one line per product: <code>productId:user:password</code>, password of at least 12 characters. Unset or empty: the callback answers 503.</td></tr>
+      <tr><td><code>GAOS_WA_URL</code></td><td>The WhatsApp gateway's address. <strong>https only, no default.</strong> Unset: no notifications.</td></tr>
+      <tr><td><code>GAOS_WA_BASIC_AUTH_FILE</code>, <code>GAOS_WA_GROUP_FILE</code></td><td>Files, mode 600: the gateway login <code>user:password</code> and the pinned group id (<code>&hellip;@g.us</code>).</td></tr>
+      <tr><td><code>GAOS_PR_MAX_OPEN</code>, <code>GAOS_PR_ALLOW_FORKS</code></td><td>The cap on open PR cards (5) and whether forks open cards (no).</td></tr>
+    </tbody>
+  </table>
+  <p>In production the four files are <code>deploy/stacks/prod.pr-github-token</code>, <code>prod.pr-staging-auth</code>,
+  <code>prod.pr-wa-auth</code> and <code>prod.pr-wa-group</code>. They are gitignored and must exist before
+  <code>up</code>; an empty one leaves that part off.</p>
+
+  <h2 id="staging">The staging callback</h2>
+  <p>Jenkins calls GAOS when the staging deploy has finished:</p>
+  <pre>POST /api/v1/products/{id}/staging
+Authorization: Basic base64(user:password)
+Content-Type: application/json
+
+{"repo":"acme-org/sample-service","branch":"staging","commit":"0123456789abcdef","environment":"staging"}</pre>
+  <table class="tbl">
+    <thead><tr><th>Answer</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>202 {"accepted":true,"taskId":&hellip;}</code></td><td>The e2e run card was planned.</td></tr>
+      <tr><td><code>200 {"duplicate":true,&hellip;}</code></td><td>The same commit again: nothing new was planned.</td></tr>
+      <tr><td><code>401</code> with <code>WWW-Authenticate: Basic realm="gaos"</code></td><td>No credential, or a wrong one.</td></tr>
+      <tr><td><code>404</code></td><td>A credential that belongs to another product, or a product that does not exist.</td></tr>
+      <tr><td><code>422</code></td><td>The repository is not one of the product's, the commit is not a hex sha, or the environment is not <code>staging</code>.</td></tr>
+      <tr><td><code>429</code> with <code>Retry-After</code></td><td>Five failed attempts from one source lock it for five minutes.</td></tr>
+      <tr><td><code>409</code></td><td>The product already holds its cap of open PR cards.</td></tr>
+      <tr><td><code>503</code></td><td>The callback is not configured.</td></tr>
+    </tbody>
+  </table>
+  <p>This is the one machine route that answers HTTP Basic instead of a bearer token, because a Jenkins credential
+  step speaks Basic. The credential is per product and is compared in constant time.</p>
+
+  <h2 id="qa">The QA tool does the e2e work</h2>
+  <p>The QA tool already writes, runs, repairs and pushes an automation spec in its own automation repository. GAOS
+  does not repeat that with a model: a job runner calls <code>POST /api/v1/gaos/automation</code> with
+  <code>{product, caseCode, mode}</code>, polls <code>GET /api/v1/gaos/jobs/{id}</code> every 15 seconds for up to
+  40 minutes, and closes the card from the job's own status. A new automation names its case with a line
+  <code>QA-case: &lt;code&gt;</code> in the pull request description; without one the card waits, blocked, for a person.
+  A staging run asks for every automated case.</p>
+  <div class="adm warn">
+    <p class="adm-title">The two routes live in the QA tool</p>
+    <p>They are a change in the QA tool's repository, not in GAOS. Until they exist the e2e card fails with
+    <code>qa-routes-missing</code>, which is visible and harmless (<a href="../product/open-questions.html#oq-38">OQ-38</a>).</p>
+  </div>
+
+  <h2 id="whatsapp">WhatsApp and the contacts</h2>
+  <p>A review finding of <code>medium</code> or worse, a held review and a failed test or e2e run send <strong>one
+  line and the card's id</strong>. The findings stay on the card; no code is pasted into a chat. The line goes to the
+  contact of the pull request's author (a review) or of the last committer (a failure), else to the pinned group.</p>
+  <ul>
+    <li>A <code>200</code> whose <code>code</code> is not <code>SUCCESS</code> is a failure. A <code>200</code> means
+    WhatsApp <em>accepted</em> the message, never that it was delivered.</li>
+    <li>The group is the pinned id from its file, checked once at boot against the device's group list. A group
+    that is not there turns notifications off; a group is never found by its name.</li>
+    <li>One retry after two seconds, for a transport error only. A <code>400</code> and a <code>429</code> are never
+    retried.</li>
+    <li>A failed send never fails the card. The failure is one <code>ContactNotified</code> event carrying the contact's
+    alias, the kind and the outcome &mdash; never the destination and never the text.</li>
+  </ul>
+  <p>The contacts are managed at the foot of the back office's <em>Integrations</em> view: a GitHub account, a name, a
+  product (or all), a destination and what it wants (<code>review:medium</code>, <code>review:high</code>,
+  <code>e2e:failure</code>, <code>unit:failure</code>; a review value includes the worse severities). The registry is
+  its own <code>Contact</code> record: it is not part of the product, so it is never rendered into a Blueprint or a
+  workspace, and it is in no event. The list shows each destination masked.</p>
+
+  <h2 id="failure">When something is down</h2>
+  <table class="tbl">
+    <thead><tr><th>Failure</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>Brain Town is down</td><td>No events, no cards; nothing else is affected.</td></tr>
+      <tr><td>The GitHub token may not write</td><td>The review card fails with <code>github-token</code>; it is not closed silently.</td></tr>
+      <tr><td>The QA tool is down or lacks the routes</td><td>The e2e card fails with <code>qa-job-timeout</code> or <code>qa-routes-missing</code>.</td></tr>
+      <tr><td>WhatsApp is down</td><td>The card is unchanged; one failed <code>ContactNotified</code> is recorded.</td></tr>
+      <tr><td>Jenkins never calls back</td><td>No staging card; the Integrations view shows the last callback per product.</td></tr>
+      <tr><td>GAOS restarts</td><td>The reader resumes from its cursor and the card keys make the replay a no-op. An event handed over but not yet planned when the process dies is lost.</td></tr>
+    </tbody>
+  </table>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -127,6 +127,13 @@ CREATE PROPERTY GaosEdge.createdBy STRING;</pre>
     </tbody>
   </table>
 
+  <p><strong>v0.48.0 adds five events and one type</strong> (<a href="../product/decision-log.html#d-088">D-088</a>):
+  <code>PullRequestOpened</code>, <code>PullRequestMerged</code> and <code>StagingDeployed</code> (a pull-request event or the
+  staging callback was planned into cards), <code>ContactNotified</code> (a notification was attempted: the contact's
+  alias, the kind and the outcome, never the destination) and <code>TaskLabeled</code> (an operator changed a card's
+  label). The new type is <code>Contact</code>, a GitHub account mapped to a notification destination, which is in no
+  event; <code>Task</code> gains <code>labels</code> and <code>dedupKey</code>.</p>
+
   <p><strong>v0.42.0 adds two events and no type</strong> (<a href="../product/decision-log.html#d-082">D-082</a>):
   <code>ConversationArchived</code> (a finished card's conversation archived or restored, by the signed-in account,
   which now also fills <code>Event.actor</code>) and <code>ConversationPruned</code> (the prune's certificate: which

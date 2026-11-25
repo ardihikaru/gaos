@@ -36,6 +36,20 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-48-0">v0.48.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The pull-request flows: GAOS opens a review card and an e2e card when a pull request opens, a unit-test card when it merges and an e2e run card when staging is deployed, posts the review as a comment, and tells a person when it matters.</p>
+      <ul>
+        <li><span class="chg add">Added</span> Two roles, <code>pr-reviewer</code> and <code>unit-test</code>, and a closed vocabulary of task labels (<code>pr-review:auto</code>, <code>pr-review:manual</code>, <code>pr-review:needs-manual</code>, <code>e2e:automation</code>, <code>e2e:run</code>, <code>unit:test</code>) shown as chips on a card and changed with <code>POST /products/{id}/board/cards/{taskId}/label</code>.</li>
+        <li><span class="chg add">Added</span> A GitHub client (<code>GAOS_GITHUB_TOKEN_FILE</code>): GAOS reads the pull request and posts the agent's screened review as a comment, never an approval.</li>
+        <li><span class="chg add">Added</span> <code>POST /api/v1/products/{id}/staging</code>, answering HTTP Basic with one credential per product (<code>GAOS_STAGING_BASIC_AUTH_FILE</code>), and a job runner that drives the e2e cards through the QA tool's two new routes.</li>
+        <li><span class="chg add">Added</span> A WhatsApp notifier (<code>GAOS_WA_URL</code>, https only, no default; <code>GAOS_WA_BASIC_AUTH_FILE</code>; <code>GAOS_WA_GROUP_FILE</code>) and a contact registry at the foot of the Integrations view; a destination is masked everywhere it is shown.</li>
+        <li><span class="chg add">Added</span> Five event types: <code>PullRequestOpened</code>, <code>PullRequestMerged</code>, <code>StagingDeployed</code>, <code>ContactNotified</code> and <code>TaskLabeled</code>; the graph gains <code>Contact</code>, <code>Task.labels</code> and <code>Task.dedupKey</code>.</li>
+        <li><span class="chg change">Changed</span> Production's compose mounts four more files, <code>deploy/stacks/prod.pr-*</code>; each must exist (empty leaves that part off) before a deploy.</li>
+        <li><span class="chg change">Changed</span> BR-52 has one stated exception, the staging route (D-088).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-47-0">v0.47.0 <time datetime="2026-11-25">2026-11-25</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The Brain Town reader: GAOS pulls the town's pull-request events over a scoped, revocable token.</p>
       <ul>
