@@ -78,7 +78,7 @@ body: the review, at most 6000 characters, each finding with a file:line and a R
   <table class="tbl">
     <thead><tr><th>Setting</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>GAOS_GITHUB_TOKEN_FILE</code></td><td>A file, mode 600, holding a token with <code>pull_requests: write</code> on the product's repositories. A Brain Town or GAOS token is refused. Unset or empty: no review is posted and no fork check is made.</td></tr>
+      <tr><td><code>GAOS_GITHUB_TOKEN_FILE</code></td><td>A file, mode 600, holding a token with <code>pull_requests: write</code> on the product's repositories. A Brain Town or GAOS token is refused. Unset or empty: no review is posted and no fork check is made. Surrounding whitespace, including a trailing blank line, is trimmed. The installed token is the operator's classic personal token, accepted for now; a fine-grained token limited to pull-request access on the product repositories is the recommended replacement.</td></tr>
       <tr><td><code>GAOS_STAGING_BASIC_AUTH_FILE</code></td><td>A file, mode 600, one line per product: <code>productId:user:password</code>, password of at least 12 characters. Unset or empty: the callback answers 503.</td></tr>
       <tr><td><code>GAOS_WA_URL</code></td><td>The WhatsApp gateway's address. <strong>https by default, no default host.</strong> An <code>http</code> address is refused unless <code>GAOS_WA_ALLOW_HTTP=1</code>; any other scheme always is. Unset: no notifications.</td></tr>
       <tr><td><code>GAOS_WA_ALLOW_HTTP</code></td><td><code>1</code> lets the gateway be <code>http</code> on a private link only (loopback, RFC 1918, CGNAT, link-local), checked on every connection. <code>any</code> also allows a public address, which sends the login in clear text. The status always says the link is unencrypted. Unset: https only.</td></tr>
@@ -128,8 +128,11 @@ Content-Type: application/json
   most 720); past it the card fails with <code>qa-approval-timeout</code>, after the last poll has been read, so an approval
   given in the final interval is seen. One notice of kind <code>e2e:approval</code> is sent per job, always to the pinned
   group and never to a committer. More than five waits fail the card with <code>qa-job-flapping</code>. After a restart GAOS
-  re-adopts a running or waiting e2e card from the job id in its reason and starts no second job. The QA tool has no cancel
-  call: a spec approved after GAOS failed the card still opens its pull request, and the QA tool's reject is the remedy.
+  re-adopts a running or waiting e2e card from the job id in its reason and starts no second job. Whenever GAOS gives up on a job (the
+  work timeout, the approval timeout, the flapping cap) or an operator cancels the card, it cancels the job at the QA tool
+  (<code>POST /api/v1/gaos/jobs/{id}/cancel</code>), which stops the run and rejects the open approval, so nothing can be
+  approved later and no pull request opens. It is best effort: a failed cancel is logged and never keeps the card open. The
+  case in flight inside a run-all is not interrupted.
   A card id carries 12 characters of the commit; an id already held by a card with another key gets a suffix.</p>
   <div class="adm warn">
     <p class="adm-title">The two routes live in the QA tool</p>

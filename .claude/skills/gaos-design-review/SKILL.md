@@ -71,6 +71,28 @@ Then the **positive control** — one review with the exclusion deliberately
 disabled, which **must** produce a report containing a canary. Without it, a
 probe that can never detect anything is indistinguishable from a clean run.
 
+#### The CLAUDE.md probe (verified 2026-11-25, Claude Code 2.1.332)
+
+Reviewers carry `omitClaudeMd: true` (frontmatter; Claude Code 2.1.271+), which
+keeps the project `CLAUDE.md` and its `@` imports out of their context. Prove it
+rather than assume it. **A canary appended to `CLAUDE.md` during a session proves
+nothing**: agents inherit the session-start snapshot, so the canary is not in it
+(both probes below answered NONE for exactly that reason). Probe with a sentence
+that is already in the snapshot instead, and use two agents with **no tool call
+before the first answer**:
+
+1. *Positive control* — a `general-purpose` agent, asked "does your context contain
+   the sentence starting `Four invariants, and where to read the rest`?" **must
+   answer YES**. If it says NO the probe cannot see the file and proves nothing.
+2. *The test* — a `gaos-goldfish-*` agent, the same question, **must answer NO**;
+   then have it `Read` one file under `docs/` and ask again: **still NO**.
+
+Expected side effect, not a leak: reading under `docs/` or `.claude/` attaches the
+path-scoped rule `.claude/rules/agent-workspace.md` as a system reminder to every
+agent, reviewers included. It is a rubric file a reviewer may read (it mentions
+`CLAUDE.md` by name, which earlier rounds misread as `CLAUDE.md` being loaded). The
+canaries for the *rules* files are verified by a reviewer that is made to read one.
+
 ### 5. Remove the canaries
 
 Remove every planted line, whether the run succeeded, failed or was
