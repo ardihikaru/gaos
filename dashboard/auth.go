@@ -210,13 +210,27 @@ func newAuthority(accts map[string]*account, key []byte, label string) *authorit
 		knownSlots: make(chan struct{}, authKnownSlots), unkSlots: make(chan struct{}, authUnkSlots),
 		slotWait: authSlotWait,
 	}
-	salt := make([]byte, pbkdf2SaltLen)
-	_, _ = rand.Read(salt)
-	if line, err := hashWith("not a password anybody has", salt, pbkdf2Iter); err == nil {
-		a.dummy, _ = parseHashLine(line)
-	}
+	a.dummy = dummyAccount()
 	return a
 }
+
+// dummyAccount is the account an unknown email is verified against, so that a
+// sign-in costs the same whether or not the email exists. It is a full-cost
+// hash (pbkdf2Iter) of a password nobody has, under a random salt, and it is
+// made once per process: the process has one authority, built at boot, so this
+// is when it was always made. Making it per authority only cost the tests,
+// which build an authority for every server and every cookie -- 600,000
+// iterations each time, and most of what `go test -race` spent.
+var dummyAccount = sync.OnceValue(func() *account {
+	salt := make([]byte, pbkdf2SaltLen)
+	_, _ = rand.Read(salt)
+	line, err := hashWith("not a password anybody has", salt, pbkdf2Iter)
+	if err != nil {
+		return nil
+	}
+	acct, _ := parseHashLine(line)
+	return acct
+})
 
 // loadKeyFile reads the session key: raw bytes, whitespace-trimmed, no
 // decoding, at least 32. Unset, unreadable or short logs and returns a random
