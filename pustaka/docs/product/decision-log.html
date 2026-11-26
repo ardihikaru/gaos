@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety-one entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-two entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -2001,6 +2001,20 @@
         <td><a href="qa-test-plan.html#go-pr-overview">TC-700&hellip;TC-720</a>;
         <a href="../integrations/pull-requests.html">Pull requests</a>;
         <code>docs/designs/gaos-pr-overview.md</code></td>
+      </tr>
+      <tr id="d-093">
+        <td>D-093</td><td>2026-11-26</td>
+        <td><strong>GAOS&rsquo;s own documentation is public: the pustaka login layer is switched off on both prods, and its code is kept.</strong>
+        Context: the repository is public (checked 2026-11-26), so the docs content already is; the login only hid the
+        rendered site. Decision: <code>PUSTAKA_AUTH</code> is empty on both prods and the credential lines are commented
+        out, so they no longer reach the container; the login code, its page and its tests stay, and switching it back on
+        means restoring those lines, setting <code>PUSTAKA_AUTH=1</code> and generating a fresh secret. The same release
+        fixes a page that looked broken until it had loaded and adds article-only page transitions (an upstream pustaka sync
+        to v0.9.1). Residual: the published infrastructure pages name real hosts and addresses that are equally visible in
+        the repository &mdash; a redaction is a separate change; <a href="open-questions.html#oq-36">OQ-36</a> still
+        describes the repository as private and is the operator&rsquo;s to answer.</td>
+        <td><a href="qa-test-plan.html#pk-head">TC-721</a>;
+        <code>docs/designs/pustaka-loading-and-motion.md</code></td>
       </tr>
     </tbody>
   </table>

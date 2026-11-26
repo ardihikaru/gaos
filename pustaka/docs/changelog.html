@@ -36,6 +36,20 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-55-0">v0.55.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The docs no longer look broken while a page loads, and they are public (<a href="product/decision-log.html#d-093">D-093</a>).</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> A page looked broken until it had loaded. The runtime builds the header, sidebar and table of contents only after the registry parts arrive, and it fetched the eight parts one after another. Until then the article was the shell&rsquo;s only child, so the grid placed it in the 248&nbsp;px sidebar column. It jumped to the middle when the sidebar arrived, and on the long registers that lasted for the whole download. The shell now uses named grid areas, the header strip is reserved, and an empty sidebar column shows a quiet skeleton, so the article&rsquo;s column never moves.</li>
+        <li><span class="chg fix">Fixed</span> Dark-theme readers saw the light palette first, then an animated switch. The docs server now inserts a small snippet before <code>&lt;/head&gt;</code> that applies the saved theme before the first paint and preloads the body font. A cached page cannot miss it, because the page is never answered 304 with a date older than the server.</li>
+        <li><span class="chg fix">Fixed</span> The landing hero rendered squeezed until the runtime added its class; it now keys on <code>data-layout</code>.</li>
+        <li><span class="chg change">Changed</span> The registry parts download in parallel and still run in order.</li>
+        <li><span class="chg add">Added</span> Page-to-page navigation moves only the article, which leaves in 100&nbsp;ms and rises in over 180&nbsp;ms, while the header and sidebar stay still. A thin progress bar appears only when a page takes longer than 150&nbsp;ms. Buttons respond to a press, the mobile drawer closes faster than it opens, and with reduced motion everything swaps instantly.</li>
+        <li><span class="chg change">Changed</span> The documentation is public: the docs login is off on both prods, and its code is kept (<a href="product/decision-log.html#d-093">D-093</a>).</li>
+        <li><span class="chg add">Added</span> <a href="product/qa-test-plan.html#pk-head">TC-721</a> for the head snippet. The register holds seven hundred and twenty-one cases and five hundred and eighty-seven Go tests.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-54-0">v0.54.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Change the base branch of an open fix pull request (<a href="product/decision-log.html#d-092">D-092</a>).</p>
       <ul>

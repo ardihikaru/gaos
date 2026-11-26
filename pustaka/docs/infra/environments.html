@@ -163,7 +163,7 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
     <thead><tr><th>File</th><th>Holds</th><th>Mode</th></tr></thead>
     <tbody>
       <tr><td><code>deploy/stacks/{dev,prod}.dashboard.env</code></td><td>ArcadeDB user and password</td><td><code>600</code></td></tr>
-      <tr><td><code>deploy/stacks/{dev,prod}.docs.env</code></td><td>The docs login and its cookie secret</td><td><code>600</code></td></tr>
+      <tr><td><code>deploy/stacks/{dev,prod}.docs.env</code></td><td>The docs login (off since D-093) and its cookie secret</td><td><code>600</code></td></tr>
     </tbody>
   </table>
 
@@ -179,7 +179,7 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
   </div>
 
   <div class="adm note">
-    <p class="adm-title">Generate the docs cookie secret on the host</p>
+    <p class="adm-title">If the docs login is switched back on, generate its cookie secret on the host</p>
     <p><code>openssl rand -hex 32</code> into <code>PUSTAKA_AUTH_SECRET</code>. Left blank, the
     server invents a random one per process — so every deploy and every restart signs everyone
     out. Do not copy a value out of another project's compose file: a secret in version control is

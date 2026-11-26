@@ -211,11 +211,10 @@ services:
       context: ../../pustaka
       dockerfile: ../deploy/Dockerfile.pustaka
     restart: unless-stopped
-    # The login layer. It survives the /docs strip because pustaka reads the
-    # X-Forwarded-Prefix that strip sets -- see ../traefik/dynamic.yml. It
-    # guards everything including the docs home; only the login routes and the
-    # login page's own stylesheets are public, and /, /app and /api are other
-    # services entirely. Names in docs.env.example.
+    # The login layer is OFF on GAOS's prods (D-093): the docs are public, as
+    # the repository is. It still works behind the /docs strip if switched on
+    # (pustaka reads X-Forwarded-Prefix, ../traefik/dynamic.yml). Names in
+    # docs.env.example.
     #
     # env_file, not ${...} interpolation: no flag to forget, and a missing file
     # is a hard error rather than a silently empty password.
