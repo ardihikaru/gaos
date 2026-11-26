@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pull requests — GAOS</title>
+<meta name="description" content="The back-office page that lists every open pull request tied to a task: where each kind comes from, what a row shows, how the page is kept fresh, the settings it needs and what it never does.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="pull-requests">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Pull requests</h1>
+  <p class="lede">GAOS touches pull requests in three ways: it opens a draft fix for an easy defect, it reviews the ones
+  Brain Town reports, and the QA tool opens one on the automation repository after a person approves a generated spec.
+  The <strong>Pull requests</strong> page in the back office lists all of them, per product, with their state, their
+  branch and base, the task each belongs to and, for the QA tool, a link to the job. It reads; it never merges, marks
+  ready or closes anything (<a href="../product/decision-log.html#d-092">D-092</a>).</p>
+
+  <div class="page-meta"
+       data-tags="integration, pull request, github, auto-fix, review, qa tool, back office"
+       data-hashtags="integrations"
+       data-published="2026-11-26"
+       data-updated="2026-11-26"
+       data-version-from="0.53.0"
+       data-version-to=""></div>
+
+  <h2 id="kinds">Where each kind comes from</h2>
+  <table class="tbl">
+    <thead><tr><th>Kind</th><th>Source</th><th>Its task</th></tr></thead>
+    <tbody>
+      <tr><td>Auto-fix</td><td>The draft pull request GAOS opened for a defect (the fix record, <a href="autofix.html">Defect auto-fix</a>).</td><td>The fix card.</td></tr>
+      <tr><td>Review</td><td>A pull request Brain Town reported on a repository the product follows (<a href="pr-agents.html">Pull-request agents</a>). A row is written when GAOS plans the cards, and once at the first start for pull requests already open.</td><td>The reviewer card.</td></tr>
+      <tr><td>QA tool</td><td>The pull request a QA job opened, reported by the QA tool in the job&rsquo;s status. Only a repository listed in the product&rsquo;s <code>automationRepos</code> makes a row.</td><td>The e2e card.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="page">The page</h2>
+  <ul>
+    <li><strong>Per product</strong>, newest first, at most 200 rows. Tabs: Open (open and draft), Merged, Closed, All. Filters: product and kind.</li>
+    <li><strong>A row</strong> shows the pull request (a link to GitHub), its kind and state, the title, <code>branch &rarr; base</code> (&ldquo;unknown&rdquo; until GAOS has read it), the task (a button that opens the task&rsquo;s detail sheet, with its status), the defect or the QA case and, when the QA tool sent a link on its own host, a link to the job, and the age.</li>
+    <li><strong>The drawer</strong> adds the related tasks, the branch and base, and the pull requests it replaced or was replaced by. It makes no GitHub call.</li>
+    <li><strong>Kept fresh</strong> by the poller, not by the page: every 5 minutes for the first 7 days, hourly after, up to 90 days for a review or QA row. A row says &ldquo;not followed since&rdquo; once it is no longer read, and &ldquo;no longer followed&rdquo; when the product stopped following the repository. The page itself refreshes every 30 seconds without touching GitHub.</li>
+    <li>A GitHub failure shows a banner and leaves the rows as they were.</li>
+  </ul>
+
+  <h2 id="settings">The settings</h2>
+  <p>Both are fields of <code>POST /products/{id}/autofix</code>, for the accounts on the auto-fix admin list. The post replaces the whole configuration, so a field left out is cleared.</p>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>automationRepos</code></td><td>The repositories (<code>owner/repo</code>, at most 4) where the QA tool opens its pull requests. They are deliberately <em>not</em> the product&rsquo;s own repositories: a repository there would put the QA tool&rsquo;s generated pull requests into the review flow.</td></tr>
+      <tr><td><code>allowedBases</code></td><td>The branches (at most 8) a fix pull request may later be moved to. Empty means none.</td></tr>
+    </tbody>
+  </table>
+  <p>Every change of these is recorded in the <code>AutoFixConfigured</code> event with the account&rsquo;s alias.</p>
+
+  <h2 id="never">What it never does</h2>
+  <ul>
+    <li>Merge, mark ready, approve or close a pull request, or change its base.</li>
+    <li>Read a repository the product does not follow, or build a link from a URL someone else supplied: GitHub links come from the validated owner, repository and number, and the QA link only from the one host GAOS is configured to trust.</li>
+    <li>Show GitHub&rsquo;s text as markup: titles, authors and branch names are plain text, and a title that matches a secret detector is withheld.</li>
+  </ul>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -32,6 +32,11 @@ const (
 	BlockNotEasy      = "autofix-not-easy"
 	BlockNoRepo       = "autofix-no-repo"
 	BlockSearchFailed = "autofix-search-failed"
+	// BlockSuperseded: the old pull request merged while its retarget was pending, so the fix
+	// has landed and the retarget card is blocked (D-092). BlockBaseNotAllowed: the base a
+	// retarget set is no longer in the product's allowed bases.
+	BlockSuperseded     = "autofix-superseded"
+	BlockBaseNotAllowed = "autofix-base-not-allowed"
 )
 
 // defectCardKey is the dedup key of a card: it carries the generation, so a

@@ -438,6 +438,11 @@ type AutoFix struct {
 	// in (owner/repo). They are the product's repositories for this feature only:
 	// the PR-review flow keeps reading Master.Repos.
 	TargetRepos []string
+	// AllowedBases are the branches an open fix pull request may be retargeted to (at most 8).
+	// Empty = no retarget. AutomationRepos are the repositories where the QA tool opens its
+	// pull requests (at most 4); they are NOT Master.Repos, so the review flow never sees them.
+	AllowedBases    []string
+	AutomationRepos []string
 }
 
 // Auto-fix cap defaults and ceilings (design §6.1).
@@ -471,6 +476,9 @@ func (a AutoFix) Clone() AutoFix {
 	a.AllowedGlobs = append([]string(nil), a.AllowedGlobs...)
 	a.ForbiddenGlobs = append([]string(nil), a.ForbiddenGlobs...)
 	a.TestGlobs = append([]string(nil), a.TestGlobs...)
+	a.TargetRepos = append([]string(nil), a.TargetRepos...)
+	a.AllowedBases = append([]string(nil), a.AllowedBases...)
+	a.AutomationRepos = append([]string(nil), a.AutomationRepos...)
 	return a
 }
 

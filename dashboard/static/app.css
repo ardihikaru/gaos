@@ -1738,3 +1738,22 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 @media (hover:hover) and (pointer:fine){ .af-defect a:hover .af-t,.af-prod-n a:hover{text-decoration:underline;text-underline-offset:3px} }
 /* with the drawer open the table loses the columns the drawer repeats */
 .af.has-drawer .af-md{display:none}
+
+/* The Pull requests page (D-092): the af-* family plus these. */
+.prs-prod{margin:16px 0 6px;font-size:13px;letter-spacing:.02em;color:var(--ink-2)}
+.prs-prod .sp{margin-left:6px;color:var(--ink-3);font-weight:400}
+.prs-kind{font-size:11px}
+.prs-kind--fix{color:var(--run);border-color:var(--run)}
+.prs-kind--review{color:var(--ask);border-color:var(--ask)}
+.prs-kind--qa{color:var(--done);border-color:var(--done)}
+.prs-br{max-width:26ch;overflow-wrap:anywhere}
+.prs-rel,.prs-follow{display:block;margin-top:3px;font-size:12px;color:var(--ink-3)}
+.prs-follow{color:var(--block)}
+.prs-task{font:inherit;color:inherit;background:none;border:1px solid var(--line);border-radius:6px;padding:2px 7px;cursor:pointer;text-align:left}
+.prs-task:hover{border-color:var(--ink-3)}
+.prs-task:focus-visible{outline:2px solid var(--ring,currentColor);outline-offset:2px}
+.prs-ts{font-size:11px;color:var(--ink-3);text-transform:lowercase}
+.prs-tasks{list-style:none;margin:6px 0 12px;padding:0;display:grid;gap:8px}
+.prs-tr{display:inline-block;min-width:92px;font-size:12px;color:var(--ink-3)}
+.prs-tt{display:block;margin:2px 0 0 96px;font-size:12px;color:var(--ink-2);overflow-wrap:anywhere}
+@media (max-width:640px){.prs-tr{min-width:0;display:block}.prs-tt{margin-left:0}}

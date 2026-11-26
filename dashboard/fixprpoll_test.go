@@ -19,12 +19,16 @@ type fakeGHRead struct {
 	state map[int]string // number -> "draft" | "ready" | "merged" | "closed"
 	limit bool           // answer 403 with the rate-limit header
 	hits  int
+	// optional fields of the answer (design §4.2): the base and head branch, the title, the author.
+	base, head, title, author map[int]string
+	paths                     []string // the paths asked for
 }
 
 func (f *fakeGHRead) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.hits++
+	f.paths = append(f.paths, r.URL.Path)
 	if f.limit {
 		w.Header().Set("X-RateLimit-Remaining", "0")
 		w.Header().Set("Retry-After", "0")
@@ -37,7 +41,8 @@ func (f *fakeGHRead) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := f.state[n]
-	body := `{"number":%d,"state":"%s","draft":%t,"merged":%t}`
+	extra := fmt.Sprintf(`,"title":%q,"user":{"login":%q},"head":{"ref":%q},"base":{"ref":%q}`, f.title[n], f.author[n], f.head[n], f.base[n])
+	body := `{"number":%d,"state":"%s","draft":%t,"merged":%t` + extra + `}`
 	switch st {
 	case "draft":
 		fmt.Fprintf(w, body, n, "open", true, false)
@@ -328,5 +333,144 @@ func TestFixPRPollerWritesThroughArcade(t *testing.T) {
 	}
 	if countPrefix(g.take(), "UPDATE Defect ") != 1 {
 		t.Error("the cleared excerpt was not persisted")
+	}
+}
+
+// ---- the Pull requests page's rows (D-092, design §4.2) ----
+
+func (e *pollEnv) followReviewRow(t *testing.T, n int) string {
+	t.Helper()
+	e.s.mu.Lock()
+	m := e.s.masterPtr(e.pid)
+	m.Repos = append(m.Repos, defRepo)
+	e.s.mu.Unlock()
+	if _, err := e.s.UpsertPullRequest(context.Background(), PullRequest{ProductID: e.pid, Repo: defRepo, Number: n, Kind: PRKindReview, OpenedAt: e.t0.Unix()}); err != nil {
+		t.Fatal(err)
+	}
+	return pullRequestKey(e.pid, defRepo, n)
+}
+
+func TestThePollerFillsRowsAndBackfillsTheBase(t *testing.T) {
+	e := newPollEnv(t)
+	e.gh.base, e.gh.head = map[int]string{7: "develop", 11: "main"}, map[int]string{7: fxBranch, 11: "feature/x"}
+	e.gh.title, e.gh.author = map[int]string{11: "tidy the cart"}, map[int]string{11: "an-author"}
+	e.gh.set(11, "ready")
+	key := e.followReviewRow(t, 11)
+
+	e.pass(time.Minute)
+	// A fix record opened before the base was kept learns it although its state did not change,
+	// and the back-fill is a cache fill: no event.
+	if r := e.rec(); r.Base != "develop" || r.State != FixPRDraft {
+		t.Errorf("the record is %s with base %q; want draft and develop", r.State, r.Base)
+	}
+	if n := len(streamOf(e.s, FixPRStateChanged)); n != 0 {
+		t.Errorf("the base back-fill emitted %d events, want none", n)
+	}
+	row, _ := rowOf(t, e.s, key)
+	if row.Title != "tidy the cart" || row.Author != "an-author" || row.BaseRef != "main" || row.HeadRef != "feature/x" || row.State != PRStateOpen || row.CheckedAt == 0 {
+		t.Errorf("the review row is %+v", row)
+	}
+	// It is read again on the next due time, and a merge is recorded.
+	e.gh.set(11, "merged")
+	e.pass(10 * time.Minute)
+	if row, _ = rowOf(t, e.s, key); row.State != PRStateMerged {
+		t.Errorf("the row is %s after a merge, want merged", row.State)
+	}
+	// A base that does not look like a branch name is never stored.
+	e2 := newPollEnv(t)
+	e2.gh.base = map[int]string{7: "bad name <b>"}
+	e2.pass(time.Minute)
+	if e2.rec().Base != "" {
+		t.Errorf("an invalid base was stored: %q", e2.rec().Base)
+	}
+}
+
+func TestThePollerSkipsAnUnownedRepository(t *testing.T) {
+	e := newPollEnv(t)
+	key := e.followReviewRow(t, 11)
+	e.gh.set(11, "ready")
+	// The product stops following the repository: neither the review row nor the fix record is read.
+	e.s.mu.Lock()
+	m := e.s.masterPtr(e.pid)
+	m.Repos, m.AutoFix.TargetRepos = nil, nil
+	e.s.mu.Unlock()
+	before := e.gh.count()
+	e.pass(time.Minute)
+	if got := e.gh.count(); got != before {
+		t.Errorf("%d GitHub reads for a repository the product no longer follows", got-before)
+	}
+	if row, _ := rowOf(t, e.s, key); row.CheckedAt != 0 {
+		t.Errorf("the row was read (%d)", row.CheckedAt)
+	}
+	// A row older than 90 days is no longer followed either.
+	e2 := newPollEnv(t)
+	key2 := e2.followReviewRow(t, 12)
+	e2.gh.set(12, "ready")
+	e2.s.mu.Lock()
+	r := e2.s.pullRequests[key2]
+	r.OpenedAt = e2.t0.Unix() - 91*86400
+	e2.s.pullRequests[key2] = r
+	e2.s.mu.Unlock()
+	hits := e2.gh.count()
+	e2.pass(time.Minute)
+	for _, p := range e2.gh.paths[hits:] {
+		if strings.HasSuffix(p, "/12") {
+			t.Errorf("a row past 90 days was read: %s", p)
+		}
+	}
+}
+
+// replacedEnv is a poll fixture whose fix card is live and whose defect has a retarget pending.
+func replacedEnv(t *testing.T, cardStatus string) *pollEnv {
+	t.Helper()
+	e := newPollEnv(t)
+	fix := cardByKey(e.s, defectCardKey(e.key, 1, "fix"))
+	setStatus(e.s, fix.ID, cardStatus)
+	e.s.mu.Lock()
+	e.s.defects[e.key].BaseOverride = "staging"
+	e.s.mu.Unlock()
+	return e
+}
+
+func TestAReplacedFixPRNeverMovesTheDefect(t *testing.T) {
+	// (a) after the retarget opened its pull request: the old record carries RetargetedTo.
+	e := newPollEnv(t)
+	id := e.rec().ID
+	e.s.mu.Lock()
+	r := e.s.fixPRs[id]
+	r.RetargetedTo = "fx-next"
+	e.s.fixPRs[r.ID] = r
+	e.s.mu.Unlock()
+	e.gh.set(7, "closed")
+	e.pass(time.Minute)
+	if e.rec().State != FixPRClosed || e.defect().State != DefectStateFixing || e.defect().Gen != 1 {
+		t.Errorf("(a) record %s, defect %s gen %d; want the record closed and the defect untouched", e.rec().State, e.defect().State, e.defect().Gen)
+	}
+	if n := len(streamOf(e.s, FixPRStateChanged)); n != 1 {
+		t.Errorf("(a) %d FixPRStateChanged events, want the record's own", n)
+	}
+
+	// (b) while the retarget is pending (a live card, an override): a close leaves the defect alone ...
+	b := replacedEnv(t, StatusReady)
+	b.gh.set(7, "closed")
+	b.pass(time.Minute)
+	if b.defect().State != DefectStateFixing || b.defect().Gen != 1 || b.defect().BaseOverride != "staging" {
+		t.Errorf("(b) a close while pending moved the defect: %s gen %d override %q", b.defect().State, b.defect().Gen, b.defect().BaseOverride)
+	}
+	// ... and a merge lands the fix, clears the override and blocks the retarget card.
+	c := replacedEnv(t, StatusReady)
+	c.gh.set(7, "merged")
+	c.pass(time.Minute)
+	card := cardByKey(c.s, defectCardKey(c.key, 1, "fix"))
+	if c.defect().State != DefectStateFixed || c.defect().BaseOverride != "" || card.Status != StatusBlocked || card.BlockReason != BlockSuperseded {
+		t.Errorf("(c) defect %s override %q, card %s %q; want fixed, cleared, blocked %s", c.defect().State, c.defect().BaseOverride, card.Status, card.BlockReason, BlockSuperseded)
+	}
+
+	// (d) a dead retarget card (blocked): today's transitions apply, and the override goes with the generation.
+	d := replacedEnv(t, StatusBlocked)
+	d.gh.set(7, "closed")
+	d.pass(time.Minute)
+	if d.defect().State != DefectStateTriaged || d.defect().Gen != 2 || d.defect().BaseOverride != "" {
+		t.Errorf("(d) defect %s gen %d override %q; want triaged, generation 2, override cleared", d.defect().State, d.defect().Gen, d.defect().BaseOverride)
 	}
 }

@@ -34,13 +34,35 @@ const BlockPRClosed = "autofix-pr-closed"
 // RuleFixPRPoll names the actor of a move the poller makes.
 const RuleFixPRPoll = "autofix-pr-poll"
 
-// pullState reads a pull request's draft flag, merged flag and state.
-func (c *ghClient) pullState(ctx context.Context, owner, repo string, n int) (draft, merged bool, state string, err error) {
+// ghPRState is what the poller reads of a pull request.
+type ghPRState struct {
+	Draft, Merged bool
+	State         string
+	Title, Author string
+	Head, Base    string
+}
+
+// pullState reads a pull request's draft flag, merged flag, state, title, author and branches.
+func (c *ghClient) pullState(ctx context.Context, owner, repo string, n int) (ghPRState, error) {
 	pr, err := c.pullRequest(ctx, owner, repo, n)
 	if err != nil {
-		return false, false, "", err
+		return ghPRState{}, err
 	}
-	return pr.Draft, pr.Merged, pr.State, nil
+	return ghPRState{Draft: pr.Draft, Merged: pr.Merged, State: pr.State, Title: pr.Title,
+		Author: pr.User.Login, Head: pr.Head.Ref, Base: pr.Base.Ref}, nil
+}
+
+// prRowStateOf maps what GitHub says to a PullRequest row's state.
+func prRowStateOf(s ghPRState) string {
+	switch {
+	case s.Merged:
+		return PRStateMerged
+	case s.State == "closed":
+		return PRStateClosed
+	case s.Draft:
+		return PRStateDraft
+	}
+	return PRStateOpen
 }
 
 // fixPRFinal reports whether a record's state is one that is never polled again.
@@ -86,17 +108,19 @@ type fixPRPoller struct {
 	now  func() time.Time
 	logf func(string, ...any)
 
-	mu      sync.Mutex
-	due     map[string]time.Time
-	fails   map[string]int
-	lastDay int64
-	status  FixPollStatus
-	haveDay bool
+	mu    sync.Mutex
+	due   map[string]time.Time
+	fails map[string]int
+	// baseTried marks a fix record whose base was read once after its 30 days.
+	baseTried map[string]bool
+	lastDay   int64
+	status    FixPollStatus
+	haveDay   bool
 }
 
 func newFixPRPoller(st Store, gh *ghClient) *fixPRPoller {
 	return &fixPRPoller{st: st, gh: gh, now: time.Now, logf: log.Printf,
-		due: map[string]time.Time{}, fails: map[string]int{}}
+		due: map[string]time.Time{}, fails: map[string]int{}, baseTried: map[string]bool{}}
 }
 
 // Status answers the poller's last poll and last error class.
@@ -134,6 +158,10 @@ func (p *fixPRPoller) Pass(ctx context.Context) {
 	}
 	polled := 0
 	for _, d := range f.Desks {
+		m, err := p.st.Master(ctx, d.ID)
+		if err != nil {
+			continue
+		}
 		recs, err := p.st.FixPRs(ctx, d.ID)
 		if err != nil {
 			continue
@@ -143,7 +171,19 @@ func (p *fixPRPoller) Pass(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			if p.pollOne(ctx, r, now) {
+			if p.pollOne(ctx, r, m, now) {
+				polled++
+			}
+		}
+		rows, err := p.st.PullRequests(ctx, d.ID)
+		if err != nil {
+			continue
+		}
+		for _, row := range rows {
+			if ctx.Err() != nil {
+				return
+			}
+			if p.pollRow(ctx, row, m, now) {
 				polled++
 			}
 		}
@@ -168,19 +208,34 @@ func (p *fixPRPoller) retain(ctx context.Context, now time.Time) {
 		p.logf("autofix: the excerpt retention failed: %v", err)
 		return
 	}
+	if _, err := p.st.PrunePullRequests(ctx, now.Unix()-pullRequestPruneSeconds); err != nil {
+		p.logf("pull requests: pruning failed: %v", err)
+		return
+	}
 	p.mu.Lock()
 	p.lastDay, p.haveDay = day, true
 	p.mu.Unlock()
 }
 
-// pollOne reads one record if it is due. It answers whether it read GitHub.
-func (p *fixPRPoller) pollOne(ctx context.Context, r FixPR, now time.Time) bool {
+// pollOne reads one fix record if it is due. It answers whether it read GitHub.
+func (p *fixPRPoller) pollOne(ctx context.Context, r FixPR, m Master, now time.Time) bool {
 	if fixPRFinal(r.State) || r.Number <= 0 || (r.State != FixPRDraft && r.State != FixPRReady) {
 		return false
 	}
+	owner, repo, ok := ghOwnerRepo(r.Repo)
+	if !ok || !productOwns(defectOwnedRepos(m), owner, repo) {
+		return false // a repository the product no longer owns is not read (design §4.2)
+	}
 	every, stop := fixPRInterval(now.Sub(time.Unix(r.CreatedAt, 0)))
 	if stop {
-		return false
+		// Past the 30 days a record with no base is read once more to learn it (design §4.2).
+		p.mu.Lock()
+		tried := p.baseTried[r.ID]
+		p.mu.Unlock()
+		if r.Base != "" || tried {
+			return false
+		}
+		every = fixPRPollSlow
 	}
 	p.mu.Lock()
 	if t, ok := p.due[r.ID]; ok && now.Before(t) {
@@ -188,11 +243,7 @@ func (p *fixPRPoller) pollOne(ctx context.Context, r FixPR, now time.Time) bool 
 		return false
 	}
 	p.mu.Unlock()
-	owner, repo, ok := ghOwnerRepo(r.Repo)
-	if !ok {
-		return false
-	}
-	draft, merged, state, err := p.gh.pullState(ctx, owner, repo, r.Number)
+	gs, err := p.gh.pullState(ctx, owner, repo, r.Number)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err != nil {
@@ -213,18 +264,86 @@ func (p *fixPRPoller) pollOne(ctx context.Context, r FixPR, now time.Time) bool 
 	delete(p.fails, r.ID)
 	p.due[r.ID] = now.Add(every)
 	p.status.LastError = ""
-	to := fixPRStateOf(draft, merged, state)
-	if to == r.State {
+	p.baseTried[r.ID] = true
+	to := fixPRStateOf(gs.Draft, gs.Merged, gs.State)
+	base := ""
+	if prRefOK(gs.Base) {
+		base = gs.Base
+	}
+	// The poll writes when the state changed OR the base is empty and now known (the back-fill
+	// for a record opened before the base was kept).
+	if to == r.State && (r.Base != "" || base == "") {
 		return true
 	}
 	next := r
 	next.State, next.UpdatedAt = to, now.Unix()
+	if r.Base == "" {
+		next.Base = base
+	}
 	p.mu.Unlock()
 	_, err = p.st.AdvanceFixPR(ctx, r.ProductID, next)
 	p.mu.Lock()
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		p.logf("autofix: the state of %s#%d could not be recorded: %v", r.Repo, r.Number, err)
 		delete(p.due, r.ID)
+	}
+	return true
+}
+
+// pollRow reads one review or QA pull-request row if it is due: the same cadence as a fix record
+// for 7 days, hourly after, and no longer after 90 days (design §4.2). The row's repository must
+// still be one the product follows for its kind.
+func (p *fixPRPoller) pollRow(ctx context.Context, r PullRequest, m Master, now time.Time) bool {
+	if prFinal(r.State) {
+		return false
+	}
+	owner, repo, ok := ghOwnerRepo(r.Repo)
+	if !ok || !productOwns(prRepos(&m, r.Kind), owner, repo) {
+		return false
+	}
+	age := now.Sub(time.Unix(r.OpenedAt, 0))
+	if age >= time.Duration(pullRequestPollSeconds)*time.Second {
+		return false
+	}
+	every := fixPRPollFast
+	if age >= fixPRFastWindow {
+		every = fixPRPollSlow
+	}
+	id := "row:" + r.Key
+	p.mu.Lock()
+	if t, ok := p.due[id]; ok && now.Before(t) {
+		p.mu.Unlock()
+		return false
+	}
+	p.mu.Unlock()
+	gs, err := p.gh.pullState(ctx, owner, repo, r.Number)
+	p.mu.Lock()
+	if err != nil {
+		if ctx.Err() != nil {
+			p.mu.Unlock()
+			return true
+		}
+		p.fails[id]++
+		wait := every
+		for i := 0; i < p.fails[id] && wait < fixPRBackoffCap; i++ {
+			wait *= 2
+		}
+		p.due[id] = now.Add(min(wait, fixPRBackoffCap))
+		p.status.LastError = ghErrorClass(err)
+		p.logf("pull requests: reading %s#%d failed: %s", r.Repo, r.Number, p.status.LastError)
+		p.mu.Unlock()
+		return true
+	}
+	delete(p.fails, id)
+	p.due[id] = now.Add(every)
+	p.status.LastError = ""
+	p.mu.Unlock()
+	f := PRFields{State: prRowStateOf(gs), Title: gs.Title, Author: gs.Author, HeadRef: gs.Head, BaseRef: gs.Base, CheckedAt: now.Unix()}
+	if _, err := p.st.AdvancePullRequest(ctx, r.ProductID, r.Key, f); err != nil && !errors.Is(err, ErrNotFound) {
+		p.logf("pull requests: %s#%d could not be recorded: %v", r.Repo, r.Number, err)
+		p.mu.Lock()
+		delete(p.due, id)
+		p.mu.Unlock()
 	}
 	return true
 }
@@ -241,6 +360,14 @@ func (s *MemStore) AdvanceFixPR(ctx context.Context, productID string, f FixPR) 
 	if !ok || cur.ProductID != productID || s.masterPtr(productID) == nil {
 		return Result{}, ErrNotFound
 	}
+	// The base back-fill: a record with no base learns it even if its state did not change.
+	if cur.Base == "" && f.Base != "" && prRefOK(f.Base) {
+		cur.Base = f.Base
+		if fixPRFinal(cur.State) || cur.State == f.State {
+			s.fixPRs[cur.ID] = cur
+			return Result{FixPRs: []FixPR{cur}}, nil // a cache fill: no event (design §3.4)
+		}
+	}
 	if fixPRFinal(cur.State) || cur.State == f.State {
 		return Result{}, nil
 	}
@@ -256,14 +383,33 @@ func (s *MemStore) AdvanceFixPR(ctx context.Context, productID string, f FixPR) 
 		fmt.Sprintf("pull request %s#%d of defect %s: %s → %s", cur.Repo, cur.Number, ref, from, cur.State), KindInfo,
 		EventPayload{Task: cur.DefectKey, Rule: RuleFixPRPoll, To: cur.State, Reason: from + "→" + cur.State})}
 	res := Result{FixPRs: []FixPR{cur}}
-	if d != nil && d.ProductID == productID && d.State == DefectStateFixing {
+	// A record a retarget replaced, or one whose retarget is pending, updates itself and leaves the
+	// defect alone (design §4.2); a merge while the retarget is pending lands the fix.
+	replaced, pending := s.fixPRReplacedLocked(cur, d)
+	switch {
+	case replaced:
+		// its own state only
+	case pending && cur.State == FixPRMerged && d != nil && d.ProductID == productID:
+		evs = append(evs, s.setDefectStateLocked(d, DefectStateFixed, RuleFixPRPoll, ""))
+		d.BaseOverride = ""
+		if t := s.taskByIDLocked(d.FixTask); t != nil && liveFixCard(t) {
+			if blocked, err := s.resolveCardLocked(t, StatusBlocked, BlockSuperseded, RuleFixPRPoll); err == nil {
+				evs = append(evs, blocked...)
+			}
+		}
+		res.Defects = []Defect{d.Clone()}
+	case pending:
+		// a close or a draft/ready change while the retarget is pending: the defect is left alone
+	case d != nil && d.ProductID == productID && d.State == DefectStateFixing:
 		switch cur.State {
 		case FixPRMerged:
 			evs = append(evs, s.setDefectStateLocked(d, DefectStateFixed, RuleFixPRPoll, ""))
+			d.BaseOverride = ""
 			res.Defects = []Defect{d.Clone()}
 		case FixPRClosed:
 			// A person-only second attempt: never an easy card, never automatic.
 			d.Gen++
+			d.BaseOverride = "" // any generation change the retarget did not cause ends its override
 			d.Difficulty = "medium"
 			evs = append(evs, s.setDefectStateLocked(d, DefectStateTriaged, RuleFixPRPoll, ""))
 			_, planned := s.planDefectCardLocked(d, defectJobFix, StatusBlocked, BlockPRClosed, LabelDefectMedium)

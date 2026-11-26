@@ -247,8 +247,12 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 			}
 		}
 	}
+	// The Pull requests page's row (design §4.3): written after the ownership and draft checks and
+	// before the early return, so a repeated event fills a missing row. A pull request refused by
+	// the cap below has no card and so no row.
+	rows := s.reviewRowLocked(m, ev)
 	if len(fresh) == 0 && len(events) == 0 {
-		return nil, existing, Result{}, nil
+		return nil, existing, Result{PullRequests: rows}, nil
 	}
 	if len(fresh) > 0 && s.openPRCardsLocked(productID) >= prMaxOpen() {
 		return nil, existing, Result{}, fmt.Errorf("%w: cap", ErrPRSkipped)
@@ -294,8 +298,12 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 				"staging deployed: "+ev.Repo+"@"+shortSHA(ev.Commit), KindKnow, deskPayload(d)))
 		}
 	}
+	// The row now knows its reviewer card even when that card was planned just above.
+	if len(planned) > 0 {
+		rows = s.reviewRowLocked(m, ev)
+	}
 	c := m.Clone()
-	res = Result{Master: &c, NewEvents: events,
+	res = Result{Master: &c, NewEvents: events, PullRequests: rows,
 		Toast: fmt.Sprintf("%d task(s) planned from %s on %s.", len(planned), ev.Type, ev.Repo)}
 	return planned, existing, res, nil
 }

@@ -25,7 +25,7 @@ import (
 // (archived conversations, D-082) and the integrations (topology, D-085). Both
 // view routes call it, so the sheet route cannot be the way around it.
 func noStoreView(w http.ResponseWriter, view string) {
-	if view == "archive" || view == "integrations" || view == "autofix" {
+	if view == "archive" || view == "integrations" || view == "autofix" || view == "prs" {
 		w.Header().Set("Cache-Control", "no-store")
 	}
 }
