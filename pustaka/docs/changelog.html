@@ -36,6 +36,16 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-54-0">v0.54.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Change the base branch of an open fix pull request (<a href="product/decision-log.html#d-092">D-092</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> A <strong>Retarget</strong> action in the Pull requests drawer of a draft GAOS opened: an admin picks another allowed base (for example <code>staging</code> instead of <code>develop</code>) and GAOS plans a related fix task for the AI. The AI redoes the fix on the new base&rsquo;s code and a <strong>new draft pull request</strong> opens against it; both are linked, each gets a comment, and the old one is left open for a person to close. GAOS never changes, closes or re-bases the old pull request. See <a href="integrations/pull-requests.html#retarget">Pull requests</a>.</li>
+        <li><span class="chg add">Added</span> Every reason the button is off is written next to it, with how to turn it on; a request that the server never answers returns the button after 20 seconds.</li>
+        <li><span class="chg change">Changed</span> A base removed from the allowed list is refused for every later attempt, including a card someone unblocks; the base is cleared when the defect is fixed or closed and by a regression. The fixer&rsquo;s packet gets the previous fix as untrusted data, and the CI-secrets check reads the new base&rsquo;s workflows.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-53-0">v0.53.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One page for every open pull request of a task (<a href="product/decision-log.html#d-092">D-092</a>).</p>
       <ul>
