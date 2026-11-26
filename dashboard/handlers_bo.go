@@ -242,7 +242,9 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 	case "archive":
 		bo.Title = "Archive"
 		bo.Sub = "Conversations archived from finished cards. Open one to read it, restore it to its card, or prune them all."
-		bo.Archive = archivePage(archived)
+		q := r.URL.Query()
+		bo.Archive = archivePage(archived, pageParam(q.Get("apage")), pageParam(q.Get("ppage")))
+		bo.APage, bo.PPage = bo.Archive.ArchivedPager.Page, bo.Archive.PrunedPager.Page
 		return bo
 
 	case "inbox":
@@ -279,6 +281,9 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			}
 			bo.Agents = append(bo.Agents, row)
 		}
+		bo.Pager = paginate(len(bo.Agents), pageParam(r.URL.Query().Get("page")), listPageSize, listPageAt(view))
+		bo.Agents = sliceFor(bo.Agents, bo.Pager)
+		bo.Page = bo.Pager.Page
 		return bo
 
 	case "stories", "diagrams", "knowledge":
@@ -302,6 +307,29 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 				bo.Rollup = append(bo.Rollup, g)
 			}
 		}
+		// Paged by item, not by product (D-097): an offset window walks the
+		// groups in order, each keeps what overlaps it, and a group left with
+		// nothing is not shown.
+		total := 0
+		for _, g := range bo.Rollup {
+			total += len(g.Stories) + len(g.Diagrams) + len(g.Decisions)
+		}
+		bo.Pager = paginate(total, pageParam(r.URL.Query().Get("page")), listPageSize, listPageAt(view))
+		bo.Page = bo.Pager.Page
+		lo, hi := bo.Pager.From-1, bo.Pager.To
+		var kept []RollupGroup
+		off := 0
+		for _, g := range bo.Rollup {
+			n := len(g.Stories) + len(g.Diagrams) + len(g.Decisions)
+			a, b := max(lo-off, 0), min(hi-off, n)
+			off += n
+			if a >= b {
+				continue
+			}
+			g.Stories, g.Diagrams, g.Decisions = windowOf(g.Stories, a, b), windowOf(g.Diagrams, a, b), windowOf(g.Decisions, a, b)
+			kept = append(kept, g)
+		}
+		bo.Rollup = kept
 		return bo
 	}
 
@@ -346,6 +374,11 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		}
 		if tab == "qa" {
 			d.QA = s.buildQAPane(r.Context(), m)
+			if d.QA != nil {
+				d.QA.Pager = paginate(len(d.QA.Epics), pageParam(r.URL.Query().Get("page")), tablePageSize, productPageAt(m.ID, d.Slug, "qa"))
+				d.QA.Pager.Label = "Epic pages"
+				d.QA.Epics = sliceFor(d.QA.Epics, d.QA.Pager)
+			}
 		}
 		if tab == "vendors" {
 			d.Vendors = buildVendorsPane(r.Context(), m, s.adapter)
@@ -362,6 +395,9 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 					}
 				}
 			}
+			d.Pager = paginate(len(d.Timeline), pageParam(r.URL.Query().Get("page")), tablePageSize, productPageAt(m.ID, d.Slug, "timeline"))
+			d.Pager.Label = "Timeline pages"
+			d.Timeline = sliceFor(d.Timeline, d.Pager)
 		}
 		// A sequence diagram is drawn for the tab that shows it.
 		for _, g := range m.Diagrams {

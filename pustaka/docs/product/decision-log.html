@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety-five entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-six entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -2089,6 +2089,30 @@
         Outcome (2026-11-26): the rewrite ran. <code>git filter-repo</code> rewrote 38 branches and 59 tags; 8 seed blobs were stripped; the newest tag&rsquo;s tree was byte-identical before and after. A fresh clone from GitHub shows 0 private-string lines, 0 infrastructure matches and 0 seed blobs across every branch and tag. Both prod checkouts and the workstation clone were moved onto the new history and their old objects collected; an active worktree&rsquo;s uncommitted change was carried over unchanged. The user, the port and the LAN addresses joined the private list (nine patterns). <strong>The WireGuard port was not rotated</strong>: four of the eight peers cannot be re-pointed from here, and WireGuard answers no packet without a valid key, so a known port reveals nothing a scan could not &mdash; rotating would have cost an outage for no exposure removed. SSH on the edge was confirmed key-only. Still open: GitHub Support&rsquo;s purge of objects reachable through pull-request refs and caches; the backup of the old history is kept off-repository until that is confirmed.</td>
         <td><a href="qa-test-plan.html#cw-public-ipv4">TC-751</a>, <a href="qa-test-plan.html#pk-comma">TC-752</a>;
         <code>docs/designs/public-repo-hardening.md</code></td>
+      </tr>
+      <tr id="d-097">
+        <td>D-097</td><td>2026-11-27</td>
+        <td><strong>Every back-office list is paged, the Board table's page is part of its address, and a prune lists the cards it takes. Amends <a href="#d-095">D-095</a> and <a href="#d-082">D-082</a>.</strong>
+        Context: the operator asked for pages on every table and on the tenant-wide list pages, for a way to start work
+        from the Board, and for the Board to say how the AI picks up a task. Decision: (1) One pager, page numbers in the
+        address, read through one parser and written back only after it is clamped to a page that exists. Data tables
+        &mdash; the Board table, Pull requests, Auto-fix, the Timeline and QA by epic &mdash; show <strong>ten rows a
+        page</strong>; the Stories, Diagrams, Knowledge, Agents and Archive pages show <strong>five items a page</strong>,
+        by item, with a product's heading only where it has an item on the page. (2) <strong>Amends D-095 (2):</strong>
+        the Board table's page is part of the Board's address and travels on every Board request, so a refresh, a move or
+        an answer keeps it; a filter, a search, a sort or a switch of view starts on page 1. "Show 100 more" and the
+        accepted limit of 1,000 table rows are withdrawn, and so are the 200-row caps of Pull requests and Auto-fix.
+        (3) <strong>Amends D-082:</strong> the typed PRUNE stays bound to the listed cards. Since the Archive table is
+        paged, the confirmation lists every card the prune takes, outside the pager, and one prune takes at most the 100
+        oldest archived conversations; a larger archive is pruned in batches. (4) The Board has a <strong>New task</strong>
+        button that opens the Create workflow wizard with the product locked &mdash; cards are still planned from stories,
+        never created on the Board &mdash; and a panel that says how a task is picked up, worded for the runner this
+        deployment has (off, no AI vendor, manual or on). (5) "Inject into graph" is shown only on the record tabs, as
+        "Sync record to graph", with a title that says what it writes. Accepted limits: the page is an offset, so a moved
+        card can leave its page and a new pull request shifts the later pages by one; Back does not step through pages;
+        the Timeline still reads every event of the product and pages what it prints.</td>
+        <td><a href="qa-test-plan.html#go-paging">TC-753&hellip;TC-762</a>;
+        <code>docs/designs/board-and-list-ux.md</code></td>
       </tr>
     </tbody>
   </table>

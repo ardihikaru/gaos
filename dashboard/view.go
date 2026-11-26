@@ -118,6 +118,7 @@ type ProductDetail struct {
 	// Timeline is the product's events, newest first (T-168). Counted on
 	// every tab for the tab label; the list is rendered on its own tab only.
 	Timeline   []Event
+	Pager      Pager // the Timeline tab's pages (D-097)
 	ID         string
 	Slug       string // the product's name in a URL (D-094)
 	Name       string
@@ -183,6 +184,12 @@ type BOView struct {
 	Sub     string
 	Agents  []AgentRow
 	NewOpen bool
+
+	// The list pages' pages (D-097): read with pageParam, then overwritten
+	// with the clamped page, which is all address() ever writes. Pager is the
+	// rollup's or the agents'; Archive's two live on ArchivePage.
+	Page, APage, PPage int
+	Pager              Pager
 
 	// The inbox (M15). Filter is the product the list is narrowed to, "" for
 	// all; Filters are the products that have someone waiting, for the chips.
@@ -390,6 +397,11 @@ type CWView struct {
 	NextLabel string
 	Goal      string
 	Steps     []CWStep
+	// Locked is set when the wizard was opened from a product (lock=1) and that
+	// product exists: step 1 shows it instead of the picker. Presentation
+	// only -- lock and product are the client's values (design §3.6, OQ-37).
+	Locked     bool
+	LockedName string
 }
 
 type CWStep struct {

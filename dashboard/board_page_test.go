@@ -370,8 +370,8 @@ func TestBoardPageDecoratesOnlyThePage(t *testing.T) {
 		}
 		st.timingCalls.Store(0)
 		tp, _ := st.BoardPage(ctx, "p-1", BoardQuery{View: "table"}, BoardWindow{})
-		if got := int(st.timingCalls.Load()); got != len(tp.Rows) || len(tp.Rows) > tableStep {
-			t.Errorf("with %d tasks the table returned %d row(s) and computed %d timing(s); want at most %d rows and one timing each", n, len(tp.Rows), got, tableStep)
+		if got := int(st.timingCalls.Load()); got != len(tp.Rows) || len(tp.Rows) > tablePageSize {
+			t.Errorf("with %d tasks the table returned %d row(s) and computed %d timing(s); want at most %d rows and one timing each", n, len(tp.Rows), got, tablePageSize)
 		}
 	}
 }
@@ -420,6 +420,7 @@ func TestTheBoardQueryRoundTrips(t *testing.T) {
 		{Role: "qa", Story: "US-01", Label: LabelUnitTest, Workflow: "wf-001", Waiting: true, HideEmpty: true},
 		{View: "table", Sort: "updated", Dir: "asc"},
 		{View: "table", Sort: "id"},
+		{View: "table", Page: 3},
 		{Role: "a b&c=d", Story: "plan"},
 	} {
 		enc := q.Encode()
@@ -427,7 +428,7 @@ func TestTheBoardQueryRoundTrips(t *testing.T) {
 		if got != q {
 			t.Errorf("parsing %q gives %+v, want %+v", enc, got, q)
 		}
-		if len(w.Shown) != 0 || w.Rows != 0 || w.Text != "" {
+		if len(w.Shown) != 0 || w.Text != "" {
 			t.Errorf("parsing %q produced a window %+v; the view carries none", enc, w)
 		}
 	}
@@ -759,9 +760,9 @@ func TestABoardMutationKeepsTheView(t *testing.T) {
 		t.Errorf("a move set an address header (%q, %q); a mutation never rewrites the address", w.Header().Get("HX-Push-Url"), w.Header().Get("HX-Replace-Url"))
 	}
 	// In the table, a move answers with the table.
-	tw := mv("bt-00030", ColCanceled, map[string]string{boardStateHeader: "view=table&role=backend&rows=100"})
-	if tb := tw.Body.String(); !strings.Contains(tb, `id="boardTable" data-rows="`) || strings.Contains(tb, `id="boSheet"`) || len(columnsIn(tb)) != 0 {
-		t.Errorf("a move made from the table was not answered with the table")
+	tw := mv("bt-00030", ColCanceled, map[string]string{boardStateHeader: "view=table&role=backend&page=2"})
+	if tb := tw.Body.String(); !strings.Contains(tb, `id="boardTable" data-page="2"`) || strings.Contains(tb, `id="boSheet"`) || len(columnsIn(tb)) != 0 {
+		t.Errorf("a move made from page 2 of the table was not answered with page 2 of the table (D-097)")
 	}
 
 	// A mutation that still answers with the sheet re-renders the same view:
@@ -795,22 +796,22 @@ func TestABoardMutationKeepsTheView(t *testing.T) {
 	// Leaving the table, and clearing the filters: each link names what it
 	// sets, empty included, and the URL wins over the state the script sends.
 	tbl := boardHX(t, srv, "GET", "/products/p-1?tab=board&view=table", map[string]string{boardStateHeader: "role=backend"}).Body.String()
-	boardGet := regexp.MustCompile(`hx-get="(products/p-1\?tab=board&amp;view=)"`).FindStringSubmatch(tbl)
+	boardGet := regexp.MustCompile(`hx-get="(products/p-1\?tab=board&amp;view=&amp;page=)"`).FindStringSubmatch(tbl)
 	reset := regexp.MustCompile(`data-board-reset href="[^"]*" hx-get="([^"]+)"`).FindStringSubmatch(tbl)
 	if boardGet == nil || reset == nil {
 		t.Fatalf("the table view lacks the Board link (view=) or the \"Clear filters\" link")
 	}
-	stale := map[string]string{boardStateHeader: "view=table&role=backend&rows=100"}
+	stale := map[string]string{boardStateHeader: "view=table&role=backend&page=2"}
 	if b := boardHX(t, srv, "GET", "/"+html.UnescapeString(boardGet[1]), stale).Body.String(); !strings.Contains(b, `class="board-ssr"`) || strings.Contains(b, `id="boardTable"`) {
 		t.Errorf("the Board link, sent with a state that says view=table, did not show the board: an empty view= in the URL must win")
 	}
 	cleared := boardHX(t, srv, "GET", "/"+html.UnescapeString(reset[1]), stale).Body.String()
-	if strings.Contains(cleared, `<option value="backend" selected>`) || !strings.Contains(cleared, `id="boardTable"`) {
-		t.Errorf("\"Clear filters\" left the role filter on, or left the table: it clears the filters and keeps the view")
+	if strings.Contains(cleared, `<option value="backend" selected>`) || !strings.Contains(cleared, `id="boardTable" data-page="0"`) {
+		t.Errorf("\"Clear filters\" left the role filter on, left the table, or kept page 2: it clears the filters, keeps the view, and starts on page 1")
 	}
 }
 
-func TestTheTableSortsAndCaps(t *testing.T) {
+func TestTheTableSortsAndPages(t *testing.T) {
 	// Its own store and server, so it runs beside the others: under the race
 	// detector a rendered board is slow, and the suite has ten minutes.
 	t.Parallel()
@@ -827,8 +828,8 @@ func TestTheTableSortsAndCaps(t *testing.T) {
 		return boardHX(t, srv, "GET", "/products/p-1/board/live?view=table"+q, map[string]string{boardStateHeader: state}).Body.String()
 	}
 	def := get("", "")
-	if ids := rowIDs(def); len(ids) != tableStep || !strings.Contains(def, "Showing 100 of ") || !strings.Contains(def, "more=rows") {
-		t.Fatalf("the table shows %d row(s); want %d, \"Showing 100 of N\" and a \"Show 100 more\"", len(rowIDs(def)), tableStep)
+	if ids := rowIDs(def); len(ids) != tablePageSize || !strings.Contains(def, "Showing 1–10 of ") || !strings.Contains(def, `class="pager"`) {
+		t.Fatalf("the table shows %d row(s); want %d, \"Showing 1–10 of N\" and a pager", len(rowIDs(def)), tablePageSize)
 	}
 	if strings.Contains(def, `class="board-ssr"`) || strings.Contains(def, `id="board-host"`) {
 		t.Errorf("the table view also renders a board")
@@ -841,16 +842,18 @@ func TestTheTableSortsAndCaps(t *testing.T) {
 	if len(desc) == 0 || desc[0] <= desc[len(desc)-1] {
 		t.Errorf("sort=id&dir=desc is not descending")
 	}
-	if more := rowIDs(get("&more=rows", "rows=100")); len(more) != 2*tableStep {
-		t.Errorf("more=rows at 100 shows %d row(s), want %d", len(more), 2*tableStep)
+	// Page 2 of the id sort continues page 1; the state header carries it too.
+	p2 := rowIDs(get("&sort=id&page=2", ""))
+	if len(p2) != tablePageSize || len(byID) == 0 || p2[0] <= byID[len(byID)-1] {
+		t.Errorf("page 2 of sort=id shows %d row(s) starting %v; want %d rows after page 1's last", len(p2), p2, tablePageSize)
 	}
-	capped := get("&more=rows", "rows=1000")
-	if ids := rowIDs(capped); len(ids) != tableMaxRows || strings.Contains(capped, "more=rows") || !strings.Contains(capped, "the first 1,000. Filter to see the rest.") {
-		t.Errorf("at the cap the table shows %d row(s); want %d, no \"Show 100 more\", and the line that says so", len(rowIDs(capped)), tableMaxRows)
+	if h := rowIDs(get("&sort=id", "page=2")); len(h) == 0 || h[0] != p2[0] {
+		t.Errorf("the state header's page=2 did not open page 2")
 	}
-	// The header links carry the page address and the fragment address.
-	if !regexp.MustCompile(`<a href="p/laundry-membership/board\?[^"]*sort=id[^"]*" hx-get="products/p-1\?tab=board&amp;view=table&amp;sort=id&amp;dir=asc"`).MatchString(def) {
-		t.Errorf("the ID header is not a link with a page address in href and its own sort in hx-get")
+	// The header links carry the page address and the fragment address; a sort
+	// starts over on page 1 (an empty page=, last).
+	if !regexp.MustCompile(`<a href="p/laundry-membership/board\?[^"]*sort=id[^"]*" hx-get="products/p-1\?tab=board&amp;view=table&amp;sort=id&amp;dir=asc&amp;page="`).MatchString(def) {
+		t.Errorf("the ID header is not a link with a page address in href, its own sort in hx-get, and an empty page=")
 	}
 }
 
@@ -1034,8 +1037,8 @@ func TestTheBoardTabSkipsTheEventCopyAndTheDiagrams(t *testing.T) {
 		}
 	}
 	counter.events = 0
-	if d := build("timeline"); counter.events != 1 || len(d.Timeline) != d.TimelineN {
-		t.Errorf("the Timeline tab read the stream %d time(s) and holds %d of %d event(s); want one read and all of them", counter.events, len(d.Timeline), d.TimelineN)
+	if d := build("timeline"); counter.events != 1 || len(d.Timeline) != min(tablePageSize, d.TimelineN) || d.Pager.Total != d.TimelineN {
+		t.Errorf("the Timeline tab read the stream %d time(s) and holds %d of %d event(s) (pager total %d); want one read, one page of them, and the pager counting all", counter.events, len(d.Timeline), d.TimelineN, d.Pager.Total)
 	}
 	drawn := 0
 	for _, g := range build("diagrams").Diagrams {
@@ -1050,5 +1053,112 @@ func TestTheBoardTabSkipsTheEventCopyAndTheDiagrams(t *testing.T) {
 	body := boardHX(t, srv, "GET", "/products/p-1?tab=board", nil).Body.String()
 	if !regexp.MustCompile(`Timeline <span class="n" id="navTimelineN">[\d,]+</span>`).MatchString(body) {
 		t.Errorf("the Board tab's menu does not carry the Timeline count")
+	}
+}
+
+// TC-754: the Board table is paged by ten (D-097), and the page is part of its
+// address: clamped, written back, and never kept by a link that changes the view.
+func TestTheBoardTablePagesByTen(t *testing.T) {
+	t.Parallel()
+	srv, st := bigBoard(t, 23)
+	slug := slugOfProduct(t, st, "p-1")
+	rows := func(body string) int { return strings.Count(body, `<tr class="board-row`) }
+	cur := map[string]string{"HX-Current-URL": "https://gaos.example/p/" + slug + "/board?view=table"}
+
+	one := boardHX(t, srv, "GET", "/products/p-1/board/live?view=table", cur)
+	if b := one.Body.String(); rows(b) != 10 || !strings.Contains(b, "Showing 1–10 of 23") || !strings.Contains(b, `aria-current="page">1<`) {
+		t.Fatalf("page 1 shows %d row(s); want 10, \"Showing 1–10 of 23\" and page 1 current", rows(b))
+	}
+	if b := boardHX(t, srv, "GET", "/products/p-1/board/live?view=table&page=3", cur).Body.String(); rows(b) != 3 || !strings.Contains(b, "Showing 21–23 of 23") {
+		t.Errorf("page 3 shows %d row(s); want 3 and \"Showing 21–23 of 23\"", rows(b))
+	}
+	far := boardHX(t, srv, "GET", "/products/p-1/board/live?view=table&page=9", cur)
+	if b := far.Body.String(); rows(b) != 3 || !strings.Contains(b, `data-page="3"`) {
+		t.Errorf("page 9 of 3 shows %d row(s); want it clamped to page 3", rows(b))
+	}
+	if u := far.Header().Get("HX-Replace-Url"); !strings.Contains(u, "page=3") || strings.Contains(u, "page=9") {
+		t.Errorf("page 9 of 3 wrote the address %q; want the clamped page=3", u)
+	}
+	// Every pager link is a page address in href and a fragment in hx-get.
+	b := one.Body.String()
+	nav := b[strings.Index(b, `class="pager"`):]
+	nav = nav[:strings.Index(nav, "</nav>")]
+	hrefs := regexp.MustCompile(`<a [^>]*href="([^"]+)" hx-get="([^"]+)"[^>]*>`).FindAllStringSubmatch(nav, -1)
+	if len(hrefs) < 2 {
+		t.Fatalf("the pager on page 1 of 3 has %d link(s); want the numbers and Next", len(hrefs))
+	}
+	for _, h := range hrefs {
+		if strings.HasPrefix(h[1], "ui/") || strings.HasPrefix(h[1], "products/") || !strings.HasPrefix(h[1], "p/"+slug+"/board?") || !strings.Contains(h[2], "/board/live?page=") {
+			t.Errorf("pager link href=%q hx-get=%q; want a page address and the Board's own route", h[1], h[2])
+		}
+		if !strings.Contains(h[0], `hx-sync="#boardFilters:replace"`) {
+			t.Errorf("pager link %q has no hx-sync with the filter bar", h[1])
+		}
+	}
+	// A sort starts the view over: its fragment names page= empty.
+	if !strings.Contains(b, "&amp;dir=asc&amp;page=\"") {
+		t.Errorf("a sort link does not carry an empty page=")
+	}
+}
+
+// TC-755: when a mutation leaves fewer pages than the one the operator is on,
+// the answer is the last page that exists, never an empty one.
+func TestTheBoardPageClampsAfterAMove(t *testing.T) {
+	t.Parallel()
+	srv, st := bigBoard(t, 11)
+	slug := slugOfProduct(t, st, "p-1")
+	st.mu.Lock()
+	st.tasks = st.tasks[:10] // the row page 2 held is gone
+	st.mu.Unlock()
+	r := httptest.NewRequest("PUT", "/products/p-1/board/cards/bt-00000/move", strings.NewReader("column="+ColCanceled))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("HX-Request", "true")
+	r.Header.Set("HX-Current-URL", "https://gaos.example/p/"+slug+"/board?view=table&page=2")
+	r.Header.Set(boardStateHeader, "view=table&page=2")
+	for _, c := range boCookies() {
+		r.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	handlerOf(srv).ServeHTTP(w, r)
+	b := w.Body.String()
+	if w.Code != 200 || !strings.Contains(b, `id="boardTable" data-page="0"`) || strings.Count(b, `<tr class="board-row`) != 10 {
+		t.Errorf("a move with page=2 over 10 rows answered %d with %d row(s); want page 1 (data-page=\"0\") with all 10", w.Code, strings.Count(b, `<tr class="board-row`))
+	}
+	if strings.Contains(b, `class="pager"`) {
+		t.Errorf("one page of rows renders a pager; it should only say how many")
+	}
+}
+
+// TC-760: the Board offers New task, and its help panel says what actually
+// starts a task here -- the same two switches the control loop is behind.
+func TestTheBoardExplainsTheRunnerAndOffersNewTask(t *testing.T) {
+	srv, _ := bigBoard(t, 3)
+	for _, c := range []struct {
+		mode    string
+		adapter bool
+		want    string
+	}{
+		{"off", true, "The runner is off on this deployment"},
+		{"on", false, "No AI vendor is configured"},
+		{"manual", true, "Nothing starts by itself."},
+		{"on", true, "An agent starts the task automatically"},
+	} {
+		t.Setenv("GAOS_RUNNER", c.mode)
+		srv.adapter = nil
+		if c.adapter {
+			srv.adapter = &AIMAdapter{}
+		}
+		b := boardHX(t, srv, "GET", "/products/p-1?tab=board", nil).Body.String()
+		i := strings.Index(b, `<details class="board-help">`)
+		if i < 0 {
+			t.Fatalf("GAOS_RUNNER=%s: the Board has no help panel", c.mode)
+		}
+		help := b[i : i+strings.Index(b[i:], "</details>")]
+		if !strings.Contains(help, c.want) {
+			t.Errorf("GAOS_RUNNER=%s, adapter %v: the help panel does not say %q", c.mode, c.adapter, c.want)
+		}
+		if !strings.Contains(b, `hx-get="ui/cw?product=p-1&amp;lock=1"`) || !strings.Contains(b, ">New task</button>") {
+			t.Errorf("the Board has no New task button opening the wizard locked to its product")
+		}
 	}
 }

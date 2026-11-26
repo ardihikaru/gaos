@@ -31,7 +31,7 @@
 {{end}}
 
 <div class="block qa">
-  <h4>By epic <span class="sp mono">{{len .Epics}}</span></h4>
+  <h4>By epic <span class="sp mono">{{.Pager.Total}}</span></h4>
   <div class="qa-scroll">
     <table class="qa-tbl">
       <thead><tr><th>Epic</th><th>Title</th><th>Service</th><th class="r">Automated</th><th class="qa-barcol"><span class="sr-only">Coverage</span></th><th class="r">Fail</th></tr></thead>
@@ -49,6 +49,7 @@
       </tbody>
     </table>
   </div>
+  {{template "pager" .Pager}}
 </div>
 
 {{if .NeedsDecision}}

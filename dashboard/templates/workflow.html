@@ -1,9 +1,9 @@
 {{define "cw-modal"}}
 <div class="modal-back" id="cwModal" {{if not .CW}}hidden{{end}} hx-swap-oob="true">
   {{if .CW}}
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cwTitle">
+  <div class="modal cw" role="dialog" aria-modal="true" aria-labelledby="cwTitle">
     <header>
-      <h3 id="cwTitle">Create workflow</h3>
+      <h3 id="cwTitle">{{if .CW.Locked}}New tasks for {{.CW.LockedName}}{{else}}Create workflow{{end}}</h3>
       <div class="steps">
         {{range $i, $s := .CW.Steps}}{{if $i}}<s></s>{{end}}<b class="{{$s.Class}}">{{$s.Label}}</b>{{end}}
       </div>
@@ -24,6 +24,7 @@
   {{with .CW}}
   <input type="hidden" name="step" value="{{.Draft.Step}}">
   <input type="hidden" name="product" value="{{.Draft.ProductID}}">
+  {{if .Locked}}<input type="hidden" name="lock" value="1">{{end}}
   {{if ne .Draft.Step 1}}<input type="hidden" name="goal" value="{{.Draft.Goal}}">
   <input type="hidden" name="priority" value="{{.Draft.Priority}}">
   <input type="hidden" name="gate" value="{{if .Draft.Gate}}yes{{else}}no{{end}}">{{end}}
@@ -32,8 +33,14 @@
   <div class="modal-body" id="cwBody">
     {{if eq .Draft.Step 1}}
       <div class="field">
-        <label>Product</label>
-        <div class="picker">
+        <label id="cwProductLabel">Product</label>
+        <p class="field-help" id="cwProductHelp">{{.Hint}}</p>
+        {{if .Locked}}{{range .Picks}}{{if .Selected}}
+        <div class="cw-locked" role="group" aria-labelledby="cwProductLabel" aria-describedby="cwProductHelp">
+          <b>{{.Name}}</b><span>{{.Stories}} stories · {{.Coverage}}% covered</span>
+        </div>
+        {{end}}{{end}}{{else}}
+        <div class="picker" role="group" aria-labelledby="cwProductLabel" aria-describedby="cwProductHelp">
           {{range .Picks}}
           <button class="pick" type="button" aria-pressed="{{.Selected}}" data-pick="{{.ID}}">
             <b>{{.Name}}</b>
@@ -41,6 +48,7 @@
           </button>
           {{end}}
         </div>
+        {{end}}
       </div>
       <div class="field">
         <label for="cwGoal">Objective in plain language</label>
@@ -103,10 +111,10 @@
   </div>
 
   <footer>
-    <span class="eyebrow">{{.Hint}}</span>
+    {{if ne .Draft.Step 1}}<span class="cw-hint">{{.Hint}}</span>{{end}}
     <span class="sp">
-      <button class="btn" type="submit" {{if eq .Draft.Step 1}}style="visibility:hidden"{{end}}
-              hx-post="ui/cw/step/{{add .Draft.Step -1}}">Back</button>
+      {{if ne .Draft.Step 1}}<button class="btn" type="submit"
+              hx-post="ui/cw/step/{{add .Draft.Step -1}}">Back</button>{{end}}
       {{if eq .Draft.Step 3}}
         <button class="btn btn-primary" type="submit" hx-post="workflows">{{.NextLabel}}</button>
       {{else}}

@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -581,5 +582,60 @@ func TestTheSlugBackfillIsWrittenOnce(t *testing.T) {
 	}
 	if eventsThird, _ := third.Events(ctx); len(eventsThird) != len(eventsAfter) {
 		t.Errorf("a boot with nothing to back-fill wrote %d event(s); it must write none", len(eventsThird)-len(eventsAfter))
+	}
+}
+
+// TC-756: the tenant-wide list pages are paged by five, by item (D-097). The
+// page in the address is the clamped one, built from the page alone.
+func TestTheListPagesPageByFive(t *testing.T) {
+	srv, _ := newTestServer(t)
+	at := func(view string) map[string]string {
+		return map[string]string{"HX-Current-URL": "https://gaos.example/" + view}
+	}
+	stories := func(b string) int { return strings.Count(b, `<div class="story `) }
+	totalOf := func(b string) int {
+		if m := regexp.MustCompile(`Showing \d+–\d+ of (\d+)`).FindStringSubmatch(b); m != nil {
+			n, _ := strconv.Atoi(m[1])
+			return n
+		}
+		if m := regexp.MustCompile(`Showing (\d+)</p>`).FindStringSubmatch(b); m != nil {
+			n, _ := strconv.Atoi(m[1])
+			return n
+		}
+		return -1
+	}
+	p1 := boardHX(t, srv, "GET", "/ui/bo/stories", at("stories")).Body.String()
+	n := totalOf(p1)
+	if n <= 5 || stories(p1) != 5 {
+		t.Fatalf("/stories page 1: %d card(s) of %d; the seed must hold more than 5 stories, and a page shows 5", stories(p1), n)
+	}
+	last := (n + 4) / 5
+	far := boardHX(t, srv, "GET", "/ui/bo/stories?page=99", at("stories"))
+	if got, want := stories(far.Body.String()), n-(last-1)*5; got != want {
+		t.Errorf("/stories?page=99 shows %d card(s); want the last page's %d", got, want)
+	}
+	if u := far.Header().Get("HX-Replace-Url"); !strings.HasSuffix(u, "/stories?page="+strconv.Itoa(last)) {
+		t.Errorf("/stories?page=99 wrote the address %q; want the clamped page %d", u, last)
+	}
+	// A heading only with an item on the page: every <h4> of a group has a card under it.
+	for _, blk := range strings.Split(p1, `<div class="block">`)[1:] {
+		if strings.Contains(blk, "Open record") && !strings.Contains(blk, `<div class="story `) {
+			t.Errorf("a product heading is shown with no story of it on the page")
+		}
+	}
+	// Every pager link is a page address in href and a fragment in hx-get.
+	for _, m := range regexp.MustCompile(`<a class="pager-[a-z]+" href="([^"]+)" hx-get="([^"]+)"`).FindAllStringSubmatch(p1, -1) {
+		if strings.HasPrefix(m[1], "ui/") || !strings.HasPrefix(m[1], "stories") || !strings.HasPrefix(m[2], "ui/bo/stories") {
+			t.Errorf("pager link href=%q hx-get=%q; want a page address and a fragment", m[1], m[2])
+		}
+	}
+	// The address is built from the page alone: a stray q= never reaches it.
+	sq := boardHX(t, srv, "GET", "/ui/bo/stories?page=2&q=secret", at("stories"))
+	if u := sq.Header().Get("HX-Replace-Url"); !strings.HasSuffix(u, "/stories?page=2") || strings.Contains(u, "secret") {
+		t.Errorf("/stories?page=2&q=secret wrote the address %q; want stories?page=2 and nothing else", u)
+	}
+	ag := boardHX(t, srv, "GET", "/ui/bo/agents?page=3", at("agents")).Body.String()
+	if n := strings.Count(ag, `<div class="proj" style="padding:8px 0">`); n != len(agents)-10 || !strings.Contains(ag, "of "+strconv.Itoa(len(agents))) {
+		t.Errorf("/agents?page=3 shows %d agent(s); want %d of %d", n, len(agents)-10, len(agents))
 	}
 }

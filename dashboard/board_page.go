@@ -6,14 +6,14 @@ package main
 // right while a board held a workflow's worth of tasks; Done never empties, and
 // at 2,000 cards one refresh cost 109 ms and 1.8 MB. BoardPage is the same
 // projection cut to what a screen shows: the cards that match a filter, thirty
-// to a column until the operator asks for more, decorated only once they have
-// been chosen.
+// to a column until the operator asks for more (or ten table rows a page),
+// decorated only once they have been chosen.
 //
 // Two types carry a request's wishes, and the split is the point:
 //
-//   - BoardQuery is the VIEW -- the filter, board or table, the sort. It lives
-//     in the address, so a link reproduces it.
-//   - BoardWindow is HOW MUCH of the view -- the depth of each column, the
+//   - BoardQuery is the VIEW -- the filter, board or table, the sort, and the
+//     table's page (D-097). It lives in the address, so a link reproduces it.
+//   - BoardWindow is HOW MUCH of the board view -- the depth of each column, the
 //     search text. It never reaches an address.
 
 import (
@@ -33,8 +33,6 @@ import (
 const (
 	boardStep      = 30   // cards a column shows at first, and more per "Show more"
 	boardMaxShown  = 300  // the most cards one column ever holds
-	tableStep      = 100  // table rows at first, and more per "Show 100 more"
-	tableMaxRows   = 1000 // the most rows the table ever holds
 	boardMaxSearch = 80   // runes of search text
 	boardMaxPairs  = 256  // bytes of a shown= or rev= value
 	boardMaxState  = 1024 // bytes of the X-Board-State header
@@ -59,13 +57,13 @@ type BoardQuery struct {
 	Waiting   bool   // only cards waiting on a person
 	HideEmpty bool   // hide columns with no matching card
 	Sort, Dir string // table only; "" = the default
+	Page      int    // table only; 0 = the first page (D-097)
 }
 
 // BoardWindow is how much of the view one request wants. Never encoded.
 type BoardWindow struct {
 	Text  string         // the search box
 	Shown map[string]int // board: cards per column; a missing column gets boardStep
-	Rows  int            // table: rows; 0 = tableStep
 }
 
 // BoardFacets is what each select offers, before filtering, sorted.
@@ -89,7 +87,7 @@ type BoardPage struct {
 	Text      string            // the search text applied
 	Columns   []BoardPageColumn // always all nine, in board order
 	Rows      []BoardCard       // table view only
-	RowsShown int               // table view: len(Rows)
+	RowsShown int               // table view: len(Rows), the rows of this page
 	Matched   int               // cards matching the filter
 	All       int               // all cards of the product
 	Facets    BoardFacets
@@ -172,6 +170,7 @@ func parseBoardQuery(r *http.Request) (BoardQuery, BoardWindow) {
 	}
 	if p.get("view") == "table" {
 		q.View = "table"
+		q.Page = pageParam(p.get("page"))
 	}
 	if s := p.get("sort"); boardSorts[s] {
 		q.Sort = s
@@ -186,14 +185,8 @@ func parseBoardQuery(r *http.Request) (BoardQuery, BoardWindow) {
 			w.Shown[col] = min(n, boardMaxShown)
 		}
 	}
-	if n, err := strconv.Atoi(p.get("rows")); err == nil && n >= 1 {
-		w.Rows = min(n, tableMaxRows)
-	}
-	// "more" deepens one column, or the table, and the result is clamped again.
-	switch more := p.get("more"); {
-	case more == "rows":
-		w.Rows = min(max(w.Rows, tableStep)+tableStep, tableMaxRows)
-	case isColumnID(more):
+	// "more" deepens one column, and the result is clamped again.
+	if more := p.get("more"); isColumnID(more) {
 		w.Shown[more] = min(max(w.Shown[more], boardStep)+boardStep, boardMaxShown)
 	}
 	// The search text arrives in a header and nowhere else. A q= in the URL is
@@ -243,6 +236,9 @@ func (q BoardQuery) Encode() string {
 		if q.Dir != "" {
 			v.Set("dir", q.Dir)
 		}
+	}
+	if q.View == "table" && q.Page > 1 {
+		v.Set("page", strconv.Itoa(q.Page))
 	}
 	return v.Encode()
 }
@@ -372,7 +368,7 @@ func (q BoardQuery) clean(f BoardFacets) BoardQuery {
 		q.Story = ""
 	}
 	if q.View != "table" {
-		q.View, q.Sort, q.Dir = "", "", ""
+		q.View, q.Sort, q.Dir, q.Page = "", "", "", 0
 	}
 	if !boardSorts[q.Sort] {
 		q.Sort, q.Dir = "", ""
@@ -495,11 +491,14 @@ func (s *MemStore) BoardPage(ctx context.Context, productID string, q BoardQuery
 			p.Columns = append(p.Columns, BoardPageColumn{BoardColumn: c, Matched: len(buckets[c.ID])})
 		}
 		sortTableRows(rows, q, last)
-		n := w.Rows
-		if n <= 0 {
-			n = tableStep
+		// One page of the table (D-097). The clamped page goes back into the
+		// query, so the address the response writes is a page that exists.
+		pg, lo, hi := clampPage(len(rows), q.Page, tablePageSize)
+		if pg <= 1 {
+			pg = 0
 		}
-		rows = rows[:min(n, tableMaxRows, len(rows))]
+		p.Query.Page = pg
+		rows = rows[lo:hi]
 		byID := make(map[string]*TaskRecord, len(rows))
 		for _, t := range rows {
 			kept = append(kept, cardOf(t, m, last[t.ID]))

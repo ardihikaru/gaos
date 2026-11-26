@@ -511,3 +511,55 @@ func TestConversationSheetSaysWhoAnswered(t *testing.T) {
 		t.Errorf("the sheet of an answer given before D-083 does not say source not recorded")
 	}
 }
+
+// TC-757: the Archive pages each table by five on its own key, and the prune's
+// confirmation lists exactly the cards it takes -- every archived one, or the
+// oldest pruneBatch -- whatever page the table is on (D-082, D-097).
+func TestTheArchivePagesEachTableAndListsWhatPruneTakes(t *testing.T) {
+	rend, err := NewRenderer(false, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := func(archived, pruned int) ArchiveView {
+		v := ArchiveView{}
+		for i := 0; i < archived; i++ { // newest first, as the store folds them
+			v.Archived = append(v.Archived, ArchivedRow{ProductID: "p-1", ProductName: "Sample", TaskID: fmt.Sprintf("T-%03d", i),
+				TaskTitle: "task", ArchivedAt: int64(10000 - i)})
+		}
+		for i := 0; i < pruned; i++ {
+			v.Pruned = append(v.Pruned, PruneRow{ProductID: "p-1", ProductName: "Sample", TaskID: fmt.Sprintf("P-%03d", i), PrunedAt: int64(10000 - i)})
+		}
+		return v
+	}
+	render := func(p *ArchivePage) string {
+		w := httptest.NewRecorder()
+		rend.Render(w, 200, "bo-archive", &BOView{View: "archive", Title: "Archive", Archive: p})
+		return w.Body.String()
+	}
+
+	b := render(archivePage(view(7, 6), 0, 2))
+	if n := strings.Count(b, `id="cvo-`); n != 5 {
+		t.Errorf("Archived page 1 shows %d row(s), want 5", n)
+	}
+	if n := strings.Count(b, `id="cvp-`); n != 1 {
+		t.Errorf("Pruned ppage=2 of 6 shows %d row(s), want 1", n)
+	}
+	if n := strings.Count(b, `name="card"`); n != 7 || !strings.Contains(b, "Prune 7 conversations") || !strings.Contains(b, "Prune all archived…") {
+		t.Errorf("the prune form carries %d card(s); want all 7, \"Prune 7 conversations\" and \"Prune all archived…\"", n)
+	}
+	list := b[strings.Index(b, `<ul class="cv-prune-list">`):]
+	list = list[:strings.Index(list, "</ul>")]
+	for i := 0; i < 7; i++ {
+		if !strings.Contains(list, fmt.Sprintf("T-%03d", i)) {
+			t.Errorf("the prune confirmation does not name T-%03d, which it would prune", i)
+		}
+	}
+	if !strings.Contains(b, `hx-get="ui/bo/archive?apage=2&amp;ppage=2"`) {
+		t.Errorf("the Archived pager's page 2 does not keep the Pruned table's ppage=2")
+	}
+
+	big := render(archivePage(view(101, 0), 0, 0))
+	if n := strings.Count(big, `name="card"`); n != pruneBatch || !strings.Contains(big, "Prune the 100 oldest…") || !strings.Contains(big, "T-100") || strings.Contains(big, `value="p-1/T-000"`) {
+		t.Errorf("with 101 archived the form carries %d card(s); want the %d oldest (T-001…T-100, not the newest T-000), and the button saying so", n, pruneBatch)
+	}
+}

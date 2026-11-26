@@ -16,9 +16,6 @@ import (
 // and this view only reads. Every string is plain text; GitHub links are rebuilt from the
 // validated owner/repo and number, never from a stored URL.
 
-// prMaxRows bounds the list; a longer list says so.
-const prMaxRows = 200
-
 // prNoFollowDays is the age after which a fix record is no longer polled (fixPRPollLifetime).
 const prNoFollowDays = 30
 
@@ -35,6 +32,7 @@ var prKindLabels = map[string]string{"fix": "Auto-fix", PRKindReview: "Review", 
 // PRFilter is the page's narrowing, validated against what exists.
 type PRFilter struct {
 	Product, State, Kind, Open string
+	Page                       int // 0 = the first page (D-097)
 }
 
 // PRRelation is a link to the pull request a retarget replaced or was replaced by.
@@ -114,7 +112,7 @@ type PRPage struct {
 	Groups    []PRGroup
 	RowsTotal int
 	RowsShown int
-	RowsMore  bool
+	Pager     Pager  // ten rows a page (D-097)
 	Empty     string // "" | "none" | "filtered"
 	ResetHref string
 	Note      string
@@ -135,6 +133,9 @@ func prHref(f PRFilter, live ...string) string {
 	}
 	if f.Open != "" {
 		v.Set("open", f.Open)
+	}
+	if f.Page > 1 {
+		v.Set("page", strconv.Itoa(f.Page))
 	}
 	path := "ui/bo/prs"
 	if len(live) > 0 {
@@ -206,8 +207,7 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin 
 		}
 	}
 	f.Open = q.Get("open")
-	p.Filter = f
-	p.PollURL = prHref(f, "live")
+	f.Page = pageParam(q.Get("page"))
 	p.GitHub = s.afGitHub(now)
 	p.ResetHref = prHref(PRFilter{State: "open"})
 
@@ -322,7 +322,7 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin 
 	}
 	for _, t := range prStateTabs {
 		g := f
-		g.State, g.Open = t.Value, ""
+		g.State, g.Open, g.Page = t.Value, "", 0
 		p.StateTabs = append(p.StateTabs, AFTab{Value: t.Value, Label: t.Label, Href: prHref(g), Count: counts[t.Value], On: f.State == t.Value})
 	}
 	var shown []PRRow
@@ -337,8 +337,23 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin 
 	}
 	sort.SliceStable(shown, func(i, j int) bool { return shown[i].At > shown[j].At })
 	p.RowsTotal = len(shown)
-	if len(shown) > prMaxRows {
-		shown, p.RowsMore = shown[:prMaxRows], true
+	// One page (D-097). The page is clamped first, and everything that writes
+	// an address -- the filter, the poll, each row's link -- writes the clamped one.
+	p.Pager = paginate(len(shown), f.Page, tablePageSize, func(n int) (string, string) {
+		g := f
+		g.Open, g.Page = "", n
+		return prHref(g), prPageHref(g)
+	})
+	p.Pager.Sync, p.Pager.Label = "#prsLive:replace", "Pull request pages"
+	f.Page = p.Pager.Page
+	if f.Page <= 1 {
+		f.Page = 0
+	}
+	p.Filter = f
+	p.PollURL = prHref(f, "live")
+	shown = sliceFor(shown, p.Pager)
+	for i := range shown {
+		shown[i].Href = prHref(PRFilter{Product: f.Product, State: f.State, Kind: f.Kind, Open: shown[i].Key, Page: f.Page})
 	}
 	p.RowsShown = len(shown)
 	byProd := map[string]*PRGroup{}
@@ -376,7 +391,7 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin 
 		p.ProdOpts = append(p.ProdOpts, AFOpt{Value: pr.ID, Label: afLine(pr.Name, 40), On: f.Product == pr.ID})
 	}
 	if drawer != nil {
-		drawer.CloseHref = prHref(PRFilter{Product: f.Product, State: f.State, Kind: f.Kind})
+		drawer.CloseHref = prHref(PRFilter{Product: f.Product, State: f.State, Kind: f.Kind, Page: f.Page})
 		p.Drawer = drawer
 	}
 	return p

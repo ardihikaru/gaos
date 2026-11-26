@@ -42,9 +42,9 @@ type BoardView struct {
 	Cols            []BoardColView
 	Table           bool
 	Rows            []BoardCard
-	RowsMore        bool // more rows match, and the table may still grow
-	RowsCapped      bool
+	Pager           Pager // the table's pages (D-097)
 	Sorts           []BoardSortLink
+	Runner          string // off | noadapter | manual | on: what the help panel says starts a task
 
 	// The bar.
 	Text                                   string
@@ -111,12 +111,14 @@ func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 		return productPath(slug, "board")
 	}
 	bv.LiveURL = frag + "/board/live"
+	// A link that changes the view names page= empty, last: the URL wins over
+	// the state header even when empty, so the view it opens is on page 1.
 	asBoard, asTable := q, q
-	asBoard.View, asBoard.Sort, asBoard.Dir = "", "", ""
-	asTable.View = "table"
-	bv.BoardGet, bv.BoardHref = frag+"?tab=board&view=", page(asBoard)
-	bv.TableGet, bv.TableHref = frag+"?tab=board&view=table", page(asTable)
-	bv.ResetGet = frag + "?tab=board&role=&story=&label=&wf=&waiting=&empty="
+	asBoard.View, asBoard.Sort, asBoard.Dir, asBoard.Page = "", "", "", 0
+	asTable.View, asTable.Page = "table", 0
+	bv.BoardGet, bv.BoardHref = frag+"?tab=board&view=&page=", page(asBoard)
+	bv.TableGet, bv.TableHref = frag+"?tab=board&view=table&page=", page(asTable)
+	bv.ResetGet = frag + "?tab=board&role=&story=&label=&wf=&waiting=&empty=&page="
 	bv.ResetHref = page(BoardQuery{View: q.View, Sort: q.Sort, Dir: q.Dir})
 
 	if p.Matched == p.All {
@@ -137,8 +139,12 @@ func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 	}
 	if bv.Table {
 		bv.Rows = p.Rows
-		bv.RowsMore = p.RowsShown < p.Matched && p.RowsShown < tableMaxRows
-		bv.RowsCapped = p.RowsShown >= tableMaxRows && p.Matched > p.RowsShown
+		bv.Pager = paginate(p.Matched, q.Page, tablePageSize, func(n int) (string, string) {
+			to := q
+			to.Page = n
+			return bv.LiveURL + "?page=" + itoa(n), page(to)
+		})
+		bv.Pager.Sync, bv.Pager.Label = "#boardFilters:replace", "Table pages"
 		for _, h := range tableHeads {
 			l := BoardSortLink{Key: h.Key, Label: h.Label, Aria: "none"}
 			if h.Key != "" {
@@ -161,13 +167,13 @@ func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 					l.Aria = map[string]string{"asc": "ascending", "desc": "descending"}[cur]
 				}
 				to := q
-				to.Sort, to.Dir = h.Key, next
+				to.Sort, to.Dir, to.Page = h.Key, next, 0
 				if h.Key == "status" {
 					// The default order has one spelling: no sort at all.
 					to.Sort, to.Dir = "", ""
 					l.Aria = map[bool]string{true: "ascending", false: "none"}[sorted]
 				}
-				l.Get = frag + "?tab=board&view=table&sort=" + url.QueryEscape(to.Sort) + "&dir=" + url.QueryEscape(to.Dir)
+				l.Get = frag + "?tab=board&view=table&sort=" + url.QueryEscape(to.Sort) + "&dir=" + url.QueryEscape(to.Dir) + "&page="
 				l.Href = page(to)
 			}
 			bv.Sorts = append(bv.Sorts, l)
@@ -199,6 +205,7 @@ func (s *server) buildBoardView(r *http.Request, productID, slug string) (*Board
 	n, _ := s.store.EventCount(r.Context(), productID)
 	bv := boardView(page, slug, n)
 	bv.Sisflow = boardParamsOf(r).get("surface") == "sisflow"
+	bv.Runner = s.runnerState()
 	return bv, nil
 }
 
@@ -309,4 +316,18 @@ func (s *server) handleBoardPaged(w http.ResponseWriter, r *http.Request, id str
 // boardFooter is a column's last line once it is at its cap.
 func boardFooter(shown, matched int) string {
 	return fmt.Sprintf("Showing the first %s of %s. Filter, or use the table.", thousands(shown), thousands(matched))
+}
+
+// runnerState is what the Board's help panel says about starting a task: the
+// two switches the control loop itself is behind (main.go) -- an adapter says a
+// provider can be reached, GAOS_RUNNER says it may be.
+func (s *server) runnerState() string {
+	switch m := runnerMode(); {
+	case m == RunnerOff:
+		return "off"
+	case s.adapter == nil:
+		return "noadapter"
+	default:
+		return m
+	}
 }

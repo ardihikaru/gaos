@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"html"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +57,9 @@ func prFixtureWithRows(t *testing.T) afFixture {
 	}
 	return f
 }
+
+// prBulk is enough pull requests to need many pages.
+const prBulk = 200
 
 func TestPRViewRowsAndFilters(t *testing.T) {
 	f := prFixtureWithRows(t)
@@ -121,7 +127,7 @@ func assertEmptyStatesAndTheCap(t *testing.T) {
 	s.mu.Lock()
 	m := s.masterPtr("p-1")
 	m.Repos = append(m.Repos, "loop/laundry-api")
-	for n := 1; n <= prMaxRows+5; n++ {
+	for n := 1; n <= prBulk+5; n++ {
 		s.pullRequests[pullRequestKey("p-1", "loop/laundry-api", n)] = PullRequest{Key: pullRequestKey("p-1", "loop/laundry-api", n),
 			ProductID: "p-1", Repo: "loop/laundry-api", Number: n, Kind: PRKindReview, State: PRStateOpen, OpenedAt: int64(1000 + n)}
 	}
@@ -130,12 +136,12 @@ func assertEmptyStatesAndTheCap(t *testing.T) {
 	s.pullRequests["gone"] = PullRequest{Key: "gone", ProductID: "p-1", Repo: "acme-org/left", Number: 998, Kind: PRKindReview, State: PRStateOpen, OpenedAt: 3}
 	s.mu.Unlock()
 	body = prSection(prGet(t, f, "/ui/bo/prs"))
-	if !strings.Contains(body, fmt.Sprintf("Showing the first %d of %d", prMaxRows, prMaxRows+7)) {
-		t.Errorf("the cap is not announced: %q", body[max(0, len(body)-400):])
+	if !strings.Contains(body, fmt.Sprintf("Showing 1–10 of %d", prBulk+7)) || strings.Count(body, `class="prs-r`)+strings.Count(body, `<tr class="af-r`) != tablePageSize {
+		t.Errorf("the list is not one page of %d with its count announced: %q", tablePageSize, body[max(0, len(body)-400):])
 	}
 	// With the bulk gone, the two old rows are listed and say why they are not polled.
 	s.mu.Lock()
-	for n := 1; n <= prMaxRows+5; n++ {
+	for n := 1; n <= prBulk+5; n++ {
 		delete(s.pullRequests, pullRequestKey("p-1", "loop/laundry-api", n))
 	}
 	s.mu.Unlock()
@@ -267,4 +273,96 @@ func TestTheDrawerExplainsEachDisabledRetarget(t *testing.T) {
 	if body := prGet(t, f.afFixture, "/ui/bo/prs?open=pr:"+pullRequestKey(f.pid, "loop/laundry-api", 31)); strings.Contains(body, "Change the base branch") {
 		t.Error("a review pull request offers a retarget")
 	}
+}
+
+// TC-758: Pull requests and Auto-fix are paged by ten (D-097). A row's link, the
+// drawer's close and the poll keep the page; a state tab starts over; a page
+// that is not there is clamped before anything writes it.
+func TestThePRAndAutoFixTablesPageByTen(t *testing.T) {
+	tabs := func(sec string) string {
+		i := strings.Index(sec, `<nav class="af-seg"`)
+		if i < 0 {
+			return ""
+		}
+		return sec[i : i+strings.Index(sec[i:], "</nav>")]
+	}
+	rowHrefs := func(sec string) []string {
+		var out []string
+		for _, m := range regexp.MustCompile(`data-af-row="[^"]*" href="[^"]*" hx-get="([^"]+)"`).FindAllStringSubmatch(sec, -1) {
+			out = append(out, html.UnescapeString(m[1]))
+		}
+		return out
+	}
+	check := func(name, base string, f afFixture, get func(*testing.T, afFixture, string) string, section func(string) string, _ func(string) string) {
+		t.Helper()
+		// The fixture holds a row or two of its own: the total is read, and must
+		// make exactly two pages.
+		p1 := section(get(t, f, base))
+		m := regexp.MustCompile(`Showing 1–10 of (\d+)`).FindStringSubmatch(p1)
+		total := 0
+		if m != nil {
+			total, _ = strconv.Atoi(m[1])
+		}
+		if n := len(rowHrefs(p1)); n != tablePageSize || total <= tablePageSize || total > 2*tablePageSize {
+			t.Fatalf("%s page 1: %d row(s) of %d; want %d of 11–20, and \"Showing 1–10 of N\"", name, n, total, tablePageSize)
+		}
+		p2 := section(get(t, f, base+"?page=2"))
+		hrefs := rowHrefs(p2)
+		if len(hrefs) != total-tablePageSize {
+			t.Fatalf("%s page 2: %d row(s), want %d", name, len(hrefs), total-tablePageSize)
+		}
+		for _, h := range hrefs {
+			if !strings.Contains(h, "page=2") {
+				t.Errorf("%s page 2: the row link %q does not keep page=2", name, h)
+			}
+		}
+		if !strings.Contains(p2, `/live?page=2"`) {
+			t.Errorf("%s page 2: the poll does not keep page=2", name)
+		}
+		if strings.Contains(tabs(p2), "page=") {
+			t.Errorf("%s page 2: a state tab carries the page; a change of state starts on page 1", name)
+		}
+		open := section(get(t, f, "/"+strings.TrimPrefix(hrefs[0], "/")))
+		if m := regexp.MustCompile(`data-af-close href="[^"]*" hx-get="([^"]+)"`).FindStringSubmatch(open); m == nil || !strings.Contains(m[1], "page=2") {
+			t.Errorf("%s: the drawer opened from page 2 does not close back to page 2", name)
+		}
+		for _, bad := range []string{"-1", "abc"} {
+			if n := len(rowHrefs(section(get(t, f, base+"?page="+bad)))); n != tablePageSize {
+				t.Errorf("%s ?page=%s: %d row(s), want page 1", name, bad, n)
+			}
+		}
+		far := section(get(t, f, base+"?page=99"))
+		for _, h := range rowHrefs(far) {
+			if !strings.Contains(h, "page=2") || strings.Contains(h, "page=99") {
+				t.Errorf("%s ?page=99: the row link %q does not carry the clamped page=2", name, h)
+			}
+		}
+	}
+
+	// Pull requests: twelve review pull requests of one product.
+	pf := newAFFixture(t)
+	pf.s.mu.Lock()
+	m := pf.s.masterPtr(pf.pid)
+	m.Repos = append(m.Repos, "loop/laundry-api")
+	for n := 1; n <= 12; n++ {
+		k := pullRequestKey(pf.pid, "loop/laundry-api", n)
+		pf.s.pullRequests[k] = PullRequest{Key: k, ProductID: pf.pid, Repo: "loop/laundry-api", Number: n, Kind: PRKindReview,
+			State: PRStateOpen, OpenedAt: time.Now().Unix() - int64(n)}
+	}
+	pf.s.mu.Unlock()
+	check("Pull requests", "/ui/bo/prs", pf, prGet, prSection, nil)
+
+	// Auto-fix: twelve fix pull requests.
+	af := newAFFixture(t)
+	now := time.Now().Unix()
+	af.s.mu.Lock()
+	for i := 0; i < 12; i++ {
+		key := fmt.Sprintf("%s/DEF-%d", af.pid, 2000+i)
+		af.s.defects[key] = &Defect{Key: key, ProductID: af.pid, DefectID: fmt.Sprintf("DEF-%d", 2000+i), CaseID: defCase1,
+			Title: fmt.Sprintf("defect %d", i), Difficulty: afDifficulties[0], State: DefectStateFixing, Gen: 1}
+		af.s.fixPRs[fmt.Sprintf("pg-%02d", i)] = FixPR{ID: fmt.Sprintf("pg-%02d", i), ProductID: af.pid, DefectKey: key,
+			Repo: "loop/laundry-api", Number: 3000 + i, State: FixPRDraft, CreatedAt: now - int64(i)*60, TaskID: fmt.Sprint("T-", i)}
+	}
+	af.s.mu.Unlock()
+	check("Auto-fix", "/ui/bo/autofix", af, afGet, afSection, nil)
 }

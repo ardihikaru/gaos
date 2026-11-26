@@ -16,7 +16,7 @@ import (
 
 func (s *server) handleCWOpen(w http.ResponseWriter, r *http.Request) {
 	v, _ := s.newView(r)
-	d := WorkflowDraft{Step: 1, ProductID: r.URL.Query().Get("product"), Priority: "high", Gate: true}
+	d := WorkflowDraft{Step: 1, ProductID: s.knownProduct(r, r.URL.Query().Get("product")), Priority: "high", Gate: true}
 	cw, err := s.buildCW(r, d)
 	if err != nil {
 		s.fail(w, r, err)
@@ -33,6 +33,7 @@ func (s *server) handleCWStep(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	want := atoiDefault(r.PathValue("n"), 1)
 	d := draftFromForm(r)
+	d.ProductID = s.knownProduct(r, d.ProductID)
 
 	// Validation happens on the way FORWARD only. Going back to fix something
 	// must never be blocked by the thing you went back to fix.
@@ -124,6 +125,10 @@ func (s *server) buildCW(r *http.Request, d WorkflowDraft) (*CWView, error) {
 			Coverage: m.Coverage(), Selected: m.ID == d.ProductID,
 		})
 	}
+	// Opened from a product: the product is shown, not offered (design §3.6).
+	if r.FormValue("lock") == "1" && d.ProductID != "" {
+		cw.Locked, cw.LockedName = true, name(d.ProductID)
+	}
 
 	if d.ProductID != "" {
 		m, err := s.store.Master(r.Context(), d.ProductID)
@@ -150,6 +155,9 @@ func (s *server) buildCW(r *http.Request, d WorkflowDraft) (*CWView, error) {
 	switch d.Step {
 	case 1:
 		cw.Hint = "The product record supplies the context the planner reads."
+		if cw.Locked {
+			cw.Hint = "GAOS plans one or more tasks from the stories you pick next, using this product's record."
+		}
 		cw.NextLabel = "Continue"
 	case 2:
 		cw.Hint = "Each selected story becomes an Issue the tasks are planned against."
@@ -167,7 +175,10 @@ func (s *server) buildCW(r *http.Request, d WorkflowDraft) (*CWView, error) {
 			cw.PlanDeps += len(t.Deps)
 		}
 		cw.NextLabel = "Create workflow"
-		cw.Hint = itoa(len(plan)) + " tasks · " + itoa(cw.PlanGates) + " approval gate"
+		if cw.Locked {
+			cw.NextLabel = "Create tasks"
+		}
+		cw.Hint = itoa(len(plan)) + " task" + pluralS(len(plan)) + " · " + itoa(cw.PlanGates) + " approval gate" + pluralS(cw.PlanGates)
 	}
 	return cw, nil
 }
@@ -201,4 +212,19 @@ func itoa(n int) string {
 		b[i] = '-'
 	}
 	return string(b[i:])
+}
+
+// knownProduct is id when a product has it, "" otherwise: a wizard opened with
+// a product that is not there shows the picker, not an error.
+func (s *server) knownProduct(r *http.Request, id string) string {
+	if id == "" {
+		return ""
+	}
+	ps, _ := s.store.Products(r.Context())
+	for _, p := range ps {
+		if p.ID == id {
+			return id
+		}
+	}
+	return ""
 }
