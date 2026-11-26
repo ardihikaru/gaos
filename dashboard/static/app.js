@@ -399,10 +399,17 @@
   // The sisflow board (T-165): mounted over the server-rendered one whenever
   // a Board tab arrives, loaded only then. A browser without ES modules, or a
   // failed load, keeps the server board, which works on its own.
+  // The import carries this script's own ?v=, because static files are cached
+  // for a week and a module import has no cache-buster of its own: without it
+  // a browser keeps a board.js it fetched before a fix.
+  var ASSET_V = (function () {
+    var m = /[?&]v=([^&]+)/.exec((document.currentScript && document.currentScript.src) || "");
+    return m ? "?v=" + m[1] : "";
+  })();
   function mountBoard(root) {
     var host = (root || document).querySelector && (root || document).querySelector("#board-host");
     if (!host) return;
-    import(new URL("static/board.js", document.baseURI).href)
+    import(new URL("static/board.js" + ASSET_V, document.baseURI).href)
       .then(function (m) { m.mount(host); })
       .catch(function () { /* the server board stays */ });
   }

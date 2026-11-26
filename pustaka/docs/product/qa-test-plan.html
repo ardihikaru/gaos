@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  seven hundred and twenty cases, positive and negative, across the four deploy automations, the product seed script and the
+  seven hundred and twenty-one cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All seven hundred and twenty cases in one filterable table. Filter by automation, kind, or any
+  <p>All seven hundred and twenty-one cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -809,6 +809,7 @@
       <tr data-tags="go test retarget ci secrets workflow new base blocks negative d-092 implemented"><td>TC-718</td><td>go test</td><td>Negative</td><td>A secret-using workflow that runs only for pull requests into the new base blocks the retarget card, which would not run for the product's own base, and opens no pull request</td><td>Implemented</td></tr>
       <tr data-tags="go test retarget context search failure blocks fix card triage untouched negative d-092 implemented"><td>TC-719</td><td>go test</td><td>Negative</td><td>A failed source search for a retarget blocks the fix card itself so the loop stops retrying, and leaves the finished triage card alone</td><td>Implemented</td></tr>
       <tr data-tags="go test retarget revoked base allowed bases unblock opens nothing override cleared fixed closed regression negative d-092 implemented"><td>TC-720</td><td>go test</td><td>Negative</td><td>A base removed from the allowed list opens nothing even if the card is unblocked, a turn started anyway ends in review without a pull request, and the override is cleared when the defect is closed and by a regression</td><td>Implemented</td></tr>
+      <tr data-tags="go test static javascript board.js sisflow brackets syntax module import silent fallback positive negative implemented"><td>TC-721</td><td>go test</td><td>Negative and positive</td><td>Every script GAOS writes under static/ pairs its brackets, so a file the browser would refuse to parse &mdash; as board.js was from v0.44.0, silently leaving the server board on screen &mdash; fails the suite; the guard itself must refuse a function with no closing brace and accept valid JavaScript.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4319,6 +4320,9 @@
   <p><strong>TC-718, negative</strong> (<code>TestRetargetCIChecksTheNewBase</code>): <code>the card is %s %q; want BLOCKED autofix-ci-secrets</code>; <code>%d pull requests were created; the blocked retarget must add none</code>.</p>
   <p><strong>TC-719, negative</strong> (<code>TestRetargetSearchFailureBlocksTheFixCard</code>): <code>a failed search gave no error</code>; <code>the fix card is %s %q; want BLOCKED autofix-search-failed</code>; <code>the triage card changed</code>.</p>
   <p><strong>TC-720, negative</strong> (<code>TestARevokedRetargetBaseOpensNothing</code>): <code>a revoked base still opened %d pull request(s)</code>; <code>the loop dispatched %d card(s) for a revoked base</code>; <code>the card is %s %q; want BLOCKED autofix-base-not-allowed</code>; <code>the override %q survived the defect being closed</code>; <code>the override %q survived a regression</code>.</p>
+
+  <h3 id="go-static-scripts">dashboard &mdash; the static scripts parse (TC-721)</h3>
+  <p><strong>TC-721, negative and positive</strong> (<code>TestStaticScriptsHaveBalancedBrackets</code>): for each of <code>static/app.js</code>, <code>static/board.js</code> and <code>static/live.js</code>, <code>%s does not pair its brackets (%s): the browser refuses the whole file, and for board.js that is a silent fall back to the server board</code>; the guard is first turned on itself, <code>the bracket guard accepted a function with no closing brace: it would not have caught the board.js bug</code> and <code>the bracket guard refused valid JavaScript %q: %s</code>; and <code>checked %d scripts under static/, want at least app.js, board.js and live.js</code>. It is a guard, not a parser &mdash; it skips comments, strings, template literals and regular expressions and counts brackets, because this repository has no JavaScript runtime. Found by reading: a function in <code>board.js</code> lost its closing brace in v0.44.0, the module stopped parsing, and <code>app.js</code>&rsquo;s <code>import().catch</code> kept the server-rendered board on screen without a word for ten releases.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

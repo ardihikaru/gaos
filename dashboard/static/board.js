@@ -118,6 +118,8 @@ function conversationChip(product, card) {
     if (["Enter", " ", "F2", "Delete", "Backspace"].includes(ev.key)) ev.stopPropagation();
   });
   return b;
+}
+
 // The design gate's decoration (D-084): why a blocked card is held, and on a
 // design-blocked review the button that sends its design back -- or the line
 // that says the cap is reached. textContent only.
@@ -201,6 +203,13 @@ export function mount(host) {
           if (c.status === AWAITING) c.css = "is-needs-you";
         }
         return doc;
+      },
+      // The whole document is already loaded by load() above. sisflow's
+      // virtual list asks for another page once a cell passes thirty cards;
+      // the REST provider would answer with GET …/board/cards, which GAOS does
+      // not serve (405), so the answer here is that there is nothing more.
+      async loadPage() {
+        return { cards: [], exhausted: true };
       },
       push(entry) {
         say(host, "");
