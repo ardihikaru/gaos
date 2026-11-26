@@ -119,7 +119,7 @@
       <tr data-tags="technical qa tools api contract gaos results catalog endpoints sync integration answered"><td><a href="#oq-33">OQ-33</a></td><td>Technical</td><td>The two endpoints GAOS calls on the QA tools (<code>GET /api/v1/gaos/results</code>, <code>POST /api/v1/gaos/catalog</code>) are a contract only. When do the QA tools serve them?</td><td>D-075, the two sync buttons</td><td>Answered → <a href="decision-log.html#d-077">D-077</a></td></tr>
       <tr data-tags="technical qa case decision edit identity authentication back office planned blocked wont new"><td><a href="#oq-34">OQ-34</a></td><td>Technical</td><td>Who may change an existing case's decision (park it, block it, retire it), and through which surface?</td><td>BR-48, BR-51, D-072</td><td>Open — raised 2026-11-14, narrowed by <a href="decision-log.html#d-084">D-084</a></td></tr>
       <tr data-tags="product qa results kanban card move status failing epic new"><td><a href="#oq-35">OQ-35</a></td><td>Product</td><td>Should a QA result ever move an epic's card on the board?</td><td>BR-54, D-073</td><td>Open — raised 2026-11-14 (today: deliberately not)</td></tr>
-      <tr data-tags="operations git history rewrite public repository private instance scrub filter-repo answered"><td><a href="#oq-36">OQ-36</a></td><td>Operations</td><td>Is git history rewritten before the repository is made public?</td><td>D-085, making the repository public</td><td>Decided → <a href="decision-log.html#d-096">D-096</a> (rewrite; execution pending)</td></tr>
+      <tr data-tags="operations git history rewrite public repository private instance scrub filter-repo answered"><td><a href="#oq-36">OQ-36</a></td><td>Operations</td><td>Is git history rewritten before the repository is made public?</td><td>D-085, making the repository public</td><td>Answered → <a href="decision-log.html#d-096">D-096</a></td></tr>
       <tr data-tags="operations back office roles account permission label contact operator new"><td><a href="#oq-37">OQ-37</a></td><td>Operations</td><td>Should a back-office account have a role, so that changing a card's label or a contact is not open to every signed-in account?</td><td>D-088, D-079</td><td>Open — raised 2026-11-25 (today: every signed-in account is an operator, and every change names its alias)</td></tr>
       <tr data-tags="technical qa tool routes automation job dependency repository new"><td><a href="#oq-38">OQ-38</a></td><td>Technical</td><td>When does the QA tool serve the two routes GAOS calls to write and run an e2e spec?</td><td>D-088, the e2e cards</td><td>Open — raised 2026-11-25 (today: the e2e cards fail with <code>qa-routes-missing</code>)</td></tr>
       <tr data-tags="technical auto-fix test runner verified after sample executed agent-reported new"><td><a href="#oq-39">OQ-39</a></td><td>Technical</td><td>Should a verified test runner execute the 'after' sample of an auto-fix, instead of taking the agent's word for it?</td><td>D-091, the Auto-fix view</td><td>Open — raised 2026-11-26 (today: the 'after' is shown as agent-reported, not run)</td></tr>
@@ -900,9 +900,9 @@
   </ul>
   <p><strong>What it blocks:</strong> making the repository public. Each tag added before the answer makes a
   rewrite more expensive.</p>
-  <p><strong>Decided</strong> by <a href="decision-log.html#d-096">D-096</a> (2026-11-26): rewrite. The question&rsquo;s
+  <p><strong>Answered</strong> by <a href="decision-log.html#d-096">D-096</a> (2026-11-26): rewrite. The question&rsquo;s
   premise was wrong &mdash; the repository has been public since it was created &mdash; so the rewrite removes what was
-  already exposed rather than preparing a release. Execution is pending; D-096 records the outcome.</p>
+  already exposed rather than preparing a release. The rewrite ran on 2026-11-26 and was verified on a fresh clone; D-096 records the outcome.</p>
 
   <h3 id="oq-37">OQ-37 · Should a back-office account have a role?</h3>
   <p><strong>Why it is open:</strong> the back office has no roles (<a href="decision-log.html#d-079">D-079</a>): every
