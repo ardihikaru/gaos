@@ -1109,9 +1109,9 @@
   <h3 id="go-routes">dashboard — routes and rendering (TC-054, TC-055, TC-056, TC-057)</h3>
   <p>The file's own header explains why these exist: a dashboard has almost no assertions of its
   own, so a wrong template renders a page that looks fine. <strong>Positive (TC-054):</strong>
-  <code>TestEveryRouteAnswers</code> walks 32 method/path cases with a back-office cookie — the
+  <code>TestEveryRouteAnswers</code> walks 45 method/path cases with a back-office cookie — the
   documented surface (whose desk routes answer JSON since v0.29.0), the back office and every product
-  tab, the wizard — and the negative half of the same table asks for <code>GET /products/nope</code>
+  tab, the wizard, and the page routes of <a href="decision-log.html#d-093">D-093</a> with their two redirects and a missing product (thirteen cases) — and the negative half of the same table asks for <code>GET /products/nope</code>
   and five routes of the retired floor, and requires a 404 for each; a mismatch prints
   <code>%s %s = %d, want %d</code> followed by <code>body: %s</code>.
   <strong>Negative (TC-055):</strong> three surfaces are fetched and the body must not contain
