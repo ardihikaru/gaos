@@ -303,7 +303,7 @@ Register ids from TC-699 (one row per `func Test…`); the Go test count rises 5
 **Phase A (v0.53.0), as built.** The page, the read model, the writers and the poller are built as designed, with these notes.
 
 - New files: `pullrequests.go`, `store_arcade_pullrequests.go`, `schema/18-pull-requests.sql`, `prview.go`, `pullrequests_test.go`, `store_arcade_pullrequests_test.go`, `prview_test.go`, `pustaka/docs/integrations/pull-requests.html`. `handlers_prs.go` was not needed: the live route is `handlePRsLive` in `prview.go`. `retarget_test.go` and `handlers_prs_test.go` belong to phase B and the view tests live in `prview_test.go`.
-- The twelve tests are TC-699 to TC-710 in the files named above; the Go test count is 576 (554 in `dashboard/`), the register 710, D-092 the ninety-first decision.
+- The twelve tests are TC-700 to TC-711 in the files named above (TC-699 went to an unrelated fix, v0.52.10, that merged while this was built); the Go test count is 577 (555 in `dashboard/`), the register 711, D-092 the ninety-first decision.
 - Deviation from §4.1: the `PrunePullRequests` and `BackfillReviewRows` methods return a `Result` (so the Arcade store persists them in the same way) and the prune runs from the poller's daily housekeeping.
 - `Defect.BaseOverride`, the three `FixPR` fields, `AutoFix.AllowedBases` and the poller's guard for a replaced or pending record are built in this phase (the guard is tested as TC-707); the retarget route, its mutation and the fixer changes are phase B.
 - The ArcadeDB half of the suite and a boot of the dashboard were run against a scratch ArcadeDB (`deploy/schema/scratch.sh up`): the DDL applied 481 statements with none failed.

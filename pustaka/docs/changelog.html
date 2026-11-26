@@ -47,6 +47,14 @@
     </section>
 
     <section class="rel rv">
+      <h3 id="v0-52-10">v0.52.10 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A deleted product's id is not handed out again.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> A new product's id is now one past the highest <code>p-&lt;n&gt;</code> in use rather than the number of products plus one. After products were removed from the database, the count fell below the highest id, and a later product would have been given the id of one that still exists. <code>TC-699</code>.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-9">v0.52.9 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Operating notes from the first live run.</p>
       <ul>
