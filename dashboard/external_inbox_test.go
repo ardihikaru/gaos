@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -845,5 +847,69 @@ func TestAWebhookWhoseRecordFailsIsNotResentEveryTick(t *testing.T) {
 	}
 	if n := w.RunOnce(ctx, t0+30); n != 1 {
 		t.Fatalf("after the backoff the pass made %d calls; want 1", n)
+	}
+}
+
+// A person who picks an answer and still cannot press Send answer must be told why. Found live
+// (2026-11-26): a request that never completed left the button off for good, with a hint that
+// still said "Sends option 2." The sheet now gives the in-flight request a time limit, and every
+// state in which the button is off says what to do.
+func TestTheAnswerSheetExplainsADisabledSend(t *testing.T) {
+	srv, _, pids := apiFixture(t, bothTokens)
+	pid := pids[0]
+	if code, _ := mustAsk(t, srv, pid, askJSON("ui-1")); code != 201 {
+		t.Fatal("the ask failed")
+	}
+	sheet := do(t, srv, "GET", "/ui/answer-ext/"+pid+"/ui-1?from=inbox", nil, boCookies()...).Body.String()
+	for _, want := range []string{
+		`hx-request='{"timeout":20000}'`,
+		"Send answer stays off until you pick one of the answers above.",
+	} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("the QA sheet lacks %q", want)
+		}
+	}
+	if strings.Contains(sheet, "the recommendation") {
+		t.Error("the QA tool recommends nothing; its sheet must not say it sends the recommendation")
+	}
+	js, err := os.ReadFile("static/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Sending\\u2026 waiting for the server.",
+		"Write your answer in the box to send option 4.",
+		`"htmx:timeout"`, `"htmx:sendError"`, "The server did not answer",
+	} {
+		if !strings.Contains(string(js), want) {
+			t.Errorf("app.js lacks %q: a disabled Send answer would not say why or how to recover", want)
+		}
+	}
+}
+
+// The static files are cached for a week and versioned by ?v=. It stayed at 0.36.2 for sixteen
+// releases, so browsers kept an old app.js and app.css after every release since. It must equal
+// the product's version.
+func TestStaticAssetsAreVersionedByTheProductVersion(t *testing.T) {
+	toc, err := os.ReadFile("../pustaka/docs/assets/toc.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`semver:\s*"([0-9.]+)"`).FindSubmatch(toc)
+	if m == nil {
+		t.Fatal("toc.js declares no semver")
+	}
+	page, err := os.ReadFile("templates/page.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := regexp.MustCompile(`static/(?:app\.css|app\.js|live\.js)\?v=([0-9.]+)`).FindAllSubmatch(page, -1)
+	if len(found) != 3 {
+		t.Fatalf("page.html versions %d of app.css, app.js and live.js; want 3", len(found))
+	}
+	for _, f := range found {
+		if string(f[1]) != string(m[1]) {
+			t.Errorf("a static file is versioned ?v=%s but the product is %s; bump it with the release", f[1], m[1])
+		}
 	}
 }

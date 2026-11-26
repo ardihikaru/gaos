@@ -198,6 +198,8 @@
   /* One field carries name="text" at a time: the note for 1-3, the textarea for
      4. Submit stays disabled until the answer is sendable, and the hint says
      why rather than an alert. */
+  var SENDING = "Sending\u2026 waiting for the server. If nothing comes back within 20 seconds the button returns and you can send again.";
+
   function syncAnswer() {
     var form = document.getElementById("answerForm");
     if (!form) return;
@@ -216,8 +218,9 @@
     if (send && !form.classList.contains("htmx-request")) send.disabled = !ok;
     if (hint) {
       hint.classList.toggle("warn", !ok && other && own && own.value !== "");
-      if (!n) hint.textContent = "Pick one of the four answers.";
-      else if (other && !ok) hint.textContent = "Write your answer to send option 4.";
+      if (form.classList.contains("htmx-request")) hint.textContent = SENDING;
+      else if (!n) hint.textContent = "Send answer stays off until you pick one of the answers above.";
+      else if (other && !ok) hint.textContent = "Write your answer in the box to send option 4.";
       else if (other) hint.textContent = "Sends your own words.";
       else if (n === "1" && form.querySelector('input[value="1"]') && form.querySelector(".rec")) hint.textContent = "Sends option 1, the recommendation.";
       else hint.textContent = "Sends option " + n + ".";
@@ -311,6 +314,32 @@
     var st = e.detail.xhr ? e.detail.xhr.status : 0;
     if (st >= 200 && st < 300) closeModal("sendBackModal", false);
   });
+
+  // The sheet while a request is in flight: the button is off because the answer
+  // is on its way, and the hint says so instead of repeating "Sends option N".
+  document.body.addEventListener("htmx:beforeRequest", function (e) {
+    var f = e.detail.elt;
+    if (!f || f.id !== "answerForm") return;
+    var h = f.querySelector("#answerHint");
+    if (h) { h.classList.remove("warn"); h.textContent = SENDING; }
+  });
+  // No answer from the server (timeout, a dropped connection): htmx has already
+  // lifted the disabled state; say what happened and what to do. Nothing is known
+  // to be recorded, so the way forward is to look at the inbox, then send again.
+  function answerNotSent(e) {
+    var f = e.detail && e.detail.elt;
+    if (!f || f.id !== "answerForm") return;
+    setTimeout(function () {
+      syncAnswer();
+      var h = f.querySelector("#answerHint");
+      if (h) {
+        h.textContent = "The server did not answer, so this may not have been recorded. Press Send answer to try again; if the question is gone from Needs you, it was recorded.";
+        h.classList.add("warn");
+      }
+    }, 0);
+  }
+  document.body.addEventListener("htmx:timeout", answerNotSent);
+  document.body.addEventListener("htmx:sendError", answerNotSent);
 
   document.body.addEventListener("htmx:afterRequest", function (e) {
     if (!e.detail.elt || e.detail.elt.id !== "answerForm") return;
