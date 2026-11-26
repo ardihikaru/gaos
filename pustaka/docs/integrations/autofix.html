@@ -163,6 +163,16 @@ Authorization: Bearer &lt;QA token&gt;
   <p>Private source files GAOS fetches for the packet go to the model provider, as D-091 records; a secret detector hit
   refuses the dispatch.</p>
 
+  <h2 id="operating">Operating notes (learned on the first live run)</h2>
+  <ul>
+    <li><strong>Globs.</strong> <code>*</code> matches one path segment and <code>**</code> any number of them. <code>*.go</code> matches only a file in the repository's root; a fix under <code>pkg/graph/&hellip;</code> needs <code>pkg/graph/**/*.go</code>. A verdict naming a file outside <code>allowedGlobs</code> is downgraded to medium (<code>autofix-files-outside-globs</code>), so a too-narrow glob looks like a triager that never says easy. Test globs likewise: <code>**/*_test.go</code>.</li>
+    <li><strong>The triager's source slice.</strong> Search hits come from the QA tool's operation names, the defect's own operation first. Up to twelve files are read and at most six kept (64 KiB): hand-written Go source before tests before everything else, a file that defines a function named for an operation before one that only mentions it, and a file that holds a secret-shaped string is left out. If the verdict says the implementing code is not in its packet, look at the operations the QA tool sent.</li>
+    <li><strong>CI.</strong> Forbid, in <code>forbiddenGlobs</code>, the directories that trigger a workflow which uses a secret, and say so in <code>ciConfirmed</code>. GAOS applies a workflow's <code>paths</code> filter to the files the fix changes; a workflow with no filter, a negated pattern or an unreadable file still blocks.</li>
+    <li><strong>The pull-request body.</strong> The repository's own template is not fetched. Put it in <code>prTemplate</code> with the slots; GAOS keeps every section and fills the ones it knows. Without one the neutral English body is used.</li>
+    <li><strong>Refusals are logged.</strong> A ready card that is not dispatched is logged once per card and reason (<code>autofix: &hellip; is ready but not dispatched: &hellip;</code>): a cap, a live turn on the product (one at a time), the egress pass, the Blueprint drift gate.</li>
+    <li><strong>The pull request is a draft, always.</strong> The &ldquo;after&rdquo; in its body and comment is the agent's prediction. Read the added test: an agent may write a test that restates the condition instead of calling the code.</li>
+  </ul>
+
   <h2 id="failure">When something fails</h2>
   <table class="tbl">
     <thead><tr><th>What happens</th><th>Result</th></tr></thead>
@@ -176,7 +186,7 @@ Authorization: Bearer &lt;QA token&gt;
       <tr><td>A cap is exceeded</td><td>Blocked <code>autofix-limits</code>; nothing is written to GitHub.</td></tr>
       <tr><td>A file changed since the packet</td><td>Blocked <code>autofix-base-moved</code>.</td></tr>
       <tr><td>The private source trips the detectors</td><td>Blocked <code>autofix-egress</code>.</td></tr>
-      <tr><td>CI runs secrets on the branch</td><td>Blocked <code>autofix-ci-secrets</code>.</td></tr>
+      <tr><td>CI runs secrets on the branch</td><td>Blocked <code>autofix-ci-secrets</code>. A workflow with a <code>paths</code> or <code>paths-ignore</code> filter counts only when a changed file matches it (see the operating notes).</td></tr>
       <tr><td>The branch exists and is not ours</td><td>Blocked <code>autofix-branch-exists</code>; it is never used or deleted.</td></tr>
       <tr><td>GitHub refuses a draft</td><td>Blocked <code>autofix-draft-unsupported</code>; there is no non-draft fallback.</td></tr>
       <tr><td>The pull request is closed unmerged</td><td>A new person-only card, blocked <code>autofix-pr-closed</code>.</td></tr>
