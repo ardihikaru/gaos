@@ -291,7 +291,8 @@
   each turn GAOS checks that the workspace still holds the pinned Blueprint, and refuses the next
   dispatch if it does not. What is <em>not</em> built is the judgement around the work:
   <strong>nothing reviews what a run produced</strong>, no guard ends a retry loop, and
-  authentication is absent — the back-office login accepts any value and checks nothing. The
+  there are no roles — the back office signs in for real since v0.39.0
+  (<a href="decision-log.html#d-079">D-079</a>), but every account can do everything. The
   <a href="brd.html#current-state">designed-versus-built table</a> is maintained honestly and is the
   thing to read before forming an opinion.</p>
 

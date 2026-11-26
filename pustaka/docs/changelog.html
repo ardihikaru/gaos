@@ -36,6 +36,19 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-56-0">v0.56.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The public repository stops publishing where its edge is, and the docs get rate limits (<a href="product/decision-log.html#d-094">D-094</a>).</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> The Guide and Product groups were missing from every page&rsquo;s sidebar and from search since v0.37.0. Two ToC parts lacked a comma between entries, so the browser rejected each whole file. The engine reads the registry with patterns, so <code>pustaka check</code> never noticed. It now rejects that shape (<a href="product/qa-test-plan.html#pk-comma">TC-723</a>), and <code>check-workspace.sh</code> runs every ToC part through <code>node --check</code>.</li>
+        <li><span class="chg change">Changed</span> The infrastructure pages and the deploy notes name the edge by its role instead of its public address. They no longer give the edge&rsquo;s SSH user, the WireGuard port or the private VM&rsquo;s LAN addresses. Commands look the address up with <code>dig</code>. A new guard fails on any routable IPv4 address in a tracked or new file (<a href="product/qa-test-plan.html#cw-public-ipv4">TC-722</a>).</li>
+        <li><span class="chg add">Added</span> Rate limits for the public docs at the edge. They are per client, an IPv6 client is counted by its /64, and the docs API also has an overall ceiling and a connection cap. The docs containers are limited to half a CPU and 256&nbsp;MiB.</li>
+        <li><span class="chg fix">Fixed</span> Pages that still said the back-office login &ldquo;checks nothing&rdquo; now say what is true since <a href="product/decision-log.html#d-079">D-079</a>: real sign-in, and no roles yet.</li>
+        <li><span class="chg fix">Fixed</span> A boot-recovery test that failed about one run in six. Its 1&nbsp;ms deadline also bounded the HTTP call, so a slow fake 404 was read as a transient failure.</li>
+        <li><span class="chg change">Changed</span> <a href="product/open-questions.html#oq-36">OQ-36</a> is decided: the repository has been public since it was created, and its history will be rewritten (<a href="product/decision-log.html#d-094">D-094</a>).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-55-0">v0.55.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The docs no longer look broken while a page loads, and they are public (<a href="product/decision-log.html#d-093">D-093</a>).</p>
       <ul>

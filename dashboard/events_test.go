@@ -490,7 +490,10 @@ func driveRunner(t *testing.T, s *MemStore) {
 func driveRecovery(t *testing.T, s *MemStore) {
 	t.Helper()
 	f, ad := gatewayOn(t, s)
-	ad.Deadline = 50 * time.Millisecond
+	// Not a tiny deadline: it bounds the HTTP call too, and a slow 404 would be
+	// read as a transient failure (see TestBootReconciliationClosesTheAttemptItRecovered).
+	// The run below started long ago, so the hold after "lost" is already over.
+	ad.Deadline = time.Minute
 	f.status, f.reply = http.StatusNotFound, `{"error":"unknown request"}`
 	deskID := s.desks[0].ID
 	run := runIDFor("wf-1-t-9", 1)
@@ -500,7 +503,7 @@ func driveRecovery(t *testing.T, s *MemStore) {
 		Title: "a turn nobody was watching", Role: "backend", Status: StatusRunning,
 	})
 	s.runs = append(s.runs, TaskRunRecord{ID: run, TaskID: "wf-1-t-9", DeskID: deskID, Attempt: 1,
-		Status: RunStatusRunning, RequestID: ad.RequestIDFor(run), StartedAt: time.Now().Unix()})
+		Status: RunStatusRunning, RequestID: ad.RequestIDFor(run), StartedAt: time.Now().Unix() - 9000})
 	s.mu.Unlock()
 
 	if _, err := s.Reconcile(t.Context()); err != nil {

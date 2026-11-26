@@ -250,8 +250,9 @@
     <li>Each side ignores the half it does not own, and the QA token cannot reach a product it was not given.</li>
     <li>GAOS refuses redirects when it calls the QA tools and bounds the response; the destination is set by the
     operator in configuration, never taken from a request.</li>
-    <li>The back office itself still has no real login (<a href="open-questions.html#oq-34">OQ-34</a>), so the
-    two buttons can be pressed by anyone who can reach it; the cooldown and the product scope bound the damage.</li>
+    <li>The back office signs in for real (<a href="decision-log.html#d-079">D-079</a>) but has no roles
+    (<a href="open-questions.html#oq-37">OQ-37</a>), so the two buttons can be pressed by any signed-in account;
+    the cooldown and the product scope bound the damage.</li>
   </ul>
 
   <h2 id="not-built">What is not built yet</h2>

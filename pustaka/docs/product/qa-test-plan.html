@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  seven hundred and twenty-one cases, positive and negative, across the four deploy automations, the product seed script and the
+  seven hundred and twenty-three cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All seven hundred and twenty-one cases in one filterable table. Filter by automation, kind, or any
+  <p>All seven hundred and twenty-three cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -810,6 +810,8 @@
       <tr data-tags="go test retarget context search failure blocks fix card triage untouched negative d-092 implemented"><td>TC-719</td><td>go test</td><td>Negative</td><td>A failed source search for a retarget blocks the fix card itself so the loop stops retrying, and leaves the finished triage card alone</td><td>Implemented</td></tr>
       <tr data-tags="go test retarget revoked base allowed bases unblock opens nothing override cleared fixed closed regression negative d-092 implemented"><td>TC-720</td><td>go test</td><td>Negative</td><td>A base removed from the allowed list opens nothing even if the card is unblocked, a turn started anyway ends in review without a pull request, and the override is cleared when the defect is closed and by a regression</td><td>Implemented</td></tr>
       <tr data-tags="go test unit pustaka head injection theme preload cache revalidation request-derived positive negative"><td>TC-721</td><td>pustaka (go test)</td><td>Positive</td><td>Served pages carry the pre-paint theme snippet once, before &lt;/head&gt;, never on assets, underscore pages or partials, never request-derived, and never lost to a 304 (<code>TestHeadInjection</code>)</td><td>Implemented</td></tr>
+      <tr data-tags="check-workspace public ipv4 address routable guard tracked untracked toc javascript syntax node d-094 negative implemented shell"><td>TC-722</td><td>check-workspace.sh</td><td>Negative</td><td>No tracked or untracked-not-ignored file holds a routable IPv4 address, and every ToC part is valid JavaScript (section 8)</td><td>Implemented</td></tr>
+      <tr data-tags="go test unit pustaka check registry toc missing comma browser drops file negative implemented"><td>TC-723</td><td>pustaka (go test)</td><td>Negative</td><td><code>pustaka check</code> rejects a ToC part with two entries and no comma between them (<code>TestCheckRejectsAMissingCommaBetweenEntries</code>)</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -1916,6 +1918,16 @@
   values once the header exists. In dark mode the mid-load body background is <code>rgb(12, 20, 24)</code>. A partial
   navigation delayed 600&nbsp;ms shows the progress bar and leaves no page error. The eight registry parts overlap in the
   network waterfall. With <em>prefers-reduced-motion</em>, a navigation swaps without movement.</p>
+
+  <h3 id="pk-comma">pustaka — a ToC part the browser would drop (TC-723)</h3>
+  <p>The engine reads the registry with patterns, which find both entries even when a comma between them is missing.
+  The browser throws on the whole file, so every page in it disappears from the sidebar and from search. This is
+  what happened to the Guide and Product parts from v0.37.0 to v0.55.0. <strong>Negative (TC-723,
+  <code>TestCheckRejectsAMissingCommaBetweenEntries</code>):</strong> a registry with <code>}</code> at the end of one
+  line and <code>{</code> at the start of the next fails <code>check</code> (<code>a registry with no comma between two
+  entries passed check</code>), and <code>check</code> prints <code>&lt;part&gt; — line N: two entries with no comma
+  between them — the browser drops this whole file</code>. <strong>Positive:</strong> the valid fixture passes
+  (<code>the valid fixture failed check with %d problem(s)</code>).</p>
 
   <h3 id="go-taskgraph">dashboard — the persisted task graph (TC-201…TC-206, TC-211)</h3>
   <p><code>T-042</code>. <a href="../delivery/implementation-plan.html#sub-m3-2">M3.2</a> was
@@ -3053,6 +3065,20 @@
   <code>FAIL git grep could not scan the working tree</code>. Without a list it prints
   <code>skip private strings: no forbidden-strings list (deploy/local/README.md says where it goes)</code> and does
   not fail. Every branch was run once at v0.45.0 and its output piped back through the list: nothing matched.</p>
+
+  <h3 id="cw-public-ipv4">check-workspace.sh — no routable address, and ToC parts that parse (TC-722)</h3>
+  <p>The repository is public (<a href="decision-log.html#d-094">D-094</a>). An address in a tracked file tells a
+  stranger where the edge is, so the docs name it by role, and commands look it up with <code>dig</code>. Section 8
+  scans every tracked file and every untracked file that is not ignored, the same set section 7 scans. It skips
+  <code>deploy/local/</code>, binary assets, <code>*_test.go</code> (resolver fixtures) and <code>landing-page/</code>
+  (inline SVG path data). Image references are blanked first, so a four-part version tag is not read as an address.
+  <strong>Positive:</strong> <code>ok   no public IPv4 address in any tracked or new file</code> and
+  <code>ok   every ToC part is valid JavaScript</code> (or <code>info skip ToC syntax: node not installed</code>).
+  <strong>Negative:</strong> a routable address at the end of a sentence, one after <code>--resolve host:443:</code>, and
+  one after a private address on the same line each fail as <code>FAIL a public IPv4 address in a tracked or new file:
+  &lt;file&gt;:&lt;line&gt;</code>, which never prints the value. A ToC part that <code>node --check</code> rejects fails as
+  <code>FAIL a ToC part is not valid JavaScript: &lt;file&gt;</code>. Two parts were invalid from v0.37.0 to v0.55.0, and
+  every page in them was missing from the sidebar and search.</p>
 
   <h3 id="go-reviewer-workspace">dashboard &mdash; the reviewer's own workspace (TC-382&hellip;TC-390)</h3>
   <p>M17.5, in <code>dashboard/reviewer_workspace.go</code> and

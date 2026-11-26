@@ -15,7 +15,7 @@ private VM and are reached from the internet —
 browser
   │  HTTPS
   ▼
-clino — 103.127.134.25, wg 10.10.0.1 — PUBLIC edge VM, 1 vCPU / 957 MiB
+clino — the one public IP, wg 10.10.0.1 — PUBLIC edge VM, 1 vCPU / 957 MiB
   │  nginx 1.30 (nginx.org stable) terminates TLS (certbot, HTTP-01, two cert lineages)
   │  and proxies PLAIN HTTP, setting Host, X-Forwarded-For, X-Forwarded-Proto
   │  NO Docker. NO application state. NO PROXY protocol.
@@ -209,7 +209,7 @@ because dev is where a change is looked at before it is worth tagging.
 
 ```bash
 ss -ltnp | grep -E ':(18301|19301)'          # 10.10.0.2 only, never 0.0.0.0
-curl -sS --connect-timeout 3 http://192.168.30.102:19301/   # must be REFUSED
+curl -sS --connect-timeout 3 "http://$LAN_IP:19301/"   # the VM's LAN address; must be REFUSED
 ```
 
 **Through the tunnel, from the edge** — the real test:
@@ -260,7 +260,7 @@ shows `10.10.0.1`, the header was discarded and the trust list is wrong.
   `memory`, seeded from the prototype's fixtures; ArcadeDB is reached only with
   `GAOS_STORE=arcadedb`, and a bad connection fails the boot rather than falling
   back.
-- **The back-office login checks nothing.** It sets a cookie, exactly as the
+- **The back-office login checked nothing before v0.39.0 (D-079).** It set a cookie, exactly as the
   prototype did. Real auth is pustaka's HMAC-signed cookie, credential
   fingerprint and per-IP throttle, lifted from `pustaka/main.go`.
 - **The floor is simulated.** `dashboard/sim.go` is a goroutine standing in for
