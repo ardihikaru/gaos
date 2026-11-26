@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-6">v0.52.6 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The triager sees the defect's own code first.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> The triager's source slice was ordered by position in a search and then alphabetically, so the files of the defect's own operation could lose their place to files found for a later one, and the implementing resolver never reached the packet. The operation that found a file now orders first, then its position in that search.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-5">v0.52.5 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One unrelated file no longer blocks a triage.</p>
       <ul>
