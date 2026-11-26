@@ -288,6 +288,25 @@ func boardOf(productID string, m *Master, tasks []TaskRecord) Board {
 	return b
 }
 
+// moveIsDispatch says whether a board move is "ready -> working", the one move that runs
+// the egress pass and may start a turn. It reads the same rule MoveCard applies.
+func (s *MemStore) moveIsDispatch(productID, taskID string, mv CardMove) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for k := range s.tasks {
+		t := s.tasks[k]
+		if t.ID != taskID || t.DeskID != productID {
+			continue
+		}
+		if mv.Column == "" || mv.Column == columnOf(t.Status) {
+			return false
+		}
+		action, _ := legalMove(t, mv.Column)
+		return action == MoveDispatch
+	}
+	return false
+}
+
 // MoveCard is a move on the board: a request (BR-43). A refusal writes no
 // event and returns ErrRejected with the reason, which the route answers 409.
 func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv CardMove) (Result, error) {

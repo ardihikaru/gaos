@@ -157,6 +157,9 @@ func (s *ArcadeStore) SendBackSheet(ctx context.Context, id, taskID string) (Sen
 	return s.proj.SendBackSheet(ctx, id, taskID)
 }
 func (s *ArcadeStore) MoveCard(ctx context.Context, id, taskID string, m CardMove) (Result, error) {
+	if s.proj.moveIsDispatch(id, taskID, m) {
+		return s.dispatchPersisted(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
+	}
 	return s.mutate(ctx, func() (Result, error) { return s.proj.MoveCard(ctx, id, taskID, m) })
 }
 
