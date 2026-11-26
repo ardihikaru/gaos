@@ -503,3 +503,79 @@ func TestTheBrowserKeepsNoHistoryCache(t *testing.T) {
 		}
 	}
 }
+
+// The back-fill against the real graph (D-093): a product stored before slugs
+// existed, or with a slug someone damaged by hand, gets one at boot -- written
+// with its RecordUpdated event, once -- and a second boot finds it there and
+// writes nothing. ArcadeDB only; it skips without GAOS_ARCADE_TEST_URL.
+func TestTheSlugBackfillIsWrittenOnce(t *testing.T) {
+	arc := arcadeTestTarget(t)
+	ctx := context.Background()
+	tenant := "conf-slug"
+
+	first := newArcadeTestStore(t, arc, tenant)
+	if _, err := first.CreateProduct(ctx, ProductDraft{Name: "Ledger Rewrite"}); err != nil {
+		t.Fatalf("create product: %v", err)
+	}
+	// What an upgrade finds: one product with no slug, one with a slug no URL
+	// may carry, and one that took another product's.
+	for id, slug := range map[string]any{"p-1": nil, "p-2": "Bad/Slug?x", "p-3": "ledger-rewrite"} {
+		if err := arc.Command(ctx, `UPDATE Product SET slug = :s WHERE tenantId = :t AND id = :id`,
+			map[string]any{"s": slug, "t": tenant, "id": id}, nil); err != nil {
+			t.Fatalf("damage the stored slug of %s: %v", id, err)
+		}
+	}
+	eventsBefore, _ := first.Events(ctx)
+
+	second, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	slugs := func(st Store) map[string]string {
+		out := map[string]string{}
+		ps, _ := st.Products(ctx)
+		for _, p := range ps {
+			out[p.ID] = p.Slug
+		}
+		return out
+	}
+	got := slugs(second)
+	ps, _ := second.Products(ctx)
+	var ledger string
+	for _, p := range ps {
+		if p.Name == "Ledger Rewrite" {
+			ledger = p.ID
+		}
+	}
+	// p-3 held the slug of the newer product; the lower id keeps a slug, so the
+	// newer product is the one that is assigned again.
+	if got["p-1"] != "laundry-membership" || got["p-2"] != "invoice-engine" || got["p-3"] != "ledger-rewrite" || got[ledger] != "ledger-rewrite-2" {
+		t.Errorf("after the boot the slugs are p-1 %q, p-2 %q, p-3 %q and %s %q; want laundry-membership, invoice-engine, ledger-rewrite (kept: the lower id) and ledger-rewrite-2",
+			got["p-1"], got["p-2"], got["p-3"], ledger, got[ledger])
+	}
+	eventsAfter, _ := second.Events(ctx)
+	assigned := 0
+	for _, e := range eventsAfter[len(eventsBefore):] {
+		if e.Type == RecordUpdated && strings.HasSuffix(e.Text, ": slug assigned") {
+			assigned++
+		}
+	}
+	if assigned != 3 || len(eventsAfter) != len(eventsBefore)+3 {
+		t.Errorf("the back-fill wrote %d event(s), %d of them \"slug assigned\"; want three RecordUpdated, one per product it changed (BR-02)",
+			len(eventsAfter)-len(eventsBefore), assigned)
+	}
+
+	// A third boot reads what the second wrote: the same slugs, no new event.
+	third, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
+	if err != nil {
+		t.Fatalf("reopen again: %v", err)
+	}
+	for id, want := range got {
+		if s := slugs(third)[id]; s != want {
+			t.Errorf("after another boot %s has the slug %q, want %q: the back-fill did not reach the graph", id, s, want)
+		}
+	}
+	if eventsThird, _ := third.Events(ctx); len(eventsThird) != len(eventsAfter) {
+		t.Errorf("a boot with nothing to back-fill wrote %d event(s); it must write none", len(eventsThird)-len(eventsAfter))
+	}
+}
