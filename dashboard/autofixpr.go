@@ -259,7 +259,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 	if rec.ID == "" {
 		stored, _ := json.Marshal(fr)
 		rec = FixPR{ID: fixPRID(d), ProductID: d.ProductID, DefectKey: d.Key, Repo: d.Repo, State: FixPRPreparing,
-			CreatedAt: now, TaskID: t.ID, Difficulty: d.Difficulty, Branch: branch, BaseSHA: head,
+			CreatedAt: now, TaskID: t.ID, Difficulty: d.Difficulty, Branch: branch, BaseSHA: head, Base: baseIfValid(base),
 			Before: capBytes(stripBR53(fr.Before), 1<<10), After: capBytes(stripBR53(fr.After), 1<<10), Reply: string(stored)}
 	}
 	rec.UpdatedAt = now
@@ -435,4 +435,13 @@ func (p *defectFixer) resumeOne(ctx context.Context, pid string, r FixPR) {
 		return
 	}
 	p.run(ctx, *card, d, af, fr, r)
+}
+
+// baseIfValid keeps a base branch name only if it looks like one: a name read from GitHub is
+// stored, shown and put in a comment, so it is checked first (design §6.4).
+func baseIfValid(b string) string {
+	if prRefOK(b) {
+		return b
+	}
+	return ""
 }

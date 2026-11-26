@@ -148,7 +148,7 @@
     <thead><tr><th>Capability</th><th>State</th><th>Where</th></tr></thead>
     <tbody>
       <tr><td>System architecture, control loops, scoring, readiness rubric</td><td><strong>Designed</strong></td><td><code>artifacts/v1/gaos-architecture.html</code></td></tr>
-      <tr><td>Graph schema: 32 vertex types, 3 document types, 38 edge types, event store</td><td><strong>Built (applied to dev and prod)</strong></td><td><code>dashboard/schema/</code> — extracted from <code>artifacts/v1/gaos-arcadedb-model.html</code> and reconciled against ArcadeDB 26.7.2; see <code>schema/RECONCILIATION.md</code></td></tr>
+      <tr><td>Graph schema: 33 vertex types, 3 document types, 38 edge types, event store</td><td><strong>Built (applied to dev and prod)</strong></td><td><code>dashboard/schema/</code> — extracted from <code>artifacts/v1/gaos-arcadedb-model.html</code> and reconciled against ArcadeDB 26.7.2; see <code>schema/RECONCILIATION.md</code></td></tr>
       <tr><td>Mission Control operator surface</td><td><strong>Built</strong></td><td><code>dashboard/</code> — ported from the prototype to Go + HTMX, 156 tests, stdlib only</td></tr>
       <tr><td>dev + prod stacks, edge config, health probe</td><td><strong>Built</strong></td><td><code>deploy/</code> — verified end to end over the WireGuard tunnel</td></tr>
       <tr><td>Documentation site and landing page</td><td><strong>Built</strong></td><td><code>pustaka/</code>, <code>landing-page/</code></td></tr>
@@ -1357,7 +1357,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   <ul>
     <li>The six-layer system: UI, API gateway, orchestration, execution, model gateway, ArcadeDB.</li>
     <li>The five control loops: schedule, score-and-retry, readiness, gate, learn.</li>
-    <li>The full graph schema — 32 vertex types, 3 document types, 38 edge types — with its indexes,
+    <li>The full graph schema — 33 vertex types, 3 document types, 38 edge types — with its indexes,
     invariants, retention and migration policy.</li>
     <li>Mission Control as the operator surface, and the back office as the record-author surface.</li>
     <li>Multi-tenancy as an isolation and capacity mechanism.</li>

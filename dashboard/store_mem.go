@@ -210,6 +210,8 @@ type MemStore struct {
 	// and by FixPR id. Never part of the floor.
 	defects map[string]*Defect
 	fixPRs  map[string]FixPR
+	// pullRequests are the review and QA-tool pull-request rows (pullrequests.go), by key.
+	pullRequests map[string]PullRequest
 }
 
 // SetPRHooks installs the pull-request flow's seams.
@@ -289,16 +291,17 @@ func newProjection() *MemStore {
 		// Fixed seed: a projection's randomness only ever picks a display task
 		// title and reseats an agent, and a deterministic pick is easier to
 		// replay than an arbitrary one.
-		rng:         rand.New(rand.NewPCG(projectionSeed, projectionSeed^0x9E3779B97F4A7C15)),
-		replayAtSeq: liveMode,
-		meetingIdx:  -1,
-		speed:       1,
-		pending:     map[string][]LogLine{},
-		slices:      map[string]SliceRecord{},
-		artifacts:   map[string]ArtifactRecord{},
-		qa:          map[string]map[string]QaCase{},
-		defects:     map[string]*Defect{},
-		fixPRs:      map[string]FixPR{},
+		rng:          rand.New(rand.NewPCG(projectionSeed, projectionSeed^0x9E3779B97F4A7C15)),
+		replayAtSeq:  liveMode,
+		meetingIdx:   -1,
+		speed:        1,
+		pending:      map[string][]LogLine{},
+		slices:       map[string]SliceRecord{},
+		artifacts:    map[string]ArtifactRecord{},
+		qa:           map[string]map[string]QaCase{},
+		defects:      map[string]*Defect{},
+		fixPRs:       map[string]FixPR{},
+		pullRequests: map[string]PullRequest{},
 
 		// The documented defaults of §7.6.1, so a store built without a
 		// configuration still screens. An egress policy that defaulted to

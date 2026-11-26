@@ -159,6 +159,13 @@ type Store interface {
 	OpenFixPR(ctx context.Context, productID, taskID string, f FixPR) (Result, error)
 	// AdvanceFixPR and ExpireExcerpts are the poller's writes (fixprpoll.go).
 	AdvanceFixPR(ctx context.Context, productID string, f FixPR) (Result, error)
+	// The Pull requests page's rows (pullrequests.go, D-092): review and QA-tool pull requests.
+	PullRequests(ctx context.Context, productID string) ([]PullRequest, error)
+	UpsertPullRequest(ctx context.Context, p PullRequest) (Result, error)
+	AdvancePullRequest(ctx context.Context, productID, key string, f PRFields) (Result, error)
+	PrunePullRequests(ctx context.Context, finalBefore int64) (Result, error)
+	// BackfillReviewRows writes the rows of review cards that already exist (once, at boot).
+	BackfillReviewRows(ctx context.Context) (Result, error)
 	ExpireExcerpts(ctx context.Context, now int64) (Result, error)
 	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
@@ -243,6 +250,11 @@ type Result struct {
 	// ArcadeStore writes them in the same transaction.
 	Defects []Defect
 	FixPRs  []FixPR
+
+	// PullRequests are the rows a mutation changed and PullRequestDeletes the keys it removed
+	// (pullrequests.go); ArcadeStore writes them in the same transaction.
+	PullRequests       []PullRequest
+	PullRequestDeletes []string
 }
 
 // Sentinel errors. ErrRejected is the "rejection reason" half of the §09 rule:

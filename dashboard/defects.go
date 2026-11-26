@@ -99,6 +99,10 @@ type Defect struct {
 	FixTask         string
 	FixPR           string
 	Context         DefectContext
+	// BaseOverride is the base branch a retarget set for the next fix pull request (D-092); empty
+	// otherwise. It is cleared when the defect is fixed or closed and on any other generation
+	// change, and checked against AutoFix.AllowedBases at use.
+	BaseOverride string
 }
 
 // Clone deep-copies a record.
@@ -138,6 +142,11 @@ type FixPR struct {
 	CommitSHA  string
 	WaSent     bool
 	Reply      string
+	// Base is the branch the pull request targets (empty until known); RetargetedFrom and
+	// RetargetedTo link a fix pull request to the one it replaced or was replaced by (D-092).
+	Base           string
+	RetargetedFrom string
+	RetargetedTo   string
 }
 
 // The pull-request record states.
@@ -675,8 +684,9 @@ func (s *MemStore) SetAutoFix(ctx context.Context, productID string, a AutoFix, 
 		tpl = "custom"
 	}
 	p := EventPayload{Actor: actorAlias(actor), Rule: "autofix-config", Reason: fmt.Sprintf(
-		"enabled=%t fixCap=%d triageCap=%d allowed=%d forbidden=%d test=%d template=%s ci=%t token=%s",
-		a.Enabled, fix, triage, len(a.AllowedGlobs), len(a.ForbiddenGlobs), len(a.TestGlobs), tpl, a.CIConfirmed, tokenKind)}
+		"enabled=%t fixCap=%d triageCap=%d allowed=%d forbidden=%d test=%d template=%s ci=%t token=%s base=%s bases=%s targets=%d automation=%s",
+		a.Enabled, fix, triage, len(a.AllowedGlobs), len(a.ForbiddenGlobs), len(a.TestGlobs), tpl, a.CIConfirmed, tokenKind,
+		reasonList([]string{a.BaseBranch}), reasonList(a.AllowedBases), len(a.TargetRepos), reasonList(a.AutomationRepos))}
 	ev := s.defectEventLocked(AutoFixConfigured, productID, "auto-fix configured by "+p.Actor, KindInfo, p)
 	c := m.Clone()
 	return Result{Master: &c, NewEvents: []Event{ev}, Toast: "Auto-fix settings saved."}, nil
@@ -753,4 +763,19 @@ func (s *server) buildDefectContexts(ctx context.Context, productID string, keys
 			log.Printf("defects: the source slice of a record could not be built: %s", defectErrClass(err))
 		}
 	}
+}
+
+// reasonList renders branch or repository names for an event reason. They are validated names
+// (baseBranchRe, defectRepo), not secrets; an empty list is "-".
+func reasonList(xs []string) string {
+	var out []string
+	for _, x := range xs {
+		if x != "" {
+			out = append(out, x)
+		}
+	}
+	if len(out) == 0 {
+		return "-"
+	}
+	return strings.Join(out, ",")
 }

@@ -1621,6 +1621,33 @@ CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
 -- commit. ALTER is idempotent and applies to every deployment.
 ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
 ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
+
+-- D-092 (docs/designs/gaos-pr-overview.md section 3.2): the base and the links of a fix pull request, and the
+-- base a retarget set for a defect (cleared again).
+CREATE PROPERTY FixPR.baseName       STRING;
+CREATE PROPERTY FixPR.retargetedFrom STRING;
+CREATE PROPERTY FixPR.retargetedTo   STRING;
+CREATE PROPERTY Defect.baseOverride  STRING;
+
+-- 18 - the Pull requests page: review and QA-tool pull requests, a cache of GitHub's state outside the floor.
+-- The vertex id is "<productId>/<owner>/<repo>#<n>", lower-cased; no url is stored.
+CREATE VERTEX TYPE PullRequest IF NOT EXISTS EXTENDS GaosVertex;
+CREATE PROPERTY PullRequest.productId STRING  (mandatory true, notnull true);
+CREATE PROPERTY PullRequest.repo      STRING  (mandatory true, notnull true);
+CREATE PROPERTY PullRequest.number    INTEGER (mandatory true, notnull true);
+CREATE PROPERTY PullRequest.kind      STRING  (mandatory true, regexp 'review|qa');
+CREATE PROPERTY PullRequest.state     STRING  (mandatory true, regexp 'open|draft|merged|closed');
+CREATE PROPERTY PullRequest.title     STRING;
+CREATE PROPERTY PullRequest.author    STRING;
+CREATE PROPERTY PullRequest.headRef   STRING;
+CREATE PROPERTY PullRequest.baseRef   STRING;
+CREATE PROPERTY PullRequest.taskId    STRING;
+CREATE PROPERTY PullRequest.qaJob     STRING;
+CREATE PROPERTY PullRequest.qaCase    STRING;
+CREATE PROPERTY PullRequest.qaLink    STRING;
+CREATE PROPERTY PullRequest.openedAt  LONG;
+CREATE PROPERTY PullRequest.checkedAt LONG;
+CREATE INDEX IF NOT EXISTS ON PullRequest (tenantId, id) UNIQUE;
 </pre>
   </div>
 </section>
