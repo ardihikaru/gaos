@@ -434,6 +434,10 @@ type ciEvent struct {
 	ignore      []string
 	hasBranches bool
 	hasIgnore   bool
+	paths       []string // the paths: filter; a negated pattern is not kept
+	pathsIgnore []string
+	hasPaths    bool
+	hasPathsIgn bool
 }
 
 // ciParseOn is a conservative line scanner for the `on:` block of a workflow.
@@ -506,6 +510,12 @@ func ciParseOn(text string) []ciEvent {
 				case "branches-ignore":
 					cur.hasIgnore = true
 					cur.ignore = append(cur.ignore, ciList(v)...)
+				case "paths":
+					cur.hasPaths = true
+					cur.paths = append(cur.paths, ciList(v)...)
+				case "paths-ignore":
+					cur.hasPathsIgn = true
+					cur.pathsIgnore = append(cur.pathsIgnore, ciList(v)...)
 				}
 				continue
 			}
@@ -516,6 +526,10 @@ func ciParseOn(text string) []ciEvent {
 					cur.branches = append(cur.branches, item)
 				case "branches-ignore":
 					cur.ignore = append(cur.ignore, item)
+				case "paths":
+					cur.paths = append(cur.paths, item)
+				case "paths-ignore":
+					cur.pathsIgnore = append(cur.pathsIgnore, item)
 				}
 			}
 		}
@@ -528,9 +542,18 @@ func ciParseOn(text string) []ciEvent {
 // pull request from it into base. A filter of a pull request names its BASE
 // branch, so both names are tried; a negated pattern is ignored, which errs
 // toward "triggered".
-func ciTriggered(text, branch, base string) bool {
+//
+// changed is the list of files the fix changes. GitHub runs a pull_request or push workflow that
+// has a paths: filter only when a changed file matches it (or, for paths-ignore, when some changed
+// file is not ignored), so with the files known a workflow whose paths the fix does not touch is not
+// triggered (found live: his-backend's one secret-using workflow runs only for one service's
+// directory, and the fix never touches it). nil means unknown, which errs toward "triggered".
+func ciTriggered(text, branch, base string, changed []string) bool {
 	for _, e := range ciParseOn(text) {
 		if !ciEvents[e.name] {
+			continue
+		}
+		if changed != nil && !ciPathsTrigger(e, changed) {
 			continue
 		}
 		targets := []string{branch}
@@ -566,6 +589,40 @@ func ciTriggered(text, branch, base string) bool {
 	return false
 }
 
+// ciPathsTrigger says whether the paths filters of an event let a change to these files run it.
+// A negated pattern ("!x") in a paths list is ignored, which errs toward "triggered".
+func ciPathsTrigger(e ciEvent, changed []string) bool {
+	if e.hasPaths && len(e.paths) > 0 {
+		for _, c := range changed {
+			for _, p := range e.paths {
+				if strings.HasPrefix(p, "!") {
+					return true // a negation changes what matches; do not reason about it
+				}
+				if matchGlob(p, c) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if e.hasPathsIgn && len(e.pathsIgnore) > 0 {
+		for _, c := range changed {
+			ignored := false
+			for _, p := range e.pathsIgnore {
+				if matchGlob(p, c) {
+					ignored = true
+					break
+				}
+			}
+			if !ignored {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
 // ciRefsSecrets reports a reference to a secret other than GITHUB_TOKEN.
 func ciRefsSecrets(text string) bool {
 	for _, l := range strings.Split(text, "\n") {
@@ -584,14 +641,14 @@ func ciRefsSecrets(text string) bool {
 
 // ciSecretsRisk is §8.3 step 0: the path of the first workflow that is
 // triggered for the fix branch and references a secret, if any.
-func ciSecretsRisk(files map[string]string, branch, base string) (string, bool) {
+func ciSecretsRisk(files map[string]string, branch, base string, changed []string) (string, bool) {
 	paths := make([]string, 0, len(files))
 	for p := range files {
 		paths = append(paths, p)
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		if ciTriggered(files[p], branch, base) && ciRefsSecrets(files[p]) {
+		if ciTriggered(files[p], branch, base, changed) && ciRefsSecrets(files[p]) {
 			return p, true
 		}
 	}
