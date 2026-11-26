@@ -36,6 +36,40 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-57-0">v0.57.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The Board pages, filters, switches to a table, and refreshes only what changed (<a href="product/decision-log.html#d-095">D-095</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Show more.</strong> A column shows thirty cards and its count (<code>30 of 412</code>); <strong>Show more</strong> adds thirty, up to three hundred. Done and Canceled open on the cards that changed last.</li>
+        <li><span class="chg add">Added</span> <strong>Filters.</strong> A bar above the board: search (title, id or pull request), role, story, label, workflow, "Waiting on a person" (awaiting input or in review) and "Hide empty columns". The filters are part of the page's address, so a link or a reload keeps them. The search text is not: it is never written into a URL.</li>
+        <li><span class="chg add">Added</span> <strong>Table view.</strong> <em>Board | Table</em> switches the same cards to a table with ID, title, status, role, story, workflow, attempts, lead time, last change and the allowed moves. It sorts by status, ID, role, story or last change, and shows a hundred rows at a time.</li>
+        <li><span class="chg change">Changed</span> <strong>Wider.</strong> Columns are 300px and the Board tab uses the whole width; each column scrolls on its own under its header. The record's side panel (graph projection, coverage, readiness) is no longer shown on the Board tab; it is on every other tab.</li>
+        <li><span class="chg change">Changed</span> <strong>Live changes replace only the columns that changed.</strong> The board keeps its place &mdash; sideways and inside each column &mdash; and the card that moved is marked for a moment. A burst of changes is one refresh, and a tab in the background refreshes once when you return to it. At 2,000 cards a live refresh went from 109 ms and 1.83 MB to 5 ms and 46 KB; opening the Board from 109 ms to 12 ms.</li>
+        <li><span class="chg change">Changed</span> The interactive board loads the same page of cards and updates in place instead of being rebuilt on every change. It no longer draws a lane per story: the story is on the card, in the filter and in the table. Its own search box is hidden in favour of the bar's.</li>
+        <li><span class="chg change">Changed</span> Opening any product tab no longer copies the product's whole event history to print the Timeline tab's number. <code>TC-735</code>&hellip;<code>TC-750</code>.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-56-0">v0.56.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every back-office view and product section has its own URL (<a href="product/decision-log.html#d-094">D-094</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Real addresses.</strong> A product's sections are at <code>/app/p/&lt;product&gt;/&lt;section&gt;</code> &mdash; for example <code>/app/p/route-planner/board</code> &mdash; and the Inbox, Stories, Diagrams, Knowledge, Agents, Archive, Integrations, Auto-fix and Pull requests views at <code>/app/inbox</code>, <code>/app/prs</code> and so on. The address and the tab title follow every click; Back, Forward and reload land on the same view; a link can be copied and opened in a new tab (Ctrl-click and middle-click work on the navigation). The filters and the open drawer of the Pull requests and Auto-fix views are part of the address.</li>
+        <li><span class="chg add">Added</span> A product is named in its address by a <strong>slug</strong>, its name in lower case, assigned once and stored. The older form with the product's id (<code>/app/p/p-6/board</code>) redirects to it. Existing products get their slug at the first start after the upgrade.</li>
+        <li><span class="chg change">Changed</span> Opening a back-office address signed out shows the sign-in form (still a <code>401</code>, as <code>BR-55</code> requires), and signing in returns to that address instead of the product list.</li>
+        <li><span class="chg change">Changed</span> A live refresh that arrives after you have moved to another view no longer pulls the screen back to the view it was meant for.</li>
+        <li><span class="chg change">Changed</span> A product's name is now part of its address, and so appears in the edge's access log, the browser's history and the tab title. Every back-office response sends <code>Referrer-Policy: same-origin</code>. <code>TC-723</code>&hellip;<code>TC-734</code>.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-55-1">v0.55.1 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The interactive board on a product&rsquo;s Board tab loads again.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <code>static/board.js</code> lost a closing brace in v0.44.0. The browser refused the whole module, and the page quietly kept the plain server-rendered board, so the interactive board has not been on screen since. The brace is back, the module is now requested with the release version so a browser does not keep the broken copy it cached, and a column with more than thirty cards no longer asks the server for a page it does not serve. <code>TC-722</code> reads every script GAOS writes and fails if its brackets do not pair.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-55-0">v0.55.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The docs no longer look broken while a page loads, and they are public (<a href="product/decision-log.html#d-093">D-093</a>).</p>
       <ul>

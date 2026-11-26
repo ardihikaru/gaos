@@ -397,6 +397,21 @@ echo "== base href survived the strip =="
 BASE="$(ssh -o ConnectTimeout=8 clino "curl -sS -H 'Host: $HOST' http://$TUNNEL:$PORT/app/" 2>&1 | grep -o '<base href="[^"]*">')"
 if [ "$BASE" = '<base href="/app/">' ]; then vok "$BASE"; else vbad "base href: '$BASE', want '<base href=\"/app/\">'"; fi
 
+# D-094: a page route three levels below the mount. Signed out it is refused
+# (401, BR-55) with the sign-in page as its body, and that page must carry the
+# same base: a deep URL whose base resolved against its own path would 404
+# every asset, and nothing would log it.
+echo
+echo "== a deep page keeps the base and is refused signed out =="
+DEEP="$(ssh -o ConnectTimeout=8 clino "curl -sS -w '\n%{http_code}' -H 'Host: $HOST' http://$TUNNEL:$PORT/app/p/x/board" 2>&1)"
+DEEP_CODE="${DEEP##*$'\n'}"
+DEEP_BASE="$(printf '%s' "$DEEP" | grep -o '<base href="[^"]*">')"
+if [ "$DEEP_CODE" = "401" ] && [ "$DEEP_BASE" = '<base href="/app/">' ]; then
+  vok "/app/p/x/board -> 401 with $DEEP_BASE"
+else
+  vbad "/app/p/x/board -> $DEEP_CODE with '$DEEP_BASE', want 401 with '<base href=\"/app/\">'"
+fi
+
 if [ "$FULL_VERIFY" -eq 1 ]; then
   echo
   echo "== X-Forwarded-For trust list =="

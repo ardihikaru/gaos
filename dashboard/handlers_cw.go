@@ -84,7 +84,7 @@ func (s *server) handleWorkflowCreate(w http.ResponseWriter, r *http.Request) {
 	// The modal closes itself: the response replaces it with an empty shell and
 	// opens the product's board out of band, where the planned tasks now are.
 	if v.SignedIn {
-		v.BO = s.buildBO(r, "products", d.ProductID, "board")
+		s.sheet(w, r, v, "products", d.ProductID, "board")
 	}
 	s.rend.RenderWithChrome(w, "cw-closed", v)
 }
