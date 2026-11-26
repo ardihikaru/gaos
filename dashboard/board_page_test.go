@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -91,6 +92,9 @@ func boardReq(rawURL, state, search string) *http.Request {
 }
 
 func TestBoardPageCapsEachColumnAndCountsTheRest(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	_, st := bigBoard(t, 2000)
 	ctx := context.Background()
 	full, _ := st.Board(ctx, "p-1")
@@ -160,6 +164,9 @@ func TestBoardPageCapsEachColumnAndCountsTheRest(t *testing.T) {
 }
 
 func TestBoardPageDeeperWindowsContainShallowerOnes(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	_, st := bigBoard(t, 600)
 	ctx := context.Background()
 	p30, _ := st.BoardPage(ctx, "p-1", BoardQuery{}, BoardWindow{})
@@ -181,6 +188,9 @@ func TestBoardPageDeeperWindowsContainShallowerOnes(t *testing.T) {
 }
 
 func TestBoardFiltersNarrowCardsAndCounts(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	_, st := bigBoard(t, 400)
 	ctx := context.Background()
 	st.mu.RLock()
@@ -292,6 +302,9 @@ func TestBoardFiltersNarrowCardsAndCounts(t *testing.T) {
 }
 
 func TestDoneIsNewestFirst(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	_, st := bigBoard(t, 200)
 	ctx := context.Background()
 	// The oldest Done card is moved again: it is now the last to have changed.
@@ -331,6 +344,9 @@ func TestDoneIsNewestFirst(t *testing.T) {
 }
 
 func TestBoardPageDecoratesOnlyThePage(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	for _, n := range []int{30, 3000} {
 		_, st := bigBoard(t, n)
 		ctx := context.Background()
@@ -361,6 +377,9 @@ func TestBoardPageDecoratesOnlyThePage(t *testing.T) {
 }
 
 func TestBoardCardIsTheSameCardTheBoardHolds(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	_, st := bigBoard(t, 120)
 	ctx := context.Background()
 	full, _ := st.Board(ctx, "p-1")
@@ -392,6 +411,9 @@ func TestBoardCardIsTheSameCardTheBoardHolds(t *testing.T) {
 }
 
 func TestTheBoardQueryRoundTrips(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	for _, q := range []BoardQuery{
 		{},
 		{View: "table"},
@@ -445,8 +467,21 @@ func boardHX(t *testing.T, s *server, method, path string, hdr map[string]string
 		r.AddCookie(c)
 	}
 	w := httptest.NewRecorder()
-	s.routes().ServeHTTP(w, r)
+	handlerOf(s).ServeHTTP(w, r)
 	return w
+}
+
+// handlerOf is a server's handler, built once per server: these tests make
+// many requests each, and routes() registers well over a hundred patterns.
+var handlers sync.Map
+
+func handlerOf(s *server) http.Handler {
+	if h, ok := handlers.Load(s); ok {
+		return h.(http.Handler)
+	}
+	h := s.routes()
+	handlers.Store(s, h)
+	return h
 }
 
 var colTag = regexp.MustCompile(`<div class="board-col" id="col-([a-z-]+)" data-col="[a-z-]+" data-shown="(\d+)" data-rev="([0-9a-f]{16})"([^>]*)>`)
@@ -478,6 +513,9 @@ func stateOf(cols map[string][3]string, extra string) string {
 }
 
 func TestTheBoardTabRendersNoMoreThanItsLimit(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, _ := bigBoard(t, 500)
 	body := boardHX(t, srv, "GET", "/products/p-1?tab=board", nil).Body.String()
 	cols := columnsIn(body)
@@ -507,6 +545,9 @@ func TestTheBoardTabRendersNoMoreThanItsLimit(t *testing.T) {
 }
 
 func TestShowMoreDeepensOneColumn(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, _ := bigBoard(t, 500)
 	first := columnsIn(boardHX(t, srv, "GET", "/products/p-1?tab=board", nil).Body.String())
 	w := boardHX(t, srv, "GET", "/products/p-1/board/live?more=done", map[string]string{boardStateHeader: stateOf(first, "")})
@@ -530,6 +571,9 @@ func TestShowMoreDeepensOneColumn(t *testing.T) {
 }
 
 func TestBoardLiveSendsOnlyTheColumnsThatChanged(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, st := bigBoard(t, 400)
 	first := columnsIn(boardHX(t, srv, "GET", "/products/p-1?tab=board", nil).Body.String())
 	live := func(state string) (map[string][3]string, string) {
@@ -629,6 +673,9 @@ func TestBoardLiveSendsOnlyTheColumnsThatChanged(t *testing.T) {
 }
 
 func TestBoardLiveNeverPushesTheAddress(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, st := bigBoard(t, 200)
 	slug := slugOfProduct(t, st, "p-1")
 	const host = "https://gaos.example"
@@ -670,6 +717,9 @@ func TestBoardLiveNeverPushesTheAddress(t *testing.T) {
 }
 
 func TestABoardMutationKeepsTheView(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, st := bigBoard(t, 400)
 	slug := slugOfProduct(t, st, "p-1")
 	at := "https://gaos.example/p/" + slug + "/board?role=backend"
@@ -690,7 +740,7 @@ func TestABoardMutationKeepsTheView(t *testing.T) {
 			r.AddCookie(c)
 		}
 		w := httptest.NewRecorder()
-		srv.routes().ServeHTTP(w, r)
+		handlerOf(srv).ServeHTTP(w, r)
 		return w
 	}
 	w := mv("bt-00000", ColCanceled, map[string]string{boardStateHeader: state})
@@ -727,7 +777,7 @@ func TestABoardMutationKeepsTheView(t *testing.T) {
 		r.AddCookie(c)
 	}
 	lw := httptest.NewRecorder()
-	srv.routes().ServeHTTP(lw, r)
+	handlerOf(srv).ServeHTTP(lw, r)
 	sheet := lw.Body.String()
 	if lw.Code != 200 || !strings.Contains(sheet, `id="boSheet"`) {
 		t.Fatalf("setting a label answered %d without the sheet: %s", lw.Code, clip(sheet, 200))
@@ -761,6 +811,9 @@ func TestABoardMutationKeepsTheView(t *testing.T) {
 }
 
 func TestTheTableSortsAndCaps(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, _ := bigBoard(t, 1400)
 	rowIDs := func(body string) []string {
 		var ids []string
@@ -802,6 +855,9 @@ func TestTheTableSortsAndCaps(t *testing.T) {
 }
 
 func TestTheSearchTextNeverTravelsInAURL(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, _ := bigBoard(t, 200)
 	body := boardHX(t, srv, "GET", "/products/p-1?tab=board", nil).Body.String()
 	form := body[strings.Index(body, `id="boardFilters"`):]
@@ -846,6 +902,9 @@ func TestTheSearchTextNeverTravelsInAURL(t *testing.T) {
 }
 
 func TestTheBoardJSONPagesOnlyWhenAsked(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, st := bigBoard(t, 400)
 	get := func(path string, hdr map[string]string) (int, string, http.Header) {
 		t.Helper()
@@ -857,7 +916,7 @@ func TestTheBoardJSONPagesOnlyWhenAsked(t *testing.T) {
 			r.AddCookie(c)
 		}
 		w := httptest.NewRecorder()
-		srv.routes().ServeHTTP(w, r)
+		handlerOf(srv).ServeHTTP(w, r)
 		return w.Code, w.Body.String(), w.Header()
 	}
 	// Without paged=1: the document it has always been, whatever else is asked.
@@ -944,6 +1003,9 @@ func (c *evCountingStore) Events(ctx context.Context) ([]Event, error) {
 }
 
 func TestTheBoardTabSkipsTheEventCopyAndTheDiagrams(t *testing.T) {
+	// Its own store and server, so it runs beside the others: under the race
+	// detector a rendered board is slow, and the suite has ten minutes.
+	t.Parallel()
 	srv, st := bigBoard(t, 100)
 	counter := &evCountingStore{Store: st}
 	srv.store = counter
