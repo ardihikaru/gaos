@@ -543,3 +543,29 @@ func TestContextClassPutsSourceBeforeSamplesAndDocuments(t *testing.T) {
 		}
 	}
 }
+
+// Two files compete for the byte budget: a big interface file that only mentions the operation, found
+// first, and the big resolver that implements it, found later. The implementation is kept (found
+// live: the 44 KB resolver of editMedicationDispense lost its place to a 33 KB interface file).
+func TestDefectContextPrefersTheFileThatImplementsTheOperation(t *testing.T) {
+	iface := "package r\ntype MutationResolver interface {\n\tEditThing(ctx context.Context) error\n}\n" + strings.Repeat("// pad\n", 6000)
+	impl := "package r\nfunc (r *mutationResolver) EditThing(ctx context.Context) error {\n\treturn nil\n}\n" + strings.Repeat("// pad\n", 6000)
+	f := &opFakeGitHub{byOp: map[string][]string{"editThing": {"pkg/resolver.go", "pkg/mutation.resolvers.go"}},
+		files: map[string]string{"pkg/resolver.go": iface, "pkg/mutation.resolvers.go": impl}}
+	if len(iface)+len(impl) <= defectMaxFileBytes {
+		t.Fatalf("the test files fit together (%d bytes); they must compete", len(iface)+len(impl))
+	}
+	d := sampleDefect()
+	d.Operations = []string{"editThing"}
+	c, err := buildDefectContext(context.Background(), newOpFakeCode(t, f), d, "", noSleep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Files) != 1 || c.Files[0].Path != "pkg/mutation.resolvers.go" {
+		var got []string
+		for _, file := range c.Files {
+			got = append(got, file.Path)
+		}
+		t.Errorf("files = %v; want the implementing resolver, which only fits instead of the interface", got)
+	}
+}
