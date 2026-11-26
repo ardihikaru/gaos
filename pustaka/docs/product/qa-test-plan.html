@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  six hundred and ninety-eight cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred and ninety-nine cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All six hundred and ninety-eight cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred and ninety-nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -787,6 +787,7 @@
       <tr data-tags="go test defect triage context files operation order d-091 positive implemented"><td>TC-696</td><td>go test</td><td>Positive</td><td>The triager's source slice orders files by the operation that found them, the defect's own (first) operation first, then by search position</td><td>Implemented</td></tr>
       <tr data-tags="go test defect triage context files implementation budget d-091 positive implemented"><td>TC-697</td><td>go test</td><td>Positive</td><td>When files compete for the slice's byte budget, the one that implements an operation (a func named for it) is kept over one that only mentions it</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request ci workflow secrets paths filter paths-ignore changed files d-091 positive negative implemented"><td>TC-698</td><td>go test</td><td>Positive</td><td>The CI-secrets check honors a workflow's paths and paths-ignore filters against the files the fix changes: a workflow the fix cannot trigger no longer blocks it; unknown files and negations stay conservative</td><td>Implemented</td></tr>
+      <tr data-tags="go test product id create delete reuse collision positive negative implemented"><td>TC-699</td><td>go test</td><td>Negative and positive</td><td>A new product's id is one past the highest p-&lt;n&gt; in use, not the product count plus one, so an id freed by a deleted product is never handed out again; ids of another shape are ignored.</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4268,6 +4269,7 @@
   <p><strong>TC-696, positive</strong> (<code>TestDefectContextOrdersFilesByTheOperationThatFoundThem</code>): <code>files = %v; want the first operation's hits in search order, then the second's</code>. Found live: files were ordered by search position then alphabetically, and the resolver of the defect's own operation lost its place to files found for a later one.</p>
   <p><strong>TC-697, positive</strong> (<code>TestDefectContextPrefersTheFileThatImplementsTheOperation</code>): <code>the test files fit together (%d bytes); they must compete</code>; <code>files = %v; want the implementing resolver, which only fits instead of the interface</code>. Found live: the 44 KB resolver of <code>editMedicationDispense</code> lost the 64 KiB budget to a 33 KB interface file and a storage file, so the triager answered medium.</p>
   <p><strong>TC-698, positive</strong> (<code>TestFixPRCIPathFilters</code>): <code>%s: risk=%v, want %v</code> for eight cases: a <code>paths</code> filter with no changed file in it is not a risk; with one in it, it is; unknown files (nil) and a negated pattern stay a risk; <code>paths-ignore</code> covering every changed file is not a risk. Found live: his-backend's only secret-using workflow runs for one service's directory, the fix never touched it, and the fix was blocked <code>autofix-ci-secrets</code>.</p>
+  <p><strong>TC-699, negative and positive</strong> (<code>TestAProductIdIsNeverReusedAfterADelete</code>): with p-1 removed from a floor of p-1..p-5, the next two products must be p-6 and p-7: <code>new product id = %s, want %s: an id must be one past the highest in use, not the count plus one</code>; <code>new product id %s is already held by another product</code>; and for ids of another shape, <code>nextProductID = %s, want p-10</code> and <code>nextProductID(empty) = %s, want p-1</code>. Found live: after the five demo products were deleted from a database that still held p-6 and p-7, the fourth product created would have been given p-6 a second time.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
