@@ -244,7 +244,11 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		p.block(ctx, t, rec, BlockCISecrets, "a workflow could not be read")
 		return
 	}
-	if wf, risky := ciSecretsRisk(wfs, branch, base); risky {
+	changed := make([]string, 0, len(plan.Files))
+	for _, f := range plan.Files {
+		changed = append(changed, f.Path)
+	}
+	if wf, risky := ciSecretsRisk(wfs, branch, base, changed); risky {
 		p.block(ctx, t, rec, BlockCISecrets, wf)
 		return
 	}

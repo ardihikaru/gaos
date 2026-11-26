@@ -344,7 +344,7 @@ func TestFixPRCIWorkflowSecretsRefuse(t *testing.T) {
 		{"a commented secret", "on: push\n# ${{ secrets.K }}\njobs: {}\n", false},
 	}
 	for _, c := range cases {
-		_, got := ciSecretsRisk(map[string]string{".github/workflows/ci.yml": c.text}, fxBranch, "main")
+		_, got := ciSecretsRisk(map[string]string{".github/workflows/ci.yml": c.text}, fxBranch, "main", nil)
 		if got != c.want {
 			t.Errorf("%s: risk=%v, want %v", c.name, got, c.want)
 		}
@@ -590,5 +590,32 @@ func TestFixPRWhatsAppText(t *testing.T) {
 	dt.afterRun(context.Background(), card, "```gaos-triage\ndifficulty: complex\nclass: billing\nreason: prices\n```\n")
 	if len(notes) != 1 || notes[0] != "defect:complex|"+pid+" · DEF-101 needs a person" {
 		t.Errorf("complex notifications %q", notes)
+	}
+}
+
+// A workflow with a paths: filter runs for a pull request only when a changed file matches (found
+// live: his-backend's one secret-using workflow runs for one service's directory only, and the fix
+// never touches it, yet the whole fix was blocked). Unknown files and negations stay conservative.
+func TestFixPRCIPathFilters(t *testing.T) {
+	secret := "      K: ${{ secrets.K }}\n"
+	wf := func(on string) string { return "on:\n  pull_request:\n" + on + "jobs:\n  a:\n    env:\n" + secret }
+	for _, c := range []struct {
+		name, text string
+		changed    []string
+		want       bool
+	}{
+		{"paths, a changed file outside them", wf("    paths:\n      - 'internal/service/chart/**'\n"), []string{"pkg/graph/x.go"}, false},
+		{"paths, a changed file inside them", wf("    paths:\n      - 'internal/service/chart/**'\n"), []string{"internal/service/chart/a.go"}, true},
+		{"paths, one of two changed files inside", wf("    paths:\n      - 'internal/service/chart/**'\n"), []string{"pkg/x.go", "internal/service/chart/a.go"}, true},
+		{"paths unknown (nil changed)", wf("    paths:\n      - 'internal/service/chart/**'\n"), nil, true},
+		{"a negated path is not reasoned about", wf("    paths:\n      - '**'\n      - '!docs/**'\n"), []string{"docs/a.md"}, true},
+		{"paths-ignore covering every changed file", wf("    paths-ignore:\n      - 'docs/**'\n"), []string{"docs/a.md"}, false},
+		{"paths-ignore, a file it does not cover", wf("    paths-ignore:\n      - 'docs/**'\n"), []string{"docs/a.md", "pkg/x.go"}, true},
+		{"no paths filter", wf("    branches: [main]\n"), []string{"pkg/x.go"}, true},
+	} {
+		_, got := ciSecretsRisk(map[string]string{".github/workflows/ci.yml": c.text}, fxBranch, "main", c.changed)
+		if got != c.want {
+			t.Errorf("%s: risk=%v, want %v", c.name, got, c.want)
+		}
 	}
 }
