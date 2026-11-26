@@ -406,6 +406,33 @@ func workflowNumber(id string) (int, bool) {
 	return n, true
 }
 
+// nextProductID is one past the highest "p-<digits>" id in use. It was
+// len(products)+1, which is only right while no product has ever been removed:
+// with p-1..p-5 deleted from a database that still held p-6 and p-7, the fourth
+// product created after that would have been given p-6 a second time. An id of
+// any other shape is ignored rather than allowed to reset the count.
+func nextProductID(products []Product) string {
+	hi := 0
+	for _, p := range products {
+		rest, ok := strings.CutPrefix(p.ID, "p-")
+		if !ok || rest == "" {
+			continue
+		}
+		n, digits := 0, true
+		for _, c := range rest {
+			if c < '0' || c > '9' {
+				digits = false
+				break
+			}
+			n = n*10 + int(c-'0')
+		}
+		if digits && n > hi {
+			hi = n
+		}
+	}
+	return fmt.Sprintf("p-%d", hi+1)
+}
+
 func leadAgent(d Desk) *Agent {
 	if len(d.Agents) == 0 {
 		return nil
@@ -1801,7 +1828,7 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 	if owner == "" {
 		owner = "unassigned"
 	}
-	id := fmt.Sprintf("p-%d", len(s.products)+1)
+	id := nextProductID(s.products)
 	prio := "medium"
 	switch dr.Priority {
 	case "low", "high":
