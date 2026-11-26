@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -78,6 +79,9 @@ type server struct {
 	wa   *waNotifier
 	auth *authority // back-office sessions (auth.go); nil signs nobody in
 	// patterns and bearer are what routes() registered, for the route-table test.
+	// routesMu guards them: production calls routes() once, but the tests build
+	// a handler per request, and two of those in flight wrote these together.
+	routesMu sync.Mutex
 	patterns []string
 	bearer   map[string]bool
 	store    Store
@@ -590,7 +594,9 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/qa/sync/pull", s.handleQaPull)
 	handle("POST /products/{id}/qa/sync/push", s.handleQaPush)
 
+	s.routesMu.Lock()
 	s.patterns, s.bearer = patterns, bearer
+	s.routesMu.Unlock()
 	return s.gate(mux, bearer)
 }
 
