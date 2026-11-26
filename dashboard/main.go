@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -78,6 +79,9 @@ type server struct {
 	wa   *waNotifier
 	auth *authority // back-office sessions (auth.go); nil signs nobody in
 	// patterns and bearer are what routes() registered, for the route-table test.
+	// routesMu guards them: production calls routes() once, but the tests build
+	// a handler per request, and two of those in flight wrote these together.
+	routesMu sync.Mutex
 	patterns []string
 	bearer   map[string]bool
 	store    Store
@@ -497,6 +501,14 @@ func (s *server) routes() http.Handler {
 	// Go 1.22 patterns: method and wildcards in the pattern itself, so there is
 	// no router library and no switch on r.Method inside a handler.
 	handle("GET /{$}", s.handleIndex)
+	// The page routes (D-094, urls.go): one whole document per back-office view
+	// and per product section, so a deep link, a reload and Back land on it.
+	// They are back-office routes; signed out, the gate answers them itself.
+	for _, v := range pageViews {
+		handle("GET /"+v.ID, s.handlePage(v.ID))
+	}
+	handle("GET /p/{ref}", s.handleProductPage)
+	handle("GET /p/{ref}/{section}", s.handleProductPage)
 	handle("GET /healthz", s.handleHealth)
 	patterns = append(patterns, "GET /static/")
 	mux.Handle("GET /static/", s.staticHandler())
@@ -535,6 +547,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
 	handle("PUT /products/{id}/vendors", s.handleSaveVendors)
 	handle("GET /products/{id}/board", s.handleBoard)
+	handle("GET /products/{id}/board/live", s.handleBoardLive)                   // the Board's own route (D-095)
 	handle("GET /products/{id}/board/cards/{taskId}/timing", s.handleCardTiming) // D-081
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084
@@ -582,7 +595,9 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/qa/sync/pull", s.handleQaPull)
 	handle("POST /products/{id}/qa/sync/push", s.handleQaPush)
 
+	s.routesMu.Lock()
 	s.patterns, s.bearer = patterns, bearer
+	s.routesMu.Unlock()
 	return s.gate(mux, bearer)
 }
 

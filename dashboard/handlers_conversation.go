@@ -118,9 +118,9 @@ func (s *server) handleArchiveConversation(archive bool) http.HandlerFunc {
 		}
 		v := s.applyResult(r, res)
 		if archive {
-			v.BO = s.buildBO(r, "products", id, "board")
+			s.sheet(w, r, v, "products", id, "board")
 		} else {
-			v.BO = s.buildBO(r, "archive", "", "")
+			s.sheet(w, r, v, "archive", "", "")
 		}
 		s.rend.RenderWithChrome(w, "bo-main-close-talk", v)
 	}
@@ -153,6 +153,6 @@ func (s *server) handlePrune(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v := s.applyResult(r, res)
-	v.BO = s.buildBO(r, "archive", "", "")
+	s.sheet(w, r, v, "archive", "", "")
 	s.rend.RenderWithChrome(w, "bo-main-close-talk", v)
 }

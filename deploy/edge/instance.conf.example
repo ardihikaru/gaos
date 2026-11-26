@@ -51,7 +51,7 @@ server {
 
     location / {
         proxy_pass http://<tunnel-ip>:<port>;
-        # The docs rate limits; the zones are defined once, in gaos.conf (D-094).
+        # The docs rate limits; the zones are defined once, in gaos.conf (D-096).
         limit_req zone=gaos_docs_api  burst=20  nodelay;
         limit_req zone=gaos_docs_all  burst=100 nodelay;
         limit_req zone=gaos_docs_page burst=60  nodelay;

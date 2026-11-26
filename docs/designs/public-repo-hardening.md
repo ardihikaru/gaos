@@ -2,8 +2,9 @@
 
 **Status:** Approved (v2). The operator approved it on 2026-11-26 ("Approve"), with two decisions: the repository stays public during the rewrite (step 0a declined), and the operator notifies the catalog's owner (step 0b). Round 1 reviewed v1 with five lenses, `reviews/public-repo-hardening-*-1.md`; the triage is in `reviews/public-repo-hardening-review-1.md`.
 **Feature:** `public-repo-hardening`
-**Version target:** v0.56.0 (main is v0.55.0, `pustaka/docs/assets/toc.js:22`).
-**Numbers claimed:** **D-094** (the decision on OQ-36), **TC-722**, **TC-723**, **v0.56.0**. No BR is added or amended.
+**Version target:** v0.58.0 (main is v0.57.0, `pustaka/docs/assets/toc.js:22`).
+**Renumbered** after a parallel release took D-094, D-095, v0.56.0, v0.57.0 and TC-722…TC-750: this change now claims D-096, TC-751, TC-752 and v0.58.0. The round-1 reports and triage keep the old numbers as written.
+**Numbers claimed:** **D-096** (the decision on OQ-36), **TC-751**, **TC-752**, **v0.58.0**. No BR is added or amended.
 **BRD rules this must obey:** none of the §9 rules govern the docs, the edge or git history. BR-05 is untouched because no event is written.
 **Security lens:** required.
 
@@ -125,7 +126,7 @@ Each value is replaced by its role. Commands resolve the edge at run time with `
 
 `git grep` for the five values returns nothing on the branch.
 
-### 3.2 Guards (TC-722)
+### 3.2 Guards (TC-751)
 
 **Section 8 of `deploy/check-workspace.sh`: no routable IPv4.**
 
@@ -165,7 +166,7 @@ Section 7 then enforces them over every path and content. The agent cannot read 
 
   A fourth line, `image: alpine/socat:` followed by a four-part version, does not fail. Both were verified on the branch.
 
-### 3.3 The registry comma check (TC-723)
+### 3.3 The registry comma check (TC-752)
 
 This is upstream commit `1da1a90` (pustaka v0.10.1), applied as a patch.
 - `check()` adds `reNoComma = \}[ \t]*\r?\n[ \t]*\{`, which catches two entries on adjacent lines with no comma between them.
@@ -221,7 +222,7 @@ If `nginx -t` fails, restore the backup.
   - 60 of 60 runs pass.
   - `driveRecovery` (`dashboard/events_test.go:493`) has the same shape with 50 ms. It gets the same treatment, a deadline of `time.Minute`, and its run start is moved back by the same 9000 s so that the requeue still lands.
 
-### 3.6 OQ-36: the history rewrite (D-094)
+### 3.6 OQ-36: the history rewrite (D-096)
 
 **The operator's ruling (2026-11-26): rewrite.**
 
@@ -263,13 +264,13 @@ If `nginx -t` fails, restore the backup.
 | # | Step | Who |
 |---|---|---|
 | 0a | **Containment now.** Make the repository private until step 6 is verified on a fresh clone. Run `gh repo edit ardihikaru/gaos --visibility private --accept-visibility-change-consequences`. The repository has no forks to detach. GitHub Pages and the docs site do not depend on its visibility. | Operator decides |
-| 0b | **The data owner.** The operator decides whether the customer whose catalog was exposed must be told. The decision is recorded in D-094's outcome. | Operator |
+| 0b | **The data owner.** The operator decides whether the customer whose catalog was exposed must be told. The decision is recorded in D-096's outcome. | Operator |
 | 0c | **No other writers.** Every other session and worktree has pushed or abandoned its work. The 14 local worktrees are listed with `git worktree list`. | Operator |
 | 0d | **Upstream check.** In an upstream pustaka clone, `git log --all -p | grep -ciE -f deploy/local/forbidden-strings` returns 0. | Operator |
-| 1 | v0.56.0 is merged, tagged, pushed and deployed. | Agent |
-| 2 | `GAOS_CHECK_TAG=v0.56.0 bash ~/gaos-rewrite-history.sh plan` prints `CLEAN`. | Operator |
+| 1 | v0.58.0 is merged, tagged, pushed and deployed. | Agent |
+| 2 | `GAOS_CHECK_TAG=v0.58.0 bash ~/gaos-rewrite-history.sh plan` prints `CLEAN`. | Operator |
 | 3 | `bash ~/gaos-rewrite-history.sh push` | Operator |
-| 4 | **Each prod VM.** Run `git fetch --force --tags origin`, `git checkout --force v0.56.0`, then `git worktree list` followed by `git worktree remove --force` for every `.worktrees/*`, then `git worktree prune && git gc --prune=now`. Then redeploy: `deploy/rebuild-restart.sh prod deploy --tag v0.56.0`, with instance 2's override file for instance 2. Its line `worktree at v0.56.0 (<sha>)` must show the new SHA, which is `git rev-parse v0.56.0` after the fetch. | Agent |
+| 4 | **Each prod VM.** Run `git fetch --force --tags origin`, `git checkout --force v0.58.0`, then `git worktree list` followed by `git worktree remove --force` for every `.worktrees/*`, then `git worktree prune && git gc --prune=now`. Then redeploy: `deploy/rebuild-restart.sh prod deploy --tag v0.58.0`, with instance 2's override file for instance 2. Its line `worktree at v0.58.0 (<sha>)` must show the new SHA, which is `git rev-parse v0.58.0` after the fetch. | Agent |
 | 5 | **Workstation.** For the main clone and each worktree, `git fetch --force`, then reset each live branch to its rewritten remote or delete it. Nothing is pushed from a pre-rewrite clone. | Agent |
 | 6 | **Verification on a fresh clone.** The `plan` verification, run against a new `git clone --mirror`, must report 0. | Operator |
 | 7 | GitHub Support is asked to run garbage collection and purge cached views. Once they confirm, `cleanup` runs and `pre.git` is deleted. | Operator |
@@ -277,7 +278,7 @@ If `nginx -t` fails, restore the backup.
 
 **Rollback before step 7.** Run `cd ~/.gaos-rewrite/pre.git && git push --force --all origin-url && git push --force --tags origin-url`. Then redo steps 4–5.
 
-**D-094 in v0.56.0 records the decision, not its execution.**
+**D-096 in v0.58.0 records the decision, not its execution.**
 
 > **The repository is public, and its history will be rewritten to remove one operator's instance material and the infra details. OQ-36 is decided.**
 >
@@ -286,20 +287,20 @@ If `nginx -t` fails, restore the backup.
 > Decision:
 > - rewrite with `git filter-repo` per `docs/designs/public-repo-hardening.md` §3.6: private strings, the edge and LAN addresses and the SSH user (bounded); the seed blobs stripped by ID; all branches and tags force-pushed; every checkout moved;
 > - the WireGuard port is rotated instead of rewritten;
-> - the tree is guarded by TC-722 and the private list.
+> - the tree is guarded by TC-751 and the private list.
 >
 > Residual: old objects stay fetchable by SHA until GitHub collects them; anyone who cloned before the rewrite keeps the old history.
 >
 > Outcome: *pending — filled in by the follow-up commit after step 6.*
 
-**OQ-36's register row** becomes `Decided → D-094 (execution pending)`, and its `h3` gains one line saying so.
+**OQ-36's register row** becomes `Decided → D-096 (execution pending)`, and its `h3` gains one line saying so.
 
 **The follow-up commit**, made after step 6 on the rewritten history:
-- sets the row to `Answered → D-094`;
-- fills in D-094's outcome: the date, the verification counts, the containment and data-owner decisions, and the port rotation.
+- sets the row to `Answered → D-096`;
+- fills in D-096's outcome: the date, the verification counts, the containment and data-owner decisions, and the port rotation.
 
 **Counts.** The register holds 22 `Answered` rows and 18 `Open` rows (counted). The lede at `open-questions.html:18` says "Twenty-two are answered … Of the seventeen still open". The "seventeen" is already wrong today: there are 18. With OQ-36 decided:
-- v0.56.0 counts it as answered: 23 answered, 17 open.
+- v0.58.0 counts it as answered: 23 answered, 17 open.
 - The lede becomes "Twenty-three are answered", and its "seventeen still open" becomes true.
 - `toc/product.js:78,110` ("twenty-one", which is stale) becomes "twenty-three".
 - `brd.html:1671`, "thirty-six in all, twenty-one answered" (stale, written before OQ-37–40), becomes "forty in all, twenty-three answered".
@@ -307,8 +308,8 @@ If `nginx -t` fails, restore the backup.
 ### 3.7 Registers, counts and release
 
 **New register rows.**
-- TC-722: `check-workspace.sh`, Negative. "No public IPv4 address in any tracked or new file, and every ToC part is valid JavaScript". Its `h3` carries the positive and negative probes from §3.2.
-- TC-723: `pustaka (go test)`, Negative. `TestCheckRejectsAMissingCommaBetweenEntries`.
+- TC-751: `check-workspace.sh`, Negative. "No public IPv4 address in any tracked or new file, and every ToC part is valid JavaScript". Its `h3` carries the positive and negative probes from §3.2.
+- TC-752: `pustaka (go test)`, Negative. `TestCheckRejectsAMissingCommaBetweenEntries`.
 
 **Counts.**
 
@@ -321,15 +322,15 @@ If `nginx -t` fails, restore the backup.
 | Answered questions | as §3.6 | as §3.6 |
 
 **QA rule file.** `.claude/rules/qa-test-plan.md`:
-- highest TC-723, next TC-724;
+- highest TC-752, next TC-724;
 - the counts;
-- the `check-workspace.sh` row gains TC-722 and the `pustaka (go test)` row gains TC-723;
+- the `check-workspace.sh` row gains TC-751 and the `pustaka (go test)` row gains TC-752;
 - totals: "723 rows … 564 in `dashboard/` and 24 in `pustaka/` — 588 Go tests".
 
 This file is the one standing file this change edits, and only its counts and map rows.
 
 **Release.**
-- Changelog v0.56.0.
+- Changelog v0.58.0.
 - semver 0.56.0, at `toc.js:22` and `README.md:12`.
 - Dashboard `?v=` bump (`templates/page.html`).
 
@@ -390,7 +391,7 @@ Not tracked:
    - `go test -run 'TestBootReconciliationClosesTheAttemptItRecovered' -count=60` reports ok;
    - `deploy/check-workspace.sh` passes in full, with sections 7 (the list present) and 8, and the §3.2 negative probe fails as stated;
    - `deploy/check-stacks.sh` passes.
-2. **Release.** PR, merge, tag `v0.56.0`.
+2. **Release.** PR, merge, tag `v0.58.0`.
 3. **Deploy both prods.** On each instance, a headless Chrome run of `/docs/guide/getting-started.html` must:
    - report no `pageerror`;
    - show `.sidebar` containing "The QA sync API" (from `toc/guide.js`);
@@ -399,4 +400,4 @@ Not tracked:
    - `seq 200 | xargs -P 20 -I{} curl -s -o /dev/null -w '%{http_code}\n' https://<host>/docs/__pustaka/info | sort | uniq -c`: some responses are `429`;
    - `seq 200 | xargs -P 20 -I{} curl -s -o /dev/null -w '%{http_code}\n' https://<host>/app/healthz | sort | uniq -c`: all `200`;
    - one cold page load: no `429`.
-5. **Rewrite.** Steps 0–8 of §3.6. Then the follow-up commit (D-094's outcome).
+5. **Rewrite.** Steps 0–8 of §3.6. Then the follow-up commit (D-096's outcome).
