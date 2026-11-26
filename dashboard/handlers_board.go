@@ -35,6 +35,12 @@ func (s *server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	if !s.requireBO(w, r) {
 		return
 	}
+	// ?paged=1 is the client board's document (D-094, board_view.go): one page,
+	// filtered. Without it this is the document it has always been.
+	if r.URL.Query().Get("paged") == "1" {
+		s.handleBoardPaged(w, r, r.PathValue("id"))
+		return
+	}
 	b, err := s.store.Board(r.Context(), r.PathValue("id"))
 	if errors.Is(err, ErrNotFound) {
 		writeBoardJSON(w, http.StatusNotFound, map[string]string{"error": "no such product"})
@@ -75,16 +81,17 @@ func (s *server) handleMoveCard(w http.ResponseWriter, r *http.Request) {
 		refuseCard(w, err.Error())
 		return
 	}
+	// A move made on the Board is answered with the Board: the columns that
+	// changed, at the depth and under the filter the browser is showing
+	// (D-094). The whole sheet used to come back for one card.
 	if wantsHTMX(r) {
-		s.renderBOAfter(w, r, res, id, "board")
+		s.renderBoardAfter(w, r, res, id)
 		return
 	}
-	b, _ := s.store.Board(r.Context(), id)
-	for _, c := range b.Cards {
-		if c.ID == taskID {
-			writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
-			return
-		}
+	// One card, not the board (D-094): on the client board every drag ends here.
+	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
+		writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
+		return
 	}
 	writeBoardJSON(w, http.StatusOK, map[string]any{"card": nil})
 }
@@ -149,12 +156,10 @@ func (s *server) handleSendBack(w http.ResponseWriter, r *http.Request) {
 		s.renderBOAfter(w, r, res, id, "board")
 		return
 	}
-	b, _ := s.store.Board(r.Context(), id)
-	for _, c := range b.Cards {
-		if c.ID == taskID {
-			writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
-			return
-		}
+	// One card, not the board (D-094): on the client board every drag ends here.
+	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
+		writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
+		return
 	}
 	writeBoardJSON(w, http.StatusOK, map[string]any{"card": nil})
 }

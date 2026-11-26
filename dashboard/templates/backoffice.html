@@ -76,7 +76,7 @@
       <a{{if eq .Tab "knowledge"}} aria-current="page"{{end}} href="p/{{.Slug}}/knowledge" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></a>
       <a{{if eq .Tab "board"}} aria-current="page"{{end}}     href="p/{{.Slug}}/board" hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</a>
       <a{{if eq .Tab "qa"}} aria-current="page"{{end}}        href="p/{{.Slug}}/qa" hx-get="products/{{.ID}}?tab=qa"        hx-target="#sink" hx-swap="innerHTML">QA</a>
-      <a{{if eq .Tab "timeline"}} aria-current="page"{{end}}  href="p/{{.Slug}}/timeline" hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n">{{num (len .Timeline)}}</span></a>
+      <a{{if eq .Tab "timeline"}} aria-current="page"{{end}}  href="p/{{.Slug}}/timeline" hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n" id="navTimelineN">{{num .TimelineN}}</span></a>
       <a{{if eq .Tab "blueprint"}} aria-current="page"{{end}} href="p/{{.Slug}}/blueprint" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></a>
       <a{{if eq .Tab "vendors"}} aria-current="page"{{end}}   href="p/{{.Slug}}/vendors" hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</a>
     </nav>
@@ -211,7 +211,7 @@
   </span>
 </header>
 
-<div class="panel-grid">
+<div class="panel-grid{{if eq .Tab "board"}} is-wide{{end}}">
   <div>
     {{if eq .Tab "stories"}}{{template "pane-stories" .}}
     {{else if eq .Tab "diagrams"}}{{template "pane-diagrams" .}}
@@ -224,6 +224,9 @@
     {{else}}{{template "pane-brd" .}}{{end}}
   </div>
 
+  {{/* D-094: the Board takes the whole width; the record's side panel is
+       on every other tab. */}}
+  {{if ne .Tab "board"}}
   <aside class="inject">
     <div class="block">
       <h4>Graph projection</h4>
@@ -247,6 +250,7 @@
 
     {{template "readiness-block" .}}
   </aside>
+  {{end}}
 </div>
 {{end}}
 {{end}}
@@ -396,44 +400,164 @@
 </form>
 {{end}}
 
+{{/* The Board (D-094, docs/designs/urls-and-board.md §4, §5). One page of the
+     product's cards: thirty to a column until asked for more, under the filter
+     the bar holds, as a board or as a table. board-col, board-table,
+     board-count and board-views are also what the Board's own route
+     (products/{id}/board/live) answers with, one out-of-band element each; in
+     the sheet they are plain, because the sheet is itself out of band. */}}
 {{define "pane-board"}}
-{{$id := .ID}}
-<div class="block">
+{{with .BoardView}}
+<div class="block board-block" id="boardPane" data-product="{{.ProductID}}">
   <h4>Board — the product's tasks by status</h4>
-  <p style="margin:0 0 8px;font-size:13px;color:var(--ink-3)">A move is a request: the task state machine decides, and a
+  <p class="board-lede">A move is a request: the task state machine decides, and a
   refused move changes nothing. Drag a card, or use its buttons — they show only the moves allowed now.</p>
-  {{with .Board}}{{if .Cards}}
-  <link rel="stylesheet" href="static/vendor/sisflow/sisflow-board.css">
-  <p class="board-status mono" style="margin:0 0 6px;font-size:11px;color:var(--ink-3)" aria-live="polite"></p>
-  <div id="board-host" class="sisflow-board-host" data-product="{{$id}}" style="display:none"></div>
-  <div class="board-ssr" style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(140px,1fr);gap:8px;overflow-x:auto">
-    {{range $col := .Columns}}
-    <div class="board-col" data-col="{{$col.ID}}" style="min-height:120px;border:1px solid var(--line);border-radius:6px;padding:6px">
-      <div class="mono board-col-label" style="font-size:11px;margin-bottom:6px">{{$col.Label}}</div>
-      {{range $.Board.Cards}}{{if eq .Column $col.ID}}
-      <div class="board-card{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" draggable="true" data-card="{{.ID}}" data-product="{{$id}}" style="border:1px solid var(--line);border-radius:4px;padding:6px;margin-bottom:6px;background:var(--panel)">
-        {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
-        <div style="font-size:12px;color:var(--ink)">{{.Label}}</div>
-        <div class="mono" style="font-size:10px;color:var(--ink-3)">{{.ID}} · {{.Role}} · {{.Status}} · {{.Row}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
-        {{with .Labels}}<div class="mono card-labels" style="font-size:10px;color:var(--ink-3);margin-top:2px">{{range .}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
-        {{with .Qa}}{{template "qa-badge" .}}{{end}}
-        {{$card := .ID}}
-        {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
-        {{with .Reason}}<div class="mono card-reason">blocked: {{.}}</div>{{end}}
-        {{with .SendBack}}{{if .Open}}<button type="button" class="btn card-sendback" id="sb-{{$card}}" data-sheet-open="{{sendBackURL $id $card}}" aria-label="Send the design {{.Design}} back to its author">Revise design</button>{{else}}<div class="mono card-reason">revision limit reached ({{.Sent}} of {{.Cap}})</div>{{end}}{{end}}
-        {{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}{{range .Moves}}
-        <button class="btn" style="margin-top:4px;font-size:10px;padding:2px 6px" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
-        {{end}}
-      </div>
-      {{end}}{{end}}
-    </div>
-    {{end}}
-  </div>
+  {{if eq .Page.All 0}}<p class="board-none">No tasks yet. Create a workflow from this product's stories and its tasks appear here.</p>{{end}}
+  {{template "board-bar" .}}
+  {{if .Table}}
+    {{template "board-table" .}}
   {{else}}
-    <p style="margin:0;font-size:13px;color:var(--ink-3)">No tasks yet. Create a workflow from this product's stories and its tasks appear here.</p>
-  {{end}}{{end}}
+    {{if gt .Page.All 0}}
+    <link rel="stylesheet" href="static/vendor/sisflow/sisflow-board.css">
+    <p class="board-status mono" aria-live="polite"></p>
+    <div id="board-host" class="sisflow-board-host" data-product="{{.ProductID}}" style="display:none"></div>
+    {{end}}
+    <div class="board-ssr">
+      {{range .Cols}}{{template "board-col" .}}{{end}}
+    </div>
+  {{end}}
 </div>
 {{end}}
+{{end}}
+
+{{/* The bar is outside everything a live response replaces, so the caret and
+     the focus stay put while the board changes under it. The form's named
+     controls are the view; the search box has NO name, on purpose: a control
+     without one cannot be serialised into a URL by htmx or by the browser, and
+     a URL is what the edge logs. static/live.js sends its text in a header. */}}
+{{define "board-bar"}}
+<div class="af-filters board-bar">
+  {{template "board-views" .}}
+  <form class="af-form board-form" id="boardFilters" onsubmit="return false"
+        hx-get="{{.LiveURL}}" hx-target="#sink" hx-swap="innerHTML" hx-sync="this:replace"
+        hx-trigger="change, input changed delay:300ms from:#boardSearch, refresh">
+    <input type="hidden" name="view" value="{{.Page.Query.View}}">
+    <input type="hidden" name="sort" value="{{.Page.Query.Sort}}">
+    <input type="hidden" name="dir" value="{{.Page.Query.Dir}}">
+    <label><span class="sr-only">Search cards</span>
+      <input type="search" id="boardSearch" class="board-search" placeholder="Search title, id or pull request" value="{{.Text}}" maxlength="80" autocomplete="off" spellcheck="false"></label>
+    {{if gt (len .RoleOpts) 1}}<label><span class="sr-only">Role</span>
+      <select name="role">{{range .RoleOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    {{if gt (len .StoryOpts) 1}}<label><span class="sr-only">Story</span>
+      <select name="story">{{range .StoryOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    {{if gt (len .LabelOpts) 1}}<label><span class="sr-only">Label</span>
+      <select name="label">{{range .LabelOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    {{if gt (len .WfOpts) 1}}<label><span class="sr-only">Workflow</span>
+      <select name="wf">{{range .WfOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    <label class="board-check"><input type="checkbox" name="waiting" value="1"{{if .Page.Query.Waiting}} checked{{end}}> Waiting on a person</label>
+    {{if not .Table}}<label class="board-check"><input type="checkbox" name="empty" value="hide"{{if .Page.Query.HideEmpty}} checked{{end}}> Hide empty columns</label>{{end}}
+  </form>
+</div>
+{{template "board-count" .}}
+{{end}}
+
+{{/* Board or table, and the way back to no filter. Each link names what it
+     sets, and names it empty to clear it (view=, role=…): the URL wins over
+     the state the script sends with every request from this tab. */}}
+{{define "board-views"}}
+<div class="board-views" id="boardViews"{{if .Live}} hx-swap-oob="true"{{end}}>
+  <nav class="af-seg" aria-label="Board view">
+    <a href="{{.BoardHref}}" hx-get="{{.BoardGet}}" hx-target="#sink" hx-swap="innerHTML"{{if not .Table}} aria-current="true"{{end}}>Board</a>
+    <a href="{{.TableHref}}" hx-get="{{.TableGet}}" hx-target="#sink" hx-swap="innerHTML"{{if .Table}} aria-current="true"{{end}}>Table</a>
+  </nav>
+  {{if .Filtered}}<a class="af-reset" data-board-reset href="{{.ResetHref}}" hx-get="{{.ResetGet}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+</div>
+{{end}}
+
+{{/* How many cards, and how many of them match. The per-column list is for the
+     client board, which has no column footer of its own to put "Show more" on;
+     app.css shows it only while that board is mounted. */}}
+{{define "board-count"}}
+<div class="board-count" id="boardCount"{{if .Live}} hx-swap-oob="true"{{end}}>
+  <span class="board-count-n mono">{{.CountText}}</span>
+  {{if and (eq .Page.Matched 0) (gt .Page.All 0)}}<span class="board-nomatch">No cards match these filters. <a class="af-reset" data-board-reset href="{{.ResetHref}}" hx-get="{{.ResetGet}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a></span>{{end}}
+  {{if not .Table}}<span class="board-count-cols">{{range .Cols}}{{if not .Hidden}}<span class="board-count-col" data-col="{{.ID}}">{{.Label}} <b class="mono">{{num .Shown}}</b>{{if ne .Shown .Matched}} of {{num .Matched}}{{end}}{{if .More}} <button type="button" class="btn board-more" data-board-more="{{.ID}}" aria-label="Show more cards in {{.Label}}">Show more</button>{{end}}</span>{{end}}{{end}}</span>{{end}}
+</div>
+{{end}}
+
+{{/* One column. data-shown and data-rev are what the browser sends back with
+     its next request: how deep this column is open, and what it holds. Every
+     class, id and data- attribute of a card is what it was before D-094 --
+     app.js, live.js and five tests find cards by them. */}}
+{{define "board-col"}}
+{{$id := .ProductID}}
+<div class="board-col" id="col-{{.ID}}" data-col="{{.ID}}" data-shown="{{.Shown}}" data-rev="{{.Rev}}"{{if .Hidden}} hidden{{end}}{{if .Send}} hx-swap-oob="true"{{end}}>
+  <div class="mono board-col-label"><span>{{.Label}}</span> <span class="board-col-n">{{num .Shown}}{{if ne .Shown .Matched}} of {{num .Matched}}{{end}}</span></div>
+  <div class="board-col-cards">
+  {{range .Cards}}
+  <div class="board-card{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" draggable="true" data-card="{{.ID}}" data-product="{{$id}}">
+    {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
+    <div class="board-card-title">{{.Label}}</div>
+    <div class="mono board-card-meta">{{.ID}} · {{.Role}} · {{.Status}} · {{if .Story}}{{.Story}}{{else}}plan{{end}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
+    {{with .Labels}}<div class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
+    {{with .Qa}}{{template "qa-badge" .}}{{end}}
+    {{$card := .ID}}
+    {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
+    {{with .Reason}}<div class="mono card-reason">blocked: {{.}}</div>{{end}}
+    {{with .SendBack}}{{if .Open}}<button type="button" class="btn card-sendback" id="sb-{{$card}}" data-sheet-open="{{sendBackURL $id $card}}" aria-label="Send the design {{.Design}} back to its author">Revise design</button>{{else}}<div class="mono card-reason">revision limit reached ({{.Sent}} of {{.Cap}})</div>{{end}}{{end}}
+    {{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}{{range .Moves}}
+    <button class="btn board-move" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>
+    {{end}}
+  </div>
+  {{end}}
+  </div>
+  {{if .More}}<button type="button" class="btn board-more" hx-get="products/{{$id}}/board/live?more={{.ID}}" hx-target="#sink" hx-swap="innerHTML" hx-sync="#boardFilters:replace" aria-label="Show more cards in {{.Label}}">Show more</button>{{end}}
+  {{if .Capped}}<p class="board-capped">{{boardFooter .Shown .Matched}}</p>{{end}}
+</div>
+{{end}}
+
+{{/* The table: the same cards, one per row. Replaced whole by every response of
+     the Board's route, so its order and its header links are always the
+     server's. */}}
+{{define "board-table"}}
+{{$id := .ProductID}}
+<div class="board-table" id="boardTable" data-rows="{{len .Rows}}"{{if .Live}} hx-swap-oob="true"{{end}}>
+  <div class="tm-scroll af-scroll">
+  <table class="af-table">
+    <thead><tr>{{range .Sorts}}<th scope="col"{{if .Key}} aria-sort="{{.Aria}}"{{end}}>{{if .Key}}<a href="{{.Href}}" hx-get="{{.Get}}" hx-target="#sink" hx-swap="innerHTML">{{.Label}}</a>{{else}}{{.Label}}{{end}}</th>{{end}}</tr></thead>
+    <tbody>
+    {{range .Rows}}{{$card := .ID}}
+    <tr class="board-row{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" data-card="{{.ID}}" data-product="{{$id}}">
+      <td class="mono">{{.ID}}</td>
+      <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Labels}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
+      <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
+      <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
+      <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
+      <td class="mono">{{.Workflow}}</td>
+      <td>{{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}</td>
+      <td>{{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}</td>
+      <td class="mono">{{if .UpdatedAt}}<time data-elapsed-since="{{since .UpdatedAt}}" title="last change {{since .UpdatedAt}}">{{ago .UpdatedAt}}</time>{{end}}</td>
+      <td class="board-row-moves">{{with .SendBack}}{{if .Open}}<button type="button" class="btn card-sendback" id="sb-{{$card}}" data-sheet-open="{{sendBackURL $id $card}}" aria-label="Send the design {{.Design}} back to its author">Revise design</button>{{end}}{{end}}{{range .Moves}}<button class="btn board-move" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>{{end}}</td>
+    </tr>
+    {{end}}
+    {{if not .Rows}}<tr><td colspan="10" class="board-norows">{{if eq .Page.All 0}}No tasks yet.{{else}}No cards match these filters.{{end}}</td></tr>{{end}}
+    </tbody>
+  </table>
+  </div>
+  <p class="board-rows-foot mono">Showing {{num (len .Rows)}} of {{num .Page.Matched}}{{if .RowsMore}} <button type="button" class="btn board-more" hx-get="products/{{$id}}/board/live?more=rows" hx-target="#sink" hx-swap="innerHTML" hx-sync="#boardFilters:replace">Show 100 more</button>{{end}}{{if .RowsCapped}} — the first {{num (len .Rows)}}. Filter to see the rest.{{end}}</p>
+</div>
+{{end}}
+
+{{/* What the Board's own route answers with: the columns the browser does not
+     already have (or the table), the count, the view links, and the Timeline
+     tab's number, which every move changes. */}}
+{{define "board-live"}}
+{{if .Table}}{{template "board-table" .}}{{else}}{{range .Cols}}{{if .Send}}{{template "board-col" .}}{{end}}{{end}}{{end}}
+{{template "board-count" .}}
+{{template "board-views" .}}
+<span class="n" id="navTimelineN" hx-swap-oob="true">{{num .TimelineN}}</span>
+{{end}}
+{{define "board-live-view"}}{{template "board-live" .BoardLive}}{{end}}
 
 {{define "vendor-badge"}}<span class="vnd-badge" title="{{if eq . "antigravity"}}Antigravity{{else}}Claude CLI{{end}}">{{if eq . "antigravity"}}AG{{else}}CL{{end}}</span>{{end}}
 

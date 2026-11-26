@@ -155,6 +155,11 @@ var funcs = template.FuncMap{
 	// to build a template.CSS. It is the only func that produces CSS, and it
 	// takes a number, so there is nothing to inject.
 	"styleWidth": func(v float64) template.CSS { return pctStyle("width", v) },
+	// ago is a unix time as the span since it ("5h"), for the first paint of a
+	// <time> that live.js then keeps ticking (D-094, the table's Changed column).
+	"ago": func(sec int64) string { return relSpan(time.Since(time.Unix(sec, 0))) },
+	// boardFooter is a board column's last line once it is at its cap.
+	"boardFooter": boardFooter,
 }
 
 // thousands writes 1284 as "1,284". The chip's count is the only caller; a

@@ -266,6 +266,7 @@ var readOnlyGET = map[string]string{
 	"GET /products":                                  "lists products",
 	"GET /products/{id}":                             "renders one product",
 	"GET /products/{id}/board":                       "renders the board",
+	"GET /products/{id}/board/live":                  "renders the Board's changed columns or table (D-094)",
 	"GET /products/{id}/readiness":                   "reads readiness",
 	"GET /questions":                                 "lists open questions",
 	"GET /products/{id}/questions":                   "lists one product's questions",

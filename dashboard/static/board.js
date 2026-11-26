@@ -163,6 +163,12 @@ function cardFace(product, card, ctx) {
   if (cc) (face.querySelector(".sfb-card-content") || face).append(cc);
   const tc = timingChip(product, card);
   if (tc) (face.querySelector(".sfb-card-content") || face).append(tc);
+  if (card.story) {
+    const st = document.createElement("span");
+    st.className = "card-label mono";
+    st.textContent = card.story;
+    (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(st);
+  }
   for (const el of gateFace(product, card)) (face.querySelector(".sfb-card-content") || face).append(el);
   return card.status === AWAITING ? [needsBadge(product, card), face] : face;
 }
@@ -176,10 +182,68 @@ function say(host, text) {
   if (out) out.textContent = text;
 }
 
+// What the client board remembers across a re-render of the sheet (D-094). A
+// send-back, a label or an answer replaces the sheet and with it the host
+// element, so sisflow mounts again; kept by product, not by element, the new
+// mount opens at the depth and the scroll position the old one had.
+const depths = new Map(); // product id -> { column id: cards wanted }
+const scrolls = new Map(); // product id -> [scrollLeft, scrollTop]
+const STEP = 30, MAX_SHOWN = 300;
+
+function pairs(obj) {
+  return Object.keys(obj).map((k) => k + ":" + obj[k]).join(",");
+}
+
+// A card that arrived in a column on a live refresh: one bar, gone by fading.
+function fadeFresh(host) {
+  setTimeout(() => {
+    for (const el of host.querySelectorAll(".sfb-card.is-fresh")) {
+      el.classList.add("is-fading");
+      setTimeout(() => el.classList.remove("is-fresh", "is-fading"), 200);
+    }
+  }, 1500);
+}
+
 export function mount(host) {
   if (!host || mounted.has(host)) return;
-  const base = new URL("products/" + encodeURIComponent(host.dataset.product), document.baseURI).pathname;
+  const product = host.dataset.product;
+  const base = new URL("products/" + encodeURIComponent(product), document.baseURI).pathname;
+  const form = document.getElementById("boardFilters");
+  const pane = document.getElementById("boardPane");
+  if (!depths.has(product)) depths.set(product, {});
+  const shown = depths.get(product);
   let board = null;
+  let doc = null; // the document on screen
+  const publish = () => { host.dataset.shown = pairs(shown); };
+  publish();
+
+  // The board's document is one page of the product's cards: the filter the
+  // bar holds, each column at its depth (GET …/board?paged=1). The view and
+  // the window travel in the same two headers every request from this tab
+  // carries (static/live.js); the search text is in neither URL nor body.
+  const fetchDoc = async () => {
+    const headers = {};
+    if (window.gaosBoard) {
+      headers["X-Board-State"] = window.gaosBoard.state();
+      const q = window.gaosBoard.search();
+      if (q) headers["X-Board-Search"] = q;
+    }
+    const res = await fetch(base + "/board?paged=1", { headers });
+    if (!res.ok) throw Object.assign(new Error("the board did not load"), { status: res.status });
+    return res.json();
+  };
+  // hinted: this reload answers a live refresh, so a card that is new to its
+  // column is marked. A filter change or "Show more" marks nothing.
+  const dress = (next, hinted) => {
+    const before = new Map(((doc && doc.cards) || []).map((c) => [c.id, c.column]));
+    for (const c of next.cards || []) {
+      const css = [];
+      if (c.status === AWAITING) css.push("is-needs-you");
+      if (hinted && doc && before.get(c.id) !== c.column) css.push("is-fresh");
+      if (css.length) c.css = css.join(" ");
+    }
+    return next;
+  };
 
   const create = () => {
     board && board.destroy();
@@ -189,63 +253,139 @@ export function mount(host) {
     const rest = createRestProvider({ base: base + "/board", retry: { max: 0 }, debounceMs: 0 });
     const provider = {
       ...rest,
-      // GAOS names the lane of tasks outside any story "plan"; sisflow always
-      // draws a lane for cards with no row. They are the same lane, so the
-      // plan's cards travel as row-less and that lane is labelled Plan, rather
-      // than the board showing an empty extra lane above it.
       async load() {
-        const res = await fetch(base + "/board");
-        if (!res.ok) throw Object.assign(new Error("the board did not load"), { status: res.status });
-        const doc = await res.json();
-        doc.rows = (doc.rows || []).filter((r) => r.id !== "plan");
-        for (const c of doc.cards || []) {
-          if (c.row === "plan") c.row = null;
-          if (c.status === AWAITING) c.css = "is-needs-you";
-        }
+        if (!doc) doc = dress(await fetchDoc(), false);
         return doc;
       },
-      // The whole document is already loaded by load() above. sisflow's
-      // virtual list asks for another page once a cell passes thirty cards;
-      // the REST provider would answer with GET …/board/cards, which GAOS does
-      // not serve (405), so the answer here is that there is nothing more.
+      // The library's own paging stays off: it cannot be told a column is
+      // finished and stalls after a page that adds nothing. "Show more" is the
+      // count line's button and a deeper reload (below).
       async loadPage() {
         return { cards: [], exhausted: true };
       },
       push(entry) {
         say(host, "");
         rest.push(entry);
-        rest.flush().then(() => setTimeout(create, 250));
+        rest.flush().then(() => reload(false));
       },
     };
     board = createBoard(host, {
       provider, theme: themeName(), cards: [], columns: [], rows: [],
-      catalogs: { en: { "lane.none": "Plan" } },
+      // There are no lanes: sisflow draws one for cards with no row, and its
+      // header (hidden in app.css) would otherwise say "(none)".
+      catalogs: { en: { "lane.none": "" } },
+      // A column never holds more than MAX_SHOWN cards, so the library's
+      // virtual list (on above 30 by default) is never needed -- and it must
+      // stay off: when a reload leaves a column with fewer cards than before,
+      // an observer of the old, virtualised list fires once more and renders
+      // a card that is gone.
+      virtual: { threshold: MAX_SHOWN },
       cardTemplate: (card, ctx) => cardFace(host.dataset.product, card, ctx),
     });
     board.on("board:provider-error", ({ error, status }) =>
       say(host, status === 409 ? "Refused: the task state machine does not allow that move." : (status || 0) + ": " + error.message));
   };
 
+  // One reload for everything that changes what the board shows: a hint, a
+  // save, a filter, "Show more". It hands the new document to the board's own
+  // store, which redraws once and keeps the scroller -- where this used to
+  // destroy the board and build another. board._store is the vendored
+  // library's, at the version in the tree; without it, the old way.
+  let again = null;
+  const reload = async (hinted) => {
+    if (!host.isConnected) return;
+    // A drag in progress wins: reloading under the pointer would drop the card mid-air.
+    if (host.querySelector(".sfb-dragging") || host.firstElementChild?.classList.contains("sfb-dragging")) {
+      clearTimeout(again);
+      again = setTimeout(() => reload(hinted), 500);
+      return;
+    }
+    publish();
+    let next;
+    try {
+      next = dress(await fetchDoc(), hinted);
+    } catch (err) {
+      say(host, "The board did not refresh" + (err.status ? " (" + err.status + ")" : "") + "; it shows what it had.");
+      return;
+    }
+    doc = next;
+    say(host, "");
+    // The store redraws the board from the new document, and a redraw puts
+    // its scroller back at the start: where the operator was is put back, now
+    // and once more after the frame in which the library lays the cards out.
+    const body = host.querySelector(".sfb-body");
+    const was = body ? [body.scrollLeft, body.scrollTop] : scrolls.get(product);
+    if (board && board._store && typeof board._store.load === "function") board._store.load(doc);
+    else create();
+    if (was) {
+      const keep = () => { const b = host.querySelector(".sfb-body"); if (b) [b.scrollLeft, b.scrollTop] = was; };
+      keep();
+      requestAnimationFrame(keep);
+    }
+    if (hinted) fadeFresh(host);
+  };
+
   create();
   mounted.set(host, true);
-  // live.js asks for a reload when a task hint names this product. A drag in
-  // progress wins: reloading under the pointer would drop the card mid-air.
-  host.addEventListener("gaos:board-refresh", () => {
-    if (!host.isConnected || host.querySelector(".sfb-dragging") || host.firstElementChild?.classList.contains("sfb-dragging")) return;
-    // Needs you sits right of Working, often scrolled into view; a refresh the
-    // operator did not ask for must not throw them back to Backlog.
-    const body = host.querySelector(".sfb-body");
-    const at = body ? [body.scrollLeft, body.scrollTop] : null;
-    create();
-    if (at) {
-      const keep = () => { const b = host.querySelector(".sfb-body"); if (b) [b.scrollLeft, b.scrollTop] = at; };
-      board.on("board:change", function once() { keep(); board.off?.("board:change", once); });
-      setTimeout(keep, 300);
-    }
-  });
+
+  if (form) {
+    // The form's own request is answered with the count line only while this
+    // board is on screen; its arrival is the cue to load the cards.
+    const surface = document.createElement("input");
+    surface.type = "hidden";
+    surface.name = "surface";
+    surface.value = "sisflow";
+    form.append(surface);
+    form.addEventListener("htmx:afterRequest", (ev) => {
+      if (ev.detail.elt !== form) return;
+      const headers = (ev.detail.requestConfig && ev.detail.requestConfig.headers) || {};
+      reload(!!headers["X-GAOS-Refresh"]);
+    });
+  }
+  if (pane) {
+    pane.classList.add("sisflow-on");
+    // "Show more": one column deeper, then the count line and the cards.
+    pane.addEventListener("click", (ev) => {
+      const btn = ev.target.closest && ev.target.closest("[data-board-more]");
+      if (!btn) return;
+      const col = btn.dataset.boardMore;
+      shown[col] = Math.min((shown[col] || STEP) + STEP, MAX_SHOWN);
+      publish();
+      if (form && window.htmx) htmx.trigger(form, "refresh");
+      else reload(false);
+    });
+  }
+
+  // Needs you sits right of Working, often scrolled into view; nothing the
+  // operator did not ask for may throw them back to Backlog.
+  host.addEventListener("scroll", (ev) => {
+    const b = ev.target;
+    if (b && b.classList && b.classList.contains("sfb-body")) scrolls.set(product, [b.scrollLeft, b.scrollTop]);
+  }, true);
+  // A new mount on the same product (the sheet was re-rendered) goes back to
+  // where the old one was. The cards arrive after the document is fetched, so
+  // the position is tried until the scroller is long enough to take it.
+  const at = scrolls.get(product);
+  if (at && (at[0] || at[1])) {
+    let tries = 0;
+    const keep = () => {
+      if (!host.isConnected) return;
+      const b = host.querySelector(".sfb-body");
+      if (b) [b.scrollLeft, b.scrollTop] = at;
+      if ((!b || b.scrollLeft !== at[0] || b.scrollTop !== at[1]) && ++tries < 25) setTimeout(keep, 100);
+    };
+    setTimeout(keep, 0);
+  }
+
   // style, not the hidden attribute: both elements carry a display of their
   // own, which an author style gives precedence over [hidden].
   host.style.display = "";
   const ssr = host.parentElement && host.parentElement.querySelector(".board-ssr");
-  if (ssr) ssr.style.display = "none";
+  if (ssr) {
+    ssr.style.display = "none";
+    // The server board has done its job -- it was on screen until this one
+    // was ready -- and a hidden copy of every card is a few thousand elements
+    // the page does not need. The next render of the sheet brings it back.
+    ssr.replaceChildren();
+  }
 }

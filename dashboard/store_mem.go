@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -46,10 +47,13 @@ type MemStore struct {
 	// positions of the TaskPlanned and TaskMoved events bearing on each task,
 	// extended from timingN on read. Its own mutex, because a reader holding
 	// mu.RLock extends it.
-	timingMu  sync.Mutex
-	timingIdx map[string][]int
-	convIdx   []int // D-082: every ConversationArchived / ConversationPruned
-	timingN   int
+	// timingCalls counts the card timings computed for a board page; a test
+	// reads it to hold BoardPage to "only the cards on the page" (D-094).
+	timingCalls atomic.Int64
+	timingMu    sync.Mutex
+	timingIdx   map[string][]int
+	convIdx     []int // D-082: every ConversationArchived / ConversationPruned
+	timingN     int
 
 	// live is the broker emit publishes to (D-065). Set on the live store
 	// only: a projection built to fold or replay has none, so the past is

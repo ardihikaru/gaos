@@ -666,3 +666,33 @@ Built as §3 says, with these differences, each smaller than what the section de
 - **`routes()` raced with itself under the test harness** (two requests at once in `TestRetargetIsRecheckedUnderTheLock`), on `main` as well; `go test -race` failed about one run in two. Fixed separately (pull request #46) and merged into this branch.
 
 Verified in headless Chrome against a local in-memory dashboard, without a prefix: a deep URL opened signed out shows the sign-in form and, after sign-in, the Board at the same address; nine tabs and views each set their address and title; three Backs, a Forward and a reload land on the right view; the id form redirects to the slug; creating a workflow from the Stories tab moves the address to the Board; a Ctrl-click on a tab opens a second tab on its page address and leaves the first where it was; `localStorage` stays empty. The store half was run against a scratch ArcadeDB (`deploy/schema/scratch.sh up`): the conformance suite and TC-733 pass. Not verified in a browser: the same walk behind the `/app` prefix (covered by the Go tests' prefixed cases and by TC-732 at deploy time), and a Pull requests drawer, which needs pull-request data.
+
+### 14.2 Phase 2 (v0.56.0)
+
+Built as §4 and §5 say, with these differences:
+
+- **Sixteen tests, not fifteen: TC-734 … TC-749, register 733 → 749, Go tests 598 → 614.** `TestTheBoardTabSkipsTheEventCopyAndTheDiagrams` (TC-749) holds §5.5, which §10.2's table had lost between revisions.
+- **The view model and the Board's route are in a new file, `board_view.go`**, not in `view.go` and `board_page.go`: `BoardView`, `boardView`, `handleBoardLive`, `renderBoardAfter`, the paged JSON. `board_page.go` is the store half and the parser.
+- **The table has a tenth column, "Changed"** — when the card last changed state, ticking — and it is the header that sorts by `updated`. §4.6 offered that sort and gave it no column. `BoardCard` gains `UpdatedAt` beside `Updated` for it.
+- **The view links are re-sent with every response of the Board's route** (`#boardViews`, out of band), so a page address copied from "Board" or "Table" after a filter change carries that filter.
+- **sisflow's virtual list is switched off** (`virtual: {threshold: 300}`). With it on, a reload that left a column with fewer cards than before made an observer of the old, virtualised list render a card that was gone: `TypeError: Cannot read properties of null (reading 'priority')` in `card-view.js`, found in the browser. A column never holds more than 300 cards, so nothing needs it.
+- **The hidden server board is emptied once sisflow has mounted.** It had done its job, and a hidden copy of every card was some 2,000 elements. The next render of the sheet brings it back.
+- **sisflow puts its scroller back after every reload**, and after a remount retries until the cards are laid out; the library's store resets it.
+
+**Measured** (`go test -run xxx -bench Board -benchmem`, the synthetic product of §1.2, the same machine):
+
+| Measure | Before | Target | After |
+|---|---|---|---|
+| `Board`, 10,000 cards | 361 ms | — | 75 ms (the two quadratic decorators) |
+| `BoardPage`, 2,000 / 10,000 cards | 25 ms / 361 ms (`Board`) | ≤ 3 ms / ≤ 15 ms | 2.9 ms / 10.2 ms |
+| `BoardCard`, 2,000 cards | 25 ms (`Board`) | ≤ 0.5 ms | 0.07 ms |
+| Opening the Board tab, 2,000 cards | 109 ms / 94 MB / 1.83 MB | ≤ 15 ms / ≤ 10 MB / ≤ 300 KB | 11.9 ms / 7.3 MB / 247 KB |
+| One live refresh after a move, 2,000 cards | 109 ms / 94 MB / 1.83 MB | ≤ 10 ms / ≤ 8 MB / ≤ 60 KB | 4.8 ms / 5.2 MB / 46 KB |
+| Elements under `#boMain`, 2,000 cards | not measured before the change | ≤ 4,000 | 2,103 on the server board; 3,845 with sisflow mounted and Done opened to 60 |
+| DOM nodes and JS heap after 40 live refreshes | not measured before the change | no growth | server board 6,649 → 5,978 nodes, 1.2 → 1.3 MB; sisflow 8,200 → 8,199 nodes, 2.1 → 2.4 MB |
+
+Every target of §5.6 is met. The last two rows were not measured on the old board, so they have no "before"; the last one was read from Chrome's `Performance.getMetrics` after a forced garbage collection (all live DOM nodes, detached ones included), not from a heap snapshot filtered for "Detached".
+
+**Verified in headless Chrome**, on the synthetic 2,000-card product, once with `static/board.js` blocked and once with sisflow mounted: Done shows 30 of 1,800 and "Show more" makes it 60; a role filter narrows the cards, the count line and the address; the search narrows the board, is absent from the address and from every request URL; a filter, then Table, then "Clear filters" clears the selects and the search box and keeps the table; the table sorts by ID and shows 100 more; Board again and a reload keep the view. A move made outside the page replaces two of the nine columns in one request, keeps the board's sideways scroll and Done's own, and marks the card, which fades; five moves at once are one refresh; with the tab hidden no request is made, and one on return; a label set from a filtered, scrolled board keeps the filter, the address and both scroll positions — on sisflow also its depth. The light theme and a 420px-wide screen were looked at, with a 150-character unbroken title and non-Latin text in the first cards: nothing overflows.
+
+**Not verified**: a real pointer drag on either board (the move route and its answer are tested; the drag itself is the same code as before); a keyboard-only pass; `prefers-reduced-motion` in a browser (the rule is in `app.css`); the `/app` prefix in a browser. The `review-animations` and `break-ui` skills were not run as such — the motion here is one opacity fade written to the frontend agent's rules, and the worst-case check was the manual one above.

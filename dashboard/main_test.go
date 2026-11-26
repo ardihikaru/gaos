@@ -123,6 +123,10 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/products/p-1?tab=diagrams", 200},
 		{"GET", "/products/p-1?tab=knowledge", 200},
 		{"GET", "/products/p-1?tab=board", 200},
+		{"GET", "/products/p-1?tab=board&view=table&sort=id", 200},
+		{"GET", "/products/p-1/board/live", 200},    // D-094: the Board's own route
+		{"GET", "/products/p-1/board?paged=1", 200}, // and the client board's document
+		{"GET", "/products/nope/board/live", 404},
 		{"GET", "/products/p-1?tab=blueprint", 200},
 		{"GET", "/products/p-1?tab=timeline", 200},
 		{"GET", "/products/p-1/readiness", 200},
@@ -800,5 +804,16 @@ func TestTheBoardHostHasABoundedHeight(t *testing.T) {
 	}
 	if !strings.Contains(css, ".sisflow-board-host .sfb-body{overscroll-behavior:auto}") {
 		t.Errorf(".sfb-body still has overscroll-behavior:contain: a wheel over the board never reaches the page")
+	}
+	// D-094: the server board is bounded the same way, so each column scrolls
+	// inside it and its header stays in view; and the columns are as wide as
+	// one variable says, on both boards.
+	ssr := regexp.MustCompile(`\.board-ssr\{[^}]*height:calc\(100d?vh - \d+px\)[^}]*min-height:\d+px[^}]*\}`)
+	if !ssr.MatchString(css) || !strings.Contains(css, ".board-col-cards{flex:1 1 auto;min-height:48px;overflow-y:auto") {
+		t.Errorf(".board-ssr has no bounded height, or .board-col-cards does not scroll inside it: a long column would push the page")
+	}
+	if !strings.Contains(css, "--board-col:300px") || !strings.Contains(css, "grid-auto-columns:var(--board-col)") ||
+		!strings.Contains(css, ".sisflow-board-host .sfb-column{width:var(--board-col)}") {
+		t.Errorf("the board's column width is not the one variable --board-col on both boards")
 	}
 }

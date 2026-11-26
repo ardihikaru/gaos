@@ -547,6 +547,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
 	handle("PUT /products/{id}/vendors", s.handleSaveVendors)
 	handle("GET /products/{id}/board", s.handleBoard)
+	handle("GET /products/{id}/board/live", s.handleBoardLive)                   // the Board's own route (D-094)
 	handle("GET /products/{id}/board/cards/{taskId}/timing", s.handleCardTiming) // D-081
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084
