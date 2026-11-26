@@ -251,6 +251,22 @@ func contextPathOK(p string) bool {
 	return !pathForbidden(nil, p) && !credentialShaped(p)
 }
 
+// contextClass orders the files of a slice: source a fix would edit (0), then tests (1), then
+// everything else (2): generated and legacy resources, request samples and documents. Found live:
+// code search ranked a .http sample and a markdown page ahead of the resolver, and the six-file
+// budget was spent before the code the triager needed.
+func contextClass(p string) int {
+	lp := strings.ToLower(p)
+	switch {
+	case !strings.HasSuffix(lp, ".go"), strings.Contains(lp, "_generated"), strings.Contains(lp, "_gen.go"),
+		strings.Contains(lp, "_oldresources"), strings.HasPrefix(lp, "resources/"), strings.HasPrefix(lp, "technical-docs/"):
+		return 2
+	case strings.HasSuffix(lp, "_test.go"):
+		return 1
+	}
+	return 0
+}
+
 // buildDefectContext reads the head SHA of each kept repository, searches for
 // the operations (at most 10 searches in all) and fetches at most 6 files and
 // 64 KiB at the pinned head. A search or fetch error is errSearchFailed after
@@ -299,6 +315,9 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {
+		if ci, cj := contextClass(cands[i].path), contextClass(cands[j].path); ci != cj {
+			return ci < cj
+		}
 		if cands[i].rank != cands[j].rank {
 			return cands[i].rank < cands[j].rank
 		}
