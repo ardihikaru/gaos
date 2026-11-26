@@ -1,6 +1,6 @@
 # Real URLs for the back office, and a Board that pages, filters, switches to a table and refreshes in place
 
-> **Status:** In Review (rev 4: answers three review rounds; round 3 raised no Blocker and no Critical or High. The reports are `docs/designs/reviews/urls-and-board-{comprehension,zoomout,critic,readiness}-{1,2,3}.md` and `urls-and-board-security-review-{1,2,3}.md`; the triage of each round is `urls-and-board-review-{1,2,3}.md`. Awaiting the operator.)
+> **Status:** Approved (rev 4; the operator approved both phases on 2026-11-26 after three review rounds — round 3 raised no Blocker and no Critical or High. The reports are `docs/designs/reviews/urls-and-board-{comprehension,zoomout,critic,readiness}-{1,2,3}.md` and `urls-and-board-security-review-{1,2,3}.md`; the triage of each round is `urls-and-board-review-{1,2,3}.md`.)
 > **Policy:** `docs/rules/gaos-design-review.md`
 > **Related:** `docs/designs/card-timing.md` (D-081, the last change to the Board), `docs/designs/gaos-pr-overview.md` (D-092, whose filter bar, table and live region this design reuses), `docs/designs/bo-login.md` (the sign-in this design must not weaken)
 > **Paths.** A bare name (`board.go`) is in `dashboard/`; so are `templates/`, `static/` and `schema/`. A path that starts with `docs/`, `pustaka/`, `deploy/` or `.claude/`, or `README.md`, is relative to the repository root. Line numbers are those of the branch `feat/urls` at the commit that adds this file. That branch is cut from `fix/board-js-syntax` (pull request #45, v0.54.1); **phase 1 starts after #45 is merged to `main`**, and every baseline count below (TC-721, 587 Go tests) is the count after it.
@@ -645,4 +645,8 @@ None open. Accepted limits:
 
 ## 13. Approval
 
-Pending review.
+Approved by the operator on 2026-11-26, both phases. Three decisions were put to the operator with the approval and answered:
+
+1. **The product's name in the address** (§6): accepted. D-093 records that the slug, and with it the product's name, is visible in the edge's access log, the browser's history and the tab title.
+2. **Only the columns that changed** (§5.1, §8): chosen over re-sending all nine columns on every hint.
+3. **A slug is not reserved after its product is removed by hand** (§12): shown with the approval and not objected to.
