@@ -77,6 +77,17 @@ func validateAutoFix(a AutoFix, tokenKind string) error {
 			return reject("Every test glob must contain a test marker (_test., .test., .spec., /test/, /tests/) and may not be * or **.")
 		}
 	}
+	if len(a.AllowedBases) > 8 {
+		return reject("At most 8 allowed base branches.")
+	}
+	for _, b := range a.AllowedBases {
+		if !baseBranchRe.MatchString(b) || strings.Contains(b, "..") {
+			return reject("An allowed base is not a valid branch name.")
+		}
+	}
+	if len(a.AutomationRepos) > 4 || !validTargetRepos(a.AutomationRepos) {
+		return reject("Each automation repository must be owner/repo, at most 4.")
+	}
 	if a.PRTemplate != "" {
 		if len(a.PRTemplate) > 8<<10 {
 			return reject("The pull-request template is longer than 8 KiB.")

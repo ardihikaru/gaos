@@ -18,6 +18,7 @@ type fakeQAJobs struct {
 	started     []string
 	canceled    []string
 	cancelErr   error
+	pr, link    string // pr_url and job_url the status carries (design §4.4)
 }
 
 func (f *fakeQAJobs) cancelJob(_ context.Context, id string) error {
@@ -35,7 +36,7 @@ func (f *fakeQAJobs) startAutomation(_ context.Context, product, code, mode stri
 func (f *fakeQAJobs) jobStatus(context.Context, string) (qaJob, int, error) {
 	s := f.statuses[min(f.polls, len(f.statuses)-1)]
 	f.polls++
-	return qaJob{Status: s}, 200, nil
+	return qaJob{Status: s, PRURL: f.pr, JobURL: f.link}, 200, nil
 }
 
 func e2eFixture(t *testing.T, qa *fakeQAJobs, body string) (*qaJobRunner, *MemStore, string, string) {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -33,6 +34,11 @@ type qaJob struct {
 	Phase   string `json:"phase"`
 	JobType string `json:"job_type"`
 	Error   string `json:"error"`
+	// PRURL and JobURL are optional (QA tool 2026-11-26): the pull request the job opened and
+	// the job's page. The Pull requests page lists the first; the second is a link only on the
+	// host GAOS_QA_ORIGIN names (qaLinkOK).
+	PRURL  string `json:"pr_url"`
+	JobURL string `json:"job_url"`
 }
 
 // waiting reports whether the job waits for a person: the QA tool holds an open
@@ -121,6 +127,10 @@ type qaTracked struct {
 	waiting  bool
 	noticed  bool // the approval notice goes out once per job, not once per wait
 	waits    int  // how many times the job entered the wait
+	// caseCode is the case the job was started for ("" when the runner adopted the job after a
+	// restart); recorded is set once the job's pull-request row was written (design §4.4).
+	caseCode string
+	recorded bool
 }
 
 type qaJobRunner struct {
@@ -137,6 +147,9 @@ type qaJobRunner struct {
 	approvalWait time.Duration
 	now          func() time.Time
 	jobs         map[string]*qaTracked
+	// linkOrigin is GAOS_QA_ORIGIN as set explicitly ("" when unset or not a host name): the one
+	// host a job's page may be linked on (qaLinkOK).
+	linkOrigin string
 }
 
 const (
@@ -160,7 +173,7 @@ func qaApprovalWaitFromEnv() time.Duration {
 func newQAJobRunner(st Store, qa qaJobClient, cache *prContextCache, nt *notifier, src prSource) *qaJobRunner {
 	return &qaJobRunner{st: st, qa: qa, cache: cache, nt: nt, src: src, logf: func(string, ...any) {},
 		interval: qaJobInterval, timeout: qaJobTimeout, approvalWait: qaApprovalWaitFromEnv(),
-		now: time.Now, jobs: map[string]*qaTracked{}}
+		now: time.Now, jobs: map[string]*qaTracked{}, linkOrigin: explicitQAOrigin()}
 }
 
 // Run drives the cards until the context ends.
@@ -286,7 +299,7 @@ func (r *qaJobRunner) start(ctx context.Context, product string, c TaskRecord, m
 	if _, err := r.st.ResolvePRCard(ctx, product, c.ID, StatusRunning, qaJobReason(id, "started")); err != nil {
 		r.logf("qajobs: the card could not be marked running")
 	}
-	r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now()}
+	r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now(), caseCode: code}
 }
 
 // qaMaxWaits bounds how many times one job may enter the approval wait: a QA
@@ -315,6 +328,7 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 		// interval before a cap is seen.
 		j, _, err := r.qa.jobStatus(ctx, t.jobID)
 		if err == nil {
+			r.recordQARow(ctx, t, j) // on every poll, the final one included, before the job is dropped
 			if done, ok := j.final(); done {
 				delete(r.jobs, id)
 				if ok {
@@ -390,4 +404,36 @@ func (r *qaJobRunner) fail(ctx context.Context, card TaskRecord, reason string) 
 	if r.nt != nil {
 		r.nt.Notify(ctx, card, "e2e:failure", "e2e "+reason)
 	}
+}
+
+// recordQARow writes the job's pull request as a Pull requests row, once per job (design §4.4).
+// Only a pull request of an automation repository the product lists makes a row; anything else is
+// ignored with no GitHub call. The job's page becomes a link only when it passes qaLinkOK.
+func (r *qaJobRunner) recordQARow(ctx context.Context, t *qaTracked, j qaJob) {
+	if t.recorded || j.PRURL == "" {
+		return
+	}
+	owner, repo, n, ok := parseGitHubPRURL(j.PRURL)
+	if !ok || t.caseCode == "*" {
+		t.recorded = true
+		return
+	}
+	row := PullRequest{ProductID: t.card.DeskID, Repo: owner + "/" + repo, Number: n, Kind: PRKindQA,
+		State: PRStateOpen, TaskID: t.card.ID, QAJob: t.jobID, QACase: t.caseCode,
+		QALink: qaLinkOK(r.linkOrigin, j.JobURL)}
+	if _, err := r.st.UpsertPullRequest(ctx, row); err != nil && !errors.Is(err, ErrRejected) {
+		r.logf("qajobs: the pull request of a job could not be recorded")
+		return // a store failure is retried on the next poll
+	}
+	t.recorded = true // recorded, or refused for good (a repository the product does not list)
+}
+
+// explicitQAOrigin is GAOS_QA_ORIGIN when it is set and a host name, else "". Unlike qaOrigin it
+// never falls back to the host of GAOS_QA_URL: that is the API host, not the page's.
+func explicitQAOrigin() string {
+	v := strings.TrimSpace(os.Getenv("GAOS_QA_ORIGIN"))
+	if originPattern.MatchString(v) {
+		return v
+	}
+	return ""
 }

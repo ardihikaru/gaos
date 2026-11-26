@@ -66,6 +66,17 @@ window.DOCS.nav.push({
       ]
     },
     {
+      id: "pull-requests", file: "integrations/pull-requests.html", title: "Pull requests",
+      desc: "The back-office page that lists every open pull request tied to a task: where each kind comes from, what a row shows, how it is kept fresh, the settings and what it never does.",
+      tags: ["integration", "pull request", "github", "auto-fix", "review", "qa tool", "back office"],
+      sections: [
+        { anchor: "kinds", title: "Where each kind comes from", text: "Auto-fix, review and QA-tool pull requests, and the task of each." },
+        { anchor: "page", title: "The page", text: "Rows, tabs, filters, the drawer and how the page is kept fresh." },
+        { anchor: "settings", title: "The settings", text: "automationRepos and allowedBases, and that a post replaces the configuration." },
+        { anchor: "never", title: "What it never does", text: "Merge, ready, close, build a link from a supplied URL." }
+      ]
+    },
+    {
       id: "autofix", file: "integrations/autofix.html", title: "Defect auto-fix",
       desc: "How GAOS triages a defect the QA tool reports and opens a draft pull request for an easy one: the nine steps, what easy means, the settings, the QA tool's route, the caps, the Auto-fix view and what GAOS never does.",
       tags: ["integration", "auto-fix", "defect", "triage", "github", "pull request", "qa tool"],

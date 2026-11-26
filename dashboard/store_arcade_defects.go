@@ -51,7 +51,7 @@ func (s *ArcadeStore) writeDefect(ctx context.Context, tx *ArcadeTx, d Defect) e
 		"regression": d.Regression, "difficulty": nilIfEmpty(d.Difficulty), "triageClass": d.Class,
 		"repo": d.Repo, "files": listJSON(d.Files), "reason": d.Reason, "state": d.State,
 		"supersededBy": d.SupersededBy, "triageTask": d.TriageTask, "fixTask": d.FixTask,
-		"fixPR": d.FixPR, "context": ctxJSON,
+		"fixPR": d.FixPR, "context": ctxJSON, "baseOverride": d.BaseOverride,
 	})
 }
 
@@ -87,12 +87,13 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 		FixTask         string `json:"fixTask"`
 		FixPR           string `json:"fixPR"`
 		Context         string `json:"context"`
+		BaseOverride    string `json:"baseOverride"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, productId, defectId, caseId, kind, level, automationType, backend, targetRepos,
 		        operations, spec, title, excerpt, excerptWithheld, firstSeen, lastSeen, runRef, gen,
 		        regression, difficulty, triageClass, repo, files, reason, state, supersededBy,
-		        triageTask, fixTask, fixPR, context
+		        triageTask, fixTask, fixPR, context, baseOverride
 		 FROM Defect WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err
@@ -107,7 +108,7 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 			FirstSeen: r.FirstSeen, LastSeen: r.LastSeen, RunRef: r.RunRef, Gen: r.Gen,
 			Regression: r.Regression, Difficulty: r.Difficulty, Class: r.Class, Repo: r.Repo,
 			Files: listFrom(r.Files), Reason: r.Reason, State: r.State, SupersededBy: r.SupersededBy,
-			TriageTask: r.TriageTask, FixTask: r.FixTask, FixPR: r.FixPR,
+			TriageTask: r.TriageTask, FixTask: r.FixTask, FixPR: r.FixPR, BaseOverride: r.BaseOverride,
 		}
 		if r.Context != "" {
 			_ = json.Unmarshal([]byte(r.Context), &d.Context)
@@ -123,34 +124,38 @@ func (s *ArcadeStore) writeFixPR(ctx context.Context, tx *ArcadeTx, f FixPR) err
 		"url": f.URL, "state": f.State, "openedAt": f.CreatedAt, "changedAt": f.UpdatedAt,
 		"taskId": f.TaskID, "difficulty": f.Difficulty, "beforeText": f.Before, "afterText": f.After,
 		"branch": f.Branch, "baseSHA": f.BaseSHA, "commitSHA": f.CommitSHA, "waSent": f.WaSent,
-		"reply": f.Reply,
+		"reply": f.Reply, "baseName": f.Base, "retargetedFrom": f.RetargetedFrom, "retargetedTo": f.RetargetedTo,
 	})
 }
 
 func (s *ArcadeStore) loadFixPRs(ctx context.Context) ([]FixPR, error) {
 	var rows []struct {
-		ID         string `json:"id"`
-		ProductID  string `json:"productId"`
-		DefectKey  string `json:"defectKey"`
-		Repo       string `json:"repo"`
-		Number     int    `json:"number"`
-		URL        string `json:"url"`
-		State      string `json:"state"`
-		CreatedAt  int64  `json:"openedAt"`
-		UpdatedAt  int64  `json:"changedAt"`
-		TaskID     string `json:"taskId"`
-		Difficulty string `json:"difficulty"`
-		Before     string `json:"beforeText"`
-		After      string `json:"afterText"`
-		Branch     string `json:"branch"`
-		BaseSHA    string `json:"baseSHA"`
-		CommitSHA  string `json:"commitSHA"`
-		WaSent     bool   `json:"waSent"`
-		Reply      string `json:"reply"`
+		ID             string `json:"id"`
+		ProductID      string `json:"productId"`
+		DefectKey      string `json:"defectKey"`
+		Repo           string `json:"repo"`
+		Number         int    `json:"number"`
+		URL            string `json:"url"`
+		State          string `json:"state"`
+		CreatedAt      int64  `json:"openedAt"`
+		UpdatedAt      int64  `json:"changedAt"`
+		TaskID         string `json:"taskId"`
+		Difficulty     string `json:"difficulty"`
+		Before         string `json:"beforeText"`
+		After          string `json:"afterText"`
+		Branch         string `json:"branch"`
+		BaseSHA        string `json:"baseSHA"`
+		CommitSHA      string `json:"commitSHA"`
+		WaSent         bool   `json:"waSent"`
+		Reply          string `json:"reply"`
+		Base           string `json:"baseName"`
+		RetargetedFrom string `json:"retargetedFrom"`
+		RetargetedTo   string `json:"retargetedTo"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, productId, defectKey, repo, number, url, state, openedAt, changedAt, taskId,
-		        difficulty, beforeText, afterText, branch, baseSHA, commitSHA, waSent, reply
+		        difficulty, beforeText, afterText, branch, baseSHA, commitSHA, waSent, reply,
+		        baseName, retargetedFrom, retargetedTo
 		 FROM FixPR WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err
@@ -160,7 +165,8 @@ func (s *ArcadeStore) loadFixPRs(ctx context.Context) ([]FixPR, error) {
 		out = append(out, FixPR{ID: r.ID, ProductID: r.ProductID, DefectKey: r.DefectKey, Repo: r.Repo,
 			Number: r.Number, URL: r.URL, State: r.State, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 			TaskID: r.TaskID, Difficulty: r.Difficulty, Before: r.Before, After: r.After, Branch: r.Branch,
-			BaseSHA: r.BaseSHA, CommitSHA: r.CommitSHA, WaSent: r.WaSent, Reply: r.Reply})
+			BaseSHA: r.BaseSHA, CommitSHA: r.CommitSHA, WaSent: r.WaSent, Reply: r.Reply,
+			Base: r.Base, RetargetedFrom: r.RetargetedFrom, RetargetedTo: r.RetargetedTo})
 	}
 	return out, nil
 }

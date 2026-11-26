@@ -1,5 +1,7 @@
 # Defect triage and auto-fix — a defect becomes a labelled task, an easy one becomes a draft pull request
 
+> **Amended by D-092** (`docs/designs/gaos-pr-overview.md`): a fix record that a retarget replaced, or has pending, never moves its defect, and the fix pull request gains `Base`, `RetargetedFrom` and `RetargetedTo`; the poller also follows review and QA-tool rows. The state table of §5.2 is unchanged for every other record.
+>
 > **Status:** Implemented (revision 3; round 3 not run, approved by delegation) (review rounds 1 and 2: `docs/designs/reviews/gaos-defect-autofix-consolidated-1.md`)
 > **Author:** the GAOS team
 > **Reviewers:** the `gaos-goldfish-*` agents (`docs/rules/gaos-design-review.md`)

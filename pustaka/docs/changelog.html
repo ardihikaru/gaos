@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-53-0">v0.53.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One page for every open pull request of a task (<a href="product/decision-log.html#d-092">D-092</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> A back-office page, <strong>Pull requests</strong>: every open pull request that relates to a task, per product, with its state, its branch and base, the task it belongs to (a link to the task&rsquo;s detail sheet), the QA-tool link where there is one, and related pull requests. It lists the draft fixes GAOS opens, the pull requests GAOS reviews, and the ones the QA tool opens. It makes no GitHub call; the poller keeps it fresh. See <a href="integrations/pull-requests.html">Pull requests</a>.</li>
+        <li><span class="chg add">Added</span> The <code>PullRequest</code> vertex (review and QA-tool pull requests, a cache of GitHub&rsquo;s state), the base branch on a fix record (back-filled for records opened before), and two product settings: <code>automationRepos</code> (where the QA tool opens its pull requests) and <code>allowedBases</code> (for the retarget that follows).</li>
+        <li><span class="chg change">Changed</span> One poller now follows fix records and rows alike; it re-checks that the product still follows a repository before each read. A fix record that a retarget replaced never moves its defect.</li>
+        <li><span class="chg change">Changed</span> Review rows for pull requests already open appear at the first start; <code>AutoFixConfigured</code> now records the base branch, the allowed bases, the target count and the automation repositories.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-10">v0.52.10 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A deleted product's id is not handed out again.</p>
       <ul>

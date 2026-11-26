@@ -413,7 +413,7 @@
   document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); syncMenu(); });
   document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); if (e.target.id === "boSheet") syncMenu(); });
 
-  /* ---------- the Auto-fix drawer ----------
+  /* ---------- the Auto-fix and Pull requests drawers (both are .af-drawer) ----------
      The server renders the drawer; the client only moves focus, because a swap
      destroys the element that had it. Opening puts focus on the drawer, closing
      (the x, or Esc) puts it back on the row that opened it. */
@@ -425,11 +425,11 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape" || e.defaultPrevented || openModal()) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName || "").toUpperCase())) return;
-    var close = document.querySelector("#afDrawer [data-af-close]");
+    var close = document.querySelector(".af-drawer [data-af-close]");
     if (close) { e.preventDefault(); close.click(); }
   });
   document.body.addEventListener("htmx:afterSettle", function () {
-    var d = document.getElementById("afDrawer");
+    var d = document.querySelector(".af-drawer");
     if (d) {
       if (d.hasAttribute("data-fresh")) { d.removeAttribute("data-fresh"); d.focus(); }
       return;
