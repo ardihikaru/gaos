@@ -1,6 +1,6 @@
 package main
 
-// The Board tab's view model and its own route (D-094,
+// The Board tab's view model and its own route (D-095,
 // docs/designs/urls-and-board.md §4.3–§4.6, §5.1).
 //
 // boardView turns a BoardPage into what the templates print: the filter bar's

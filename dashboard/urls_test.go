@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-// The tests of D-093: real URLs for the back office (urls.go,
+// The tests of D-094: real URLs for the back office (urls.go,
 // docs/designs/urls-and-board.md §3, §10.1).
 
 // get is a request as a browser makes one for a page: no HX-Request.
@@ -335,7 +335,7 @@ func TestNavigationPushesReplacesOrLeavesTheAddress(t *testing.T) {
 			{"a mutation that stays where it is", "POST", "/products/p-1/inject?tab=stories", at("/p/" + slug + "/stories?x=1"), want{}},
 			{"a mutation that opens another view", "POST", "/products/p-1/inject?tab=stories", at("/p/" + slug + "/brd"), want{push: prefix + "/p/" + slug + "/stories"}},
 			{"a product that does not exist", "GET", "/products/nope?tab=board", at("/"), want{}},
-			// D-094: the Board's view is part of its address; its window is not.
+			// D-095: the Board's view is part of its address; its window is not.
 			{"the Board as a table", "GET", "/products/p-1?tab=board&view=table&sort=id&shown=done:60&more=done", at("/p/" + slug + "/board"), want{replace: prefix + "/p/" + slug + "/board?sort=id&view=table"}},
 			{"the Board, a filter nobody offers", "GET", "/products/p-1?tab=board&role=nobody", at("/p/" + slug + "/board"), want{}},
 			{"onto the Board with a view", "GET", "/products/p-1?tab=board&view=table", at("/p/" + slug + "/stories"), want{push: prefix + "/p/" + slug + "/board?view=table"}},
@@ -508,7 +508,7 @@ func TestTheBrowserKeepsNoHistoryCache(t *testing.T) {
 	}
 }
 
-// The back-fill against the real graph (D-093): a product stored before slugs
+// The back-fill against the real graph (D-094): a product stored before slugs
 // existed, or with a slug someone damaged by hand, gets one at boot -- written
 // with its RecordUpdated event, once -- and a second boot finds it there and
 // writes nothing. ArcadeDB only; it skips without GAOS_ARCADE_TEST_URL.

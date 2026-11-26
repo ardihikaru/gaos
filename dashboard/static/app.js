@@ -438,7 +438,7 @@
   }, true);
   window.addEventListener("resize", syncMenu);
 
-  /* ---------- links that are also htmx requests (D-093) ----------
+  /* ---------- links that are also htmx requests (D-094) ----------
      Navigation is <a href="page" hx-get="fragment">: a plain click swaps the
      fragment in, and the href is there for a new tab, a new window and "copy
      link". htmx cancels the default action of every click on such a link, with

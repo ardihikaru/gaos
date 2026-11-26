@@ -140,7 +140,7 @@ var funcs = template.FuncMap{
 	"confPct":   func(v float64) int { return int(v*100 + 0.5) },
 	// timingURL path-escapes both ids, as the answer sheet's URL does (D-081).
 	"timingURL": timingURL,
-	// pagehref is the page address of a fragment address (D-093): what an
+	// pagehref is the page address of a fragment address (D-094): what an
 	// <a hx-get> carries in href, so a new tab opens a page and not a fragment.
 	"pagehref": pageHref,
 	// conversationURL is a card's conversation sheet (D-082).
@@ -156,7 +156,7 @@ var funcs = template.FuncMap{
 	// takes a number, so there is nothing to inject.
 	"styleWidth": func(v float64) template.CSS { return pctStyle("width", v) },
 	// ago is a unix time as the span since it ("5h"), for the first paint of a
-	// <time> that live.js then keeps ticking (D-094, the table's Changed column).
+	// <time> that live.js then keeps ticking (D-095, the table's Changed column).
 	"ago": func(sec int64) string { return relSpan(time.Since(time.Unix(sec, 0))) },
 	// boardFooter is a board column's last line once it is at its cap.
 	"boardFooter": boardFooter,

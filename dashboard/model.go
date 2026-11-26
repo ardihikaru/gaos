@@ -43,7 +43,7 @@ type Product struct {
 	Name string
 	Repo string
 	Goal string
-	// Slug names the product in a URL (D-093): /p/<slug>/board. Assigned once,
+	// Slug names the product in a URL (D-094): /p/<slug>/board. Assigned once,
 	// from the name, when the product is created; never changed after that,
 	// because nothing renames a product. See urls.go.
 	Slug string

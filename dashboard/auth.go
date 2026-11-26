@@ -543,7 +543,7 @@ func (s *server) gate(mux *http.ServeMux, bearer map[string]bool) http.Handler {
 			// policy that need no audit of the templates' inline handlers: no
 			// framing, no plugins, no foreign <base>, no foreign form target.
 			w.Header().Set("Content-Security-Policy", backOfficeCSP)
-			// D-093: an address now names a product. It is not handed to
+			// D-094: an address now names a product. It is not handed to
 			// another origin in a Referer.
 			w.Header().Set("Referrer-Policy", "same-origin")
 		}
@@ -561,7 +561,7 @@ func (s *server) gate(mux *http.ServeMux, bearer map[string]bool) http.Handler {
 				// A page route is refused like any other (BR-55), but its
 				// refusal is read by a person: the sign-in page, not JSON.
 				// The handler is never called, so the body cannot say
-				// whether the product in the URL exists (D-093).
+				// whether the product in the URL exists (D-094).
 				if pagePatterns[pat] {
 					s.signedOutPage(w, r)
 					return

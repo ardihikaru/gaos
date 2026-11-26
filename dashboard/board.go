@@ -42,7 +42,7 @@ type BoardCard struct {
 	Label  string `json:"label"`
 	Column string `json:"column"`
 	// Row is the card's lane. Board always sets it (laneOf never returns "");
-	// the paged document (D-094) has no lanes and leaves it out.
+	// the paged document (D-095) has no lanes and leaves it out.
 	Row    string `json:"row,omitempty"`
 	Status string `json:"status"` // the exact status; a column groups several
 	Role   string `json:"role"`
@@ -74,7 +74,7 @@ type BoardCard struct {
 	// design-blocked: whether its design may be sent back now (D-084).
 	SendBack *BoardSendBack `json:"sendBack,omitempty"`
 	// Story, Workflow and Updated are set by BoardPage and BoardCard only
-	// (D-094, board_page.go), so the document Board returns does not change.
+	// (D-095, board_page.go), so the document Board returns does not change.
 	// Story is the story id ("" for the plan); Updated is the Seq of the task's
 	// last state change.
 	Story    string `json:"story,omitempty"`

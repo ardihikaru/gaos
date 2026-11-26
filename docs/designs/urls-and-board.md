@@ -3,8 +3,8 @@
 > **Status:** Approved (rev 4; the operator approved both phases on 2026-11-26 after three review rounds — round 3 raised no Blocker and no Critical or High. The reports are `docs/designs/reviews/urls-and-board-{comprehension,zoomout,critic,readiness}-{1,2,3}.md` and `urls-and-board-security-review-{1,2,3}.md`; the triage of each round is `urls-and-board-review-{1,2,3}.md`.)
 > **Policy:** `docs/rules/gaos-design-review.md`
 > **Related:** `docs/designs/card-timing.md` (D-081, the last change to the Board), `docs/designs/gaos-pr-overview.md` (D-092, whose filter bar, table and live region this design reuses), `docs/designs/bo-login.md` (the sign-in this design must not weaken)
-> **Paths.** A bare name (`board.go`) is in `dashboard/`; so are `templates/`, `static/` and `schema/`. A path that starts with `docs/`, `pustaka/`, `deploy/` or `.claude/`, or `README.md`, is relative to the repository root. Line numbers are those of the branch `feat/urls` at the commit that adds this file. That branch is cut from `fix/board-js-syntax` (pull request #45, v0.54.1); **phase 1 starts after #45 is merged to `main`**, and every baseline count below (TC-721, 587 Go tests) is the count after it.
-> **Terms.** *Back office* is the signed-in part of the dashboard. *Sheet* is its outer element, `#boSheet` (`templates/backoffice.html:46`). *Fragment* is a piece of HTML a route returns for htmx to swap in; *page* is a whole HTML document. *OOB* (out of band) is htmx's `hx-swap-oob`: an element in a response that replaces the element with the same id wherever it is. *Hint* is one message on the live stream; it names what changed and carries no HTML (`broker.go:32`). *Card* and *task* are the same thing, a `TaskRecord`. *sisflow* is the vendored client-side board library under `static/vendor/sisflow/`; *the server board* is the plain HTML board the server renders (`.board-ssr`, `templates/backoffice.html:401`). *Prefix* is the path Traefik strips before the dashboard sees a request, `/app` in every deployed tier (`deploy/traefik/dynamic.yml:34`, `:69`). *The fold* is the function that rebuilds state from the event stream (`fold.go`); *the projection* is the in-memory store the ArcadeDB store keeps and answers reads from (`store_arcade_blueprint.go:34`). *The timing index* is the per-task list of event positions the card timing reads (`timing.go:404`). *A run record* is one attempt of a task (`TaskRunRecord`, `model.go:886`). *A send-back* returns a blocked design to its author (D-084). *The edge* is Traefik, the proxy in front of the dashboard. *The chrome* is the top bar's counts, which `RenderWithChrome` re-sends with a response (`render.go:102`). *A desk* is the store's older name for a product: an event's `DeskID` is a product id. A card's *title* is the field `BoardCard.Label` (`board.go:42`); its *labels* are the chips in `BoardCard.Labels`, and the `label` filter means those. The nine *column ids* are `backlog`, `ready`, `working`, `needs-you`, `review`, `blocked`, `failed`, `done` and `canceled` (`board.go:119-127`). *The operator* is the product owner who approves this design; decisions marked "decided by the operator" were taken in the planning conversation on 2026-11-26 and are recorded by the decision-log entries this design adds (D-093, D-094).
+> **Paths.** A bare name (`board.go`) is in `dashboard/`; so are `templates/`, `static/` and `schema/`. A path that starts with `docs/`, `pustaka/`, `deploy/` or `.claude/`, or `README.md`, is relative to the repository root. Line numbers are those of the branch `feat/urls` at the commit that adds this file. That branch is cut from `fix/board-js-syntax` (pull request #45, v0.55.1); **phase 1 starts after #45 is merged to `main`**, and every baseline count below (TC-722, 587 Go tests) is the count after it.
+> **Terms.** *Back office* is the signed-in part of the dashboard. *Sheet* is its outer element, `#boSheet` (`templates/backoffice.html:46`). *Fragment* is a piece of HTML a route returns for htmx to swap in; *page* is a whole HTML document. *OOB* (out of band) is htmx's `hx-swap-oob`: an element in a response that replaces the element with the same id wherever it is. *Hint* is one message on the live stream; it names what changed and carries no HTML (`broker.go:32`). *Card* and *task* are the same thing, a `TaskRecord`. *sisflow* is the vendored client-side board library under `static/vendor/sisflow/`; *the server board* is the plain HTML board the server renders (`.board-ssr`, `templates/backoffice.html:401`). *Prefix* is the path Traefik strips before the dashboard sees a request, `/app` in every deployed tier (`deploy/traefik/dynamic.yml:34`, `:69`). *The fold* is the function that rebuilds state from the event stream (`fold.go`); *the projection* is the in-memory store the ArcadeDB store keeps and answers reads from (`store_arcade_blueprint.go:34`). *The timing index* is the per-task list of event positions the card timing reads (`timing.go:404`). *A run record* is one attempt of a task (`TaskRunRecord`, `model.go:886`). *A send-back* returns a blocked design to its author (D-084). *The edge* is Traefik, the proxy in front of the dashboard. *The chrome* is the top bar's counts, which `RenderWithChrome` re-sends with a response (`render.go:102`). *A desk* is the store's older name for a product: an event's `DeskID` is a product id. A card's *title* is the field `BoardCard.Label` (`board.go:42`); its *labels* are the chips in `BoardCard.Labels`, and the `label` filter means those. The nine *column ids* are `backlog`, `ready`, `working`, `needs-you`, `review`, `blocked`, `failed`, `done` and `canceled` (`board.go:119-127`). *The operator* is the product owner who approves this design; decisions marked "decided by the operator" were taken in the planning conversation on 2026-11-26 and are recorded by the decision-log entries this design adds (D-094, D-095).
 > **Example.** The product in every example is an invented one named "Route Planner", id `p-6`, slug `route-planner`.
 
 ## 1. Problem
@@ -33,9 +33,9 @@ Measured on `main` at `f71aa46` (AMD Ryzen 7 5800H, in-memory store, a synthetic
 
 A card costs about 0.9 KB of HTML (1.83 MB / 2,000). `Board()` grows faster than linearly (×14 for ×5 cards between the last two rows), which is the quadratic term above.
 
-### 1.3 Two boards exist, and until v0.54.1 only one of them loaded
+### 1.3 Two boards exist, and until v0.55.1 only one of them loaded
 
-The Board tab ships the server board and, hidden beside it, a host for sisflow (`templates/backoffice.html:400`). `static/app.js:409` (`mountBoard`) imports `static/board.js`, which mounts sisflow and hides the server board. From v0.44.0 to v0.54.0 that module did not parse, so every operator saw the server board. v0.54.1 repairs it (pull request #45, `TestStaticScriptsHaveBalancedBrackets`). **Decided by the operator: both boards stay** — sisflow when the module loads, the server board as the fallback. Every Board feature in this design therefore states what it does on each.
+The Board tab ships the server board and, hidden beside it, a host for sisflow (`templates/backoffice.html:400`). `static/app.js:409` (`mountBoard`) imports `static/board.js`, which mounts sisflow and hides the server board. From v0.44.0 to v0.54.0 that module did not parse, so every operator saw the server board. v0.55.1 repairs it (pull request #45, `TestStaticScriptsHaveBalancedBrackets`). **Decided by the operator: both boards stay** — sisflow when the module loads, the server board as the fallback. Every Board feature in this design therefore states what it does on each.
 
 ## 2. Goals and non-goals
 
@@ -45,7 +45,7 @@ The Board tab ships the server board and, hidden beside it, a host for sisflow (
 2. The Board shows at most 30 cards per column until the operator asks for more.
 3. Board columns are 300px wide and the board uses the full width of the window.
 4. The Board can be filtered, and switched to a table.
-5. A live change replaces only the columns that changed, keeps every scroll position, costs the server and the browser a small amount of work that does not grow with the number of finished cards, and briefly marks the card that changed. ("Make it smoother when anything changes live" was the operator's request; the mark is how a change is seen without anything moving. D-094 records it.)
+5. A live change replaces only the columns that changed, keeps every scroll position, costs the server and the browser a small amount of work that does not grow with the number of finished cards, and briefly marks the card that changed. ("Make it smoother when anything changes live" was the operator's request; the mark is how a change is seen without anything moving. D-095 records it.)
 6. The chosen filters and view are part of the URL. A background refresh or a mutation never rewrites them. One exception is stated in §4.1: a filter value the product no longer offers is ignored on screen at once, and leaves the address at the operator's next filter change or reload.
 
 **Non-goals**
@@ -60,7 +60,7 @@ The Board tab ships the server board and, hidden beside it, a host for sisflow (
 
 **Phase 1 can be approved and shipped alone.** It contains nothing of the Board's: no Board type, parameter or test. Phase 2 needs phase 1.
 
-## 3. URLs (phase 1, v0.55.0, D-093)
+## 3. URLs (phase 1, v0.56.0, D-094)
 
 ### 3.1 The routes
 
@@ -212,7 +212,7 @@ Today a signed-out request with `HX-Request` gets `401` with the sign-in sheet (
 - **After sign-out** the address is left alone; a reload shows the sign-in form for it.
 - **A deep link selects, it never acts.** `prs?open=…` and `autofix?open=…` can now open a view with one record's drawer showing. No parameter of any page route fills a form field or submits anything: every action in a drawer is still a form the operator fills and submits, and that request is a non-`GET` the cross-origin check covers.
 
-## 4. The Board (phase 2, v0.56.0, D-094)
+## 4. The Board (phase 2, v0.57.0, D-095)
 
 `feat/board` is cut from `main` after phase 1 is merged; phase 2 needs phase 1's `sheet`, `Href` and routes.
 
@@ -375,7 +375,7 @@ Server-rendered only, in the existing `.tm-scroll.af-scroll > table.af-table` fr
 Two things, both on the Board tab only:
 
 - **The aside** (graph projection, story coverage, planner readiness) — §4.4. It remains on the other eight tabs.
-- **Story lanes in sisflow.** A lane multiplies the cells by nine for every story, and the lanes are what grew the board to 13,000px for forty stories (`main_test.go:755-762`). The server board never drew them. The story becomes a chip on the card (from `BoardCard.Story`), the `story` filter, and a sortable column in the table. For sisflow this means the paged document has `rows: []` and no `row` on any card (§4.3); `MoveCard` already accepts an empty row. sisflow draws one lane for cards with no row and `board.js` labels it "Plan" today (`static/board.js:192-195`, `:222`); with every card in that lane the label would be wrong, so `board.js` sets that label to an empty string and `static/app.css` hides the single lane's header inside `.sisflow-board-host` (checked in the exit). The unpaged JSON keeps its rows, so `TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory` (`board_test.go:62`) stands unchanged. sisflow was not on screen from v0.44.0 until v0.54.1.
+- **Story lanes in sisflow.** A lane multiplies the cells by nine for every story, and the lanes are what grew the board to 13,000px for forty stories (`main_test.go:755-762`). The server board never drew them. The story becomes a chip on the card (from `BoardCard.Story`), the `story` filter, and a sortable column in the table. For sisflow this means the paged document has `rows: []` and no `row` on any card (§4.3); `MoveCard` already accepts an empty row. sisflow draws one lane for cards with no row and `board.js` labels it "Plan" today (`static/board.js:192-195`, `:222`); with every card in that lane the label would be wrong, so `board.js` sets that label to an empty string and `static/app.css` hides the single lane's header inside `.sisflow-board-host` (checked in the exit). The unpaged JSON keeps its rows, so `TestTheBoardHasItsColumnsEveryTaskOnceAndALanePerStory` (`board_test.go:62`) stands unchanged. sisflow was not on screen from v0.44.0 until v0.55.1.
 
 ### 4.8 The same features on sisflow
 
@@ -388,7 +388,7 @@ sisflow keeps what it adds — its drag and drop and its card faces — and take
 | Filters | When `board.js` mounts it sets a hidden `surface=sisflow` input in the form, so the form's `board/live` request is answered with the count line only. `board.js` listens for `htmx:afterRequest` on the form and calls `reload()`. |
 | Search | sisflow's own search box is hidden with CSS: it filters only the cards already loaded, which would disagree with the server's count. The filter bar's search is the search. |
 | Show more | The count line's per-column buttons (§4.5). `board.js` handles the click itself: it adds 30 to that column in its depth map (to at most 300) and triggers the form's `refresh`, which redraws the count line and, through `htmx:afterRequest`, calls `reload()`. On sisflow the hook's `shown` comes from the depth map (`board.js` exposes it on the host element as `data-shown`), not from column elements. |
-| The library's paging | Stays off. The `loadPage` that v0.54.1 added (`static/board.js:211`) keeps answering "nothing more": the vendored library emits a page-loaded event that nothing in it listens to, never sets its own `exhausted` flag (`static/vendor/sisflow/board/view/virtual-list.js:25`), and stops a column for good after a page that adds no card. This design does not build on it. |
+| The library's paging | Stays off. The `loadPage` that v0.55.1 added (`static/board.js:211`) keeps answering "nothing more": the vendored library emits a page-loaded event that nothing in it listens to, never sets its own `exhausted` flag (`static/vendor/sisflow/board/view/virtual-list.js:25`), and stops a column for good after a page that adds no card. This design does not build on it. |
 | Totals | In the count line, which the server renders. sisflow's own badge keeps showing how many cards are loaded. |
 | Width | The CSS variable of §4.4. |
 | Table | Not in sisflow; the table is the server's (§4.6). |
@@ -489,7 +489,7 @@ Browser measures, in Chrome DevTools on a product seeded with 2,000 Done cards: 
 - **What reaches a response header.** `HX-Push-Url`, `HX-Replace-Url` and `Location` are built from `sitePrefix(r)`, which already rejects anything that is not a plain absolute path (`render.go:192-209`); from a path made of constants, a validated section id and a slug; and from a query that is **client-supplied values under an allow-list of keys** (§3.4, §4.2), each bounded in length and re-encoded with `url.Values.Encode()`. They are escaped and same-origin; they are not free of client input, and this design does not claim so. `HX-Current-URL` is compared, never echoed. `{section}` is validated before a redirect is written. `TestTheProductIdRedirectsToTheSlug` sends an unknown parameter and an unknown section and asserts neither is in a `Location`.
 - **A stored slug is validated when it is loaded.** The address-safety of a slug must not rest on how it was written: products are edited in the database by hand. `load` and `NewMemStore` accept a stored slug only if it matches `^[a-z0-9]+(-[a-z0-9]+)*$`, is at most 64 bytes, is not shaped like another product's id, and is not held by a product with a lower numeric id; otherwise it is treated as absent and `backfillSlugs` assigns a new one (logged by id only).
 - **Every new parameter is bounded, whether it arrives in the URL or in `X-Board-State`** — §4.2's tables give each rule, and the two headers are the only ones the Board reads; none of them reaches a response unless it matched a known id, and filter values the product does not offer are cleared before use (§4.1 step 2). The search text is used in `strings.Contains` and printed through `html/template`.
-- **What becomes visible outside the session.** Until now a product appeared in a request line only as its id. With this design the following are in the address, and therefore in the edge's access log, in the browser's history and (for the name) in the tab title: **the slug, which is the product's name in lower case**; the Board's filters (`view`, `role`, `story`, `label`, `wf`, `waiting`, `empty`, `sort`, `dir`); and, on the global views, `product`, `state`, `kind`, `difficulty` and `open` — which the fragment routes' request lines already carry today. The id form of a URL redirects to the slug, so it does not avoid this. The name in the URL is the operator's decision; D-093 records the full list above as accepted. These addresses are logged twice over: as the request line of a page load, and as the `Referer` of every later request the page makes — the edge's default log format records `Referer` and `User-Agent` beside the request line. Where that log is kept and for how long is the deployment's existing arrangement and is not changed here. **The search text is the one thing kept out**: it travels in the request header `X-Board-Search` (§4.2), which that format does not record, and never in a URL, on both boards. The control is structural, not a script's good behaviour: the search box has no `name`, so no form submit can carry it (§4.5), and no handler reads a `q` parameter. `TestTheSearchTextNeverTravelsInAURL` asserts both on the rendered Board tab and on requests: the form has no control named `q`; the search input has no `name` attribute; and a request with `?q=x` and no header is answered unfiltered.
+- **What becomes visible outside the session.** Until now a product appeared in a request line only as its id. With this design the following are in the address, and therefore in the edge's access log, in the browser's history and (for the name) in the tab title: **the slug, which is the product's name in lower case**; the Board's filters (`view`, `role`, `story`, `label`, `wf`, `waiting`, `empty`, `sort`, `dir`); and, on the global views, `product`, `state`, `kind`, `difficulty` and `open` — which the fragment routes' request lines already carry today. The id form of a URL redirects to the slug, so it does not avoid this. The name in the URL is the operator's decision; D-094 records the full list above as accepted. These addresses are logged twice over: as the request line of a page load, and as the `Referer` of every later request the page makes — the edge's default log format records `Referer` and `User-Agent` beside the request line. Where that log is kept and for how long is the deployment's existing arrangement and is not changed here. **The search text is the one thing kept out**: it travels in the request header `X-Board-Search` (§4.2), which that format does not record, and never in a URL, on both boards. The control is structural, not a script's good behaviour: the search box has no `name`, so no form submit can carry it (§4.5), and no handler reads a `q` parameter. `TestTheSearchTextNeverTravelsInAURL` asserts both on the rendered Board tab and on requests: the form has no control named `q`; the search input has no `name` attribute; and a request with `?q=x` and no header is answered unfiltered.
 - **No back-office HTML is stored in the browser** (§3.5), and every response that carries the sheet for the archive, integrations, auto-fix or pull-request view is `no-store`, now from the one place that renders it (§3.4), as are `board/live` and the paged JSON.
 - The Content-Security-Policy is unchanged; `base-uri 'self'` still holds because `<base>` is unchanged.
 
@@ -543,7 +543,7 @@ Browser measures, in Chrome DevTools on a product seeded with 2,000 Done cards: 
 | `autofix_view_test.go` | Four assertions that quote the old markup change to the new: `:143` (the Auto-fix navigation item is an `<a>`), `:166`, `:237` and `:240` (`href`s are `autofix…` page URLs, `hx-get`s unchanged) |
 | `main_test.go`, `auth_test.go`, `store_conformance_test.go` | §10.1 |
 | `deploy/rebuild-restart.sh` | One check after the base-href check (`:396-398`): signed out, `/app/p/x/board` answers `401` and its body has `<base href="/app/">` — the prefix survives the strip on a deep path |
-| Registers | `pustaka/docs/product/qa-test-plan.html`, `pustaka/docs/assets/toc/product.js`, `pustaka/docs/assets/toc.js`, `pustaka/docs/changelog.html`, `pustaka/docs/product/decision-log.html` (D-093), `README.md`, `deploy/check-workspace.sh`, `.claude/rules/qa-test-plan.md`, the cache-busters in `templates/page.html` |
+| Registers | `pustaka/docs/product/qa-test-plan.html`, `pustaka/docs/assets/toc/product.js`, `pustaka/docs/assets/toc.js`, `pustaka/docs/changelog.html`, `pustaka/docs/product/decision-log.html` (D-094), `README.md`, `deploy/check-workspace.sh`, `.claude/rules/qa-test-plan.md`, the cache-busters in `templates/page.html` |
 
 **Phase 2 — `feat/board`**
 
@@ -558,17 +558,17 @@ Browser measures, in Chrome DevTools on a product seeded with 2,000 Done cards: 
 | `templates/backoffice.html` | `pane-board` rewritten as separate templates: bar, count line, board, column, card, table; `navTimelineN` |
 | `static/app.css`, `static/app.js`, `static/live.js`, `static/board.js` | §4.4, §4.5, §4.8, §5 |
 | `auth_test.go`, `main_test.go`, `store_conformance_test.go` | The route in `readOnlyGET` and the route tables; three cases in the conformance table |
-| Registers | As phase 1, with D-094 |
+| Registers | As phase 1, with D-095 |
 
 Five existing tests render the Board tab and assert on it: `board_test.go:65` (the string `board-card`), `conversation_test.go:125` and `:147` (`id="cv-<id>"`), `needs_test.go:165` (the "Needs you" badge), `timing_test.go:284` (the timing chip) and `design_iterate_test.go:525` (the send-back button). The card template keeps every class, id and `data-` attribute it has today (`templates/backoffice.html:406-417`), and each of those tests looks at a product with fewer than thirty cards in a column, so **they are expected to pass unchanged**. If one does not, it is fixed in the same commit, its register row's prose is updated, and the pull request lists it.
 
 ## 10. Phases, tests and exits
 
-One `func Test…` is one register row, and so is one check in a deploy script (`.claude/rules/qa-test-plan.md`). The highest id in use after v0.54.1 is TC-721; there are 587 Go tests and ninety-one decision-log entries.
+One `func Test…` is one register row, and so is one check in a deploy script (`.claude/rules/qa-test-plan.md`). The highest id in use after v0.55.1 is TC-722; there are 587 Go tests and ninety-one decision-log entries.
 
 ### 10.1 Phase 1
 
-**Ten new Go tests (TC-722 … TC-731) and one deploy check (TC-732): register 721 → 732; Go tests 587 → 597; decision log ninety-one → ninety-two.**
+**Ten new Go tests (TC-723 … TC-732) and one deploy check (TC-733): register 721 → 732; Go tests 587 → 597; decision log ninety-one → ninety-two.**
 
 | Test | Asserts |
 |---|---|
@@ -589,7 +589,7 @@ Changed, keeping their ids: `TestEveryRouteIsClassified` (§6), `TestEveryRouteA
 
 ### 10.2 Phase 2
 
-**Fifteen new Go tests (TC-733 … TC-747): register 732 → 747; Go tests 597 → 612; decision log ninety-two → ninety-three.** Benchmarks are not tests and get no row.
+**Fifteen new Go tests (TC-734 … TC-748): register 732 → 747; Go tests 597 → 612; decision log ninety-two → ninety-three.** Benchmarks are not tests and get no row.
 
 The server half lands first within the branch: `board_page.go`, its tests and the benchmarks. *Checkpoint:* the eight server-half tests — the first six rows below, `TestTheBoardQueryRoundTrips` and `TestTheBoardJSONPagesOnlyWhenAsked` — pass with `go test -run 'BoardPage|BoardFilters|DoneIsNewest|BoardCardIs|BoardQueryRound|BoardJSONPages' .`, and `BenchmarkBoardPage` and `BenchmarkBoardCard` meet §5.6, before any template changes.
 
@@ -632,7 +632,7 @@ cd pustaka && go run . check ./docs && go test ./...
 | The capture-phase listener does not keep htmx from a modified click | It is in the phase-1 exit. The fallback is a `data-href` attribute and `window.open` from the same listener. |
 | `board._store` is not a public member of sisflow | Feature-checked, with today's behaviour as the fallback (§5.2). |
 | Operators relied on story lanes or the aside on the Board | §4.7; the aside is one click away on any other tab. |
-| The product name is now in URLs and logs | Stated in §6 and recorded in D-093. |
+| The product name is now in URLs and logs | Stated in §6 and recorded in D-094. |
 | Thirty cards hide work in the active columns | The limit applies per column and the header shows `30 of N`; only Done and Canceled are expected to exceed it. |
 | The phase is large | Two pull requests; phase 2 has a server-half checkpoint (§10.2). |
 
@@ -647,13 +647,13 @@ None open. Accepted limits:
 
 Approved by the operator on 2026-11-26, both phases. Three decisions were put to the operator with the approval and answered:
 
-1. **The product's name in the address** (§6): accepted. D-093 records that the slug, and with it the product's name, is visible in the edge's access log, the browser's history and the tab title.
+1. **The product's name in the address** (§6): accepted. D-094 records that the slug, and with it the product's name, is visible in the edge's access log, the browser's history and the tab title.
 2. **Only the columns that changed** (§5.1, §8): chosen over re-sending all nine columns on every hint.
 3. **A slug is not reserved after its product is removed by hand** (§12): shown with the approval and not objected to.
 
 ## 14. As built
 
-### 14.1 Phase 1 (v0.55.0)
+### 14.1 Phase 1 (v0.56.0)
 
 Built as §3 says, with these differences, each smaller than what the section describes:
 
@@ -662,16 +662,16 @@ Built as §3 says, with these differences, each smaller than what the section de
 - **`TestPRViewRowsAndFilters`** (`prview_test.go:74`) also asserted the old navigation markup (`>Pull requests</button>`) and changed with the four Auto-fix assertions §9 lists.
 - **The middle click.** Besides the capture-phase `click` listener, `static/app.js` stops `auxclick` on the same links.
 - **The back-fill on ArcadeDB** is `ArcadeStore.backfillSlugs`, which calls `MemStore.AssignSlug` through `mutate` for each product the pure `backfillSlugs` names.
-- **One more test than §10.1 lists: `TestTheSlugBackfillIsWrittenOnce` (TC-733).** §10.1 left the ArcadeDB back-fill to the conformance table's "a slug survives a reopen", which never exercises a product *without* a slug — the case every existing database is in at the upgrade. The test damages three stored slugs in a scratch ArcadeDB, reopens the store and asserts the slugs, the three `RecordUpdated` events and a third boot that writes nothing. So phase 1 is eleven Go tests and one deploy check: **TC-722 … TC-733, register 721 → 733, Go tests 587 → 598**. Phase 2's ids move by one: **TC-734 … TC-748, register 733 → 748, Go tests 598 → 613**.
+- **One more test than §10.1 lists: `TestTheSlugBackfillIsWrittenOnce` (TC-734).** §10.1 left the ArcadeDB back-fill to the conformance table's "a slug survives a reopen", which never exercises a product *without* a slug — the case every existing database is in at the upgrade. The test damages three stored slugs in a scratch ArcadeDB, reopens the store and asserts the slugs, the three `RecordUpdated` events and a third boot that writes nothing. So phase 1 is eleven Go tests and one deploy check: **TC-723 … TC-734, register 721 → 733, Go tests 587 → 598**. Phase 2's ids move by one: **TC-735 … TC-749, register 733 → 748, Go tests 598 → 613**.
 - **`routes()` raced with itself under the test harness** (two requests at once in `TestRetargetIsRecheckedUnderTheLock`), on `main` as well; `go test -race` failed about one run in two. Fixed separately (pull request #46) and merged into this branch.
 
-Verified in headless Chrome against a local in-memory dashboard, without a prefix: a deep URL opened signed out shows the sign-in form and, after sign-in, the Board at the same address; nine tabs and views each set their address and title; three Backs, a Forward and a reload land on the right view; the id form redirects to the slug; creating a workflow from the Stories tab moves the address to the Board; a Ctrl-click on a tab opens a second tab on its page address and leaves the first where it was; `localStorage` stays empty. The store half was run against a scratch ArcadeDB (`deploy/schema/scratch.sh up`): the conformance suite and TC-733 pass. Not verified in a browser: the same walk behind the `/app` prefix (covered by the Go tests' prefixed cases and by TC-732 at deploy time), and a Pull requests drawer, which needs pull-request data.
+Verified in headless Chrome against a local in-memory dashboard, without a prefix: a deep URL opened signed out shows the sign-in form and, after sign-in, the Board at the same address; nine tabs and views each set their address and title; three Backs, a Forward and a reload land on the right view; the id form redirects to the slug; creating a workflow from the Stories tab moves the address to the Board; a Ctrl-click on a tab opens a second tab on its page address and leaves the first where it was; `localStorage` stays empty. The store half was run against a scratch ArcadeDB (`deploy/schema/scratch.sh up`): the conformance suite and TC-734 pass. Not verified in a browser: the same walk behind the `/app` prefix (covered by the Go tests' prefixed cases and by TC-733 at deploy time), and a Pull requests drawer, which needs pull-request data.
 
-### 14.2 Phase 2 (v0.56.0)
+### 14.2 Phase 2 (v0.57.0)
 
 Built as §4 and §5 say, with these differences:
 
-- **Sixteen tests, not fifteen: TC-734 … TC-749, register 733 → 749, Go tests 598 → 614.** `TestTheBoardTabSkipsTheEventCopyAndTheDiagrams` (TC-749) holds §5.5, which §10.2's table had lost between revisions.
+- **Sixteen tests, not fifteen: TC-735 … TC-750, register 733 → 749, Go tests 598 → 614.** `TestTheBoardTabSkipsTheEventCopyAndTheDiagrams` (TC-750) holds §5.5, which §10.2's table had lost between revisions.
 - **The view model and the Board's route are in a new file, `board_view.go`**, not in `view.go` and `board_page.go`: `BoardView`, `boardView`, `handleBoardLive`, `renderBoardAfter`, the paged JSON. `board_page.go` is the store half and the parser.
 - **The table has a tenth column, "Changed"** — when the card last changed state, ticking — and it is the header that sorts by `updated`. §4.6 offered that sort and gave it no column. `BoardCard` gains `UpdatedAt` beside `Updated` for it.
 - **The view links are re-sent with every response of the Board's route** (`#boardViews`, out of band), so a page address copied from "Board" or "Table" after a filter change carries that filter.
@@ -698,3 +698,15 @@ Every target of §5.6 is met. The last two rows were not measured on the old boa
 **The suite's time.** `go test -race ./...` with a scratch ArcadeDB attached passes in 598 s on a machine other work was loading — inside Go's ten-minute default, with no margin. It took 536 s before this phase and 498 s on `main`; the slowest tests are older ones (`TestRetargetRefusals`, 50 s). The sixteen new tests run in parallel and add about 18 s. The margin is worth its own fix.
 
 **Not verified**: a real pointer drag on either board (the move route and its answer are tested; the drag itself is the same code as before); a keyboard-only pass; `prefers-reduced-motion` in a browser (the rule is in `app.css`); the `/app` prefix in a browser. The `review-animations` and `break-ui` skills were not run as such — the motion here is one opacity fade written to the frontend agent's rules, and the worst-case check was the manual one above.
+
+### 14.3 Renumbered at the merge
+
+While this work was in review, another release landed on `main` and took the next free numbers: v0.55.0, D-093 and TC-721 (the documentation's loading fix and public docs). Everything here moved up by one, and this document was rewritten with the new numbers throughout:
+
+| | As designed and reviewed | As merged |
+|---|---|---|
+| The `board.js` fix | v0.54.1, TC-721 | v0.55.1, TC-722 |
+| Phase 1, URLs | v0.55.0, D-093, TC-722 … TC-733 | v0.56.0, D-094, TC-723 … TC-734 |
+| Phase 2, the Board | v0.56.0, D-094, TC-734 … TC-749 | v0.57.0, D-095, TC-735 … TC-750 |
+
+The register holds 750 cases and there are 615 Go tests (592 in `dashboard/`, 23 in `pustaka/`); the decision log has ninety-four entries. The count arithmetic in §10 was written against the earlier baseline and is one behind in each figure. The review reports in `docs/designs/reviews/` are records and keep the numbers the reviewers saw.

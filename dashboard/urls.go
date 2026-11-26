@@ -1,8 +1,8 @@
 package main
 
-// Real URLs for the back office (D-093, docs/designs/urls-and-board.md §3).
+// Real URLs for the back office (D-094, docs/designs/urls-and-board.md §3).
 //
-// Until v0.55.0 every navigation was an htmx GET into #sink and the address
+// Until v0.56.0 every navigation was an htmx GET into #sink and the address
 // stayed on the mount point. Two things change that, and both live here:
 //
 //   - PAGE ROUTES. /inbox, /prs, … and /p/{ref}/{section} render the whole
@@ -262,7 +262,7 @@ func (s *server) address(bo *BOView, products []Product, productID string) {
 			section, label = "brd", "Requirements"
 		}
 		bo.Href = productPath(bo.Detail.Slug, section)
-		// The Board's view is part of its address (D-094): the filter, board
+		// The Board's view is part of its address (D-095): the filter, board
 		// or table, the sort. Never the window, never the search text.
 		if bv := bo.Detail.BoardView; bv != nil && section == "board" {
 			if enc := bv.Page.Query.Encode(); enc != "" {

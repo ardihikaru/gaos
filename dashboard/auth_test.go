@@ -266,7 +266,7 @@ var readOnlyGET = map[string]string{
 	"GET /products":                                  "lists products",
 	"GET /products/{id}":                             "renders one product",
 	"GET /products/{id}/board":                       "renders the board",
-	"GET /products/{id}/board/live":                  "renders the Board's changed columns or table (D-094)",
+	"GET /products/{id}/board/live":                  "renders the Board's changed columns or table (D-095)",
 	"GET /products/{id}/readiness":                   "reads readiness",
 	"GET /questions":                                 "lists open questions",
 	"GET /products/{id}/questions":                   "lists one product's questions",
@@ -277,7 +277,7 @@ var readOnlyGET = map[string]string{
 	"GET /ui/timing/{id}/{taskId}":                   "renders the timing sheet (D-081)",
 	"GET /ui/conversation/{id}/{taskId}":             "renders the conversation sheet (D-082)",
 	"GET /ui/send-back/{id}/{taskId}":                "renders the send-back sheet",
-	// D-093: the page routes. Each renders a view it only reads.
+	// D-094: the page routes. Each renders a view it only reads.
 	"GET /inbox":             "renders the Inbox page",
 	"GET /stories":           "renders the Stories page",
 	"GET /diagrams":          "renders the Diagrams page",
@@ -334,7 +334,7 @@ func TestEveryRouteIsClassified(t *testing.T) {
 			t.Errorf("%q is both bearer and back office/public; the classes must not overlap", p)
 		}
 	}
-	// D-093: the page routes are back-office routes -- never public, never
+	// D-094: the page routes are back-office routes -- never public, never
 	// bearer -- whose refusal has a body a browser can show.
 	for p := range pagePatterns {
 		if !registered[p] {

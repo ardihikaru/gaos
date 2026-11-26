@@ -618,7 +618,7 @@ func (s *MemStore) PruneConversations(ctx context.Context, actor string, cards [
 
 // decorateCardsConversation marks each card that has attempts (D-082). byID is
 // the product's tasks by id (productTasksLocked): a lookup per card, where this
-// used to scan every task for every card (D-094). Caller holds s.mu.
+// used to scan every task for every card (D-095). Caller holds s.mu.
 func (s *MemStore) decorateCardsConversation(cards []BoardCard, byID map[string]*TaskRecord) {
 	s.decorateCardsConversationWith(cards, byID, s.taskEventsLocked)
 }

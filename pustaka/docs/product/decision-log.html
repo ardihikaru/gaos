@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety-three entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-four entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -2004,6 +2004,20 @@
       </tr>
       <tr id="d-093">
         <td>D-093</td><td>2026-11-26</td>
+        <td><strong>GAOS&rsquo;s own documentation is public: the pustaka login layer is switched off on both prods, and its code is kept.</strong>
+        Context: the repository is public (checked 2026-11-26), so the docs content already is; the login only hid the
+        rendered site. Decision: <code>PUSTAKA_AUTH</code> is empty on both prods and the credential lines are commented
+        out, so they no longer reach the container; the login code, its page and its tests stay, and switching it back on
+        means restoring those lines, setting <code>PUSTAKA_AUTH=1</code> and generating a fresh secret. The same release
+        fixes a page that looked broken until it had loaded and adds article-only page transitions (an upstream pustaka sync
+        to v0.9.1). Residual: the published infrastructure pages name real hosts and addresses that are equally visible in
+        the repository &mdash; a redaction is a separate change; <a href="open-questions.html#oq-36">OQ-36</a> still
+        describes the repository as private and is the operator&rsquo;s to answer.</td>
+        <td><a href="qa-test-plan.html#pk-head">TC-721</a>;
+        <code>docs/designs/pustaka-loading-and-motion.md</code></td>
+      </tr>
+      <tr id="d-094">
+        <td>D-094</td><td>2026-11-26</td>
         <td><strong>Every back-office view and every product section has its own URL, and a product is named in it by a stored slug.</strong>
         Context: every click in the back office was an htmx request into a hidden sink, so the address stayed on the
         mount point whatever was on screen: no link to a product's Board could be copied, Back left the dashboard, and a
@@ -2026,11 +2040,11 @@
         product that predates slugs is a state change and emits the existing <code>RecordUpdated</code>; no event type is
         added. Accepted limits: a slug does not move while its product exists, but it is not reserved after a product is
         removed from the database by hand; nothing renames a product, so no old slug redirects.</td>
-        <td><a href="qa-test-plan.html#go-urls">TC-722&hellip;TC-733</a>;
+        <td><a href="qa-test-plan.html#go-urls">TC-723&hellip;TC-734</a>;
         <code>docs/designs/urls-and-board.md</code></td>
       </tr>
-      <tr id="d-094">
-        <td>D-094</td><td>2026-11-26</td>
+      <tr id="d-095">
+        <td>D-095</td><td>2026-11-26</td>
         <td><strong>The Board shows a page of a product's cards, filters and sorts on the server, and a live change replaces only the columns that changed.</strong>
         Context: the Board rendered every task of a product &mdash; the Done column never empties &mdash; in 140px columns
         beside a side panel, and every live hint rebuilt and replaced the whole sheet. Measured at 2,000 cards, one refresh
@@ -2054,7 +2068,7 @@
         for its own tab only. Measured after, at 2,000 cards: opening the Board 12 ms, 7 MB and 247 KB; a live refresh
         after a move 5 ms, 5 MB and 46 KB. Accepted limits: a column shows at most 300 cards and the table at most 1,000
         rows; beyond that the page says so and points at the filters.</td>
-        <td><a href="qa-test-plan.html#go-board-page">TC-734&hellip;TC-749</a>;
+        <td><a href="qa-test-plan.html#go-board-page">TC-735&hellip;TC-750</a>;
         <code>docs/designs/urls-and-board.md</code></td>
       </tr>
     </tbody>

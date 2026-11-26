@@ -374,7 +374,7 @@ func linesChanged(prev, next string) (changed, total int) {
 // lock.
 //
 // byID is the product's tasks by id: a lookup per card, where this used to scan
-// every task for every card (D-094).
+// every task for every card (D-095).
 func (s *MemStore) decorateCardsGate(cards []BoardCard, byID map[string]*TaskRecord) {
 	for i := range cards {
 		c := &cards[i]

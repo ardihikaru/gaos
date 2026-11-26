@@ -86,7 +86,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode, Secure: secureCookies(),
 	})
 
-	// Signed in from a deep URL (D-093): the browser reloads the page it is
+	// Signed in from a deep URL (D-094): the browser reloads the page it is
 	// on, now with its session. The header's value is a constant -- nothing
 	// the client sent decides where it goes.
 	if loginLandsElsewhere(r) {
@@ -218,7 +218,7 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 
 	bo := &BOView{View: view}
 	// Every return below leaves through this: the address and the title of
-	// what was built (urls.go, D-093).
+	// what was built (urls.go, D-094).
 	defer func() { s.address(bo, products, productID) }()
 	slugOf := func(id string) string {
 		for _, p := range products {
@@ -338,7 +338,7 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			CanPlan: m.ReadinessScore() >= PlanFloor,
 		}
 		// The Board is one page of the product's cards, in the view the
-		// request carries -- whatever its method (D-094).
+		// request carries -- whatever its method (D-095).
 		if tab == "board" {
 			if bv, err := s.buildBoardView(r, m.ID, d.Slug); err == nil {
 				d.BoardView = bv
@@ -351,7 +351,7 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			d.Vendors = buildVendorsPane(r.Context(), m, s.adapter)
 		}
 		// The Timeline tab's label is a number on every tab; the events
-		// themselves are loaded for its own tab only. Until D-094 the whole
+		// themselves are loaded for its own tab only. Until D-095 the whole
 		// stream was copied on every product request for that count.
 		d.TimelineN, _ = s.store.EventCount(r.Context(), m.ID)
 		if tab == "timeline" {
@@ -937,7 +937,7 @@ func (s *server) handleTimingSheet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	// One card, not the board: the sheet only wants its title (D-094).
+	// One card, not the board: the sheet only wants its title (D-095).
 	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
 		title = c.Label
 	}

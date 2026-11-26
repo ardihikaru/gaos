@@ -171,7 +171,7 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 func (s *ArcadeStore) Kind() string { return "arcadedb" }
 
 // backfillSlugs gives a slug to every loaded product that has no usable one
-// (D-093): products that predate slugs, and a stored slug that is malformed or
+// (D-094): products that predate slugs, and a stored slug that is malformed or
 // a duplicate. Each is an ordinary mutation -- the product and its
 // RecordUpdated event in one transaction (BR-02) -- and fails as one does: the
 // projection keeps what the database did not take, and the next boot, finding

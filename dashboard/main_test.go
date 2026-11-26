@@ -124,7 +124,7 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/products/p-1?tab=knowledge", 200},
 		{"GET", "/products/p-1?tab=board", 200},
 		{"GET", "/products/p-1?tab=board&view=table&sort=id", 200},
-		{"GET", "/products/p-1/board/live", 200},    // D-094: the Board's own route
+		{"GET", "/products/p-1/board/live", 200},    // D-095: the Board's own route
 		{"GET", "/products/p-1/board?paged=1", 200}, // and the client board's document
 		{"GET", "/products/nope/board/live", 404},
 		{"GET", "/products/p-1?tab=blueprint", 200},
@@ -132,7 +132,7 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/products/p-1/readiness", 200},
 		{"POST", "/products/p-1/inject", 200},
 		{"GET", "/ui/cw", 200},
-		// D-093: the page routes -- nine views, a product section by slug, and
+		// D-094: the page routes -- nine views, a product section by slug, and
 		// the two redirects (the id form, and a product with no section).
 		{"GET", "/inbox", 200},
 		{"GET", "/stories", 200},
@@ -229,7 +229,7 @@ func TestBaseHrefFollowsForwardedPrefix(t *testing.T) {
 		if !strings.Contains(w.Body.String(), c.want) {
 			t.Errorf("prefix %q: want %s", c.header, c.want)
 		}
-		// D-093: a page three levels down carries the same base, so every
+		// D-094: a page three levels down carries the same base, so every
 		// relative URL on it still resolves against the mount point. Signed
 		// out it is the 401 sign-in page, which is a page all the same.
 		r = httptest.NewRequest("GET", "/p/laundry-membership/board", nil)
@@ -805,7 +805,7 @@ func TestTheBoardHostHasABoundedHeight(t *testing.T) {
 	if !strings.Contains(css, ".sisflow-board-host .sfb-body{overscroll-behavior:auto}") {
 		t.Errorf(".sfb-body still has overscroll-behavior:contain: a wheel over the board never reaches the page")
 	}
-	// D-094: the server board is bounded the same way, so each column scrolls
+	// D-095: the server board is bounded the same way, so each column scrolls
 	// inside it and its header stays in view; and the columns are as wide as
 	// one variable says, on both boards.
 	ssr := regexp.MustCompile(`\.board-ssr\{[^}]*height:calc\(100d?vh - \d+px\)[^}]*min-height:\d+px[^}]*\}`)
