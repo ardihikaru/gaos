@@ -107,6 +107,29 @@ func TestDefectSearchErrorIsNotEmpty(t *testing.T) {
 	}
 }
 
+// One file with a secret-shaped string must not make the whole triage refuse: it is left out and
+// the others stay (found live: a JWT in a source file blocked DEF-922's triage at the egress pass).
+func TestDefectContextLeavesOutAFileTheEgressPassWouldRefuse(t *testing.T) {
+	jwt := "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	f := &fakeGitHub{
+		searchPaths: []string{"pkg/records/fixture.go", "pkg/records/validate.go"},
+		files: map[string]string{"pkg/records/fixture.go": "package records\nconst tok = \"" + jwt + "\"\n",
+			"pkg/records/validate.go": "package records\n"},
+	}
+	c, err := buildDefectContext(context.Background(), newFakeCode(t, f), sampleDefect(), "", noSleep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Files) != 1 || c.Files[0].Path != "pkg/records/validate.go" {
+		t.Errorf("files = %+v; want only validate.go, the fixture holding a token left out", c.Files)
+	}
+	for _, file := range c.Files {
+		if strings.Contains(file.Text, "eyJ") {
+			t.Errorf("a token reached the slice of %s", file.Path)
+		}
+	}
+}
+
 func TestDefectContextKeepsPathsAndLimits(t *testing.T) {
 	big := strings.Repeat("x", 30<<10)
 	f := &fakeGitHub{

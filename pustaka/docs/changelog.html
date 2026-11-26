@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-5">v0.52.5 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">One unrelated file no longer blocks a triage.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> The triager's source slice is screened file by file with the egress detectors (all armed). A fetched file that holds a secret-shaped string, such as a token in a test fixture, is left out; before, the egress pass refused the whole triage dispatch over it and the card waited for a person.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-4">v0.52.4 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A deadlock that froze every write after one refused dispatch.</p>
       <ul>

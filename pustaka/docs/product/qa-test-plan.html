@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  six hundred and ninety-four cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred and ninety-five cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All six hundred and ninety-four cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred and ninety-five cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -783,6 +783,7 @@
       <tr data-tags="go test defect triage context files source tests documents order d-091 positive implemented"><td>TC-692</td><td>go test</td><td>Positive</td><td>The triager's source slice orders hand-written Go source before tests, and both before generated files, request samples and documents</td><td>Implemented</td></tr>
       <tr data-tags="go test arcade store deadlock egress refusal auto-fix dispatch lock d-091 negative implemented"><td>TC-693</td><td>go test</td><td>Negative</td><td>An auto-fix dispatch the egress pass refuses returns, and a later mutation on the ArcadeDB store still completes: the store no longer waits on its own write lock</td><td>Implemented</td></tr>
       <tr data-tags="go test arcade store deadlock egress refusal board move operator lock negative implemented"><td>TC-694</td><td>go test</td><td>Negative</td><td>An operator's board move to Working that the egress pass refuses returns, and a later mutation still completes</td><td>Implemented</td></tr>
+      <tr data-tags="go test defect triage context egress secret jwt file left out d-091 negative implemented"><td>TC-695</td><td>go test</td><td>Negative</td><td>A fetched source file that holds a secret-shaped string is left out of the triager's slice, so the egress pass does not refuse the whole triage over it</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4260,6 +4261,7 @@
   <p><strong>TC-692, positive</strong> (<code>TestContextClassPutsSourceBeforeSamplesAndDocuments</code>): <code>contextClass(%q) = %d, want %d</code>: hand-written <code>.go</code> source is 0, <code>_test.go</code> 1, and generated files, <code>.http</code> samples, legacy resources and documents 2. Found live: samples and a markdown page ranked ahead of the resolver and spent the six-file budget.</p>
   <p><strong>TC-693, negative</strong> (<code>TestARefusedDispatchDoesNotFreezeTheArcadeStore</code>): <code>a refused AutoDispatch did not return: the store is deadlocked on its own write lock</code> (10 s); <code>a refused AutoDispatch gave %v, want a rejection</code>; <code>a mutation after the refusal gave %v</code>. Found live: a goroutine dump showed <code>mutate</code> &rarr; <code>dispatch</code> &rarr; <code>refuseDispatch</code> &rarr; <code>persistBackground</code> waiting on the lock <code>mutate</code> held; every later mutation, an inbox answer included, hung.</p>
   <p><strong>TC-694, negative</strong> (<code>TestARefusedBoardMoveDoesNotFreezeTheArcadeStore</code>): <code>a refused board move did not return: the store is deadlocked on its own write lock</code>; <code>the refused move gave %v</code>; <code>a mutation after the refused move gave %v</code>. The operator's move to Working took the same path.</p>
+  <p><strong>TC-695, negative</strong> (<code>TestDefectContextLeavesOutAFileTheEgressPassWouldRefuse</code>): <code>files = %+v; want only validate.go, the fixture holding a token left out</code>; <code>a token reached the slice of %s</code>. Found live: a JWT in an unrelated source file made the egress pass refuse DEF-922's whole triage dispatch.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
