@@ -68,6 +68,8 @@ type server struct {
 	// codeSrc reads application source for a defect's packet (D-091); nil when
 	// the GitHub client is off.
 	codeSrc codeSource
+	// branches answers "does this branch exist" for the retarget route (D-092); nil when GitHub is off.
+	branches branchChecker
 	// writeTokenKind is the kind of the auto-fix write token in use ("" = none).
 	writeTokenKind string
 	// fixPoll is the pull-request poller, for the Auto-fix view's GitHub status; nil when off.
@@ -374,6 +376,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		flow.gh = ghc
 		authors = ghc
 		srv.codeSrc = ghc
+		srv.branches = ghc
 		srv.ghState = "on"
 		log.Printf("pull requests: GitHub client on")
 	} else {
@@ -514,8 +517,9 @@ func (s *server) routes() http.Handler {
 	handle("POST /auth/logout", s.handleLogout)
 	handle("GET /ui/bo", s.handleBOSheet)
 	handle("GET /ui/bo/{view}", s.handleBOView)
-	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive) // the Auto-fix view's 30 s poll
-	handle("GET /ui/bo/prs/live", s.handlePRsLive)         // the Pull requests view's 30 s poll (D-092)
+	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive)                 // the Auto-fix view's 30 s poll
+	handle("POST /products/{id}/prs/{fixPRID}/retarget", s.handleRetarget) // D-092
+	handle("GET /ui/bo/prs/live", s.handlePRsLive)                         // the Pull requests view's 30 s poll (D-092)
 
 	handle("GET /products", s.handleProductList)
 	handle("POST /products", s.handleProductCreate)

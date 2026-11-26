@@ -181,6 +181,26 @@ func ghOwnerRepo(entry string) (string, string, bool) {
 }
 
 // pullRequest reads one pull request.
+// branchExists answers whether a branch exists: 200 true, 404 false, anything else an error. The name
+// is path-escaped and must look like a branch name. Used by the retarget route only (D-092).
+func (c *ghClient) branchExists(ctx context.Context, owner, repo, name string) (bool, error) {
+	if !baseBranchRe.MatchString(name) || strings.Contains(name, "..") {
+		return false, errors.New("not a branch name")
+	}
+	var out struct {
+		Name string `json:"name"`
+	}
+	u := fmt.Sprintf("%s/repos/%s/%s/branches/%s", c.base, url.PathEscape(owner), url.PathEscape(repo), escPath(name))
+	if err := c.get(ctx, u, &out); err != nil {
+		var ge *ghError
+		if errors.As(err, &ge) && ge.Status == 404 {
+			return false, nil
+		}
+		return false, err
+	}
+	return out.Name != "", nil
+}
+
 func (c *ghClient) pullRequest(ctx context.Context, owner, repo string, number int) (ghPR, error) {
 	var pr ghPR
 	u := fmt.Sprintf("%s/repos/%s/%s/pulls/%d", c.base, url.PathEscape(owner), url.PathEscape(repo), number)

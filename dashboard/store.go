@@ -166,6 +166,9 @@ type Store interface {
 	PrunePullRequests(ctx context.Context, finalBefore int64) (Result, error)
 	// BackfillReviewRows writes the rows of review cards that already exist (once, at boot).
 	BackfillReviewRows(ctx context.Context) (Result, error)
+	// RetargetFixPR changes the base of an open fix pull request by raising the defect's generation
+	// and planning a fix card against the new base (retarget.go, D-092).
+	RetargetFixPR(ctx context.Context, productID, fixPRID, base, actor, tokenKind string) (Result, error)
 	ExpireExcerpts(ctx context.Context, now int64) (Result, error)
 	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)

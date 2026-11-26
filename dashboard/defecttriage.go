@@ -71,7 +71,15 @@ func parseDefectCardKey(dedup string) (key string, gen int, job string, ok bool)
 // events. born is PENDING, or BLOCKED with a reason (the card is planned
 // PENDING and moved at once, so the stream replays to the same board). A card
 // that already exists is answered and nothing is planned.
-func (s *MemStore) planDefectCardLocked(d *Defect, job, born, blockReason, label string) (TaskRecord, []Event) {
+// planOpts are the optional words of a planned card and its TaskPlanned event: a title, the reason,
+// the actor's alias and the rule (the retarget, D-092). The zero value changes nothing.
+type planOpts struct{ Title, Reason, Actor, Rule string }
+
+func (s *MemStore) planDefectCardLocked(d *Defect, job, born, blockReason, label string, opt ...planOpts) (TaskRecord, []Event) {
+	var o planOpts
+	if len(opt) > 0 {
+		o = opt[0]
+	}
 	dedup := defectCardKey(d.Key, d.Gen, job)
 	if t := s.taskByDedupKeyLocked(dedup); t != nil {
 		return *t, nil
@@ -92,9 +100,13 @@ func (s *MemStore) planDefectCardLocked(d *Defect, job, born, blockReason, label
 		role, verb = "fixer", "Fix "
 	}
 	id := s.freeCardID(wf + "-defect-" + sanitizeIDPart(d.Key) + "-" + strconv.Itoa(d.Gen) + "-" + job)
+	title := verb + d.Ref() + " " + d.Title
+	if o.Title != "" {
+		title = o.Title
+	}
 	task := TaskRecord{
 		ID: id, WorkflowID: wf, DeskID: d.ProductID,
-		Title: btTitle(true, id, verb+d.Ref()+" "+d.Title), Role: role, Model: roles[role].Model,
+		Title: btTitle(true, id, title), Role: role, Model: roles[role].Model,
 		Kind: TaskKindImplement, Status: StatusPending, Labels: normalizeLabels([]string{label}),
 		DedupKey: dedup, Priority: 50, Ordinal: ordinal + 1,
 	}
@@ -108,6 +120,7 @@ func (s *MemStore) planDefectCardLocked(d *Defect, job, born, blockReason, label
 	p.WorkflowID = wf
 	p.Tasks = []PlannedTask{{ID: id, Title: task.Title, Role: role, Model: task.Model, Priority: task.Priority,
 		Kind: task.Kind, Labels: task.Labels, DedupKey: dedup}}
+	p.Actor, p.Rule, p.Reason = o.Actor, o.Rule, o.Reason
 	evs := []Event{s.emit(TaskPlanned, d.ProductID, "1 task(s) planned from defect "+d.Ref(), KindKnow, p)}
 	if born == StatusBlocked {
 		if t := s.taskByIDLocked(id); t != nil {
@@ -416,10 +429,20 @@ func buildAndStoreDefectContext(ctx context.Context, st Store, src codeSource, p
 		return nil
 	}
 	af, _ := st.AutoFixOf(ctx, productID)
-	c, err := buildDefectContext(ctx, src, d, af.BaseBranch, sleep)
+	base := af.BaseBranch
+	if d.BaseOverride != "" { // a retarget's fix card reads the new base (design §6.4)
+		base = d.BaseOverride
+	}
+	c, err := buildDefectContext(ctx, src, d, base, sleep)
 	if err != nil {
-		if d.TriageTask != "" {
-			_, _ = st.ResolvePRCard(ctx, productID, d.TriageTask, StatusBlocked, BlockSearchFailed)
+		// A retarget's fix card is the one waiting; a first triage blocks the triage card. The
+		// retries stop with the block (the card leaves READY).
+		card := d.TriageTask
+		if d.BaseOverride != "" && d.FixTask != "" {
+			card = d.FixTask
+		}
+		if card != "" {
+			_, _ = st.ResolvePRCard(ctx, productID, card, StatusBlocked, BlockSearchFailed)
 		}
 		return err
 	}

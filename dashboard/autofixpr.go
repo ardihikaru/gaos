@@ -87,6 +87,8 @@ func fixEligible(d Defect, taskID string, gen int, af AutoFix, tokenKind string)
 		return "the card is of an older generation"
 	case d.State != DefectStateTriaged:
 		return "the defect is " + d.State
+	case d.BaseOverride != "" && !containsFold(af.AllowedBases, d.BaseOverride):
+		return "the retarget base is no longer allowed"
 	case !af.Enabled:
 		return "auto-fix is off"
 	case autoFixPreconditions(af, tokenKind) != nil:
@@ -218,7 +220,11 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 			packet[f.Path] = f
 		}
 	}
-	base, head, err := p.gh.head(ctx, owner, repo, af.BaseBranch)
+	baseName := af.BaseBranch
+	if d.BaseOverride != "" { // a retarget's fix opens against the new base (design §6.4)
+		baseName = d.BaseOverride
+	}
+	base, head, err := p.gh.head(ctx, owner, repo, baseName)
 	if err != nil {
 		p.failed(ctx, t, rec, err)
 		return
@@ -260,7 +266,8 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		stored, _ := json.Marshal(fr)
 		rec = FixPR{ID: fixPRID(d), ProductID: d.ProductID, DefectKey: d.Key, Repo: d.Repo, State: FixPRPreparing,
 			CreatedAt: now, TaskID: t.ID, Difficulty: d.Difficulty, Branch: branch, BaseSHA: head, Base: baseIfValid(base),
-			Before: capBytes(stripBR53(fr.Before), 1<<10), After: capBytes(stripBR53(fr.After), 1<<10), Reply: string(stored)}
+			RetargetedFrom: retargetedFromOf(d),
+			Before:         capBytes(stripBR53(fr.Before), 1<<10), After: capBytes(stripBR53(fr.After), 1<<10), Reply: string(stored)}
 	}
 	rec.UpdatedAt = now
 	if _, err := p.st.UpsertFixPR(ctx, rec); err != nil {
@@ -329,6 +336,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		if err := p.gh.addComment(ctx, owner, repo, num, prCommentBody(in)); err != nil {
 			p.logf("autofix: the comment of %s#%d could not be posted: %s", rec.Repo, num, ghErrorClass(err))
 		}
+		p.linkRetarget(ctx, owner, repo, d, rec)
 	}
 	if err := p.gh.addLabels(ctx, owner, repo, rec.Number, fixPRLabels); err != nil {
 		p.logf("autofix: the labels of %s#%d could not be set: %s", rec.Repo, rec.Number, ghErrorClass(err))
@@ -338,7 +346,11 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		return
 	}
 	if p.notify != nil {
-		p.notify(ctx, t, "fix:pr", d.ProductID+" · auto-fix draft PR "+d.Ref()+": "+rec.URL)
+		tag := ""
+		if rec.RetargetedFrom != "" {
+			tag = " (retarget)"
+		}
+		p.notify(ctx, t, "fix:pr", d.ProductID+" · auto-fix draft PR"+tag+" "+d.Ref()+": "+rec.URL)
 		rec.State, rec.WaSent, rec.UpdatedAt = FixPRDraft, true, autoFixNow()
 		_, _ = p.st.UpsertFixPR(ctx, rec)
 	}
@@ -444,4 +456,48 @@ func baseIfValid(b string) string {
 		return b
 	}
 	return ""
+}
+
+// retargetedFromOf is the record a retarget's fix replaces: the defect's current pull request while
+// the override is set (OpenFixPR changes Defect.FixPR only when the new one opens).
+func retargetedFromOf(d Defect) string {
+	if d.BaseOverride != "" {
+		return d.FixPR
+	}
+	return ""
+}
+
+// linkRetarget posts the two comments that link a retarget's pull request and the one it replaced.
+// Fixed sentences, validated branch names and numbers only; best effort, never blocking (design §6.4).
+func (p *defectFixer) linkRetarget(ctx context.Context, owner, repo string, d Defect, rec FixPR) {
+	if rec.RetargetedFrom == "" {
+		return
+	}
+	recs, err := p.st.FixPRs(ctx, d.ProductID)
+	if err != nil {
+		return
+	}
+	for _, old := range recs {
+		if old.ID != rec.RetargetedFrom || old.Number <= 0 {
+			continue
+		}
+		oo, or, ok := ghOwnerRepo(old.Repo)
+		if !ok {
+			return
+		}
+		if err := p.gh.addComment(ctx, owner, repo, rec.Number, fmt.Sprintf("Retargeted from %s#%d (base %s).", old.Repo, old.Number, baseOrUnknown(old.Base))); err != nil {
+			p.logf("autofix: the retarget comment of %s#%d could not be posted: %s", rec.Repo, rec.Number, ghErrorClass(err))
+		}
+		if err := p.gh.addComment(ctx, oo, or, old.Number, fmt.Sprintf("Superseded by %s#%d (base %s). This pull request is left open for a person to close.", rec.Repo, rec.Number, baseOrUnknown(rec.Base))); err != nil {
+			p.logf("autofix: the superseded comment of %s#%d could not be posted: %s", old.Repo, old.Number, ghErrorClass(err))
+		}
+		return
+	}
+}
+
+func baseOrUnknown(b string) string {
+	if prRefOK(b) {
+		return b
+	}
+	return "unknown"
 }

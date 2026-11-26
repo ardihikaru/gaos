@@ -81,6 +81,16 @@ type PRDrawer struct {
 	CloseHref string
 	Override  string // the defect's base override, when a retarget set one
 	Facts     []PRFact
+	Retarget  *PRRetarget
+}
+
+// PRRetarget is the drawer's "change the base branch" block of a fix pull request (design §6.1): the
+// bases the select offers, the form's address, and, when the button is off, the one sentence that says
+// why and how to turn it on (the first row of the design's table that applies).
+type PRRetarget struct {
+	PostURL string
+	Bases   []string
+	Off     string
 }
 
 // PRFact is a label and a value in the drawer.
@@ -171,10 +181,10 @@ func prBucket(state string) string {
 func (s *server) buildPRs(r *http.Request, bo *BOView) {
 	bo.Title = "Pull requests"
 	bo.Sub = "Every open pull request that relates to a task in GAOS, per product: the draft fixes GAOS opens, the pull requests it reviews, and the ones the QA tool opens. GAOS never merges or marks one ready."
-	bo.PRs = s.prPage(r.Context(), r.URL.Query(), time.Now())
+	bo.PRs = s.prPage(r.Context(), r.URL.Query(), time.Now(), prViewerIsAdmin(r))
 }
 
-func (s *server) prPage(ctx context.Context, q url.Values, now time.Time) *PRPage {
+func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin bool) *PRPage {
 	p := &PRPage{}
 	products, _ := s.store.Products(ctx)
 	known := map[string]string{}
@@ -272,6 +282,7 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time) *PRPag
 			row.Open = f.Open == row.Key
 			if row.Open {
 				drawer = prDrawerOf(row, pr.ID, fx.CreatedAt, 0, byDefect[fx.DefectKey], byCard, f, now)
+				drawer.Retarget = prRetargetOf(pr.ID, fx, byDefect[fx.DefectKey], byCard, af, fixes, admin)
 			}
 			all = append(all, row)
 		}
@@ -460,7 +471,52 @@ func (s *server) handlePRsLive(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	q := r.URL.Query()
 	q.Del("open")
-	page := s.prPage(r.Context(), q, time.Now())
+	page := s.prPage(r.Context(), q, time.Now(), prViewerIsAdmin(r))
 	page.OOB = true
 	s.rend.Render(w, http.StatusOK, "prs-live", page)
+}
+
+// prViewerIsAdmin says whether the signed-in account is on the auto-fix admin list.
+func prViewerIsAdmin(r *http.Request) bool {
+	ss, ok := sessionOf(r)
+	return ok && ss.Email != "" && autoFixAdmin(ss.Email)
+}
+
+// prRetargetOf builds the retarget block of a fix pull request's drawer. Off is the FIRST row of the
+// design's table (§6.1) that applies, in that order; "" means the button is on. It makes no GitHub
+// call: the bases offered are the allowed ones minus the current base, and the route checks that the
+// chosen one exists.
+func prRetargetOf(productID string, fx FixPR, d Defect, byCard map[string]TaskRecord, af AutoFix, all []FixPR, admin bool) *PRRetarget {
+	rt := &PRRetarget{PostURL: "products/" + url.PathEscape(productID) + "/prs/" + url.PathEscape(fx.ID) + "/retarget"}
+	for _, b := range af.AllowedBases {
+		if !strings.EqualFold(b, fx.Base) && baseBranchRe.MatchString(b) {
+			rt.Bases = append(rt.Bases, b)
+		}
+	}
+	chain := 0
+	for _, o := range all {
+		if o.DefectKey == fx.DefectKey && o.RetargetedFrom != "" {
+			chain++
+		}
+	}
+	card, hasCard := byCard[d.FixTask]
+	switch {
+	case !admin:
+		rt.Off = "Only accounts on the auto-fix admin list can change a base branch. Ask an admin, or ask to be added."
+	case !strings.HasPrefix(fx.Branch, fixRefPrefix):
+		rt.Off = "GAOS only changes the base of pull requests it opened (branch gaos/fix-…)."
+	case fx.State != FixPRDraft && fx.State != FixPRReady:
+		rt.Off = "This pull request is closed. Nothing to change."
+	case fx.Base == "":
+		rt.Off = "The base branch of this pull request is not known yet. GAOS reads it within 5 minutes; reopen this panel then."
+	case fx.RetargetedTo != "":
+		rt.Off = "This pull request was already retargeted (see the newer one). Open that one to retarget it again."
+	case hasCard && (liveFixCard(&card) || (d.BaseOverride != "" && (card.Status == StatusBlocked || card.Status == StatusFailed))):
+		rt.Off = "A task is already working on this defect (task " + card.ID + ", status " + strings.ToLower(card.Status) + "). If it is blocked, unblock it on the board or close this pull request."
+	case chain >= retargetMaxChain:
+		rt.Off = "This defect was retargeted three times. Change the product's base branch setting instead."
+	case len(rt.Bases) == 0:
+		rt.Off = "No other base branch is allowed. An admin sets allowed bases with POST /products/{id}/autofix (field allowedBases); leaving the field out clears the list."
+	}
+	return rt
 }
