@@ -137,7 +137,7 @@ Four gitignored files, per service and per environment:
 
 ```
 deploy/stacks/{dev,prod}.dashboard.env    <- dashboard.env.example documents the names
-deploy/stacks/{dev,prod}.docs.env         <- docs.env.example (the docs login)
+deploy/stacks/{dev,prod}.docs.env         <- docs.env.example (the docs login, off since D-093)
 ```
 
 `env_file:`, not `${…}` interpolation: no flag to forget, and a missing file is a
@@ -147,7 +147,7 @@ hard error rather than a silently empty value.
 injects every line, handing GAOS's containers every other project's credentials.
 `chmod 600` all four.
 
-Generate `PUSTAKA_AUTH_SECRET` on the host (`openssl rand -hex 32`). Blank means
+Only if the docs login is switched back on: generate `PUSTAKA_AUTH_SECRET` on the host (`openssl rand -hex 32`). Blank means
 the server invents a random one per process, so every deploy signs everyone out.
 
 ## Bring-up
