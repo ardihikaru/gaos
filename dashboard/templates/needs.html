@@ -100,7 +100,7 @@
       <button type="button" class="icon-btn x" aria-label="Close" title="Close (Esc)" data-close-modal="answerModal">✕</button>
     </header>
     <form id="answerForm" class="answer-form" hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML"
-          hx-disabled-elt="find button[type=submit]" data-default="{{.Default}}">
+          hx-disabled-elt="find button[type=submit]" hx-request='{"timeout":20000}' data-default="{{.Default}}">
       <div class="modal-body">
         {{if .Rest}}<p class="answer-rest" dir="auto">{{.Rest}}</p>{{end}}
         {{if .Context}}
@@ -143,7 +143,7 @@
         </div>
       </div>
       <footer>
-        <span class="answer-hint" id="answerHint" aria-live="polite">{{if eq .Default 4}}Write your answer to send option 4.{{else}}Sends option 1, the recommendation.{{end}}</span>
+        <span class="answer-hint" id="answerHint" aria-live="polite">{{if eq .Default 4}}Write your answer in the box to send option 4.{{else if eq .Default 0}}Send answer stays off until you pick one of the answers above.{{else}}Sends option 1, the recommendation.{{end}}</span>
         <span class="sp">
           <button type="button" class="btn" data-close-modal="answerModal">Cancel</button>
           <button type="submit" class="btn btn-primary" aria-describedby="answerHint"{{if eq .Default 4}} disabled{{end}}>Send answer <kbd class="kbd-hint" aria-hidden="true" data-mod-enter></kbd></button>
