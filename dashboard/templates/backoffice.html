@@ -1166,7 +1166,15 @@
     </ul>
     {{end}}
     {{if .QALink}}<p class="tm-line"><a href="{{.QALink}}" target="_blank" rel="noopener noreferrer">Open the job in the QA tool<span class="sr-only"> (opens a new tab)</span></a></p>{{else if .QAJob}}<p class="tm-line">QA job <span class="mono">{{.QAJob}}</span></p>{{end}}
-    {{block "prs-actions" .}}{{end}}
+    {{with .Retarget}}
+    <h4 class="af-h">Change the base branch</h4>
+    <form id="prsRetarget" class="prs-rt" hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]" hx-request='{"timeout":20000}'>
+      <label class="prs-rt-l"><span class="prs-rt-k">New base</span>
+        <select name="base" aria-describedby="prsRtHint"{{if or .Off (not .Bases)}} disabled{{end}}>{{range .Bases}}<option value="{{.}}">{{.}}</option>{{end}}</select></label>
+      <button type="submit" class="btn btn-primary" aria-describedby="prsRtHint"{{if .Off}} disabled{{end}}>Retarget</button>
+      <p id="prsRtHint" class="prs-hint" aria-live="polite">{{if .Off}}{{.Off}}{{else}}GAOS asks the AI to redo this fix on the new base and opens a new draft pull request. This one stays open; a person closes it.{{end}}</p>
+    </form>
+    {{end}}
   </div>
 </aside>
 {{end}}

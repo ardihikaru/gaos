@@ -59,9 +59,24 @@
   </table>
   <p>Every change of these is recorded in the <code>AutoFixConfigured</code> event with the account&rsquo;s alias.</p>
 
+  <h2 id="retarget">Change the base branch</h2>
+  <p>For a draft GAOS opened, the drawer has a <strong>Retarget</strong> block for the accounts on the auto-fix admin list. GAOS does not edit the pull request. It raises the defect&rsquo;s generation and plans a related fix task against the chosen base; the AI redoes the fix on that base&rsquo;s code and a new draft pull request opens against it.</p>
+  <table class="tbl">
+    <thead><tr><th>What happens</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Choosing a base</td><td>Only the product&rsquo;s <code>allowedBases</code>, minus the current base; the route checks that the branch exists on GitHub, once, when you press the button.</td></tr>
+      <tr><td>The task</td><td>An ordinary fix task of the next generation, titled &ldquo;(retarget to &hellip;)&rdquo;, with the account, the rule and the reason in its event. It spends the product&rsquo;s daily fix cap and waits its turn like any fix.</td></tr>
+      <tr><td>The AI</td><td>It gets the source of the new base and the previous fix as <em>untrusted data</em>, and the usual limits apply (three files, 40 and 120 lines, allowed paths, the CI check against the new base).</td></tr>
+      <tr><td>The result</td><td>A new draft pull request on a branch ending in the generation, linked both ways, with a comment on each; one WhatsApp line marked retarget.</td></tr>
+      <tr><td>The old pull request</td><td>Left open for a person to close. Closing or merging it never moves the defect after the new one exists; a merge while the retarget is still pending lands the fix and blocks the retarget task.</td></tr>
+      <tr><td>Limits</td><td>At most three retargets of a defect; one at a time; a base removed from <code>allowedBases</code> is refused from then on, even for a task someone unblocks.</td></tr>
+    </tbody>
+  </table>
+  <p>When the button is off, the drawer says why and how to turn it on (not an admin, not a GAOS branch, closed, base not yet known, already retargeted, a task already working, three retargets, no other allowed base).</p>
+
   <h2 id="never">What it never does</h2>
   <ul>
-    <li>Merge, mark ready, approve or close a pull request, or change its base.</li>
+    <li>Merge, mark ready, approve or close a pull request, or change the base of one it already opened: a retarget opens a new draft instead.</li>
     <li>Read a repository the product does not follow, or build a link from a URL someone else supplied: GitHub links come from the validated owner, repository and number, and the QA link only from the one host GAOS is configured to trust.</li>
     <li>Show GitHub&rsquo;s text as markup: titles, authors and branch names are plain text, and a title that matches a secret detector is withheld.</li>
   </ul>

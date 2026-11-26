@@ -341,6 +341,27 @@
   document.body.addEventListener("htmx:timeout", answerNotSent);
   document.body.addEventListener("htmx:sendError", answerNotSent);
 
+  /* The retarget form of the Pull requests drawer (D-092): in flight the hint says so; a request that
+     the server never answers returns the button after its limit, with what to do. */
+  var RETARGETING = "Retargeting\u2026 waiting for the server. If nothing comes back within 20 seconds the button returns and you can try again.";
+  document.body.addEventListener("htmx:beforeRequest", function (e) {
+    var f = e.detail.elt;
+    if (!f || f.id !== "prsRetarget") return;
+    var h = f.querySelector("#prsRtHint");
+    if (h) { h.classList.remove("warn"); h.textContent = RETARGETING; }
+  });
+  function retargetNotSent(e) {
+    var f = e.detail && e.detail.elt;
+    if (!f || f.id !== "prsRetarget") return;
+    var h = f.querySelector("#prsRtHint");
+    if (h) {
+      h.textContent = "The server did not answer, so the retarget may not have started. Look for a new task on the board before you try again.";
+      h.classList.add("warn");
+    }
+  }
+  document.body.addEventListener("htmx:timeout", retargetNotSent);
+  document.body.addEventListener("htmx:sendError", retargetNotSent);
+
   document.body.addEventListener("htmx:afterRequest", function (e) {
     if (!e.detail.elt || e.detail.elt.id !== "answerForm") return;
     // Not detail.successful: page.html swaps 4xx bodies (the refusal toast),

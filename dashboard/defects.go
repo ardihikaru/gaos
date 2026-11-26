@@ -339,6 +339,9 @@ func (s *MemStore) defectEventLocked(t EventType, productID, text, kind string, 
 func (s *MemStore) setDefectStateLocked(d *Defect, to, rule, actor string) Event {
 	from := d.State
 	d.State = to
+	if to == DefectStateFixed || to == DefectStateClosed {
+		d.BaseOverride = "" // a retarget's base lives only until the defect is done (design §6.4)
+	}
 	p := EventPayload{Task: d.Key, Reason: from + "→" + to, Rule: rule, To: to, Actor: actor}
 	text := fmt.Sprintf("defect %s: %s → %s (%s)", d.Ref(), from, to, rule)
 	if actor != "" {
@@ -534,6 +537,7 @@ func (s *MemStore) reopenDefectLocked(m *Master, d *Defect, it DefectItem, now i
 	_, excerpt, withheld := screenDefectText("", it.Excerpt)
 	from := d.State
 	d.Gen++
+	d.BaseOverride = "" // a generation the retarget did not cause ends its override
 	d.Regression = true
 	d.Difficulty, d.Class, d.Repo, d.Reason = "", "", "", ""
 	d.Files = nil

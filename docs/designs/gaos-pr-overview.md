@@ -308,4 +308,11 @@ Register ids from TC-699 (one row per `func Test…`); the Go test count rises 5
 - `Defect.BaseOverride`, the three `FixPR` fields, `AutoFix.AllowedBases` and the poller's guard for a replaced or pending record are built in this phase (the guard is tested as TC-707); the retarget route, its mutation and the fixer changes are phase B.
 - The ArcadeDB half of the suite and a boot of the dashboard were run against a scratch ArcadeDB (`deploy/schema/scratch.sh up`): the DDL applied 481 statements with none failed.
 
-*(Phase B's as-built notes follow when it ships.)*
+**Phase B (v0.54.0), as built.** The retarget route, the mutation, the fixer changes and the drawer form are built as designed.
+
+- New files: `retarget.go` (the refusal type, the gates, `RetargetFixPR`, the previous-fix section), `handlers_prs.go` (the route), `retarget_test.go`. The route is `handleRetarget` in `handlers_prs.go`; the drawer block is `prRetargetOf` in `prview.go`.
+- The nine tests are TC-712 to TC-720: `TestTheDrawerExplainsEachDisabledRetarget` in `prview_test.go`, the other eight in `retarget_test.go`. The Go test count is 586 (564 in `dashboard/`), the register 720.
+- `planDefectCardLocked` takes a variadic `planOpts`, so its five callers did not change.
+- The override is cleared in `setDefectStateLocked` (to fixed or closed), by the poller's closed path and by `reopenDefectLocked`.
+- Deviation: the retarget's notice is the existing fix notice with "(retarget)" in its text; the comments and the old record's `RetargetedTo` are written by `defectFixer` and `OpenFixPR`, as §6.4 says.
+- The ArcadeDB half of the suite ran against a scratch ArcadeDB (481 DDL statements, none failed); the new tests also ran under the race detector.

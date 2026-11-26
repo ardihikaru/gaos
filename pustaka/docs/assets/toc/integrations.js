@@ -73,6 +73,7 @@ window.DOCS.nav.push({
         { anchor: "kinds", title: "Where each kind comes from", text: "Auto-fix, review and QA-tool pull requests, and the task of each." },
         { anchor: "page", title: "The page", text: "Rows, tabs, filters, the drawer and how the page is kept fresh." },
         { anchor: "settings", title: "The settings", text: "automationRepos and allowedBases, and that a post replaces the configuration." },
+        { anchor: "retarget", title: "Change the base branch", text: "The Retarget action: a new fix task and a new draft pull request against another allowed base." },
         { anchor: "never", title: "What it never does", text: "Merge, ready, close, build a link from a supplied URL." }
       ]
     },

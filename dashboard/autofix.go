@@ -296,6 +296,23 @@ func autoFixPass(ctx context.Context, st Store, src codeSource) int {
 					continue
 				}
 			}
+			if job == defectJobFix {
+				// A retarget's fix card: the base it reads must still be allowed (revoking a base
+				// refuses it for every later attempt), and its source slice is read from that base.
+				if rec, err := st.DefectByKey(ctx, d.ID, key); err == nil && rec.BaseOverride != "" {
+					if !containsFold(af.AllowedBases, rec.BaseOverride) {
+						_, _ = st.ResolvePRCard(ctx, d.ID, c.ID, StatusBlocked, BlockBaseNotAllowed)
+						log.Printf("autofix: %s blocked %s", c.ID, BlockBaseNotAllowed)
+						continue
+					}
+					if !rec.Context.Built {
+						if err := buildAndStoreDefectContext(ctx, st, src, d.ID, key, ctxSleep); err != nil {
+							log.Printf("autofix: the source slice of a retarget could not be built: %s", defectErrClass(err))
+							continue
+						}
+					}
+				}
+			}
 			if _, err := st.AutoDispatch(ctx, d.ID, c.ID); err != nil {
 				if !errors.Is(err, ErrRejected) {
 					log.Printf("autofix: a dispatch failed: %v", err)
@@ -333,6 +350,12 @@ func (s *MemStore) fixerPartsLocked(t TaskRecord) []PacketPart {
 	sb.WriteString(renderDefectPacket(*d))
 	fmt.Fprintf(&sb, "\n## The triage verdict\n\nDifficulty: %s\nClass: %s\nRepository: %s\nFiles: %s\nReason: %s\n",
 		d.Difficulty, d.Class, d.Repo, strings.Join(d.Files, ", "), d.Reason)
+	// A retarget card also gets the fix made on the old base, as data (design §6.4).
+	if d.BaseOverride != "" {
+		if old, ok := s.fixPRs[d.FixPR]; ok {
+			sb.WriteString(previousFixSection(old.Base, old))
+		}
+	}
 	return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: sb.String()}}
 }
 
@@ -355,6 +378,13 @@ func (s *MemStore) OpenFixPR(ctx context.Context, productID, taskID string, f Fi
 	f.ProductID, f.TaskID, f.State = productID, taskID, FixPRDraft
 	f.UpdatedAt = autoFixNow()
 	s.fixPRs[f.ID] = f
+	// A pull request a retarget opened marks the one it replaced, in the same transaction (design §6.4).
+	var replaced []FixPR
+	if old, ok := s.fixPRs[f.RetargetedFrom]; ok && f.RetargetedFrom != "" && old.ProductID == productID && old.RetargetedTo == "" {
+		old.RetargetedTo = f.ID
+		s.fixPRs[old.ID] = old
+		replaced = append(replaced, old)
+	}
 	d.FixPR = f.ID
 	// The pull request exists whatever happened to the card meanwhile, so a card
 	// that is no longer in review does not stop the record.
@@ -368,7 +398,7 @@ func (s *MemStore) OpenFixPR(ctx context.Context, productID, taskID string, f Fi
 	if d.State == DefectStateTriaged {
 		evs = append(evs, s.setDefectStateLocked(d, DefectStateFixing, RuleFixPR, ""))
 	}
-	return Result{Floor: s.floor(), NewEvents: evs, Defects: []Defect{d.Clone()}, FixPRs: []FixPR{f}}, nil
+	return Result{Floor: s.floor(), NewEvents: evs, Defects: []Defect{d.Clone()}, FixPRs: append([]FixPR{f}, replaced...)}, nil
 }
 
 func (s *ArcadeStore) OpenFixPR(ctx context.Context, productID, taskID string, f FixPR) (Result, error) {
