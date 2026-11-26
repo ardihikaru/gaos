@@ -130,6 +130,72 @@ func TestDefectContextLeavesOutAFileTheEgressPassWouldRefuse(t *testing.T) {
 	}
 }
 
+// The files the first operation finds come before those of the later ones, whatever their names
+// (found live: files were ordered by position then alphabetically, and the resolver of the defect's
+// own operation lost its place to files found for the fourth).
+func TestDefectContextOrdersFilesByTheOperationThatFoundThem(t *testing.T) {
+	f := &opFakeGitHub{byOp: map[string][]string{
+		"firstOp":  {"pkg/z_resolver.go", "pkg/y.go"},
+		"secondOp": {"pkg/a_other.go"},
+	}, files: map[string]string{"pkg/z_resolver.go": "package p\n", "pkg/y.go": "package p\n", "pkg/a_other.go": "package p\n"}}
+	d := sampleDefect()
+	d.Operations = []string{"firstOp", "secondOp"}
+	c, err := buildDefectContext(context.Background(), newOpFakeCode(t, f), d, "", noSleep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, file := range c.Files {
+		got = append(got, file.Path)
+	}
+	if strings.Join(got, ",") != "pkg/z_resolver.go,pkg/y.go,pkg/a_other.go" {
+		t.Errorf("files = %v; want the first operation's hits in search order, then the second's", got)
+	}
+}
+
+type opFakeGitHub struct {
+	byOp  map[string][]string
+	files map[string]string
+}
+
+func (f *opFakeGitHub) handler(w http.ResponseWriter, r *http.Request) {
+	p := r.URL.Path
+	switch {
+	case p == "/repos/acme-org/sample-service":
+		_, _ = w.Write([]byte(`{"default_branch":"main"}`))
+	case p == "/repos/acme-org/sample-service/git/ref/heads/main":
+		_, _ = w.Write([]byte(`{"object":{"sha":"abc123head"}}`))
+	case p == "/search/code":
+		var items []map[string]string
+		for op, paths := range f.byOp {
+			if strings.Contains(r.URL.Query().Get("q"), op) {
+				for _, sp := range paths {
+					items = append(items, map[string]string{"path": sp})
+				}
+			}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"items": items})
+	case strings.HasPrefix(p, "/repos/acme-org/sample-service/contents/"):
+		path := strings.TrimPrefix(p, "/repos/acme-org/sample-service/contents/")
+		text, ok := f.files[path]
+		if !ok {
+			w.WriteHeader(404)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"type": "file", "encoding": "base64", "sha": "blob-" + path,
+			"size": len(text), "content": base64.StdEncoding.EncodeToString([]byte(text))})
+	default:
+		w.WriteHeader(404)
+	}
+}
+
+func newOpFakeCode(t *testing.T, f *opFakeGitHub) *ghClient {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(f.handler))
+	t.Cleanup(srv.Close)
+	return newGHClient(ghConfig{token: "ghp_" + strings.Repeat("a", 30), base: srv.URL})
+}
+
 func TestDefectContextKeepsPathsAndLimits(t *testing.T) {
 	big := strings.Repeat("x", 30<<10)
 	f := &fakeGitHub{
