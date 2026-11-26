@@ -501,7 +501,7 @@ func (s *server) routes() http.Handler {
 	// Go 1.22 patterns: method and wildcards in the pattern itself, so there is
 	// no router library and no switch on r.Method inside a handler.
 	handle("GET /{$}", s.handleIndex)
-	// The page routes (D-093, urls.go): one whole document per back-office view
+	// The page routes (D-094, urls.go): one whole document per back-office view
 	// and per product section, so a deep link, a reload and Back land on it.
 	// They are back-office routes; signed out, the gate answers them itself.
 	for _, v := range pageViews {
@@ -547,7 +547,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/blueprint/sync", s.handleSyncBlueprint)
 	handle("PUT /products/{id}/vendors", s.handleSaveVendors)
 	handle("GET /products/{id}/board", s.handleBoard)
-	handle("GET /products/{id}/board/live", s.handleBoardLive)                   // the Board's own route (D-094)
+	handle("GET /products/{id}/board/live", s.handleBoardLive)                   // the Board's own route (D-095)
 	handle("GET /products/{id}/board/cards/{taskId}/timing", s.handleCardTiming) // D-081
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084

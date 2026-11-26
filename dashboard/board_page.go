@@ -1,6 +1,6 @@
 package main
 
-// The Board, a page at a time (D-094, docs/designs/urls-and-board.md §4, §5).
+// The Board, a page at a time (D-095, docs/designs/urls-and-board.md §4, §5).
 //
 // Board() returns every card of a product and decorates every one. That was
 // right while a board held a workflow's worth of tasks; Done never empties, and

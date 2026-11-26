@@ -35,7 +35,7 @@ func (s *server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	if !s.requireBO(w, r) {
 		return
 	}
-	// ?paged=1 is the client board's document (D-094, board_view.go): one page,
+	// ?paged=1 is the client board's document (D-095, board_view.go): one page,
 	// filtered. Without it this is the document it has always been.
 	if r.URL.Query().Get("paged") == "1" {
 		s.handleBoardPaged(w, r, r.PathValue("id"))
@@ -83,12 +83,12 @@ func (s *server) handleMoveCard(w http.ResponseWriter, r *http.Request) {
 	}
 	// A move made on the Board is answered with the Board: the columns that
 	// changed, at the depth and under the filter the browser is showing
-	// (D-094). The whole sheet used to come back for one card.
+	// (D-095). The whole sheet used to come back for one card.
 	if wantsHTMX(r) {
 		s.renderBoardAfter(w, r, res, id)
 		return
 	}
-	// One card, not the board (D-094): on the client board every drag ends here.
+	// One card, not the board (D-095): on the client board every drag ends here.
 	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
 		writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
 		return
@@ -156,7 +156,7 @@ func (s *server) handleSendBack(w http.ResponseWriter, r *http.Request) {
 		s.renderBOAfter(w, r, res, id, "board")
 		return
 	}
-	// One card, not the board (D-094): on the client board every drag ends here.
+	// One card, not the board (D-095): on the client board every drag ends here.
 	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
 		writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
 		return

@@ -37,7 +37,7 @@
     if (dot) dot.hidden = !on;
   }
 
-  // X-GAOS-Refresh marks a request nobody clicked for (D-093). The server
+  // X-GAOS-Refresh marks a request nobody clicked for (D-094). The server
   // never moves the address for one: a refresh that lands after the operator
   // has gone elsewhere must not push them a history entry.
   function get(url, then) {
@@ -110,7 +110,7 @@
     }
   }
 
-  /* ---------- the Board (D-094) ----------
+  /* ---------- the Board (D-095) ----------
      The Board tab keeps its view in a form (#boardFilters) and its window in
      the DOM: how deep each column is open (data-shown) and what each holds
      (data-rev). Three things here keep the server informed and the screen calm:

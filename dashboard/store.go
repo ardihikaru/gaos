@@ -125,7 +125,7 @@ type Store interface {
 	// The board (M14.6, board.go): a projection of the product's tasks, and a
 	// move on it -- a request the task state machine may refuse (BR-43).
 	Board(ctx context.Context, productID string) (Board, error)
-	// BoardPage is the board cut to one page (D-094, board_page.go): the cards
+	// BoardPage is the board cut to one page (D-095, board_page.go): the cards
 	// that match q, w's depth per column, decorated only once chosen. BoardCard
 	// is one card, decorated the same way. EventCount is how many events a
 	// product has, for the Timeline tab's number, without a copy of the stream.

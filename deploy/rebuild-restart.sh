@@ -397,7 +397,7 @@ echo "== base href survived the strip =="
 BASE="$(ssh -o ConnectTimeout=8 clino "curl -sS -H 'Host: $HOST' http://$TUNNEL:$PORT/app/" 2>&1 | grep -o '<base href="[^"]*">')"
 if [ "$BASE" = '<base href="/app/">' ]; then vok "$BASE"; else vbad "base href: '$BASE', want '<base href=\"/app/\">'"; fi
 
-# D-093: a page route three levels below the mount. Signed out it is refused
+# D-094: a page route three levels below the mount. Signed out it is refused
 # (401, BR-55) with the sign-in page as its body, and that page must carry the
 # same base: a deep URL whose base resolved against its own path would 404
 # every asset, and nothing would log it.

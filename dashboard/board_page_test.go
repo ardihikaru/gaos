@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-// The tests of D-094: the Board a page at a time (board_page.go,
+// The tests of D-095: the Board a page at a time (board_page.go,
 // docs/designs/urls-and-board.md §4, §5, §10.2).
 
 // bigBoard is a product with n synthetic cards on top of the fixtures': nine

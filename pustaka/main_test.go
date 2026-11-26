@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1026,5 +1028,114 @@ func TestAuthBehindPrefixStrip(t *testing.T) {
 	h.ServeHTTP(w, r)
 	if loc := w.Header().Get("Location"); loc != authRoutePrefix+"/login?next=%2Fguide%2Fx.html" {
 		t.Fatalf("unproxied Location = %q, want the unprefixed login URL", loc)
+	}
+}
+
+// The pre-paint head snippet: present once, before </head>, with a font preload
+// that resolves like the page's own stylesheet; absent from assets, from
+// underscore pages and from the partial endpoint; still gzip-compressed.
+func TestHeadInjection(t *testing.T) {
+	root := writeServeFixture(t)
+	h := testHandler(t, root, nil)
+	get := func(path string, gz bool) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", path, nil)
+		if gz {
+			r.Header.Set("Accept-Encoding", "gzip")
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+
+	for path, base := range map[string]string{"/": "", "/index.html": "", "/guide/x.html": "../"} {
+		w := get(path, false)
+		body := w.Body.String()
+		if w.Code != 200 {
+			t.Fatalf("%s: status %d", path, w.Code)
+		}
+		if n := strings.Count(body, headMarker); n != 1 {
+			t.Errorf("%s: marker appears %d times, want 1", path, n)
+		}
+		if i, j := strings.Index(body, headMarker), strings.Index(body, "</head>"); i < 0 || i > j {
+			t.Errorf("%s: snippet is not inside <head>", path)
+		}
+		if !strings.Contains(body, `localStorage.getItem("pustaka-theme")`) {
+			t.Errorf("%s: theme script missing", path)
+		}
+		if want := `href="` + base + `assets/fonts/atkinson-hyperlegible-latin-400-normal.woff2"`; !strings.Contains(body, want) {
+			t.Errorf("%s: preload %s missing", path, want)
+		}
+		if cl := w.Header().Get("Content-Length"); cl != fmt.Sprint(len(body)) {
+			t.Errorf("%s: Content-Length %q, body %d bytes", path, cl, len(body))
+		}
+	}
+
+	if body := get("/assets/site.css", false).Body.String(); strings.Contains(body, headMarker) {
+		t.Error("an asset must not be injected")
+	}
+	if w := get("/_template.html", false); strings.Contains(w.Body.String(), headMarker) {
+		t.Error("an underscore page must not be injected")
+	}
+	if body := get("/__pustaka/partial/guide/x.html", false).Body.String(); strings.Contains(body, "pustaka:head") {
+		t.Error("the partial endpoint must not carry the head snippet")
+	}
+
+	w := get("/guide/x.html", true)
+	if enc := w.Header().Get("Content-Encoding"); enc != "gzip" {
+		t.Fatalf("Content-Encoding %q, want gzip", enc)
+	}
+	zr, err := gzip.NewReader(w.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, _ := io.ReadAll(zr)
+	if strings.Count(string(plain), headMarker) != 1 {
+		t.Error("the gzip body lost or doubled the snippet")
+	}
+
+	// A cache holding a copy from before this binary started must not get a
+	// 304: the file's own mtime is older than the snippet.
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(filepath.Join(root, "guide", "x.html"), old, old); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest("GET", "/guide/x.html", nil)
+	r.Header.Set("If-Modified-Since", old.UTC().Format(http.TimeFormat))
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), headMarker) {
+		t.Errorf("a revalidation at the file's mtime answered %d without the snippet", w.Code)
+	}
+
+	// The snippet carries no request-derived bytes.
+	snippetOf := func(host, prefix string) string {
+		r := httptest.NewRequest("GET", "/guide/x.html", nil)
+		r.Host = host
+		if prefix != "" {
+			r.Header.Set("X-Forwarded-Prefix", prefix)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		b := w.Body.String()
+		i := strings.Index(b, headMarker)
+		return b[i:strings.Index(b, "</head>")]
+	}
+	if a, b := snippetOf("a.example", ""), snippetOf("evil.example\"><script>", "/x\"><svg>"); a != b {
+		t.Errorf("the snippet varies with the request:\n%s\n%s", a, b)
+	}
+
+	// A base that is not a run of "../" gets no preload.
+	odd := injectHead([]byte(`<head><link href="https://x/assets/site.css"></head>`))
+	if strings.Contains(string(odd), "preload") {
+		t.Errorf("a non-relative base produced a preload: %s", odd)
+	}
+
+	// Idempotent, and a page without </head> is left alone.
+	once := injectHead([]byte("<html><head></head><body></body></html>"))
+	if !bytes.Equal(injectHead(once), once) {
+		t.Error("injectHead is not idempotent")
+	}
+	if got := injectHead([]byte("<p>fragment</p>")); string(got) != "<p>fragment</p>" {
+		t.Errorf("a page without </head> changed: %q", got)
 	}
 }

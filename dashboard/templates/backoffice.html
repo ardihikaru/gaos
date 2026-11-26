@@ -67,7 +67,7 @@
     </div>
 
     {{if $product}}{{with .BO.Detail}}
-    {{/* D-093: each item is a link. href is the page (a new tab, a copied
+    {{/* D-094: each item is a link. href is the page (a new tab, a copied
          link); hx-get is the fragment a plain click swaps in. */}}
     <nav class="bo-menu" aria-label="Product sections">
       <a{{if eq .Tab "brd"}} aria-current="page"{{end}}       href="p/{{.Slug}}/brd" hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</a>
@@ -140,7 +140,7 @@
      to move them. One fragment carries both: the pane that changed and the
      chrome that counts it. */}}
 {{define "bo-main-oob"}}{{template "bo-title" .}}{{template "bo-sheet" .}}{{end}}
-{{/* D-093: the document title of what the sheet now shows. htmx applies a
+{{/* D-094: the document title of what the sheet now shows. htmx applies a
      <title> only when it is a top-level node of the response, so this is the
      first thing in every fragment that carries the sheet -- and it is never
      empty: signed out, .BO is nil and the title is the home page's. */}}
@@ -224,7 +224,7 @@
     {{else}}{{template "pane-brd" .}}{{end}}
   </div>
 
-  {{/* D-094: the Board takes the whole width; the record's side panel is
+  {{/* D-095: the Board takes the whole width; the record's side panel is
        on every other tab. */}}
   {{if ne .Tab "board"}}
   <aside class="inject">
@@ -400,7 +400,7 @@
 </form>
 {{end}}
 
-{{/* The Board (D-094, docs/designs/urls-and-board.md §4, §5). One page of the
+{{/* The Board (D-095, docs/designs/urls-and-board.md §4, §5). One page of the
      product's cards: thirty to a column until asked for more, under the filter
      the bar holds, as a board or as a table. board-col, board-table,
      board-count and board-views are also what the Board's own route
@@ -487,7 +487,7 @@
 
 {{/* One column. data-shown and data-rev are what the browser sends back with
      its next request: how deep this column is open, and what it holds. Every
-     class, id and data- attribute of a card is what it was before D-094 --
+     class, id and data- attribute of a card is what it was before D-095 --
      app.js, live.js and five tests find cards by them. */}}
 {{define "board-col"}}
 {{$id := .ProductID}}

@@ -48,7 +48,7 @@ type MemStore struct {
 	// extended from timingN on read. Its own mutex, because a reader holding
 	// mu.RLock extends it.
 	// timingCalls counts the card timings computed for a board page; a test
-	// reads it to hold BoardPage to "only the cards on the page" (D-094).
+	// reads it to hold BoardPage to "only the cards on the page" (D-095).
 	timingCalls atomic.Int64
 	timingMu    sync.Mutex
 	timingIdx   map[string][]int
@@ -328,7 +328,7 @@ func NewMemStore(seed uint64) *MemStore {
 
 	s.products = append([]Product(nil), seedProducts...)
 	// The fixtures are the store's genesis: their slugs are part of it, and
-	// nothing is emitted for them (D-093).
+	// nothing is emitted for them (D-094).
 	backfillSlugs(s.products)
 	for _, m := range seedMasters {
 		s.masters = append(s.masters, m.Clone())
@@ -1845,7 +1845,7 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 		prio = dr.Priority
 	}
 	// The slug is assigned here, once, under the lock, and against every other
-	// product, so it is unique by construction (D-093).
+	// product, so it is unique by construction (D-094).
 	s.products = append(s.products, Product{ID: id, Name: name, Repo: repo, Goal: goal, Slug: newSlug(name, id, s.products)})
 	s.masters = append(s.masters, Master{
 		ID: id, Code: strings.ToUpper(firstN(name, 2)), Owner: owner,
@@ -1858,7 +1858,7 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 	return r, nil
 }
 
-// AssignSlug gives one existing product a slug (D-093): the back-fill for
+// AssignSlug gives one existing product a slug (D-094): the back-fill for
 // products created before slugs existed, and for a stored slug that failed
 // validation. It is a state change, so it emits an event (BR-02) -- the
 // existing RecordUpdated, in the form UpdateBRD's has -- and its Result names

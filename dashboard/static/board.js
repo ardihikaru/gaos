@@ -182,7 +182,7 @@ function say(host, text) {
   if (out) out.textContent = text;
 }
 
-// What the client board remembers across a re-render of the sheet (D-094). A
+// What the client board remembers across a re-render of the sheet (D-095). A
 // send-back, a label or an answer replaces the sheet and with it the host
 // element, so sisflow mounts again; kept by product, not by element, the new
 // mount opens at the depth and the scroll position the old one had.

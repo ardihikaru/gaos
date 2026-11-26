@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The benchmarks of D-094 (docs/designs/urls-and-board.md §5.6), over the
+// The benchmarks of D-095 (docs/designs/urls-and-board.md §5.6), over the
 // synthetic product bigBoard builds, at three sizes:
 //
 //	cd dashboard && go test -run xxx -bench 'Board' -benchmem

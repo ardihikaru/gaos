@@ -36,7 +36,7 @@ func (s *ArcadeStore) Board(ctx context.Context, id string) (Board, error) {
 }
 
 // The paged board, one card and the event count are reads of the projection,
-// as Board is (D-094).
+// as Board is (D-095).
 func (s *ArcadeStore) BoardPage(ctx context.Context, id string, q BoardQuery, w BoardWindow) (BoardPage, error) {
 	return s.proj.BoardPage(ctx, id, q, w)
 }
