@@ -613,6 +613,16 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 			return err
 		}
 	}
+	for _, p := range r.PullRequests {
+		if err := s.writePullRequest(ctx, tx, p); err != nil {
+			return err
+		}
+	}
+	for _, k := range r.PullRequestDeletes {
+		if err := s.deletePullRequest(ctx, tx, k); err != nil {
+			return err
+		}
+	}
 	// A snapshot every snapshotEvery events, not one per event.
 	//
 	// The rung is keyed to the LAST event in the batch rather than to whichever
@@ -1983,6 +1993,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	m.restoreDefects(defects, fixprs)
+	prs, err := s.loadPullRequests(ctx)
+	if err != nil {
+		return false, err
+	}
+	m.restorePullRequests(prs)
 	s.proj = m
 	return true, nil
 }

@@ -93,6 +93,7 @@
       <button{{if eq .BO.View "archive"}} aria-current="page"{{end}}   hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></button>
       <button{{if eq .BO.View "integrations"}} aria-current="page"{{end}} hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</button>
       <button{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</button>
+      <button{{if eq .BO.View "prs"}} aria-current="page"{{end}}       hx-get="ui/bo/prs"       hx-target="#sink" hx-swap="innerHTML">Pull requests</button>
     </nav>
     {{end}}
 
@@ -125,6 +126,7 @@
     {{else if eq .View "archive"}}{{template "bo-archive" .}}
     {{else if eq .View "integrations"}}{{template "bo-integrations" .}}
     {{else if eq .View "autofix"}}{{template "bo-autofix" .}}
+    {{else if eq .View "prs"}}{{template "bo-prs" .}}
     {{else if .Detail}}{{template "bo-product-detail" .}}
     {{else if eq .View "products"}}{{template "bo-product-list" .}}
     {{else}}{{template "bo-rollup" .}}{{end}}
@@ -1046,4 +1048,125 @@
   <span class="af-meter{{if or .Over (ge .Used .Max)}} is-full{{end}}" role="img" aria-label="{{.Used}} of {{.Max}}"><i style="{{styleWidth .Pct}}"></i></span>
   {{if .Note}}<span class="af-cap-n">{{.Note}}</span>{{end}}
 </li>
+{{end}}
+
+{{/* The Pull requests page (D-092, docs/designs/gaos-pr-overview.md §5). Read-only: no GitHub call is
+     made from a render. The list is polled out of band; the drawer is not. The af-* classes are the
+     Auto-fix view's: the two pages are one family. */}}
+{{define "bo-prs"}}
+<section id="boPRs">
+{{with .PRs}}
+<header>
+  <div><span class="eyebrow">pull requests</span><h2>{{$.Title}}</h2><p>{{$.Sub}}</p></div>
+</header>
+<div id="prsView" class="af{{if .Drawer}} has-drawer{{end}}" hx-indicator="#prsView">
+  {{template "prs-live" .}}
+  {{with .Drawer}}{{template "prs-drawer" .}}{{end}}
+</div>
+{{end}}
+</section>
+{{end}}
+
+{{define "prs-live"}}
+<div id="prsLive" class="af-main"{{if .OOB}} hx-swap-oob="true"{{end}} hx-get="{{.PollURL}}" hx-trigger="every 30s [!document.hidden &amp;&amp; !document.getElementById('prsLive').matches(':focus-within')]" hx-target="#sink" hx-swap="innerHTML" hx-indicator="#prsPulse">
+  <div class="af-status">
+    <span class="af-pulse" id="prsPulse" aria-hidden="true"></span>
+    <span class="af-status-t">{{if .GitHub.Checked}}Pull requests {{.GitHub.Checked}}{{else}}Pull requests not checked yet{{end}} &middot; refreshes every 30 s</span>
+    <span class="af-busy" role="status">Updating&hellip;</span>
+  </div>
+  {{if .GitHub.Down}}<p class="af-note af-note--fail" role="alert"><b>GitHub</b> {{.GitHub.Message}}</p>{{end}}
+  {{if .Note}}<p class="af-note" role="note">{{.Note}}</p>{{end}}
+
+  <div class="af-body">
+  <div class="block af-block af-prs">
+    <h4>Pull requests <span class="sp">{{num .RowsTotal}}</span></h4>
+    <div id="prsFilters" class="af-filters">
+      <nav class="af-seg" aria-label="Pull request state">
+        {{range .StateTabs}}<a href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
+      </nav>
+      <form class="af-form" method="get" action="ui/bo/prs" hx-get="ui/bo/prs" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
+        {{if ne .Filter.State "open"}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
+        <label><span class="sr-only">Product</span>
+          <select name="product">{{range .ProdOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+        <label><span class="sr-only">Kind</span>
+          <select name="kind">{{range .KindOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+        <noscript><button class="btn" type="submit">Apply</button></noscript>
+        {{if or .Filter.Product .Filter.Kind (ne .Filter.State "open")}}<a class="af-reset" href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+      </form>
+    </div>
+
+    {{range .Groups}}
+    <h5 class="prs-prod">{{.Product}} <span class="sp">{{len .Rows}}</span></h5>
+    <div class="tm-scroll af-scroll">
+      <table class="af-table">
+        <caption class="sr-only">Pull requests of {{.Product}}</caption>
+        <thead><tr>
+          <th scope="col">State</th><th scope="col">Pull request</th><th scope="col" class="af-md">Kind</th>
+          <th scope="col">Branch</th><th scope="col">Task</th><th scope="col" class="af-md">QA tool</th><th scope="col">Age</th>
+        </tr></thead>
+        <tbody>
+        {{range .Rows}}
+          <tr class="af-r{{if .Open}} is-open{{end}}">
+            <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span></td>
+            <td class="af-defect"><a data-af-row="{{.Key}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Repo}}#{{.Number}}</span></a>
+              {{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">GitHub<span class="sr-only"> (opens {{.Repo}}#{{.Number}})</span></a>{{end}}
+              {{range .Relations}}<span class="prs-rel">{{.Label}} {{if .URL}}<a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Ref}}</a>{{else}}<span class="mono">{{.Ref}}</span>{{end}}</span>{{end}}
+              {{if .Follow}}<span class="prs-follow">{{.Follow}}</span>{{end}}</td>
+            <td class="af-md"><span class="badge prs-kind prs-kind--{{.Kind}}">{{.KindLabel}}</span></td>
+            <td class="mono prs-br">{{if .Head}}{{.Head}}{{else}}<span class="af-dash">unknown</span>{{end}} <span aria-hidden="true">&rarr;</span><span class="sr-only"> into </span> {{if .Base}}{{.Base}}{{else}}<span class="af-dash">unknown</span>{{end}}</td>
+            <td>{{if .TaskID}}<button type="button" class="prs-task" data-timing-open="{{.TimingHref}}" title="{{.TaskTitle}}"><span class="mono">{{.TaskID}}</span>{{if .TaskStatus}} <span class="prs-ts">{{.TaskStatus}}</span>{{end}}</button>{{else}}<span class="af-dash">&mdash;</span>{{end}}</td>
+            <td class="af-md">{{if .QACase}}{{if .QALink}}<a class="mono" href="{{.QALink}}" target="_blank" rel="noopener noreferrer">{{.QACase}}<span class="sr-only"> (opens the QA tool)</span></a>{{else}}<span class="mono" title="{{.QAJob}}">{{.QACase}}</span>{{end}}{{else if .Defect}}<span class="mono">{{.Defect}}</span>{{else}}<span class="af-dash">&mdash;</span>{{end}}</td>
+            <td class="af-age mono">{{if .Age}}<span title="{{.AgeTitle}}">{{.Age}}</span>{{else}}<span class="af-dash">&mdash;</span>{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{end}}
+    {{if .RowsMore}}<p class="tm-line">Showing the first {{num .RowsShown}} of {{num .RowsTotal}}. Filter by product, state or kind to see the rest.</p>{{end}}
+    {{if eq .Empty "none"}}
+      <p class="af-empty"><b>No pull request is tied to a task yet.</b> Fix pull requests appear when GAOS opens one, review pull requests when Brain Town reports one, and QA-tool pull requests when a product lists its automation repositories.</p>
+    {{else if eq .Empty "filtered"}}
+      <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see the open ones.</p>
+    {{end}}
+  </div>
+  </div>
+</div>
+{{end}}
+
+{{define "prs-drawer"}}
+<aside id="prsDrawer" class="af-drawer" role="region" aria-label="Pull request {{.Repo}}#{{.Number}}" tabindex="-1" data-fresh>
+  <header class="af-dr-head">
+    <div class="af-dr-top">
+      <span class="af-st af-st--{{.State}}">{{.StateLabel}}</span>
+      <span class="badge prs-kind prs-kind--{{.Kind}}">{{.KindLabel}}</span>
+      <a class="af-x" data-af-close href="{{.CloseHref}}" hx-get="{{.CloseHref}}" hx-target="#sink" hx-swap="innerHTML" aria-label="Close the details (Esc)" title="Close (Esc)">&times;</a>
+    </div>
+    <h3 class="af-dr-title">{{.Title}}</h3>
+    <p class="af-dr-sub">{{.Product}}{{if .URL}} &middot; <a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{end}}</p>
+  </header>
+  <div class="af-dr-body">
+    <dl class="af-facts">
+      {{range .Facts}}<div><dt>{{.K}}</dt><dd class="mono">{{.V}}</dd></div>{{end}}
+      {{if .Opened}}<div><dt>Opened</dt><dd>{{.Opened}}</dd></div>{{end}}
+      {{if .Checked}}<div><dt>Read from GitHub</dt><dd>{{.Checked}}</dd></div>{{end}}
+      {{if .Override}}<div><dt>Base override</dt><dd class="mono">{{.Override}}</dd></div>{{end}}
+    </dl>
+    {{if .Follow}}<p class="tm-line">{{.Follow}}.</p>{{end}}
+    <h4 class="af-h">Related tasks</h4>
+    {{if .Tasks}}
+    <ul class="prs-tasks">
+      {{range .Tasks}}<li><span class="prs-tr">{{.Role}}</span> <button type="button" class="prs-task" data-timing-open="{{.TimingHref}}"><span class="mono">{{.ID}}</span>{{if .Status}} <span class="prs-ts">{{.Status}}</span>{{end}}</button>{{if .Title}}<span class="prs-tt">{{.Title}}</span>{{end}}</li>{{end}}
+    </ul>
+    {{else}}<p class="tm-line">No task is linked to this pull request yet.</p>{{end}}
+    {{if .Relations}}
+    <h4 class="af-h">Related pull requests</h4>
+    <ul class="prs-tasks">
+      {{range .Relations}}<li><span class="prs-tr">{{.Label}}</span> {{if .URL}}<a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Ref}}<span class="sr-only"> (opens GitHub)</span></a>{{else}}<span class="mono">{{.Ref}}</span>{{end}}</li>{{end}}
+    </ul>
+    {{end}}
+    {{if .QALink}}<p class="tm-line"><a href="{{.QALink}}" target="_blank" rel="noopener noreferrer">Open the job in the QA tool<span class="sr-only"> (opens a new tab)</span></a></p>{{else if .QAJob}}<p class="tm-line">QA job <span class="mono">{{.QAJob}}</span></p>{{end}}
+    {{block "prs-actions" .}}{{end}}
+  </div>
+</aside>
 {{end}}

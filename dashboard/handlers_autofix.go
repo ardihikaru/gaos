@@ -86,6 +86,9 @@ func autoFixFromForm(r *http.Request) (AutoFix, error) {
 		CIConfirmed: formBool(r.PostFormValue("ciConfirmed")),
 		BaseBranch:  strings.TrimSpace(r.PostFormValue("baseBranch")),
 		TargetRepos: formLines(r.PostFormValue("targetRepos")),
+		// An omitted field clears the list, like every field of this form (the whole record is replaced).
+		AllowedBases:    formLines(r.PostFormValue("allowedBases")),
+		AutomationRepos: formLines(r.PostFormValue("automationRepos")),
 	}, nil
 }
 

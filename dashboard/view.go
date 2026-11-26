@@ -185,6 +185,9 @@ type BOView struct {
 
 	// The Auto-fix page (D-091, design §9.2): read-only, never a token or an excerpt.
 	AutoFix *AutoFixPage
+
+	// The Pull requests page (D-092, design §5): read-only, no GitHub call.
+	PRs *PRPage
 }
 
 // ---------- Integrations (D-085) ----------

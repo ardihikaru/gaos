@@ -61,6 +61,14 @@ CREATE PROPERTY FixPR.commitSHA  STRING;
 CREATE PROPERTY FixPR.waSent     BOOLEAN (default false);
 CREATE PROPERTY FixPR.reply      STRING;   -- the stored parsed reply, so a restart pays for no second turn
 
+-- D-092 (docs/designs/gaos-pr-overview.md §3.2). baseName is the branch the pull request targets
+-- ("base" is an SQL keyword); retargetedFrom/To link a pull request to the one it replaced or was
+-- replaced by; baseOverride is the base a retarget set for the defect's next fix (cleared again).
+CREATE PROPERTY FixPR.baseName       STRING;
+CREATE PROPERTY FixPR.retargetedFrom STRING;
+CREATE PROPERTY FixPR.retargetedTo   STRING;
+CREATE PROPERTY Defect.baseOverride  STRING;
+
 CREATE INDEX IF NOT EXISTS ON Defect (tenantId, id) UNIQUE;
 CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
 

@@ -237,6 +237,10 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		s.buildAutoFix(r, bo)
 		return bo
 
+	case "prs":
+		s.buildPRs(r, bo)
+		return bo
+
 	case "agents":
 		bo.Title, bo.Sub = "Agents", "Roles the scheduler can seat. Capability and model routing are read from here when a task is dispatched."
 		for _, a := range agents {

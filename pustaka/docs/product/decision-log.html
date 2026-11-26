@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-one entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -1978,6 +1978,29 @@
         <a href="qa-test-plan.html#go-autofix-view">TC-624&hellip;TC-630</a>;
         <a href="../integrations/autofix.html">Defect auto-fix</a>;
         <code>docs/designs/gaos-defect-autofix.md</code></td>
+      </tr>
+      <tr id="d-092">
+        <td>D-092</td><td>2026-11-26</td>
+        <td><strong>GAOS lists every open pull request tied to a task on one page, and a fix pull request can be moved to another base by a new generation of the same fix.</strong>
+        Context: pull requests were spread over three places (the Auto-fix view, review cards that kept only a key, QA-tool
+        jobs that kept only a job id), and a draft opened against one base could not be moved to another without redoing
+        the work. Decision: (1) A back-office page, <em>Pull requests</em>, lists review and QA-tool pull requests from a
+        new read model, the <code>PullRequest</code> vertex, and fix pull requests from <code>FixPR</code>; no fact is
+        stored twice; the page and its drawer make no GitHub call. (2) <strong>BR-02 position:</strong> a copy of GitHub&rsquo;s
+        state (a <code>PullRequest</code> row, the base back-filled on a <code>FixPR</code>) is a cache fill and emits no
+        event, like <code>Defect</code> and <code>FixPR</code>; every decision of an operator emits one. (3) One poller
+        follows fix records and rows with the read token, re-checking that the product still follows the repository before
+        each read; a row is followed for 90 days. (4) QA-tool pull requests are listed only for repositories named in the
+        new <code>AutoFix.AutomationRepos</code> setting, which is <em>not</em> <code>Master.Repos</code>: a repository there
+        would enrol the QA tool&rsquo;s own output in the review flow. (5) <strong>Retarget</strong> (a later phase) raises the
+        defect&rsquo;s generation and plans an ordinary fix card against an allowed base; the old pull request is never closed,
+        edited or re-based by GAOS, and a fix record that a retarget replaced, or has pending, never moves the defect.
+        (6) A base removed from <code>AllowedBases</code> is refused at use. Residual: every signed-in account can see the
+        page (<a href="open-questions.html#oq-37">OQ-37</a>); pull requests of QA jobs that ended before this release are
+        not back-filled.</td>
+        <td><a href="qa-test-plan.html#go-pr-overview">TC-699&hellip;TC-710</a>;
+        <a href="../integrations/pull-requests.html">Pull requests</a>;
+        <code>docs/designs/gaos-pr-overview.md</code></td>
       </tr>
     </tbody>
   </table>

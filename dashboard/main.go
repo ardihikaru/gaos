@@ -400,6 +400,12 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	}
 	nt := &notifier{st: store, wa: wa, gh: authors, logf: log.Printf}
 	srv.wa = wa
+	// Pull requests already open when this release starts get their rows (design §4.3); idempotent.
+	if res, err := store.BackfillReviewRows(ctx); err != nil {
+		log.Printf("pull requests: the review rows could not be back-filled: %v", err)
+	} else if n := len(res.PullRequests); n > 0 {
+		log.Printf("pull requests: %d review row(s) back-filled", n)
+	}
 	// The QA tool writes and runs the e2e specs; GAOS only asks and polls.
 	if srv.qaOut != nil {
 		jr := newQAJobRunner(store, srv.qaOut, flow.ctx, nt, flow.gh)
@@ -509,6 +515,7 @@ func (s *server) routes() http.Handler {
 	handle("GET /ui/bo", s.handleBOSheet)
 	handle("GET /ui/bo/{view}", s.handleBOView)
 	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive) // the Auto-fix view's 30 s poll
+	handle("GET /ui/bo/prs/live", s.handlePRsLive)         // the Pull requests view's 30 s poll (D-092)
 
 	handle("GET /products", s.handleProductList)
 	handle("POST /products", s.handleProductCreate)
