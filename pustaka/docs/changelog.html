@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-60-0">v0.60.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The Integrations view says at a glance what works, what GAOS needs, and what each integration does (<a href="product/decision-log.html#d-098">D-098</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Status chips.</strong> Each integration&rsquo;s heading shows a green, amber or red chip: green working, red not working, amber working with a failure GAOS has seen or a broken part. The pull-request flow gains an overall state, and its GitHub, staging and WhatsApp rows a chip each.</li>
+        <li><span class="chg add">Added</span> <strong>Mandatory and Optional.</strong> ai-manager, the QA tools and the Machine API are marked Mandatory; Brain Town, its reader and the pull-request flow Optional.</li>
+        <li><span class="chg add">Added</span> <strong>An info button</strong> on each integration opens a popup: what it does, what happens when it is connected, and what happens when it is not.</li>
+        <li><span class="chg change">Changed</span> Brain Town, its reader and the Machine API show their full state in a State row, now that the heading carries a chip; the Machine API block links to its docs. TC-763 &hellip; TC-766.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-59-0">v0.59.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every back-office list is paged, and the Board says how the AI picks up a task (<a href="product/decision-log.html#d-097">D-097</a>).</p>
       <ul>

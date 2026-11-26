@@ -910,7 +910,18 @@
 <header><div><span class="eyebrow">connections</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
 {{with .Integrations}}
 <div class="block">
-  <h4>ai-manager &middot; {{if .AIM.Configured}}connected{{else}}off{{end}}</h4>
+  <div class="integ-h">
+    <h4>ai-manager</h4>
+    <span class="chip st-{{.AIMChip.Tone}}">{{.AIMChip.Label}}</span>
+    <span class="chip need-req">Mandatory</span>
+    <button type="button" class="info-btn" popovertarget="ip-aim" aria-label="ai-manager: info">i</button>
+  </div>
+  <div id="ip-aim" class="info-pop" popover>
+    <h5>What it does</h5><p>The AI gateway. Every agent turn GAOS runs goes through ai-manager, which holds the model providers.</p>
+    <h5>When connected</h5><p>With the runner on or manual, agents take turns and the board can dispatch work; with the runner off, no turn runs.</p>
+    <h5>When disconnected</h5><p>No turn can run and work waits. The board and the back office still work.</p>
+    <p class="info-req">Mandatory: the workflow GAOS is built around needs it. GAOS still starts and serves the board without it.</p>
+  </div>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
       <tr><th scope="row">Adapter</th><td class="mono">{{.AIM.Adapter}}</td></tr>
@@ -924,9 +935,21 @@
   <p class="tm-line">Set up: <code>GAOS_MODEL_MODE=aimanager</code>, <code>GAOS_AIM_URL</code>, the chat login file <code>GAOS_AIM_CHAT_AUTH_FILE</code> and the admin key file <code>GAOS_AIM_ADMIN_KEY_FILE</code>; <code>GAOS_RUNNER=manual</code> lets the board dispatch. <a href="../docs/integrations/ai-manager-api.html" target="_blank" rel="noopener">ai-manager REST reference</a></p>
 </div>
 <div class="block">
-  <h4>Brain Town &middot; {{.BrainTown.State}}</h4>
+  <div class="integ-h">
+    <h4>Brain Town</h4>
+    <span class="chip st-{{.BrainTownChip.Tone}}">{{.BrainTownChip.Label}}</span>
+    <span class="chip need-opt">Optional</span>
+    <button type="button" class="info-btn" popovertarget="ip-bt" aria-label="Brain Town: info">i</button>
+  </div>
+  <div id="ip-bt" class="info-pop" popover>
+    <h5>What it does</h5><p>Pushes GAOS&rsquo;s own task and product changes to Brain Town, the shared activity town.</p>
+    <h5>When connected</h5><p>Each change is sent. A product not listed as public is sent hidden: its name and the task titles are replaced (alias, task id), but the product id, task ids, kinds, columns and times are still sent.</p>
+    <h5>When disconnected</h5><p>Nothing is sent. GAOS works normally; the town does not show GAOS.</p>
+    <p class="info-req">Optional: GAOS&rsquo;s workflow does not depend on it.</p>
+  </div>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
+      <tr><th scope="row">State</th><td class="mono">{{.BrainTown.State}}</td></tr>
       <tr><th scope="row">Receiver</th><td class="mono">{{if .BrainTown.Host}}{{.BrainTown.Host}}{{else}}&mdash;{{end}}</td></tr>
       <tr><th scope="row">Waiting to send</th><td class="mono">{{.BrainTown.Queue}}</td></tr>
       <tr><th scope="row">Last delivery</th><td>{{if .BrainTown.Last}}{{.BrainTown.Last}}{{else}}none yet{{end}}</td></tr>
@@ -936,9 +959,21 @@
   <p class="tm-line">Set up: <code>BRAIN_TOWN_ENABLED</code>, <code>BRAIN_TOWN_URL</code>, the token file <code>BRAIN_TOWN_TOKEN_FILE</code> and <code>BRAIN_TOWN_PUBLIC_PRODUCTS</code>. A product not listed is sent as hidden and redacted. <a href="../docs/integrations/brain-town.html" target="_blank" rel="noopener">Brain Town</a></p>
 </div>
 <div class="block">
-  <h4>Brain Town reader &middot; {{.BrainTownConsumer.State}}</h4>
+  <div class="integ-h">
+    <h4>Brain Town reader</h4>
+    <span class="chip st-{{.BrainTownConsumerChip.Tone}}">{{.BrainTownConsumerChip.Label}}</span>
+    <span class="chip need-opt">Optional</span>
+    <button type="button" class="info-btn" popovertarget="ip-btc" aria-label="Brain Town reader: info">i</button>
+  </div>
+  <div id="ip-btc" class="info-pop" popover>
+    <h5>What it does</h5><p>Reads pull-request events (opened, merged) from Brain Town for the repositories the products declare. It is GAOS&rsquo;s only source of pull-request events: GAOS has no GitHub webhook of its own.</p>
+    <h5>When connected</h5><p>A pull request opened or merged in a declared repository starts the pull-request flow.</p>
+    <h5>When disconnected</h5><p>GAOS hears about no pull request, so no review starts. Only the staging callback still creates end-to-end cards.</p>
+    <p class="info-req">Optional: GAOS&rsquo;s workflow does not depend on it.</p>
+  </div>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
+      <tr><th scope="row">State</th><td class="mono">{{.BrainTownConsumer.State}}</td></tr>
       <tr><th scope="row">Source</th><td class="mono">{{if .BrainTownConsumer.Host}}{{.BrainTownConsumer.Host}}{{else}}&mdash;{{end}}</td></tr>
       <tr><th scope="row">Last event</th><td>{{if .BrainTownConsumer.Last}}{{.BrainTownConsumer.Last}}{{else}}none yet{{end}}</td></tr>
       <tr><th scope="row">Handed over &middot; skipped</th><td class="mono">{{.BrainTownConsumer.Sent}} &middot; {{.BrainTownConsumer.Failed}}</td></tr>
@@ -948,14 +983,25 @@
   <p class="tm-line">The other direction: GAOS reads the town's pull-request events. Set up <code>BRAIN_TOWN_CONSUMER_ENABLED</code>, <code>BRAIN_TOWN_CONSUMER_URL</code>, the token file <code>BRAIN_TOWN_CONSUMER_TOKEN_FILE</code> and the cursor file <code>BRAIN_TOWN_CONSUMER_CURSOR_FILE</code>. The reader is scoped to the repositories the products declare. <a href="../docs/integrations/brain-town-consumer.html" target="_blank" rel="noopener">Brain Town reader</a></p>
 </div>
 <div class="block">
-  <h4>Pull-request flow</h4>
+  <div class="integ-h">
+    <h4>Pull-request flow</h4>
+    <span class="chip st-{{.PRChip.Tone}}">{{.PRChip.Label}}</span>
+    <span class="chip need-opt">Optional</span>
+    <button type="button" class="info-btn" popovertarget="ip-pr" aria-label="Pull-request flow: info">i</button>
+  </div>
+  <div id="ip-pr" class="info-pop" popover>
+    <h5>What it does</h5><p>Reviews pull requests, creates the end-to-end and unit-test cards, posts the review comment and sends WhatsApp notices.</p>
+    <h5>When connected</h5><p>With the GitHub client on, GAOS reads the diff and posts its review; the staging callback adds the end-to-end card, and WhatsApp sends the notices.</p>
+    <h5>When disconnected</h5><p>Without the GitHub client no review is posted. A staging callback still creates its end-to-end card if the staging credential is set.</p>
+    <p class="info-req">Optional: GAOS&rsquo;s workflow does not depend on it.</p>
+  </div>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
-      <tr><th scope="row">GitHub client</th><td class="mono">{{.PR.GitHub}}</td></tr>
+      <tr><th scope="row">GitHub client</th><td><span class="chip st-{{.PR.GitHubChip.Tone}}">{{.PR.GitHubChip.Label}}</span> <span class="mono">{{.PR.GitHub}}</span></td></tr>
       <tr><th scope="row">Auto-fix write token</th><td class="mono">{{.PR.WriteToken}}</td></tr>
-      <tr><th scope="row">Staging callback</th><td class="mono">{{.PR.StagingState}}</td></tr>
+      <tr><th scope="row">Staging callback</th><td><span class="chip st-{{.PR.StagingChip.Tone}}">{{.PR.StagingChip.Label}}</span> <span class="mono">{{.PR.StagingState}}</span></td></tr>
       <tr><th scope="row">Last staging callback</th><td>{{range .PR.StagingLast}}<span class="mono">{{.Product}}</span> {{.At}} &middot; {{else}}none yet{{end}}</td></tr>
-      <tr><th scope="row">WhatsApp</th><td class="mono">{{.PR.WA.State}}{{if .PR.WA.Host}} &middot; {{.PR.WA.Host}}{{end}}</td></tr>
+      <tr><th scope="row">WhatsApp</th><td><span class="chip st-{{.PR.WAChip.Tone}}">{{.PR.WAChip.Label}}</span> <span class="mono">{{.PR.WA.State}}{{if .PR.WA.Host}} &middot; {{.PR.WA.Host}}{{end}}</span></td></tr>
       <tr><th scope="row">Accepted &middot; failed</th><td class="mono">{{.PR.WA.Sent}} &middot; {{.PR.WA.Fail}}{{if .PR.WA.Last}} &middot; {{.PR.WA.Last}}{{end}}</td></tr>
       <tr><th scope="row">Contacts</th><td class="mono">{{len .PR.Contacts}}</td></tr>
     </tbody>
@@ -989,7 +1035,18 @@
   </form>
 </div>
 <div class="block">
-  <h4>QA tools &middot; {{if .QA.Outbound}}connected{{else}}outbound off{{end}}</h4>
+  <div class="integ-h">
+    <h4>QA tools</h4>
+    <span class="chip st-{{.QAChip.Tone}}">{{.QAChip.Label}}</span>
+    <span class="chip need-req">Mandatory</span>
+    <button type="button" class="info-btn" popovertarget="ip-qa" aria-label="QA tools: info">i</button>
+  </div>
+  <div id="ip-qa" class="info-pop" popover>
+    <h5>What it does</h5><p>The QA tools: the catalogue sync and the webhook that tells them a question was answered.</p>
+    <h5>When connected</h5><p>Answers and catalogue changes reach the QA tools within seconds.</p>
+    <h5>When disconnected</h5><p>Answers wait in the queue (&ldquo;Waiting to be delivered&rdquo;) and are retried until delivered or given up; a given-up answer is not sent again.</p>
+    <p class="info-req">Mandatory: the workflow GAOS is built around needs it. GAOS still starts and serves the board without it.</p>
+  </div>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
       <tr><th scope="row">Outbound (sync and webhook)</th><td class="mono">{{if .QA.Outbound}}{{.QA.OutboundHost}}{{else}}off &middot; {{.QA.OutboundWhy}}{{end}}</td></tr>
@@ -1002,15 +1059,28 @@
   <p class="tm-line">Set up: three different tokens &mdash; <code>GAOS_API_QA_TOKEN_FILE</code> (they call GAOS), <code>GAOS_QA_TOKEN_FILE</code> (GAOS calls them), <code>GAOS_API_ADMIN_TOKEN_FILE</code> (seeding) &mdash; then <code>GAOS_API_QA_PRODUCTS</code>, <code>GAOS_QA_URL</code> and <code>GAOS_QA_ORIGIN</code>. <a href="../docs/integrations/webhooks-and-clients.html#tutorial" target="_blank" rel="noopener">Tutorial</a></p>
 </div>
 <div class="block">
-  <h4>Machine API &middot; {{.API.State}}</h4>
+  <div class="integ-h">
+    <h4>Machine API</h4>
+    <span class="chip st-{{.APIChip.Tone}}">{{.APIChip.Label}}</span>
+    <span class="chip need-req">Mandatory</span>
+    <button type="button" class="info-btn" popovertarget="ip-api" aria-label="Machine API: info">i</button>
+  </div>
+  <div id="ip-api" class="info-pop" popover>
+    <h5>What it does</h5><p>The machine API that the QA tools and the registered clients call, one bearer token per role.</p>
+    <h5>When connected</h5><p>The QA tools can sync, ask and read answers; clients can use their scoped routes.</p>
+    <h5>When disconnected</h5><p>Every bearer-token call is refused; the board and the back office are unaffected. The staging callback has its own credential and is controlled by the pull-request flow&rsquo;s staging setting.</p>
+    <p class="info-req">Mandatory: the workflow GAOS is built around needs it. GAOS still starts and serves the board without it.</p>
+  </div>
   <div class="tm-scroll"><table class="tm-runs cv-table">
     <tbody>
+      <tr><th scope="row">State</th><td class="mono">{{.API.State}}</td></tr>
       <tr><th scope="row">Admin token</th><td>{{if .API.Admin}}configured{{else}}not set{{end}}</td></tr>
       <tr><th scope="row">QA token</th><td>{{if .API.QA}}configured{{else}}not set{{end}}</td></tr>
       <tr><th scope="row">Outbound token</th><td>{{if .API.Outbound}}configured{{else}}not set{{end}}</td></tr>
       <tr><th scope="row">QA products</th><td class="mono">{{if .API.QAProducts}}{{range $i, $p := .API.QAProducts}}{{if $i}}, {{end}}{{$p}}{{end}}{{else}}none{{end}}</td></tr>
     </tbody>
   </table></div>
+  <p class="tm-line"><a href="../docs/integrations/webhooks-and-clients.html" target="_blank" rel="noopener">Webhooks and external clients</a></p>
 </div>
 <div class="block">
   <h4>Registered clients</h4>

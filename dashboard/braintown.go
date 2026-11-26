@@ -603,7 +603,8 @@ func (b *brainTown) Status() BrainTownRow {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return BrainTownRow{State: "enabled", Host: urlHost(b.cfg.url.String()), Queue: len(b.in),
-		Last: b.last, Failed: int(b.failed), Dropped: int(atomic.LoadInt64(&b.dropped)), Sent: int(b.sent)}
+		Last: b.last, Failed: int(b.failed), Dropped: int(atomic.LoadInt64(&b.dropped)), Sent: int(b.sent),
+		Failing: b.degraded > 0}
 }
 
 // btState is the row for a feed that is off or unusable.

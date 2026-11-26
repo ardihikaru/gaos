@@ -1942,3 +1942,37 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .prs-rt .btn[disabled],.prs-rt select[disabled]{opacity:.55;cursor:not-allowed}
 .prs-hint{margin:0;font-size:12.5px;color:var(--ink-2);overflow-wrap:anywhere}
 .prs-hint.warn{color:var(--block)}
+
+/* ---- Integrations view: status chips, requirement chips, the info popover (D-098,
+   docs/designs/integrations-status-chips.md 3.4). Appended last so .integ-h h4
+   wins over .block h4 on order. Status chips carry the colour on fill and border
+   and keep --ink text, so their contrast is the panel's own. */
+.integ-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.integ-h h4{margin:0}
+.chip.st-ok,.chip.st-warn,.chip.st-bad{color:var(--ink);font-weight:600}
+.chip.st-ok{border-color:var(--done);background:color-mix(in srgb,var(--done) 22%,transparent)}
+.chip.st-warn{border-color:var(--block);background:color-mix(in srgb,var(--block) 22%,transparent)}
+.chip.st-bad{border-color:var(--fail);background:color-mix(in srgb,var(--fail) 22%,transparent)}
+.chip.need-req{color:var(--ink);border-color:var(--ink-2);font-weight:600}
+.chip.need-opt{color:var(--ink-2)}
+td .chip{margin-right:6px}
+.info-btn{
+  width:22px;height:22px;border-radius:50%;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--ink-2);font-family:var(--font-mono);font-size:12px;
+  line-height:20px;padding:0;cursor:pointer;
+}
+.info-btn:hover{color:var(--ink);border-color:var(--ink-2)}
+.info-pop{
+  max-width:min(440px,calc(100vw - 32px));padding:16px 18px;
+  background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-s);
+  box-shadow:0 12px 32px rgba(0,0,0,.35);
+  opacity:0;transform:scale(.95);
+  transition:opacity 150ms ease-out,transform 150ms ease-out;
+}
+.info-pop:popover-open{opacity:1;transform:scale(1)}
+@starting-style{.info-pop:popover-open{opacity:0;transform:scale(.95)}}
+.info-pop h5{margin:10px 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+.info-pop h5:first-child{margin-top:0}
+.info-pop p{margin:0}
+.info-pop .info-req{margin-top:12px;color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){.info-pop{transition:none}}

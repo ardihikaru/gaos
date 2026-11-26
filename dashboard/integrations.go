@@ -132,6 +132,9 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 			case ExternalAnswerDelivery:
 				if strings.HasSuffix(e.Text, " "+DeliveryGaveUp) {
 					p.QA.GaveUp++
+					if e.At >= now.Add(-24*time.Hour).Unix() {
+						p.QA.GaveUpRecent++
+					}
 				}
 				if p.QA.LastDelivery == "" {
 					p.QA.LastDelivery = strings.Join(nonEmpty(agoAt(e.At, now), e.Text), " · ")
@@ -162,6 +165,7 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 				last = &pend[i]
 			}
 		}
+		p.QA.Failing = last != nil && last.Delivery.LastError != ""
 		if last != nil {
 			p.QA.PendingNote = strings.Join(nonEmpty(fmt.Sprintf("item %s", last.ExternalID),
 				fmt.Sprintf("attempt %d", last.Delivery.Attempts), agoAt(last.Delivery.LastAt, now), last.Delivery.LastError), " · ")
@@ -197,8 +201,104 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 		p.BrainTownConsumer = s.btConsumerOff
 	}
 	p.PR = s.prFlowRow(ctx, products, now)
+	integChips(p)
 	bo.Integrations = p
 }
+
+// The chip tones (D-098). Green is working, red is not, amber is working with
+// a failure GAOS has seen or a part that is broken.
+const (
+	toneOK   = "ok"
+	toneWarn = "warn"
+	toneBad  = "bad"
+)
+
+// integChips derives every status chip from the page's own fields. Pure: no
+// server, no clock, no I/O. The rules and the reasons for them are in
+// docs/designs/integrations-status-chips.md §3.2; every Label is one of the
+// closed set chipLabels lists.
+func integChips(p *IntegrationsPage) {
+	chip := func(label, tone string) StatusChip { return StatusChip{Label: label, Tone: tone} }
+
+	if p.AIM.Configured {
+		p.AIMChip = chip("Connected", toneOK)
+	} else {
+		p.AIMChip = chip("Off", toneBad)
+	}
+
+	bt := func(r BrainTownRow) StatusChip {
+		switch {
+		case r.State == "enabled" && r.Failing:
+			return chip("Degraded", toneWarn)
+		case r.State == "enabled":
+			return chip("Enabled", toneOK)
+		case strings.HasPrefix(r.State, "unusable"):
+			return chip("Unusable", toneBad)
+		}
+		return chip("Disabled", toneBad)
+	}
+	p.BrainTownChip = bt(p.BrainTown)
+	p.BrainTownConsumerChip = bt(p.BrainTownConsumer)
+
+	switch {
+	case !p.QA.Outbound:
+		p.QAChip = chip("Outbound off", toneBad)
+	case p.QA.GaveUpRecent > 0 || p.QA.Failing:
+		p.QAChip = chip("Degraded", toneWarn)
+	default:
+		p.QAChip = chip("Connected", toneOK)
+	}
+
+	switch {
+	case strings.HasPrefix(p.API.State, "enabled") && (!p.API.QA || len(p.API.QAProducts) == 0):
+		p.APIChip = chip("Degraded", toneWarn)
+	case strings.HasPrefix(p.API.State, "enabled"):
+		p.APIChip = chip("Enabled", toneOK)
+	default:
+		p.APIChip = chip("Disabled", toneBad)
+	}
+
+	if p.PR.GitHub == "on" {
+		p.PR.GitHubChip = chip("On", toneOK)
+	} else {
+		p.PR.GitHubChip = chip("Off", toneBad)
+	}
+	switch {
+	case p.PR.StagingState == "enabled":
+		p.PR.StagingChip = chip("Enabled", toneOK)
+	case strings.HasPrefix(p.PR.StagingState, "unusable"):
+		p.PR.StagingChip = chip("Unusable", toneBad)
+	default:
+		p.PR.StagingChip = chip("Disabled", toneBad)
+	}
+	switch {
+	case p.PR.WA.State == "enabled":
+		p.PR.WAChip = chip("Enabled", toneOK)
+	case strings.HasPrefix(p.PR.WA.State, "enabled,"): // unencrypted, or linked to no product
+		p.PR.WAChip = chip("Degraded", toneWarn)
+	default:
+		p.PR.WAChip = chip("Disabled", toneBad)
+	}
+
+	// The roll-up. The review needs the GitHub client, and pull-request
+	// events reach GAOS only through the Brain Town reader (main.go's Drain).
+	// A sub-part that is only not configured is a choice, not a fault.
+	broken := func(c StatusChip) bool { return c.Label == "Unusable" || c.Label == "Degraded" }
+	switch {
+	case p.PR.GitHubChip.Tone != toneOK:
+		p.PRChip = chip("Off", toneBad)
+	case p.BrainTownConsumerChip.Tone != toneOK:
+		p.PRChip = chip("Partly connected", toneWarn)
+	case broken(p.PR.StagingChip) || broken(p.PR.WAChip):
+		p.PRChip = chip("Partly connected", toneWarn)
+	default:
+		p.PRChip = chip("Connected", toneOK)
+	}
+}
+
+// chipLabels is the closed set of chip labels; a test holds the page to it.
+var chipLabels = map[string]bool{"Connected": true, "Off": true, "Enabled": true, "Unusable": true,
+	"Disabled": true, "Outbound off": true, "Degraded": true, "On": true, "Partly connected": true}
 
 // prFlowRow is the pull-request flow's rows (D-088). A destination is masked
 // here, so no template can render one whole.

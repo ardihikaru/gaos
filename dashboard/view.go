@@ -232,7 +232,17 @@ type IntegrationsPage struct {
 	// callback, WhatsApp and the contact registry. Counts, hosts, modes and
 	// times; the contact list carries the destination masked, never whole.
 	PR PRFlowRow
+
+	// The status chip on each integration's heading (D-098), filled by
+	// integChips from the fields above. See docs/designs/integrations-status-chips.md.
+	AIMChip, BrainTownChip, BrainTownConsumerChip, PRChip, QAChip, APIChip StatusChip
 }
+
+// StatusChip is one coloured state chip on the Integrations view. Tone is
+// exactly one of "ok", "warn", "bad"; the template prints it as the CSS class
+// "st-<tone>". Label is one word or phrase from a closed set (integChips) --
+// never a reason string, a host or anything taken from configuration.
+type StatusChip struct{ Label, Tone string }
 
 // PRFlowRow is the pull-request flow on the Integrations view.
 type PRFlowRow struct {
@@ -242,6 +252,9 @@ type PRFlowRow struct {
 	StagingLast  []StagingSeen
 	WA           waStatus
 	Contacts     []ContactRow
+
+	// The per-row chips (D-098), filled by integChips.
+	GitHubChip, StagingChip, WAChip StatusChip
 }
 
 // StagingSeen is the last accepted staging callback of a product.
@@ -274,6 +287,11 @@ type QAStatus struct {
 	Pending      int
 	PendingNote  string // the newest waiting item's last attempt and GAOS's reason
 	GaveUp       int
+	// GaveUpRecent counts the gave-up events of the last 24 hours. Only the
+	// chip uses it, so the chip turns green again a day after the last one.
+	GaveUpRecent int
+	// Failing: the newest attempted waiting item's last attempt failed.
+	Failing bool
 }
 
 // APIStatus is the machine API's own configuration.
@@ -437,4 +455,7 @@ type BrainTownRow struct {
 	Sent    int
 	Failed  int
 	Dropped int
+	// Failing: the last attempt failed. It clears on the next success. Only
+	// the yes/no reaches the page, never the error's text.
+	Failing bool
 }
