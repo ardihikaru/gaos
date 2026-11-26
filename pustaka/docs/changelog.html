@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-54-1">v0.54.1 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The interactive board on a product&rsquo;s Board tab loads again.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <code>static/board.js</code> lost a closing brace in v0.44.0. The browser refused the whole module, and the page quietly kept the plain server-rendered board, so the interactive board has not been on screen since. The brace is back, the module is now requested with the release version so a browser does not keep the broken copy it cached, and a column with more than thirty cards no longer asks the server for a page it does not serve. <code>TC-721</code> reads every script GAOS writes and fails if its brackets do not pair.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-54-0">v0.54.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Change the base branch of an open fix pull request (<a href="product/decision-log.html#d-092">D-092</a>).</p>
       <ul>
