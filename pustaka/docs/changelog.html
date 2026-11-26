@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-8">v0.52.8 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A workflow the fix cannot trigger no longer blocks it.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> The CI-secrets check before a fix pull request now reads each workflow's <code>paths</code> and <code>paths-ignore</code> filters and applies them to the files the fix changes, as GitHub does. A repository whose only secret-using workflow runs for one directory no longer blocks a fix elsewhere; a workflow with no filter, files that are not known, and a negated pattern still count as triggered.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-7">v0.52.7 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The triager gets the code that implements the operation.</p>
       <ul>
