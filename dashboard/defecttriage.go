@@ -276,6 +276,7 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 	type cand struct {
 		repo, path string
 		rank       int
+		op         int // the position of the operation that found it
 	}
 	var cands []cand
 	for _, repo := range d.TargetRepos {
@@ -290,7 +291,7 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 		out.Repos = append(out.Repos, DefectContextRepo{Repo: repo, Head: head})
 	}
 	seen := map[string]bool{}
-	for _, op := range d.Operations {
+	for opIdx, op := range d.Operations {
 		for _, rp := range out.Repos {
 			if out.Searches >= defectMaxSearches {
 				break
@@ -310,13 +311,18 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 					continue
 				}
 				seen[k] = true
-				cands = append(cands, cand{rp.Repo, h.Path, i})
+				cands = append(cands, cand{rp.Repo, h.Path, i, opIdx})
 			}
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {
 		if ci, cj := contextClass(cands[i].path), contextClass(cands[j].path); ci != cj {
 			return ci < cj
+		}
+		// The first operation is the one the defect is about (the QA tool ranks it first), so its hits
+		// come before the hits of the others; position in a search only orders within one operation.
+		if cands[i].op != cands[j].op {
+			return cands[i].op < cands[j].op
 		}
 		if cands[i].rank != cands[j].rank {
 			return cands[i].rank < cands[j].rank
