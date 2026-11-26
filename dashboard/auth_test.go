@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/pbkdf2"
 	"crypto/sha256"
 	"encoding/hex"
@@ -265,6 +266,7 @@ var readOnlyGET = map[string]string{
 	"GET /products":                                  "lists products",
 	"GET /products/{id}":                             "renders one product",
 	"GET /products/{id}/board":                       "renders the board",
+	"GET /products/{id}/board/live":                  "renders the Board's changed columns or table (D-095)",
 	"GET /products/{id}/readiness":                   "reads readiness",
 	"GET /questions":                                 "lists open questions",
 	"GET /products/{id}/questions":                   "lists one product's questions",
@@ -275,6 +277,31 @@ var readOnlyGET = map[string]string{
 	"GET /ui/timing/{id}/{taskId}":                   "renders the timing sheet (D-081)",
 	"GET /ui/conversation/{id}/{taskId}":             "renders the conversation sheet (D-082)",
 	"GET /ui/send-back/{id}/{taskId}":                "renders the send-back sheet",
+	// D-094: the page routes. Each renders a view it only reads.
+	"GET /inbox":             "renders the Inbox page",
+	"GET /stories":           "renders the Stories page",
+	"GET /diagrams":          "renders the Diagrams page",
+	"GET /knowledge":         "renders the Knowledge page",
+	"GET /agents":            "renders the Agents page",
+	"GET /archive":           "renders the Archive page",
+	"GET /integrations":      "renders the Integrations page",
+	"GET /autofix":           "renders the Auto-fix page (no GitHub call)",
+	"GET /prs":               "renders the Pull requests page (no GitHub call)",
+	"GET /p/{ref}":           "redirects to a product's first section",
+	"GET /p/{ref}/{section}": "renders one product section",
+}
+
+// gateCountingStore counts the reads every page handler makes and the gate's own
+// signed-out page does not: a signed-out request that reached a handler would
+// show up here.
+type gateCountingStore struct {
+	Store
+	masters int
+}
+
+func (c *gateCountingStore) Masters(ctx context.Context) ([]Master, error) {
+	c.masters++
+	return c.Store.Masters(ctx)
 }
 
 func samplePath(pattern string) (method, path string) {
@@ -307,6 +334,23 @@ func TestEveryRouteIsClassified(t *testing.T) {
 			t.Errorf("%q is both bearer and back office/public; the classes must not overlap", p)
 		}
 	}
+	// D-094: the page routes are back-office routes -- never public, never
+	// bearer -- whose refusal has a body a browser can show.
+	for p := range pagePatterns {
+		if !registered[p] {
+			t.Errorf("the page list names %q, which is not a registered pattern", p)
+		}
+		if publicPatterns[p] || s.bearer[p] {
+			t.Errorf("%q is a page route and also public or bearer; a page route needs the session", p)
+		}
+	}
+	counter := &gateCountingStore{Store: s.store}
+	s.store = counter
+	home := httptest.NewRecorder()
+	s.routes().ServeHTTP(home, httptest.NewRequest("GET", "/", nil))
+	signedOutHome := home.Body.String()
+	counter.masters = 0
+
 	forged := &http.Cookie{Name: boCookie, Value: "1"}
 	for _, p := range s.patterns {
 		if publicPatterns[p] {
@@ -329,10 +373,24 @@ func TestEveryRouteIsClassified(t *testing.T) {
 			}
 			jw := httptest.NewRecorder()
 			s.routes().ServeHTTP(jw, r)
+			if jw.Header().Get("Referrer-Policy") != "same-origin" {
+				t.Errorf("%s %s sends Referrer-Policy %q, want same-origin: an address names a product", method, path, jw.Header().Get("Referrer-Policy"))
+			}
+			if pagePatterns[p] {
+				// The refusal of a page route is the sign-in page itself.
+				if jw.Code != http.StatusUnauthorized || jw.Body.String() != signedOutHome || jw.Header().Get("Cache-Control") != "no-store" {
+					t.Errorf("%s %s signed out (not htmx) answered %d, Cache-Control %q, and a body that %s the signed-out home page; want 401, no-store, the same page",
+						method, path, jw.Code, jw.Header().Get("Cache-Control"), map[bool]string{true: "is", false: "is not"}[jw.Body.String() == signedOutHome])
+				}
+				continue
+			}
 			if jw.Code != http.StatusUnauthorized || !strings.Contains(jw.Header().Get("Content-Type"), "json") {
 				t.Errorf("%s %s signed out (not htmx) answered %d %q, want 401 JSON", method, path, jw.Code, jw.Header().Get("Content-Type"))
 			}
 		}
+	}
+	if counter.masters != 0 {
+		t.Errorf("signed-out requests reached a handler that read the product records %d time(s); the gate must answer before any handler runs", counter.masters)
 	}
 	for p := range readOnlyGET {
 		if !registered[p] {

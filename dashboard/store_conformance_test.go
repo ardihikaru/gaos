@@ -33,6 +33,90 @@ import (
 // The ArcadeDB half is skipped unless GAOS_ARCADE_TEST_URL names a reachable
 // database. `deploy/schema/scratch.sh up` prints that line.
 
+// plannedForBoard plans one workflow on the first product that can be planned,
+// so a board has cards; it returns that product's id.
+func plannedForBoard(t *testing.T, s Store) string {
+	t.Helper()
+	ctx := context.Background()
+	masters, _ := s.Masters(ctx)
+	for _, m := range masters {
+		if m.ReadinessScore() < PlanFloor || len(m.Stories) == 0 {
+			continue
+		}
+		draft := WorkflowDraft{ProductID: m.ID, Goal: "board", Stories: []string{m.Stories[0].ID}}
+		plan, err := s.PlanWorkflow(ctx, draft)
+		if err != nil {
+			continue
+		}
+		if _, err := s.CreateWorkflow(ctx, draft, plan); err != nil {
+			continue
+		}
+		return m.ID
+	}
+	t.Fatal("no seeded product could be planned")
+	return ""
+}
+
+func caseBoardPage(t *testing.T, s Store) {
+	ctx := context.Background()
+	id := plannedForBoard(t, s)
+	full, err := s.Board(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.BoardPage(ctx, id, BoardQuery{}, BoardWindow{})
+	if err != nil {
+		t.Fatalf("BoardPage: %v", err)
+	}
+	n := 0
+	for _, c := range p.Columns {
+		n += len(c.Cards)
+	}
+	if p.All != len(full.Cards) || p.Matched != p.All || n != len(full.Cards) || len(p.Columns) != len(full.Columns) {
+		t.Errorf("the page holds %d card(s) in %d column(s), All %d, Matched %d; the board holds %d card(s) in %d column(s)",
+			n, len(p.Columns), p.All, p.Matched, len(full.Cards), len(full.Columns))
+	}
+	if _, err := s.BoardPage(ctx, "no-such-product", BoardQuery{}, BoardWindow{}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("BoardPage of an unknown product: %v, want ErrNotFound", err)
+	}
+}
+
+func caseBoardCard(t *testing.T, s Store) {
+	ctx := context.Background()
+	id := plannedForBoard(t, s)
+	full, _ := s.Board(ctx, id)
+	if len(full.Cards) == 0 {
+		t.Fatal("the planned product has no card")
+	}
+	want := full.Cards[0]
+	got, err := s.BoardCard(ctx, id, want.ID)
+	if err != nil || got.ID != want.ID || got.Label != want.Label || got.Column != want.Column || got.Status != want.Status || got.Row != want.Row {
+		t.Errorf("BoardCard(%s) = %+v, %v; want the board's card %+v", want.ID, got, err, want)
+	}
+	if _, err := s.BoardCard(ctx, id, "no-such-card"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("BoardCard of an unknown card: %v, want ErrNotFound", err)
+	}
+}
+
+func caseEventCount(t *testing.T, s Store) {
+	ctx := context.Background()
+	id := plannedForBoard(t, s)
+	evs, _ := s.Events(ctx)
+	want := 0
+	for _, e := range evs {
+		if e.DeskID == id {
+			want++
+		}
+	}
+	got, err := s.EventCount(ctx, id)
+	if err != nil || got != want || want == 0 {
+		t.Errorf("EventCount(%s) = %d, %v; the stream holds %d event(s) of that product", id, got, err, want)
+	}
+	if n, _ := s.EventCount(ctx, "no-such-product"); n != 0 {
+		t.Errorf("EventCount of an unknown product is %d, want 0", n)
+	}
+}
+
 type storeCase struct {
 	name string
 	run  func(t *testing.T, s Store)
@@ -58,6 +142,11 @@ var storeContract = []storeCase{
 	{"AddDiagramWithoutASourceIsRejected", caseAddDiagramEmpty},
 	{"AddDecisionRoundTrips", caseAddDecision},
 	{"AddDecisionWithoutATitleIsRejected", caseAddDecisionEmpty},
+	// D-095: the paged board, one card and the event count are reads every
+	// store answers alike.
+	{"TheBoardPageHoldsWhatTheBoardHolds", caseBoardPage},
+	{"TheBoardCardIsOneOfTheBoardsCards", caseBoardCard},
+	{"TheEventCountIsTheProductsEvents", caseEventCount},
 	{"InjectReportsTheProjectionItPromised", caseInject},
 	{"PublishBlueprintRoundTrips", casePublishBlueprint},
 	{"SavePolicyWithABadKindIsRejected", caseSavePolicyBadKind},
@@ -202,6 +291,16 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	}
 	if !found {
 		t.Error("the product created before the reopen is gone; the write never reached the graph")
+	}
+	// D-094: the slug is stored, not derived -- it is the same after a reopen,
+	// for a fixture product and for one created at run time.
+	for _, p := range products {
+		if p.Name == "Ledger Rewrite" && p.Slug != "ledger-rewrite" {
+			t.Errorf("the slug of the product created before the reopen is %q, want ledger-rewrite", p.Slug)
+		}
+		if p.ID == "p-1" && p.Slug != "laundry-membership" {
+			t.Errorf("the slug of p-1 after the reopen is %q, want laundry-membership", p.Slug)
+		}
 	}
 	m, err := second.Master(ctx, "p-1")
 	if err != nil {
