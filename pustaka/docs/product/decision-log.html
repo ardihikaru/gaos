@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety-one entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-two entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -2001,6 +2001,33 @@
         <td><a href="qa-test-plan.html#go-pr-overview">TC-700&hellip;TC-720</a>;
         <a href="../integrations/pull-requests.html">Pull requests</a>;
         <code>docs/designs/gaos-pr-overview.md</code></td>
+      </tr>
+      <tr id="d-093">
+        <td>D-093</td><td>2026-11-26</td>
+        <td><strong>Every back-office view and every product section has its own URL, and a product is named in it by a stored slug.</strong>
+        Context: every click in the back office was an htmx request into a hidden sink, so the address stayed on the
+        mount point whatever was on screen: no link to a product's Board could be copied, Back left the dashboard, and a
+        reload returned to the product list. Decision: (1) Eleven page routes &mdash; nine global views,
+        <code>/p/&lt;slug&gt;/&lt;section&gt;</code> and <code>/p/&lt;ref&gt;</code> &mdash; return the whole document for
+        one view; the fragment routes are unchanged and still return fragments only, so no URL answers in two shapes.
+        (2) The server tells the browser the address: one function, <code>sheet</code>, is the only door to the sheet and
+        sets <code>HX-Push-Url</code> for a navigation and <code>HX-Replace-Url</code> for a changed filter; a mutation and
+        a background refresh never rewrite an address. (3) Back and Forward load the URL from the server; htmx's history
+        cache is off, so no back-office HTML is kept in the browser's storage. (4) A product's <strong>slug</strong> is its
+        name in lower case, assigned once and stored on the product; the id form of a URL redirects to it. The operator
+        chose the name over the id and over id-with-name, and <strong>accepts what follows</strong>: the product's name
+        is now in addresses, and therefore in the edge's access log (as a request line and as a <code>Referer</code>), in
+        the browser's history and in the tab title, together with the filters of the Pull requests, Auto-fix and Inbox
+        views that the fragment routes' request lines already carried. Every non-bearer response now sends
+        <code>Referrer-Policy: same-origin</code>. (5) <strong>BR-55 stands:</strong> a page route is a back-office route
+        and is refused with <code>401</code> signed out; only the body of that refusal changes, for a browser, from JSON to
+        the sign-in page, built by the gate before any handler runs, so it is the same for a product that exists and one
+        that does not. Signing in on a deep URL reloads that URL. (6) <strong>BR-02 position:</strong> giving a slug to a
+        product that predates slugs is a state change and emits the existing <code>RecordUpdated</code>; no event type is
+        added. Accepted limits: a slug does not move while its product exists, but it is not reserved after a product is
+        removed from the database by hand; nothing renames a product, so no old slug redirects.</td>
+        <td><a href="qa-test-plan.html#go-urls">TC-722&hellip;TC-732</a>;
+        <code>docs/designs/urls-and-board.md</code></td>
       </tr>
     </tbody>
   </table>

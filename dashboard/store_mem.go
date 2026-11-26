@@ -323,6 +323,9 @@ func NewMemStore(seed uint64) *MemStore {
 	s.rng = rand.New(rand.NewPCG(seed, seed^0x9E3779B97F4A7C15))
 
 	s.products = append([]Product(nil), seedProducts...)
+	// The fixtures are the store's genesis: their slugs are part of it, and
+	// nothing is emitted for them (D-093).
+	backfillSlugs(s.products)
 	for _, m := range seedMasters {
 		s.masters = append(s.masters, m.Clone())
 	}
@@ -1837,7 +1840,9 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 	case "low", "high":
 		prio = dr.Priority
 	}
-	s.products = append(s.products, Product{ID: id, Name: name, Repo: repo, Goal: goal})
+	// The slug is assigned here, once, under the lock, and against every other
+	// product, so it is unique by construction (D-093).
+	s.products = append(s.products, Product{ID: id, Name: name, Repo: repo, Goal: goal, Slug: newSlug(name, id, s.products)})
 	s.masters = append(s.masters, Master{
 		ID: id, Code: strings.ToUpper(firstN(name, 2)), Owner: owner,
 		Priority: prio, Stage: "draft", Repos: []string{repo},
@@ -1847,6 +1852,34 @@ func (s *MemStore) CreateProduct(ctx context.Context, dr ProductDraft) (Result, 
 	m := s.masterPtr(id).Clone()
 	r.Master = &m
 	return r, nil
+}
+
+// AssignSlug gives one existing product a slug (D-093): the back-fill for
+// products created before slugs existed, and for a stored slug that failed
+// validation. It is a state change, so it emits an event (BR-02) -- the
+// existing RecordUpdated, in the form UpdateBRD's has -- and its Result names
+// the product's record, which is what makes the ArcadeDB store write the
+// Product vertex. Not on the Store interface: only a store's own boot calls it.
+func (s *MemStore) AssignSlug(ctx context.Context, productID string) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.masterPtr(productID)
+	if m == nil {
+		return Result{}, ErrNotFound
+	}
+	for i := range s.products {
+		if s.products[i].ID != productID {
+			continue
+		}
+		s.products[i].Slug = ""
+		s.products[i].Slug = newSlug(s.products[i].Name, productID, s.products)
+		e := s.emit(RecordUpdated, productID, s.products[i].Name+": slug assigned", KindInfo, EventPayload{})
+		r := s.result("", e)
+		c := m.Clone()
+		r.Master = &c
+		return r, nil
+	}
+	return Result{}, ErrNotFound
 }
 
 func (s *MemStore) UpdateBRD(ctx context.Context, id string, b BRD) (Result, error) {

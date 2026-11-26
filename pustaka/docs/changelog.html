@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-55-0">v0.55.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every back-office view and product section has its own URL (<a href="product/decision-log.html#d-093">D-093</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Real addresses.</strong> A product's sections are at <code>/app/p/&lt;product&gt;/&lt;section&gt;</code> &mdash; for example <code>/app/p/route-planner/board</code> &mdash; and the Inbox, Stories, Diagrams, Knowledge, Agents, Archive, Integrations, Auto-fix and Pull requests views at <code>/app/inbox</code>, <code>/app/prs</code> and so on. The address and the tab title follow every click; Back, Forward and reload land on the same view; a link can be copied and opened in a new tab (Ctrl-click and middle-click work on the navigation). The filters and the open drawer of the Pull requests and Auto-fix views are part of the address.</li>
+        <li><span class="chg add">Added</span> A product is named in its address by a <strong>slug</strong>, its name in lower case, assigned once and stored. The older form with the product's id (<code>/app/p/p-6/board</code>) redirects to it. Existing products get their slug at the first start after the upgrade.</li>
+        <li><span class="chg change">Changed</span> Opening a back-office address signed out shows the sign-in form (still a <code>401</code>, as <code>BR-55</code> requires), and signing in returns to that address instead of the product list.</li>
+        <li><span class="chg change">Changed</span> A live refresh that arrives after you have moved to another view no longer pulls the screen back to the view it was meant for.</li>
+        <li><span class="chg change">Changed</span> A product's name is now part of its address, and so appears in the edge's access log, the browser's history and the tab title. Every back-office response sends <code>Referrer-Policy: same-origin</code>. <code>TC-722</code>&hellip;<code>TC-732</code>.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-54-1">v0.54.1 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The interactive board on a product&rsquo;s Board tab loads again.</p>
       <ul>

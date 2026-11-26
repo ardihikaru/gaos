@@ -37,9 +37,12 @@
     if (dot) dot.hidden = !on;
   }
 
+  // X-GAOS-Refresh marks a request nobody clicked for (D-093). The server
+  // never moves the address for one: a refresh that lands after the operator
+  // has gone elsewhere must not push them a history entry.
   function get(url, then) {
     if (!window.htmx) return;
-    var p = htmx.ajax("GET", url, { target: "#sink", swap: "innerHTML" });
+    var p = htmx.ajax("GET", url, { target: "#sink", swap: "innerHTML", headers: { "X-GAOS-Refresh": "1" } });
     if (then && p && p.then) p.then(then, function () {});
   }
 
@@ -72,37 +75,52 @@
     });
   }
 
-  var deferred = null;
-  function refreshPane(url) {
-    if (busy()) { deferred = url; return; }
+  function main() { return document.getElementById("boMain"); }
+
+  // What is on screen: the view, the product, the tab and the inbox filter. A
+  // refresh is decided when a hint arrives and sent a moment later; it belongs
+  // to the screen it was decided for, and is dropped if that screen is gone.
+  function where() {
+    var m = main();
+    return m ? [m.dataset.view || "", m.dataset.product || "", m.dataset.tab || "", m.dataset.filter || ""].join("|") : "";
+  }
+
+  var deferred = null; // {url, at}: a refresh held back while the operator is busy
+  function refreshPane(url, at) {
+    if (at !== where()) { deferred = null; return; }
+    if (busy()) { deferred = { url: url, at: at }; return; }
     deferred = null;
     keepPlace(url);
   }
+  function runDeferred() {
+    if (!deferred || busy()) return;
+    var d = deferred;
+    deferred = null;
+    refreshPane(d.url, d.at);
+  }
   // A deferred refresh runs once the dialog closes or the field is left.
-  document.addEventListener("focusout", function () {
-    setTimeout(function () { if (deferred && !busy()) refreshPane(deferred); }, 0);
-  });
-
-  function main() { return document.getElementById("boMain"); }
+  document.addEventListener("focusout", function () { setTimeout(runDeferred, 0); });
 
   function onQuestion() {
     soon("chip", function () { get("ui/needs"); });
     var m = main();
     if (m && m.dataset.view === "inbox") {
-      var f = m.dataset.filter;
-      soon("inbox", function () { refreshPane("ui/bo/inbox" + (f ? "?product=" + encodeURIComponent(f) : "")); });
+      var f = m.dataset.filter, at = where();
+      soon("inbox", function () { refreshPane("ui/bo/inbox" + (f ? "?product=" + encodeURIComponent(f) : ""), at); });
     }
   }
 
   function onTask(hint) {
     var m = main();
     if (!m || m.dataset.tab !== "board" || !hint || hint.product !== m.dataset.product) return;
+    var at = where();
     soon("board", function () {
+      if (at !== where()) return; // the operator has left this board
       var host = document.getElementById("board-host");
       if (host && host.style.display !== "none") {
         host.dispatchEvent(new CustomEvent("gaos:board-refresh"));
       } else {
-        refreshPane("products/" + encodeURIComponent(m.dataset.product) + "?tab=board");
+        refreshPane("products/" + encodeURIComponent(m.dataset.product) + "?tab=board", at);
       }
     });
   }
@@ -152,14 +170,10 @@
   document.body.addEventListener("htmx:oobAfterSwap", function (e) {
     if (!e.target || e.target.id !== "boSheet") return;
     if (signedIn()) { open(); offline(isOffline); } else close();
-    if (deferred && !busy()) refreshPane(deferred);
+    runDeferred();
   });
-  document.addEventListener("gaos:modal-closed", function () {
-    if (deferred && !busy()) refreshPane(deferred);
-  });
-  document.body.addEventListener("htmx:afterSwap", function () {
-    if (deferred && !busy()) refreshPane(deferred);
-  });
+  document.addEventListener("gaos:modal-closed", runDeferred);
+  document.body.addEventListener("htmx:afterSwap", runDeferred);
 
   // The inbox's times are elapsed time and time left, not snapshots: re-tick
   // them from their datetime so "waiting 12m" keeps counting without a

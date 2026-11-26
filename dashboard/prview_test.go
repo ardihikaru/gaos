@@ -71,7 +71,7 @@ func TestPRViewRowsAndFilters(t *testing.T) {
 		`loop/laundry-api#31`, `tidy the cart`, `prs-kind--review">Review`, `feature/cart`,
 		`loop/laundry-auto#8`, `prs-kind--qa">QA tool`, `CART-12`, `href="https://qa.example.test/jobs/job-7"`,
 		`data-timing-open="ui/timing/` + f.pid + `/T-31"`, `hx-trigger="every 30s `, `ui/bo/prs/live`,
-		`>Pull requests</button>`,
+		`>Pull requests</a>`,
 	} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("the view lacks %q", want)

@@ -438,6 +438,24 @@
   }, true);
   window.addEventListener("resize", syncMenu);
 
+  /* ---------- links that are also htmx requests (D-093) ----------
+     Navigation is <a href="page" hx-get="fragment">: a plain click swaps the
+     fragment in, and the href is there for a new tab, a new window and "copy
+     link". htmx cancels the default action of every click on such a link, with
+     or without a modifier, and it does so before it looks at any trigger
+     filter. So a modified click is stopped here, in the capture phase, before
+     it reaches htmx's listener on the link: the browser then does what it
+     does for any link. */
+  document.addEventListener("click", function (e) {
+    if (!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0)) return;
+    if (e.target.closest && e.target.closest("a[href][hx-get]")) e.stopPropagation();
+  }, true);
+  // A middle click is "auxclick" in every current browser; htmx does not
+  // listen for it, and it is stopped all the same in case a build does.
+  document.addEventListener("auxclick", function (e) {
+    if (e.target.closest && e.target.closest("a[href][hx-get]")) e.stopPropagation();
+  }, true);
+
   document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); syncMenu(); });
   document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); if (e.target.id === "boSheet") syncMenu(); });
 

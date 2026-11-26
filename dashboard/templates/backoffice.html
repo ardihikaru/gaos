@@ -56,7 +56,7 @@
         <span class="bo-tenant" title="{{.Tenant}}">{{.Tenant}}</span>
         {{if $product}}{{with .BO.Detail}}
         <span class="bo-crumb">
-          <button class="bo-crumb-up" hx-get="products" hx-target="#sink" hx-swap="innerHTML">Products</button>
+          <a class="bo-crumb-up" href="./" hx-get="products" hx-target="#sink" hx-swap="innerHTML">Products</a>
           <span class="bo-crumb-sep" aria-hidden="true">/</span>
           <b title="{{.Name}}">{{.Name}}</b>
         </span>
@@ -67,16 +67,18 @@
     </div>
 
     {{if $product}}{{with .BO.Detail}}
+    {{/* D-093: each item is a link. href is the page (a new tab, a copied
+         link); hx-get is the fragment a plain click swaps in. */}}
     <nav class="bo-menu" aria-label="Product sections">
-      <button{{if eq .Tab "brd"}} aria-current="page"{{end}}       hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</button>
-      <button{{if eq .Tab "stories"}} aria-current="page"{{end}}   hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num (len .Master.Stories)}}</span></button>
-      <button{{if eq .Tab "diagrams"}} aria-current="page"{{end}}  hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num (len .Master.Diagrams)}}</span></button>
-      <button{{if eq .Tab "knowledge"}} aria-current="page"{{end}} hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></button>
-      <button{{if eq .Tab "board"}} aria-current="page"{{end}}     hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</button>
-      <button{{if eq .Tab "qa"}} aria-current="page"{{end}}        hx-get="products/{{.ID}}?tab=qa"        hx-target="#sink" hx-swap="innerHTML">QA</button>
-      <button{{if eq .Tab "timeline"}} aria-current="page"{{end}}  hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n">{{num (len .Timeline)}}</span></button>
-      <button{{if eq .Tab "blueprint"}} aria-current="page"{{end}} hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></button>
-      <button{{if eq .Tab "vendors"}} aria-current="page"{{end}}   hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</button>
+      <a{{if eq .Tab "brd"}} aria-current="page"{{end}}       href="p/{{.Slug}}/brd" hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</a>
+      <a{{if eq .Tab "stories"}} aria-current="page"{{end}}   href="p/{{.Slug}}/stories" hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num (len .Master.Stories)}}</span></a>
+      <a{{if eq .Tab "diagrams"}} aria-current="page"{{end}}  href="p/{{.Slug}}/diagrams" hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num (len .Master.Diagrams)}}</span></a>
+      <a{{if eq .Tab "knowledge"}} aria-current="page"{{end}} href="p/{{.Slug}}/knowledge" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></a>
+      <a{{if eq .Tab "board"}} aria-current="page"{{end}}     href="p/{{.Slug}}/board" hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</a>
+      <a{{if eq .Tab "qa"}} aria-current="page"{{end}}        href="p/{{.Slug}}/qa" hx-get="products/{{.ID}}?tab=qa"        hx-target="#sink" hx-swap="innerHTML">QA</a>
+      <a{{if eq .Tab "timeline"}} aria-current="page"{{end}}  href="p/{{.Slug}}/timeline" hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n">{{num (len .Timeline)}}</span></a>
+      <a{{if eq .Tab "blueprint"}} aria-current="page"{{end}} href="p/{{.Slug}}/blueprint" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></a>
+      <a{{if eq .Tab "vendors"}} aria-current="page"{{end}}   href="p/{{.Slug}}/vendors" hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</a>
     </nav>
     {{/* The inbox count is not in this bar, but chrome.html's oob and
          GET /ui/needs swap it by id on every mutation: without a target htmx
@@ -84,16 +86,16 @@
     <span id="navNeedsCount" hidden>{{num $.Needs}}</span>
     {{end}}{{else}}
     <nav class="bo-menu" aria-label="Back office">
-      <button{{if eq .BO.View "inbox"}} aria-current="page"{{end}}     hx-get="ui/bo/inbox"     hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Inbox <span class="n" id="navNeedsCount">{{num .Needs}}</span></button>
-      <button{{if eq .BO.View "products"}} aria-current="page"{{end}}  hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="n">{{num .BO.Counts.Products}}</span></button>
-      <button{{if eq .BO.View "stories"}} aria-current="page"{{end}}   hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num .BO.Counts.Stories}}</span></button>
-      <button{{if eq .BO.View "diagrams"}} aria-current="page"{{end}}  hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num .BO.Counts.Diagrams}}</span></button>
-      <button{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></button>
-      <button{{if eq .BO.View "agents"}} aria-current="page"{{end}}    hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></button>
-      <button{{if eq .BO.View "archive"}} aria-current="page"{{end}}   hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></button>
-      <button{{if eq .BO.View "integrations"}} aria-current="page"{{end}} hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</button>
-      <button{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</button>
-      <button{{if eq .BO.View "prs"}} aria-current="page"{{end}}       hx-get="ui/bo/prs"       hx-target="#sink" hx-swap="innerHTML">Pull requests</button>
+      <a{{if eq .BO.View "inbox"}} aria-current="page"{{end}}     href="inbox" hx-get="ui/bo/inbox"     hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Inbox <span class="n" id="navNeedsCount">{{num .Needs}}</span></a>
+      <a{{if eq .BO.View "products"}} aria-current="page"{{end}}  href="./" hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="n">{{num .BO.Counts.Products}}</span></a>
+      <a{{if eq .BO.View "stories"}} aria-current="page"{{end}}   href="stories" hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num .BO.Counts.Stories}}</span></a>
+      <a{{if eq .BO.View "diagrams"}} aria-current="page"{{end}}  href="diagrams" hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num .BO.Counts.Diagrams}}</span></a>
+      <a{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} href="knowledge" hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></a>
+      <a{{if eq .BO.View "agents"}} aria-current="page"{{end}}    href="agents" hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></a>
+      <a{{if eq .BO.View "archive"}} aria-current="page"{{end}}   href="archive" hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></a>
+      <a{{if eq .BO.View "integrations"}} aria-current="page"{{end}} href="integrations" hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</a>
+      <a{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   href="autofix" hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</a>
+      <a{{if eq .BO.View "prs"}} aria-current="page"{{end}}       href="prs" hx-get="ui/bo/prs"       hx-target="#sink" hx-swap="innerHTML">Pull requests</a>
     </nav>
     {{end}}
 
@@ -137,14 +139,20 @@
 {{/* The nav counts sit inside #boSheet, so a mutation has to resend the sheet
      to move them. One fragment carries both: the pane that changed and the
      chrome that counts it. */}}
-{{define "bo-main-oob"}}{{template "bo-sheet" .}}{{end}}
+{{define "bo-main-oob"}}{{template "bo-title" .}}{{template "bo-sheet" .}}{{end}}
+{{/* D-093: the document title of what the sheet now shows. htmx applies a
+     <title> only when it is a top-level node of the response, so this is the
+     first thing in every fragment that carries the sheet -- and it is never
+     empty: signed out, .BO is nil and the title is the home page's. */}}
+{{define "bo-title"}}<title>{{template "page-title" .}}</title>{{end}}
+{{define "page-title"}}{{if .BO}}{{.BO.PageTitle}}{{else}}GAOS · Products{{end}}{{end}}
 {{/* D-082: after archive, restore or prune the sheet is answered closed --
      the conversation modal is resent with no conversation, hence hidden. */}}
-{{define "bo-main-close-talk"}}{{template "bo-sheet" .}}{{template "conversation-modal" .}}{{end}}
+{{define "bo-main-close-talk"}}{{template "bo-title" .}}{{template "bo-sheet" .}}{{template "conversation-modal" .}}{{end}}
 
 {{/* Both sheets at once, for the transitions that close one and open the
      other: sign in, sign out, and opening the back office unauthenticated. */}}
-{{define "sheets"}}{{template "login-sheet" .}}{{template "bo-sheet" .}}{{end}}
+{{define "sheets"}}{{template "bo-title" .}}{{template "login-sheet" .}}{{template "bo-sheet" .}}{{end}}
 
 {{define "bo-product-list"}}
 <header>
@@ -157,7 +165,7 @@
 </header>
 <div class="mgrid">
   {{range .List}}
-  <button class="mcard" hx-get="products/{{.ID}}" hx-target="#sink" hx-swap="innerHTML">
+  <a class="mcard" href="p/{{.Slug}}/brd" hx-get="products/{{.ID}}" hx-target="#sink" hx-swap="innerHTML">
     <span class="mcard-top">
       <span class="mcode">{{.Code}}</span>
       <span><b>{{.Name}}</b><span>{{.Repo}} · {{.Owner}}</span></span>
@@ -169,7 +177,7 @@
       <span class="mstat"><b>{{.Vertices}}</b><span>vertices</span></span>
       <span class="mstat"><b>{{.Coverage}}%</b><span>covered</span></span>
     </span>
-  </button>
+  </a>
   {{end}}
   <button class="mcard add" hx-get="products?new=1" hx-target="#sink" hx-swap="innerHTML">+ Add a product record</button>
 </div>
@@ -901,7 +909,7 @@
     <ul class="af-prods">
       {{range .Products}}
       <li class="af-prod af-prod--{{.State}}">
-        <span class="af-prod-n"><a href="products/{{.ID}}" hx-get="products/{{.ID}}" hx-target="#sink" hx-swap="innerHTML">{{.Name}}</a></span>
+        <span class="af-prod-n"><a href="p/{{.ID}}/brd" hx-get="products/{{.ID}}" hx-target="#sink" hx-swap="innerHTML">{{.Name}}</a></span>
         <span class="af-sw af-sw--{{.State}}">{{if eq .State "on"}}On{{else if eq .State "stuck"}}On, not ready{{else}}Off{{end}}</span>
         <span class="af-prod-c mono" title="Automatic dispatches today, of the daily cap">fix {{.Fix.Used}}/{{.Fix.Cap}} &middot; triage {{.Triage.Used}}/{{.Triage.Cap}}</span>
         {{if .Reason}}<span class="af-prod-why">{{if eq .State "off"}}<b>Auto-fix is off for this product.</b> {{end}}{{.Reason}}</span>{{end}}
@@ -933,7 +941,7 @@
     <h4>Fix pull requests <span class="sp">{{num .RowsTotal}}</span></h4>
     <div id="afFilters" class="af-filters">
       <nav class="af-seg" aria-label="Pull request state">
-        {{range .StateTabs}}<a href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
+        {{range .StateTabs}}<a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
       </nav>
       <form class="af-form" method="get" action="ui/bo/autofix" hx-get="ui/bo/autofix" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
         {{if .Filter.State}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
@@ -942,7 +950,7 @@
         <label><span class="sr-only">Difficulty</span>
           <select name="difficulty">{{range .DiffOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
         <noscript><button class="btn" type="submit">Apply</button></noscript>
-        {{if or .Filter.Product .Filter.State .Filter.Difficulty}}<a class="af-reset" href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+        {{if or .Filter.Product .Filter.State .Filter.Difficulty}}<a class="af-reset" href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
       </form>
     </div>
 
@@ -959,7 +967,7 @@
         {{range .Rows}}
           <tr class="af-r{{if .Open}} is-open{{end}}">
             <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span></td>
-            <td class="af-defect"><a data-af-row="{{.ID}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Ref}}</span></a></td>
+            <td class="af-defect"><a data-af-row="{{.ID}}" href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Ref}}</span></a></td>
             <td>{{if .Diff}}<span class="badge af-d af-d--{{.Diff}}">{{.Diff}}</span>{{else}}<span class="af-dash" aria-label="not judged yet">&mdash;</span>{{end}}</td>
             <td class="af-md af-prod-cell" title="{{.Product}}">{{.Product}}</td>
             <td>{{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer" title="{{.Repo}}#{{.Number}}">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{else}}<span class="af-dash" title="The pull request is not opened yet">not opened</span>{{end}}</td>
@@ -977,7 +985,7 @@
     {{else if eq .Empty "nopr"}}
       <p class="af-empty"><b>No fix pull request yet.</b> {{num .Defects}} {{if eq .Defects 1}}defect is{{else}}defects are{{end}} being triaged or fixed by a person; a draft appears here when an easy fix is ready.</p>
     {{else}}
-      <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see all of them.</p>
+      <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see all of them.</p>
     {{end}}
   </div>
   </div>
@@ -990,7 +998,7 @@
     <div class="af-dr-top">
       <span class="af-st af-st--{{.State}}">{{.StateLabel}}</span>
       {{if .Diff}}<span class="badge af-d af-d--{{.Diff}}">{{.Diff}}</span>{{end}}
-      <a class="af-x" data-af-close href="{{.CloseHref}}" hx-get="{{.CloseHref}}" hx-target="#sink" hx-swap="innerHTML" aria-label="Close the details (Esc)" title="Close (Esc)">&times;</a>
+      <a class="af-x" data-af-close href="{{pagehref .CloseHref}}" hx-get="{{.CloseHref}}" hx-target="#sink" hx-swap="innerHTML" aria-label="Close the details (Esc)" title="Close (Esc)">&times;</a>
     </div>
     <h3 class="af-dr-title">{{.Title}}</h3>
     <p class="af-dr-sub"><span class="mono">{{.Ref}}</span> &middot; {{.Product}}{{if .URL}} &middot; <a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{end}}</p>
@@ -1082,7 +1090,7 @@
     <h4>Pull requests <span class="sp">{{num .RowsTotal}}</span></h4>
     <div id="prsFilters" class="af-filters">
       <nav class="af-seg" aria-label="Pull request state">
-        {{range .StateTabs}}<a href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
+        {{range .StateTabs}}<a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
       </nav>
       <form class="af-form" method="get" action="ui/bo/prs" hx-get="ui/bo/prs" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
         {{if ne .Filter.State "open"}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
@@ -1091,7 +1099,7 @@
         <label><span class="sr-only">Kind</span>
           <select name="kind">{{range .KindOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
         <noscript><button class="btn" type="submit">Apply</button></noscript>
-        {{if or .Filter.Product .Filter.Kind (ne .Filter.State "open")}}<a class="af-reset" href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+        {{if or .Filter.Product .Filter.Kind (ne .Filter.State "open")}}<a class="af-reset" href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
       </form>
     </div>
 
@@ -1108,7 +1116,7 @@
         {{range .Rows}}
           <tr class="af-r{{if .Open}} is-open{{end}}">
             <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span></td>
-            <td class="af-defect"><a data-af-row="{{.Key}}" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Repo}}#{{.Number}}</span></a>
+            <td class="af-defect"><a data-af-row="{{.Key}}" href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Repo}}#{{.Number}}</span></a>
               {{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">GitHub<span class="sr-only"> (opens {{.Repo}}#{{.Number}})</span></a>{{end}}
               {{range .Relations}}<span class="prs-rel">{{.Label}} {{if .URL}}<a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Ref}}</a>{{else}}<span class="mono">{{.Ref}}</span>{{end}}</span>{{end}}
               {{if .Follow}}<span class="prs-follow">{{.Follow}}</span>{{end}}</td>
@@ -1127,7 +1135,7 @@
     {{if eq .Empty "none"}}
       <p class="af-empty"><b>No pull request is tied to a task yet.</b> Fix pull requests appear when GAOS opens one, review pull requests when Brain Town reports one, and QA-tool pull requests when a product lists its automation repositories.</p>
     {{else if eq .Empty "filtered"}}
-      <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{.ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see the open ones.</p>
+      <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see the open ones.</p>
     {{end}}
   </div>
   </div>
@@ -1140,7 +1148,7 @@
     <div class="af-dr-top">
       <span class="af-st af-st--{{.State}}">{{.StateLabel}}</span>
       <span class="badge prs-kind prs-kind--{{.Kind}}">{{.KindLabel}}</span>
-      <a class="af-x" data-af-close href="{{.CloseHref}}" hx-get="{{.CloseHref}}" hx-target="#sink" hx-swap="innerHTML" aria-label="Close the details (Esc)" title="Close (Esc)">&times;</a>
+      <a class="af-x" data-af-close href="{{pagehref .CloseHref}}" hx-get="{{.CloseHref}}" hx-target="#sink" hx-swap="innerHTML" aria-label="Close the details (Esc)" title="Close (Esc)">&times;</a>
     </div>
     <h3 class="af-dr-title">{{.Title}}</h3>
     <p class="af-dr-sub">{{.Product}}{{if .URL}} &middot; <a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{end}}</p>

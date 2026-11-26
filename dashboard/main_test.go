@@ -128,6 +128,21 @@ func TestEveryRouteAnswers(t *testing.T) {
 		{"GET", "/products/p-1/readiness", 200},
 		{"POST", "/products/p-1/inject", 200},
 		{"GET", "/ui/cw", 200},
+		// D-093: the page routes -- nine views, a product section by slug, and
+		// the two redirects (the id form, and a product with no section).
+		{"GET", "/inbox", 200},
+		{"GET", "/stories", 200},
+		{"GET", "/diagrams", 200},
+		{"GET", "/knowledge", 200},
+		{"GET", "/agents", 200},
+		{"GET", "/archive", 200},
+		{"GET", "/integrations", 200},
+		{"GET", "/autofix", 200},
+		{"GET", "/prs", 200},
+		{"GET", "/p/laundry-membership/board", 200},
+		{"GET", "/p/p-1/board", 302},
+		{"GET", "/p/laundry-membership", 302},
+		{"GET", "/p/nope/board", 404},
 		{"GET", "/products/nope", 404},
 
 		// The floor UI, retired in M14.7 (T-167). A route that still answered
@@ -209,6 +224,18 @@ func TestBaseHrefFollowsForwardedPrefix(t *testing.T) {
 		s.routes().ServeHTTP(w, r)
 		if !strings.Contains(w.Body.String(), c.want) {
 			t.Errorf("prefix %q: want %s", c.header, c.want)
+		}
+		// D-093: a page three levels down carries the same base, so every
+		// relative URL on it still resolves against the mount point. Signed
+		// out it is the 401 sign-in page, which is a page all the same.
+		r = httptest.NewRequest("GET", "/p/laundry-membership/board", nil)
+		if c.header != "" {
+			r.Header.Set("X-Forwarded-Prefix", c.header)
+		}
+		w = httptest.NewRecorder()
+		s.routes().ServeHTTP(w, r)
+		if !strings.Contains(w.Body.String(), c.want) {
+			t.Errorf("prefix %q on a deep URL: want %s", c.header, c.want)
 		}
 	}
 }

@@ -162,12 +162,31 @@ func NewArcadeStoreFor(ctx context.Context, arc *Arcade, seed uint64, tenant str
 		}
 	} else {
 		s.markLoaded()
+		s.backfillSlugs(ctx)
 	}
 	installHook(s.proj)
 	return s, nil
 }
 
 func (s *ArcadeStore) Kind() string { return "arcadedb" }
+
+// backfillSlugs gives a slug to every loaded product that has no usable one
+// (D-093): products that predate slugs, and a stored slug that is malformed or
+// a duplicate. Each is an ordinary mutation -- the product and its
+// RecordUpdated event in one transaction (BR-02) -- and fails as one does: the
+// projection keeps what the database did not take, and the next boot, finding
+// no stored slug, assigns the same one again. A boot never stops for it.
+func (s *ArcadeStore) backfillSlugs(ctx context.Context) {
+	s.proj.mu.RLock()
+	products := append([]Product(nil), s.proj.products...)
+	s.proj.mu.RUnlock()
+	for _, i := range backfillSlugs(products) {
+		id := products[i].ID
+		if _, err := s.mutate(ctx, func() (Result, error) { return s.proj.AssignSlug(ctx, id) }); err != nil {
+			logSlugBackfill(id, err)
+		}
+	}
+}
 
 // SetCommitTap installs the callback persist calls, after tx.Commit, for every event it wrote.
 func (s *ArcadeStore) SetCommitTap(f func(Event)) {
@@ -762,7 +781,7 @@ func (s *ArcadeStore) ensureTenant(ctx context.Context) error {
 
 func (s *ArcadeStore) writeProduct(ctx context.Context, tx *ArcadeTx, p Product) error {
 	if err := s.upsert(ctx, tx, "Product", p.ID, map[string]any{
-		"name": p.Name, "repo": p.Repo, "goal": p.Goal,
+		"name": p.Name, "repo": p.Repo, "goal": p.Goal, "slug": p.Slug,
 	}); err != nil {
 		return err
 	}
@@ -1473,6 +1492,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Name string `json:"name"`
 		Repo string `json:"repo"`
 		Goal string `json:"goal"`
+		Slug string `json:"slug"`
 
 		Code      string          `json:"code"`
 		Owner     string          `json:"owner"`
@@ -1491,7 +1511,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		AutoFix   json.RawMessage `json:"autoFix"`
 	}
 	if err := s.arc.Query(ctx,
-		`SELECT id, name, repo, goal, code, owner, priority, stage, repos,
+		`SELECT id, name, repo, goal, slug, code, owner, priority, stage, repos,
 		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
@@ -1507,7 +1527,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 	}
 	m := newProjection()
 	for _, r := range prows {
-		m.products = append(m.products, Product{ID: r.ID, Name: r.Name, Repo: r.Repo, Goal: r.Goal})
+		m.products = append(m.products, Product{ID: r.ID, Name: r.Name, Repo: r.Repo, Goal: r.Goal, Slug: r.Slug})
 		mr := Master{ID: r.ID, Code: r.Code, Owner: r.Owner, Priority: r.Priority,
 			Stage: r.Stage, Repos: r.Repos}
 		if err := decodeInto(r.BRD, &mr.BRD); err != nil {

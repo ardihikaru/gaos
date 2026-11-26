@@ -140,7 +140,7 @@ func TestAutoFixViewTiles(t *testing.T) {
 				t.Errorf("the Auto-fix view on %s does not show %q", path, want)
 			}
 		}
-		if !strings.Contains(rec.Body.String(), `<button aria-current="page"   hx-get="ui/bo/autofix"`) {
+		if !strings.Contains(rec.Body.String(), `<a aria-current="page"   href="autofix" hx-get="ui/bo/autofix"`) {
 			t.Errorf("the navigation does not mark Auto-fix as the current view on %s", path)
 		}
 	}
@@ -163,7 +163,7 @@ func TestAutoFixViewFilters(t *testing.T) {
 	if rowOf(st, "DEF-101") || !rowOf(st, "DEF-102") {
 		t.Errorf("state=merged shows the wrong rows")
 	}
-	if !strings.Contains(st, `<a href="ui/bo/autofix?state=merged" hx-get="ui/bo/autofix?state=merged" hx-target="#sink" hx-swap="innerHTML" aria-current="true">Merged`) {
+	if !strings.Contains(st, `<a href="autofix?state=merged" hx-get="ui/bo/autofix?state=merged" hx-target="#sink" hx-swap="innerHTML" aria-current="true">Merged`) {
 		t.Errorf("the Merged tab is not the current one")
 	}
 
@@ -234,10 +234,10 @@ func TestAutoFixViewDrawer(t *testing.T) {
 		t.Errorf("the drawer's line counts are not 4 / 40 and 5 / 120")
 	}
 	// the row is marked, the close link drops open= and keeps the filters
-	if !strings.Contains(sec, `class="af-r is-open"`) || !strings.Contains(dr, `href="ui/bo/autofix"`) {
+	if !strings.Contains(sec, `class="af-r is-open"`) || !strings.Contains(dr, `href="autofix" hx-get="ui/bo/autofix"`) {
 		t.Errorf("the open row is not marked, or the close link is wrong")
 	}
-	if got := afSection(afGet(t, f, "/ui/bo/autofix?state=draft&open="+f.pr1)); !strings.Contains(got, `data-af-close href="ui/bo/autofix?state=draft"`) {
+	if got := afSection(afGet(t, f, "/ui/bo/autofix?state=draft&open="+f.pr1)); !strings.Contains(got, `data-af-close href="autofix?state=draft" hx-get="ui/bo/autofix?state=draft"`) {
 		t.Errorf("the close link does not keep the filters")
 	}
 	// the stored code is never printed: only paths and counts

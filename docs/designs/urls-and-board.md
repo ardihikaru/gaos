@@ -650,3 +650,17 @@ Approved by the operator on 2026-11-26, both phases. Three decisions were put to
 1. **The product's name in the address** (§6): accepted. D-093 records that the slug, and with it the product's name, is visible in the edge's access log, the browser's history and the tab title.
 2. **Only the columns that changed** (§5.1, §8): chosen over re-sending all nine columns on every hint.
 3. **A slug is not reserved after its product is removed by hand** (§12): shown with the approval and not objected to.
+
+## 14. As built
+
+### 14.1 Phase 1 (v0.55.0)
+
+Built as §3 says, with these differences, each smaller than what the section describes:
+
+- **Page links in the Pull requests and Auto-fix views** (§3.6) are printed by a template function, `pagehref`, applied to the existing `Href`, `ResetHref` and `CloseHref` fields, instead of nine new sibling fields. `prPageHref` and `afPageHref` exist and are what `BOView.Href` is built from.
+- **A sixth function calls `buildBO`**: `pageNotFound`, which renders the product list behind the `404` page. `TestOnlyTheAllowedFunctionsCallBuildBO` allows six.
+- **`TestPRViewRowsAndFilters`** (`prview_test.go:74`) also asserted the old navigation markup (`>Pull requests</button>`) and changed with the four Auto-fix assertions §9 lists.
+- **The middle click.** Besides the capture-phase `click` listener, `static/app.js` stops `auxclick` on the same links.
+- **The back-fill on ArcadeDB** is `ArcadeStore.backfillSlugs`, which calls `MemStore.AssignSlug` through `mutate` for each product the pure `backfillSlugs` names.
+
+Verified in headless Chrome against a local in-memory dashboard, without a prefix: a deep URL opened signed out shows the sign-in form and, after sign-in, the Board at the same address; nine tabs and views each set their address and title; three Backs, a Forward and a reload land on the right view; the id form redirects to the slug; creating a workflow from the Stories tab moves the address to the Board; a Ctrl-click on a tab opens a second tab on its page address and leaves the first where it was; `localStorage` stays empty. Not verified in a browser: the same walk behind the `/app` prefix (covered by the Go tests' prefixed cases and by TC-732 at deploy time), and a Pull requests drawer, which needs pull-request data.

@@ -140,11 +140,11 @@ var scoreDims = []ScorePart{
 }
 
 var seedProducts = []Product{
-	{"p-1", "Laundry Membership", "loop/laundry-api", "Add membership pricing and discounts"},
-	{"p-2", "Invoice Engine", "loop/billing-core", "Rework invoice rounding"},
-	{"p-3", "Fleet Dispatch", "loop/dispatch", "Route optimisation v2"},
-	{"p-4", "Partner Portal", "loop/portal-web", "Self-serve onboarding"},
-	{"p-5", "Ops Warehouse", "loop/warehouse", "Stock reconciliation job"},
+	{"p-1", "Laundry Membership", "loop/laundry-api", "Add membership pricing and discounts", ""},
+	{"p-2", "Invoice Engine", "loop/billing-core", "Rework invoice rounding", ""},
+	{"p-3", "Fleet Dispatch", "loop/dispatch", "Route optimisation v2", ""},
+	{"p-4", "Partner Portal", "loop/portal-web", "Self-serve onboarding", ""},
+	{"p-5", "Ops Warehouse", "loop/warehouse", "Stock reconciliation job", ""},
 }
 
 // seedDeskState is the starting position of the floor: which desks are busy,
