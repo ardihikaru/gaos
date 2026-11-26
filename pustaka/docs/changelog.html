@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-58-1">v0.58.1 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The test suite runs under the race detector in about a minute again.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> <code>go test -race ./...</code> with a scratch ArcadeDB attached took 627&nbsp;s, over Go&rsquo;s ten-minute default, so the documented command timed out. Most of that was one password hash: the sign-in code made its dummy account &mdash; the one an unknown email is checked against, so a sign-in costs the same whether or not the email exists &mdash; at full cost every time an authority was built, and the tests build one for every server and every cookie. It is now made once per process. The suite takes 67&nbsp;s under the race detector and 6&nbsp;s without it. Nothing changes for a running dashboard: it builds one authority, at boot, and a failed sign-in is still checked at full cost.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-58-0">v0.58.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The public repository stops publishing where its edge is, and the docs get rate limits (<a href="product/decision-log.html#d-096">D-096</a>).</p>
       <ul>
