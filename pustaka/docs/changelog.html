@@ -36,6 +36,19 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-59-0">v0.59.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Every back-office list is paged, and the Board says how the AI picks up a task (<a href="product/decision-log.html#d-097">D-097</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Pages.</strong> The Board table, Pull requests, Auto-fix, the Timeline and QA by epic show ten rows a page; Stories, Diagrams, Knowledge, Agents and Archive show five. The page is part of the address, so a link or a reload keeps it. On the Board a refresh, a move or an answer stays on the page; a filter, a search or a sort starts on page 1. "Show 100 more" and the 200-row caps are gone.</li>
+        <li><span class="chg add">Added</span> <strong>New task</strong> on the Board opens the Create workflow wizard with the product locked: the wizard shows the product instead of offering every product, and its last step reads <em>Create tasks</em>.</li>
+        <li><span class="chg add">Added</span> <strong>How the AI picks up tasks</strong>, a panel on the Board: when a task is readied and started on this deployment, what to do when the agent asks a question, and how each kind of blocked card is unblocked.</li>
+        <li><span class="chg change">Changed</span> "Inject into graph" is now <strong>Sync record to graph</strong>, shown on the record tabs only (Requirements, Stories, Diagrams, Knowledge, Blueprint), with a title that says what it writes.</li>
+        <li><span class="chg change">Changed</span> <strong>Prune all archived</strong> lists every conversation it will prune in its confirmation, and one prune takes at most the 100 oldest.</li>
+        <li><span class="chg fix">Fixed</span> A long pull-request or defect card id no longer widens the ID column of the Board table for every row; the id is cut short with its full value on hover. The Create workflow wizard's footer is laid out again, and its product hint sits under the product. <code>TC-753</code>&hellip;<code>TC-762</code>.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-58-0">v0.58.0 <time datetime="2026-11-26">2026-11-26</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The public repository stops publishing where its edge is, and the docs get rate limits (<a href="product/decision-log.html#d-096">D-096</a>).</p>
       <ul>

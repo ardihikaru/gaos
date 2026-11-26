@@ -206,8 +206,11 @@
     <p title="{{with .Goal}}{{.}} · {{end}}owner {{.Owner}} · {{.Repos}}">{{with .Goal}}{{.}} · {{end}}owner {{.Owner}} · <span class="mono">{{.Repos}}</span></p>
   </div>
   <span class="sp">
-    <button class="btn" hx-post="products/{{.ID}}/inject?tab={{.Tab}}" hx-target="#sink" hx-swap="innerHTML">Inject into graph</button>
-    <button class="btn btn-primary" hx-get="ui/cw?product={{.ID}}" hx-target="#sink" hx-swap="innerHTML">Create workflow</button>
+    {{/* Sync shows on the tabs whose content injection writes; the Board has
+         its own New task, so Create workflow is not repeated there
+         (docs/designs/board-and-list-ux.md §3.5). */}}
+    {{if or (eq .Tab "brd") (eq .Tab "stories") (eq .Tab "diagrams") (eq .Tab "knowledge") (eq .Tab "blueprint")}}<button class="btn" hx-post="products/{{.ID}}/inject?tab={{.Tab}}" hx-target="#sink" hx-swap="innerHTML" title="Projects this record — requirements, stories, criteria, diagrams, decisions and the Blueprint — into the graph database (ArcadeDB). Without one, it records the injection and rescores readiness.">Sync record to graph</button>{{end}}
+    {{if ne .Tab "board"}}<button class="btn btn-primary" hx-get="ui/cw?product={{.ID}}&amp;lock=1" hx-target="#sink" hx-swap="innerHTML">Create workflow</button>{{end}}
   </span>
 </header>
 
@@ -409,10 +412,14 @@
 {{define "pane-board"}}
 {{with .BoardView}}
 <div class="block board-block" id="boardPane" data-product="{{.ProductID}}">
-  <h4>Board — the product's tasks by status</h4>
+  <div class="board-head">
+    <h4>Board — the product's tasks by status</h4>
+    <button class="btn btn-primary" type="button" hx-get="ui/cw?product={{.ProductID}}&amp;lock=1" hx-target="#sink" hx-swap="innerHTML">New task</button>
+  </div>
+  {{template "board-help" .}}
   <p class="board-lede">A move is a request: the task state machine decides, and a
   refused move changes nothing. Drag a card, or use its buttons — they show only the moves allowed now.</p>
-  {{if eq .Page.All 0}}<p class="board-none">No tasks yet. Create a workflow from this product's stories and its tasks appear here.</p>{{end}}
+  {{if eq .Page.All 0}}<p class="board-none">No tasks yet. Press New task to plan this product's stories into tasks.</p>{{end}}
   {{template "board-bar" .}}
   {{if .Table}}
     {{template "board-table" .}}
@@ -519,21 +526,52 @@
 {{/* The table: the same cards, one per row. Replaced whole by every response of
      the Board's route, so its order and its header links are always the
      server's. */}}
+{{/* How the AI picks up a task (docs/designs/board-and-list-ux.md §3.4). Each
+     step names the code it describes; only steps 2 and 3 vary, on the same
+     two switches the control loop is behind (BoardView.Runner). The button
+     labels are quoted as the card renders them: the column id. */}}
+{{define "board-help"}}
+<details class="board-help">
+  <summary>How the AI picks up tasks</summary>
+  <ol>
+    {{/* store_mem.go CreateWorkflow; the gated implement task, :2282-2309 */}}
+    <li><b>Plan.</b> <em>New task</em> turns the stories you pick into tasks. Most start in <b>Backlog</b>; under the design gate an implementation task starts in <b>Blocked</b> until its design is reviewed.</li>
+    {{/* scheduler.go Schedule; board.go legalMove; main.go control loop */}}
+    <li><b>Backlog → Ready.</b> {{if or (eq .Runner "off") (eq .Runner "noadapter")}}Nothing is readied on this deployment: tasks stay in Backlog.{{else}}GAOS moves a task to Ready by itself once its prerequisites are done, the product is ready enough, an agent can take it and the budget allows. Until then the card waits in Backlog. You cannot drag Backlog ↔ Ready.{{end}}</li>
+    {{/* runner.go RunOnce (on); board.go dispatchNow (manual), D-080 */}}
+    <li><b>Ready → Working.</b> {{if eq .Runner "on"}}An agent starts the task automatically within a few seconds, one task at a time per product.{{else if eq .Runner "manual"}}Nothing starts by itself. Drag the card from Ready to Working, or press its <code>→ working</code> button, to start it.{{else if eq .Runner "noadapter"}}No AI vendor is configured on this deployment, so no task can start.{{else}}The runner is off on this deployment. An operator must set GAOS_RUNNER to start work.{{end}}</li>
+    {{/* questions.go AnswerQuestion; expiry */}}
+    <li><b>Needs you.</b> The agent asked you a question. Press the <b>Needs you</b> badge and answer; the task returns to Ready with your answer. If nobody answers in time, the question expires and the task moves to Blocked.</li>
+    {{/* board.go MoveCard: gate hold, review verdict, deferred; workspace.go drift */}}
+    <li><b>Blocked.</b> The card says why. Then:
+      <ul>
+        <li><b>Held by the design gate</b>: wait — it unblocks when the design's review resolves.</li>
+        <li><b>A review blocked by its own verdict</b>: press <code>Revise design</code> to send the design back to its author.</li>
+        <li><b>Workspace drift</b>: sync the Blueprint; the block clears by itself.</li>
+        <li><b>Deferred</b> (over budget): it cannot be moved; it is released when the budget allows.</li>
+        <li><b>Any other reason</b>: fix the cause, then press <code>→ ready</code> (or drag the card to Ready).</li>
+      </ul></li>
+    {{/* board.go legalMove: approve, redo, retry; the gate decides design and review */}}
+    <li><b>Review.</b> An implementation task waits for you: press <code>→ done</code> to approve it, or <code>→ ready</code> to send it back for another attempt. A design or review task is decided by the gate, not by you. A Failed card goes back with <code>→ ready</code>.</li>
+  </ol>
+</details>
+{{end}}
+
 {{define "board-table"}}
 {{$id := .ProductID}}
-<div class="board-table" id="boardTable" data-rows="{{len .Rows}}"{{if .Live}} hx-swap-oob="true"{{end}}>
+<div class="board-table" id="boardTable" data-page="{{.Page.Query.Page}}"{{if .Live}} hx-swap-oob="true"{{end}}>
   <div class="tm-scroll af-scroll">
   <table class="af-table">
     <thead><tr>{{range .Sorts}}<th scope="col"{{if .Key}} aria-sort="{{.Aria}}"{{end}}>{{if .Key}}<a href="{{.Href}}" hx-get="{{.Get}}" hx-target="#sink" hx-swap="innerHTML">{{.Label}}</a>{{else}}{{.Label}}{{end}}</th>{{end}}</tr></thead>
     <tbody>
     {{range .Rows}}{{$card := .ID}}
     <tr class="board-row{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" data-card="{{.ID}}" data-product="{{$id}}">
-      <td class="mono">{{.ID}}</td>
+      <td class="mono cell-id" title="{{.ID}}">{{.ID}}</td>
       <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Labels}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
       <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
       <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
       <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
-      <td class="mono">{{.Workflow}}</td>
+      <td class="mono cell-id" title="{{.Workflow}}">{{.Workflow}}</td>
       <td>{{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}</td>
       <td>{{with .Timing}}<button type="button" class="tm-chip mono" id="tm-{{$card}}" data-timing-open="{{timingURL $id $card}}" title="{{.TitleText}}" aria-label="Timing of {{$card}}: {{.TitleText}}">{{if and .Known .Complete (not .Finished)}}<time data-elapsed-since="{{since .CreatedAt}}">{{.LeadText}}</time>{{else}}{{.LeadText}}{{end}}</button>{{end}}</td>
       <td class="mono">{{if .UpdatedAt}}<time data-elapsed-since="{{since .UpdatedAt}}" title="last change {{since .UpdatedAt}}">{{ago .UpdatedAt}}</time>{{end}}</td>
@@ -544,9 +582,21 @@
     </tbody>
   </table>
   </div>
-  <p class="board-rows-foot mono">Showing {{num (len .Rows)}} of {{num .Page.Matched}}{{if .RowsMore}} <button type="button" class="btn board-more" hx-get="products/{{$id}}/board/live?more=rows" hx-target="#sink" hx-swap="innerHTML" hx-sync="#boardFilters:replace">Show 100 more</button>{{end}}{{if .RowsCapped}} — the first {{num (len .Rows)}}. Filter to see the rest.{{end}}</p>
+  {{template "pager" .Pager}}
 </div>
 {{end}}
+
+{{/* One pager for every paged list (D-097, pager.go). Every link is a page
+     address in href and a fragment address in hx-get, like every other link. */}}
+{{define "pager"}}{{if gt .Total 0}}{{if le .Pages 1}}<p class="pager-line mono">Showing {{num .Total}}</p>{{else}}
+<nav class="pager" aria-label="{{or .Label "Pages"}}">
+  <span class="pager-line mono">Showing {{num .From}}–{{num .To}} of {{num .Total}}</span>
+  <span class="pager-links">
+  {{with .Prev}}<a class="pager-step" href="{{pagehref .Href}}" hx-get="{{.Get}}" hx-target="#sink" hx-swap="innerHTML"{{with $.Sync}} hx-sync="{{.}}"{{end}} rel="prev">‹ Previous</a>{{else}}<span class="pager-step pager-off" aria-hidden="true">‹ Previous</span>{{end}}
+  {{range .Links}}{{if .Gap}}<span class="gap" aria-hidden="true">…</span>{{else if .On}}<span class="pager-n" aria-current="page">{{.N}}</span>{{else}}<a class="pager-n" href="{{pagehref .Href}}" hx-get="{{.Get}}" hx-target="#sink" hx-swap="innerHTML"{{with $.Sync}} hx-sync="{{.}}"{{end}} aria-label="Page {{.N}}">{{.N}}</a>{{end}}{{end}}
+  {{with .Next}}<a class="pager-step" href="{{pagehref .Href}}" hx-get="{{.Get}}" hx-target="#sink" hx-swap="innerHTML"{{with $.Sync}} hx-sync="{{.}}"{{end}} rel="next">Next ›</a>{{else}}<span class="pager-step pager-off" aria-hidden="true">Next ›</span>{{end}}
+  </span>
+</nav>{{end}}{{end}}{{end}}
 
 {{/* What the Board's own route answers with: the columns the browser does not
      already have (or the table), the count, the view links, and the Timeline
@@ -579,6 +629,7 @@
     {{end}}
     </tbody>
   </table>
+  {{template "pager" .Pager}}
   {{else}}
     <p style="margin:0;font-size:13px;color:var(--ink-3)">Nothing has happened to this product yet.</p>
   {{end}}
@@ -767,6 +818,7 @@
     {{end}}
   </div>
   {{end}}
+  {{template "pager" $.Pager}}
 {{else}}
   <div class="block"><p style="margin:0;color:var(--ink-3);font-size:13px">Nothing recorded yet.</p></div>
 {{end}}
@@ -785,6 +837,7 @@
   </div>
   {{end}}
 </div>
+{{template "pager" .Pager}}
 {{end}}
 
 {{/* The Archive page (D-082). Archived conversations of finished cards, read
@@ -807,14 +860,20 @@
         <button type="button" class="btn" hx-post="{{.RestoreURL}}" hx-target="#sink" hx-swap="innerHTML">Restore</button></td>
     </tr>{{end}}</tbody>
   </table></div>
+  {{template "pager" .ArchivedPager}}
+  {{/* The prune binds the typed word to cards the operator has seen (D-082):
+       its confirmation lists exactly what it takes -- at most the oldest
+       pruneBatch, whatever page the table is on (D-097). */}}
   <div class="cv-prune">
-    <button type="button" class="btn" data-toggle="pruneForm">Prune all archived…</button>
+    <button type="button" class="btn" data-toggle="pruneForm">{{if eq (len .PruneCards) .ArchivedTotal}}Prune all archived…{{else}}Prune the {{len .PruneCards}} oldest…{{end}}</button>
     <form id="pruneForm" class="cv-prune-form" hidden hx-post="conversations/prune" hx-target="#sink" hx-swap="innerHTML">
       <p>{{.FormText}}</p>
-      {{range .Archived}}<input type="hidden" name="card" value="{{.Card}}">{{end}}
+      <p class="cv-prune-head">{{if eq (len .PruneCards) .ArchivedTotal}}These conversations will be pruned:{{else}}The {{len .PruneCards}} oldest of {{num .ArchivedTotal}} archived conversations will be pruned; prune again for the rest:{{end}}</p>
+      <ul class="cv-prune-list">{{range .PruneCards}}<li><span>{{.ProductName}}</span> <span class="mono">{{.TaskID}}</span> <span dir="auto">{{.TaskTitle}}</span></li>{{end}}</ul>
+      {{range .PruneCards}}<input type="hidden" name="card" value="{{.Card}}">{{end}}
       <div class="field"><label for="pruneConfirm">Type {{.Confirm}} to confirm</label>
         <input id="pruneConfirm" name="confirm" autocomplete="off" spellcheck="false" placeholder="{{.Confirm}}"></div>
-      <button type="submit" class="btn btn-danger">Prune {{len .Archived}} conversation{{if ne (len .Archived) 1}}s{{end}}</button>
+      <button type="submit" class="btn btn-danger">Prune {{len .PruneCards}} conversation{{if ne (len .PruneCards) 1}}s{{end}}</button>
     </form>
   </div>
   {{else}}<p class="tm-line">No archived conversations.</p>{{end}}
@@ -833,6 +892,7 @@
       <td class="cv-act"><button type="button" class="btn" id="cvp-{{.TaskID}}" data-sheet-open="{{.OpenURL}}">Open</button></td>
     </tr>{{end}}</tbody>
   </table></div>
+  {{template "pager" .PrunedPager}}
   {{else}}<p class="tm-line">Nothing has been pruned.</p>{{end}}
 </div>
 {{end}}
@@ -1095,7 +1155,7 @@
             <td>{{if .Diff}}<span class="badge af-d af-d--{{.Diff}}">{{.Diff}}</span>{{else}}<span class="af-dash" aria-label="not judged yet">&mdash;</span>{{end}}</td>
             <td class="af-md af-prod-cell" title="{{.Product}}">{{.Product}}</td>
             <td>{{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer" title="{{.Repo}}#{{.Number}}">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{else}}<span class="af-dash" title="The pull request is not opened yet">not opened</span>{{end}}</td>
-            <td class="af-md mono">{{.Card}}</td>
+            <td class="af-md mono cell-id" title="{{.Card}}">{{.Card}}</td>
             <td class="af-age mono">{{if .Age}}<span title="{{.AgeTitle}}">{{.Age}}</span>{{else}}<span class="af-dash">&mdash;</span>{{end}}</td>
             <td>{{if .WA}}<span class="af-wa is-on">Sent</span>{{else}}<span class="af-wa"><span aria-hidden="true">&mdash;</span><span class="sr-only">not sent</span></span>{{end}}</td>
           </tr>
@@ -1103,7 +1163,7 @@
         </tbody>
       </table>
     </div>
-    {{if .RowsMore}}<p class="tm-line">Showing the first {{num (len .Rows)}} of {{num .RowsTotal}}. Filter by product, state or difficulty to see the rest.</p>{{end}}
+    {{template "pager" .Pager}}
     {{else if eq .Empty "none"}}
       <p class="af-empty"><b>No defect has been reported yet.</b> When a QA tool reports one, GAOS triages it, and an easy fix appears here as a draft pull request.</p>
     {{else if eq .Empty "nopr"}}
@@ -1255,7 +1315,7 @@
       </table>
     </div>
     {{end}}
-    {{if .RowsMore}}<p class="tm-line">Showing the first {{num .RowsShown}} of {{num .RowsTotal}}. Filter by product, state or kind to see the rest.</p>{{end}}
+    {{template "pager" .Pager}}
     {{if eq .Empty "none"}}
       <p class="af-empty"><b>No pull request is tied to a task yet.</b> Fix pull requests appear when GAOS opens one, review pull requests when Brain Town reports one, and QA-tool pull requests when a product lists its automation repositories.</p>
     {{else if eq .Empty "filtered"}}

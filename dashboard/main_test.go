@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -815,5 +817,116 @@ func TestTheBoardHostHasABoundedHeight(t *testing.T) {
 	if !strings.Contains(css, "--board-col:300px") || !strings.Contains(css, "grid-auto-columns:var(--board-col)") ||
 		!strings.Contains(css, ".sisflow-board-host .sfb-column{width:var(--board-col)}") {
 		t.Errorf("the board's column width is not the one variable --board-col on both boards")
+	}
+}
+
+// TC-762: the product's Timeline and QA tables are paged by ten (D-097), and the
+// page is part of the tab's address.
+func TestTheTimelineAndQAPanesPageByTen(t *testing.T) {
+	srv, st := newTestServer(t)
+	slug := slugOfProduct(t, st, "p-1")
+	st.mu.Lock()
+	for i := 0; i < 14; i++ {
+		st.emit(TaskMoved, "p-1", fmt.Sprintf("paging event %d", i), KindInfo, EventPayload{})
+	}
+	st.mu.Unlock()
+	cur := map[string]string{"HX-Current-URL": "https://gaos.example/p/" + slug + "/timeline"}
+	rows := func(b string) int { return strings.Count(b, `<tr class="ev-row`) }
+	total := func(b string) int {
+		m := regexp.MustCompile(`Showing 1–10 of (\d+)`).FindStringSubmatch(b)
+		if m == nil {
+			return 0
+		}
+		n, _ := strconv.Atoi(m[1])
+		return n
+	}
+	p1 := boardHX(t, srv, "GET", "/products/p-1?tab=timeline", cur).Body.String()
+	n := total(p1)
+	if rows(p1) != 10 || n < 14 {
+		t.Fatalf("Timeline page 1: %d row(s) of %d; want 10 of at least 14", rows(p1), n)
+	}
+	last := (n + 9) / 10
+	pl := boardHX(t, srv, "GET", "/products/p-1?tab=timeline&page="+strconv.Itoa(last), cur)
+	if got, want := rows(pl.Body.String()), n-(last-1)*10; got != want {
+		t.Errorf("Timeline page %d: %d row(s), want %d", last, got, want)
+	}
+	if u := pl.Header().Get("HX-Replace-Url"); !strings.HasSuffix(u, "p/"+slug+"/timeline?page="+strconv.Itoa(last)) {
+		t.Errorf("Timeline page %d wrote the address %q; want p/%s/timeline?page=%d", last, u, slug, last)
+	}
+
+	var cases []QaCase
+	var epicIn []QaEpic
+	for i := 1; i <= 14; i++ {
+		code := fmt.Sprintf("EP%c", 'A'+rune(i-1))
+		epicIn = append(epicIn, QaEpic{Code: code, Title: "Epic " + code, Service: "svc"})
+		c := qaCase("TC-" + code + "-001")
+		c.Epic = code
+		cases = append(cases, c)
+	}
+	out, _, err := st.QaImport(context.Background(), "p-1", QaImportIn{Seed: true, Epics: epicIn, Cases: cases})
+	if err != nil || len(out.Rejected) > 0 {
+		t.Fatalf("QaImport: %v, rejected %+v", err, out.Rejected)
+	}
+	q1 := boardHX(t, srv, "GET", "/products/p-1?tab=qa", nil).Body.String()
+	q2 := boardHX(t, srv, "GET", "/products/p-1?tab=qa&page=2", nil).Body.String()
+	epics := func(b string) int { return strings.Count(b, `<td class="mono qa-code">`) }
+	if epics(q1) != 10 || epics(q2) != 4 || !strings.Contains(q1, `By epic <span class="sp mono">14</span>`) {
+		t.Errorf("QA by epic: %d then %d row(s); want 10 then 4, with the heading counting all 14", epics(q1), epics(q2))
+	}
+}
+
+// TC-759: the wizard opened from a product shows the product instead of the
+// picker, and keeps showing it through every step. Presentation only.
+func TestTheWizardLocksTheProduct(t *testing.T) {
+	s, _ := newTestServer(t)
+	open := do(t, s, "GET", "/ui/cw?product=p-1&lock=1", nil, boCookies()...)
+	b := open.Body.String()
+	if open.Code != 200 || strings.Contains(b, "data-pick=") || !strings.Contains(b, `class="cw-locked"`) || !strings.Contains(b, "New tasks for ") || !strings.Contains(b, `name="lock" value="1"`) {
+		t.Fatalf("the wizard opened locked answered %d; want no picker, a cw-locked block, \"New tasks for\" and the lock carried", open.Code)
+	}
+	form := url.Values{"step": {"1"}, "product": {"p-1"}, "lock": {"1"}, "goal": {"Ship it"}, "priority": {"high"}, "gate": {"yes"}}
+	two := do(t, s, "POST", "/ui/cw/step/2", form, boCookies()...).Body.String()
+	if !strings.Contains(two, `name="lock" value="1"`) {
+		t.Errorf("step 2 lost the lock")
+	}
+	form.Set("step", "2")
+	back := do(t, s, "POST", "/ui/cw/step/1", form, boCookies()...).Body.String()
+	if strings.Contains(back, "data-pick=") || !strings.Contains(back, `class="cw-locked"`) {
+		t.Errorf("going back to step 1 shows the picker again; the lock must round-trip")
+	}
+	three := do(t, s, "POST", "/ui/cw/step/3", form, boCookies()...).Body.String()
+	if !strings.Contains(three, ">Create tasks</button>") {
+		t.Errorf("step 3 of the locked wizard does not submit with \"Create tasks\"")
+	}
+	for _, q := range []string{"/ui/cw?product=p-1", "/ui/cw?product=nope&lock=1"} {
+		w := do(t, s, "GET", q, nil, boCookies()...)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), "data-pick=") || strings.Contains(w.Body.String(), `class="cw-locked"`) {
+			t.Errorf("%s answered %d without the picker; an unlocked or unknown product shows every product", q, w.Code)
+		}
+	}
+}
+
+// TC-761: Sync record to graph is offered on the tabs whose content it writes,
+// and the Board does not repeat Create workflow beside its own New task.
+func TestSyncRecordShowsOnlyOnRecordTabs(t *testing.T) {
+	s, _ := newTestServer(t)
+	title := func(tab string) string {
+		b := boardHX(t, s, "GET", "/products/p-1?tab="+tab, nil).Body.String()
+		i := strings.Index(b, `<header class="bo-title">`)
+		if i < 0 {
+			t.Fatalf("tab %s has no title row", tab)
+		}
+		return b[i : i+strings.Index(b[i:], "</header>")]
+	}
+	for tab, want := range map[string]bool{"brd": true, "blueprint": true, "stories": true, "board": false, "timeline": false, "qa": false} {
+		if got := strings.Contains(title(tab), ">Sync record to graph</button>"); got != want {
+			t.Errorf("tab %s: Sync record to graph shown = %v, want %v", tab, got, want)
+		}
+	}
+	if strings.Contains(title("board"), ">Create workflow</button>") {
+		t.Errorf("the Board's title row repeats Create workflow beside New task")
+	}
+	if !strings.Contains(title("brd"), `hx-get="ui/cw?product=p-1&amp;lock=1"`) {
+		t.Errorf("Create workflow on a product tab does not open the wizard locked to the product")
 	}
 }

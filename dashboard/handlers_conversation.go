@@ -19,10 +19,35 @@ import (
 
 // ArchivePage is the Archive view's model.
 type ArchivePage struct {
-	Archived []ArchivedRowView
-	Pruned   []PruneRowView
+	Archived []ArchivedRowView // this page of them
+	Pruned   []PruneRowView    // this page of them
 	FormText string
 	Confirm  string
+	// PruneCards is what one prune takes, and what its confirmation lists:
+	// the pruneBatch oldest archived conversations. The typed word is bound to
+	// cards the operator has seen (D-082), outside the pager (D-097).
+	PruneCards    []ArchivedRowView
+	ArchivedTotal int
+	ArchivedPager Pager
+	PrunedPager   Pager
+}
+
+// pruneBatch is the most conversations one prune takes and lists (D-097).
+const pruneBatch = 100
+
+// archiveAt is the Archive's address with both tables' pages.
+func archiveAt(apage, ppage int) (string, string) {
+	q := pageQ("apage", apage)
+	if p := pageQ("ppage", ppage); p != "" {
+		if q != "" {
+			q += "&"
+		}
+		q += p
+	}
+	if q == "" {
+		return "ui/bo/archive", "archive"
+	}
+	return "ui/bo/archive?" + q, "archive?" + q
 }
 
 type ArchivedRowView struct {
@@ -35,7 +60,7 @@ type PruneRowView struct {
 	When, Docs, Sessions, OpenURL string
 }
 
-func archivePage(v ArchiveView) *ArchivePage {
+func archivePage(v ArchiveView, apage, ppage int) *ArchivePage {
 	p := &ArchivePage{FormText: pruneFormText, Confirm: pruneConfirmWord}
 	for _, a := range v.Archived {
 		p.Archived = append(p.Archived, ArchivedRowView{ArchivedRow: a, When: absTime(a.ArchivedAt),
@@ -59,6 +84,17 @@ func archivePage(v ArchiveView) *ArchivePage {
 		}
 		p.Pruned = append(p.Pruned, row)
 	}
+	// The lists are newest first; a prune takes the oldest.
+	p.ArchivedTotal = len(p.Archived)
+	p.PruneCards = p.Archived[max(0, len(p.Archived)-pruneBatch):]
+	// Each table's links keep the other table's page, clamped first.
+	ap, _, _ := clampPage(len(p.Archived), apage, listPageSize)
+	pp, _, _ := clampPage(len(p.Pruned), ppage, listPageSize)
+	p.ArchivedPager = paginate(len(p.Archived), ap, listPageSize, func(n int) (string, string) { return archiveAt(n, pp) })
+	p.PrunedPager = paginate(len(p.Pruned), pp, listPageSize, func(n int) (string, string) { return archiveAt(ap, n) })
+	p.ArchivedPager.Label, p.PrunedPager.Label = "Archived pages", "Pruned pages"
+	p.Archived = sliceFor(p.Archived, p.ArchivedPager)
+	p.Pruned = sliceFor(p.Pruned, p.PrunedPager)
 	return p
 }
 

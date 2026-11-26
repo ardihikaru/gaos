@@ -31,6 +31,7 @@ type QAPane struct {
 	NeedsDecision []string
 	NeedsMore     int
 	Sync          QASyncView
+	Pager         Pager // the epic table's pages (D-097)
 }
 
 type QAEpicRow struct {

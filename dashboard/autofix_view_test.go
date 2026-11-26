@@ -397,10 +397,10 @@ func TestAutoFixViewWorstCase(t *testing.T) {
 
 	body := afGet(t, f, "/ui/bo/autofix")
 	sec := afSection(body)
-	if n := strings.Count(sec, `<tr class="af-r`); n != afMaxRows {
-		t.Errorf("%d rows rendered of 502, want the cap of %d", n, afMaxRows)
+	if n := strings.Count(sec, `<tr class="af-r`); n != tablePageSize {
+		t.Errorf("%d rows rendered of 502, want one page of %d (D-097)", n, tablePageSize)
 	}
-	for _, want := range []string{"Showing the first 200 of 502", "数量が負の値を受け付ける 🧾🔥👩🏽‍💻", "ไม่สามารถบันทึก", `title="x"`,
+	for _, want := range []string{"Showing 1–10 of 502", "数量が負の値を受け付ける 🧾🔥👩🏽‍💻", "ไม่สามารถบันทึก", `title="x"`,
 		`<span class="af-t">x</span>`, "(the defect record is gone)"} {
 		if want == "(the defect record is gone)" {
 			continue // every row here has a record

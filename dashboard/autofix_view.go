@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -27,9 +28,6 @@ import (
 // The view is addressed by its query: product, state, difficulty and open (a
 // pull-request record, shown in the drawer). It works as plain links and a plain
 // GET form; htmx only keeps the sheet in place.
-
-// afMaxRows bounds the table. A page with more says so and asks for a filter.
-const afMaxRows = 200
 
 // afPollSeconds is the htmx poll of design §9.2.
 const afPollSeconds = 30
@@ -91,7 +89,7 @@ type AutoFixPage struct {
 
 	Rows      []AFRow
 	RowsTotal int
-	RowsMore  int
+	Pager     Pager // ten rows a page (D-097)
 	// Empty is "" or one of: none (no defect yet), nopr (defects, no pull
 	// request yet), filter (the filters match nothing).
 	Empty string
@@ -156,6 +154,7 @@ type AFWait struct {
 // AFFilter is the query.
 type AFFilter struct {
 	Product, State, Difficulty, Open string
+	Page                             int // 0 = the first page (D-097)
 }
 
 // AFTab is a state link with its count.
@@ -325,6 +324,7 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 		}
 	}
 	f.Open = q.Get("open")
+	f.Page = pageParam(q.Get("page"))
 
 	// ---- the records of every product in scope ----
 	type scoped struct {
@@ -549,14 +549,23 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 			shown = append(shown, r)
 		}
 	}
-	p.Filter = f
 	p.RowsTotal = len(shown)
-	if len(shown) > afMaxRows {
-		p.RowsMore, shown = len(shown)-afMaxRows, shown[:afMaxRows]
+	// One page (D-097), clamped before anything writes an address.
+	p.Pager = paginate(len(shown), f.Page, tablePageSize, func(n int) (string, string) {
+		g := f
+		g.Open, g.Page = "", n
+		return afHref(g), afPageHref(g)
+	})
+	p.Pager.Sync, p.Pager.Label = "#afLive:replace", "Auto-fix pages"
+	f.Page = p.Pager.Page
+	if f.Page <= 1 {
+		f.Page = 0
 	}
+	p.Filter = f
+	shown = sliceFor(shown, p.Pager)
 	for i := range shown {
 		shown[i].Open = f.Open != "" && shown[i].ID == f.Open
-		shown[i].Href = afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty, Open: shown[i].ID})
+		shown[i].Href = afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty, Open: shown[i].ID, Page: f.Page})
 	}
 	p.Rows = shown
 
@@ -683,6 +692,9 @@ func afHref(f AFFilter, live ...string) string {
 	if f.Open != "" {
 		v.Set("open", f.Open)
 	}
+	if f.Page > 1 {
+		v.Set("page", strconv.Itoa(f.Page))
+	}
 	path := "ui/bo/autofix"
 	if len(live) > 0 {
 		path += "/live"
@@ -764,7 +776,7 @@ func (s *server) afDrawer(ctx context.Context, fx FixPR, d Defect, pr Product, a
 		Branch: afLine(fx.Branch, 90), Class: afLine(d.Class, 40), WA: fx.WaSent,
 		Opened: row.Age, OpenedTitle: afClock(fx.CreatedAt),
 		Before: afText(fx.Before, 1024), After: afText(fx.After, 1024),
-		CloseHref: afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty})}
+		CloseHref: afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty, Page: f.Page})}
 	if dr.Opened != "" {
 		dr.Opened += " ago"
 	}

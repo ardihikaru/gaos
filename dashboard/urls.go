@@ -269,6 +269,14 @@ func (s *server) address(bo *BOView, products []Product, productID string) {
 				bo.Href += "?" + enc
 			}
 		}
+		// The Timeline's and the QA table's page (D-097), clamped, and only
+		// when it is not the first.
+		switch {
+		case section == "timeline" && bo.Detail.Pager.Page > 1:
+			bo.Href += "?" + pageQ("page", bo.Detail.Pager.Page)
+		case section == "qa" && bo.Detail.QA != nil && bo.Detail.QA.Pager.Page > 1:
+			bo.Href += "?" + pageQ("page", bo.Detail.QA.Pager.Page)
+		}
 		bo.PageTitle = label + " · " + bo.Detail.Name + " · GAOS"
 		return
 	case bo.View == "products" && productID != "":
@@ -278,6 +286,20 @@ func (s *server) address(bo *BOView, products []Product, productID string) {
 	default:
 		if _, ok := viewLabel(bo.View); ok {
 			bo.Href = bo.View
+			// The list pages' pages (D-097): built from the clamped integers
+			// the view kept, never from the request's query.
+			var q []string
+			for _, kv := range []struct {
+				k string
+				n int
+			}{{"apage", bo.APage}, {"page", bo.Page}, {"ppage", bo.PPage}} {
+				if s := pageQ(kv.k, kv.n); s != "" {
+					q = append(q, s)
+				}
+			}
+			if len(q) > 0 {
+				bo.Href += "?" + strings.Join(q, "&")
+			}
 		} else {
 			bo.Href = "" // the product list is the home page
 			return

@@ -141,7 +141,9 @@
     BOARD_KEYS.forEach(function (k) { var v = fd.get(k); if (v !== null) p.set(k, v); });
     var table = document.getElementById("boardTable");
     if (table) {
-      p.set("rows", table.dataset.rows || "");
+      // The table's page (D-097) travels on every Board request -- a refresh,
+      // a move, an answer -- so the answer is the page the operator is on.
+      p.set("page", table.dataset.page || "");
     } else if (sisflowOn()) {
       p.set("shown", document.getElementById("board-host").dataset.shown || "");
     } else {
@@ -171,8 +173,17 @@
     var base = new URL("products/" + encodeURIComponent(main().dataset.product), document.baseURI).pathname;
     var path = new URL(e.detail.path, document.baseURI).pathname;
     if (path !== base && path.indexOf(base + "/") !== 0) return;
-    e.detail.headers["X-Board-State"] = boardState();
     var elt = e.detail.elt;
+    var state = boardState();
+    // A filter or search the operator changed starts the view over on page 1.
+    // A refresh is the same form, marked by refreshing, which is reset below --
+    // so this test must run before it.
+    if (elt === boardForm() && !refreshing) {
+      var sp = new URLSearchParams(state);
+      sp.delete("page");
+      state = sp.toString();
+    }
+    e.detail.headers["X-Board-State"] = state;
     var q = boardSearch();
     // A link that clears the filters clears the search with them.
     if (q && !(elt && elt.closest && elt.closest("[data-board-reset]"))) e.detail.headers["X-Board-Search"] = q;

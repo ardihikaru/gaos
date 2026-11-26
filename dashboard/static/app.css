@@ -1200,6 +1200,21 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .answer-form > footer .sp{margin-left:auto;display:flex;gap:8px}
 .answer-hint{min-width:0;flex:1 1 220px;font-size:12px;color:var(--ink-3)}
 .answer-hint.warn{color:var(--block)}
+/* the wizard's footer sits inside #cwForm too (every step posts the draft), so
+   it needs the same flex column and footer rule the answer form has */
+.modal.cw > form{display:flex;flex-direction:column;min-height:0;flex:1}
+#cwForm > footer{
+  display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:13px 18px;
+  border-top:1px solid var(--line);background:var(--panel-2);
+}
+#cwForm > footer .sp{margin-left:auto;display:flex;gap:8px}
+.cw-hint{min-width:0;flex:1 1 220px;font-size:12px;color:var(--ink-3)}
+.field-help{margin:-2px 0 8px;font-size:12px;line-height:1.45;color:var(--ink-3)}
+/* the wizard opened from a product: the product is shown, not offered */
+.cw-locked{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--brass-soft);border-radius:var(--r-m);background:var(--panel-2)}
+.cw-locked b{font-size:13.5px;color:var(--ink);overflow-wrap:anywhere}
+.cw-locked span{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+#cwTitle{overflow-wrap:anywhere;min-width:0}
 .kbd-hint{font-family:var(--font-mono);font-size:10px;font-weight:500;opacity:.75;margin-left:6px}
 .kbd-hint:empty{display:none}
 
@@ -1335,7 +1350,47 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .board-row-moves{white-space:nowrap}
 .board-row-moves .btn{margin:0 4px 0 0}
 .board-norows{padding:22px 4px;color:var(--ink-2);white-space:normal}
-.board-rows-foot{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:11.5px;color:var(--ink-3)}
+
+/* the board's header: its title, and the one way to start work from here */
+.board-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 6px}
+.board-head h4{margin:0;min-width:0;flex:1 1 auto}
+/* how the AI picks up tasks: a native disclosure, no script, closed by default */
+.board-help{margin:0 0 10px;border:1px solid var(--line-soft);border-radius:var(--r-m);background:var(--panel-2);font-size:12.5px;color:var(--ink-2)}
+.board-help > summary{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;list-style:none;
+  color:var(--ink-2);font-weight:500;border-radius:var(--r-m);user-select:none;
+}
+.board-help > summary::-webkit-details-marker{display:none}
+.board-help > summary::before{
+  content:"i";flex:none;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;
+  border:1px solid var(--brass);color:var(--brass);font:italic 600 10px/1 var(--font-display);
+}
+.board-help > summary::after{content:"";margin-left:auto;width:6px;height:6px;border-right:1.5px solid var(--ink-3);border-bottom:1.5px solid var(--ink-3);transform:rotate(45deg);transition:transform 160ms var(--ease-out)}
+.board-help[open] > summary::after{transform:rotate(-135deg)}
+@media (hover:hover) and (pointer:fine){ .board-help > summary:hover{color:var(--ink)} }
+.board-help ol{margin:0;padding:2px 14px 12px 32px;display:grid;gap:7px;line-height:1.5}
+.board-help ul{margin:5px 0 0;padding-left:18px;display:grid;gap:3px}
+.board-help b{color:var(--ink);font-weight:600}
+.board-help code{font-family:var(--font-mono);font-size:11.5px;padding:0 4px;border:1px solid var(--line);border-radius:var(--r-s);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){ .board-help > summary::after{transition:none} }
+
+/* the pager (D-097): one for every paged list */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin:10px 0 0}
+.pager-line{margin:10px 0 0;font-size:11.5px;color:var(--ink-3)}
+.pager .pager-line{margin:0}
+.pager-links{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.pager-links a,.pager-links span{
+  min-width:28px;height:28px;padding:0 8px;display:inline-grid;place-items:center;
+  font-family:var(--font-mono);font-size:11.5px;color:var(--ink-2);border:1px solid transparent;border-radius:var(--r-s);
+  font-variant-numeric:tabular-nums;
+}
+.pager-links a{border-color:var(--line);text-decoration:none;transition:background-color 120ms var(--ease-out),border-color 120ms var(--ease-out)}
+@media (hover:hover) and (pointer:fine){ .pager-links a:hover{background:var(--panel-2);border-color:var(--ink-3);color:var(--ink)} }
+.pager-links a:active{transform:scale(.97)}
+.pager-links [aria-current="page"]{border-color:var(--brass);color:var(--brass);background:var(--panel-2);font-weight:600}
+.pager-links .pager-off{color:var(--ink-3);opacity:.45}
+.pager-links .gap{min-width:16px;padding:0;color:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){ .pager-links a{transition:none} .pager-links a:active{transform:none} }
 @media (hover:hover) and (pointer:fine){
   .board-table .af-table th a:hover{color:var(--ink)}
 }
@@ -1600,6 +1655,11 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .cv-table td{vertical-align:top;white-space:normal}
 .cv-prune{margin-top:12px}
 .cv-prune-form{margin-top:10px;padding:10px 12px;border:1px solid var(--fail);border-radius:var(--r-s)}
+/* what the prune takes, listed where the typed word is given (D-082, D-097) */
+.cv-prune-head{margin:8px 0 4px;font-size:12px;color:var(--ink-2)}
+.cv-prune-list{margin:0 0 10px;padding:6px 10px 6px 26px;max-height:16rem;overflow:auto;border:1px solid var(--line-soft);border-radius:var(--r-s);font-size:12px;line-height:1.6}
+.cv-prune-list li{overflow-wrap:anywhere}
+.cv-prune-list .mono{color:var(--ink-3)}
 .cv-prune-form p{margin:0 0 10px;font-size:12.5px;color:var(--ink-2)}
 .btn-danger{color:var(--fail);border-color:var(--fail)}
 @media (hover:hover) and (pointer:fine){ .btn-danger:hover{color:var(--ink)} }
@@ -1760,6 +1820,10 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .af-r.is-open td:first-child{padding-left:10px}
 @media (hover:hover) and (pointer:fine){ .af-r:hover{background:var(--panel-2)} }
 .af-table td.af-defect{white-space:normal;width:100%;min-width:200px;max-width:0}
+/* an identifier cell: nowrap, so one long id (a PR or defect card is
+   wf-pr-<product>-<org>-<repo>-<sha>-<job>) used to widen the whole column and
+   leave every short id floating in empty space. Cap it; the title holds the rest. */
+.af-table td.cell-id{max-width:16ch;overflow:hidden;text-overflow:ellipsis}
 .af-defect a{display:flex;flex-direction:column;gap:1px;min-width:0;color:var(--ink);border-radius:var(--r-s)}
 .af-defect a:focus-visible{outline-offset:2px}
 .af-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
