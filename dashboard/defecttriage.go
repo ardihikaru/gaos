@@ -340,6 +340,13 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 		if !found || total+len(blob.Text) > defectMaxFileBytes {
 			continue
 		}
+		// A file that holds something the egress pass would refuse (a token in a test fixture, a
+		// key in a sample) is left out: the pass refuses the WHOLE dispatch for one such file, and
+		// the triage then waits for a person over a file it never needed (found live: a JWT in an
+		// unrelated source file blocked DEF-922). The strictest policy is used, every detector armed.
+		if len(reportFindings(EgressPolicy{}, []PacketPart{{Path: c.path, Kind: KindRepo, Body: blob.Text}})) > 0 {
+			continue
+		}
 		total += len(blob.Text)
 		out.Files = append(out.Files, DefectContextFile{Repo: c.repo, Path: c.path, SHA: blob.SHA, Text: blob.Text})
 	}
