@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety-four entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-five entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -2070,6 +2070,25 @@
         rows; beyond that the page says so and points at the filters.</td>
         <td><a href="qa-test-plan.html#go-board-page">TC-735&hellip;TC-750</a>;
         <code>docs/designs/urls-and-board.md</code></td>
+      </tr>
+      <tr id="d-096">
+        <td>D-096</td><td>2026-11-26</td>
+        <td><strong>The repository is public, and its history will be rewritten to remove one operator&rsquo;s instance material and the infrastructure details. <a href="open-questions.html#oq-36">OQ-36</a> is decided.</strong>
+        Context: the repository has been public since it was created (2026-08-02), not private as OQ-36 stated, so every
+        commit before v0.45.0 &mdash; including a seed that held a customer&rsquo;s real test catalog &mdash; has been publicly
+        readable. A scan of every added line in history found no committed credential. Decision: (1) rewrite with
+        <code>git filter-repo</code>: the private strings, the edge&rsquo;s public address, the LAN addresses and the edge&rsquo;s
+        SSH user (bounded matches) in every content line, path and message; every blob ever stored under the private seed
+        directory stripped by id; all branches and tags force-pushed; every checkout and prod worktree moved. (2) The
+        WireGuard port is rotated instead of rewritten &mdash; a short number cannot be replaced safely in every blob.
+        (3) The tree is guarded: no routable IPv4 in any tracked or new file, and ToC parts must parse
+        (<a href="qa-test-plan.html#cw-public-ipv4">TC-751</a>); the user, the port and the LAN addresses join the private
+        list. (4) The repository stays public during the rewrite (the operator&rsquo;s decision), and the operator is
+        notifying the catalog&rsquo;s owner. Residual: old objects stay fetchable by id until GitHub collects them; anyone
+        who cloned before the rewrite keeps the old history; the infrastructure pages still describe the topology by role.
+        Outcome: <em>pending &mdash; filled in after the rewrite is verified on a fresh clone.</em></td>
+        <td><a href="qa-test-plan.html#cw-public-ipv4">TC-751</a>, <a href="qa-test-plan.html#pk-comma">TC-752</a>;
+        <code>docs/designs/public-repo-hardening.md</code></td>
       </tr>
     </tbody>
   </table>

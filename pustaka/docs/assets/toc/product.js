@@ -47,7 +47,7 @@ window.DOCS.nav.push({
         { anchor: "stakeholders", title: "5. Stakeholders",
           text: "Four internal roles the system distinguishes, five external ones led by the self-hosting operator, the difference between an operator and a tenant, and three third parties: the model provider, ArcadeDB, and the edge-plus-VM hosting pair." },
         { anchor: "as-is-process", title: "6. Current business process (as-is)",
-          text: "What actually runs today, end to end — a product list with a board per product, model turns through ai-manager, a login that checks nothing, an event stream in ArcadeDB, and four paths served from one origin behind the tunnel." },
+          text: "What actually runs today, end to end — a product list with a board per product, model turns through ai-manager, a real back-office sign-in with no roles yet, an event stream in ArcadeDB, and four paths served from one origin behind the tunnel." },
         { anchor: "to-be-process", title: "7. Future business process (to-be)",
           text: "The value chain from record to lesson, activities per stage, the happy path, the five conditions autonomy requires, seven exception flows each terminating with a reason code, and §7.6 — how a task reaches a model through either a CLI or an API, with the flowchart, the master configuration and the handoff-document contract — and §7.7, which supersedes it: through ai-manager, one workspace and one Blueprint per product, one session per task, the handoff in the reply." },
         { anchor: "business-requirements", title: "8. Business requirements",
@@ -75,7 +75,7 @@ window.DOCS.nav.push({
         { anchor: "appendix-document-notes", title: "Appendix C — Document notes",
           text: "Which reference template the structure came from, what was dropped and why, and the two structural departures: the decision log and the open questions are separate pages." },
         { anchor: "open-questions", title: "Consolidated open questions",
-          text: "Pointer to the forty-question register, twenty-one of them answered, six raised by the move to the gateway, one by the design gate, three by the QA sync, one by the open-source scrub two by the pull-request flows and two by the defect auto-fix." }
+          text: "Pointer to the forty-question register, twenty-three of them answered, six raised by the move to the gateway, one by the design gate, three by the QA sync, one by the open-source scrub two by the pull-request flows and two by the defect auto-fix." }
       ]
     },
     {
@@ -107,7 +107,7 @@ window.DOCS.nav.push({
       id: "open-questions",
       file: "product/open-questions.html",
       title: "Open questions",
-      desc: "Forty decisions the BRD refuses to invent — twenty-one now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
+      desc: "Forty decisions the BRD refuses to invent — twenty-three now answered, including the whole commercial block, the Apache-2.0 licence, the budget guard, the submodule boundary, what success means, and which provider CLI ships first — each with the options available, the trade-off each carries, and what it blocks.",
       tags: ["open-questions", "decisions", "commercial", "pricing", "tenancy", "authentication", "licensing", "sla", "roadmap"],
       sections: [
         { anchor: "index", title: "The register",
@@ -126,7 +126,7 @@ window.DOCS.nav.push({
       id: "decision-log",
       file: "product/decision-log.html",
       title: "Decision log",
-      desc: "Ninety-four decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
+      desc: "Ninety-five decisions GAOS has actually made, each traceable to an artifact section, a committed file, a product-owner ruling, a measurement, or git history — and the destination for every open question that gets answered.",
       tags: ["decisions", "adr", "rationale", "governance", "architecture", "deployment", "qa", "commercial", "open-core", "data-protection"],
       sections: [
         { anchor: "how-this-works", title: "How this log works",
@@ -159,19 +159,19 @@ window.DOCS.nav.push({
       id: "qa-test-plan",
       file: "product/qa-test-plan.html",
       title: "QA test plan",
-      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates seven hundred and fifty positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
+      desc: "Answers OQ-13 — who runs the acceptance tests and how often — and enumerates seven hundred and fifty-two positive and negative test cases across the deploy tooling and the two Go test packages that run today — including the gateway adapter, the Blueprint, the board and its task fold — with every gateway forward specification now running, plus the two business acceptance tests nothing has yet executed.",
       tags: ["qa", "testing", "test-plan", "acceptance-tests", "deploy", "automation", "oq-13"],
       sections: [
         { anchor: "cadence", title: "Who runs these tests, and how often",
           text: "Resolves OQ-13: no CI exists, so the product owner is the runner for every automation, via rebuild-restart.sh or the gaos-deploy subagent. Table of automation, runner, cadence, and what happens on failure, logged as D-025." },
         { anchor: "register", title: "The register",
-          text: "All seven hundred and fifty TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the six hundred and fifteen unit tests, or check-stacks for the deploy pre-flight." },
+          text: "All seven hundred and fifty-two TC-nnn cases in one filterable table: automation, kind (positive/negative), scenario, and whether the automation is implemented today. Filter by go test for the six hundred and sixteen unit tests, or check-stacks for the deploy pre-flight." },
         { anchor: "implemented", title: "Test scenarios — implemented automations",
-          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the two hundred and eighty-two dashboard and twenty-two pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
+          text: "check-stacks.sh's nine invariant categories and rebuild-restart.sh's full action surface — status, argument validation, pre-flight gates, dirty-tree handling, test gates, build/restart, and post-deploy verification — each with the exact ok/FAIL message it produces; then the five hundred and ninety-two dashboard and twenty-four pustaka unit tests — including the ArcadeDB query path and the one conformance suite both stores run against — grouped by theme, each with the exact assertion message it fails with." },
         { anchor: "not-implemented", title: "Test scenarios — not yet implemented",
           text: "The unsatisfiable task, the fold test, and the second run a week apart, written as Given/When/Then forward specs with the blocking domain named, since none can run until the scheduler, runner and fold exist. Since 2026-11-02 also TC-275 to TC-310: the ai-manager adapter and reply handoff, the Blueprint, the workspace and turns, live-aim-run.sh, and the board." }
       ]
-    }
+    },
     {
       id: "qa-collaboration",
       file: "product/qa-collaboration.html",

@@ -1,6 +1,6 @@
 # GAOS DEVELOPMENT, behind the WireGuard tunnel.  Product slot 03 -> port 19301.
 #
-#   browser --HTTPS--> clino (EDGE_IP, nginx terminates TLS)
+#   browser --HTTPS--> clino (the public edge, nginx terminates TLS)
 #          --plain HTTP over WireGuard--> 10.10.0.2:19301 --> this Traefik
 #
 #   https://dev.gaos.mfardiansyah.id/       the landing page (site root)
@@ -103,4 +103,8 @@ services:
       dockerfile: ../deploy/Dockerfile.pustaka
     restart: unless-stopped
     env_file: [./dev.docs.env]
+    # Same bounds as prod (D-096): dev is retired, but if it ever runs it is
+    # public through the edge and shares the VM with every product.
+    mem_limit: 256m
+    cpus: 0.5
     networks: [internal]

@@ -332,7 +332,12 @@ func TestTheFrozenSliceDoesNotChangeWhenTheRecordDoes(t *testing.T) {
 func TestBootReconciliationClosesTheAttemptItRecovered(t *testing.T) {
 	s := NewMemStore(3)
 	f, a := gatewayOn(t, s)
-	a.Deadline = time.Millisecond
+	// The deadline bounds the whole poll, including the HTTP call that brings
+	// back the 404. At 1ms that call sometimes timed out first, read as a
+	// transient gateway failure, and the run was finished rather than
+	// orphaned (a flake, roughly 1 run in 6). The hold after "lost" is already
+	// over without a tiny deadline: the run started 9000s ago.
+	a.Deadline = time.Minute
 	f.status, f.reply = http.StatusNotFound, `{"error":"unknown request"}`
 	deskID := s.desks[0].ID
 

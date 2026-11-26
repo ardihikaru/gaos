@@ -36,10 +36,10 @@
     <thead><tr><th></th><th>Public edge</th><th>Private VM</th></tr></thead>
     <tbody>
       <tr><td>Hostname</td><td><code>clino</code></td><td><code>vm-rnd-ardi</code></td></tr>
-      <tr><td>SSH</td><td><code>ssh clino</code>, user <code>EDGE_USER</code></td><td>reachable over the tunnel / LAN</td></tr>
-      <tr><td>Public address</td><td><code>EDGE_IP/23</code> on <code>eth0</code></td><td><b>none</b></td></tr>
+      <tr><td>SSH</td><td><code>ssh clino</code> (a local alias; key-only)</td><td>reachable over the tunnel / LAN</td></tr>
+      <tr><td>Public address</td><td>one public IPv4 on <code>eth0</code> &mdash; whatever the DNS <code>A</code> records resolve to</td><td><b>none</b></td></tr>
       <tr><td>Tunnel address</td><td><code>10.10.0.1/24</code> on <code>wg0</code></td><td><code>10.10.0.2/24</code> on <code>wg1</code></td></tr>
-      <tr><td>Other interfaces</td><td>—</td><td><code>eth0 LAN_IP/24</code>, <code>eth1 LAN_IP/24</code></td></tr>
+      <tr><td>Other interfaces</td><td>—</td><td>two LAN interfaces (<code>eth0</code>, <code>eth1</code>)</td></tr>
       <tr><td>CPU / RAM / disk</td><td>1 vCPU · 957 MiB · 58 GB</td><td>8 vCPU · 23 GiB</td></tr>
       <tr><td>Runs</td><td>nginx + <code>wg-quick@wg0</code>. Nothing else.</td><td>Docker 29.6.1 — every container, every product</td></tr>
     </tbody>
@@ -54,7 +54,7 @@
   </div>
 
   <p>The trade is stated rather than hidden: one edge is one failure domain. If
-  <code>EDGE_IP</code> goes down, every product behind it goes down together. That is
+  the edge goes down, every product behind it goes down together. That is
   accepted in exchange for a single place to patch, a single certificate story, and a machine
   holding the real data that is simply not addressable from the internet.</p>
 
@@ -67,20 +67,20 @@
     <thead><tr><th>Setting</th><th>Value</th></tr></thead>
     <tbody>
       <tr><td>Subnet</td><td><code>10.10.0.0/24</code></td></tr>
-      <tr><td>Edge (listener)</td><td><code>10.10.0.1</code>, interface <code>wg0</code>, UDP port <code>51820</code></td></tr>
+      <tr><td>Edge (listener)</td><td><code>10.10.0.1</code>, interface <code>wg0</code>, the UDP port in <code>ListenPort</code> of <code>/etc/wireguard/wg0.conf</code></td></tr>
       <tr><td>Private VM (dialer)</td><td><code>10.10.0.2</code>, interface <code>wg1</code>, service <code>wg-quick@wg1</code></td></tr>
       <tr><td>Peer allowed IPs, seen from the edge</td><td><code>10.10.0.2/32</code> — one peer, one address</td></tr>
       <tr><td>Spare addresses</td><td><code>10.10.0.3</code>+ — reserved for a second compute host</td></tr>
     </tbody>
   </table>
 
-  <p>The edge firewall is four rules and no more. Note that <code>51820/udp</code> must stay open
+  <p>The edge firewall is four rules and no more. Note that the WireGuard UDP port must stay open
   or the tunnel never re-establishes after a restart:</p>
 
   <div class="codeblock">
     <div class="bar"><span class="lang">ufw status · clino</span><button class="copy">copy</button></div>
     <pre>OpenSSH      ALLOW  Anywhere
-51820/udp    ALLOW  Anywhere      <span class="c"># WireGuard — the tunnel itself</span>
+&lt;wg-port&gt;/udp ALLOW Anywhere   <span class="c"># WireGuard — the tunnel itself (ListenPort)</span>
 80/tcp       ALLOW  Anywhere      <span class="c"># http</span>
 443/tcp      ALLOW  Anywhere      <span class="c"># https</span></pre>
   </div>
@@ -137,7 +137,7 @@
   <div class="flow rv">
     <div class="node"><b>Browser</b><span>HTTPS :443<br><code>gaos.mfardiansyah.id</code></span></div>
     <div class="arrow">→</div>
-    <div class="node"><b>nginx · clino</b><span>terminates TLS<br><code>EDGE_IP</code></span></div>
+    <div class="node"><b>nginx · clino</b><span>terminates TLS<br>the one public IP</span></div>
     <div class="arrow">→</div>
     <div class="node"><b>WireGuard</b><span>plain HTTP<br><code>10.10.0.1 → 10.10.0.2</code></span></div>
     <div class="arrow">→</div>
@@ -274,7 +274,7 @@ docker compose -f deploy/stacks/compose.prod.yaml logs --tail 1 traefik
     <div class="pillar">
       <h3>Nothing binds a public interface</h3>
       <p>Published ports name <code>10.10.0.2</code> explicitly. Without that prefix a port also
-      listens on <code>LAN_IP</code> and <code>LAN_IP</code>, works perfectly, and is
+      listens on both LAN interfaces too, works perfectly, and is
       quietly reachable from the office LAN.</p>
     </div>
     <div class="pillar">
@@ -296,7 +296,7 @@ docker compose -f deploy/stacks/compose.prod.yaml logs --tail 1 traefik
   The way out is to serve <code>:80</code> first, issue, then add <code>:443</code>.</p>
 
   <ol>
-    <li><b>DNS first.</b> Two <code>A</code> records to <code>EDGE_IP</code>. Wait for real
+    <li><b>DNS first.</b> Two <code>A</code> records to the edge&rsquo;s public IP. Wait for real
     propagation — HTTP-01 fails on a name that does not resolve, and Let&#39;s Encrypt rate-limits
     failures.</li>
     <li><b>Back up</b> <code>/etc/nginx</code> before touching anything.</li>
@@ -346,7 +346,8 @@ nginx -t &amp;&amp; systemctl reload nginx</pre>
 curl -sS https://dev.gaos.mfardiansyah.id/api/healthz
 
 <span class="c"># certificate: issuer, dates, and BOTH names in the SAN</span>
-echo | openssl s_client -connect EDGE_IP:443 \
+EDGE_IP=$(dig +short A gaos.mfardiansyah.id | grep -E '^[0-9.]+$' | head -1)
+echo | openssl s_client -connect "$EDGE_IP:443" \
   -servername gaos.mfardiansyah.id 2&gt;/dev/null \
   | openssl x509 -noout -subject -dates -ext subjectAltName
 

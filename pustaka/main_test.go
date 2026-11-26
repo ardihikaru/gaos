@@ -1139,3 +1139,29 @@ func TestHeadInjection(t *testing.T) {
 		t.Errorf("a page without </head> changed: %q", got)
 	}
 }
+
+// A registry part whose entries are missing a comma is valid enough for the
+// engine's regexes but not for the browser, which drops the whole file.
+func TestCheckRejectsAMissingCommaBetweenEntries(t *testing.T) {
+	root := writeCheckFixture(t, "")
+	if n := check(root); n != 0 {
+		t.Fatalf("the valid fixture failed check with %d problem(s)", n)
+	}
+	broken := `window.DOCS = { nav: [{ group: "Guide", pages: [
+    { id: "a", file: "sample.html", title: "Sample", desc: "Sample page.", tags: ["sample"], sections: [] }
+    { id: "b", file: "other.html", title: "Other", desc: "Other page.", tags: ["other"], sections: [] }
+] }] };`
+	if err := os.WriteFile(filepath.Join(root, "assets", "toc.js"), []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sample, err := os.ReadFile(filepath.Join(root, "sample.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "other.html"), bytes.ReplaceAll(sample, []byte(`data-page="sample"`), []byte(`data-page="b"`)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n := check(root); n == 0 {
+		t.Error("a registry with no comma between two entries passed check")
+	}
+}

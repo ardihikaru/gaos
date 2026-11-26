@@ -1,6 +1,6 @@
 # The edge — putting GAOS on clino
 
-`clino` (EDGE_IP) is the **only public machine**. It runs nginx and
+`clino` is the **only public machine** (its one public IP is whatever the DNS records below resolve to). It runs nginx and
 certbot and nothing else: 1 vCPU, 957 MiB of RAM, **no Docker**. Every container
 runs on the private VM (`vm-rnd-ardi`, WireGuard `10.10.0.2`), reachable only
 through the tunnel.
@@ -10,7 +10,7 @@ on that box depends on. **Run them yourself, in order, and do not skip the
 `nginx -t`.**
 
 ```
-browser --HTTPS--> clino EDGE_IP   nginx 1.30 (nginx.org stable) terminates TLS
+browser --HTTPS--> clino (public IP)   nginx 1.30 (nginx.org stable) terminates TLS
        --plain HTTP over WireGuard--> 10.10.0.2:1<env>301 --> per-product Traefik :80
        --> landing / dashboard / docs      (path-routed, one origin)
 ```
@@ -25,13 +25,13 @@ browser --HTTPS--> clino EDGE_IP   nginx 1.30 (nginx.org stable) terminates TLS
 
 ## 0. Before you start
 
-**DNS is already done.** Both names resolve to `EDGE_IP`. Confirm anyway —
+**DNS is already done.** Both names resolve to the edge's public IP. Confirm anyway —
 everything below assumes it, and certbot's failure message if it is wrong is not
 especially clear:
 
 ```bash
 dig +short gaos.mfardiansyah.id dev.gaos.mfardiansyah.id
-# both must print EDGE_IP
+# both must print the same address: the edge's public IP
 ```
 
 **The stack must be up on the private VM first.** Issuing a certificate for a
@@ -132,7 +132,8 @@ curl -sSI https://gaos.mfardiansyah.id/app  | head -1      # 301
 curl -sSI https://gaos.mfardiansyah.id/docs | head -1      # 301
 
 # An unknown Host must be closed without a reply.
-curl -sS -k --resolve nope.mfardiansyah.id:443:EDGE_IP \
+EDGE_IP=$(dig +short A gaos.mfardiansyah.id | grep -E '^[0-9.]+$' | head -1)
+curl -sS -k --resolve "nope.mfardiansyah.id:443:$EDGE_IP" \
   https://nope.mfardiansyah.id/ ; echo "exit=$?"           # empty reply
 
 # Certificate lineages, separate as intended.
