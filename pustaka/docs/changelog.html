@@ -36,6 +36,16 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-2">v0.52.2 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A Send answer button that could stay off for good, and static files that never refreshed.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> The answer sheet's <strong>Send answer</strong> stayed off when its request never completed (a server restart, a dropped connection), under a hint that still read &ldquo;Sends option 2.&rdquo; The request now has a 20-second limit, the hint says &ldquo;Sending&hellip;&rdquo; while it is in flight, and after a timeout the button returns with a note: press it again, or check Needs you &mdash; if the question is gone, it was recorded.</li>
+        <li><span class="chg fix">Fixed</span> Every state in which the button is off now says why and what to do: &ldquo;Send answer stays off until you pick one of the answers above&rdquo;, &ldquo;Write your answer in the box to send option 4&rdquo;. The QA tool's sheet no longer claims to send a recommendation it does not have.</li>
+        <li><span class="chg fix">Fixed</span> <code>app.css</code>, <code>app.js</code> and <code>live.js</code> were cached for a week and versioned <code>?v=0.36.2</code> for sixteen releases, so browsers kept the old files after every release since. The version now follows the product's, and a test holds them together.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-1">v0.52.1 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The schema fix that v0.52.0 needed on a real ArcadeDB.</p>
       <ul>
