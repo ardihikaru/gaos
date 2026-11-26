@@ -3,6 +3,7 @@
 **Status:** Approved (v2). The operator approved it on 2026-11-26 ("Approve"), with two decisions: the repository stays public during the rewrite (step 0a declined), and the operator notifies the catalog's owner (step 0b). Round 1 reviewed v1 with five lenses, `reviews/public-repo-hardening-*-1.md`; the triage is in `reviews/public-repo-hardening-review-1.md`.
 **Feature:** `public-repo-hardening`
 **Version target:** v0.58.0 (main is v0.57.0, `pustaka/docs/assets/toc.js:22`).
+**Executed** 2026-11-26: the rewrite ran and was verified on a fresh clone (D-096 outcome). Step 0a was declined, and 0b is the operator's. The port rotation (§3.6) was **not** done: four of eight WireGuard peers cannot be re-pointed from here, and WireGuard is silent to unauthenticated packets. SSH key-only was confirmed.
 **Renumbered** after a parallel release took D-094, D-095, v0.56.0, v0.57.0 and TC-722…TC-750: this change now claims D-096, TC-751, TC-752 and v0.58.0. The round-1 reports and triage keep the old numbers as written.
 **Numbers claimed:** **D-096** (the decision on OQ-36), **TC-751**, **TC-752**, **v0.58.0**. No BR is added or amended.
 **BRD rules this must obey:** none of the §9 rules govern the docs, the edge or git history. BR-05 is untouched because no event is written.

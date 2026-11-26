@@ -2086,7 +2086,7 @@
         list. (4) The repository stays public during the rewrite (the operator&rsquo;s decision), and the operator is
         notifying the catalog&rsquo;s owner. Residual: old objects stay fetchable by id until GitHub collects them; anyone
         who cloned before the rewrite keeps the old history; the infrastructure pages still describe the topology by role.
-        Outcome: <em>pending &mdash; filled in after the rewrite is verified on a fresh clone.</em></td>
+        Outcome (2026-11-26): the rewrite ran. <code>git filter-repo</code> rewrote 38 branches and 59 tags; 8 seed blobs were stripped; the newest tag&rsquo;s tree was byte-identical before and after. A fresh clone from GitHub shows 0 private-string lines, 0 infrastructure matches and 0 seed blobs across every branch and tag. Both prod checkouts and the workstation clone were moved onto the new history and their old objects collected; an active worktree&rsquo;s uncommitted change was carried over unchanged. The user, the port and the LAN addresses joined the private list (nine patterns). <strong>The WireGuard port was not rotated</strong>: four of the eight peers cannot be re-pointed from here, and WireGuard answers no packet without a valid key, so a known port reveals nothing a scan could not &mdash; rotating would have cost an outage for no exposure removed. SSH on the edge was confirmed key-only. Still open: GitHub Support&rsquo;s purge of objects reachable through pull-request refs and caches; the backup of the old history is kept off-repository until that is confirmed.</td>
         <td><a href="qa-test-plan.html#cw-public-ipv4">TC-751</a>, <a href="qa-test-plan.html#pk-comma">TC-752</a>;
         <code>docs/designs/public-repo-hardening.md</code></td>
       </tr>
