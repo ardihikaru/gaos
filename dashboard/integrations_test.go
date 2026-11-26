@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -186,3 +187,211 @@ func TestTheIntegrationsViewNeedsASessionAndSaysWhatIsMissing(t *testing.T) {
 		}
 	}
 }
+
+// ---- the status chips, the requirement chips and the info popovers (D-098,
+// docs/designs/integrations-status-chips.md) ----
+
+func TestIntegChipsFollowTheState(t *testing.T) {
+	type want struct{ label, tone string }
+	okPR := func(p *IntegrationsPage) {
+		p.PR.GitHub = "on"
+		p.BrainTownConsumer = BrainTownRow{State: "enabled"}
+		p.PR.StagingState, p.PR.WA.State = "disabled", "disabled"
+	}
+	cases := []struct {
+		name  string
+		set   func(*IntegrationsPage)
+		chip  func(*IntegrationsPage) StatusChip
+		want  want
+		never string // a tone the chip must not take ("" = no such check)
+	}{
+		{"ai-manager configured", func(p *IntegrationsPage) { p.AIM.Configured = true }, func(p *IntegrationsPage) StatusChip { return p.AIMChip }, want{"Connected", toneOK}, ""},
+		{"ai-manager off", func(p *IntegrationsPage) {}, func(p *IntegrationsPage) StatusChip { return p.AIMChip }, want{"Off", toneBad}, ""},
+		{"brain town enabled", func(p *IntegrationsPage) { p.BrainTown.State = "enabled" }, func(p *IntegrationsPage) StatusChip { return p.BrainTownChip }, want{"Enabled", toneOK}, ""},
+		{"brain town enabled but failing", func(p *IntegrationsPage) { p.BrainTown = BrainTownRow{State: "enabled", Failing: true} }, func(p *IntegrationsPage) StatusChip { return p.BrainTownChip }, want{"Degraded", toneWarn}, toneOK},
+		{"brain town unusable", func(p *IntegrationsPage) { p.BrainTown.State = "unusable: x" }, func(p *IntegrationsPage) StatusChip { return p.BrainTownChip }, want{"Unusable", toneBad}, toneOK},
+		{"brain town unknown state", func(p *IntegrationsPage) { p.BrainTown.State = "something new" }, func(p *IntegrationsPage) StatusChip { return p.BrainTownChip }, want{"Disabled", toneBad}, toneOK},
+		{"reader disabled", func(p *IntegrationsPage) { p.BrainTownConsumer.State = "disabled" }, func(p *IntegrationsPage) StatusChip { return p.BrainTownConsumerChip }, want{"Disabled", toneBad}, ""},
+		{"qa outbound off", func(p *IntegrationsPage) {}, func(p *IntegrationsPage) StatusChip { return p.QAChip }, want{"Outbound off", toneBad}, ""},
+		{"qa connected", func(p *IntegrationsPage) { p.QA.Outbound = true }, func(p *IntegrationsPage) StatusChip { return p.QAChip }, want{"Connected", toneOK}, ""},
+		{"qa recent give-up", func(p *IntegrationsPage) { p.QA.Outbound, p.QA.GaveUp, p.QA.GaveUpRecent = true, 1, 1 }, func(p *IntegrationsPage) StatusChip { return p.QAChip }, want{"Degraded", toneWarn}, toneOK},
+		{"qa old give-up clears", func(p *IntegrationsPage) { p.QA.Outbound, p.QA.GaveUp = true, 5 }, func(p *IntegrationsPage) StatusChip { return p.QAChip }, want{"Connected", toneOK}, ""},
+		{"qa failing", func(p *IntegrationsPage) { p.QA.Outbound, p.QA.Failing = true, true }, func(p *IntegrationsPage) StatusChip { return p.QAChip }, want{"Degraded", toneWarn}, toneOK},
+		{"api enabled", func(p *IntegrationsPage) {
+			p.API = APIStatus{State: "enabled (admin=true)", QA: true, QAProducts: []string{"p-1"}}
+		}, func(p *IntegrationsPage) StatusChip { return p.APIChip }, want{"Enabled", toneOK}, ""},
+		{"api without the qa token", func(p *IntegrationsPage) {
+			p.API = APIStatus{State: "enabled (admin=true)", QAProducts: []string{"p-1"}}
+		}, func(p *IntegrationsPage) StatusChip { return p.APIChip }, want{"Degraded", toneWarn}, toneOK},
+		{"api with no qa products", func(p *IntegrationsPage) { p.API = APIStatus{State: "enabled (admin=true)", QA: true} }, func(p *IntegrationsPage) StatusChip { return p.APIChip }, want{"Degraded", toneWarn}, toneOK},
+		{"api disabled", func(p *IntegrationsPage) { p.API.State = "disabled (no API token is configured)" }, func(p *IntegrationsPage) StatusChip { return p.APIChip }, want{"Disabled", toneBad}, ""},
+		{"github on", func(p *IntegrationsPage) { p.PR.GitHub = "on" }, func(p *IntegrationsPage) StatusChip { return p.PR.GitHubChip }, want{"On", toneOK}, ""},
+		{"github off", func(p *IntegrationsPage) { p.PR.GitHub = "off (no token file)" }, func(p *IntegrationsPage) StatusChip { return p.PR.GitHubChip }, want{"Off", toneBad}, ""},
+		{"staging unusable", func(p *IntegrationsPage) { p.PR.StagingState = "unusable: x" }, func(p *IntegrationsPage) StatusChip { return p.PR.StagingChip }, want{"Unusable", toneBad}, toneOK},
+		{"whatsapp enabled", func(p *IntegrationsPage) { p.PR.WA.State = "enabled" }, func(p *IntegrationsPage) StatusChip { return p.PR.WAChip }, want{"Enabled", toneOK}, ""},
+		{"whatsapp unencrypted", func(p *IntegrationsPage) {
+			p.PR.WA.State = "enabled, over http to any address (unencrypted)"
+		}, func(p *IntegrationsPage) StatusChip { return p.PR.WAChip }, want{"Degraded", toneWarn}, toneOK},
+		{"whatsapp linked to no product", func(p *IntegrationsPage) {
+			p.PR.WA.State = "enabled, linked to no product (GAOS_WA_PRODUCTS)"
+		}, func(p *IntegrationsPage) StatusChip { return p.PR.WAChip }, want{"Degraded", toneWarn}, toneOK},
+		{"pr flow connected with optional parts not configured", okPR, func(p *IntegrationsPage) StatusChip { return p.PRChip }, want{"Connected", toneOK}, ""},
+		{"pr flow with github off and staging on", func(p *IntegrationsPage) {
+			okPR(p)
+			p.PR.GitHub, p.PR.StagingState = "off (no token file)", "enabled"
+		}, func(p *IntegrationsPage) StatusChip { return p.PRChip }, want{"Off", toneBad}, ""},
+		{"pr flow with the reader disabled", func(p *IntegrationsPage) {
+			okPR(p)
+			p.BrainTownConsumer.State = "disabled"
+		}, func(p *IntegrationsPage) StatusChip { return p.PRChip }, want{"Partly connected", toneWarn}, toneOK},
+		{"pr flow with staging unusable", func(p *IntegrationsPage) {
+			okPR(p)
+			p.PR.StagingState = "unusable: x"
+		}, func(p *IntegrationsPage) StatusChip { return p.PRChip }, want{"Partly connected", toneWarn}, toneOK},
+		{"pr flow with whatsapp unencrypted", func(p *IntegrationsPage) {
+			okPR(p)
+			p.PR.WA.State = "enabled, over http to any address (unencrypted)"
+		}, func(p *IntegrationsPage) StatusChip { return p.PRChip }, want{"Partly connected", toneWarn}, toneOK},
+	}
+	for _, c := range cases {
+		p := &IntegrationsPage{}
+		c.set(p)
+		integChips(p)
+		got := c.chip(p)
+		if got.Label != c.want.label || got.Tone != c.want.tone {
+			t.Errorf("%s: the chip is %s · %s, want %s · %s", c.name, got.Label, got.Tone, c.want.label, c.want.tone)
+		}
+		if c.never != "" && got.Tone == c.never {
+			t.Errorf("%s: the chip took the tone %q, which this state must never show", c.name, c.never)
+		}
+		if !chipLabels[got.Label] {
+			t.Errorf("%s: the label %q is not in the closed set", c.name, got.Label)
+		}
+	}
+}
+
+// integBlocks cuts the section into its blocks, keyed by the heading text.
+func integBlocks(sec string) map[string]string {
+	out := map[string]string{}
+	parts := strings.Split(sec, `<div class="block">`)
+	for _, b := range parts[1:] {
+		i := strings.Index(b, "<h4>")
+		j := strings.Index(b, "</h4>")
+		if i < 0 || j < i {
+			continue
+		}
+		out[b[i+4:j]] = b
+	}
+	return out
+}
+
+var integNames = []string{"ai-manager", "Brain Town", "Brain Town reader", "Pull-request flow", "QA tools", "Machine API"}
+
+func TestTheIntegrationsViewColoursEveryHeading(t *testing.T) {
+	f := newIntegrationsFixture(t)
+	f.srv.brainOff = BrainTownRow{State: "unusable: BRAIN_TOWN_URL is not set"}
+	f.srv.btConsumerOff = BrainTownRow{State: "disabled"}
+	sec := integrationsSection(do(t, f.srv, "GET", "/ui/bo/integrations", nil, boCookies()...).Body.String())
+	blocks := integBlocks(sec)
+	for _, name := range integNames {
+		b, ok := blocks[name]
+		if !ok {
+			t.Errorf("the integrations view has no block headed %q", name)
+			continue
+		}
+		head := b[:strings.Index(b, "</div>")]
+		if n := strings.Count(head, `class="chip st-`); n != 1 {
+			t.Errorf("the %s heading carries %d status chips, want 1", name, n)
+		}
+	}
+	pr := blocks["Pull-request flow"]
+	for _, row := range []string{"GitHub client", "Staging callback", "WhatsApp"} {
+		i := strings.Index(pr, `<th scope="row">`+row+`</th>`)
+		if i < 0 {
+			t.Errorf("the pull-request block has no %s row", row)
+			continue
+		}
+		cell := pr[i : i+strings.Index(pr[i:], "</tr>")]
+		if n := strings.Count(cell, `class="chip st-`); n != 1 {
+			t.Errorf("the pull-request %s row carries %d status chips, want 1", row, n)
+		}
+	}
+	for _, want := range []string{`<td class="mono">unusable: BRAIN_TOWN_URL is not set</td>`, `<td class="mono">disabled</td>`,
+		`<th scope="row">State</th><td class="mono">enabled (admin=`} {
+		if !strings.Contains(sec, want) {
+			t.Errorf("the integrations view does not show the state cell %q", want)
+		}
+	}
+	if bt := blocks["Brain Town"]; !strings.Contains(bt, `<span class="chip st-bad">Unusable</span>`) {
+		t.Errorf("the Brain Town heading does not show %q for an unusable feed", "Unusable")
+	}
+	for _, m := range regexpChip.FindAllStringSubmatch(sec, -1) {
+		if !chipLabels[m[1]] {
+			t.Errorf("a status chip reads %q, which is not in the closed set of labels", m[1])
+		}
+	}
+	for _, h := range regexpH4.FindAllString(sec, -1) {
+		if strings.Contains(h, "&middot;") {
+			t.Errorf("a heading still carries its state after a middle dot: %s", h)
+		}
+	}
+}
+
+func TestTheIntegrationsViewMarksMandatoryIntegrations(t *testing.T) {
+	f := newIntegrationsFixture(t)
+	blocks := integBlocks(integrationsSection(do(t, f.srv, "GET", "/ui/bo/integrations", nil, boCookies()...).Body.String()))
+	mandatory := map[string]bool{"ai-manager": true, "QA tools": true, "Machine API": true}
+	for _, name := range integNames {
+		b := blocks[name]
+		head := b[:strings.Index(b, "</div>")]
+		hasReq, hasOpt := strings.Contains(head, `class="chip need-req">Mandatory<`), strings.Contains(head, `class="chip need-opt">Optional<`)
+		if mandatory[name] && (!hasReq || hasOpt) {
+			t.Errorf("the %s heading is not marked Mandatory (and only Mandatory)", name)
+		}
+		if !mandatory[name] && (!hasOpt || hasReq) {
+			t.Errorf("the %s heading is not marked Optional (and only Optional)", name)
+		}
+	}
+	for _, name := range []string{"Contacts", "Registered clients"} {
+		if b := blocks[name]; strings.Contains(b, `class="chip need-req"`) || strings.Contains(b, `class="chip need-opt"`) {
+			t.Errorf("the %s list carries a requirement chip; only integrations do", name)
+		}
+	}
+}
+
+func TestEveryIntegrationInfoButtonOpensItsPopover(t *testing.T) {
+	f := newIntegrationsFixture(t)
+	sec := integrationsSection(do(t, f.srv, "GET", "/ui/bo/integrations", nil, boCookies()...).Body.String())
+	targets := regexpPopTarget.FindAllStringSubmatch(sec, -1)
+	if len(targets) != 6 {
+		t.Fatalf("the integrations view has %d info buttons, want 6", len(targets))
+	}
+	seen := map[string]bool{}
+	for _, m := range targets {
+		id := m[1]
+		if seen[id] {
+			t.Errorf("the popover id %q is used by two buttons", id)
+		}
+		seen[id] = true
+		open := `<div id="` + id + `" class="info-pop" popover>`
+		if n := strings.Count(sec, open); n != 1 {
+			t.Errorf("the button for %q points to %d popovers, want exactly 1", id, n)
+			continue
+		}
+		pop := sec[strings.Index(sec, open):]
+		pop = pop[:strings.Index(pop, "</div>")]
+		a, b, c := strings.Index(pop, "<h5>What it does</h5>"), strings.Index(pop, "<h5>When connected</h5>"), strings.Index(pop, "<h5>When disconnected</h5>")
+		if a < 0 || b < a || c < b {
+			t.Errorf("the popover %q does not hold the three headings in order", id)
+		}
+		if id == "ip-api" && !strings.Contains(pop, "staging callback") {
+			t.Errorf("the Machine API popover does not name the staging callback's own credential")
+		}
+	}
+}
+
+var (
+	regexpChip      = regexp.MustCompile(`<span class="chip st-(?:ok|warn|bad)">([^<]*)</span>`)
+	regexpH4        = regexp.MustCompile(`<h4>[^<]*</h4>`)
+	regexpPopTarget = regexp.MustCompile(`popovertarget="([^"]+)"`)
+)

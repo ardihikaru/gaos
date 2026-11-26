@@ -326,7 +326,7 @@ func (c *btConsumer) Status() BrainTownRow {
 		last = strconv.FormatInt(c.last, 10) + " · " + c.lastAt.UTC().Format(time.RFC3339)
 	}
 	return BrainTownRow{State: state, Host: host, Queue: len(c.out),
-		Last: last, Failed: int(c.skipped), Dropped: 0, Sent: int(c.frames)}
+		Last: last, Failed: int(c.skipped), Dropped: 0, Sent: int(c.frames), Failing: c.lastErr != ""}
 }
 
 // Run is the reader loop. It never returns until the context is done.
