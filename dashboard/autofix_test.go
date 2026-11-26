@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -523,5 +524,26 @@ func TestAutoFixBaseBranchIsUsedAndValidated(t *testing.T) {
 		if err := autoFixPreconditions(good, "fine-grained"); err == nil {
 			t.Errorf("the base branch %q was accepted", bad)
 		}
+	}
+}
+
+// A ready defect card that is refused used to leave no trace (found live: twenty minutes in
+// ready). The refusal is logged once per card and reason.
+func TestAutoFixLogsWhyAReadyCardIsNotDispatched(t *testing.T) {
+	afRefusalMu.Lock()
+	afRefusalLast = map[string]string{}
+	afRefusalMu.Unlock()
+	var buf strings.Builder
+	old := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(old)
+	logAutoFixRefusal("card-1", "triage cap 20/20 until 00:00 UTC")
+	logAutoFixRefusal("card-1", "triage cap 20/20 until 00:00 UTC")
+	logAutoFixRefusal("card-1", "p-6 already has a live turn (x); one at a time per product (BR-38)")
+	if n := strings.Count(buf.String(), "autofix: card-1 is ready but not dispatched"); n != 2 {
+		t.Errorf("logged %d lines for one repeated and one new reason, want 2: %q", n, buf.String())
+	}
+	if !strings.Contains(buf.String(), "triage cap 20/20") {
+		t.Errorf("the gate's own sentence is missing: %q", buf.String())
 	}
 }

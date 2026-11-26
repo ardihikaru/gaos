@@ -436,3 +436,21 @@ func TestDefectTriagePacketIsDataAndComplexSendsANotice(t *testing.T) {
 		t.Errorf("the complex fix card: %+v", fix)
 	}
 }
+
+// Source a fix would edit comes before tests, and both before samples and documents (found live:
+// a .http sample and a markdown page ranked ahead of the resolver and spent the six-file budget).
+func TestContextClassPutsSourceBeforeSamplesAndDocuments(t *testing.T) {
+	for p, want := range map[string]int{
+		"pkg/graph/pharmacy/resolvers/pharmacy_mutation.resolvers.go":         0,
+		"internal/storage/pharmacy/medication_dispense_status.go":             0,
+		"internal/storage/pharmacy/medication_dispense_status_test.go":        1,
+		"resources/_generated/pharmacy/editmedicationdispense.http":           2,
+		"technical-docs/api-usage/graphql/pharmacy/editMedicationDispense.md": 2,
+		"pkg/graph/generated/pharmacy_gen.go":                                 2,
+		"resources/_oldresources/pharmacy/x.go":                               2,
+	} {
+		if got := contextClass(p); got != want {
+			t.Errorf("contextClass(%q) = %d, want %d", p, got, want)
+		}
+	}
+}
