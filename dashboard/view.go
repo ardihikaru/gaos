@@ -93,6 +93,7 @@ type BOCounts struct {
 
 type ProductCard struct {
 	ID       string
+	Slug     string
 	Code     string
 	Name     string
 	Repo     string
@@ -111,6 +112,7 @@ type ProductDetail struct {
 	// every tab for the tab label; the list is rendered on its own tab only.
 	Timeline   []Event
 	ID         string
+	Slug       string // the product's name in a URL (D-093)
 	Name       string
 	Goal       string
 	Owner      string
@@ -158,6 +160,13 @@ type RollupGroup struct {
 }
 
 type BOView struct {
+	// Href is the canonical address of what this view shows, relative to the
+	// page's base and without a leading slash ("" is the product list,
+	// "p/route-planner/board", "prs?state=merged"); "-" when the view has none.
+	// PageTitle is the document title. Both are set by buildBO (urls.go, D-093).
+	Href      string
+	PageTitle string
+
 	View    string // products | stories | diagrams | knowledge | agents | inbox
 	Counts  BOCounts
 	List    []ProductCard

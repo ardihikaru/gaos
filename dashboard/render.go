@@ -140,6 +140,9 @@ var funcs = template.FuncMap{
 	"confPct":   func(v float64) int { return int(v*100 + 0.5) },
 	// timingURL path-escapes both ids, as the answer sheet's URL does (D-081).
 	"timingURL": timingURL,
+	// pagehref is the page address of a fragment address (D-093): what an
+	// <a hx-get> carries in href, so a new tab opens a page and not a fragment.
+	"pagehref": pageHref,
 	// conversationURL is a card's conversation sheet (D-082).
 	"conversationURL": conversationURL,
 	// sendBackURL path-escapes both ids, as timingURL does (D-084).

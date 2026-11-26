@@ -203,6 +203,16 @@ func TestArcadeStoreRebuildsTheFloorFromTheGraph(t *testing.T) {
 	if !found {
 		t.Error("the product created before the reopen is gone; the write never reached the graph")
 	}
+	// D-093: the slug is stored, not derived -- it is the same after a reopen,
+	// for a fixture product and for one created at run time.
+	for _, p := range products {
+		if p.Name == "Ledger Rewrite" && p.Slug != "ledger-rewrite" {
+			t.Errorf("the slug of the product created before the reopen is %q, want ledger-rewrite", p.Slug)
+		}
+		if p.ID == "p-1" && p.Slug != "laundry-membership" {
+			t.Errorf("the slug of p-1 after the reopen is %q, want laundry-membership", p.Slug)
+		}
+	}
 	m, err := second.Master(ctx, "p-1")
 	if err != nil {
 		t.Fatalf("master after reopen: %v", err)

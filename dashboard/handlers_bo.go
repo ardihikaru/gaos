@@ -86,6 +86,15 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode, Secure: secureCookies(),
 	})
 
+	// Signed in from a deep URL (D-093): the browser reloads the page it is
+	// on, now with its session. The header's value is a constant -- nothing
+	// the client sent decides where it goes.
+	if loginLandsElsewhere(r) {
+		w.Header().Set("HX-Refresh", "true")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	// Both sheets in one response: the login sheet closes as the back office
 	// opens, and neither transition depends on the client remembering which
 	// one it was looking at.
@@ -93,7 +102,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	v.SignedIn = true
 	v.ShowLogin = false
 	v.Tenant = tenant + " · " + res.Email
-	v.BO = s.buildBO(r, "products", "", "brd")
+	s.sheet(w, r, v, "products", "", "brd")
 	s.rend.Render(w, http.StatusOK, "sheets", v)
 }
 
@@ -134,9 +143,9 @@ func (s *server) handleBOSheet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	v.BO = s.buildBO(r, def(q.Get("view"), "products"), q.Get("product"), def(q.Get("tab"), "brd"))
-	noStoreView(w, v.BO.View)
-	s.rend.Render(w, http.StatusOK, "bo-sheet", v)
+	s.sheet(w, r, v, def(q.Get("view"), "products"), q.Get("product"), def(q.Get("tab"), "brd"))
+	// bo-main-oob is bo-sheet with the title in front of it.
+	s.rend.Render(w, http.StatusOK, "bo-main-oob", v)
 }
 
 func (s *server) handleBOView(w http.ResponseWriter, r *http.Request) {
@@ -145,8 +154,8 @@ func (s *server) handleBOView(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	v, _ := s.newView(r)
-	v.BO = s.buildBO(r, r.PathValue("view"), q.Get("product"), def(q.Get("tab"), "brd"))
-	noStoreView(w, v.BO.View) // D-082 archived conversations, D-085 integrations
+	// sheet sets no-store for the sensitive views (D-082, D-085) and the address.
+	s.sheet(w, r, v, r.PathValue("view"), q.Get("product"), def(q.Get("tab"), "brd"))
 	s.rend.Render(w, http.StatusOK, "bo-main-oob", v)
 }
 
@@ -155,7 +164,7 @@ func (s *server) handleProductList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v, _ := s.newView(r)
-	v.BO = s.buildBO(r, "products", "", "brd")
+	s.sheet(w, r, v, "products", "", "brd")
 	if r.URL.Query().Get("new") == "1" {
 		v.BO.NewOpen = true
 	}
@@ -167,7 +176,7 @@ func (s *server) handleProductDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v, _ := s.newView(r)
-	v.BO = s.buildBO(r, "products", r.PathValue("id"), def(r.URL.Query().Get("tab"), "brd"))
+	s.sheet(w, r, v, "products", r.PathValue("id"), def(r.URL.Query().Get("tab"), "brd"))
 	if v.BO.Detail == nil {
 		s.fail(w, r, ErrNotFound)
 		return
@@ -208,6 +217,17 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 	}
 
 	bo := &BOView{View: view}
+	// Every return below leaves through this: the address and the title of
+	// what was built (urls.go, D-093).
+	defer func() { s.address(bo, products, productID) }()
+	slugOf := func(id string) string {
+		for _, p := range products {
+			if p.ID == id {
+				return p.Slug
+			}
+		}
+		return id
+	}
 	for _, m := range masters {
 		bo.Counts.Products++
 		bo.Counts.Stories += len(m.Stories)
@@ -295,7 +315,7 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 				repo = m.Repos[0]
 			}
 			bo.List = append(bo.List, ProductCard{
-				ID: m.ID, Code: m.Code, Name: name(m.ID), Repo: repo, Owner: m.Owner,
+				ID: m.ID, Slug: slugOf(m.ID), Code: m.Code, Name: name(m.ID), Repo: repo, Owner: m.Owner,
 				Problem: clipEllipsis(m.BRD.Problem, 110),
 				Stories: len(m.Stories), Diagrams: len(m.Diagrams),
 				Vertices: pr.Vertices, Coverage: m.Coverage(),
@@ -309,7 +329,7 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			continue
 		}
 		d := &ProductDetail{
-			ID: m.ID, Name: name(m.ID), Goal: goal(m.ID), Owner: m.Owner,
+			ID: m.ID, Slug: slugOf(m.ID), Name: name(m.ID), Goal: goal(m.ID), Owner: m.Owner,
 			Repos: def(strings.Join(m.Repos, ", "), "no repository linked"),
 			Tab:   tab, Master: m, Projection: m.Project(),
 			Coverage: m.Coverage(), CovStyle: pctStyle("width", float64(m.Coverage())),
@@ -515,7 +535,7 @@ func (s *server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) renderBOAfter(w http.ResponseWriter, r *http.Request, res Result, productID, tab string) {
 	v := s.applyResult(r, res)
-	v.BO = s.buildBO(r, "products", productID, tab)
+	s.sheet(w, r, v, "products", productID, tab)
 	s.rend.RenderWithChrome(w, "bo-main-oob", v)
 }
 
@@ -1025,7 +1045,7 @@ func (s *server) buildAnswer(r *http.Request, q Question) *AnswerView {
 
 func (s *server) renderBOView(w http.ResponseWriter, r *http.Request, res Result, view string) {
 	v := s.applyResult(r, res)
-	v.BO = s.buildBO(r, view, "", "")
+	s.sheet(w, r, v, view, "", "")
 	s.rend.RenderWithChrome(w, "bo-main-oob", v)
 }
 

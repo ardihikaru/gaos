@@ -497,6 +497,14 @@ func (s *server) routes() http.Handler {
 	// Go 1.22 patterns: method and wildcards in the pattern itself, so there is
 	// no router library and no switch on r.Method inside a handler.
 	handle("GET /{$}", s.handleIndex)
+	// The page routes (D-093, urls.go): one whole document per back-office view
+	// and per product section, so a deep link, a reload and Back land on it.
+	// They are back-office routes; signed out, the gate answers them itself.
+	for _, v := range pageViews {
+		handle("GET /"+v.ID, s.handlePage(v.ID))
+	}
+	handle("GET /p/{ref}", s.handleProductPage)
+	handle("GET /p/{ref}/{section}", s.handleProductPage)
 	handle("GET /healthz", s.handleHealth)
 	patterns = append(patterns, "GET /static/")
 	mux.Handle("GET /static/", s.staticHandler())
