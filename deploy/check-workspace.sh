@@ -111,11 +111,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "five hundred and seventy-six" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "576" ]; then
+if grep -q "five hundred and seventy-seven" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "577" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says five hundred and seventy-six"
+  bad "Go test count: $go_tests tests on disk, register says five hundred and seventy-seven"
 fi
 
 prose_check() {
@@ -126,8 +126,8 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "seven hundred and ten"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "seven hundred and ten"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "seven hundred and eleven"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "seven hundred and eleven"
 prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "Ninety-one entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All forty in one place"
 prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Fifty-eight rules"
