@@ -616,23 +616,36 @@ func (s *MemStore) PruneConversations(ctx context.Context, actor string, cards [
 	})
 }
 
-// decorateBoardConversation marks each card that has attempts (D-082).
-// Caller holds s.mu.
-func (s *MemStore) decorateBoardConversation(b *Board, productID string) {
+// decorateCardsConversation marks each card that has attempts (D-082). byID is
+// the product's tasks by id (productTasksLocked): a lookup per card, where this
+// used to scan every task for every card (D-094). Caller holds s.mu.
+func (s *MemStore) decorateCardsConversation(cards []BoardCard, byID map[string]*TaskRecord) {
+	s.decorateCardsConversationWith(cards, byID, s.taskEventsLocked)
+}
+
+// decorateCardsConversationWith takes the reader of a task's events, so a
+// caller that also computes the timing reads each card's events once.
+func (s *MemStore) decorateCardsConversationWith(cards []BoardCard, byID map[string]*TaskRecord, eventsOf func(string) []Event) {
+	want := make(map[string]bool, len(cards))
+	for i := range cards {
+		want[cards[i].ID] = true
+	}
 	n := map[string]int{}
 	for _, r := range s.runs {
-		n[r.TaskID]++
+		if want[r.TaskID] {
+			n[r.TaskID]++
+		}
 	}
-	for i := range b.Cards {
-		c := &b.Cards[i]
+	for i := range cards {
+		c := &cards[i]
 		if n[c.ID] == 0 {
 			continue
 		}
-		t := s.cardLocked(productID, c.ID)
+		t := byID[c.ID]
 		if t == nil {
 			continue
 		}
-		st := conversationStateOf(*t, s.taskEventsLocked(c.ID))
+		st := conversationStateOf(*t, eventsOf(c.ID))
 		c.Conversation = &BoardConversation{Attempts: n[c.ID], Archived: st.Archived, Pruned: st.Pruned}
 	}
 }

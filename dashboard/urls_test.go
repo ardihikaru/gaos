@@ -335,6 +335,10 @@ func TestNavigationPushesReplacesOrLeavesTheAddress(t *testing.T) {
 			{"a mutation that stays where it is", "POST", "/products/p-1/inject?tab=stories", at("/p/" + slug + "/stories?x=1"), want{}},
 			{"a mutation that opens another view", "POST", "/products/p-1/inject?tab=stories", at("/p/" + slug + "/brd"), want{push: prefix + "/p/" + slug + "/stories"}},
 			{"a product that does not exist", "GET", "/products/nope?tab=board", at("/"), want{}},
+			// D-094: the Board's view is part of its address; its window is not.
+			{"the Board as a table", "GET", "/products/p-1?tab=board&view=table&sort=id&shown=done:60&more=done", at("/p/" + slug + "/board"), want{replace: prefix + "/p/" + slug + "/board?sort=id&view=table"}},
+			{"the Board, a filter nobody offers", "GET", "/products/p-1?tab=board&role=nobody", at("/p/" + slug + "/board"), want{}},
+			{"onto the Board with a view", "GET", "/products/p-1?tab=board&view=table", at("/p/" + slug + "/stories"), want{push: prefix + "/p/" + slug + "/board?view=table"}},
 		}
 		for _, c := range cases {
 			w := hx(t, s, c.method, c.path, c.current, hdr, nil, cs...)

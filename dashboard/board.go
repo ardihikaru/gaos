@@ -41,7 +41,9 @@ type BoardCard struct {
 	ID     string `json:"id"`
 	Label  string `json:"label"`
 	Column string `json:"column"`
-	Row    string `json:"row"`
+	// Row is the card's lane. Board always sets it (laneOf never returns "");
+	// the paged document (D-094) has no lanes and leaves it out.
+	Row    string `json:"row,omitempty"`
 	Status string `json:"status"` // the exact status; a column groups several
 	Role   string `json:"role"`
 	Rank   int    `json:"rank"`
@@ -66,11 +68,21 @@ type BoardCard struct {
 	// run; the chip shows only for an active one.
 	Conversation *BoardConversation `json:"conversation,omitempty"`
 	// Reason is why a BLOCKED card is held: its BlockReason. Display only,
-	// read-time decoration (sendback.go, decorateBoardGate).
+	// read-time decoration (sendback.go, decorateCardsGate).
 	Reason string `json:"reason,omitempty"`
 	// SendBack is set on a review the design gate blocked with
 	// design-blocked: whether its design may be sent back now (D-084).
 	SendBack *BoardSendBack `json:"sendBack,omitempty"`
+	// Story, Workflow and Updated are set by BoardPage and BoardCard only
+	// (D-094, board_page.go), so the document Board returns does not change.
+	// Story is the story id ("" for the plan); Updated is the Seq of the task's
+	// last state change.
+	Story    string `json:"story,omitempty"`
+	Workflow string `json:"workflow,omitempty"`
+	Updated  int    `json:"updated,omitempty"`
+	// UpdatedAt is when that last state change happened, unix seconds; the
+	// table's "Changed" column.
+	UpdatedAt int64 `json:"updatedAt,omitempty"`
 }
 
 // BoardConversation is a card's conversation, as the board shows it.
@@ -247,10 +259,11 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 		return Board{}, ErrNotFound
 	}
 	b := boardOf(productID, m, s.tasks)
+	byID := s.productTasksLocked(productID)
 	s.decorateBoardQa(&b, m)
 	s.decorateBoardTiming(&b, productID, time.Now().Unix())
-	s.decorateBoardConversation(&b, productID)
-	s.decorateBoardGate(&b)
+	s.decorateCardsConversation(b.Cards, byID)
+	s.decorateCardsGate(b.Cards, byID)
 	return b, nil
 }
 

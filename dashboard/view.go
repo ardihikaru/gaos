@@ -60,6 +60,9 @@ type View struct {
 
 	BO *BOView
 	CW *CWView
+	// BoardLive is set when a mutation made on the Board is answered with the
+	// Board's changed columns instead of the whole sheet (D-094).
+	BoardLive *BoardView
 
 	// Needs is how many agents are waiting on the operator (M15): the topbar
 	// chip and the back-office nav count. Zero when signed out -- the number is
@@ -106,8 +109,12 @@ type ProductCard struct {
 }
 
 type ProductDetail struct {
-	// Board is set for the board tab only (M14.6).
-	Board *Board
+	// BoardView is set for the board tab only: one page of the board, and
+	// its filter bar (D-094, board_view.go).
+	BoardView *BoardView
+	// TimelineN is how many events the product has: the Timeline tab's
+	// number, on every tab, without loading the events (D-094).
+	TimelineN int
 	// Timeline is the product's events, newest first (T-168). Counted on
 	// every tab for the tab label; the list is rendered on its own tab only.
 	Timeline   []Event

@@ -262,6 +262,13 @@ func (s *server) address(bo *BOView, products []Product, productID string) {
 			section, label = "brd", "Requirements"
 		}
 		bo.Href = productPath(bo.Detail.Slug, section)
+		// The Board's view is part of its address (D-094): the filter, board
+		// or table, the sort. Never the window, never the search text.
+		if bv := bo.Detail.BoardView; bv != nil && section == "board" {
+			if enc := bv.Page.Query.Encode(); enc != "" {
+				bo.Href += "?" + enc
+			}
+		}
 		bo.PageTitle = label + " · " + bo.Detail.Name + " · GAOS"
 		return
 	case bo.View == "products" && productID != "":

@@ -34,6 +34,20 @@ func (s *ArcadeStore) SyncBlueprint(ctx context.Context, id string) (Result, err
 func (s *ArcadeStore) Board(ctx context.Context, id string) (Board, error) {
 	return s.proj.Board(ctx, id)
 }
+
+// The paged board, one card and the event count are reads of the projection,
+// as Board is (D-094).
+func (s *ArcadeStore) BoardPage(ctx context.Context, id string, q BoardQuery, w BoardWindow) (BoardPage, error) {
+	return s.proj.BoardPage(ctx, id, q, w)
+}
+
+func (s *ArcadeStore) BoardCard(ctx context.Context, id, taskID string) (BoardCard, error) {
+	return s.proj.BoardCard(ctx, id, taskID)
+}
+
+func (s *ArcadeStore) EventCount(ctx context.Context, id string) (int, error) {
+	return s.proj.EventCount(ctx, id)
+}
 func (s *ArcadeStore) CardTiming(ctx context.Context, id, taskID string) (CardTiming, error) {
 	return s.proj.CardTiming(ctx, id, taskID)
 }

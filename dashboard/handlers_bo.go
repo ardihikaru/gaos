@@ -337,9 +337,11 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			Score: m.ReadinessScore(), Band: ReadinessBand(m.ReadinessScore()),
 			CanPlan: m.ReadinessScore() >= PlanFloor,
 		}
+		// The Board is one page of the product's cards, in the view the
+		// request carries -- whatever its method (D-094).
 		if tab == "board" {
-			if b, err := s.store.Board(r.Context(), m.ID); err == nil {
-				d.Board = &b
+			if bv, err := s.buildBoardView(r, m.ID, d.Slug); err == nil {
+				d.BoardView = bv
 			}
 		}
 		if tab == "qa" {
@@ -348,16 +350,23 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		if tab == "vendors" {
 			d.Vendors = buildVendorsPane(r.Context(), m, s.adapter)
 		}
-		if evs, err := s.store.Events(r.Context()); err == nil {
-			for i := len(evs) - 1; i >= 0; i-- {
-				if evs[i].DeskID == m.ID {
-					d.Timeline = append(d.Timeline, evs[i])
+		// The Timeline tab's label is a number on every tab; the events
+		// themselves are loaded for its own tab only. Until D-094 the whole
+		// stream was copied on every product request for that count.
+		d.TimelineN, _ = s.store.EventCount(r.Context(), m.ID)
+		if tab == "timeline" {
+			if evs, err := s.store.Events(r.Context()); err == nil {
+				for i := len(evs) - 1; i >= 0; i-- {
+					if evs[i].DeskID == m.ID {
+						d.Timeline = append(d.Timeline, evs[i])
+					}
 				}
 			}
 		}
+		// A sequence diagram is drawn for the tab that shows it.
 		for _, g := range m.Diagrams {
 			dv := DiagramView{Diagram: g}
-			if g.Kind == "sequence" {
+			if g.Kind == "sequence" && tab == "diagrams" {
 				dv.SVG = RenderSequence(g.Src)
 			}
 			d.Diagrams = append(d.Diagrams, dv)
@@ -928,12 +937,9 @@ func (s *server) handleTimingSheet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if b, err := s.store.Board(r.Context(), id); err == nil {
-		for _, c := range b.Cards {
-			if c.ID == taskID {
-				title = c.Label
-			}
-		}
+	// One card, not the board: the sheet only wants its title (D-094).
+	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
+		title = c.Label
 	}
 	v, _ := s.newView(r)
 	v.Timing = buildTimingView(name, title, ct)
