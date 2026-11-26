@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -213,6 +214,24 @@ func autoFixLoop(ctx context.Context, st Store, src codeSource) {
 	}
 }
 
+var (
+	afRefusalMu   sync.Mutex
+	afRefusalLast = map[string]string{}
+)
+
+// logAutoFixRefusal says why a ready defect card was not dispatched, once per card and reason: a
+// refusal here used to be silent, and a card waited in ready for twenty minutes with no trace
+// (found live). The reason is the gate's own sentence, which carries no secret.
+func logAutoFixRefusal(cardID, reason string) {
+	afRefusalMu.Lock()
+	defer afRefusalMu.Unlock()
+	if afRefusalLast[cardID] == reason {
+		return
+	}
+	afRefusalLast[cardID] = reason
+	log.Printf("autofix: %s is ready but not dispatched: %s", cardID, capRunes(reason, 200))
+}
+
 // autoFixPass is one pass. It answers how many cards it dispatched. The source
 // slice of a card is built here, outside any lock, before the dispatch.
 func autoFixPass(ctx context.Context, st Store, src codeSource) int {
@@ -249,6 +268,8 @@ func autoFixPass(ctx context.Context, st Store, src codeSource) int {
 			if _, err := st.AutoDispatch(ctx, d.ID, c.ID); err != nil {
 				if !errors.Is(err, ErrRejected) {
 					log.Printf("autofix: a dispatch failed: %v", err)
+				} else {
+					logAutoFixRefusal(c.ID, err.Error())
 				}
 				continue
 			}

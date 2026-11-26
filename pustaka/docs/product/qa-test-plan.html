@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  six hundred and ninety cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred and ninety-two cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All six hundred and ninety cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred and ninety-two cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -779,6 +779,8 @@
       <tr data-tags="rebuild-restart preflight auto-fix write token admin list files missing refuse link negative d-091 implemented"><td>TC-688</td><td>rebuild-restart.sh</td><td>Negative</td><td>A prod tag deploy refuses, with a <code>bad</code> line, when <code>prod.pr-github-write-token</code> or <code>prod.pr-autofix-admins</code> is missing, as it does for the four older <code>prod.pr-*</code> files.</td><td>Implemented</td></tr>
       <tr data-tags="go test answer sheet disabled send answer hint timeout recovery inbox negative positive implemented"><td>TC-689</td><td>go test</td><td>Positive</td><td>The QA tool's answer sheet gives its request a time limit and says, in every state in which Send answer is off, why and what to do: pick an answer, write option 4, wait, or try again</td><td>Implemented</td></tr>
       <tr data-tags="go test static assets cache version semver negative implemented"><td>TC-690</td><td>go test</td><td>Negative</td><td>The ?v= on app.css, app.js and live.js equals the product's version, so a release reaches browsers that cached the old files for a week</td><td>Implemented</td></tr>
+      <tr data-tags="go test auto-fix dispatch refusal log ready card once per reason d-091 positive implemented"><td>TC-691</td><td>go test</td><td>Positive</td><td>A ready defect card that auto-fix does not dispatch is logged with the gate's own sentence, once per card and reason</td><td>Implemented</td></tr>
+      <tr data-tags="go test defect triage context files source tests documents order d-091 positive implemented"><td>TC-692</td><td>go test</td><td>Positive</td><td>The triager's source slice orders hand-written Go source before tests, and both before generated files, request samples and documents</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4252,6 +4254,8 @@
   <p><strong>TC-688, negative</strong> (<code>deploy/rebuild-restart.sh</code>): <code>ok   the pull-request flow's credential files exist</code> when all six files are regular files; negative: <code>FAIL deploy/stacks/prod.pr-github-write-token is missing (or is not a regular file)</code> (or the same for <code>prod.pr-autofix-admins</code>, or any of the four older files), followed by the <code>create it, mode 600 (empty is fine: that part stays off)</code> hint, and the deploy exits 1.</p>
   <p><strong>TC-689, positive</strong> (<code>TestTheAnswerSheetExplainsADisabledSend</code>): the sheet carries <code>hx-request='{"timeout":20000}'</code> and, before any pick, the hint <code>Send answer stays off until you pick one of the answers above.</code>; it never says <code>the recommendation</code> for the QA tool, which recommends nothing (<code>the QA sheet lacks %q</code>, <code>the QA tool recommends nothing; its sheet must not say it sends the recommendation</code>). <code>static/app.js</code> must keep the sending text, the option-4 text, the <code>htmx:timeout</code> and <code>htmx:sendError</code> handlers and <code>The server did not answer</code> (<code>app.js lacks %q: a disabled Send answer would not say why or how to recover</code>). Found live: a request that never completed left the button off for good under a hint that still said <code>Sends option 2.</code>.</p>
   <p><strong>TC-690, negative</strong> (<code>TestStaticAssetsAreVersionedByTheProductVersion</code>): <code>toc.js declares no semver</code>; <code>page.html versions %d of app.css, app.js and live.js; want 3</code>; <code>a static file is versioned ?v=%s but the product is %s; bump it with the release</code>. The static files are cached for a week; the version had stayed at 0.36.2 for sixteen releases.</p>
+  <p><strong>TC-691, positive</strong> (<code>TestAutoFixLogsWhyAReadyCardIsNotDispatched</code>): <code>autofix: card-1 is ready but not dispatched: &hellip;</code> is logged once for a repeated reason and again for a new one (<code>logged %d lines for one repeated and one new reason, want 2: %q</code>) and carries the gate's sentence (<code>the gate's own sentence is missing: %q</code>). Found live: a ready card waited twenty minutes with no trace.</p>
+  <p><strong>TC-692, positive</strong> (<code>TestContextClassPutsSourceBeforeSamplesAndDocuments</code>): <code>contextClass(%q) = %d, want %d</code>: hand-written <code>.go</code> source is 0, <code>_test.go</code> 1, and generated files, <code>.http</code> samples, legacy resources and documents 2. Found live: samples and a markdown page ranked ahead of the resolver and spent the six-file budget.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
