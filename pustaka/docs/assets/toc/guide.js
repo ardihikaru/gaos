@@ -78,7 +78,7 @@ window.DOCS.nav.push({
           ]
         }
       ]
-    }
+    },
     {
       id: "qa-sync-api", file: "guide/qa-sync-api.html", title: "The QA sync API",
       desc: "The public contract for the QA tools: the bearer-token REST API GAOS serves, the inbox a client asks and answers through, the two endpoints GAOS calls, and which side owns which field of a test case.",

@@ -220,7 +220,7 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
   <div class="codeblock">
     <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
     <pre>ss -ltnp | grep -E ':(18301|19301)'
-curl -sS --connect-timeout 3 http://LAN_IP:19301/    <span class="c"># must be REFUSED</span></pre>
+curl -sS --connect-timeout 3 "http://$LAN_IP:19301/"    <span class="c"># LAN_IP = the VM's LAN address; must be REFUSED</span></pre>
   </div>
 
   <p><strong>Through the tunnel, from the edge</strong> — the real test:</p>

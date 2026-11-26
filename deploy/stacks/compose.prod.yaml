@@ -1,6 +1,6 @@
 # GAOS PRODUCTION, behind the WireGuard tunnel.  Product slot 03 -> port 18301.
 #
-#   browser --HTTPS--> clino (EDGE_IP, nginx terminates TLS)
+#   browser --HTTPS--> clino (the public edge, nginx terminates TLS)
 #          --plain HTTP over WireGuard--> 10.10.0.2:18301 --> this Traefik
 #
 #   https://gaos.mfardiansyah.id/       the landing page (site root)
@@ -219,4 +219,9 @@ services:
     # env_file, not ${...} interpolation: no flag to forget, and a missing file
     # is a hard error rather than a silently empty password.
     env_file: [./prod.docs.env]
+    # The docs are public (D-094). They share this VM with every product, so a
+    # flood that gets past the edge's rate limit is bounded here: the docs can
+    # use half a CPU and 256 MiB, never the whole machine. Idle it uses ~6 MiB.
+    mem_limit: 256m
+    cpus: 0.5
     networks: [internal]
