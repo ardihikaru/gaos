@@ -219,7 +219,7 @@ services:
     # env_file, not ${...} interpolation: no flag to forget, and a missing file
     # is a hard error rather than a silently empty password.
     env_file: [./prod.docs.env]
-    # The docs are public (D-094). They share this VM with every product, so a
+    # The docs are public (D-096). They share this VM with every product, so a
     # flood that gets past the edge's rate limit is bounded here: the docs can
     # use half a CPU and 256 MiB, never the whole machine. Idle it uses ~6 MiB.
     mem_limit: 256m

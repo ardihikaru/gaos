@@ -103,7 +103,7 @@ services:
       dockerfile: ../deploy/Dockerfile.pustaka
     restart: unless-stopped
     env_file: [./dev.docs.env]
-    # Same bounds as prod (D-094): dev is retired, but if it ever runs it is
+    # Same bounds as prod (D-096): dev is retired, but if it ever runs it is
     # public through the edge and shares the VM with every product.
     mem_limit: 256m
     cpus: 0.5

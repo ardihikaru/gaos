@@ -149,7 +149,7 @@ func (s *server) boSource(r *http.Request) AnswerSource {
 // with the chrome riding along so the toast and the badge move together.
 func (s *server) renderInbox(w http.ResponseWriter, r *http.Request, res Result, productID string) {
 	v := s.applyResult(r, res)
-	v.BO = s.buildBO(r, "inbox", productID, "")
+	s.sheet(w, r, v, "inbox", productID, "")
 	s.rend.RenderWithChrome(w, "bo-main-oob", v)
 }
 

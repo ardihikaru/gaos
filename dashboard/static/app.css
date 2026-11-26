@@ -771,7 +771,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 }
 .bo-crumb b{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .bo-crumb-up{
-  flex:0 0 auto;padding:0;font-weight:500;color:var(--ink-3);
+  flex:0 0 auto;padding:0;font-weight:500;color:var(--ink-3);text-decoration:none;cursor:pointer;
   transition:color 150ms ease;
 }
 .bo-crumb-sep{flex:0 0 auto;color:var(--line);font-weight:400}
@@ -786,24 +786,26 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .bo-menu[data-more="end"]{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 36px),transparent)}
 .bo-menu[data-more="start"]{-webkit-mask-image:linear-gradient(90deg,transparent,#000 36px);mask-image:linear-gradient(90deg,transparent,#000 36px)}
 .bo-menu[data-more="both"]{-webkit-mask-image:linear-gradient(90deg,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
-.bo-menu button{
-  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+/* D-094: the items are links -- a page in href, a fragment in hx-get -- so a
+   new tab and a copied link work. They keep the button's look. */
+.bo-menu a{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;text-decoration:none;cursor:pointer;
   padding:0 11px;font-size:13px;color:var(--ink-3);white-space:nowrap;
   transition:color 150ms ease;
 }
 /* inside a scroller, an outset ring is clipped: draw it inside */
-.bo-menu button:focus-visible{outline-offset:-4px;border-radius:var(--r-s)}
-.bo-menu button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--brass)}
-.bo-menu button:active{color:var(--ink)}
+.bo-menu a:focus-visible{outline-offset:-4px;border-radius:var(--r-s)}
+.bo-menu a[aria-current="page"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--brass)}
+.bo-menu a:active{color:var(--ink)}
 .bo-menu .n{
   font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3);
   font-variant-numeric:tabular-nums;
 }
-.bo-menu button[aria-current="page"] .n{color:var(--ink-2)}
+.bo-menu a[aria-current="page"] .n{color:var(--ink-2)}
 .bo-menu .nav-needs.on .n{color:var(--ask);font-weight:600}
 @media (hover:hover) and (pointer:fine){
-  .bo-menu button:hover{color:var(--ink-2)}
-  .bo-menu button[aria-current="page"]:hover{color:var(--ink)}
+  .bo-menu a:hover{color:var(--ink-2)}
+  .bo-menu a[aria-current="page"]:hover{color:var(--ink)}
   .bo-crumb-up:hover{color:var(--ink)}
 }
 
@@ -820,6 +822,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);
   padding:13px;text-align:left;width:100%;transition:border-color .15s,background .15s;
 }
+a.mcard{display:block;color:inherit;text-decoration:none;cursor:pointer}
 .mcard:hover{border-color:var(--brass-soft);background:var(--panel-2)}
 .mcard-top{display:flex;align-items:center;gap:9px}
 .mcode{
@@ -1231,6 +1234,117 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .needs-badge:active{transform:scale(.97)}
 @media (hover:hover) and (pointer:fine){ .needs-badge:hover{background:var(--panel-3)} }
 .sfb-card .needs-badge{margin:8px 0 0 10px}
+
+/* ============================================================
+   THE BOARD (D-095) — a page of cards, thirty to a column until
+   asked for more; a filter bar; a table; a refresh that replaces
+   only the columns that changed. Seen all day and refreshed by
+   every agent turn, so NOTHING HERE MOVES: a column is replaced
+   in place, and a card that just arrived says so with one bar
+   that fades (opacity only).
+   ============================================================ */
+:root{--board-col:300px;--fresh:#7BA6DC}
+[data-theme="light"]{--fresh:#2C63A6}
+
+/* the Board tab takes the whole width: no side panel, no 1400px cap */
+.bo-main[data-tab="board"]{max-width:none}
+.panel-grid.is-wide{grid-template-columns:minmax(0,1fr)}
+
+.board-lede{margin:0 0 8px;font-size:13px;color:var(--ink-3)}
+.board-none{margin:0 0 10px;font-size:13px;color:var(--ink-3)}
+.board-status{margin:0 0 6px;font-size:11px;color:var(--ink-3)}
+.board-status:empty{display:none}
+
+/* the bar: board|table, then the filters */
+.board-bar{align-items:flex-start;margin:4px 0 8px}
+.board-views{display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.board-form{flex:1 1 320px;justify-content:flex-end}
+.board-search{
+  width:240px;max-width:100%;height:30px;padding:0 10px;font:inherit;font-size:12.5px;color:var(--ink);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-s);
+}
+.board-search:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+.board-search::placeholder{color:var(--ink-3)}
+.board-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);white-space:nowrap;cursor:pointer}
+.board-check input{accent-color:var(--brass)}
+
+/* the count line; its per-column list is the client board's "show more" */
+.board-count{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:0 0 10px;font-size:12px;color:var(--ink-3)}
+.board-count-n{color:var(--ink-2)}
+.board-nomatch{color:var(--ink-2)}
+.board-count-cols{display:none;flex-wrap:wrap;gap:4px 14px}
+.sisflow-on .board-count-cols{display:flex}
+.board-count-col{white-space:nowrap}
+.board-count-col b{font-weight:500;color:var(--ink-2)}
+
+/* the server board: nine columns that scroll sideways, each scrolling inside */
+.board-ssr{
+  display:grid;grid-auto-flow:column;grid-auto-columns:var(--board-col);gap:10px;overflow-x:auto;
+  height:calc(100vh - 300px);height:calc(100dvh - 300px);min-height:420px;padding-bottom:4px;
+}
+.board-col{
+  display:flex;flex-direction:column;min-height:0;max-height:100%;
+  border:1px solid var(--line);border-radius:6px;background:var(--panel);
+}
+.board-col[hidden]{display:none}
+.board-col-label{
+  flex:0 0 auto;display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  padding:8px 10px 6px;font-size:11px;border-bottom:1px solid var(--line-soft);
+}
+.board-col-n{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.board-col-cards{flex:1 1 auto;min-height:48px;overflow-y:auto;padding:8px 8px 2px;overscroll-behavior:contain}
+.board-card{
+  position:relative;border:1px solid var(--line);border-radius:4px;padding:8px;margin-bottom:8px;background:var(--panel);
+  overflow-wrap:anywhere;
+}
+.board-card-title{font-size:12.5px;line-height:1.4;color:var(--ink)}
+.board-card-meta{margin-top:2px;font-size:10px;color:var(--ink-3)}
+.board-card .card-labels{margin-top:2px;font-size:10px;color:var(--ink-3)}
+.board-move{margin:4px 4px 0 0;font-size:10px;padding:2px 6px}
+.board-more{font-size:11px;padding:3px 9px}
+.board-col>.board-more{flex:0 0 auto;margin:6px 8px 8px}
+.board-capped{flex:0 0 auto;margin:6px 10px 8px;font-size:11px;color:var(--ink-3)}
+.sisflow-board-host .sfb-column{width:var(--board-col)}
+.sfb-card .card-label{margin-left:6px;font-size:10px;font-weight:400}
+/* The client board's own search filters only the cards it has loaded, which
+   would disagree with the count above it; the bar's search is the search. And
+   with the lanes gone its one lane needs no header. */
+.sisflow-board-host .sfb-search,.sisflow-board-host .sfb-search-shell,
+.sisflow-board-host .sfb-row-header,.sisflow-board-host .sfb-lane-header{display:none}
+
+/* a card that just arrived: one bar, there at once, gone by fading */
+.board-card.is-fresh::after,.sfb-card.is-fresh::after{
+  content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:3px;border-radius:3px 0 0 3px;
+  background:var(--fresh);opacity:1;transition:opacity 150ms var(--ease-out);pointer-events:none;
+}
+.sfb-card.is-fresh{position:relative}
+.board-card.is-fresh.is-fading::after,.sfb-card.is-fresh.is-fading::after{opacity:0}
+@media (prefers-reduced-motion:reduce){
+  .board-card.is-fresh::after,.sfb-card.is-fresh::after{transition:none}
+}
+
+/* the table */
+.board-table .af-table th a{color:inherit;text-decoration:none}
+.board-table .af-table th[aria-sort="ascending"] a::after{content:" ↑";color:var(--brass)}
+.board-table .af-table th[aria-sort="descending"] a::after{content:" ↓";color:var(--brass)}
+.board-table .af-table th a:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:2px}
+.board-row.is-needs-you td:first-child{box-shadow:inset 3px 0 0 var(--ask)}
+.board-row-title{color:var(--ink)}
+.board-row .card-labels{margin-left:6px;font-size:10px;color:var(--ink-3)}
+.board-row .needs-badge{margin:0}
+.board-row-moves{white-space:nowrap}
+.board-row-moves .btn{margin:0 4px 0 0}
+.board-norows{padding:22px 4px;color:var(--ink-2);white-space:normal}
+.board-rows-foot{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:11.5px;color:var(--ink-3)}
+@media (hover:hover) and (pointer:fine){
+  .board-table .af-table th a:hover{color:var(--ink)}
+}
+@media (max-width:900px){
+  .board-ssr{height:auto;max-height:none;min-height:0}
+  .board-col{max-height:70vh}
+  .board-form{justify-content:flex-start}
+  .board-search{width:100%}
+}
 
 /* ============================================================
    AI VENDORS (M16) — a product's vendor policy. Seen a few times

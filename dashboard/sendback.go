@@ -366,16 +366,19 @@ func linesChanged(prev, next string) (changed, total int) {
 	return changed, total
 }
 
-// decorateBoardGate is the gate's read-time decoration of the board (D-084):
+// decorateCardsGate is the gate's read-time decoration of the board (D-084):
 // the reason a BLOCKED card is held, the send-back state of a design-blocked
 // review, and the removal of the moves the board would refuse -- unblocking
 // that review, and approving a design or review task. Read-time, like the
 // timing, so the fold's board (TC-308) is compared without it. Caller holds the
 // lock.
-func (s *MemStore) decorateBoardGate(b *Board) {
-	for i := range b.Cards {
-		c := &b.Cards[i]
-		t := s.taskByIDLocked(c.ID)
+//
+// byID is the product's tasks by id: a lookup per card, where this used to scan
+// every task for every card (D-095).
+func (s *MemStore) decorateCardsGate(cards []BoardCard, byID map[string]*TaskRecord) {
+	for i := range cards {
+		c := &cards[i]
+		t := byID[c.ID]
 		if t == nil {
 			continue
 		}

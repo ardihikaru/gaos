@@ -60,6 +60,9 @@ type View struct {
 
 	BO *BOView
 	CW *CWView
+	// BoardLive is set when a mutation made on the Board is answered with the
+	// Board's changed columns instead of the whole sheet (D-095).
+	BoardLive *BoardView
 
 	// Needs is how many agents are waiting on the operator (M15): the topbar
 	// chip and the back-office nav count. Zero when signed out -- the number is
@@ -93,6 +96,7 @@ type BOCounts struct {
 
 type ProductCard struct {
 	ID       string
+	Slug     string
 	Code     string
 	Name     string
 	Repo     string
@@ -105,12 +109,17 @@ type ProductCard struct {
 }
 
 type ProductDetail struct {
-	// Board is set for the board tab only (M14.6).
-	Board *Board
+	// BoardView is set for the board tab only: one page of the board, and
+	// its filter bar (D-095, board_view.go).
+	BoardView *BoardView
+	// TimelineN is how many events the product has: the Timeline tab's
+	// number, on every tab, without loading the events (D-095).
+	TimelineN int
 	// Timeline is the product's events, newest first (T-168). Counted on
 	// every tab for the tab label; the list is rendered on its own tab only.
 	Timeline   []Event
 	ID         string
+	Slug       string // the product's name in a URL (D-094)
 	Name       string
 	Goal       string
 	Owner      string
@@ -158,6 +167,13 @@ type RollupGroup struct {
 }
 
 type BOView struct {
+	// Href is the canonical address of what this view shows, relative to the
+	// page's base and without a leading slash ("" is the product list,
+	// "p/route-planner/board", "prs?state=merged"); "-" when the view has none.
+	// PageTitle is the document title. Both are set by buildBO (urls.go, D-094).
+	Href      string
+	PageTitle string
+
 	View    string // products | stories | diagrams | knowledge | agents | inbox
 	Counts  BOCounts
 	List    []ProductCard

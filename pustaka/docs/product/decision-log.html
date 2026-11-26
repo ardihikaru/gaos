@@ -15,7 +15,7 @@
   <p class="eyebrow">Product</p>
   <h1>Decision log</h1>
   <p class="lede">Every business and design decision GAOS has actually made, with the evidence that
-  proves it was made. Ninety-three entries, each traceable to an artifact section, a committed file, a
+  proves it was made. Ninety-five entries, each traceable to an artifact section, a committed file, a
   product-owner ruling, a measurement, or git history — and a destination for every question the open
   register resolves.</p>
 
@@ -2018,6 +2018,61 @@
       </tr>
       <tr id="d-094">
         <td>D-094</td><td>2026-11-26</td>
+        <td><strong>Every back-office view and every product section has its own URL, and a product is named in it by a stored slug.</strong>
+        Context: every click in the back office was an htmx request into a hidden sink, so the address stayed on the
+        mount point whatever was on screen: no link to a product's Board could be copied, Back left the dashboard, and a
+        reload returned to the product list. Decision: (1) Eleven page routes &mdash; nine global views,
+        <code>/p/&lt;slug&gt;/&lt;section&gt;</code> and <code>/p/&lt;ref&gt;</code> &mdash; return the whole document for
+        one view; the fragment routes are unchanged and still return fragments only, so no URL answers in two shapes.
+        (2) The server tells the browser the address: one function, <code>sheet</code>, is the only door to the sheet and
+        sets <code>HX-Push-Url</code> for a navigation and <code>HX-Replace-Url</code> for a changed filter; a mutation and
+        a background refresh never rewrite an address. (3) Back and Forward load the URL from the server; htmx's history
+        cache is off, so no back-office HTML is kept in the browser's storage. (4) A product's <strong>slug</strong> is its
+        name in lower case, assigned once and stored on the product; the id form of a URL redirects to it. The operator
+        chose the name over the id and over id-with-name, and <strong>accepts what follows</strong>: the product's name
+        is now in addresses, and therefore in the edge's access log (as a request line and as a <code>Referer</code>), in
+        the browser's history and in the tab title, together with the filters of the Pull requests, Auto-fix and Inbox
+        views that the fragment routes' request lines already carried. Every non-bearer response now sends
+        <code>Referrer-Policy: same-origin</code>. (5) <strong>BR-55 stands:</strong> a page route is a back-office route
+        and is refused with <code>401</code> signed out; only the body of that refusal changes, for a browser, from JSON to
+        the sign-in page, built by the gate before any handler runs, so it is the same for a product that exists and one
+        that does not. Signing in on a deep URL reloads that URL. (6) <strong>BR-02 position:</strong> giving a slug to a
+        product that predates slugs is a state change and emits the existing <code>RecordUpdated</code>; no event type is
+        added. Accepted limits: a slug does not move while its product exists, but it is not reserved after a product is
+        removed from the database by hand; nothing renames a product, so no old slug redirects.</td>
+        <td><a href="qa-test-plan.html#go-urls">TC-723&hellip;TC-734</a>;
+        <code>docs/designs/urls-and-board.md</code></td>
+      </tr>
+      <tr id="d-095">
+        <td>D-095</td><td>2026-11-26</td>
+        <td><strong>The Board shows a page of a product's cards, filters and sorts on the server, and a live change replaces only the columns that changed.</strong>
+        Context: the Board rendered every task of a product &mdash; the Done column never empties &mdash; in 140px columns
+        beside a side panel, and every live hint rebuilt and replaced the whole sheet. Measured at 2,000 cards, one refresh
+        took 109 ms, allocated 94 MB and sent 1.83 MB; two of the board's decorators were quadratic. Decision: (1) A new
+        read, <code>BoardPage</code>, returns the cards that match a filter, <strong>thirty to a column</strong> until the
+        operator asks for more (thirty at a time, three hundred at most), and decorates only the cards it returns; Done and
+        Canceled open on what changed last. (2) The <strong>view</strong> &mdash; role, story, label, workflow, "waiting on a
+        person", board or table, the sort &mdash; is part of the address; the <strong>window</strong> (how deep each column
+        is open) is not. (3) The <strong>search text never travels in a URL</strong>: the search box has no name, and the
+        text goes in a request header, because the edge logs request lines. (4) The Board's own route answers with the
+        columns whose content differs from what the browser holds, told by a hash of what each column prints that leaves
+        out a running card's clock. The operator chose this over re-sending all nine columns on every hint. A move is
+        answered the same way; a mutation that changes more than columns still answers with the sheet, in the same view.
+        (5) A card that arrives in a column on a live refresh is <strong>marked for a moment</strong> &mdash; the
+        operator's "smoother" &mdash; and nothing on the board moves. (6) Both boards stay: the client board (sisflow)
+        loads the same page as JSON and reloads it into the same board instead of rebuilding it; its own paging and
+        search are off, and the server board is its fallback. (7) Columns are 300px and the Board tab takes the whole
+        width. Two things leave the Board tab: the record's side panel, which stays on every other tab, and the client
+        board's story lanes; the story is a chip on the card, a filter and a table column. (8) A table view, sorted and
+        paged by the server. (9) No product tab but the Timeline's loads the event stream any more, and a diagram is drawn
+        for its own tab only. Measured after, at 2,000 cards: opening the Board 12 ms, 7 MB and 247 KB; a live refresh
+        after a move 5 ms, 5 MB and 46 KB. Accepted limits: a column shows at most 300 cards and the table at most 1,000
+        rows; beyond that the page says so and points at the filters.</td>
+        <td><a href="qa-test-plan.html#go-board-page">TC-735&hellip;TC-750</a>;
+        <code>docs/designs/urls-and-board.md</code></td>
+      </tr>
+      <tr id="d-096">
+        <td>D-096</td><td>2026-11-26</td>
         <td><strong>The repository is public, and its history will be rewritten to remove one operator&rsquo;s instance material and the infrastructure details. <a href="open-questions.html#oq-36">OQ-36</a> is decided.</strong>
         Context: the repository has been public since it was created (2026-08-02), not private as OQ-36 stated, so every
         commit before v0.45.0 &mdash; including a seed that held a customer&rsquo;s real test catalog &mdash; has been publicly
@@ -2027,12 +2082,12 @@
         directory stripped by id; all branches and tags force-pushed; every checkout and prod worktree moved. (2) The
         WireGuard port is rotated instead of rewritten &mdash; a short number cannot be replaced safely in every blob.
         (3) The tree is guarded: no routable IPv4 in any tracked or new file, and ToC parts must parse
-        (<a href="qa-test-plan.html#cw-public-ipv4">TC-722</a>); the user, the port and the LAN addresses join the private
+        (<a href="qa-test-plan.html#cw-public-ipv4">TC-751</a>); the user, the port and the LAN addresses join the private
         list. (4) The repository stays public during the rewrite (the operator&rsquo;s decision), and the operator is
         notifying the catalog&rsquo;s owner. Residual: old objects stay fetchable by id until GitHub collects them; anyone
         who cloned before the rewrite keeps the old history; the infrastructure pages still describe the topology by role.
         Outcome: <em>pending &mdash; filled in after the rewrite is verified on a fresh clone.</em></td>
-        <td><a href="qa-test-plan.html#cw-public-ipv4">TC-722</a>, <a href="qa-test-plan.html#pk-comma">TC-723</a>;
+        <td><a href="qa-test-plan.html#cw-public-ipv4">TC-751</a>, <a href="qa-test-plan.html#pk-comma">TC-752</a>;
         <code>docs/designs/public-repo-hardening.md</code></td>
       </tr>
     </tbody>

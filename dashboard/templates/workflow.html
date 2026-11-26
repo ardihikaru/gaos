@@ -119,7 +119,7 @@
 {{end}}
 
 {{/* The modal closes itself by being replaced with its own empty shell. */}}
-{{define "cw-closed"}}
+{{define "cw-closed"}}{{template "bo-title" .}}
 <div class="modal-back" id="cwModal" hidden hx-swap-oob="true"></div>
 {{template "bo-sheet" .}}
 {{end}}

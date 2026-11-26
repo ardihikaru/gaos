@@ -399,10 +399,17 @@
   // The sisflow board (T-165): mounted over the server-rendered one whenever
   // a Board tab arrives, loaded only then. A browser without ES modules, or a
   // failed load, keeps the server board, which works on its own.
+  // The import carries this script's own ?v=, because static files are cached
+  // for a week and a module import has no cache-buster of its own: without it
+  // a browser keeps a board.js it fetched before a fix.
+  var ASSET_V = (function () {
+    var m = /[?&]v=([^&]+)/.exec((document.currentScript && document.currentScript.src) || "");
+    return m ? "?v=" + m[1] : "";
+  })();
   function mountBoard(root) {
     var host = (root || document).querySelector && (root || document).querySelector("#board-host");
     if (!host) return;
-    import(new URL("static/board.js", document.baseURI).href)
+    import(new URL("static/board.js" + ASSET_V, document.baseURI).href)
       .then(function (m) { m.mount(host); })
       .catch(function () { /* the server board stays */ });
   }
@@ -430,6 +437,24 @@
     if (e.target.classList && e.target.classList.contains("bo-menu")) syncMenuFade(e.target);
   }, true);
   window.addEventListener("resize", syncMenu);
+
+  /* ---------- links that are also htmx requests (D-094) ----------
+     Navigation is <a href="page" hx-get="fragment">: a plain click swaps the
+     fragment in, and the href is there for a new tab, a new window and "copy
+     link". htmx cancels the default action of every click on such a link, with
+     or without a modifier, and it does so before it looks at any trigger
+     filter. So a modified click is stopped here, in the capture phase, before
+     it reaches htmx's listener on the link: the browser then does what it
+     does for any link. */
+  document.addEventListener("click", function (e) {
+    if (!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0)) return;
+    if (e.target.closest && e.target.closest("a[href][hx-get]")) e.stopPropagation();
+  }, true);
+  // A middle click is "auxclick" in every current browser; htmx does not
+  // listen for it, and it is stopped all the same in case a build does.
+  document.addEventListener("auxclick", function (e) {
+    if (e.target.closest && e.target.closest("a[href][hx-get]")) e.stopPropagation();
+  }, true);
 
   document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); syncMenu(); });
   document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); if (e.target.id === "boSheet") syncMenu(); });
