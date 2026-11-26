@@ -186,3 +186,85 @@ func TestPRViewEscapesGitHubText(t *testing.T) {
 		t.Error("the hostile title is neither escaped nor the secret withheld")
 	}
 }
+
+// ---- the drawer's retarget block (design §6.1) ----
+
+func TestTheDrawerExplainsEachDisabledRetarget(t *testing.T) {
+	autoFixAdminsFile(t, 0o600, testEmail)
+	open := func(f *rtFixture) string {
+		return prGet(t, f.afFixture, "/ui/bo/prs?open=fix:"+f.pr1)
+	}
+	hint := func(body string) string {
+		i := strings.Index(body, `id="prsRtHint"`)
+		if i < 0 {
+			return ""
+		}
+		j := strings.Index(body[i:], "</p>")
+		return body[i : i+j]
+	}
+	for _, c := range []struct {
+		name   string
+		mod    func(*rtFixture)
+		says   string
+		off    bool
+		nobase bool
+	}{
+		{"every condition holds", nil, "GAOS asks the AI to redo this fix on the new base", false, false},
+		{"not an admin", func(f *rtFixture) { autoFixAdminsFile(t, 0o600, "someone-else@example.test") }, "Only accounts on the auto-fix admin list", true, false},
+		{"a head GAOS did not create", func(f *rtFixture) { f.setFix(func(x *FixPR) { x.Branch = "feature/x" }) }, "only changes the base of pull requests it opened", true, false},
+		{"closed", func(f *rtFixture) { f.setFix(func(x *FixPR) { x.State = FixPRClosed }) }, "This pull request is closed", true, false},
+		{"base not known", func(f *rtFixture) { f.setFix(func(x *FixPR) { x.Base = "" }) }, "not known yet", true, false},
+		{"already retargeted", func(f *rtFixture) { f.setFix(func(x *FixPR) { x.RetargetedTo = "fx-next" }) }, "already retargeted", true, false},
+		{"a task is working", func(f *rtFixture) { f.setFixCard(StatusRunning) }, "A task is already working on this defect", true, false},
+		{"three retargets", func(f *rtFixture) {
+			f.s.mu.Lock()
+			for i := 1; i <= retargetMaxChain; i++ {
+				id := "fp-old-" + string(rune('0'+i))
+				f.s.fixPRs[id] = FixPR{ID: id, ProductID: f.pid, DefectKey: f.pid + "/DEF-101", RetargetedFrom: "x", State: FixPRClosed}
+			}
+			f.s.mu.Unlock()
+		}, "retargeted three times", true, false},
+		{"no other allowed base", func(f *rtFixture) { f.setMaster(func(m *Master) { m.AutoFix.AllowedBases = []string{"develop"} }) }, "No other base branch is allowed", true, true},
+	} {
+		f := newRetargetFixture(t)
+		if c.mod != nil {
+			c.mod(f)
+		}
+		body := open(f)
+		h := hint(body)
+		if !strings.Contains(h, c.says) {
+			t.Errorf("%s: the hint is %q; want it to say %q", c.name, h, c.says)
+		}
+		btn := body[strings.Index(body, `<button type="submit" class="btn btn-primary" aria-describedby="prsRtHint"`):]
+		btn = btn[:strings.Index(btn, ">")]
+		if got := strings.Contains(btn, " disabled"); got != c.off {
+			t.Errorf("%s: the button disabled = %v, want %v", c.name, got, c.off)
+		}
+		if c.off && !strings.Contains(body, `aria-describedby="prsRtHint"`) {
+			t.Errorf("%s: the disabled control is not tied to its hint", c.name)
+		}
+		if !strings.Contains(body, `hx-request='{"timeout":20000}'`) {
+			t.Errorf("%s: the form has no time limit", c.name)
+		}
+		if !c.off && !strings.Contains(body, `<option value="staging">`) {
+			t.Errorf("%s: the allowed base is not offered", c.name)
+		}
+		if c.name != "base not known" && strings.Contains(body, `<option value="develop">`) {
+			t.Errorf("%s: the current base is offered", c.name)
+		}
+		if len(f.br.calls) != 0 {
+			t.Errorf("%s: opening the drawer made %d GitHub call(s)", c.name, len(f.br.calls))
+		}
+	}
+	// A review row has no retarget block at all.
+	f := newRetargetFixture(t)
+	f.s.mu.Lock()
+	f.s.masterPtr(f.pid).Repos = append(f.s.masterPtr(f.pid).Repos, "loop/laundry-api")
+	f.s.mu.Unlock()
+	if _, err := f.s.UpsertPullRequest(context.Background(), PullRequest{ProductID: f.pid, Repo: "loop/laundry-api", Number: 31, Kind: PRKindReview, OpenedAt: time.Now().Unix()}); err != nil {
+		t.Fatal(err)
+	}
+	if body := prGet(t, f.afFixture, "/ui/bo/prs?open=pr:"+pullRequestKey(f.pid, "loop/laundry-api", 31)); strings.Contains(body, "Change the base branch") {
+		t.Error("a review pull request offers a retarget")
+	}
+}
