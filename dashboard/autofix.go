@@ -193,7 +193,27 @@ func (s *MemStore) AutoDispatch(ctx context.Context, productID, taskID string) (
 // AutoDispatch is persisted like an operator's move: the TaskMoved and the
 // stamped task are written in one transaction.
 func (s *ArcadeStore) AutoDispatch(ctx context.Context, productID, taskID string) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.AutoDispatch(ctx, productID, taskID) })
+	return s.dispatchPersisted(ctx, func() (Result, error) { return s.proj.AutoDispatch(ctx, productID, taskID) })
+}
+
+// dispatchPersisted runs a dispatch WITHOUT the store's write lock and then writes its result.
+//
+// A dispatch runs the egress pass, and a refusal there records itself through the projection's
+// write hook, which takes the write lock (persistBackground). Under mutate that is the same lock
+// held by the caller: the first refused dispatch froze every later mutation, an operator's board
+// move included (found live, 2026-11-26: a goroutine dump showed mutate -> dispatch ->
+// refuseDispatch -> persistBackground waiting on itself, and an answer sent to the inbox hung
+// with it). The projection applies the move under its own lock; the lock taken here only orders
+// the write, like the runner's own background writes.
+func (s *ArcadeStore) dispatchPersisted(ctx context.Context, apply func() (Result, error)) (Result, error) {
+	r, err := apply()
+	if err != nil {
+		return Result{}, err
+	}
+	if err := s.persistBackground(ctx, r); err != nil {
+		return Result{}, err
+	}
+	return r, nil
 }
 
 func (readOnly) AutoDispatch(context.Context, string, string) (Result, error) {

@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-4">v0.52.4 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A deadlock that froze every write after one refused dispatch.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> A dispatch the egress pass refused, by the auto-fix loop or by an operator moving a card to Working, recorded the refusal through a hook that takes the ArcadeDB store's write lock, which the dispatch already held. The store then waited on itself: every later mutation hung, an answer sent from Needs you included, until the process was restarted. The dispatch now runs without the lock and only its write takes it. Found in a goroutine dump on the live deployment; both paths have a test.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-3">v0.52.3 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Two things the first live defect run showed.</p>
       <ul>
