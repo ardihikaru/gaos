@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  six hundred and ninety-six cases, positive and negative, across the four deploy automations, the product seed script and the
+  six hundred and ninety-seven cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All six hundred and ninety-six cases in one filterable table. Filter by automation, kind, or any
+  <p>All six hundred and ninety-seven cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -785,6 +785,7 @@
       <tr data-tags="go test arcade store deadlock egress refusal board move operator lock negative implemented"><td>TC-694</td><td>go test</td><td>Negative</td><td>An operator's board move to Working that the egress pass refuses returns, and a later mutation still completes</td><td>Implemented</td></tr>
       <tr data-tags="go test defect triage context egress secret jwt file left out d-091 negative implemented"><td>TC-695</td><td>go test</td><td>Negative</td><td>A fetched source file that holds a secret-shaped string is left out of the triager's slice, so the egress pass does not refuse the whole triage over it</td><td>Implemented</td></tr>
       <tr data-tags="go test defect triage context files operation order d-091 positive implemented"><td>TC-696</td><td>go test</td><td>Positive</td><td>The triager's source slice orders files by the operation that found them, the defect's own (first) operation first, then by search position</td><td>Implemented</td></tr>
+      <tr data-tags="go test defect triage context files implementation budget d-091 positive implemented"><td>TC-697</td><td>go test</td><td>Positive</td><td>When files compete for the slice's byte budget, the one that implements an operation (a func named for it) is kept over one that only mentions it</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4264,6 +4265,7 @@
   <p><strong>TC-694, negative</strong> (<code>TestARefusedBoardMoveDoesNotFreezeTheArcadeStore</code>): <code>a refused board move did not return: the store is deadlocked on its own write lock</code>; <code>the refused move gave %v</code>; <code>a mutation after the refused move gave %v</code>. The operator's move to Working took the same path.</p>
   <p><strong>TC-695, negative</strong> (<code>TestDefectContextLeavesOutAFileTheEgressPassWouldRefuse</code>): <code>files = %+v; want only validate.go, the fixture holding a token left out</code>; <code>a token reached the slice of %s</code>. Found live: a JWT in an unrelated source file made the egress pass refuse DEF-922's whole triage dispatch.</p>
   <p><strong>TC-696, positive</strong> (<code>TestDefectContextOrdersFilesByTheOperationThatFoundThem</code>): <code>files = %v; want the first operation's hits in search order, then the second's</code>. Found live: files were ordered by search position then alphabetically, and the resolver of the defect's own operation lost its place to files found for a later one.</p>
+  <p><strong>TC-697, positive</strong> (<code>TestDefectContextPrefersTheFileThatImplementsTheOperation</code>): <code>the test files fit together (%d bytes); they must compete</code>; <code>files = %v; want the implementing resolver, which only fits instead of the interface</code>. Found live: the 44 KB resolver of <code>editMedicationDispense</code> lost the 64 KiB budget to a 33 KB interface file and a storage file, so the triager answered medium.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
