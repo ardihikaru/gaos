@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-52-7">v0.52.7 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The triager gets the code that implements the operation.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> The triager's slice fetches up to twelve candidate files and keeps, within its six-file and 64 KiB limits, the ones that define a function named for an operation before the ones that only mention it. A large interface file and a storage file had used up the budget and the resolver that implements the operation did not fit, so a clear defect was classed medium.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-52-6">v0.52.6 <time datetime="2026-11-26">2026-11-26</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The triager sees the defect's own code first.</p>
       <ul>

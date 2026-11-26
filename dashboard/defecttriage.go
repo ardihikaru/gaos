@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -121,6 +122,7 @@ const (
 	defectMaxSearches   = 10
 	defectSearchHits    = 8
 	defectMaxFiles      = 6
+	defectMaxFetch      = 12 // candidates read, of which at most defectMaxFiles are kept
 	defectMaxFileBytes  = 64 << 10
 	defectContextMax    = 96 << 10
 	defectSearchRetries = 3
@@ -329,9 +331,24 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 		}
 		return cands[i].path < cands[j].path
 	})
-	total := 0
+	// Fetch a few more candidates than the slice can hold, then keep the ones that IMPLEMENT an
+	// operation (a func definition named for it) before the ones that merely mention it. Found live:
+	// the 33 KB interface file and a storage file filled the 64 KiB budget and the 44 KB resolver
+	// that implements editMedicationDispense no longer fit.
+	type fetched struct {
+		c     cand
+		blob  ghBlob
+		score int
+	}
+	var impl []*regexp.Regexp
+	for _, op := range d.Operations {
+		if re, err := regexp.Compile(`func\s*\([^)]*\)\s*(?i:` + regexp.QuoteMeta(op) + `)\s*\(`); err == nil {
+			impl = append(impl, re)
+		}
+	}
+	var got []fetched
 	for _, c := range cands {
-		if len(out.Files) >= defectMaxFiles {
+		if len(got) >= defectMaxFetch {
 			break
 		}
 		o, n, _ := ghOwnerRepo(c.repo)
@@ -343,7 +360,7 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 		}); err != nil {
 			return DefectContext{}, fmt.Errorf("%w: %s", errSearchFailed, ghErrorClass(err))
 		}
-		if !found || total+len(blob.Text) > defectMaxFileBytes {
+		if !found || len(blob.Text) > defectMaxFileBytes {
 			continue
 		}
 		// A file that holds something the egress pass would refuse (a token in a test fixture, a
@@ -353,8 +370,28 @@ func buildDefectContext(ctx context.Context, src codeSource, d Defect, baseBranc
 		if len(reportFindings(EgressPolicy{}, []PacketPart{{Path: c.path, Kind: KindRepo, Body: blob.Text}})) > 0 {
 			continue
 		}
-		total += len(blob.Text)
-		out.Files = append(out.Files, DefectContextFile{Repo: c.repo, Path: c.path, SHA: blob.SHA, Text: blob.Text})
+		score := 0
+		if contextClass(c.path) == 0 {
+			for _, re := range impl {
+				if re.MatchString(blob.Text) {
+					score = 1
+					break
+				}
+			}
+		}
+		got = append(got, fetched{c, blob, score})
+	}
+	sort.SliceStable(got, func(i, j int) bool { return got[i].score > got[j].score })
+	total := 0
+	for _, g := range got {
+		if len(out.Files) >= defectMaxFiles {
+			break
+		}
+		if total+len(g.blob.Text) > defectMaxFileBytes {
+			continue
+		}
+		total += len(g.blob.Text)
+		out.Files = append(out.Files, DefectContextFile{Repo: g.c.repo, Path: g.c.path, SHA: g.blob.SHA, Text: g.blob.Text})
 	}
 	for out.Size() > defectContextMax && len(out.Files) > 0 {
 		out.Files = out.Files[:len(out.Files)-1]
