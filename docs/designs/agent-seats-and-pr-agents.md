@@ -744,4 +744,23 @@ Two things on `main` meet this design and are left as they are, for the operator
 - the board's Severity filter (`#severity`);
 - the Auto-fix page title (`#review-fix`).
 
-The links are relative (`../docs/integrations/agents.html`), as the other docs links of the back office are (`templates/backoffice.html:971`).
+The links are relative (`../docs/integrations/agents.html`), as the other docs links of the back office are (`templates/backoffice.html:972`).
+
+**The API answer changes.** A card the API plans now carries `source:api` in the `labels` it answers with. The family sits **last** in `labelOrder`, so after normalisation the job label stays first: `["pr-review:auto","source:api"]`. The published example and the downloadable tutorial show it, and they tell clients to match labels by membership. **No backfill:** only cards planned from v0.64.0 on carry a source label.
+
+**Change list.**
+
+| File | Change |
+|---|---|
+| `dashboard/labels.go` | the `source` family, last in `labelOrder` |
+| `dashboard/api_cards.go`, `dashboard/bundles.go` | the label on the planned spec |
+| `dashboard/prflow.go` | `SetTaskLabel` refuses the family |
+| `dashboard/templates/backoffice.html`, `dashboard/static/app.css` | the four i links; `a.info-btn.info-link` |
+| `dashboard/assign_test.go`, `dashboard/api_tasks_test.go`, `dashboard/reviewseverity_test.go` | TC-818; the equivalence test; the link assertions in TC-803 and TC-810 |
+| `pustaka/docs/integrations/agents.html` (new), `pustaka/docs/assets/toc/integrations.js` | the page and its registry entry |
+| `pustaka/docs/integrations/pr-agents.html` | a link to the page; a `source:*` row in the label table |
+| `pustaka/docs/integrations/external-tasks-api.html`, `pustaka/docs/downloads/gaos-external-tasks-api.md` | the answer example and the membership note |
+| `pustaka/docs/product/decision-log.html` | D-102 gains clause (6): "Card sources: the cards assignment does not gate … carry a planner-only label, `source:api` or `source:bundle`, so they can be filtered on the board." |
+| `pustaka/docs/product/qa-test-plan.html`, `pustaka/docs/assets/toc/product.js`, `.claude/rules/qa-test-plan.md`, `deploy/check-workspace.sh`, `README.md`, `pustaka/docs/changelog.html` | TC-818; counts 818 cases ("eight hundred and eighteen") and 682 Go tests ("six hundred and eighty-two"); decision and rule counts unchanged |
+
+**Exit:** §11 commands 1, 2 and 4 pass; `pustaka check` passes. The review of this addendum is `docs/designs/reviews/agent-seats-and-pr-agents-readiness-4.md`; its findings were all applied (no Blocker; the two Majors were the missing change list and the API answer).

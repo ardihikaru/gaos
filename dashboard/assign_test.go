@@ -222,6 +222,10 @@ func TestAgentsPageFiltersByProductAndPagesKeepTheFilter(t *testing.T) {
 	if !strings.Contains(all.Body.String(), `title="Assigned to `) {
 		t.Error("the unfiltered page shows no assignment chip")
 	}
+	// The i opens the docs page (D-102 §22).
+	if !strings.Contains(all.Body.String(), `href="../docs/integrations/agents.html"`) {
+		t.Error("the Agents page has no i link to its docs page")
+	}
 	one := boardHX(t, srv, "GET", "/ui/bo/agents?product=p-1", at("agents"))
 	b := one.Body.String()
 	if n := strings.Count(b, row); n != 2 || !strings.Contains(b, "Juno") || !strings.Contains(b, "Kite") {

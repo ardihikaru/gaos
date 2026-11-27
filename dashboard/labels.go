@@ -115,8 +115,6 @@ var labelOrder = []string{
 	LabelSeverityMedium,
 	LabelSeverityHigh,
 	LabelSeverityCritical,
-	LabelSourceAPI,
-	LabelSourceBundle,
 	LabelE2EAutomation,
 	LabelE2ERun,
 	LabelUnitTest,
@@ -124,6 +122,9 @@ var labelOrder = []string{
 	LabelDefectEasy,
 	LabelDefectMedium,
 	LabelDefectComplex,
+	// Last, so a card's job label stays first in an API answer (D-102 §22).
+	LabelSourceAPI,
+	LabelSourceBundle,
 }
 
 // ValidLabel reports whether a label is in the closed vocabulary.

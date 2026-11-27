@@ -66,6 +66,7 @@
       <tr><td><code>e2e:automation</code>, <code>e2e:run</code></td><td>The QA-tool jobs. Never dispatched to an agent.</td></tr>
       <tr><td><code>unit:test</code></td><td>The unit-test card.</td></tr>
       <tr><td><code>severity:none</code> &hellip; <code>severity:critical</code></td><td>What the reviewer found. Shown as a coloured chip on the board and as a Severity column in the table, and filterable &mdash; <em>Medium or worse</em> lists the cards a person must read. An operator may correct it; that changes the record only.</td></tr>
+      <tr><td><code>source:api</code>, <code>source:bundle</code></td><td>Set by the planner on a card an <a href="external-tasks-api.html">API client</a> created or a <a href="#bundles">bundle</a>&rsquo;s test-planner card: the cards agent assignment does not gate. An operator cannot set them; filter on them. See <a href="agents.html#source-labels">Where a card came from</a>.</td></tr>
     </tbody>
   </table>
 

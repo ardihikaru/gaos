@@ -269,6 +269,9 @@ func TestBoardRendersTheSeverity(t *testing.T) {
 	if !strings.Contains(full, `name="severity"`) || !strings.Contains(full, "Medium or worse") {
 		t.Error("the Severity select is missing")
 	}
+	if !strings.Contains(full, `href="../docs/integrations/agents.html#severity"`) {
+		t.Error("the Severity filter has no i link to its docs section")
+	}
 	table := boardHX(t, srv, "GET", "/products/p-1/board/live?view=table", nil).Body.String()
 	for _, want := range []string{">Severity<", ">Labels<", `sev-critical" title="Review severity: critical">critical<`, ">pr-review:auto<"} {
 		if !strings.Contains(table, want) {

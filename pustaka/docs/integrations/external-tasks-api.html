@@ -49,7 +49,8 @@
     </tbody>
   </table>
   <p>A card for a pull request is the same card Brain Town's event would plan: same key, same title, same
-  labels. If it already exists, the API answers that card instead of planning a second one.</p>
+  labels plus <code>source:api</code>. If it already exists, the API answers that card instead of planning a second one.</p>
+  <p>Since v0.64.0 a card the API plans also carries <code>source:api</code>, last in <code>labels</code>, so the board can filter the cards a client created (<a href="agents.html#source-labels">Where a card came from</a>). A card the API adopts from Brain Town keeps its labels unchanged. Match a label by membership, never by position.</p>
 
   <h2 id="client">Ask the operator for a client</h2>
   <p>A client is a name, a token and a list of products, set up by the GAOS operator. Ask for a client with the
@@ -88,7 +89,7 @@ export GAOS_TOKEN="$(cat ~/.config/plat-a/gaos.token)"</pre>
   <div class="codeblock">
     <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
     <pre>{"taskId":"wf-pr-p-2-acme-backend-42-pr-reviewer","created":true,"status":"PENDING","column":"backlog",
- "labels":["pr-review:auto"],"dispatch":"auto"}</pre>
+ "labels":["pr-review:auto","source:api"],"dispatch":"auto"}</pre>
   </div>
 
   <h2 id="poll">Poll it</h2>
