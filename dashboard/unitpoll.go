@@ -169,7 +169,16 @@ func (p *fixPRPoller) unitCheck(ctx context.Context, m Master, w UnitWatch, now 
 			p.unitReadFailed(ctx, w, age, err, now)
 			return
 		}
-		in, withheld := unitScreen(anns, cr.Output.Title, cr.Output.Summary)
+		in, reported, withheld := unitScreen(anns, cr.Output.Title, cr.Output.Summary)
+		if !reported {
+			// The workflow never reached its report: a job that was not started (a billing
+			// or spending limit, a runner that never came) fails with no test run. Nothing
+			// is filed; it is never a build failure (implementation clarification, §25).
+			p.logf("unit checks: %s failed without the %s notice: workflow did not report", w.Key, unitTotalTitle)
+			p.unitFinish(ctx, m, w, UnitInconclusive, nil, nil)
+			p.unitDaily(ctx, m, w.PR, "the unit-tests workflow did not report (job not started?)", now)
+			return
+		}
 		if withheld {
 			p.unitFinish(ctx, m, w, "refused:withheld", nil, nil)
 			p.unitSay(ctx, m.ID, w.PR, "unit-test annotations on a merge were all withheld; nothing filed", "")
@@ -213,14 +222,20 @@ func (p *fixPRPoller) unitNoRun(ctx context.Context, m Master, w UnitWatch, age 
 		return
 	}
 	p.unitFinish(ctx, m, w, UnitNoCI, nil, nil)
+	p.unitDaily(ctx, m, w.PR, "no unit-tests run on a merge; is the workflow installed?", now)
+}
+
+// unitDaily sends one of the two "the workflow is not reporting" notices, at most
+// once per product per UTC day between them (LastNoCINoticeDay).
+func (p *fixPRPoller) unitDaily(ctx context.Context, m Master, pr int, text string, now time.Time) {
 	day := now.UTC().Format("2006-01-02")
 	// The master of the pass may be stale: an earlier watch of this pass may have sent today's.
 	if cur, err := p.st.Master(ctx, m.ID); err != nil || cur.UnitChecks.LastNoCINoticeDay == day {
 		return
 	}
-	p.unitSay(ctx, m.ID, w.PR, "no unit-tests run on a merge; is the workflow installed?", "")
+	p.unitSay(ctx, m.ID, pr, text, "")
 	if _, err := p.st.MarkUnitNotice(ctx, m.ID, "", UnitNoticeNoCI); err != nil {
-		p.logf("unit checks: the no-ci notice could not be recorded: %v", err)
+		p.logf("unit checks: the daily notice could not be recorded: %v", err)
 	}
 }
 
@@ -407,12 +422,15 @@ func unitPrintable(s string) bool {
 }
 
 // unitScreen is §5.2: from a failed check's annotations to the kept failing tests.
-// withheld is true when failure annotations exist and every one was withheld.
-func unitScreen(anns []ghAnnotation, title, summary string) (in UnitDefectIn, withheld bool) {
+// reported is true when the run carries the workflow's unit-tests-total notice: only
+// then did the tests run, and only then does a failure count. withheld is true when
+// failure annotations exist and every one was withheld.
+func unitScreen(anns []ghAnnotation, title, summary string) (in UnitDefectIn, reported, withheld bool) {
 	failures, dropped := 0, 0
 	total := -1
 	for _, a := range anns {
 		if a.AnnotationLevel == "notice" && a.Title == unitTotalTitle {
+			reported = true
 			if n, err := strconv.Atoi(strings.TrimSpace(a.Message)); err == nil && n >= 0 {
 				total = n
 			}
@@ -449,14 +467,14 @@ func unitScreen(anns []ghAnnotation, title, summary string) (in UnitDefectIn, wi
 			text = "(withheld: the summary matched a secret detector)"
 		}
 		in.Summary = capBytes(text, unitSummaryMax)
-		return in, false
+		return in, reported, false
 	}
 	if len(in.Failing) == 0 {
-		return in, true
+		return in, reported, true
 	}
 	in.Total = len(in.Failing)
 	if total >= 0 {
 		in.Total = min(max(total, len(in.Failing)), unitTotalMax)
 	}
-	return in, false
+	return in, reported, false
 }

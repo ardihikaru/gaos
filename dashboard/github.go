@@ -60,7 +60,7 @@ type ghPR struct {
 	// when it merged (D-105 §3): the unit check is read on that commit.
 	MergeCommitSHA string     `json:"merge_commit_sha"`
 	MergedAt       *time.Time `json:"merged_at"`
-	Head         struct {
+	Head           struct {
 		Ref  string `json:"ref"`
 		SHA  string `json:"sha"`
 		Repo struct {

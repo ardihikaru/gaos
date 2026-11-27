@@ -102,6 +102,9 @@ func (f *unitGH) set(fn func(*unitGH)) {
 	fn(f)
 }
 
+// ucReported is the workflow's total notice: it says the tests ran.
+var ucReported = ucAnn("notice", ".github", unitTotalTitle, "1")
+
 // ucRun is the push run of the default workflow on sha at develop.
 func ucRun(id int64, attempt int, suite int64, sha string) ghWorkflowRun {
 	return ghWorkflowRun{ID: id, Path: unitWorkflowDefault, Event: "push", HeadBranch: "develop", HeadSHA: sha,
@@ -284,8 +287,12 @@ func TestUnitOutcomes(t *testing.T) {
 		"success": {"success", nil, UnitPassed},
 		"failure": {"failure", []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", "failed"),
 			ucAnn("notice", ".github", unitTotalTitle, "1")}, UnitFailed},
-		"build":           {"failure", []map[string]any{ucAnn("warning", "go.mod", "x", "y")}, UnitFailed},
-		"all withheld":    {"failure", []map[string]any{ucAnn("failure", "../secrets_test.go", "TestX", "")}, "refused:withheld"},
+		"build":        {"failure", []map[string]any{ucAnn("warning", "go.mod", "x", "y"), ucReported}, UnitFailed},
+		"all withheld": {"failure", []map[string]any{ucAnn("failure", "../secrets_test.go", "TestX", ""), ucReported}, "refused:withheld"},
+		// A job that never started (found live: a spending limit) carries no total notice.
+		"not started": {"failure", []map[string]any{ucAnn("failure", ".github", "",
+			"The job was not started because recent account payments have failed or your spending limit needs to be increased.")}, UnitInconclusive},
+		"no report":       {"failure", []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", "failed")}, UnitInconclusive},
 		"cancelled":       {"cancelled", nil, UnitInconclusive},
 		"skipped":         {"skipped", nil, UnitInconclusive},
 		"neutral":         {"neutral", nil, UnitInconclusive},
@@ -307,6 +314,10 @@ func TestUnitOutcomes(t *testing.T) {
 		filed := len(defs)
 		if wantFiled := map[bool]int{true: 1, false: 0}[c.want == UnitFailed]; filed != wantFiled {
 			t.Errorf("%s: %d defects filed, want %d", name, filed, wantFiled)
+		}
+		if c.want == UnitInconclusive && c.conclusion == "failure" && !strings.Contains(strings.Join(e.notices(), "\n"),
+			"the unit-tests workflow did not report (job not started?)") {
+			t.Errorf("%s: the daily notice was not sent: %q", name, e.notices())
 		}
 		if name == "build" && (filed != 1 || !unitIsBuild(defs[0]) || defs[0].Excerpt != "unit-tests go test ./...") {
 			t.Errorf("build: the defect is %+v", defs)
@@ -467,13 +478,13 @@ func TestAnnotationsAreScreened(t *testing.T) {
 	var raw []ghAnnotation
 	b, _ := json.Marshal(anns)
 	_ = json.Unmarshal(b, &raw)
-	in, withheld := unitScreen(raw, "", "")
+	in, reported, withheld := unitScreen(raw, "", "")
 	var got []string
 	for _, f := range in.Failing {
 		got = append(got, f.Test+"@"+f.File)
 	}
 	want := "TestRoot@main_test.go,ExampleTotal@pkg/records/total_test.go,FuzzParse@pkg/records/fuzz_test.go,TestNoFile/sub_case@,TestEmptyPath@"
-	if withheld || in.Build || strings.Join(got, ",") != want || in.Total != 25 {
+	if !reported || withheld || in.Build || strings.Join(got, ",") != want || in.Total != 25 {
 		t.Errorf("kept %v (total %d, build %t, withheld %t); want %s and 25", got, in.Total, in.Build, withheld, want)
 	}
 	if files := unitFilesOf(in.Failing); strings.Join(files, ",") != "main_test.go,pkg/records/total_test.go,pkg/records/fuzz_test.go" {
@@ -485,7 +496,7 @@ func TestAnnotationsAreScreened(t *testing.T) {
 		if msg != "" {
 			a = append(a, ghAnnotation{AnnotationLevel: "notice", Title: unitTotalTitle, Message: msg})
 		}
-		if in, _ := unitScreen(a, "", ""); in.Total != wantTotal {
+		if in, _, _ := unitScreen(a, "", ""); in.Total != wantTotal {
 			t.Errorf("total notice %q: total %d, want %d", msg, in.Total, wantTotal)
 		}
 	}
@@ -494,20 +505,20 @@ func TestAnnotationsAreScreened(t *testing.T) {
 	for i := 0; i < 12; i++ {
 		many = append(many, ghAnnotation{AnnotationLevel: "failure", Path: "pkg/a_test.go", Title: fmt.Sprintf("TestCase%d", i)})
 	}
-	if in, _ := unitScreen(many, "", ""); len(in.Failing) != unitMaxFailing || in.Total != unitMaxFailing {
-		t.Errorf("twelve failures with no total notice kept %d with total %d; want 10 and 10", len(in.Failing), in.Total)
+	if in, rep, _ := unitScreen(many, "", ""); rep || len(in.Failing) != unitMaxFailing || in.Total != unitMaxFailing {
+		t.Errorf("twelve failures with no total notice kept %d with total %d, or read as reported; want 10, 10 and not reported", len(in.Failing), in.Total)
 	}
 	// Every failure withheld: nothing kept, withheld.
-	if in, withheld := unitScreen(raw[6:11], "", ""); !withheld || len(in.Failing) != 0 {
+	if in, _, withheld := unitScreen(raw[6:11], "", ""); !withheld || len(in.Failing) != 0 {
 		t.Errorf("all withheld: kept %v, withheld %t", in.Failing, withheld)
 	}
 	// No failure-level annotation: a build failure, its summary one screened paragraph of at most 2 KiB.
-	in, withheld = unitScreen(raw[12:], "compile error", "pkg/records:\n  undefined: total\n"+strings.Repeat("x", 3000))
-	if withheld || !in.Build || strings.Contains(in.Summary, "\n") || len(in.Summary) > unitSummaryMax ||
+	in, reported, withheld = unitScreen(raw[12:], "compile error", "pkg/records:\n  undefined: total\n"+strings.Repeat("x", 3000))
+	if !reported || withheld || !in.Build || strings.Contains(in.Summary, "\n") || len(in.Summary) > unitSummaryMax ||
 		!strings.HasPrefix(in.Summary, "compile error pkg/records:") {
 		t.Errorf("a build failure: build %t, summary %q", in.Build, in.Summary)
 	}
-	if in, _ := unitScreen(nil, "boom", "API_TOKEN=abcdefghijklmnop0123"); in.Summary != "(withheld: the summary matched a secret detector)" {
+	if in, _, _ := unitScreen(nil, "boom", "API_TOKEN=abcdefghijklmnop0123"); in.Summary != "(withheld: the summary matched a secret detector)" {
 		t.Errorf("a secret in the summary: %q", in.Summary)
 	}
 }
@@ -519,7 +530,7 @@ func TestUnitNoticesAreSentOnceAndResent(t *testing.T) {
 	key := e.watch(t, 1, 10*time.Minute)
 	e.greenAt(1, "failure")
 	e.gh.set(func(f *unitGH) {
-		f.anns[301] = []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", "")}
+		f.anns[301] = []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", ""), ucReported}
 	})
 	e.p.unitPass(ctx, ucNow)
 	d := defectOf(t, e.s, e.pid, e.get(t, key).DefectKey)
@@ -566,7 +577,9 @@ func TestUnitNoticesAreSentOnceAndResent(t *testing.T) {
 	// All withheld: one notice naming the pull request, nothing filed.
 	e.watch(t, 4, 3*time.Minute)
 	e.greenAt(4, "failure")
-	e.gh.set(func(f *unitGH) { f.anns[304] = []map[string]any{ucAnn("failure", "../x_test.go", "TestX", "")} })
+	e.gh.set(func(f *unitGH) {
+		f.anns[304] = []map[string]any{ucAnn("failure", "../x_test.go", "TestX", ""), ucReported}
+	})
 	e.p.unitPass(ctx, ucNow)
 	if got := e.notices(); len(got) != 5 || got[4] != e.pid+"|4|unit-test annotations on a merge were all withheld; nothing filed|" {
 		t.Errorf("the withheld notice: %q", got)
@@ -603,7 +616,7 @@ func TestUnitRetentionAndContext(t *testing.T) {
 	key := e.watch(t, 1, 10*time.Minute)
 	e.greenAt(1, "failure")
 	e.gh.set(func(f *unitGH) {
-		f.anns[301] = []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", "")}
+		f.anns[301] = []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", ""), ucReported}
 	})
 	e.p.unitPass(ctx, ucNow)
 	d := defectOf(t, e.s, e.pid, e.get(t, key).DefectKey)
@@ -628,7 +641,7 @@ func TestUnitRetentionAndContext(t *testing.T) {
 	k2 := e2.watch(t, 1, 10*time.Minute)
 	e2.greenAt(1, "failure")
 	e2.gh.set(func(f *unitGH) {
-		f.anns[301] = []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", "")}
+		f.anns[301] = []map[string]any{ucAnn("failure", "pkg/records/total_test.go", "TestTotal", ""), ucReported}
 	})
 	e2.p.unitPass(ctx, ucNow)
 	d2 := defectOf(t, e2.s, e2.pid, e2.get(t, k2).DefectKey)
