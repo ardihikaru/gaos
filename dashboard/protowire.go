@@ -71,7 +71,7 @@ func pbFields(b []byte) ([]pbField, error) {
 		}
 		var err error
 		var f pbField
-		f, b, err = pbReadValue(b, num, typ)
+		f, b, err = pbReadValue(b, num, typ, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,10 @@ func pbFields(b []byte) ([]pbField, error) {
 }
 
 // pbReadValue reads the value of a field whose key was just read, and the rest of the input.
-func pbReadValue(b []byte, num, typ int) (pbField, []byte, error) {
+// pbMaxGroupDepth bounds nested groups, so a hostile answer cannot recurse without end.
+const pbMaxGroupDepth = 64
+
+func pbReadValue(b []byte, num, typ, depth int) (pbField, []byte, error) {
 	f := pbField{Num: num, Type: typ}
 	switch typ {
 	case pbVarint:
@@ -111,6 +114,9 @@ func pbReadValue(b []byte, num, typ int) (pbField, []byte, error) {
 		f.B = b[n : n+int(l)]
 		return f, b[n+int(l):], nil
 	case pbSGroup:
+		if depth >= pbMaxGroupDepth {
+			return f, nil, errPBMalformed
+		}
 		// A group runs to its matching end-group key; nested groups are skipped whole.
 		for {
 			key, n := binary.Uvarint(b)
@@ -126,7 +132,7 @@ func pbReadValue(b []byte, num, typ int) (pbField, []byte, error) {
 				return f, b, nil
 			}
 			var err error
-			if _, b, err = pbReadValue(b, inNum, inTyp); err != nil {
+			if _, b, err = pbReadValue(b, inNum, inTyp, depth+1); err != nil {
 				return f, nil, err
 			}
 		}

@@ -270,6 +270,10 @@ func TestProtowireRoundTrip(t *testing.T) {
 			t.Errorf("%s parsed without an error", name)
 		}
 	}
+	deep := bytes.Repeat([]byte{0xb3, 0x01}, 200) // 200 nested start-groups
+	if _, err := pbParse(deep); err == nil {
+		t.Error("groups nested past the depth cap parsed without an error")
+	}
 }
 
 // ---------------------------------------------------------------- TC-820
@@ -447,6 +451,27 @@ func TestTaskMgrBreaker(t *testing.T) {
 	now = now.Add(time.Minute)
 	if !cl.allow() {
 		t.Error("the auth latch is still closed after an hour")
+	}
+
+	// A file rewritten before the failure (a rotation racing a call) reloads at once, and the
+	// breaker's own check clears the latch, not only a call.
+	_ = os.WriteFile(auth, []byte("gaos:third"), 0o600)
+	later2 := later.Add(time.Minute)
+	_ = os.Chtimes(auth, later2, later2)
+	f.set(func(f *fakeTM) { f.force = "16" })
+	if _, err := cl.getTask(ctx, "X-1", tmPollTimeout); !errors.Is(err, errTMAuth) {
+		t.Fatalf("the stale credential answered %v", err)
+	}
+	if b := cl.breaker(); b != "" {
+		t.Errorf("a credential file rewritten before the failure must clear the latch, breaker %q", b)
+	}
+	f.set(func(f *fakeTM) { f.force = "5" })
+	k := f.calls()
+	if _, err := cl.getTask(ctx, "X-1", tmPollTimeout); !errors.Is(err, errTMNotFound) || f.calls() != k+1 {
+		t.Errorf("the call after the rotation did not go through: %v", err)
+	}
+	if h := f.headers[k].Get("Authorization"); h != "Basic "+base64.StdEncoding.EncodeToString([]byte("gaos:third")) {
+		t.Errorf("the call after the rotation did not use the rotated credential: %s", h)
 	}
 
 	// Unavailable: three in a row open it for a minute, then each failure doubles the wait.

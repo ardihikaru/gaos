@@ -457,7 +457,6 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		go fx.resumeFixPRs(ctx)
 		poller := newFixPRPoller(store, ghc)
 		srv.fixPoll = poller
-		go poller.Run(ctx)
 		if ghc != nil {
 			rv.gh = ghc
 			rv.rd = ghc     // D-102: the fresh read before posting, and the review fix's reads
@@ -472,6 +471,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		if ghc != nil {
 			poller.alert.post = ghc
 		}
+		go poller.Run(ctx) // after tm and alert are set: the poll goroutine reads both
 		rv.cache, rv.src = flow.ctx, srv.codeSrc
 		rv.lowFix = rv.planLowFix
 		h.SetPRHooks(

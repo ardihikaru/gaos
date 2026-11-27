@@ -193,6 +193,7 @@ type taskmgrClient struct {
 	authOpen  bool
 	authAt    time.Time
 	authMod   time.Time
+	credMod   time.Time // the credential file's time when user/pass were loaded
 	fails     int
 	backoff   time.Duration
 	openUntil time.Time
@@ -228,6 +229,7 @@ func newTaskMgrClient(cfg taskmgrConfig) *taskmgrClient {
 	}
 	tr.Protocols = &p
 	return &taskmgrClient{cfg: cfg, base: scheme + "://" + want, now: time.Now, user: cfg.user, pass: cfg.pass,
+		credMod: fileMod(cfg.authPath),
 		hc: &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("taskmgr: redirects are refused")
 		}}}
@@ -239,16 +241,28 @@ func (c *taskmgrClient) allow() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := c.now()
-	if c.authOpen {
-		if fileMod(c.cfg.authPath).Equal(c.authMod) && now.Sub(c.authAt) < tmAuthLatch {
-			return false
-		}
-		if u, p, why := readTaskMgrAuth(c.cfg.authPath); why == "" && u != "" {
-			c.user, c.pass = u, p
-		}
-		c.authOpen = false
+	if !c.authClearLocked(now) {
+		return false
 	}
 	return !now.Before(c.openUntil)
+}
+
+// authClearLocked closes the auth latch once the credential file differs from the one that
+// failed, or the latch has run an hour; it reloads the credential then. It reports whether the
+// latch is closed. Callers hold c.mu.
+func (c *taskmgrClient) authClearLocked(now time.Time) bool {
+	if !c.authOpen {
+		return true
+	}
+	mod := fileMod(c.cfg.authPath)
+	if mod.Equal(c.authMod) && now.Sub(c.authAt) < tmAuthLatch {
+		return false
+	}
+	if u, p, why := readTaskMgrAuth(c.cfg.authPath); why == "" && u != "" {
+		c.user, c.pass, c.credMod = u, p, mod
+	}
+	c.authOpen = false
+	return true
 }
 
 func (c *taskmgrClient) record(err error) {
@@ -259,7 +273,9 @@ func (c *taskmgrClient) record(err error) {
 	case err == nil || errors.Is(err, errTMNotFound) || errors.Is(err, errTMInvalid):
 		c.fails, c.backoff, c.last = 0, 0, ""
 	case errors.Is(err, errTMAuth):
-		c.authOpen, c.authAt, c.authMod, c.last = true, now, fileMod(c.cfg.authPath), "auth"
+		// The latch keys on the file the failing credential came from, so a file already
+		// rewritten before the failure reloads on the next check.
+		c.authOpen, c.authAt, c.authMod, c.last = true, now, c.credMod, "auth"
 	default:
 		c.fails++
 		c.last = "unavailable"
@@ -281,10 +297,11 @@ func (c *taskmgrClient) breaker() string {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	now := c.now()
 	switch {
-	case c.authOpen:
+	case !c.authClearLocked(now):
 		return "auth"
-	case c.now().Before(c.openUntil):
+	case now.Before(c.openUntil):
 		return "unavailable"
 	}
 	return ""
@@ -728,7 +745,7 @@ func (l *taskmgrLink) check(ctx context.Context, b ThirdPartyLink, code string, 
 	case err != nil:
 		return taskCheck{}, err
 	case t.Deleted || strings.EqualFold(t.Status, "DELETED") || strings.EqualFold(t.Status, "ARCHIVED") ||
-		!strings.EqualFold(t.ProductCode, b.ProductCode):
+		t.ProductCode != b.ProductCode:
 		v = taskCheck{Result: "unknown", At: now}
 	default:
 		v = taskCheck{Result: "ok", QAID: t.QAID, At: now}
