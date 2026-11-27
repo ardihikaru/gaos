@@ -973,6 +973,7 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"DelayUnitWatch":   func() (Result, error) { return ro.DelayUnitWatch(ctx, "k", 0, 0, 0) },
 		"PruneUnitWatches": func() (Result, error) { return ro.PruneUnitWatches(ctx, 0) },
 		"MarkUnitNotice":   func() (Result, error) { return ro.MarkUnitNotice(ctx, "p-1", "", "no-ci") },
+		"FinishUnitWatch":  func() (Result, error) { return ro.FinishUnitWatch(ctx, "k", "passed", nil, nil) },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+

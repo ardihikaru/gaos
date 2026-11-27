@@ -217,6 +217,9 @@ type Store interface {
 	UnitWatches(ctx context.Context, productID string) ([]UnitWatch, error)
 	PruneUnitWatches(ctx context.Context, before int64) (Result, error)
 	MarkUnitNotice(ctx context.Context, productID, key, which string) (Result, error)
+	// FinishUnitWatch ends a watch and, in the same transaction, files its failure or
+	// applies its pass (unitdefect.go).
+	FinishUnitWatch(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)
