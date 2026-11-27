@@ -22,7 +22,7 @@ import (
 )
 
 // TaskMgr as a product-bound third-party platform (D-104): the codec, the client, the settings,
-// the breaker and the people directory. TC-839 to TC-843.
+// the breaker and the people directory. TC-819 to TC-823.
 
 // ---------------------------------------------------------------- a fake TaskMgr
 
@@ -215,7 +215,7 @@ func tmTestLink(t *testing.T, st Store, f *fakeTM) *taskmgrLink {
 	return l
 }
 
-// ---------------------------------------------------------------- TC-839
+// ---------------------------------------------------------------- TC-819
 
 func TestProtowireRoundTrip(t *testing.T) {
 	var inner, w pbWriter
@@ -272,7 +272,7 @@ func TestProtowireRoundTrip(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- TC-840
+// ---------------------------------------------------------------- TC-820
 
 func TestTaskMgrClientCalls(t *testing.T) {
 	ctx := context.Background()
@@ -333,7 +333,7 @@ func TestTaskMgrClientCalls(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- TC-841
+// ---------------------------------------------------------------- TC-821
 
 func TestTaskMgrConfig(t *testing.T) {
 	auth := tmTestEnv(t, "")
@@ -411,7 +411,7 @@ func TestTaskMgrConfig(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- TC-842
+// ---------------------------------------------------------------- TC-822
 
 func TestTaskMgrBreaker(t *testing.T) {
 	ctx := context.Background()
@@ -484,7 +484,7 @@ func TestTaskMgrBreaker(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- TC-843
+// ---------------------------------------------------------------- TC-823
 
 func TestTaskMgrPeopleDirectory(t *testing.T) {
 	ctx := context.Background()

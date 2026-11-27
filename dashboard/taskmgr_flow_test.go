@@ -9,8 +9,8 @@ import (
 	"unicode/utf8"
 )
 
-// D-104's uses end to end against a fake TaskMgr: the code check and its alert (TC-845), the
-// login step of the notifier (TC-846), and the QA's notice and the write-back (TC-847).
+// D-104's uses end to end against a fake TaskMgr: the code check and its alert (TC-825), the
+// login step of the notifier (TC-826), and the QA's notice and the write-back (TC-827).
 
 const (
 	tmCodeOK       = "DEMO-FEATURE-00001"
@@ -46,7 +46,7 @@ func tmBind(t *testing.T, st *MemStore) {
 	}
 }
 
-// TC-845
+// TC-825
 func TestTaskCodeValidationAlert(t *testing.T) {
 	ctx := context.Background()
 	now := time.Unix(100_000, 0)
@@ -133,7 +133,7 @@ func TestTaskCodeValidationAlert(t *testing.T) {
 	}
 }
 
-// TC-846
+// TC-826
 func TestNotifyLoginThroughTaskMgr(t *testing.T) {
 	ctx := context.Background()
 	n, st, phones := notifyFixture(t, 200)
@@ -203,7 +203,7 @@ func TestNotifyLoginThroughTaskMgr(t *testing.T) {
 	}
 }
 
-// TC-847
+// TC-827
 func TestTestPlanReadyAndWriteBack(t *testing.T) {
 	ctx := context.Background()
 	st := bundleStore(t, "loop/laundry-api#1", "loop/laundry-api#2", "loop/laundry-api#3")

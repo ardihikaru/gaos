@@ -396,7 +396,7 @@ var (
 	regexpPopTarget = regexp.MustCompile(`popovertarget="([^"]+)"`)
 )
 
-// TC-848: the TaskMgr block (D-104 §7): its status in order of precedence, the counts for every
+// TC-828: the TaskMgr block (D-104 §7): its status in order of precedence, the counts for every
 // signed-in account, and the people table and the binding form for an auto-fix admin only.
 func TestIntegrationsShowTaskMgr(t *testing.T) {
 	ctx := context.Background()
