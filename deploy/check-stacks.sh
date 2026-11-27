@@ -117,7 +117,8 @@ for f in deploy/stacks/*.aim-*; do
 done
 for f in deploy/stacks/*.api-*; do
   # The machine API's bearer tokens (D-072): host-side files mounted read-only.
-  # prod.api-clients is the clients DIRECTORY (D-099): mode 700, its files 600.
+  # prod.api-clients is the clients DIRECTORY (D-099): mode 700, its files 600. In a tag
+  # worktree it is a symlink to the checkout's directory, so every test follows the link.
   [ -e "$f" ] || continue
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     bad "$f is tracked by git"
@@ -127,10 +128,10 @@ for f in deploy/stacks/*.api-*; do
   if [ "$(basename "$f")" = prod.api-clients ]; then
     if [ ! -d "$f" ]; then
       bad "$f is not a directory (the API clients file and tokens live in it)"
-    elif [ "$(stat -c %a "$f")" != 700 ]; then
-      bad "$f is mode $(stat -c %a "$f"), want 700"
+    elif [ "$(stat -L -c %a "$f")" != 700 ]; then
+      bad "$f is mode $(stat -L -c %a "$f"), want 700"
     else
-      open_files=$(find "$f" -type f ! -perm 600 2>/dev/null | wc -l | tr -d ' ')
+      open_files=$(find -L "$f/" -type f ! -perm 600 2>/dev/null | wc -l | tr -d ' ')
       if [ "$open_files" != 0 ]; then
         bad "$f holds $open_files file(s) that are not mode 600"
       else
@@ -167,8 +168,8 @@ for f in deploy/stacks/*.bt-*; do
   if [ "$(basename "$f")" = prod.bt-state ]; then
     if [ ! -d "$f" ]; then
       bad "$f is not a directory (the reader's cursor lives in it)"
-    elif [ "$(stat -c %a "$f")" != 700 ]; then
-      bad "$f is mode $(stat -c %a "$f"), want 700"
+    elif [ "$(stat -L -c %a "$f")" != 700 ]; then
+      bad "$f is mode $(stat -L -c %a "$f"), want 700"
     else
       ok "prod.bt-state is a mode-700 directory"
     fi
