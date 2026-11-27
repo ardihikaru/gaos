@@ -50,6 +50,10 @@ type BoardCard struct {
 	// Labels say what kind of work the card is (D-088): a closed vocabulary,
 	// rendered as chips. Empty on a card that predates it.
 	Labels []string `json:"labels,omitempty"`
+	// Severity is the reviewer's level from the severity:* label (D-102), and
+	// Chips the labels without it, for the templates. JSON keeps Labels whole.
+	Severity string   `json:"severity,omitempty"`
+	Chips    []string `json:"-"`
 	// Vendor is where the card's next turn goes under the product's policy
 	// (M16): claude or antigravity.
 	Vendor string `json:"vendor"`
@@ -285,6 +289,7 @@ func boardOf(productID string, m *Master, tasks []TaskRecord) Board {
 		}
 		b.Cards = append(b.Cards, BoardCard{ID: t.ID, Label: t.Title, Column: columnOf(t.Status), Row: laneOf(t),
 			Status: t.Status, Role: t.Role, Rank: t.Rank, Labels: t.Labels,
+			Severity: severityOf(t.Labels), Chips: withoutSeverity(t.Labels),
 			Vendor: m.Vendors.VendorFor(t.Role), Moves: legalMoves(t)})
 	}
 	order := map[string]int{}

@@ -136,6 +136,8 @@ func screenBody(body string) bool {
 // prContext is what the reviewer is shown about a pull request.
 type prContext struct {
 	Title, Body, Author, Diff string
+	// HeadSHA is the commit the diff was read at: the reviewed head (D-102).
+	HeadSHA string
 }
 
 // prContextCache holds the fetched context until the card is dispatched. It is
@@ -214,7 +216,16 @@ func prKeyParts(key string) (owner, repo string, n int, ok bool) {
 
 // prPoster posts a review and records what happened.
 type prPoster interface {
-	postReview(ctx context.Context, owner, repo string, number int, body string) error
+	postReview(ctx context.Context, owner, repo string, number int, body, event string) error
+}
+
+// prReader is the review token's reads (D-102). *ghClient implements it.
+type prReader interface {
+	pullRequest(ctx context.Context, owner, repo string, number int) (ghPR, error)
+	pullFiles(ctx context.Context, owner, repo string, number int) ([]ghFile, error)
+	repoDefault(ctx context.Context, owner, repo string) (string, error)
+	selfLogin(ctx context.Context) (string, error)
+	branchProtected(ctx context.Context, owner, repo, branch string) (bool, error)
 }
 
 // prReviewer is the after-run hook for a pr-reviewer card.
@@ -223,6 +234,35 @@ type prReviewer struct {
 	gh     prPoster
 	notify func(ctx context.Context, t TaskRecord, kind, text string)
 	logf   func(string, ...any)
+
+	// D-102. rd reads the pull request fresh before posting (the author, and a
+	// low review's head); cache is the flow's review context (the reviewed head);
+	// src reads the files of a review defect. Nil means: comment only, no fix.
+	rd    prReader
+	cache *prContextCache
+	src   codeSource
+	// lowFix plans a review defect for a low review and answers the reason's
+	// suffix (reviewdefect.go). Nil: no review defect.
+	lowFix func(ctx context.Context, t TaskRecord, owner, repo string, n int, pr ghPR, body string) string
+}
+
+// prChangesLine ends every body posted as REQUEST_CHANGES (D-102 §5): GAOS
+// reviews once and never dismisses.
+const prChangesLine = "\n\n---\nGAOS reviews once. When these points are addressed, a maintainer dismisses this review."
+
+// configuredProduct answers a product's master and whether its assignments are
+// configured (D-102 §3.2).
+func configuredProduct(ctx context.Context, st Store, productID string) (Master, bool) {
+	ms, err := st.Masters(ctx)
+	if err != nil {
+		return Master{}, false
+	}
+	for _, m := range ms {
+		if m.ID == productID {
+			return m, m.AssignedSet
+		}
+	}
+	return Master{}, false
 }
 
 // afterRun reads the finished run's reply and posts the review.
@@ -241,6 +281,11 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusFailed, "review-unreadable")
 		return
 	}
+	// The severity is a label (D-102 §4.1), set before anything is posted, so a
+	// held or failed post still shows what was found.
+	if _, err := p.st.SetTaskLabel(ctx, t.DeskID, t.ID, labelFamilySeverity+":"+rv.Severity, "gaos"); err != nil {
+		p.logf("prreview: the severity label could not be set: %v", err)
+	}
 	if screenBody(rv.Body) {
 		// Nothing is posted. A person takes over.
 		_, _ = p.st.HoldReview(ctx, t.DeskID, t.ID)
@@ -253,21 +298,61 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusFailed, "github-not-configured")
 		return
 	}
-	if err := p.gh.postReview(ctx, owner, repo, n, rv.Body); err != nil {
+	// The event (D-102 §5): REQUEST_CHANGES only on a configured product, for
+	// medium and worse, and only when both logins are known and differ.
+	_, configured := configuredProduct(ctx, p.st, t.DeskID)
+	var fresh ghPR
+	haveFresh := false
+	if configured && p.rd != nil {
+		if pr, err := p.rd.pullRequest(ctx, owner, repo, n); err == nil {
+			fresh, haveFresh = pr, true
+		}
+	}
+	event, body, reason := ghEventComment, rv.Body, "review posted"
+	if configured && prSeverityRank(rv.Severity) >= prSeverityRank("medium") {
+		if p.authorIsOther(ctx, fresh, haveFresh) {
+			event, body, reason = ghEventRequestChanges, rv.Body+prChangesLine, "changes requested"
+		} else {
+			reason = "review posted (comment only: own or unknown author)"
+		}
+	}
+	if err := p.gh.postReview(ctx, owner, repo, n, body, event); err != nil {
 		class := ghErrorClass(err)
 		p.logf("prreview: post failed %s", class)
 		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusFailed, "github-"+class)
 		return
 	}
-	if prSeverityRank(rv.Severity) >= prSeverityRank("high") {
+	switch {
+	case prSeverityRank(rv.Severity) >= prSeverityRank("high"):
 		// Posted, and a person must take over: the card stays in Review. The kind stays
 		// review:<severity>, so a contact's severity opt-in still reaches it (D-101).
 		_, _ = p.st.SetTaskLabel(ctx, t.DeskID, t.ID, LabelPRReviewNeedsManual, "gaos")
 		p.notifyIf(ctx, t, "review", rv.Severity, "Review posted ("+rv.Severity+"): a person must take over")
 		return
+	case rv.Severity == "low" && configured && p.lowFix != nil:
+		// The card is resolved once, after the review defect (D-102 §6.2).
+		reason += p.lowFix(ctx, t, owner, repo, n, fresh, rv.Body)
+		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, reason)
+	default:
+		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, reason)
 	}
-	_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, "review posted")
 	p.notifyIf(ctx, t, "review", rv.Severity, "review posted")
+}
+
+// authorIsOther reports whether the pull request's author is known and is not
+// the account that posts the review. Unknown either way is false: comment only.
+func (p *prReviewer) authorIsOther(ctx context.Context, pr ghPR, have bool) bool {
+	if !have || p.rd == nil || pr.User.Login == "" {
+		return false
+	}
+	self, err := p.rd.selfLogin(ctx)
+	if err != nil || self == "" {
+		if err != nil {
+			p.logf("prreview: the review account's login could not be read: %s", ghErrorClass(err))
+		}
+		return false
+	}
+	return !strings.EqualFold(self, pr.User.Login)
 }
 
 // notifyIf sends a notification for a medium-or-worse finding.

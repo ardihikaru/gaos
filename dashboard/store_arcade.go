@@ -551,6 +551,9 @@ func (s *ArcadeStore) AutoFixOf(ctx context.Context, productID string) (AutoFix,
 func (s *ArcadeStore) SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SetAutoFix(ctx, productID, a, actor, tokenKind) })
 }
+func (s *ArcadeStore) SetAssigned(ctx context.Context, productID string, ids []string, set bool, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SetAssigned(ctx, productID, ids, set, actor) })
+}
 func (s *ArcadeStore) PRCards(ctx context.Context, productID string) ([]TaskRecord, error) {
 	return s.proj.PRCards(ctx, productID)
 }
@@ -920,6 +923,13 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 		"qaState":      qaState,   // the QA catalog's modules, epics, head and sync state, D-072
 	}
 	props["autoFix"] = autoFix // the defect auto-fix policy, D-091
+	// The agents assigned to the product (D-102); schema-less document properties.
+	assigned := m.Assigned
+	if assigned == nil {
+		assigned = []string{}
+	}
+	props["assignedAgents"] = assigned
+	props["assignedSet"] = m.AssignedSet
 	if m.Stage != "" {
 		props["stage"] = m.Stage
 	}
@@ -1586,10 +1596,13 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Vendors   json.RawMessage `json:"vendorPolicy"`
 		QaState   json.RawMessage `json:"qaState"`
 		AutoFix   json.RawMessage `json:"autoFix"`
+		Assigned  []string        `json:"assignedAgents"`
+		AssignSet *bool           `json:"assignedSet"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, name, repo, goal, slug, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix
+		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix,
+		        assignedAgents, assignedSet
 		 FROM Product WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1646,6 +1659,8 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 				return false, err
 			}
 		}
+		mr.Assigned = normalizeAssigned(r.Assigned)
+		mr.AssignedSet = r.AssignSet != nil && *r.AssignSet
 		m.masters = append(m.masters, mr)
 	}
 

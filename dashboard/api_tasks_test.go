@@ -210,8 +210,12 @@ func TestPlanAPICardMatchesBrainTown(t *testing.T) {
 		want := bt.taskByDedupKeyLocked(prEvent(c.ev, "laundry-api", 40).Key(c.job)).Clone()
 		bt.mu.RUnlock()
 		if card.DedupKey != want.DedupKey || card.ID != want.ID || card.Role != want.Role ||
-			card.Title != want.Title || strings.Join(card.Labels, ",") != strings.Join(want.Labels, ",") {
+			card.Title != want.Title || strings.Join(withoutSource(card.Labels), ",") != strings.Join(want.Labels, ",") {
 			t.Errorf("%s: the API card %+v is not Brain Town's %+v", c.kind, card, want)
+		}
+		// D-102 §22: an API card also says where it came from; Brain Town's does not.
+		if !hasLabel(card.Labels, LabelSourceAPI) || hasLabel(want.Labels, LabelSourceAPI) {
+			t.Errorf("%s: the API card's labels %v lack source:api, or Brain Town's %v carry it", c.kind, card.Labels, want.Labels)
 		}
 		for _, e := range res.NewEvents {
 			if e.Type == PullRequestOpened || e.Type == PullRequestMerged || e.Type == StagingDeployed {
@@ -614,4 +618,15 @@ func TestArcadeTaskAPIFieldsRoundTrip(t *testing.T) {
 			t.Errorf("the Task upsert does not carry %q", want)
 		}
 	}
+}
+
+// withoutSource drops the source:* label, for comparing an API card with Brain Town's.
+func withoutSource(labels []string) []string {
+	var out []string
+	for _, l := range labels {
+		if !strings.HasPrefix(l, labelFamilySource+":") {
+			out = append(out, l)
+		}
+	}
+	return out
 }

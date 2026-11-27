@@ -197,6 +197,12 @@ type Store interface {
 	ExpireExcerpts(ctx context.Context, now int64) (Result, error)
 	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
+	// SetAssigned saves (set) or resets the agents assigned to a product (D-102, assign.go).
+	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
+	// Review defects (D-102, reviewdefect.go).
+	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
+	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
+	CloseReviewDefect(ctx context.Context, productID, key, rule string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)
@@ -287,6 +293,10 @@ type Result struct {
 	// Capped: PlanPullRequestCards committed its moot moves but the cap refused
 	// the new cards (design gaos-external-tasks-and-pr-bundles §3.1).
 	Capped bool
+
+	// Skipped says why a planner planned less than it was asked to, when that is
+	// not an error (D-102): "unassigned:<roles>" or "own-fix". Never persisted.
+	Skipped string
 }
 
 // Sentinel errors. ErrRejected is the "rejection reason" half of the §09 rule:
@@ -496,5 +506,8 @@ func (readOnly) UpsertFixPR(context.Context, FixPR) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SetAutoFix(context.Context, string, AutoFix, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetAssigned(context.Context, string, []string, bool, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }

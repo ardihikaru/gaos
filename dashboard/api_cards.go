@@ -366,6 +366,8 @@ func (s *MemStore) PlanAPICard(ctx context.Context, productID string, in APICard
 		return TaskRecord{}, false, Result{}, refuse(409, "run-in-flight", "an automation run is already open on this product")
 	}
 	spec, title, id := apiSpec(productID, in)
+	// The card is a client's request, not gated by assignment: it says so (D-102 §22).
+	spec.Labels = append(append([]string(nil), spec.Labels...), LabelSourceAPI)
 	item := cardItem{Key: apiKey(productID, in), ID: id, Title: title, Spec: spec,
 		Owner: in.Client, Ref: apiRefOf(in), At: now, AutoDispatch: in.Dispatch && apiModelKind(in.Kind)}
 	where := in.Owner + "/" + in.Repo

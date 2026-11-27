@@ -79,6 +79,10 @@ func autoFixFromForm(r *http.Request) (AutoFix, error) {
 	if err != nil {
 		return AutoFix{}, err
 	}
+	review, err := atoi("reviewFixCap")
+	if err != nil {
+		return AutoFix{}, err
+	}
 	return AutoFix{
 		Enabled: formBool(r.PostFormValue("enabled")), FixCap: fix, TriageCap: triage,
 		AllowedGlobs: formLines(r.PostFormValue("allowedGlobs")), ForbiddenGlobs: formLines(r.PostFormValue("forbiddenGlobs")),
@@ -89,6 +93,9 @@ func autoFixFromForm(r *http.Request) (AutoFix, error) {
 		// An omitted field clears the list, like every field of this form (the whole record is replaced).
 		AllowedBases:    formLines(r.PostFormValue("allowedBases")),
 		AutomationRepos: formLines(r.PostFormValue("automationRepos")),
+		// D-102: the review fix's branch patterns and its daily cap.
+		ReviewFixHeads: formLines(r.PostFormValue("reviewFixHeads")),
+		ReviewFixCap:   review,
 	}, nil
 }
 

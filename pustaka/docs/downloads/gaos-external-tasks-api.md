@@ -55,7 +55,7 @@ existing card changes nothing on it.
 
 ```json
 {"taskId":"wf-pr-p-2-acme-backend-42-pr-reviewer","created":true,"status":"PENDING","column":"backlog",
- "labels":["pr-review:auto"],"dispatch":"auto"}
+ "labels":["pr-review:auto","source:api"],"dispatch":"auto"}
 ```
 
 ## Poll it

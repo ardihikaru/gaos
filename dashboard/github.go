@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -52,6 +53,9 @@ type ghPR struct {
 		Login string `json:"login"`
 	} `json:"user"`
 	AuthorAssociation string `json:"author_association"`
+	// ChangedFiles is GitHub's count of the files the pull request changes: a
+	// review fix compares it with the listing, so a truncated list is refused.
+	ChangedFiles int `json:"changed_files"`
 	Head              struct {
 		Ref  string `json:"ref"`
 		SHA  string `json:"sha"`
@@ -79,7 +83,7 @@ type ghFile struct {
 // ghReview is the review GAOS posts.
 type ghReview struct {
 	Body  string `json:"body"`
-	Event string `json:"event"` // COMMENT, always: GAOS never approves
+	Event string `json:"event"` // COMMENT or REQUEST_CHANGES (D-102): GAOS never approves
 }
 
 // ghClient reads a pull request and posts a review.
@@ -88,6 +92,12 @@ type ghClient struct {
 	base  string
 	hc    *http.Client
 	logf  func(string, ...any)
+
+	// self is the token's own login, read once it is first needed (D-102).
+	// The token is read once per process (ghConfigFromVar), so the login cannot
+	// change under a running process; a failed read is tried again next time.
+	selfMu sync.Mutex
+	self   string
 }
 
 // ghConfig is the client's configuration.
@@ -267,11 +277,22 @@ func (c *ghClient) commitAuthor(ctx context.Context, owner, repo, sha string) (s
 	return cm.Author.Login, nil
 }
 
-// postReview posts a review comment. GAOS never approves: the event is
-// always COMMENT, so the pull request's author still decides.
-func (c *ghClient) postReview(ctx context.Context, owner, repo string, number int, body string) error {
+// The two review events GAOS sends (D-102). It never sends APPROVE: the pull
+// request's author and its maintainers still decide.
+const (
+	ghEventComment        = "COMMENT"
+	ghEventRequestChanges = "REQUEST_CHANGES"
+)
+
+// postReview posts a review: a comment, or a request for changes on a
+// configured product's medium-or-worse finding (D-102 amends D-088). Any other
+// event is refused before a request is made.
+func (c *ghClient) postReview(ctx context.Context, owner, repo string, number int, body, event string) error {
+	if event != ghEventComment && event != ghEventRequestChanges {
+		return fmt.Errorf("refused review event %q", event)
+	}
 	u := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/reviews", c.base, url.PathEscape(owner), url.PathEscape(repo), number)
-	b, err := json.Marshal(ghReview{Body: body, Event: "COMMENT"})
+	b, err := json.Marshal(ghReview{Body: body, Event: event})
 	if err != nil {
 		return err
 	}
@@ -370,6 +391,58 @@ func (c *ghClient) do(ctx context.Context, method, u string, body []byte) ([]byt
 		}
 	}
 	return nil, last
+}
+
+// selfLogin is the login of the account the token belongs to (GET /user).
+func (c *ghClient) selfLogin(ctx context.Context) (string, error) {
+	c.selfMu.Lock()
+	defer c.selfMu.Unlock()
+	if c.self != "" {
+		return c.self, nil
+	}
+	var u struct {
+		Login string `json:"login"`
+	}
+	if err := c.get(ctx, c.base+"/user", &u); err != nil {
+		return "", err
+	}
+	c.self = u.Login
+	return c.self, nil
+}
+
+// repoDefault is a repository's default branch (GET /repos/{o}/{r}).
+func (c *ghClient) repoDefault(ctx context.Context, owner, repo string) (string, error) {
+	var r struct {
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := c.get(ctx, fmt.Sprintf("%s/repos/%s/%s", c.base, url.PathEscape(owner), url.PathEscape(repo)), &r); err != nil {
+		return "", err
+	}
+	return r.DefaultBranch, nil
+}
+
+// branchProtected reports whether a branch is protected (GET .../branches/{b}).
+func (c *ghClient) branchProtected(ctx context.Context, owner, repo, branch string) (bool, error) {
+	var b struct {
+		Protected bool `json:"protected"`
+	}
+	u := fmt.Sprintf("%s/repos/%s/%s/branches/%s", c.base, url.PathEscape(owner), url.PathEscape(repo), escPath(branch))
+	if err := c.get(ctx, u, &b); err != nil {
+		return false, err
+	}
+	return b.Protected, nil
+}
+
+// postComment posts one issue comment on a pull request with the review token
+// (D-102: the "draft fix" line; the write token's use stays as D-091 records).
+func (c *ghClient) postComment(ctx context.Context, owner, repo string, number int, body string) error {
+	u := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments", c.base, url.PathEscape(owner), url.PathEscape(repo), number)
+	b, err := json.Marshal(map[string]string{"body": body})
+	if err != nil {
+		return err
+	}
+	_, err = c.do(ctx, http.MethodPost, u, b)
+	return err
 }
 
 func (c *ghClient) get(ctx context.Context, u string, out any) error {

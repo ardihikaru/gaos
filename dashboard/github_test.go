@@ -126,7 +126,7 @@ func TestGHClientReadsAndPosts(t *testing.T) {
 	if !strings.Contains(renderDiff(files), "a.go") {
 		t.Errorf("the diff must name the file: %q", renderDiff(files))
 	}
-	if err := c.postReview(context.Background(), "acme-org", "sample-service", 42, "two findings"); err != nil {
+	if err := c.postReview(context.Background(), "acme-org", "sample-service", 42, "two findings", ghEventComment); err != nil {
 		t.Fatalf("post the review: %v", err)
 	}
 	if !strings.Contains(posted, `"event":"COMMENT"`) {
@@ -140,7 +140,7 @@ func TestGHPostReviewReportsTheStatus(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := &ghClient{token: "ghp_token", base: srv.URL, hc: srv.Client(), logf: func(string, ...any) {}}
-	err := c.postReview(context.Background(), "acme-org", "sample-service", 42, "x")
+	err := c.postReview(context.Background(), "acme-org", "sample-service", 42, "x", ghEventComment)
 	if err == nil || !strings.Contains(err.Error(), "422") {
 		t.Fatalf("a refused review must be reported, got %v", err)
 	}
@@ -177,7 +177,7 @@ func TestGHErrorsAreClassifiedAndNeverCarryTheBody(t *testing.T) {
 			w.WriteHeader(status)
 			_, _ = w.Write([]byte("SECRET-RESPONSE-BODY"))
 		}))
-		err := ghTestClient(srv).postReview(context.Background(), "o", "r", 1, "x")
+		err := ghTestClient(srv).postReview(context.Background(), "o", "r", 1, "x", ghEventComment)
 		srv.Close()
 		if err == nil {
 			t.Fatalf("status %d was not an error", status)
@@ -199,7 +199,7 @@ func TestGHRateLimitIsRetriedTwiceAndNoMore(t *testing.T) {
 		w.WriteHeader(429)
 	}))
 	defer srv.Close()
-	err := ghTestClient(srv).postReview(context.Background(), "o", "r", 1, "x")
+	err := ghTestClient(srv).postReview(context.Background(), "o", "r", 1, "x", ghEventComment)
 	if ghErrorClass(err) != "rate" || calls != 3 {
 		t.Errorf("class %q after %d calls; want rate after 3", ghErrorClass(err), calls)
 	}
@@ -207,7 +207,7 @@ func TestGHRateLimitIsRetriedTwiceAndNoMore(t *testing.T) {
 	calls = 0
 	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { calls++; w.WriteHeader(500) }))
 	defer srv2.Close()
-	_ = ghTestClient(srv2).postReview(context.Background(), "o", "r", 1, "x")
+	_ = ghTestClient(srv2).postReview(context.Background(), "o", "r", 1, "x", ghEventComment)
 	if calls != 1 {
 		t.Errorf("a 500 was tried %d times, want once", calls)
 	}

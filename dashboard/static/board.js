@@ -153,8 +153,21 @@ function gateFace(product, card) {
   return out;
 }
 
+// severityChip is the reviewer's severity (D-102): the level as text, the
+// colour only repeating it. "none" has no chip.
+function severityChip(card) {
+  if (!card.severity || card.severity === "none") return null;
+  const el = document.createElement("span");
+  el.className = "card-label mono sev-" + card.severity;
+  el.title = "Review severity: " + card.severity;
+  el.textContent = card.severity;
+  return el;
+}
+
 function cardFace(product, card, ctx) {
   const face = ctx.defaultRender(card);
+  const sev = severityChip(card);
+  if (sev) (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(sev);
   const badge = vendorBadge(card);
   if (badge) (face.querySelector(".sfb-card-meta") || face.querySelector(".sfb-card-content") || face).append(badge);
   const qb = qaBadge(card);

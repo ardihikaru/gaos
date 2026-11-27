@@ -44,6 +44,15 @@
   collaborator open nothing; <code>GAOS_PR_MAX_OPEN</code> (default 5) bounds the open cards of a product;
   <code>GAOS_PR_ALLOW_FORKS=1</code> admits forks.</p>
 
+  <h2 id="assignment">Which agents a product has</h2>
+  <p>On the <strong>Agents</strong> page an admin (an account in <code>GAOS_AUTOFIX_ADMINS</code>) assigns agents to a
+  product, and one agent can serve several products. The page filters by product. A product whose assignments were
+  never saved runs every flow above, as before. Once they are saved, a flow runs only when an agent of its role is
+  assigned: no <code>pr-reviewer</code>, no review card; no <code>qa</code>, and the staging callback answers
+  <code>422 unassigned</code>. Saving also turns on <em>changes requested</em> for medium and worse findings (below).
+  <strong>Reset</strong> returns the product to &ldquo;not configured&rdquo;. Assignment switches a role on; it does not
+  choose which agent runs a card (<a href="../product/decision-log.html#d-102">D-102</a>). The details, the severity board and the runbook are on <a href="agents.html">Agents, severity and review fixes</a>.</p>
+
   <h2 id="labels">The labels</h2>
   <p>A card carries at most one label per family, and the vocabulary is closed: another word is refused with 422.
   An operator changes a label on the board, and the change is a <code>TaskLabeled</code> event naming the account's
@@ -56,6 +65,8 @@
       <tr><td><code>pr-review:needs-manual</code></td><td>The agent found something high or critical, or its reply could not be posted. A person takes over.</td></tr>
       <tr><td><code>e2e:automation</code>, <code>e2e:run</code></td><td>The QA-tool jobs. Never dispatched to an agent.</td></tr>
       <tr><td><code>unit:test</code></td><td>The unit-test card.</td></tr>
+      <tr><td><code>severity:none</code> &hellip; <code>severity:critical</code></td><td>What the reviewer found. Shown as a coloured chip on the board and as a Severity column in the table, and filterable &mdash; <em>Medium or worse</em> lists the cards a person must read. An operator may correct it; that changes the record only.</td></tr>
+      <tr><td><code>source:api</code>, <code>source:bundle</code></td><td>Set by the planner on a card an <a href="external-tasks-api.html">API client</a> created or a <a href="#bundles">bundle</a>&rsquo;s test-planner card: the cards agent assignment does not gate. An operator cannot set them; filter on them. See <a href="agents.html#source-labels">Where a card came from</a>.</td></tr>
     </tbody>
   </table>
 
@@ -70,7 +81,12 @@ severity: none | low | medium | high | critical
 body: the review, at most 6000 characters, each finding with a file:line and a Reason:
 ```</pre>
   <p>The body is screened by the egress detectors before it is posted; a body that carries a secret is not posted and
-  the card goes to a person. It is posted as a <strong>comment</strong>, never an approval. GitHub's answers map to a
+  the card goes to a person. It is posted as a <strong>comment</strong>, never an approval &mdash; except on a product
+  whose assignments are configured, where a medium, high or critical finding asks for <strong>changes</strong>. GAOS
+  reviews a pull request once and never dismisses its review, so that body ends with a line asking a maintainer to
+  dismiss it once the points are addressed. When the author is the review account itself, or either login is unknown,
+  GAOS comments instead. The review posts under the account of <code>GAOS_GITHUB_TOKEN_FILE</code>; a bot account's token
+  is recommended for a product that turns this on. GitHub's answers map to a
   reason on the card: <code>github-token</code> (401, 403, 404: the token may not write there),
   <code>github-refused</code> (422), <code>github-rate</code>, <code>github-error</code>.</p>
 
@@ -95,6 +111,20 @@ body: the review, at most 6000 characters, each finding with a file:line and a R
 
   <p>The pull requests GAOS opens itself for an easy defect are a separate flow with its own write token:
   see <a href="autofix.html">Defect auto-fix</a>.</p>
+
+  <h2 id="review-fix">A low finding fixed by an agent</h2>
+  <p>A low finding can become a <em>review fix</em>: the fixer agent edits the files the pull request already changes,
+  and GAOS opens a <strong>draft</strong> pull request <strong>into the reviewed pull request&rsquo;s own branch</strong>,
+  on top of the commit the reviewer read. The fix follows the source&rsquo;s root branch: a branch cut from
+  <code>staging</code> gets its fix in that branch, and the fix reaches <code>staging</code> when the branch merges.
+  GAOS posts one line on the reviewed pull request linking the draft.</p>
+  <p>It happens only when a fixer is assigned to the product, auto-fix is on, the branch matches one of the auto-fix
+  setting <code>reviewFixHeads</code> (patterns such as <code>feature/*</code>; <code>*</code> alone is refused), the
+  repository is an auto-fix target, and the day&rsquo;s <code>reviewFixCap</code> (default 3) is not reached. Before the
+  agent runs, and again before any branch exists, GAOS refuses the fix when the pull request closed, its head moved, it
+  comes from a fork, its branch is the default, the auto-fix base, an allowed retarget base or a protected branch, its
+  file list is incomplete, it changes <code>.github/</code>, or the fixer was unassigned. A refused card is Blocked with
+  the reason. GAOS never merges and never closes a pull request; a review fix is never retargeted.</p>
 
   <h2 id="staging">The staging callback</h2>
   <p>Jenkins calls GAOS when the staging deploy has finished:</p>

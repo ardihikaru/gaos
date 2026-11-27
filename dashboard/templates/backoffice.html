@@ -459,6 +459,9 @@
       <select name="story">{{range .StoryOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
     {{if gt (len .LabelOpts) 1}}<label><span class="sr-only">Label</span>
       <select name="label">{{range .LabelOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    <label><span class="sr-only">Severity</span>
+      <select name="severity">{{range .SevOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <a class="info-btn info-link" href="../docs/integrations/agents.html#severity" target="_blank" rel="noopener" aria-label="Review severity: open the docs" title="Review severity: open the docs">i</a>
     {{if gt (len .WfOpts) 1}}<label><span class="sr-only">Workflow</span>
       <select name="wf">{{range .WfOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
     <label class="board-check"><input type="checkbox" name="waiting" value="1"{{if .Page.Query.Waiting}} checked{{end}}> Waiting on a person</label>
@@ -506,7 +509,7 @@
     {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
     <div class="board-card-title">{{.Label}}</div>
     <div class="mono board-card-meta">{{.ID}} · {{.Role}} · {{.Status}} · {{if .Story}}{{.Story}}{{else}}plan{{end}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
-    {{with .Labels}}<div class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
+    {{if or (and .Severity (ne .Severity "none")) .Chips}}<div class="mono card-labels">{{if and .Severity (ne .Severity "none")}}<span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span>{{end}}{{range .Chips}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
     {{with .Qa}}{{template "qa-badge" .}}{{end}}
     {{$card := .ID}}
     {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
@@ -567,9 +570,11 @@
     {{range .Rows}}{{$card := .ID}}
     <tr class="board-row{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" data-card="{{.ID}}" data-product="{{$id}}">
       <td class="mono cell-id" title="{{.ID}}">{{.ID}}</td>
-      <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Labels}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
+      <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
       <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
+      <td class="mono">{{if eq .Severity "none"}}<span class="tm-line" title="Review severity: none">none</span>{{else if .Severity}}<span class="card-labels"><span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span></span>{{end}}</td>
       <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
+      <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}</td>
       <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
       <td class="mono cell-id" title="{{.Workflow}}">{{.Workflow}}</td>
       <td>{{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}</td>
@@ -578,7 +583,7 @@
       <td class="board-row-moves">{{with .SendBack}}{{if .Open}}<button type="button" class="btn card-sendback" id="sb-{{$card}}" data-sheet-open="{{sendBackURL $id $card}}" aria-label="Send the design {{.Design}} back to its author">Revise design</button>{{end}}{{end}}{{range .Moves}}<button class="btn board-move" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>{{end}}</td>
     </tr>
     {{end}}
-    {{if not .Rows}}<tr><td colspan="10" class="board-norows">{{if eq .Page.All 0}}No tasks yet.{{else}}No cards match these filters.{{end}}</td></tr>{{end}}
+    {{if not .Rows}}<tr><td colspan="12" class="board-norows">{{if eq .Page.All 0}}No tasks yet.{{else}}No cards match these filters.{{end}}</td></tr>{{end}}
     </tbody>
   </table>
   </div>
@@ -825,19 +830,51 @@
 {{end}}
 
 {{define "bo-agents"}}
-<header><div><span class="eyebrow">access</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+<header><div><span class="eyebrow">access</span><h2>{{.Title}} <a class="info-btn info-link" href="../docs/integrations/agents.html" target="_blank" rel="noopener" aria-label="Agents and assignment: open the docs" title="Agents and assignment: open the docs">i</a></h2><p>{{.Sub}}</p></div></header>
+{{/* D-102: the product filter, the same parts as the Pull requests filter. */}}
+<div class="block">
+  <form class="af-form" method="get" action="ui/bo/agents" hx-get="ui/bo/agents" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
+    <label><span class="sr-only">Product</span>
+      <select name="product">{{range .Assign.Opts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <noscript><button class="btn" type="submit">Apply</button></noscript>
+    {{if .Assign.Product}}<a class="af-reset" href="{{pagehref "agents"}}" hx-get="ui/bo/agents" hx-target="#sink" hx-swap="innerHTML">Clear filter</a>{{end}}
+  </form>
+  {{if .Assign.Product}}
+  <p class="tm-line">{{if not .Assign.Configured}}Assignments not configured for {{.Assign.ProductName}} — every PR flow runs.{{else if .Assign.None}}No agent is assigned to {{.Assign.ProductName}}: no PR flow runs there.{{else}}Roles with no assigned agent do not run their PR flow in {{.Assign.ProductName}}.{{end}}</p>
+  {{end}}
+</div>
 <div class="block">
   {{range .Agents}}
-  <div class="proj" style="padding:8px 0">
-    <span style="display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:13px;color:var(--ink)">
-      <em style="{{.Style}};width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700">{{.Short}}</em>
+  <div class="proj agent-row">
+    <span class="agent-who">
+      <em style="{{.Style}};width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700;flex-shrink:0">{{.Short}}</em>
       {{.Name}} · {{.Label}}
+      {{with .Assigned}}<span class="mono card-labels">{{range .}} <span class="card-label" title="Assigned to {{.Name}}">{{.Name}}</span>{{end}}</span>{{end}}
     </span>
     <b class="{{if .IsOn}}seated{{end}}">{{.Seated}}</b>
   </div>
+  {{else}}
+  <p class="tm-line">{{if .Assign.Product}}No agent is assigned to {{.Assign.ProductName}}.{{if .Assign.Admin}} Tick agents under Edit assignments below.{{end}}{{else}}No agent is registered yet.{{end}}</p>
   {{end}}
 </div>
 {{template "pager" .Pager}}
+{{with .Assign}}{{if and .Admin .Product}}
+<details class="board-help"{{if .Open}} open{{end}}>
+  <summary>Edit assignments for {{.ProductName}} <a class="info-btn info-link" href="../docs/integrations/agents.html#assignment" target="_blank" rel="noopener" aria-label="Assignment: open the docs" title="Assignment: open the docs">i</a></summary>
+  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor">
+    <input type="hidden" name="product" value="{{.Product}}">
+    {{range .Picks}}
+    <label class="agent-pick">
+      <input type="checkbox" name="agent" value="{{.ID}}"{{if .On}} checked{{end}}> {{.Name}} · {{.Label}}{{if .Gated}} <span class="mono tm-line">PR flow</span>{{end}}
+    </label>
+    {{end}}
+    <p class="tm-line">Saving turns on assignment gating for this product, and GAOS will request changes on GitHub for medium and worse findings.</p>
+    <button class="btn btn-primary" type="submit" name="action" value="save">Save</button>
+    {{if .Configured}}<button class="btn" type="submit" name="action" value="reset">Stop gating</button>
+    <p class="tm-line">Stop gating forgets these assignments; every PR flow runs in {{.ProductName}} again.</p>{{end}}
+  </form>
+</details>
+{{end}}{{end}}
 {{end}}
 
 {{/* The Archive page (D-082). Archived conversations of finished cards, read
@@ -1117,7 +1154,7 @@
 <section id="boAutoFix">
 {{with .AutoFix}}
 <header>
-  <div><span class="eyebrow">autonomous work</span><h2>{{$.Title}}</h2><p>{{$.Sub}}</p></div>
+  <div><span class="eyebrow">autonomous work</span><h2>{{$.Title}} <a class="info-btn info-link" href="../docs/integrations/agents.html#review-fix" target="_blank" rel="noopener" aria-label="Review fixes: open the docs" title="Review fixes: open the docs">i</a></h2><p>{{$.Sub}}</p></div>
   <div class="sp af-head">
     <span class="af-token af-token--{{.Token.Tone}}" title="{{.Token.Hint}}"><span class="af-token-k">Write token</span> <b>{{.Token.Kind}}</b></span>
   </div>

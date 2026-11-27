@@ -416,6 +416,12 @@ type Master struct {
 	// AutoFix is the product's defect auto-fix policy (D-091). Structured,
 	// because GAOS enforces it; never rendered into the Blueprint.
 	AutoFix AutoFix
+
+	// Assigned are the agents assigned to the product (D-102): sorted ids of
+	// the roster. AssignedSet is true once an admin saved them; until then the
+	// pull-request flows run as before assignment existed (assign.go).
+	Assigned    []string
+	AssignedSet bool
 }
 
 // AutoFix is a product's defect auto-fix configuration (design §6.1). The zero
@@ -447,6 +453,12 @@ type AutoFix struct {
 	// pull requests (at most 4); they are NOT Master.Repos, so the review flow never sees them.
 	AllowedBases    []string
 	AutomationRepos []string
+	// ReviewFixHeads are the head-branch patterns a low PR-review finding may be
+	// fixed into (D-102), at most 8, each a literal first segment and a pattern
+	// ("feature/*"). Empty = review fixes are off. ReviewFixCap is the review
+	// defects planned per UTC day (0 = the default 3, at most 20).
+	ReviewFixHeads []string
+	ReviewFixCap   int
 }
 
 // Auto-fix cap defaults and ceilings (design §6.1).
@@ -483,7 +495,25 @@ func (a AutoFix) Clone() AutoFix {
 	a.TargetRepos = append([]string(nil), a.TargetRepos...)
 	a.AllowedBases = append([]string(nil), a.AllowedBases...)
 	a.AutomationRepos = append([]string(nil), a.AutomationRepos...)
+	a.ReviewFixHeads = append([]string(nil), a.ReviewFixHeads...)
 	return a
+}
+
+// Review-fix cap (D-102 §6.1).
+const (
+	reviewFixCapDefault = 3
+	reviewFixCapMax     = 20
+)
+
+// ReviewCap is the review-defect cap in force.
+func (a AutoFix) ReviewCap() int {
+	switch {
+	case a.ReviewFixCap <= 0:
+		return reviewFixCapDefault
+	case a.ReviewFixCap > reviewFixCapMax:
+		return reviewFixCapMax
+	}
+	return a.ReviewFixCap
 }
 
 func (m Master) Clone() Master {
@@ -506,6 +536,7 @@ func (m Master) Clone() Master {
 	c.Blueprint = m.Blueprint.Clone()
 	c.Qa = m.Qa.Clone()
 	c.AutoFix = m.AutoFix.Clone()
+	c.Assigned = append([]string(nil), m.Assigned...)
 	return c
 }
 

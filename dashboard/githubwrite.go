@@ -167,6 +167,21 @@ func newGHWriter(cfg ghConfig) *ghWriter {
 	return &ghWriter{c: c}
 }
 
+// The reads a review fix's check point 2 makes with this token's client (D-102
+// §6.4). They read; they change nothing.
+func (w *ghWriter) pullRequest(ctx context.Context, owner, repo string, n int) (ghPR, error) {
+	return w.c.pullRequest(ctx, owner, repo, n)
+}
+func (w *ghWriter) pullFiles(ctx context.Context, owner, repo string, n int) ([]ghFile, error) {
+	return w.c.pullFiles(ctx, owner, repo, n)
+}
+func (w *ghWriter) repoDefault(ctx context.Context, owner, repo string) (string, error) {
+	return w.c.repoDefault(ctx, owner, repo)
+}
+func (w *ghWriter) branchProtected(ctx context.Context, owner, repo, branch string) (bool, error) {
+	return w.c.branchProtected(ctx, owner, repo, branch)
+}
+
 func (w *ghWriter) repoURL(owner, repo string) string {
 	return fmt.Sprintf("%s/repos/%s/%s", w.c.base, url.PathEscape(owner), url.PathEscape(repo))
 }
