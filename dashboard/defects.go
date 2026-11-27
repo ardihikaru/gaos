@@ -40,6 +40,9 @@ const (
 	// DefectKindReview is a low PR-review finding (D-102, reviewdefect.go). It
 	// never arrives from the QA tool: validateDefectItem refuses it.
 	DefectKindReview = "review"
+	// DefectKindUnit is a failing unit-test check of a merge commit (D-105,
+	// unitdefect.go). It never arrives from the QA tool either.
+	DefectKindUnit = "unit"
 )
 
 // The rules a defect move or event names.
@@ -111,6 +114,21 @@ type Defect struct {
 	// every other defect.
 	ReviewBranch string
 	ReviewHead   string
+	// The unit defect's fields (D-105, schema/21): the base whose check failed,
+	// the merge commit and its merged_at, the kept failing tests ("<test>\t<file>",
+	// one per line; emptied by the 30-day retention), the distinct failing files a
+	// unit fix may not edit (never emptied), when it was reopened and when a later
+	// check passed (0 = not), and whether its two notices were sent. Empty on
+	// every other defect.
+	UnitBase           string
+	UnitSHA            string
+	UnitTests          string
+	UnitFiles          []string
+	UnitMergedAt       int64
+	UnitReopenedAt     int64
+	UnitPassedAt       int64
+	UnitNoticeSent     bool
+	UnitPassNoticeSent bool
 }
 
 // Clone deep-copies a record.
@@ -118,6 +136,7 @@ func (d Defect) Clone() Defect {
 	d.TargetRepos = append([]string(nil), d.TargetRepos...)
 	d.Operations = append([]string(nil), d.Operations...)
 	d.Files = append([]string(nil), d.Files...)
+	d.UnitFiles = append([]string(nil), d.UnitFiles...)
 	d.Context = d.Context.Clone()
 	return d
 }

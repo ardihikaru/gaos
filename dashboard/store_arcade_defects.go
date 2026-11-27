@@ -53,6 +53,10 @@ func (s *ArcadeStore) writeDefect(ctx context.Context, tx *ArcadeTx, d Defect) e
 		"supersededBy": d.SupersededBy, "triageTask": d.TriageTask, "fixTask": d.FixTask,
 		"fixPR": d.FixPR, "context": ctxJSON, "baseOverride": d.BaseOverride,
 		"reviewBranch": d.ReviewBranch, "reviewHead": d.ReviewHead, // D-102, schema/19
+		// D-105, schema/21
+		"unitBase": d.UnitBase, "unitSha": d.UnitSHA, "unitTests": d.UnitTests, "unitFiles": listJSON(d.UnitFiles),
+		"unitMergedAt": d.UnitMergedAt, "unitReopenedAt": d.UnitReopenedAt, "unitPassedAt": d.UnitPassedAt,
+		"unitNoticeSent": d.UnitNoticeSent, "unitPassNoticeSent": d.UnitPassNoticeSent,
 	})
 }
 
@@ -91,12 +95,23 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 		BaseOverride    string `json:"baseOverride"`
 		ReviewBranch    string `json:"reviewBranch"`
 		ReviewHead      string `json:"reviewHead"`
+		UnitBase        string `json:"unitBase"`
+		UnitSHA         string `json:"unitSha"`
+		UnitTests       string `json:"unitTests"`
+		UnitFiles       string `json:"unitFiles"`
+		UnitMergedAt    int64  `json:"unitMergedAt"`
+		UnitReopenedAt  int64  `json:"unitReopenedAt"`
+		UnitPassedAt    int64  `json:"unitPassedAt"`
+		UnitNotice      bool   `json:"unitNoticeSent"`
+		UnitPassNotice  bool   `json:"unitPassNoticeSent"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, productId, defectId, caseId, kind, level, automationType, backend, targetRepos,
 		        operations, spec, title, excerpt, excerptWithheld, firstSeen, lastSeen, runRef, gen,
 		        regression, difficulty, triageClass, repo, files, reason, state, supersededBy,
-		        triageTask, fixTask, fixPR, context, baseOverride, reviewBranch, reviewHead
+		        triageTask, fixTask, fixPR, context, baseOverride, reviewBranch, reviewHead,
+		        unitBase, unitSha, unitTests, unitFiles, unitMergedAt, unitReopenedAt, unitPassedAt,
+		        unitNoticeSent, unitPassNoticeSent
 		 FROM Defect WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err
@@ -113,6 +128,9 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 			Files: listFrom(r.Files), Reason: r.Reason, State: r.State, SupersededBy: r.SupersededBy,
 			TriageTask: r.TriageTask, FixTask: r.FixTask, FixPR: r.FixPR, BaseOverride: r.BaseOverride,
 			ReviewBranch: r.ReviewBranch, ReviewHead: r.ReviewHead,
+			UnitBase: r.UnitBase, UnitSHA: r.UnitSHA, UnitTests: r.UnitTests, UnitFiles: listFrom(r.UnitFiles),
+			UnitMergedAt: r.UnitMergedAt, UnitReopenedAt: r.UnitReopenedAt, UnitPassedAt: r.UnitPassedAt,
+			UnitNoticeSent: r.UnitNotice, UnitPassNoticeSent: r.UnitPassNotice,
 		}
 		if r.Context != "" {
 			_ = json.Unmarshal([]byte(r.Context), &d.Context)

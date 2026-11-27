@@ -209,6 +209,14 @@ type Store interface {
 	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
 	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
 	CloseReviewDefect(ctx context.Context, productID, key, rule string) (Result, error)
+	// Unit checks (D-105, unitchecks.go, unitdefect.go): the setting, the watches of
+	// merge commits whose check GAOS awaits, and the notices' bookkeeping.
+	SetUnitChecks(ctx context.Context, productID string, u UnitChecks, actor string) (Result, error)
+	PlantUnitWatch(ctx context.Context, productID string, w UnitWatch) (Result, error)
+	DelayUnitWatch(ctx context.Context, key string, nextAt int64, tries, reads int) (Result, error)
+	UnitWatches(ctx context.Context, productID string) ([]UnitWatch, error)
+	PruneUnitWatches(ctx context.Context, before int64) (Result, error)
+	MarkUnitNotice(ctx context.Context, productID, key, which string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)
@@ -295,6 +303,17 @@ type Result struct {
 	// (pullrequests.go); ArcadeStore writes them in the same transaction.
 	PullRequests       []PullRequest
 	PullRequestDeletes []string
+
+	// UnitWatches are the watches a mutation changed and UnitWatchDeletes the keys it
+	// pruned (D-105); ArcadeStore writes them in the same transaction. UnitNew and
+	// UnitReopened say a held unit card was planned; UnitMarked that a held defect's
+	// check passed, UnitClosed that a pass closed a released one. Never persisted.
+	UnitWatches      []UnitWatch
+	UnitWatchDeletes []string
+	UnitNew          bool
+	UnitReopened     bool
+	UnitMarked       bool
+	UnitClosed       bool
 
 	// Capped: PlanPullRequestCards committed its moot moves but the cap refused
 	// the new cards (design gaos-external-tasks-and-pr-bundles §3.1).

@@ -967,6 +967,12 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"SetThirdParty": func() (Result, error) {
 			return ro.SetThirdParty(ctx, "p-1", ThirdPartyLink{Kind: ThirdPartyTaskMgr, ProductCode: "DEMO"}, "x")
 		},
+		// D-105: the unit checks' writes.
+		"SetUnitChecks":    func() (Result, error) { return ro.SetUnitChecks(ctx, "p-1", UnitChecks{}, "x") },
+		"PlantUnitWatch":   func() (Result, error) { return ro.PlantUnitWatch(ctx, "p-1", UnitWatch{}) },
+		"DelayUnitWatch":   func() (Result, error) { return ro.DelayUnitWatch(ctx, "k", 0, 0, 0) },
+		"PruneUnitWatches": func() (Result, error) { return ro.PruneUnitWatches(ctx, 0) },
+		"MarkUnitNotice":   func() (Result, error) { return ro.MarkUnitNotice(ctx, "p-1", "", "no-ci") },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+
@@ -1661,7 +1667,7 @@ func wipeTenant(t *testing.T, arc *Arcade, tenant string) {
 	for _, typ := range []string{
 		"Product", "Workflow", "Task", "TaskRun", "ContextSlice", "Requirement", "Issue",
 		"AcceptanceCriterion", "Artifact", "Decision", "Repository",
-		"Event", "Snapshot", "Agent", "Room", "QaCase", "Tenant",
+		"Event", "Snapshot", "Agent", "Room", "QaCase", "Tenant", "Defect", "UnitWatch",
 	} {
 		if err := arc.Command(ctx,
 			fmt.Sprintf("DELETE FROM %s WHERE tenantId = :t", typ),
