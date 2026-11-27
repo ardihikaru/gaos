@@ -45,6 +45,11 @@ const (
 	LabelSourceAPI    = "source:api"
 	LabelSourceBundle = "source:bundle"
 
+	// The repository-kind family (D-103 §2.2): the kind of the repository an e2e
+	// card is for, sent to the QA tool. Planner-only.
+	LabelE2EKindBE        = "e2e-kind:be"
+	LabelE2EKindFullstack = "e2e-kind:fullstack"
+
 	// The defect family (D-091). Only the planner sets it; the scheduler never
 	// dispatches it in any mode (the auto-fix loop does, with its caps).
 	LabelDefectTriage  = "defect:triage"
@@ -58,6 +63,9 @@ const labelFamilyDefect = "defect"
 
 // labelFamilySource is the planner-only card-source family (D-102 §22).
 const labelFamilySource = "source"
+
+// labelFamilyE2EKind is the planner-only repository-kind family (D-103 §2.2).
+const labelFamilyE2EKind = "e2e-kind"
 
 // labelFamilySeverity is the reviewer's severity (D-102).
 const labelFamilySeverity = "severity"
@@ -98,6 +106,8 @@ var labelSet = map[string]bool{
 	LabelSeverityCritical:    true,
 	LabelSourceAPI:           true,
 	LabelSourceBundle:        true,
+	LabelE2EKindBE:           true,
+	LabelE2EKindFullstack:    true,
 	LabelDefectTriage:        true,
 	LabelDefectEasy:          true,
 	LabelDefectMedium:        true,
@@ -122,6 +132,8 @@ var labelOrder = []string{
 	LabelDefectEasy,
 	LabelDefectMedium,
 	LabelDefectComplex,
+	LabelE2EKindBE,
+	LabelE2EKindFullstack,
 	// Last, so a card's job label stays first in an API answer (D-102 §22).
 	LabelSourceAPI,
 	LabelSourceBundle,

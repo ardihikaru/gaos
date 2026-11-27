@@ -439,6 +439,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	if srv.qaOut != nil {
 		jr := newQAJobRunner(store, srv.qaOut, flow.ctx, nt, flow.gh)
 		jr.logf = log.Printf
+		jr.autoMerge = storeAutoMerge(store) // D-103 §4.1
 		go jr.Run(ctx)
 	}
 	switch {

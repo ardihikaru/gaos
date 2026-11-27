@@ -201,6 +201,10 @@ type Store interface {
 	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
 	// SetThirdParty saves a product's binding of one third-party kind (D-104, thirdparty.go).
 	SetThirdParty(ctx context.Context, productID string, link ThirdPartyLink, actor string) (Result, error)
+	// SetRepoKinds replaces a product's repository kinds and sets its two Release B switches (D-103).
+	SetRepoKinds(ctx context.Context, productID string, kinds map[string]string, staging, autoMerge bool, actor string) (Result, error)
+	// PlanStagingCards is the staging callback's planner (D-103 §3.1).
+	PlanStagingCards(ctx context.Context, productID string, ev PREvent) (planned, existing []string, creates int, res Result, err error)
 	// Review defects (D-102, reviewdefect.go).
 	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
 	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
@@ -515,4 +519,10 @@ func (readOnly) SetAssigned(context.Context, string, []string, bool, string) (Re
 }
 func (readOnly) SetThirdParty(context.Context, string, ThirdPartyLink, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetRepoKinds(context.Context, string, map[string]string, bool, bool, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) PlanStagingCards(context.Context, string, PREvent) ([]string, []string, int, Result, error) {
+	return nil, nil, 0, Result{}, reject(replayRefusal)
 }

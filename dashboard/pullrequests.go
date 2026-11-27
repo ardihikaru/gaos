@@ -60,6 +60,11 @@ type PullRequest struct {
 	BundledAt    int64
 	Alerted      string
 	TemplateSeen bool
+	// Release B (D-103 §4.2, schema/20): the commit the QA tool pushed after the approval, a note
+	// when GAOS did not run the merged case, and when the row became final.
+	QASha   string
+	QANote  string
+	FinalAt int64
 }
 
 // PRFields are the fields the poller fills from GitHub.
@@ -70,6 +75,8 @@ type PRFields struct {
 	HeadRef   string
 	BaseRef   string
 	CheckedAt int64
+	// HeadSHA is the pull request's head commit (D-103 §4.2).
+	HeadSHA string
 }
 
 // pullRequestKey is the vertex id of a row.
@@ -142,6 +149,7 @@ func (s *MemStore) upsertPullRequestLocked(m *Master, p PullRequest) (PullReques
 		fill(&cur.QAJob, p.QAJob)
 		fill(&cur.QACase, p.QACase)
 		fill(&cur.QALink, p.QALink)
+		fill(&cur.QASha, p.QASha)
 	}
 	if changed {
 		s.pullRequests[p.Key] = cur
@@ -210,6 +218,7 @@ func (s *MemStore) AdvancePullRequest(ctx context.Context, productID, key string
 	if !ok || cur.ProductID != productID {
 		return Result{}, ErrNotFound
 	}
+	wasFinal := prFinal(cur.State)
 	if f.State != "" {
 		cur.State = f.State
 	}
@@ -226,8 +235,20 @@ func (s *MemStore) AdvancePullRequest(ctx context.Context, productID, key string
 		cur.BaseRef = f.BaseRef
 	}
 	cur.CheckedAt = f.CheckedAt
+	res := Result{}
+	if !wasFinal && prFinal(cur.State) {
+		cur.FinalAt = autoFixNow()
+		// A merged QA spec runs its case (D-103 §4.2).
+		if cur.Kind == PRKindQA && cur.State == PRStateMerged {
+			s.pullRequests[key] = cur
+			res = s.planMergedRunLocked(key, strings.ToLower(f.HeadSHA))
+			res.PullRequests = nil // the row is appended once, below
+			cur = s.pullRequests[key]
+		}
+	}
 	s.pullRequests[key] = cur
-	return Result{PullRequests: []PullRequest{cur}}, nil
+	res.PullRequests = append(res.PullRequests, cur)
+	return res, nil
 }
 
 func (s *ArcadeStore) AdvancePullRequest(ctx context.Context, productID, key string, f PRFields) (Result, error) {

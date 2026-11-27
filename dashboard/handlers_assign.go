@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // The Agents page's product filter and the assignment route (D-102 §3.3, §3.5).
@@ -83,6 +84,16 @@ func agentAssignView(r *http.Request, masters []Master, products []Product, rost
 	if m == nil || !a.Admin {
 		return a
 	}
+	for _, repo := range m.Repos {
+		k := m.RepoKinds[strings.ToLower(repo)]
+		a.Repos = append(a.Repos, RepoKindPick{Repo: repo, Kind: k})
+		if k != "" {
+			a.KindsSet++
+		}
+	}
+	a.StagingCreates, a.AutoMergeSpecs = m.StagingCreates, m.AutoMergeSpecs
+	b := ReadinessBand(m.ReadinessScore())
+	a.AutoMergeBand, a.Band = b == "working" || b == "complete", b
 	for _, ag := range roster {
 		a.Picks = append(a.Picks, AgentPick{ID: ag.ID, Name: ag.Name, Label: roles[ag.Role].Label,
 			On: m.AssignedSet && containsFold(m.Assigned, ag.ID), Gated: containsFold(assignGatedRoles, ag.Role)})
@@ -109,6 +120,28 @@ func (s *server) handleAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PostFormValue("product")
+	if r.PostFormValue("action") == "kinds" {
+		// Repository kinds and the two Release B switches (D-103 §2.1): assignment is untouched.
+		kinds := map[string]string{}
+		for k, v := range r.PostForm {
+			if repo, ok := strings.CutPrefix(k, "kind."); ok && len(v) > 0 {
+				kinds[repo] = v[0]
+			}
+		}
+		res, err := s.mut(r).SetRepoKinds(r.Context(), id, kinds,
+			r.PostFormValue("stagingCreates") == "on", r.PostFormValue("autoMergeSpecs") == "on", ss.Email)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		v := s.applyResult(r, res)
+		s.sheet(w, r, v, "agents", id, "brd")
+		if v.BO != nil {
+			v.BO.Assign.KindsOpen = true // the admin keeps sight of the kinds just saved
+		}
+		s.rend.RenderWithChrome(w, "bo-main-oob", v)
+		return
+	}
 	set := true
 	ids := r.PostForm["agent"]
 	switch r.PostFormValue("action") {

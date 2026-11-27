@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// TC-824: the binding (D-104 §3): its checks, one enabled product per kind, the event, the admin
+// TC-844: the binding (D-104 §3): its checks, one enabled product per kind, the event, the admin
 // gate, the cache cleared on a change, and the Product document property under ArcadeDB.
 func TestThirdPartyBinding(t *testing.T) {
 	ctx := context.Background()

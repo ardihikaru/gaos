@@ -19,6 +19,17 @@ type fakeQAJobs struct {
 	canceled    []string
 	cancelErr   error
 	pr, link    string // pr_url and job_url the status carries (design §4.4)
+	// Release B (D-103): what the tool lists, what it was sent, what it reports.
+	caps      map[string]bool
+	ins       []qaStartIn
+	sha, auto string
+}
+
+func (f *fakeQAJobs) capabilities(context.Context) map[string]bool {
+	if f.caps == nil {
+		return map[string]bool{}
+	}
+	return f.caps
 }
 
 func (f *fakeQAJobs) cancelJob(_ context.Context, id string) error {
@@ -26,8 +37,9 @@ func (f *fakeQAJobs) cancelJob(_ context.Context, id string) error {
 	return f.cancelErr
 }
 
-func (f *fakeQAJobs) startAutomation(_ context.Context, product, code, mode string) (string, int, error) {
-	f.started = append(f.started, product+"|"+code+"|"+mode)
+func (f *fakeQAJobs) startAutomation(_ context.Context, in qaStartIn) (string, int, error) {
+	f.ins = append(f.ins, in)
+	f.started = append(f.started, in.Product+"|"+in.CaseCode+"|"+in.Mode)
 	if f.startErr != nil || f.startStatus != 0 {
 		return "", f.startStatus, errors.New("x")
 	}
@@ -36,7 +48,7 @@ func (f *fakeQAJobs) startAutomation(_ context.Context, product, code, mode stri
 func (f *fakeQAJobs) jobStatus(context.Context, string) (qaJob, int, error) {
 	s := f.statuses[min(f.polls, len(f.statuses)-1)]
 	f.polls++
-	return qaJob{Status: s, PRURL: f.pr, JobURL: f.link}, 200, nil
+	return qaJob{Status: s, PRURL: f.pr, JobURL: f.link, PushedSHA: f.sha, AutoMerge: f.auto}, 200, nil
 }
 
 func e2eFixture(t *testing.T, qa *fakeQAJobs, body string) (*qaJobRunner, *MemStore, string, string) {
@@ -156,7 +168,7 @@ func TestTheOutboundClientSpeaksTheAgreedRoutes(t *testing.T) {
 	if o == nil {
 		t.Skip("the test URL is not an allowed outbound origin")
 	}
-	id, code, err := o.startAutomation(context.Background(), "p-1", "A-1", "create")
+	id, code, err := o.startAutomation(context.Background(), qaStartIn{Product: "p-1", CaseCode: "A-1", Mode: "create"})
 	if err != nil || id != "j-9" || code != 202 || gotPath != "POST /api/v1/gaos/automation" || !strings.Contains(gotBody, `"caseCode":"A-1"`) {
 		t.Fatalf("start: %q %d %v %q %q", id, code, err, gotPath, gotBody)
 	}
@@ -254,7 +266,7 @@ func TestARestartPicksTheJobUpFromTheCardAndNeverStartsASecond(t *testing.T) {
 	r, st, _, e2e := e2eFixture(t, qa, "QA-case: A-1")
 	ctx := context.Background()
 	// The card was RUNNING with its job id when the process died.
-	if _, err := st.ResolvePRCard(ctx, "p-1", e2e, StatusRunning, qaJobReason("job-777", "started")); err != nil {
+	if _, err := st.ResolvePRCard(ctx, "p-1", e2e, StatusRunning, qaJobReason("job-777", "", "started")); err != nil {
 		t.Fatal(err)
 	}
 	r.Tick(ctx) // a fresh runner: adopts the job
@@ -267,8 +279,8 @@ func TestARestartPicksTheJobUpFromTheCardAndNeverStartsASecond(t *testing.T) {
 	}
 	// A card waiting for approval is adopted too, and goes on waiting.
 	r2, st2, _, e2e2 := e2eFixture(t, &fakeQAJobs{statuses: []string{"awaiting_approval"}}, "QA-case: A-1")
-	st2.ResolvePRCard(ctx, "p-1", e2e2, StatusRunning, qaJobReason("job-778", "started"))
-	st2.ResolvePRCard(ctx, "p-1", e2e2, StatusAwaitingInput, qaJobReason("job-778", "waits"))
+	st2.ResolvePRCard(ctx, "p-1", e2e2, StatusRunning, qaJobReason("job-778", "", "started"))
+	st2.ResolvePRCard(ctx, "p-1", e2e2, StatusAwaitingInput, qaJobReason("job-778", "", "waits"))
 	r2.Tick(ctx)
 	r2.Tick(ctx)
 	if got := prCards(t, st2, "p-1")[e2e2].Status; got != StatusAwaitingInput {

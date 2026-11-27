@@ -509,7 +509,7 @@
     {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
     <div class="board-card-title">{{.Label}}</div>
     <div class="mono board-card-meta">{{.ID}} · {{.Role}} · {{.Status}} · {{if .Story}}{{.Story}}{{else}}plan{{end}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
-    {{if or (and .Severity (ne .Severity "none")) .Chips}}<div class="mono card-labels">{{if and .Severity (ne .Severity "none")}}<span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span>{{end}}{{range .Chips}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
+    {{if or (and .Severity (ne .Severity "none")) .Chips}}<div class="mono card-labels">{{if and .Severity (ne .Severity "none")}}<span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span>{{end}}{{range .Chips}} <span class="card-label"{{with chipTitle .}} title="{{.}}"{{end}}>{{chipText .}}</span>{{end}}</div>{{end}}
     {{with .Qa}}{{template "qa-badge" .}}{{end}}
     {{$card := .ID}}
     {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
@@ -574,7 +574,7 @@
       <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
       <td class="mono">{{if eq .Severity "none"}}<span class="tm-line" title="Review severity: none">none</span>{{else if .Severity}}<span class="card-labels"><span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span></span>{{end}}</td>
       <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
-      <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}</td>
+      <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label"{{with chipTitle .}} title="{{.}}"{{end}}>{{chipText .}}</span>{{end}}</span>{{end}}</td>
       <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
       <td class="mono cell-id" title="{{.Workflow}}">{{.Workflow}}</td>
       <td>{{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}</td>
@@ -872,6 +872,46 @@
     <button class="btn btn-primary" type="submit" name="action" value="save">Save</button>
     {{if .Configured}}<button class="btn" type="submit" name="action" value="reset">Stop gating</button>
     <p class="tm-line">Stop gating forgets these assignments; every PR flow runs in {{.ProductName}} again.</p>{{end}}
+  </form>
+</details>
+{{/* D-103 §2.1. The closed summary says what is set, so a glance answers
+     "did my save land?" without opening it. A kinds save reopens this panel. */}}
+<details class="board-help"{{if .KindsOpen}} open{{end}}>
+  <summary>E2E repository kinds for {{.ProductName}} <a class="info-btn info-link" href="../docs/integrations/agents.html#repo-kinds" target="_blank" rel="noopener" aria-label="Repository kinds: open the docs" title="Repository kinds: open the docs">i</a>
+    <span class="kinds-sum">{{if .Repos}}{{.KindsSet}} of {{len .Repos}} with a kind{{else}}no repository{{end}} · staging creates {{if .StagingCreates}}on{{else}}off{{end}} · auto-merge {{if not .AutoMergeSpecs}}off{{else if .AutoMergeBand}}on{{else}}waits for Working{{end}}</span></summary>
+  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor" data-kinds-form>
+    <input type="hidden" name="product" value="{{.Product}}">
+    <input type="hidden" name="action" value="kinds">
+    {{if .Repos}}
+    <p class="tm-line kinds-intro">A kind says what a staging run of that repository covers. <b>Backend only</b> runs the API and GraphQL cases and writes API specs; <b>Frontend and backend</b> runs every case and writes browser specs.</p>
+    <div class="kinds-list">
+    {{range .Repos}}
+    <label class="kind-row"><span class="mono kind-repo">{{.Repo}}</span>
+      <select name="kind.{{.Repo}}" aria-label="Kind of {{.Repo}}">
+        <option value=""{{if eq .Kind ""}} selected{{end}}>No kind (run every case)</option>
+        <option value="be"{{if eq .Kind "be"}} selected{{end}}>Backend only</option>
+        <option value="fullstack"{{if eq .Kind "fullstack"}} selected{{end}}>Frontend and backend</option>
+      </select>
+    </label>
+    {{end}}
+    </div>
+    {{else}}
+    <p class="tm-line">{{.ProductName}} lists no repository, so there is nothing to give a kind. The two switches below still apply.</p>
+    {{end}}
+    <div class="kind-switch">
+      <input type="checkbox" id="kinds-staging" name="stagingCreates" aria-describedby="kinds-staging-h"{{if .StagingCreates}} checked{{end}}>
+      <label for="kinds-staging">Create missing automation on a staging deploy</label>
+      <p class="tm-line" id="kinds-staging-h">GAOS asks the QA tool to write the specs a deploy is missing, at most 2 per deploy.</p>
+    </div>
+    <div class="kind-switch{{if not .AutoMergeBand}} is-waiting{{end}}">
+      <input type="checkbox" id="kinds-merge" name="autoMergeSpecs" aria-describedby="kinds-merge-h"{{if .AutoMergeSpecs}} checked{{end}}>
+      <label for="kinds-merge">Auto-merge a spec a person approved in the QA tool</label>
+      <p class="tm-line" id="kinds-merge-h">{{if .AutoMergeBand}}The QA tool merges it once its required check passes; GAOS never merges. A merged spec runs its case once the QA catalog shows it implemented.{{else}}Waits for the Working band; {{.ProductName}} is in the {{.Band}} band today. You can turn it on now: nothing merges before then, and GAOS never merges.{{end}}</p>
+    </div>
+    <div class="kind-actions">
+      <button class="btn btn-primary" type="submit">Save kinds</button>
+      {{if .KindsOpen}}<span class="tm-line kind-saved" data-kinds-saved>Saved. The next staging deploy uses these settings.</span>{{end}}
+    </div>
   </form>
 </details>
 {{end}}{{end}}

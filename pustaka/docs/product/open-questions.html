@@ -19,7 +19,7 @@
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
   database version, which CLI ships first, whether the sisflow board may be vendored, and how a
-  platform-run reviewer is made genuinely zero-context. Of the seventeen
+  platform-run reviewer is made genuinely zero-context. Of the twenty
   still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
   that move makes GAOS depend on without yet controlling — two are left from the three that arrived on
   2026-11-14 with the QA sync (<a href="#oq-33">OQ-33</a> has since been answered), and the rest are older.</p>
@@ -956,6 +956,7 @@
 
   <h3 id="oq-42">OQ-42 · Should an outside client create an automation from a case code alone?</h3>
   <p><strong>Why it is open:</strong> <code>automation-create</code> takes a pull request and reads its <code>QA-case:</code> line. A case with no pull request would need its own key namespace and a QA-tool call keyed on the case, and no client has asked for it.</p>
+  <p><strong>Partly answered (2026-11-27).</strong> <a href="decision-log.html#d-103">D-103</a> lets the staging callback create automation from a case code, on a product that turned it on and within caps. An outside client through the external-tasks API still cannot; the question stays open for that surface.</p>
   <p><strong>The options:</strong> add a <code>caseCode</code> form keyed like an automation run; or keep the pull request as the only entry.</p>
   <p><strong>What it blocks:</strong> nothing today.</p>
 

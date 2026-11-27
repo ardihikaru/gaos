@@ -42,6 +42,7 @@ type ghPRState struct {
 	Title, Author string
 	Head, Base    string
 	Body          string // the PR template (D-100); pullRequest already reads it
+	HeadSHA       string // D-103 §4.2: a merged spec runs only at its approved commit
 }
 
 // pullState reads a pull request's draft flag, merged flag, state, title, author and branches.
@@ -51,7 +52,7 @@ func (c *ghClient) pullState(ctx context.Context, owner, repo string, n int) (gh
 		return ghPRState{}, err
 	}
 	return ghPRState{Draft: pr.Draft, Merged: pr.Merged, State: pr.State, Title: pr.Title,
-		Author: pr.User.Login, Head: pr.Head.Ref, Base: pr.Base.Ref, Body: pr.Body}, nil
+		Author: pr.User.Login, Head: pr.Head.Ref, Base: pr.Base.Ref, Body: pr.Body, HeadSHA: pr.Head.SHA}, nil
 }
 
 // prRowStateOf maps what GitHub says to a PullRequest row's state.
@@ -363,7 +364,7 @@ func (p *fixPRPoller) pollRow(ctx context.Context, r PullRequest, m Master, now 
 	p.due[id] = now.Add(every)
 	p.status.LastError = ""
 	p.mu.Unlock()
-	f := PRFields{State: prRowStateOf(gs), Title: gs.Title, Author: gs.Author, HeadRef: gs.Head, BaseRef: gs.Base, CheckedAt: now.Unix()}
+	f := PRFields{State: prRowStateOf(gs), Title: gs.Title, Author: gs.Author, HeadRef: gs.Head, BaseRef: gs.Base, CheckedAt: now.Unix(), HeadSHA: gs.HeadSHA}
 	if _, err := p.st.AdvancePullRequest(ctx, r.ProductID, r.Key, f); err != nil && !errors.Is(err, ErrNotFound) {
 		p.logf("pull requests: %s#%d could not be recorded: %v", r.Repo, r.Number, err)
 		p.mu.Lock()

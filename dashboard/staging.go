@@ -257,7 +257,8 @@ func (s *server) apiStaging(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ev := PREvent{Type: prTypeStaging, Org: owner, Repo: repo, Commit: strings.ToLower(b.Commit)}
-	planned, existing, res, err := s.store.PlanPullRequestCards(context.Background(), id, ev)
+	// The run card and, on a product that asked for them, the create cards (D-103 §3.1).
+	planned, existing, creates, res, err := s.store.PlanStagingCards(context.Background(), id, ev)
 	switch {
 	case err == nil && len(planned) == 0 && len(existing) == 0 && strings.HasPrefix(res.Skipped, skippedUnassigned):
 		// A configuration state, not a transient one: 422, never the retryable 409 (D-102 §3.4).
@@ -273,10 +274,14 @@ func (s *server) apiStaging(w http.ResponseWriter, r *http.Request) {
 	a.seen(id)
 	switch {
 	case len(planned) > 0:
-		log.Printf("staging: planned %s on %s", planned[0], id)
-		apiJSON(w, http.StatusAccepted, map[string]any{"accepted": true, "taskId": planned[0]})
+		log.Printf("staging: planned %s on %s (%d create(s))", planned[0], id, creates)
+		apiJSON(w, http.StatusAccepted, map[string]any{"accepted": true, "taskId": planned[0], "creates": creates})
 	case len(existing) > 0:
-		apiJSON(w, http.StatusOK, map[string]any{"accepted": true, "duplicate": true, "taskId": existing[0]})
+		apiJSON(w, http.StatusOK, map[string]any{"accepted": true, "duplicate": true, "taskId": existing[0], "creates": 0})
+	case res.Capped:
+		// The run was refused by the cap; its creates (own cap) were kept (D-103 §3.1).
+		apiJSON(w, http.StatusConflict, map[string]any{"error": "capped",
+			"reason": "the product holds too many open pull-request cards", "creates": creates})
 	default:
 		apiErr(w, http.StatusInternalServerError, "internal", "nothing was planned")
 	}

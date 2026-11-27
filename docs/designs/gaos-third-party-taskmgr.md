@@ -11,9 +11,8 @@
 >   TLS
 >
 > **Decision:** D-104; answers OQ-41
-> **Numbering:** Release B (PR #61, open) holds D-103, BR-62 and v0.65.0, so this design takes D-104, BR-63
-> and v0.66.0. The QA register must stay contiguous, so this design takes TC-819–TC-829 and Release B
-> renumbers its cases from TC-830.
+> **Numbering:** Release B holds D-103, BR-62, TC-819–TC-838 and v0.65.0/v0.65.1, so this design takes
+> D-104, BR-63, OQ-44, OQ-45, TC-839–TC-849 and v0.66.0.
 > **Baseline:** `main` at `8e46cf6` (v0.64.0). Paths are relative to the repo root. `TM/` is TaskMgr's
 > application directory in its own repository.
 > **Placeholders (D-085):** `<taskmgr-addr>` is TaskMgr's private IP and port, `p-N` the bound GAOS product,
@@ -365,22 +364,22 @@ A new block follows the pull-request flow's block in `{{define "bo-integrations"
 | `deploy/stacks/compose.prod.yaml`, `deploy/rebuild-restart.sh`, `deploy/check-stacks.sh` | the two mounts and three variables; the files join the `prod.pr-*` required list; the read-only mount asserted | 5 |
 | `README.md`, `pustaka/docs/infra/environments.html` | the variables | 5 |
 | `pustaka/docs/integrations/taskmgr.html` (new), `pustaka/docs/assets/toc/integrations.js`, `pustaka/docs/integrations/pr-agents.html`, `pustaka/docs/integrations/pull-requests.html`, `pustaka/docs/integrations/overview.html` | the page, the notice routing and the data flow | 5 |
-| `pustaka/docs/product/{brd,decision-log,open-questions,qa-test-plan}.html`, `pustaka/docs/assets/toc/product.js`, `pustaka/docs/changelog.html`, `pustaka/docs/assets/toc.js`, `.claude/rules/qa-test-plan.md`, `deploy/check-workspace.sh` | D-104, BR-63, OQ-41 answered, OQ-44 and OQ-45, TC-819–TC-828, counts, v0.66.0 | 5 |
+| `pustaka/docs/product/{brd,decision-log,open-questions,qa-test-plan}.html`, `pustaka/docs/assets/toc/product.js`, `pustaka/docs/changelog.html`, `pustaka/docs/assets/toc.js`, `.claude/rules/qa-test-plan.md`, `deploy/check-workspace.sh` | D-104, BR-63, OQ-41 answered, OQ-44 and OQ-45, TC-839–TC-848, counts, v0.66.0 | 5 |
 
-## 10. Tests (TC-819 to TC-828)
+## 10. Tests (TC-839 to TC-848)
 
 | TC | Test | File |
 |---|---|---|
-| 819 | `TestProtowireRoundTrip`: varints, strings, nested messages, unknown fields of each wire type skipped | `protowire_test.go` |
-| 820 | `TestTaskMgrClientCalls`: an in-test h2c gRPC server; OK, 5, 7/8/16 → auth, 3, trailers-only, oversized, two frames, deadline; the Basic header sent; `grpc-message` not logged | `taskmgr_test.go` |
-| 821 | `TestTaskMgrConfig`: a non-loopback address without a CA is refused; a hostname is refused; an open auth file is refused; another resolved IP is refused at dial | `taskmgr_test.go` |
-| 822 | `TestTaskMgrBreaker`: auth latches until mtime change or 1 h; unavailable backs off, then doubles; nothing is called while open | `taskmgr_test.go` |
-| 823 | `TestTaskMgrPeopleDirectory`: paging, checked-only logins, duplicate logins dropped, usable numbers, a stale directory kept, emptied on disable | `taskmgr_test.go` |
-| 824 | `TestThirdPartyBinding`: kind and code checks, 409 on a second product, the event, the admin gate, cache cleared, Arcade props (fake graph) | `thirdparty_test.go` |
-| 825 | `TestTaskCodeValidationAlert`: unknown, deleted and other-product alert once each; a row already `no-task-code` is alerted; breaker open → none; ok → none; the cache spares a second call | `taskmgr_flow_test.go` |
-| 826 | `TestNotifyLoginThroughTaskMgr`: no contact → the TaskMgr person; a filtering contact → the group; `e2e:approval` → the group; the alias, with no number in events | `taskmgr_flow_test.go` |
-| 827 | `TestTestPlanReadyAndWriteBack`: `bundle:planned` to the QA; one comment within 1500 runes with the marker; other-product → nothing; `pr:` bundle → nothing; case codes filtered | `taskmgr_flow_test.go` |
-| 828 | `TestIntegrationsShowTaskMgr`: the block, its status order, counts for everyone, the table for admins only | `integrations_test.go` |
+| 839 | `TestProtowireRoundTrip`: varints, strings, nested messages, unknown fields of each wire type skipped | `protowire_test.go` |
+| 840 | `TestTaskMgrClientCalls`: an in-test h2c gRPC server; OK, 5, 7/8/16 → auth, 3, trailers-only, oversized, two frames, deadline; the Basic header sent; `grpc-message` not logged | `taskmgr_test.go` |
+| 841 | `TestTaskMgrConfig`: a non-loopback address without a CA is refused; a hostname is refused; an open auth file is refused; another resolved IP is refused at dial | `taskmgr_test.go` |
+| 842 | `TestTaskMgrBreaker`: auth latches until mtime change or 1 h; unavailable backs off, then doubles; nothing is called while open | `taskmgr_test.go` |
+| 843 | `TestTaskMgrPeopleDirectory`: paging, checked-only logins, duplicate logins dropped, usable numbers, a stale directory kept, emptied on disable | `taskmgr_test.go` |
+| 844 | `TestThirdPartyBinding`: kind and code checks, 409 on a second product, the event, the admin gate, cache cleared, Arcade props (fake graph) | `thirdparty_test.go` |
+| 845 | `TestTaskCodeValidationAlert`: unknown, deleted and other-product alert once each; a row already `no-task-code` is alerted; breaker open → none; ok → none; the cache spares a second call | `taskmgr_flow_test.go` |
+| 846 | `TestNotifyLoginThroughTaskMgr`: no contact → the TaskMgr person; a filtering contact → the group; `e2e:approval` → the group; the alias, with no number in events | `taskmgr_flow_test.go` |
+| 847 | `TestTestPlanReadyAndWriteBack`: `bundle:planned` to the QA; one comment within 1500 runes with the marker; other-product → nothing; `pr:` bundle → nothing; case codes filtered | `taskmgr_flow_test.go` |
+| 848 | `TestIntegrationsShowTaskMgr`: the block, its status order, counts for everyone, the table for admins only | `integrations_test.go` |
 
 There are 10 dashboard tests, so the Go test count rises by 10.
 

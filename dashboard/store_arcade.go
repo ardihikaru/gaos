@@ -553,6 +553,20 @@ func (s *ArcadeStore) AutoFixOf(ctx context.Context, productID string) (AutoFix,
 func (s *ArcadeStore) SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SetAutoFix(ctx, productID, a, actor, tokenKind) })
 }
+func (s *ArcadeStore) SetRepoKinds(ctx context.Context, productID string, kinds map[string]string, staging, autoMerge bool, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) {
+		return s.proj.SetRepoKinds(ctx, productID, kinds, staging, autoMerge, actor)
+	})
+}
+func (s *ArcadeStore) PlanStagingCards(ctx context.Context, productID string, ev PREvent) (planned, existing []string, creates int, res Result, err error) {
+	res, err = s.mutate(ctx, func() (Result, error) {
+		var r Result
+		var e error
+		planned, existing, creates, r, e = s.proj.PlanStagingCards(ctx, productID, ev)
+		return r, e
+	})
+	return planned, existing, creates, res, err
+}
 func (s *ArcadeStore) SetAssigned(ctx context.Context, productID string, ids []string, set bool, actor string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SetAssigned(ctx, productID, ids, set, actor) })
 }
@@ -942,6 +956,14 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 		return err
 	}
 	props["thirdParty"] = thirdParty
+	// Release B (D-103): schema-less document properties.
+	kinds := m.RepoKinds
+	if kinds == nil {
+		kinds = map[string]string{}
+	}
+	props["repoKinds"] = kinds
+	props["stagingCreates"] = m.StagingCreates
+	props["autoMergeSpecs"] = m.AutoMergeSpecs
 	if m.Stage != "" {
 		props["stage"] = m.Stage
 	}
@@ -1593,24 +1615,27 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Goal string `json:"goal"`
 		Slug string `json:"slug"`
 
-		Code      string          `json:"code"`
-		Owner     string          `json:"owner"`
-		Priority  string          `json:"priority"`
-		Stage     string          `json:"stage"`
-		Repos     []string        `json:"repos"`
-		BRD       json.RawMessage `json:"brd"`
-		Stories   json.RawMessage `json:"stories"`
-		Diagrams  json.RawMessage `json:"diagrams"`
-		Decisions json.RawMessage `json:"decisions"`
-		Policies  json.RawMessage `json:"policies"`
-		Sources   json.RawMessage `json:"knowledgeSources"`
-		Workspace json.RawMessage `json:"workspace"`
-		Vendors   json.RawMessage `json:"vendorPolicy"`
-		QaState   json.RawMessage `json:"qaState"`
-		AutoFix   json.RawMessage `json:"autoFix"`
-		Assigned  []string        `json:"assignedAgents"`
-		AssignSet *bool           `json:"assignedSet"`
-		ThirdPty  json.RawMessage `json:"thirdParty"`
+		Code      string            `json:"code"`
+		Owner     string            `json:"owner"`
+		Priority  string            `json:"priority"`
+		Stage     string            `json:"stage"`
+		Repos     []string          `json:"repos"`
+		BRD       json.RawMessage   `json:"brd"`
+		Stories   json.RawMessage   `json:"stories"`
+		Diagrams  json.RawMessage   `json:"diagrams"`
+		Decisions json.RawMessage   `json:"decisions"`
+		Policies  json.RawMessage   `json:"policies"`
+		Sources   json.RawMessage   `json:"knowledgeSources"`
+		Workspace json.RawMessage   `json:"workspace"`
+		Vendors   json.RawMessage   `json:"vendorPolicy"`
+		QaState   json.RawMessage   `json:"qaState"`
+		AutoFix   json.RawMessage   `json:"autoFix"`
+		Assigned  []string          `json:"assignedAgents"`
+		AssignSet *bool             `json:"assignedSet"`
+		ThirdPty  json.RawMessage   `json:"thirdParty"`
+		RepoKinds map[string]string `json:"repoKinds"`
+		StagingC  *bool             `json:"stagingCreates"`
+		AutoMerge *bool             `json:"autoMergeSpecs"`
 	}
 	if err := s.arc.Query(ctx, arcadeProductSelect(), map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1672,6 +1697,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		if err := decodeInto(r.ThirdPty, &mr.ThirdParty); err != nil {
 			return false, err
 		}
+		if len(r.RepoKinds) > 0 {
+			mr.RepoKinds = r.RepoKinds
+		}
+		mr.StagingCreates = r.StagingC != nil && *r.StagingC
+		mr.AutoMergeSpecs = r.AutoMerge != nil && *r.AutoMerge
 		m.masters = append(m.masters, mr)
 	}
 
@@ -2301,6 +2331,6 @@ func decodeInto(raw json.RawMessage, out any) error {
 func arcadeProductSelect() string {
 	return `SELECT id, name, repo, goal, slug, code, owner, priority, stage, repos,
 		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix,
-		        assignedAgents, assignedSet, thirdParty
+		        assignedAgents, assignedSet, thirdParty, repoKinds, stagingCreates, autoMergeSpecs
 		 FROM Product WHERE tenantId = :t ORDER BY id`
 }

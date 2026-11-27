@@ -326,7 +326,19 @@ func (s *MemStore) QaApplyResults(ctx context.Context, productID string, in QaRe
 	e := s.emit(RecordUpdated, productID, qaEventText(s.productName(productID), "QA results applied",
 		fmt.Sprintf("%d changed", out.Applied), fmt.Sprintf("%d unchanged", out.Unchanged),
 		fmt.Sprintf("%d rejected", len(out.Rejected))), KindInfo, EventPayload{})
-	return out, s.qaResult(m, "QA results applied.", changed, e), nil
+	res := s.qaResult(m, "QA results applied.", changed, e)
+	// A case that became implemented runs after its spec merged (D-103 §4.2).
+	for _, c := range changed {
+		if c.Implemented {
+			mr := s.planMergedRunsForCaseLocked(productID, c.CaseID, autoFixNow())
+			res.NewEvents = append(res.NewEvents, mr.NewEvents...)
+			res.PullRequests = append(res.PullRequests, mr.PullRequests...)
+			if len(mr.Floor.Desks) > 0 {
+				res.Floor = mr.Floor
+			}
+		}
+	}
+	return out, res, nil
 }
 
 func (s *MemStore) QaRecordSync(ctx context.Context, productID, dir string, side QaSyncSide) (Result, error) {
