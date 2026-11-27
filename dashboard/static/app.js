@@ -79,12 +79,17 @@
   document.addEventListener("change", function (e) {
     var lbl = e.target.closest(".story-pick");
     if (lbl && e.target.type === "checkbox") lbl.setAttribute("aria-pressed", String(e.target.checked));
-    /* The kinds editor's "Saved." describes the form as it was saved: the
-       first edit after that makes it untrue, so it goes (D-103 §2.1). */
-    var kf = e.target.closest("[data-kinds-form]");
+    clearSaved(e);
+  });
+  /* A settings form's "Saved." (the kinds editor, D-103 §2.1; the unit checks,
+     D-105 §4.1) describes the form as it was saved: the first edit after that
+     makes it untrue, so it goes. "input" catches typing, "change" a select. */
+  function clearSaved(e) {
+    var kf = e.target.closest && e.target.closest("[data-kinds-form]");
     var saved = kf && kf.querySelector("[data-kinds-saved]");
     if (saved) saved.remove();
-  });
+  }
+  document.addEventListener("input", clearSaved);
 
   /* ---------- keyboard ---------- */
   document.addEventListener("keydown", function (e) {

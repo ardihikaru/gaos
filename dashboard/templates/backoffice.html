@@ -1259,13 +1259,13 @@
 <details class="board-help"{{if .Open}} open{{end}}>
   <summary>Unit tests (CI) for {{.Name}} <a class="info-btn info-link" href="../docs/integrations/agents.html#release-b-unit" target="_blank" rel="noopener" aria-label="Unit tests (CI): open the docs" title="Unit tests (CI): open the docs">i</a>
     <span class="kinds-sum">{{if .Enabled}}on{{else}}off{{end}} · {{.WorkflowPath}} · check {{.Check}} · cap {{.Cap}} a day</span></summary>
-  <form hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML" class="agent-editor">
+  <form hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML" class="agent-editor" data-kinds-form>
     <p class="tm-line kinds-intro">GAOS runs no test. It reads the check of the <b>{{.WorkflowPath}}</b> push run on each merge commit of a fix-target repository. A failing check becomes a defect held for an auto-fix admin; a missing check is never a pass.</p>
     {{if .Repos}}
     <div class="kinds-list">
     {{range .Repos}}
-    <div class="kind-row"><span class="mono kind-repo">{{.Repo}}</span><span class="tm-line">{{.Outcome}}{{if .At}} · {{.At}}{{end}}</span></div>
-    {{if .Warn}}<p class="tm-line" role="alert">No <code>unit-tests</code> run on recent merges: is the workflow installed?</p>{{end}}
+    <div class="kind-row"><span class="mono kind-repo">{{.Repo}}</span><span class="tm-line"{{with .Outcome}} title="{{.}}"{{end}}>{{.OutcomeLabel}}{{if .At}} · {{.At}}{{end}}</span>
+      {{if .Warn}}<p class="tm-line kind-warn">No <code>{{$.Check}}</code> run on recent merges: is the workflow installed?</p>{{end}}</div>
     {{end}}
     </div>
     {{else}}<p class="tm-line">{{.Name}} lists no fix-target repository yet; add one to the auto-fix settings first.</p>{{end}}
@@ -1280,7 +1280,7 @@
     <div class="field"><label for="unit-cap-{{.ProductID}}">New defects a day</label><input id="unit-cap-{{.ProductID}}" name="dailyCap" type="number" min="0" max="20" value="{{if .DailyCap}}{{.DailyCap}}{{end}}" placeholder="5"></div>
     <div class="kind-actions">
       <button class="btn btn-primary" type="submit">Save unit checks</button>
-      {{if .Open}}<span class="tm-line kind-saved">Saved. The next merge uses these settings.</span>{{end}}
+      {{if .Open}}<span class="tm-line kind-saved" data-kinds-saved>Saved. The next merge uses these settings.</span>{{end}}
     </div>
   </form>
 </details>

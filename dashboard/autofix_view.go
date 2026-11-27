@@ -117,9 +117,33 @@ type AFUnit struct {
 }
 
 // AFUnitRepo is a fix-target repository's last watch. Warn: the last three ended no-ci.
+// Outcome is the stored token (shown as a title); OutcomeLabel says it in words.
 type AFUnitRepo struct {
-	Repo, Outcome, At string
-	Warn              bool
+	Repo, Outcome, OutcomeLabel, At string
+	Warn                            bool
+}
+
+// unitOutcomeLabel says a watch outcome (§6) the way an operator reads it.
+func unitOutcomeLabel(o string) string {
+	switch {
+	case o == UnitPassed:
+		return "passed"
+	case o == UnitFailed:
+		return "failed: defect filed, held for an auto-fix admin"
+	case o == UnitDedup:
+		return "failed again: the same open defect"
+	case o == UnitUpdated:
+		return "failed: the open defect was updated"
+	case o == UnitNoCI:
+		return "no check run found; nothing filed"
+	case o == UnitInconclusive:
+		return "inconclusive; nothing filed"
+	case strings.HasPrefix(o, "refused:"):
+		return "failed, not filed (" + strings.TrimPrefix(o, "refused:") + ")"
+	case strings.HasPrefix(o, "skipped:"):
+		return "not watched (" + strings.TrimPrefix(o, "skipped:") + ")"
+	}
+	return o
 }
 
 // AFToken is the kind of GitHub write token in use. Never the token.
@@ -962,9 +986,9 @@ func afUnit(pr Product, m Master, ws []UnitWatch) AFUnit {
 			}
 		}
 		sort.Slice(done, func(i, j int) bool { return done[i].DoneAt > done[j].DoneAt })
-		r := AFUnitRepo{Repo: afLine(repo, 120), Outcome: "no merge watched yet"}
+		r := AFUnitRepo{Repo: afLine(repo, 120), OutcomeLabel: "no merge watched yet"}
 		if len(done) > 0 {
-			r.Outcome, r.At = done[0].Outcome, afClock(done[0].DoneAt)
+			r.Outcome, r.OutcomeLabel, r.At = done[0].Outcome, unitOutcomeLabel(done[0].Outcome), afClock(done[0].DoneAt)
 		}
 		if len(done) >= 3 {
 			r.Warn = done[0].Outcome == UnitNoCI && done[1].Outcome == UnitNoCI && done[2].Outcome == UnitNoCI
