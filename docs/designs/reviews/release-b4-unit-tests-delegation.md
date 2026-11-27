@@ -23,18 +23,15 @@ changes, so the anchor exists before any code is written.
 
 ## What the operator is told in the final summary
 
-The new rule and the amendments this design makes, copied word for word from the
-design's §10, so the operator can reverse any of them. (The design's §0 and §10
-quote an excerpt of line 14 above; line 14 is the full text.)
+The new rule and the amendments this design makes **as of rev 12** (copied from the design's §10;
+rev 12 replaced the QA-tool runner with a read of the repository's own CI check, decision C′,
+after the operator's second message of 2026-11-27: "work among agents to decide the final
+decision. deep analysis. then apply it"). The rev-11 amendments to BR-38, BR-54, BR-61 and
+OQ-38, the BR-44 clarification and the release-day changes to e2e cards are **dropped**.
 
-- **BR-64** (new): "A unit test or build failure of a fix-target repository's existing tests, reported by the QA tool, files at most one open unit defect per repository, base and failing set, only while auto-fix is on, a fixer and a triager are assigned and the caps allow; its triage card is held until an auto-fix admin releases or cancels it or closes the defect. A failure of the QA job itself files nothing. When every failing test of a defect passes at a later merge on the same base, the defect closes — except that a defect whose triage card is still held is only marked, once, and an auto-fix admin closes it. A failure from a merge older than such a pass never reopens or files the defect."
-- **BR-38** amended: "one live **model** turn per product: a card the QA-job runner is driving (a card whose planner-set key is a QA-runner key and whose reason carries the runner's job) holds no lease and is never dispatched to an agent."
-- **BR-54** amended: "…and a unit job's result object, and the QA tool's capability answer, may set the status and reason of that job's own `unit:qa` card and file a unit defect whose triage card is held; and a result in which every failing test of an open unit defect passed at a later merge cancels that defect's cards that hold no live turn — except a held triage card, which stays held for an admin. No other existing card is moved."
-- **BR-61** amended: "…a card the QA-job runner drives (`unit:qa`) is not gated by assignment; the unit defect it files is (fixer and triager, BR-64)."
+- **BR-64** (new): "A failing named CI check run of a fix-target repository's merge commit files at most one open unit defect per repository, base and failing set, only while auto-fix is on, a fixer and a triager are assigned and the caps allow; its triage card is held until an auto-fix admin releases or cancels it or closes the defect. A missing or inconclusive check files and closes nothing. When the check passes at a later merge on the same base, the defect closes, except that a defect whose triage card is still held is only marked and an auto-fix admin closes it."
 - **D-091 (8)** amended: a unit defect counts as backend by decision, as a review defect does.
-- **OQ-38** amended: the missing QA routes now also block `unit:qa` cards, which need the `unit-run` mode, `watch`/`watched` and the `sandbox` object.
-- **OQ-40** amended: a unit fix always adds a model-written test file whose CI runs on a same-repository `gaos/fix-*` branch, a new standing case of the question, guarded by `CIConfirmed`, the admin release and the draft-only pull request.
-- **BR-44** clarification (not amended): a `unit:qa` card never enters Needs you.
-- **BR-48** clarification: from this release every board move, the dispatch move and reorders included, records the mover's alias in its event payload when there is a signed-in mover; captions do not change.
-- **Live from the release, whatever the switch:** the design's §2 changes (a–g) apply to every product from release day, even while unit runs stay dormant — among them, cards the QA-job runner drives (e2e cards included) leave the live-turn lease and take no agent seat, boot reconciliation no longer requeues them, `e2e:*` labels are refused on cards the QA tool does not run, an auto-fix admin may cancel a running QA-tool card, and every board move is attributed.
+- **OQ-40** amended: a unit fix adds or edits test files on a same-repository `gaos/fix-*` branch, whose CI then runs them — a standing case of the question, guarded by `CIConfirmed`, the admin release and the draft-only pull request.
+- **BR-48** clarification: a held unit card's release, cancel and close record the admin's alias; other moves unchanged.
+- **Nothing is live before the switch:** with `UnitChecks.Enabled` false (the default) GAOS behaves as before for every product.
 - **The residual risks** recorded in D-105.
