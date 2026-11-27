@@ -24,7 +24,7 @@
        data-tags="integration, api, webhook, ai-manager, qa"
        data-hashtags="integrations, architecture"
        data-published="2026-11-21"
-       data-updated="2026-11-27"
+       data-updated="2026-11-28"
        data-version-from="0.45.0"
        data-version-to=""></div>
 
@@ -63,6 +63,7 @@
       <tr><td>GAOS → ai-manager: admin</td><td><code>/admin/workspaces/…</code>, <code>/admin/sessions/…</code></td><td>Bearer, admin key</td><td><code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td>a Blueprint sync, a review, a prune</td></tr>
       <tr><td>A client with the tasks capability → GAOS</td><td><code>/api/v1/products/{id}/tasks…</code></td><td>Bearer, its own token</td><td>a line of <code>GAOS_API_CLIENTS_FILE</code></td><td>the client (<a href="external-tasks-api.html">External tasks API</a>, <a href="../product/decision-log.html#d-099">D-099</a>)</td></tr>
       <tr><td>GAOS ⇄ GitHub</td><td>the pull requests of the followed repositories: read, review, comment</td><td>Bearer, a fine-grained token</td><td><code>GAOS_GITHUB_TOKEN_FILE</code></td><td>GAOS&rsquo;s poller and the review cards (<a href="pr-agents.html">Pull-request agents</a>)</td></tr>
+      <tr><td>GAOS → GitHub: auto-fix writes</td><td>read the base, create blobs, a tree, a commit and a <code>gaos/fix-</code> branch, open a draft pull request, label and comment it, and close only its own drafts a retarget replaced or an admin closed as a duplicate</td><td>Bearer, a separate write token</td><td><code>GAOS_GITHUB_WRITE_TOKEN_FILE</code></td><td>a finished fix card, a retarget, an admin&rsquo;s duplicate close (<a href="autofix.html">Defect auto-fix</a>, <a href="../product/decision-log.html#d-108">D-108</a>)</td></tr>
       <tr><td>GAOS → WhatsApp gateway</td><td>one line per notice, to a person or the pinned group</td><td>HTTP Basic</td><td><code>GAOS_WA_BASIC_AUTH_FILE</code>, <code>GAOS_WA_URL</code></td><td>a notice (<a href="pr-agents.html#whatsapp">WhatsApp and the contacts</a>)</td></tr>
       <tr><td>GAOS → QA tools: case proposals</td><td><code>POST /api/v1/gaos/case-proposals</code></td><td>Bearer, outbound</td><td><code>GAOS_QA_TOKEN_FILE</code></td><td>a bundle&rsquo;s test plan (<a href="../product/decision-log.html#d-100">D-100</a>)</td></tr>
       <tr><td>GAOS → TaskMgr (optional)</td><td>gRPC <code>ListUsers</code>, <code>GetTask</code>, <code>AddComment</code>, over TLS to a pinned certificate</td><td>HTTP Basic, an integration grant</td><td><code>GAOS_TASKMGR_AUTH_FILE</code>, <code>GAOS_TASKMGR_CA_FILE</code>, <code>GAOS_TASKMGR_GRPC_ADDR</code></td><td>GAOS: the directory refresh, a polled pull request, a finished test plan (<a href="taskmgr.html">TaskMgr</a>, <a href="../product/decision-log.html#d-104">D-104</a>)</td></tr>
@@ -156,6 +157,22 @@ client ── GET /api/v1/products/p-1/tasks?externalId=… ──▶ GAOS
   </div>
   <p>A manual review is never dispatched: GAOS announces it to the WhatsApp group, naming the client. An e2e kind is
   worked by the QA tool, and <code>automation-run</code> can be cancelled by the client that started it.</p>
+
+  <h2 id="autofix-flow">A defect to a draft pull request</h2>
+  <p>The QA tool reports a defect; two agents judge and fix it; GAOS alone writes to GitHub, with its own write token
+  (<a href="autofix.html#data-flow">Defect auto-fix</a>).</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>QA tool ── POST /api/v1/products/p-1/qa/defects ──▶ GAOS: DefectReported, a triage card
+GAOS ── turn ──▶ ai-manager: Defect Triager → easy | medium | complex   (DefectTriaged)
+GAOS ── turn ──▶ ai-manager: Defect Fixer → edits + a test             (easy, switch on, cap left)
+GAOS ── write token ──▶ GitHub: blobs, tree, commit, gaos/fix-&lt;ref&gt;, draft PR, labels, comment
+                        FixPROpened · one WhatsApp line
+GitHub ◀── poller ── GAOS: draft | ready | merged | closed              (FixPRStateChanged)
+retarget:  admin ──▶ GAOS: next-generation fix card ──▶ … new draft on gaos/fix-&lt;ref&gt;-&lt;gen&gt;
+           GAOS ── write token ──▶ GitHub: close the replaced draft, branch kept (D-108)
+duplicate: admin ── POST /products/p-1/prs/{fixPRID}/close ──▶ GAOS ──▶ GitHub: close · defect unchanged</pre>
+  </div>
 
   <h2 id="bundle">A bundle to a test plan</h2>
   <p>For a product in <code>GAOS_PR_TEMPLATE_PRODUCTS</code>, the PR template ties pull requests in several repositories

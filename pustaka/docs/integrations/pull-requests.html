@@ -25,7 +25,7 @@
        data-tags="integration, pull request, github, auto-fix, review, qa tool, back office"
        data-hashtags="integrations"
        data-published="2026-11-26"
-       data-updated="2026-11-26"
+       data-updated="2026-11-28"
        data-version-from="0.53.0"
        data-version-to=""></div>
 
@@ -84,6 +84,19 @@
       <tr><td>Limits</td><td>At most three retargets of a defect; one at a time; a base removed from <code>allowedBases</code> is refused from then on, even for a task someone unblocks.</td></tr>
     </tbody>
   </table>
+  <div class="flow">
+    <div class="node"><b>1 · Admin</b><span>Retarget, a base from <code>allowedBases</code></span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS</b><span>checks the branch on GitHub; plans the fix task</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · AI</b><span>the fix on the new base</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GAOS</b><span>opens the new draft, links both</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · GAOS</b><span>closes the old one, branch kept</span></div>
+  </div>
+  <p>Step 5 runs only after the new pull request is recorded, so a failure never leaves the defect with none open. The
+  full data flow, with the duplicate close, is on <a href="autofix.html#data-flow">Defect auto-fix</a>.</p>
   <p>When the button is off, the drawer says why and how to turn it on (not an admin, not a GAOS branch, closed, base not yet known, already retargeted, a task already working, three retargets, no other allowed base).</p>
 
   <h2 id="never">What it never does</h2>
