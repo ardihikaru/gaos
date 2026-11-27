@@ -14,12 +14,12 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Forty-three decisions the <a href="brd.html">BRD</a> refuses to invent, each with
-  the options actually available, the trade-off each one carries, and what it blocks. Twenty-three are
+  <p class="lede">Forty-five decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  the options actually available, the trade-off each one carries, and what it blocks. Twenty-five are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
   database version, which CLI ships first, whether the sisflow board may be vendored, and how a
-  platform-run reviewer is made genuinely zero-context. Of the seventeen
+  platform-run reviewer is made genuinely zero-context. Of the twenty
   still open, five arrived on 2026-11-02 with the move to ai-manager as the gateway — each one a thing
   that move makes GAOS depend on without yet controlling — two are left from the three that arrived on
   2026-11-14 with the QA sync (<a href="#oq-33">OQ-33</a> has since been answered), and the rest are older.</p>
@@ -73,7 +73,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All forty-three in one place. Filter by any word in a question, or by theme.</p>
+  <p>All forty-five in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -124,9 +124,11 @@
       <tr data-tags="technical qa tool routes automation job dependency repository new"><td><a href="#oq-38">OQ-38</a></td><td>Technical</td><td>When does the QA tool serve the two routes GAOS calls to write and run an e2e spec?</td><td>D-088, the e2e cards</td><td>Open — raised 2026-11-25 (today: the e2e cards fail with <code>qa-routes-missing</code>)</td></tr>
       <tr data-tags="technical auto-fix test runner verified after sample executed agent-reported new"><td><a href="#oq-39">OQ-39</a></td><td>Technical</td><td>Should a verified test runner execute the 'after' sample of an auto-fix, instead of taking the agent's word for it?</td><td>D-091, the Auto-fix view</td><td>Open — raised 2026-11-26 (today: the 'after' is shown as agent-reported, not run)</td></tr>
       <tr data-tags="technical auto-fix fork branch ci exposure same repository new"><td><a href="#oq-40">OQ-40</a></td><td>Technical</td><td>Should an auto-fix branch live in a fork instead of the application repository, so a pull request from it runs CI without secrets?</td><td>D-091, the CI check</td><td>Open — raised 2026-11-26 (today: a same-repository branch, guarded by the CI check and <code>CIConfirmed</code>)</td></tr>
-      <tr data-tags="technical github whatsapp contact task manager mapping new"><td><a href="#oq-41">OQ-41</a></td><td>Technical</td><td>Should the GitHub-account-to-WhatsApp mapping come from the team&rsquo;s task manager instead of GAOS&rsquo;s contact registry?</td><td>D-101, the notices</td><td>Open &mdash; raised 2026-11-27 (today: the contact registry, filled in the back office)</td></tr>
-      <tr data-tags="technical external tasks api automation case code no pull request new"><td><a href="#oq-42">OQ-42</a></td><td>Technical</td><td>Should an outside client create an e2e automation from a case code alone, with no pull request?</td><td>D-099</td><td>Open &mdash; raised 2026-11-27 (today: <code>automation-create</code> needs a pull request; <a href="decision-log.html#d-103">D-103</a> answers the staging surface only)</td></tr>
+      <tr data-tags="technical github whatsapp contact task manager mapping answered"><td><a href="#oq-41">OQ-41</a></td><td>Technical</td><td>Should the GitHub-account-to-WhatsApp mapping come from the team&rsquo;s task manager instead of GAOS&rsquo;s contact registry?</td><td>D-101, the notices</td><td>Answered → <a href="decision-log.html#d-104">D-104</a></td></tr>
+      <tr data-tags="technical external tasks api automation case code no pull request new"><td><a href="#oq-42">OQ-42</a></td><td>Technical</td><td>Should an outside client create an e2e automation from a case code alone, with no pull request?</td><td>D-099</td><td>Open &mdash; raised 2026-11-27 (today: <code>automation-create</code> needs a pull request)</td></tr>
       <tr data-tags="technical pull request bundle detach operator new"><td><a href="#oq-43">OQ-43</a></td><td>Technical</td><td>Should an operator be able to detach a pull request from a bundle?</td><td>D-100</td><td>Open &mdash; raised 2026-11-27 (today: a wrong link holds the bundle until the pull request is closed or its row expires)</td></tr>
+      <tr data-tags="technical third-party platform second kind binding taskmgr new"><td><a href="#oq-44">OQ-44</a></td><td>Technical</td><td>Should a second third-party platform kind share the product binding TaskMgr uses?</td><td>D-104</td><td>Open &mdash; raised 2026-11-27 (today: the binding allows it; only <code>taskmgr</code> exists)</td></tr>
+      <tr data-tags="operations reviewer deny-list secrets prod files harness new"><td><a href="#oq-45">OQ-45</a></td><td>Operations</td><td>Should the design reviewers&rsquo; deny-list name every <code>deploy/stacks/prod.*</code> secret, and be enforced by the harness rather than by instruction?</td><td>D-104&rsquo;s security review</td><td>Open &mdash; raised 2026-11-27 (today: an instruction naming three secret classes)</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -947,9 +949,10 @@
   <p><strong>What it blocks:</strong> nothing today; it needs a fork to be created and kept for each repository.</p>
 
   <h3 id="oq-41">OQ-41 · Should the GitHub-to-WhatsApp mapping come from the task manager?</h3>
-  <p><strong>Why it is open:</strong> a notice for a pull request goes to its author&rsquo;s WhatsApp number, found through GAOS&rsquo;s contact registry, which a person fills in the back office. The team&rsquo;s task manager already knows its users&rsquo; phone numbers, but not their GitHub accounts.</p>
+  <p><strong>Why it was open:</strong> a notice for a pull request goes to its author&rsquo;s WhatsApp number, found through GAOS&rsquo;s contact registry, which a person fills in the back office. The team&rsquo;s task manager already knows its users&rsquo; phone numbers, but not their GitHub accounts.</p>
   <p><strong>The options:</strong> keep the registry; have GAOS map a GitHub login to a task-manager user and read the phone from the task manager; or add a GitHub field to the task manager.</p>
-  <p><strong>What it blocks:</strong> nothing; the registry works. It is a separate piece of work with the task manager&rsquo;s owners.</p>
+  <p><strong>What it blocked:</strong> nothing; the registry worked.</p>
+  <p><strong>Answered</strong> as <a href="decision-log.html#d-104">D-104</a>: the task manager gained checked GitHub logins, and GAOS binds one product to it as a <em>third-party platform</em>. A notice whose login has no GAOS contact goes to the task-manager person with that checked login before the group; the registry still wins when it has the person. The same binding validates task codes, tells the task&rsquo;s QA a test plan is ready and writes one note back.</p>
 
   <h3 id="oq-42">OQ-42 · Should an outside client create an automation from a case code alone?</h3>
   <p><strong>Why it is open:</strong> <code>automation-create</code> takes a pull request and reads its <code>QA-case:</code> line. A case with no pull request would need its own key namespace and a QA-tool call keyed on the case, and no client has asked for it.</p>
@@ -961,6 +964,16 @@
   <p><strong>Why it is open:</strong> a bundle&rsquo;s members come from the pull requests&rsquo; own text. A copy-pasted code or a stray link can tie an unrelated open pull request to a bundle, which then waits until that pull request is closed or its row expires after ninety days.</p>
   <p><strong>The options:</strong> a back-office action that clears a row&rsquo;s bundle key; or keep the text as the only source and fix it on GitHub.</p>
   <p><strong>What it blocks:</strong> nothing; the page shows which member a bundle waits on.</p>
+
+  <h3 id="oq-44">OQ-44 · Should a second platform kind share the binding?</h3>
+  <p><strong>Why it is open:</strong> <a href="decision-log.html#d-104">D-104</a> made the binding general &mdash; a closed set of kinds, one product per kind &mdash; but only <code>taskmgr</code> exists, so nothing has tested whether another platform fits the same three fields.</p>
+  <p><strong>The options:</strong> add a kind to the set when a second platform arrives; or give each platform its own setting.</p>
+  <p><strong>What it blocks:</strong> nothing today.</p>
+
+  <h3 id="oq-45">OQ-45 · Should the reviewers&rsquo; deny-list name every prod secret, enforced by the harness?</h3>
+  <p><strong>Why it is open:</strong> the design reviewers are told not to open three classes of secret file. The pull-request and Brain Town classes, and the TaskMgr credential, are not named, and the rule is an instruction, not a permission the harness enforces.</p>
+  <p><strong>The options:</strong> one pattern for <code>deploy/stacks/prod.*</code> and <code>/run/secrets/**</code>, enforced by deny rules; or keep the instruction and name each class.</p>
+  <p><strong>What it blocks:</strong> nothing; no reviewer has read a secret.</p>
 
   <div class="adm warn">
     <p class="adm-title">Nothing here is rhetorical</p>

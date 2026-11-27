@@ -67,7 +67,7 @@ func agoAt(at int64, now time.Time) string {
 }
 
 // buildIntegrations fills the Integrations view.
-func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
+func (s *server) buildIntegrations(ctx context.Context, bo *BOView, admin bool) {
 	bo.Title = "Integrations"
 	bo.Sub = "What GAOS is connected to, and whether each connection works. No secret is shown; the contact list below is the one place it can be edited."
 	now := time.Now()
@@ -206,6 +206,7 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 		p.BrainTownConsumer = s.btConsumerOff
 	}
 	p.PR = s.prFlowRow(ctx, products, now)
+	p.TM = s.taskMgrRow(ctx, products, now, admin)
 	integChips(p)
 	bo.Integrations = p
 }
@@ -299,6 +300,18 @@ func integChips(p *IntegrationsPage) {
 	default:
 		p.PRChip = chip("Connected", toneOK)
 	}
+
+	// TaskMgr (D-104 §7), in order of precedence.
+	switch tm := p.TM; {
+	case strings.HasPrefix(tm.State, "unusable") || tm.Breaker == "auth":
+		p.TMChip = chip("Unusable", toneBad)
+	case tm.Product != "" && (tm.Breaker == "unavailable" || tm.Stale || !tm.InTemplates):
+		p.TMChip = chip("Degraded", toneWarn)
+	case tm.Product != "" && tm.State == "on" && tm.Refreshed != "":
+		p.TMChip = chip("Connected", toneOK)
+	default:
+		p.TMChip = chip("Off", toneBad)
+	}
 }
 
 // chipLabels is the closed set of chip labels; a test holds the page to it.
@@ -351,4 +364,59 @@ func sortedKeys(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// taskMgrRow is the TaskMgr block (D-104 §7). The people table is filled for an auto-fix admin
+// only; everyone else sees the counts. A number is masked here, so no template renders one whole.
+func (s *server) taskMgrRow(ctx context.Context, products []Product, now time.Time, admin bool) TaskMgrRow {
+	r := TaskMgrRow{State: "off (GAOS_TASKMGR_GRPC_ADDR is not set)", Admin: admin}
+	tm := s.tm
+	if tm == nil {
+		return r
+	}
+	switch {
+	case tm.cfg.why != "":
+		r.State = "unusable: " + tm.cfg.why
+	case tm.cfg.off != "":
+		r.State = "off (" + tm.cfg.off + ")"
+	case tm.cl != nil:
+		r.State = "on"
+		r.Host = tm.cfg.addr
+		if tm.cfg.plain {
+			r.Host += " (loopback, unencrypted)"
+		}
+	}
+	r.Breaker = tm.cl.breaker()
+	for _, p := range products {
+		m, err := s.store.Master(ctx, p.ID)
+		if err != nil {
+			continue
+		}
+		b, _ := thirdPartyOf(m, ThirdPartyTaskMgr)
+		r.Products = append(r.Products, TMBindRow{ID: p.ID, Name: p.Name, Code: b.ProductCode, Enabled: b.Enabled})
+		if b.Enabled && b.Kind != "" {
+			r.Product, r.Code, r.InTemplates = p.ID, b.ProductCode, templateProducts()[p.ID]
+		}
+	}
+	snap := tm.people.snapshot()
+	r.Counts = snap.Counts
+	r.LastErr = snap.LastErr
+	r.Stale = snap.Loaded && snap.LastErr != ""
+	if !snap.LastOK.IsZero() {
+		r.Refreshed = relSpan(now.Sub(snap.LastOK)) + " ago"
+	}
+	if admin {
+		for _, p := range snap.People {
+			num := ""
+			if p.usable() {
+				num = maskDestination(p.WhatsApp)
+			}
+			login := ""
+			if p.Checked {
+				login = p.GitHub
+			}
+			r.People = append(r.People, TMPersonRow{Name: p.Name, Role: p.Role, Login: login, Number: num})
+		}
+	}
+	return r
 }

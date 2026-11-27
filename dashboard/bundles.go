@@ -502,3 +502,41 @@ func (p *fixPRPoller) maybeAlert(ctx context.Context, row PullRequest, tmpl prTe
 			"A pull request has no task-manager code", row.TaskID)
 	}
 }
+
+// maybeAlertUnknown is D-104 §5.1: a row whose task-manager code TaskMgr does not know, whose task
+// is deleted or archived, or whose task belongs to another TaskMgr product, gets one alert. There
+// is NO bundle-key condition: every row with a code has one. A row already alerted for a missing
+// code is told once more, now that it names a wrong one.
+func (p *fixPRPoller) maybeAlertUnknown(ctx context.Context, row PullRequest, now time.Time) {
+	if p.tm == nil || row.TaskCode == "" || !row.TemplateSeen || row.State == PRStateDraft || prFinal(row.State) ||
+		now.Sub(time.Unix(row.OpenedAt, 0)) < alertGraceCode ||
+		(row.Alerted != "" && row.Alerted != alertNoTaskCode) {
+		return
+	}
+	m, err := p.st.Master(ctx, row.ProductID)
+	if err != nil {
+		return
+	}
+	b, ok := p.tm.ready(m)
+	if !ok {
+		return
+	}
+	res, err := p.tm.check(ctx, b, row.TaskCode, false)
+	if err != nil || res.Result != "unknown" {
+		return // unchecked or valid: no alert
+	}
+	if _, err := p.st.SetPRAlerted(ctx, row.ProductID, row.Key, alertUnknownTask); err != nil {
+		return // never send an alert that is not recorded first
+	}
+	owner, repo, _ := ghOwnerRepo(row.Repo)
+	if p.alert.post != nil {
+		comment := "GAOS: the task-manager code " + row.TaskCode + ` is not an open task of this product in TaskMgr. Check "Kode (jika dari task manager)".`
+		if err := p.alert.post.postReview(ctx, owner, repo, row.Number, comment, ghEventComment); err != nil {
+			p.logf("bundles: the unknown-code comment on %s failed: %s", prSelfRef(row), ghErrorClass(err))
+		}
+	}
+	if p.alert.nt != nil {
+		p.alert.nt.NotifyPR(ctx, row.ProductID, owner, repo, row.Number, "pr:"+alertUnknownTask,
+			"A pull request names a task-manager code TaskMgr does not know", row.TaskID)
+	}
+}

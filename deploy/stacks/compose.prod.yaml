@@ -193,6 +193,13 @@ services:
       GAOS_GITHUB_WRITE_TOKEN_FILE: "/run/secrets/pr-github-write-token"
       GAOS_AUTOFIX_ADMINS: "/run/secrets/pr-autofix-admins"
       GAOS_AUTOFIX_ALLOW_CLASSIC: "${GAOS_AUTOFIX_ALLOW_CLASSIC:-}"
+      # D-104: TaskMgr, a third-party platform bound to one product. The address is an IP
+      # literal from the instance env (empty = off); the credential (user:password) and the
+      # pinned TLS certificate are FILES (deploy/stacks/prod.pr-taskmgr-*, gitignored, mode 600),
+      # never environment values. An empty credential file keeps the link off.
+      GAOS_TASKMGR_GRPC_ADDR: "${GAOS_TASKMGR_GRPC_ADDR:-}"
+      GAOS_TASKMGR_AUTH_FILE: "/run/secrets/pr-taskmgr-auth"
+      GAOS_TASKMGR_CA_FILE: "/run/secrets/pr-taskmgr-ca.pem"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
       - ./prod.aim-admin-key:/run/secrets/aim-admin-key:ro
@@ -211,6 +218,8 @@ services:
       - ./prod.pr-wa-group:/run/secrets/pr-wa-group:ro
       - ./prod.pr-github-write-token:/run/secrets/pr-github-write-token:ro
       - ./prod.pr-autofix-admins:/run/secrets/pr-autofix-admins:ro
+      - ./prod.pr-taskmgr-auth:/run/secrets/pr-taskmgr-auth:ro
+      - ./prod.pr-taskmgr-ca.pem:/run/secrets/pr-taskmgr-ca.pem:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.

@@ -509,7 +509,7 @@
     {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
     <div class="board-card-title">{{.Label}}</div>
     <div class="mono board-card-meta">{{.ID}} · {{.Role}} · {{.Status}} · {{if .Story}}{{.Story}}{{else}}plan{{end}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
-    {{if or (and .Severity (ne .Severity "none")) .Chips}}<div class="mono card-labels">{{if and .Severity (ne .Severity "none")}}<span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span>{{end}}{{range .Chips}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
+    {{if or (and .Severity (ne .Severity "none")) .Chips}}<div class="mono card-labels">{{if and .Severity (ne .Severity "none")}}<span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span>{{end}}{{range .Chips}} <span class="card-label"{{with chipTitle .}} title="{{.}}"{{end}}>{{chipText .}}</span>{{end}}</div>{{end}}
     {{with .Qa}}{{template "qa-badge" .}}{{end}}
     {{$card := .ID}}
     {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
@@ -574,7 +574,7 @@
       <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
       <td class="mono">{{if eq .Severity "none"}}<span class="tm-line" title="Review severity: none">none</span>{{else if .Severity}}<span class="card-labels"><span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span></span>{{end}}</td>
       <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
-      <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}</td>
+      <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label"{{with chipTitle .}} title="{{.}}"{{end}}>{{chipText .}}</span>{{end}}</span>{{end}}</td>
       <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
       <td class="mono cell-id" title="{{.Workflow}}">{{.Workflow}}</td>
       <td>{{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}</td>
@@ -874,26 +874,44 @@
     <p class="tm-line">Stop gating forgets these assignments; every PR flow runs in {{.ProductName}} again.</p>{{end}}
   </form>
 </details>
-<details class="board-help">
-  <summary>E2E repository kinds for {{.ProductName}} <a class="info-btn info-link" href="../docs/integrations/agents.html#repo-kinds" target="_blank" rel="noopener" aria-label="Repository kinds: open the docs" title="Repository kinds: open the docs">i</a></summary>
-  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor">
+{{/* D-103 §2.1. The closed summary says what is set, so a glance answers
+     "did my save land?" without opening it. A kinds save reopens this panel. */}}
+<details class="board-help"{{if .KindsOpen}} open{{end}}>
+  <summary>E2E repository kinds for {{.ProductName}} <a class="info-btn info-link" href="../docs/integrations/agents.html#repo-kinds" target="_blank" rel="noopener" aria-label="Repository kinds: open the docs" title="Repository kinds: open the docs">i</a>
+    <span class="kinds-sum">{{if .Repos}}{{.KindsSet}} of {{len .Repos}} with a kind{{else}}no repository{{end}} · staging creates {{if .StagingCreates}}on{{else}}off{{end}} · auto-merge {{if not .AutoMergeSpecs}}off{{else if .AutoMergeBand}}on{{else}}waits for Working{{end}}</span></summary>
+  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor" data-kinds-form>
     <input type="hidden" name="product" value="{{.Product}}">
     <input type="hidden" name="action" value="kinds">
+    {{if .Repos}}
+    <p class="tm-line kinds-intro">A kind says what a staging run of that repository covers. <b>Backend only</b> runs the API and GraphQL cases and writes API specs; <b>Frontend and backend</b> runs every case and writes browser specs.</p>
+    <div class="kinds-list">
     {{range .Repos}}
-    <label class="agent-pick"><span class="mono">{{.Repo}}</span>
+    <label class="kind-row"><span class="mono kind-repo">{{.Repo}}</span>
       <select name="kind.{{.Repo}}" aria-label="Kind of {{.Repo}}">
         <option value=""{{if eq .Kind ""}} selected{{end}}>No kind (run every case)</option>
         <option value="be"{{if eq .Kind "be"}} selected{{end}}>Backend only</option>
         <option value="fullstack"{{if eq .Kind "fullstack"}} selected{{end}}>Frontend and backend</option>
       </select>
     </label>
-    {{else}}
-    <p class="tm-line">This product lists no repository.</p>
     {{end}}
-    <label class="agent-pick"><input type="checkbox" name="stagingCreates"{{if .StagingCreates}} checked{{end}}> On a staging deploy, ask the QA tool to create missing automation (at most 2 per deploy)</label>
-    <label class="agent-pick"><input type="checkbox" name="autoMergeSpecs"{{if .AutoMergeSpecs}} checked{{end}}> Let the QA tool auto-merge a spec a person approved{{if not .AutoMergeBand}} <span class="mono tm-line">needs the Working band</span>{{end}}</label>
-    <p class="tm-line">GAOS never merges. A merged spec runs its case once the QA catalog shows it implemented.</p>
-    <button class="btn btn-primary" type="submit">Save kinds</button>
+    </div>
+    {{else}}
+    <p class="tm-line">{{.ProductName}} lists no repository, so there is nothing to give a kind. The two switches below still apply.</p>
+    {{end}}
+    <div class="kind-switch">
+      <input type="checkbox" id="kinds-staging" name="stagingCreates" aria-describedby="kinds-staging-h"{{if .StagingCreates}} checked{{end}}>
+      <label for="kinds-staging">Create missing automation on a staging deploy</label>
+      <p class="tm-line" id="kinds-staging-h">GAOS asks the QA tool to write the specs a deploy is missing, at most 2 per deploy.</p>
+    </div>
+    <div class="kind-switch{{if not .AutoMergeBand}} is-waiting{{end}}">
+      <input type="checkbox" id="kinds-merge" name="autoMergeSpecs" aria-describedby="kinds-merge-h"{{if .AutoMergeSpecs}} checked{{end}}>
+      <label for="kinds-merge">Auto-merge a spec a person approved in the QA tool</label>
+      <p class="tm-line" id="kinds-merge-h">{{if .AutoMergeBand}}The QA tool merges it once its required check passes; GAOS never merges. A merged spec runs its case once the QA catalog shows it implemented.{{else}}Waits for the Working band; {{.ProductName}} is in the {{.Band}} band today. You can turn it on now: nothing merges before then, and GAOS never merges.{{end}}</p>
+    </div>
+    <div class="kind-actions">
+      <button class="btn btn-primary" type="submit">Save kinds</button>
+      {{if .KindsOpen}}<span class="tm-line kind-saved" data-kinds-saved>Saved. The next staging deploy uses these settings.</span>{{end}}
+    </div>
   </form>
 </details>
 {{end}}{{end}}
@@ -1067,6 +1085,50 @@
     </tbody>
   </table></div>
   <p class="tm-line">Set up: <code>GAOS_GITHUB_TOKEN_FILE</code>; <code>GAOS_GITHUB_WRITE_TOKEN_FILE</code> (auto-fix only; the view shows its kind, never the token); <code>GAOS_STAGING_BASIC_AUTH_FILE</code> (lines <code>productId:user:password</code>); <code>GAOS_WA_URL</code> (https), <code>GAOS_WA_BASIC_AUTH_FILE</code> and <code>GAOS_WA_GROUP_FILE</code>. <a href="../docs/integrations/pr-agents.html" target="_blank" rel="noopener">Pull-request agents</a></p>
+</div>
+<div class="block">
+  <div class="integ-h">
+    <h4>TaskMgr</h4>
+    <span class="chip st-{{.TMChip.Tone}}">{{.TMChip.Label}}</span>
+    <span class="chip need-opt">Optional</span>
+    <span class="chip third-party">Third-party</span>
+    <button type="button" class="info-btn" popovertarget="ip-taskmgr" aria-label="TaskMgr: info">i</button>
+  </div>
+  <div id="ip-taskmgr" class="info-pop" popover>
+    <h5>What it does</h5><p>TaskMgr, the team&rsquo;s task manager, is bound to one product. GAOS checks each pull request&rsquo;s task-manager code against it, sends a notice to the TaskMgr person with the author&rsquo;s GitHub login when GAOS has no contact for it, tells the task&rsquo;s QA when a test plan is ready, and leaves one comment on the task when its pull requests are finished.</p>
+    <h5>When connected</h5><p>A wrong or unknown code gets one comment and one notice. A login with no contact reaches its TaskMgr person instead of the group.</p>
+    <h5>When disconnected</h5><p>Everything works as before: codes are checked on their shape only, and a notice with no contact goes to the pinned group.</p>
+    <p class="info-req">Optional: GAOS&rsquo;s workflow does not depend on it.</p>
+  </div>
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <tbody>
+      <tr><th scope="row">State</th><td class="mono">{{.TM.State}}{{if .TM.Breaker}} &middot; paused ({{.TM.Breaker}}){{end}}</td></tr>
+      <tr><th scope="row">Address</th><td class="mono">{{if .TM.Host}}{{.TM.Host}}{{else}}&mdash;{{end}}</td></tr>
+      <tr><th scope="row">Bound product</th><td class="mono">{{if .TM.Product}}{{.TM.Product}} &middot; {{.TM.Code}}{{if not .TM.InTemplates}} &middot; not in GAOS_PR_TEMPLATE_PRODUCTS{{end}}{{else}}none{{end}}</td></tr>
+      <tr><th scope="row">Last refresh</th><td>{{if .TM.Refreshed}}{{.TM.Refreshed}}{{else}}never{{end}}{{if .TM.Stale}} &middot; stale ({{.TM.LastErr}}){{else if .TM.LastErr}} &middot; {{.TM.LastErr}}{{end}}</td></tr>
+      <tr><th scope="row">People &middot; GitHub-linked &middot; usable numbers &middot; login conflicts</th><td class="mono">{{.TM.Counts.People}} &middot; {{.TM.Counts.Linked}} &middot; {{.TM.Counts.Usable}} &middot; {{.TM.Counts.Conflicts}}</td></tr>
+    </tbody>
+  </table></div>
+  {{if .TM.Admin}}
+  {{if .TM.People}}
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <thead><tr><th>Name</th><th>Role</th><th>GitHub</th><th>Number</th></tr></thead>
+    <tbody>
+    {{range .TM.People}}<tr><td>{{.Name}}</td><td>{{.Role}}</td><td class="mono">{{if .Login}}{{.Login}}{{else}}&mdash;{{end}}</td><td class="mono">{{if .Number}}{{.Number}}{{else}}&mdash;{{end}}</td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{end}}
+  <div class="tm-scroll"><table class="tm-runs cv-table">
+    <thead><tr><th>Product</th><th>TaskMgr code</th><th>Enabled</th><th></th></tr></thead>
+    <tbody>
+    {{range .TM.Products}}<tr><td>{{.Name}} <span class="mono">{{.ID}}</span></td>
+      <td colspan="3"><form hx-post="products/{{.ID}}/third-party" hx-target="#sink" hx-swap="innerHTML"><input type="hidden" name="kind" value="taskmgr"><input name="productCode" value="{{.Code}}" aria-label="TaskMgr product code of {{.ID}}" placeholder="DEMO" required> <label><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}> enabled</label> <button class="btn" type="submit">Save</button></form></td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{end}}
+  <p class="tm-line">Set up: <code>GAOS_TASKMGR_GRPC_ADDR</code> (an IP literal and port), <code>GAOS_TASKMGR_CA_FILE</code> (TaskMgr&rsquo;s certificate, pinned) and <code>GAOS_TASKMGR_AUTH_FILE</code> (<code>user:password</code> of a client with the gRPC integration grant); then bind one product. <a href="../docs/integrations/taskmgr.html" target="_blank" rel="noopener">TaskMgr</a></p>
 </div>
 <div class="block">
   <h4>Contacts</h4>

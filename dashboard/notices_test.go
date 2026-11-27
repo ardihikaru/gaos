@@ -105,7 +105,10 @@ func TestHeldAndHighReviewsSendOneLine(t *testing.T) {
 	st, card := prReviewFixture(t)
 	var kinds, texts []string
 	rv := &prReviewer{st: st, gh: &fakePoster{}, logf: func(string, ...any) {},
-		notify: func(_ context.Context, _ TaskRecord, kind, text string) { kinds = append(kinds, kind); texts = append(texts, text) }}
+		notify: func(_ context.Context, _ TaskRecord, kind, text string) {
+			kinds = append(kinds, kind)
+			texts = append(texts, text)
+		}}
 	rv.afterRun(context.Background(), card, prReplyOf("low", "found it: API_TOKEN=abcdef123456789"))
 	if len(kinds) != 1 || kinds[0] != KindReviewNeedsManual {
 		t.Errorf("a held review must send one review:needs-manual line whatever its severity, got %v", kinds)

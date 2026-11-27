@@ -50,7 +50,9 @@
 
   <p>For a product listed in <code>GAOS_PR_TEMPLATE_PRODUCTS</code>, a row also shows the bundle it belongs to and,
   when GAOS sent the missing-code alert, the chip <em>no task code</em> (<a href="pr-agents.html#bundles">Bundles
-  from the PR template</a>). A member of a bundle that is not planned yet is kept past the 30-day prune.</p>
+  from the PR template</a>). A member of a bundle that is not planned yet is kept past the 30-day prune. When the
+  product is bound to TaskMgr, the code is also checked against TaskMgr&rsquo;s tasks, and a code TaskMgr does not know
+  records the alert <code>unknown-task-code</code> (<a href="taskmgr.html#what">TaskMgr</a>).</p>
 
   <h2 id="settings">The settings</h2>
   <p>Both are fields of <code>POST /products/{id}/autofix</code>, for the accounts on the auto-fix admin list. The post replaces the whole configuration, so a field left out is cleared.</p>

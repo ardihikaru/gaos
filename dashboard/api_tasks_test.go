@@ -407,7 +407,9 @@ func TestAPICapsKeepThePRFlow(t *testing.T) {
 	// The daily cap counts canceled cards; one run per product.
 	t.Setenv("GAOS_API_DAILY", "2")
 	t.Setenv("GAOS_API_MAX_OPEN", "9")
-	run := func(ext string) APICardIn { return APICardIn{Client: "ops", ExternalID: ext, Kind: APIKindAutoRun, CaseCode: "TC-A-1"} }
+	run := func(ext string) APICardIn {
+		return APICardIn{Client: "ops", ExternalID: ext, Kind: APIKindAutoRun, CaseCode: "TC-A-1"}
+	}
 	r1, _, _, err := st.PlanAPICard(ctx, "p-1", run("r1"), 5000)
 	if err != nil {
 		t.Fatal(err)

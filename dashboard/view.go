@@ -179,6 +179,9 @@ type AgentAssign struct {
 	StagingCreates bool
 	AutoMergeSpecs bool
 	AutoMergeBand  bool // the product's band allows auto-merge today (working or complete)
+	Band           string // the product's readiness band today, for the auto-merge hint
+	KindsSet       int    // how many of Repos have a kind, for the closed summary
+	KindsOpen      bool   // the kinds editor is shown open (after a kinds save)
 }
 
 // RepoKindPick is one repository row of the kinds editor.
@@ -266,10 +269,13 @@ type IntegrationsPage struct {
 	// callback, WhatsApp and the contact registry. Counts, hosts, modes and
 	// times; the contact list carries the destination masked, never whole.
 	PR PRFlowRow
+	// TM is TaskMgr, the product-bound third-party platform (D-104): counts for everyone, the
+	// people table for an auto-fix admin only, every number masked.
+	TM TaskMgrRow
 
 	// The status chip on each integration's heading (D-098), filled by
 	// integChips from the fields above. See docs/designs/integrations-status-chips.md.
-	AIMChip, BrainTownChip, BrainTownConsumerChip, PRChip, QAChip, APIChip StatusChip
+	AIMChip, BrainTownChip, BrainTownConsumerChip, PRChip, QAChip, APIChip, TMChip StatusChip
 }
 
 // StatusChip is one coloured state chip on the Integrations view. Tone is
@@ -499,4 +505,30 @@ type BrainTownRow struct {
 	// Cursor is the reader's cursor state: "saved <seq>" or "not saved", plus
 	// "· gave up <seq>" after the retry bound (design §3.2). Empty for the feed.
 	Cursor string
+}
+
+// TaskMgrRow is the TaskMgr block on the Integrations view (D-104 §7).
+type TaskMgrRow struct {
+	State       string // on · off (<why>) · unusable: <why>
+	Host        string // the configured ip:port
+	Product     string // the product with the enabled binding; "" none
+	Code        string // its TaskMgr product code
+	InTemplates bool   // the product is in GAOS_PR_TEMPLATE_PRODUCTS
+	Breaker     string // "" closed, "auth" or "unavailable" open
+	Refreshed   string // "4m ago"; "" never
+	Stale       bool
+	LastErr     string // an error class, never TaskMgr's message
+	Counts      tmCounts
+	Admin       bool
+	People      []TMPersonRow // filled for an admin only
+	Products    []TMBindRow
+}
+
+// TMPersonRow is one TaskMgr person, the number masked.
+type TMPersonRow struct{ Name, Role, Login, Number string }
+
+// TMBindRow is one product's binding, for the admin form.
+type TMBindRow struct {
+	ID, Name, Code string
+	Enabled        bool
 }

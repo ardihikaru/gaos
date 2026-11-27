@@ -285,7 +285,7 @@ func integBlocks(sec string) map[string]string {
 	return out
 }
 
-var integNames = []string{"ai-manager", "Brain Town", "Brain Town reader", "Pull-request flow", "QA tools", "Machine API"}
+var integNames = []string{"ai-manager", "Brain Town", "Brain Town reader", "Pull-request flow", "TaskMgr", "QA tools", "Machine API"}
 
 func TestTheIntegrationsViewColoursEveryHeading(t *testing.T) {
 	f := newIntegrationsFixture(t)
@@ -363,8 +363,8 @@ func TestEveryIntegrationInfoButtonOpensItsPopover(t *testing.T) {
 	f := newIntegrationsFixture(t)
 	sec := integrationsSection(do(t, f.srv, "GET", "/ui/bo/integrations", nil, boCookies()...).Body.String())
 	targets := regexpPopTarget.FindAllStringSubmatch(sec, -1)
-	if len(targets) != 6 {
-		t.Fatalf("the integrations view has %d info buttons, want 6", len(targets))
+	if len(targets) != 7 {
+		t.Fatalf("the integrations view has %d info buttons, want 7", len(targets))
 	}
 	seen := map[string]bool{}
 	for _, m := range targets {
@@ -395,3 +395,75 @@ var (
 	regexpH4        = regexp.MustCompile(`<h4>[^<]*</h4>`)
 	regexpPopTarget = regexp.MustCompile(`popovertarget="([^"]+)"`)
 )
+
+// TC-848: the TaskMgr block (D-104 §7): its status in order of precedence, the counts for every
+// signed-in account, and the people table and the binding form for an auto-fix admin only.
+func TestIntegrationsShowTaskMgr(t *testing.T) {
+	ctx := context.Background()
+	f := newIntegrationsFixture(t)
+	st := f.srv.store.(*MemStore)
+	ps, _ := st.Products(ctx)
+	pid := ps[0].ID
+	t.Setenv("GAOS_AUTOFIX_ADMINS", "")
+	block := func() string {
+		t.Helper()
+		b, ok := integBlocks(integrationsSection(do(t, f.srv, "GET", "/ui/bo/integrations", nil, boCookies()...).Body.String()))["TaskMgr"]
+		if !ok {
+			t.Fatal("the integrations view has no TaskMgr block")
+		}
+		return b
+	}
+	if b := block(); !strings.Contains(b, `<span class="chip st-bad">Off</span>`) || !strings.Contains(b, `class="chip third-party">Third-party<`) ||
+		!strings.Contains(b, "GAOS_TASKMGR_GRPC_ADDR is not set") {
+		t.Errorf("with no settings the block must read Off and carry the Third-party mark: %s", b)
+	}
+
+	f.srv.tm = tmTestLink(t, st, tmFlowFake())
+	t.Setenv("GAOS_PR_TEMPLATE_PRODUCTS", pid)
+	if _, err := st.SetThirdParty(ctx, pid, ThirdPartyLink{Kind: ThirdPartyTaskMgr, Enabled: true, ProductCode: "DEMO"}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.srv.tm.people.refresh(ctx); err != nil {
+		t.Fatal(err)
+	}
+	b := block()
+	if !strings.Contains(b, `<span class="chip st-ok">Connected</span>`) || !strings.Contains(b, pid+" &middot; DEMO") ||
+		!strings.Contains(b, `<td class="mono">2 &middot; 2 &middot; 2 &middot; 0</td>`) {
+		t.Errorf("a bound, refreshed product must read Connected with its code and the counts: %s", b)
+	}
+	for _, leak := range []string{"Dev One", "dev.one", maskDestination(tmNumberDev), tmNumberDev, tmNumberQA, "third-party\" hx-target", "/third-party"} {
+		if strings.Contains(b, leak) {
+			t.Errorf("an account that is not an admin sees %q", leak)
+		}
+	}
+	autoFixAdminsFile(t, 0o600, testEmail)
+	b = block()
+	if !strings.Contains(b, "Dev One") || !strings.Contains(b, maskDestination(tmNumberDev)) || !strings.Contains(b, `hx-post="products/`+pid+`/third-party"`) {
+		t.Errorf("an admin must see the people, masked, and the binding form: %s", b)
+	}
+	if strings.Contains(b, tmNumberDev) || strings.Contains(b, tmNumberQA) || strings.Contains(b, tmTestSecret) {
+		t.Error("the block renders a whole number or the credential")
+	}
+
+	// The status, in order of precedence.
+	for _, c := range []struct {
+		name string
+		row  TaskMgrRow
+		want string
+	}{
+		{"unusable settings", TaskMgrRow{State: "unusable: x", Product: "p-1", Refreshed: "1m ago", InTemplates: true}, "Unusable"},
+		{"auth latch", TaskMgrRow{State: "on", Breaker: "auth", Product: "p-1", Refreshed: "1m ago", InTemplates: true}, "Unusable"},
+		{"unavailable", TaskMgrRow{State: "on", Breaker: "unavailable", Product: "p-1", Refreshed: "1m ago", InTemplates: true}, "Degraded"},
+		{"stale", TaskMgrRow{State: "on", Stale: true, Product: "p-1", Refreshed: "1m ago", InTemplates: true}, "Degraded"},
+		{"not in the template list", TaskMgrRow{State: "on", Product: "p-1", Refreshed: "1m ago"}, "Degraded"},
+		{"connected", TaskMgrRow{State: "on", Product: "p-1", Refreshed: "1m ago", InTemplates: true}, "Connected"},
+		{"never refreshed", TaskMgrRow{State: "on", Product: "p-1", InTemplates: true}, "Off"},
+		{"no binding", TaskMgrRow{State: "on", Refreshed: "1m ago"}, "Off"},
+	} {
+		p := &IntegrationsPage{TM: c.row}
+		integChips(p)
+		if p.TMChip.Label != c.want || !chipLabels[p.TMChip.Label] {
+			t.Errorf("%s reads %q, want %q", c.name, p.TMChip.Label, c.want)
+		}
+	}
+}

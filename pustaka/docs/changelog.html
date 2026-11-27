@@ -36,6 +36,29 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-66-0">v0.66.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">TaskMgr, the team&rsquo;s task manager, becomes a third-party platform bound to one product (<a href="product/decision-log.html#d-104">D-104</a>, answers <a href="product/open-questions.html#oq-41">OQ-41</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>The binding.</strong> An auto-fix admin binds one product to TaskMgr on the Integrations view; an instance binds one product per platform kind, and every change is a <code>ThirdPartyConfigured</code> event. Three settings: <code>GAOS_TASKMGR_GRPC_ADDR</code>, <code>GAOS_TASKMGR_AUTH_FILE</code>, <code>GAOS_TASKMGR_CA_FILE</code>.</li>
+        <li><span class="chg add">Added</span> <strong>The client.</strong> A standard-library gRPC client over TLS to a pinned certificate, dialling one IP; the TaskMgr account holds a narrow integration grant (three methods, one product, no REST). A circuit breaker stops every call after a refused credential and backs off on an outage; every use then falls back to the behaviour before this release.</li>
+        <li><span class="chg add">Added</span> <strong>Task codes are checked.</strong> A pull request naming a code TaskMgr does not know, a deleted task or another product&rsquo;s task gets one <code>unknown-task-code</code> comment and line.</li>
+        <li><span class="chg change">Changed</span> <strong>Notice routing.</strong> A notice whose GitHub login has no GAOS contact goes to the TaskMgr person with that checked login before the group; a contact&rsquo;s own filter still wins. A finished test plan tells the task&rsquo;s QA (<code>bundle:planned</code>) and writes one note on the TaskMgr task.</li>
+        <li><span class="chg add">Added</span> <strong>The TaskMgr block</strong> on the Integrations view: status, counts for everyone, the per-person table for auto-fix admins only, numbers masked (<a href="product/brd.html#rules-gateway">BR-63</a>). New page <a href="integrations/taskmgr.html">TaskMgr</a>; the integrations overview now draws every flow added since v0.60. TC-839 &hellip; TC-849.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
+      <h3 id="v0-65-1">v0.65.1 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The repository kinds editor on the Agents page reads plainly and keeps what was saved in view (<a href="product/decision-log.html#d-103">D-103</a>).</p>
+      <ul>
+        <li><span class="chg change">Changed</span> <strong>Repository kinds editor.</strong> Its closed summary says how many repositories have a kind and whether staging creates and auto-merge are on. Each repository is a row with its kind beside it, each switch has one line saying what it does, and below the Working band the auto-merge switch says it waits for the band; it can still be turned on.</li>
+        <li><span class="chg fix">Fixed</span> Saving the kinds reopened the Edit assignments panel and closed the kinds editor; it now keeps the kinds editor open with a <em>Saved</em> line, which goes at the next edit.</li>
+        <li><span class="chg change">Changed</span> On the board and in the table an <code>e2e-kind:*</code> chip reads <em>backend</em> or <em>frontend + backend</em>; the label itself is unchanged and shown in the chip&rsquo;s tooltip.</li>
+        <li><span class="chg add">Added</span> <strong>The data flow, in the docs.</strong> <a href="integrations/agents.html#data-flow">Agents, severity and review fixes</a> shows three flows step by step &mdash; a staging deploy, a new spec from creation to its run, a pull request review &mdash; and what GitHub must allow before spec auto-merge.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-65-0">v0.65.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Repository kinds for e2e, missing automation created on a staging deploy, and an approved spec that merges by itself and then runs (<a href="product/decision-log.html#d-103">D-103</a>).</p>
       <ul>

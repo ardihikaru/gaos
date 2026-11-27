@@ -100,6 +100,8 @@ type server struct {
 	flow *prFlow
 	// nt sends the manual-review notices of an operator's relabel (D-101); nil sends nothing.
 	nt *notifier
+	// tm is the TaskMgr link (D-104, taskmgr.go); nil in tests that do not set it.
+	tm *taskmgrLink
 
 	// inbox delivers the operator's answers to the QA tool's questions
 	// (inbox_worker.go); nil in tests that do not exercise it.
@@ -411,7 +413,20 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	case wcfg.why != "":
 		log.Printf("whatsapp: notifier off (%s)", wcfg.why)
 	}
-	nt := &notifier{st: store, wa: wa, gh: authors, logf: log.Printf}
+	tmcfg := taskmgrConfigFromEnv()
+	tm := newTaskMgrLink(store, tmcfg)
+	switch {
+	case tm.cl != nil:
+		tm.people.logf = log.Printf
+		go tm.people.Run(ctx)
+		log.Printf("taskmgr: client on (%s)", tmcfg.addr)
+	case tmcfg.why != "":
+		log.Printf("taskmgr: client off (%s)", tmcfg.why)
+	case tmcfg.off != "":
+		log.Printf("taskmgr: client off (%s)", tmcfg.off)
+	}
+	srv.tm = tm
+	nt := &notifier{st: store, wa: wa, gh: authors, logf: log.Printf, tm: tm}
 	srv.nt = nt
 	srv.wa = wa
 	// Pull requests already open when this release starts get their rows (design §4.3); idempotent.
@@ -443,13 +458,13 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		go fx.resumeFixPRs(ctx)
 		poller := newFixPRPoller(store, ghc)
 		srv.fixPoll = poller
-		go poller.Run(ctx)
 		if ghc != nil {
 			rv.gh = ghc
 			rv.rd = ghc     // D-102: the fresh read before posting, and the review fix's reads
 			fx.review = ghc // the "draft fix" line, with the review token
 		}
-		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify}
+		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify, tm: tm, direct: nt.notifyTo}
+		poller.tm = tm
 		if srv.qaOut != nil {
 			tp.qa = srv.qaOut
 		}
@@ -457,6 +472,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		if ghc != nil {
 			poller.alert.post = ghc
 		}
+		go poller.Run(ctx) // after tm and alert are set: the poll goroutine reads both
 		rv.cache, rv.src = flow.ctx, srv.codeSrc
 		rv.lowFix = rv.planLowFix
 		h.SetPRHooks(
@@ -574,6 +590,7 @@ func (s *server) routes() http.Handler {
 	handle("PUT /products/{id}/board/cards/{taskId}/move", s.handleMoveCard)
 	handle("POST /products/{id}/board/cards/{taskId}/send-back", s.handleSendBack) // D-084
 	handle("POST /products/{id}/board/cards/{taskId}/label", s.handleSetLabel)     // D-088
+	handle("POST /products/{id}/third-party", s.handleSaveThirdParty)              // D-104
 	handle("POST /products/{id}/autofix", s.handleSaveAutoFix)                     // D-091
 	handle("POST /products/{id}/defects/{ref}/close", s.handleCloseDefect)         // D-091
 	handle("POST /agents/assign", s.handleAssign)                                  // D-102

@@ -11,11 +11,15 @@ window.DOCS.nav.push({
       tags: ["integration", "api", "webhook", "ai-manager", "qa", "architecture", "tokens"],
       sections: [
         { anchor: "picture", title: "The picture", text: "Clients and the QA tools, the machine API, GAOS, ai-manager and the worker in the product's workspace." },
-        { anchor: "connections", title: "Every connection", text: "Six connections: direction, paths, auth, credential file and who starts each." },
+        { anchor: "connections", title: "Every connection", text: "Twelve connections: direction, paths, auth, credential file and who starts each." },
         { anchor: "tokens", title: "Three GAOS tokens, never equal", text: "Admin, QA and outbound tokens; equal tokens disable the API." },
         { anchor: "question-round-trip", title: "A question round trip", text: "Ask, answer in the back office, the webhook with its retries, or poll." },
         { anchor: "results-push", title: "A results push", text: "CI results pushed by the QA tools, or pulled by the operator's button." },
-        { anchor: "a-turn", title: "A model turn", text: "Submit, poll, extract the handoff; workspace provisioning first." }
+        { anchor: "a-turn", title: "A model turn", text: "Submit, poll, extract the handoff; workspace provisioning first." },
+        { anchor: "external-task", title: "A task from an outside platform", text: "POST tasks, the checks, the card, the dispatch answer, polling by externalId." },
+        { anchor: "bundle", title: "A bundle to a test plan", text: "PR template, bundle key, all finished, the test-planner card, the QA tool's case proposals, DONE." },
+        { anchor: "notice", title: "A notice", text: "The routing order: contact, the TaskMgr person by checked login, the group." },
+        { anchor: "taskmgr", title: "TaskMgr, a bound platform", text: "ListUsers, GetTask and AddComment over TLS; the breaker and the fallback." }
       ]
     },
     {
@@ -64,7 +68,7 @@ window.DOCS.nav.push({
         { anchor: "staging", title: "The staging callback", text: "HTTP Basic, one credential per product, and every answer." },
         { anchor: "qa", title: "The QA tool does the e2e work", text: "A job GAOS starts and polls; the QA-case line; the two routes live in the QA tool." },
         { anchor: "whatsapp", title: "WhatsApp and the contacts", text: "One line and the card id; the pinned group; the contact registry." },
-        { anchor: "bundles", title: "Bundles from the PR template", text: "The task-manager code and links group pull requests; one test plan when all merged; the missing-code alert." },
+        { anchor: "bundles", title: "Bundles from the PR template", text: "The task-manager code and links group pull requests; one test plan when all merged; the missing-code and unknown-code alerts." },
         { anchor: "failure", title: "When something is down", text: "What each failure does to the card." }
       ]
     },
@@ -80,6 +84,7 @@ window.DOCS.nav.push({
         { anchor: "review-fix", title: "Low findings fixed by an agent", text: "A draft into the reviewed branch: when, the settings, the checks, what happens next." },
         { anchor: "source-labels", title: "Where a card came from", text: "source:api and source:bundle mark the cards assignment does not gate." },
         { anchor: "runbook", title: "Set it up for a product", text: "Assign the reviewer, unit-test, QA and fixer agents; the branch patterns." },
+        { anchor: "data-flow", title: "How it works: the data flow", text: "Three flows step by step: a staging deploy runs and creates automation; a new spec is approved, merged and run; a pull request is reviewed and a low finding fixed." },
         { anchor: "release-b", title: "The second release", text: "Built in v0.65.0: repository kinds, creating missing automation on staging, approved specs the QA tool may auto-merge and GAOS then runs; unit tests have their own design." },
         { anchor: "failure", title: "When something is off", text: "No review card, 422 unassigned, a comment instead of changes, no fix planned." }
       ]
@@ -150,6 +155,24 @@ window.DOCS.nav.push({
         { anchor: "errors", title: "Errors", text: "Every status and code." },
         { anchor: "limits", title: "Limits", text: "One write in flight, the open and daily caps, one run per product, autorun." },
         { anchor: "troubleshooting", title: "Troubleshooting", text: "401, 403, a card left in Ready, held, a replay." }
+      ]
+    },
+    {
+      id: "taskmgr", file: "integrations/taskmgr.html", title: "TaskMgr",
+      desc: "TaskMgr, the team's task manager, as a third-party platform bound to one product: the binding, the settings, the TLS pin and the narrow grant, the people directory, the five uses, the circuit breaker and troubleshooting.",
+      tags: ["integration", "taskmgr", "task manager", "grpc", "tls", "whatsapp", "third-party", "people"],
+      sections: [
+        { anchor: "what", title: "What it does", text: "Task-code validation, test plan ready, routing by login, the write-back and the directory." },
+        { anchor: "flow", title: "The data flow", text: "ListUsers to the directory, GetTask to the alert, the routing order, AddComment on a DONE test plan." },
+        { anchor: "binding", title: "The binding", text: "One product per kind, 409 for a second, the event, and when the link is ready." },
+        { anchor: "settings", title: "The settings", text: "GAOS_TASKMGR_GRPC_ADDR, GAOS_TASKMGR_CA_FILE and GAOS_TASKMGR_AUTH_FILE." },
+        { anchor: "tls", title: "TLS and the pinned certificate", text: "Why the hub makes TLS necessary, and how the certificate is installed and renewed." },
+        { anchor: "grant", title: "The TaskMgr account", text: "The integration grant: three methods, one product, no REST; never the admin grant." },
+        { anchor: "people", title: "The people directory", text: "In memory only, checked logins, usable numbers, counts for everyone, the table for admins." },
+        { anchor: "routing", title: "Who gets a notice", text: "Contact, then the TaskMgr person by checked login, then the group." },
+        { anchor: "writeback", title: "The note on the task", text: "When it is written, what it holds and its limits." },
+        { anchor: "breaker", title: "When TaskMgr is down", text: "The auth latch, the backoff, and the fallback to today's behaviour." },
+        { anchor: "troubleshooting", title: "Troubleshooting", text: "Off, Unusable, Degraded, a notice still in the group, a valid code called unknown, 409." }
       ]
     },
     /* pustaka:insert — `pustaka new` adds entries above this marker */

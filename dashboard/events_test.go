@@ -37,6 +37,8 @@ var catalog = map[EventType]bool{
 	// execution -- D-091, defect triage and auto-fix
 	DefectReported: true, DefectTriaged: true, DefectStateChanged: true,
 	FixPROpened: true, FixPRStateChanged: true, AutoFixConfigured: true,
+	// execution -- D-104, third-party platforms
+	ThirdPartyConfigured: true,
 	// judgment
 	ReviewCompleted: true, RetryRequested: true, ModelEscalated: true,
 	SafetyVeto: true, GuardExhausted: true,
@@ -536,5 +538,8 @@ func defectDrive(t *testing.T, s *MemStore) {
 	report(t, s, pid, defItem(DefectKindXpass, "DEF-102", defCase2))
 	if _, err := s.SetAutoFix(ctx, pid, AutoFix{}, "ops", "fine-grained"); err != nil {
 		t.Fatalf("SetAutoFix: %v", err)
+	}
+	if _, err := s.SetThirdParty(ctx, pid, ThirdPartyLink{Kind: ThirdPartyTaskMgr, Enabled: true, ProductCode: "DEMO"}, "ops"); err != nil {
+		t.Fatalf("SetThirdParty: %v", err)
 	}
 }

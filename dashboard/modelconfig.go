@@ -198,11 +198,11 @@ func aimAdapterFor(c ModelConfig) (Adapter, error) {
 		return nil, err
 	}
 	return &AIMAdapter{
-		Client:   &AIMClient{Base: c.AIM.URL, Creds: creds},
-		Model:    c.Model,
-		Provider: c.Provider,
-		Local:    c.Local,
-		Tenant:   c.AIM.Tenant,
+		Client:    &AIMClient{Base: c.AIM.URL, Creds: creds},
+		Model:     c.Model,
+		Provider:  c.Provider,
+		Local:     c.Local,
+		Tenant:    c.AIM.Tenant,
 		PollEvery: c.AIM.PollEvery, Deadline: c.AIM.TurnDeadline, MaxSessionAge: c.AIM.SessionMaxAge,
 	}, nil
 }

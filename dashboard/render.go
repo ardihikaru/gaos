@@ -160,6 +160,34 @@ var funcs = template.FuncMap{
 	"ago": func(sec int64) string { return relSpan(time.Since(time.Unix(sec, 0))) },
 	// boardFooter is a board column's last line once it is at its cap.
 	"boardFooter": boardFooter,
+	// chipText and chipTitle are how a label chip reads (D-103 §2.2): the
+	// repository kinds in words, every other label as it is.
+	"chipText":  chipText,
+	"chipTitle": chipTitle,
+}
+
+// chipText is a label as its chip shows it. Only the planner-only e2e-kind
+// family is reworded; the label itself, and every filter on it, is unchanged.
+func chipText(label string) string {
+	switch label {
+	case LabelE2EKindBE:
+		return "backend"
+	case LabelE2EKindFullstack:
+		return "frontend + backend"
+	}
+	return label
+}
+
+// chipTitle is the chip's tooltip: the raw label, said once, where the chip
+// rewords it; "" otherwise.
+func chipTitle(label string) string {
+	switch label {
+	case LabelE2EKindBE:
+		return "Repository kind: backend only (" + label + ")"
+	case LabelE2EKindFullstack:
+		return "Repository kind: frontend and backend (" + label + ")"
+	}
+	return ""
 }
 
 // thousands writes 1284 as "1,284". The chip's count is the only caller; a

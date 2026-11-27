@@ -85,11 +85,15 @@ func agentAssignView(r *http.Request, masters []Master, products []Product, rost
 		return a
 	}
 	for _, repo := range m.Repos {
-		a.Repos = append(a.Repos, RepoKindPick{Repo: repo, Kind: m.RepoKinds[strings.ToLower(repo)]})
+		k := m.RepoKinds[strings.ToLower(repo)]
+		a.Repos = append(a.Repos, RepoKindPick{Repo: repo, Kind: k})
+		if k != "" {
+			a.KindsSet++
+		}
 	}
 	a.StagingCreates, a.AutoMergeSpecs = m.StagingCreates, m.AutoMergeSpecs
 	b := ReadinessBand(m.ReadinessScore())
-	a.AutoMergeBand = b == "working" || b == "complete"
+	a.AutoMergeBand, a.Band = b == "working" || b == "complete", b
 	for _, ag := range roster {
 		a.Picks = append(a.Picks, AgentPick{ID: ag.ID, Name: ag.Name, Label: roles[ag.Role].Label,
 			On: m.AssignedSet && containsFold(m.Assigned, ag.ID), Gated: containsFold(assignGatedRoles, ag.Role)})
@@ -133,7 +137,7 @@ func (s *server) handleAssign(w http.ResponseWriter, r *http.Request) {
 		v := s.applyResult(r, res)
 		s.sheet(w, r, v, "agents", id, "brd")
 		if v.BO != nil {
-			v.BO.Assign.Open = true
+			v.BO.Assign.KindsOpen = true // the admin keeps sight of the kinds just saved
 		}
 		s.rend.RenderWithChrome(w, "bo-main-oob", v)
 		return

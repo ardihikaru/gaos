@@ -423,6 +423,10 @@ type Master struct {
 	Assigned    []string
 	AssignedSet bool
 
+	// ThirdParty are the product's third-party platform bindings (D-104,
+	// thirdparty.go): at most one entry per kind, and per instance at most one
+	// enabled product per kind.
+	ThirdParty []ThirdPartyLink
 	// Release B (D-103): the kind of each repository (lower-cased owner/repo →
 	// be|fullstack; absent = no kind), whether a staging deploy may plan creates,
 	// and whether the QA tool may auto-merge the product's approved specs.
@@ -544,6 +548,7 @@ func (m Master) Clone() Master {
 	c.Qa = m.Qa.Clone()
 	c.AutoFix = m.AutoFix.Clone()
 	c.Assigned = append([]string(nil), m.Assigned...)
+	c.ThirdParty = append([]ThirdPartyLink(nil), m.ThirdParty...)
 	if m.RepoKinds != nil {
 		c.RepoKinds = make(map[string]string, len(m.RepoKinds))
 		for k, v := range m.RepoKinds {
@@ -876,17 +881,17 @@ type TaskRecord struct {
 	APIRefs      []string
 	APIAt        int64
 	AutoDispatch bool
-	Deps        []string
-	Priority    int
-	Ordinal     int
-	Gate        bool
-	Retry       int
-	Esc         int
-	BlockReason string
-	Workspace   string
-	LeaseUntil  int64
-	LastBeatAt  int64
-	Attempt     int
+	Deps         []string
+	Priority     int
+	Ordinal      int
+	Gate         bool
+	Retry        int
+	Esc          int
+	BlockReason  string
+	Workspace    string
+	LeaseUntil   int64
+	LastBeatAt   int64
+	Attempt      int
 	// Rank orders cards inside a board column (M14.6). Separate from Ordinal
 	// on purpose: Ordinal is plan order and the scheduler sorts by it, and a
 	// card dragged up a column must not silently change what runs first.
