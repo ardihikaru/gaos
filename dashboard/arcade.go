@@ -49,14 +49,30 @@ type Arcade struct {
 	stmtClient *http.Client
 }
 
+// arcadeIdleConnTimeout drops a pooled connection before ArcadeDB does. ArcadeDB closes a
+// keep-alive connection after about 30 seconds of silence (measured on prod, 2026-11-27); Go's
+// default transport keeps one for 90. A POST sent on a connection the server has just closed
+// fails with EOF and is never retried (a POST is not idempotent), which is how "merged reviews
+// could not be finished: ... begin ...: EOF" appeared every half hour or so. Twenty seconds stays
+// clear of the server's limit with room for a slow clock.
+const arcadeIdleConnTimeout = 20 * time.Second
+
+// arcadeTransport is the one pool both Arcade clients share.
+func arcadeTransport() *http.Transport {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.IdleConnTimeout = arcadeIdleConnTimeout
+	return tr
+}
+
 func ArcadeFromEnv() *Arcade {
+	tr := arcadeTransport()
 	return &Arcade{
 		URL:        strings.TrimRight(os.Getenv("GAOS_ARCADE_URL"), "/"),
 		DB:         envOr("GAOS_ARCADE_DB", "gaos"),
 		User:       os.Getenv("GAOS_ARCADE_USER"),
 		Password:   os.Getenv("GAOS_ARCADE_PASSWORD"),
-		client:     &http.Client{Timeout: 4 * time.Second},
-		stmtClient: &http.Client{Timeout: 30 * time.Second},
+		client:     &http.Client{Timeout: 4 * time.Second, Transport: tr},
+		stmtClient: &http.Client{Timeout: 30 * time.Second, Transport: tr},
 	}
 }
 
