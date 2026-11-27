@@ -21,7 +21,8 @@ type fakeGHRead struct {
 	hits  int
 	// optional fields of the answer (design §4.2): the base and head branch, the title, the author.
 	base, head, title, author map[int]string
-	paths                     []string // the paths asked for
+	body                      map[int]string // the PR description (the template, D-100)
+	paths                     []string       // the paths asked for
 }
 
 func (f *fakeGHRead) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +42,7 @@ func (f *fakeGHRead) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := f.state[n]
-	extra := fmt.Sprintf(`,"title":%q,"user":{"login":%q},"head":{"ref":%q},"base":{"ref":%q}`, f.title[n], f.author[n], f.head[n], f.base[n])
+	extra := fmt.Sprintf(`,"title":%q,"user":{"login":%q},"head":{"ref":%q},"base":{"ref":%q},"body":%q`, f.title[n], f.author[n], f.head[n], f.base[n], f.body[n])
 	body := `{"number":%d,"state":"%s","draft":%t,"merged":%t` + extra + `}`
 	switch st {
 	case "draft":
@@ -472,5 +473,39 @@ func TestAReplacedFixPRNeverMovesTheDefect(t *testing.T) {
 	d.pass(time.Minute)
 	if d.defect().State != DefectStateTriaged || d.defect().Gen != 2 || d.defect().BaseOverride != "" {
 		t.Errorf("(d) defect %s gen %d override %q; want triaged, generation 2, override cleared", d.defect().State, d.defect().Gen, d.defect().BaseOverride)
+	}
+}
+
+// TestThePollerReadsTheTemplateOfARowItNeverPolled is BR-64: a review row whose pr.opened planned
+// no card (the daily cap, a skip) is first read by the poll, and that first read marks it
+// templateSeen, so the template alerts can reach it. A row polled before the release stays unseen.
+func TestThePollerReadsTheTemplateOfARowItNeverPolled(t *testing.T) {
+	e := newPollEnv(t)
+	t.Setenv("GAOS_PR_TEMPLATE_PRODUCTS", e.pid)
+	var bodies []string
+	e.p.alert = prAlerter{post: recordPoster{&bodies}}
+	form := "Sumber task:\n\n- [x] Task manager\n\nKode (jika dari task manager): **%s**\n"
+	e.gh.body = map[int]string{11: fmt.Sprintf(form, "DEMO-FEATURE-00001"), 12: fmt.Sprintf(form, ""), 13: fmt.Sprintf(form, "")}
+	for _, n := range []int{11, 12, 13} {
+		e.gh.set(n, "ready")
+	}
+	coded := e.followReviewRow(t, 11) // as a capped pr.opened leaves it: CheckedAt 0
+	empty := e.followReviewRow(t, 12)
+	old := e.followReviewRow(t, 13)
+	e.s.AdvancePullRequest(context.Background(), e.pid, old, PRFields{State: PRStateOpen, CheckedAt: 50})
+
+	e.pass(time.Minute)
+	if row, _ := rowOf(t, e.s, coded); !row.TemplateSeen || row.TaskCode != "DEMO-FEATURE-00001" || row.CheckedAt == 0 {
+		t.Errorf("a row the poll reads first was not marked seen with its code: seen %v, code %q, checked %d", row.TemplateSeen, row.TaskCode, row.CheckedAt)
+	}
+	if row, _ := rowOf(t, e.s, old); row.TemplateSeen {
+		t.Error("a row polled before the release was marked seen")
+	}
+	e.pass(11 * time.Minute)
+	if row, _ := rowOf(t, e.s, empty); !row.TemplateSeen || row.Alerted != alertNoTaskCode {
+		t.Errorf("a capped row with no code was not alerted after the grace: seen %v, alerted %q", row.TemplateSeen, row.Alerted)
+	}
+	if len(bodies) != 1 || !strings.Contains(bodies[0], "names no task-manager code") {
+		t.Errorf("want exactly one missing-code comment (the pre-release row is never alerted), got %v", bodies)
 	}
 }

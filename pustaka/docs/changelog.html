@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-66-3">v0.66.3 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The PR-template alerts reach a pull request opened while the review cap is full.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> A pull request whose <code>pr.opened</code> planned no card (the daily review cap, a skip) was first read by the poll, which recorded the check before reading the template, so the row was never marked <em>template seen</em> and neither the missing-code nor the TaskMgr unknown-code alert could reach it. The poll now reads the template first (<a href="product/brd.html">BR-64</a>, TC-851).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-66-2">v0.66.2 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Docs only: where Release B stands.</p>
       <ul>
