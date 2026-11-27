@@ -160,6 +160,7 @@ var errRefExists = errors.New("the branch already exists")
 type ghWriter struct{ c *ghClient }
 
 func newGHWriter(cfg ghConfig) *ghWriter {
+	cfg.platform = "github-write" // D-107: the write token's calls on their own stream
 	c := newGHClient(cfg)
 	if c == nil {
 		return nil

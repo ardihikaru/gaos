@@ -14,14 +14,15 @@
 
   <p class="eyebrow">Infrastructure</p>
   <h1>Development and production</h1>
-  <p class="lede">Two tiers of the same four services, on product slot 03. This is what differs
+  <p class="lede">Two tiers of the same four services, on product slot 03 &mdash; and prod&rsquo;s fifth, the
+  traffic store behind the back office&rsquo;s <a href="../integrations/traffic.html">Traffic</a> page. This is what differs
   between them, what must not, and how to bring either one up and prove it works.</p>
 
   <div class="page-meta"
        data-tags="deployment, compose, dev, production, verification"
        data-hashtags="docker, traefik, wireguard, arcadedb"
        data-published="2026-08-07"
-       data-updated="2026-11-02"
+       data-updated="2026-11-27"
        data-version-from="0.1.0"
        data-version-to=""></div>
 
@@ -29,7 +30,9 @@
 
   <p>Each tier is four services behind its own Traefik: the landing page, Mission Control, these
   docs, and the proxy itself. Both are served from a <strong>single origin</strong>, routed by
-  path.</p>
+  path. Prod runs a fifth service that serves no route: <strong>Redis, the traffic store</strong>, which
+  keeps the Traffic page&rsquo;s records for at most 48 hours and is reached by the dashboard alone
+  (<a href="../product/decision-log.html#d-107">D-107</a>). Dev is retired and has none.</p>
 
   <table class="tbl">
     <thead><tr><th>Path</th><th>Service</th><th>Prefix stripped?</th></tr></thead>

@@ -94,6 +94,7 @@
       <a{{if eq .BO.View "agents"}} aria-current="page"{{end}}    href="agents" hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></a>
       <a{{if eq .BO.View "archive"}} aria-current="page"{{end}}   href="archive" hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></a>
       <a{{if eq .BO.View "integrations"}} aria-current="page"{{end}} href="integrations" hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</a>
+      <a{{if eq .BO.View "traffic"}} aria-current="page"{{end}}   href="traffic" hx-get="ui/bo/traffic"   hx-target="#sink" hx-swap="innerHTML">Traffic</a>
       <a{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   href="autofix" hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</a>
       <a{{if eq .BO.View "prs"}} aria-current="page"{{end}}       href="prs" hx-get="ui/bo/prs"       hx-target="#sink" hx-swap="innerHTML">Pull requests</a>
     </nav>
@@ -129,6 +130,7 @@
     {{else if eq .View "integrations"}}{{template "bo-integrations" .}}
     {{else if eq .View "autofix"}}{{template "bo-autofix" .}}
     {{else if eq .View "prs"}}{{template "bo-prs" .}}
+    {{else if eq .View "traffic"}}{{template "bo-traffic" .}}
     {{else if .Detail}}{{template "bo-product-detail" .}}
     {{else if eq .View "products"}}{{template "bo-product-list" .}}
     {{else}}{{template "bo-rollup" .}}{{end}}
@@ -1587,6 +1589,162 @@
       <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see the open ones.</p>
     {{end}}
   </div>
+  </div>
+</div>
+{{end}}
+
+{{/* The Traffic page (D-107, docs/designs/traffic-monitor.md §10). Read-only.
+     Every source on it was masked in the page model (traffic_view.go): no
+     text, title, href, hx-get or poll URL here can carry more. */}}
+{{define "bo-traffic"}}
+<section id="boTraffic">
+{{with .Traffic}}
+<header>
+  <div><span class="eyebrow">monitoring</span><h2>{{$.Title}} <a class="info-btn info-link" href="../docs/integrations/traffic.html" target="_blank" rel="noopener" aria-label="Traffic: open the docs" title="Traffic: open the docs">i</a></h2><p>{{$.Sub}}</p></div>
+</header>
+<div id="trafficView" class="af" hx-indicator="#trafficView">
+  {{template "traffic-live" .}}
+</div>
+{{end}}
+</section>
+{{end}}
+
+{{define "traffic-live"}}
+<div id="trafficLive" class="af-main"{{if .OOB}} hx-swap-oob="true"{{end}} hx-get="{{.PollURL}}" hx-trigger="every 30s [!document.hidden &amp;&amp; !document.getElementById('trafficLive').matches(':focus-within')]" hx-target="#sink" hx-swap="innerHTML" hx-indicator="#trafficPulse">
+  <div class="af-status">
+    <span class="af-pulse" id="trafficPulse" aria-hidden="true"></span>
+    <span class="af-status-t">{{if eq .State "off"}}Traffic recording is off{{else if .Checked}}Traffic store {{.Checked}}{{else}}Traffic store not read yet{{end}} &middot; refreshes every 30 s</span>
+    <span class="af-busy" role="status">Updating&hellip;</span>
+  </div>
+  {{if eq .State "off"}}
+    <p class="af-note" role="note"><b>Traffic recording is off: {{.OffReason}}.</b> This deployment has no traffic store configured. <a href="../docs/integrations/traffic.html" target="_blank" rel="noopener">The docs say how it is set up.</a></p>
+  {{else if eq .State "unavailable"}}
+    <p class="af-note af-note--fail" role="alert"><b>The traffic store is not answering.</b> GAOS keeps working; calls made meanwhile are not recorded.{{if .Dropped}} {{num .Dropped}} calls were not recorded since {{.Since}}.{{end}}</p>
+  {{end}}
+  {{range .Notes}}<p class="af-note" role="note">{{.}}</p>{{end}}
+
+  <div class="af-body">
+  <div class="af-tiles">
+    {{range .Tiles}}
+    <div class="af-tile{{if .Tone}} af-tone-{{.Tone}}{{end}}{{if .Zero}} is-zero{{end}}">
+      <span class="af-tile-l">{{.Label}}</span>
+      <b class="af-tile-v">{{.Value}}</b>
+      <span class="af-tile-n">{{.Note}}</span>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="block af-block">
+    <h4>Direct sources since <span title="{{.Since}}">{{.SinceAgo}}</span> <span class="sp">{{len .Sources}}</span></h4>
+    {{if .Sources}}
+    <div class="tm-scroll af-scroll">
+      <table class="af-table">
+        <caption class="sr-only">Every source that reached GAOS without the edge since the dashboard started, newest first</caption>
+        <thead><tr><th scope="col">Source</th><th scope="col">First seen</th><th scope="col">Last seen</th><th scope="col" class="r">Calls</th><th scope="col">Last class</th><th scope="col">Authenticated</th></tr></thead>
+        <tbody>
+        {{range .Sources}}
+          <tr><td class="mono"><a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.SrcFull}}">{{.Src}}</a></td>
+            <td><span title="{{.FirstAt}}">{{.First}}</span></td><td><span title="{{.LastAt}}">{{.Last}}</span></td>
+            <td class="r">{{num .Count}}</td><td class="mono">{{.Class}}</td>
+            <td>{{if .Principal}}yes{{else}}<span class="chip st-warn">no</span>{{end}}</td></tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}<p class="af-empty"><b>No request has reached GAOS directly since the dashboard started.</b> A caller that skips the edge appears here at its first request, and stays until the dashboard restarts.</p>{{end}}
+  </div>
+
+  {{if or (eq .State "normal") (eq .State "filtered") (eq .State "empty")}}
+  <div class="block af-block">
+    <h4>Outbound by platform</h4>
+    <div class="tm-scroll af-scroll">
+      <table class="af-table">
+        <caption class="sr-only">Calls GAOS made to each platform, from the kept records</caption>
+        <thead><tr><th scope="col">Platform</th><th scope="col" class="af-md">Host</th><th scope="col" class="r">Calls</th><th scope="col" class="r">4xx</th><th scope="col" class="r">Failed</th><th scope="col" class="r">p50</th><th scope="col" class="r">p95</th><th scope="col">Last call</th><th scope="col">Kept since</th></tr></thead>
+        <tbody>
+        {{range .Platforms}}
+          {{if .None}}
+          <tr><td><a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML">{{.Name}}</a></td><td colspan="8"><span class="af-dash">No calls kept</span></td></tr>
+          {{else}}
+          <tr><td><a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML">{{.Name}}</a></td>
+            <td class="af-md mono" title="{{.HostFull}}">{{.Host}}</td>
+            <td class="r">{{num .Calls}}</td><td class="r">{{num .Fourxx}}</td>
+            <td class="r">{{if .Failed}}<span class="chip st-bad">{{num .Failed}}</span>{{else}}0{{end}}</td>
+            <td class="r">{{.P50}}</td><td class="r">{{.P95}}</td>
+            <td><span title="{{.LastAt}}">{{.Last}}</span></td>
+            <td><span title="{{.KeptAt}}">{{.Kept}}</span>{{if .Cap}} <em>cap</em>{{end}}</td></tr>
+          {{end}}
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="block af-block">
+    <h4>Inbound by source and route</h4>
+    {{if .Inbound}}
+    <div class="tm-scroll af-scroll">
+      <table class="af-table">
+        <caption class="sr-only">Calls made to GAOS, per source and route, newest first</caption>
+        <thead><tr><th scope="col">Source</th><th scope="col">Via</th><th scope="col">Client</th><th scope="col">Route</th><th scope="col" class="r">Calls</th><th scope="col" class="r">Refused</th><th scope="col" class="r">Failed</th><th scope="col" class="r">p95</th><th scope="col">Last call</th></tr></thead>
+        <tbody>
+        {{range .Inbound}}
+          <tr><td class="mono"><a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.SrcFull}}">{{.Src}}</a></td>
+            <td>{{if .Direct}}<span class="chip st-warn">direct</span>{{else}}edge{{end}}</td>
+            <td class="mono">{{.Client}}</td><td class="mono">{{.Route}}</td>
+            <td class="r">{{num .Calls}}</td><td class="r">{{num .Refused}}</td><td class="r">{{num .Failed}}</td>
+            <td class="r">{{.P95}}</td><td><span title="{{.LastAt}}">{{.Last}}</span></td></tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{if .InMore}}<p class="pager-line">{{num .InMore}} more &mdash; filter the calls below by source.</p>{{end}}
+    {{else}}<p class="af-empty"><b>No inbound call kept.</b> API calls appear when a client calls GAOS; a request that skips the edge appears whatever its route.</p>{{end}}
+    <p class="pager-line">Kept records: {{range $i, $k := .Kept}}{{if $i}} &middot; {{end}}{{$k.Name}}: {{num $k.Count}}{{if $k.Since}} kept since <span title="{{$k.AtAbs}}">{{$k.Since}}</span>{{end}}{{if $k.Cap}} (<em>cap</em>){{end}}{{end}}</p>
+  </div>
+
+  <div class="block af-block">
+    <h4>Recent calls <span class="sp">{{num .CallTotal}}</span></h4>
+    <div id="trafficFilters" class="af-filters">
+      <nav class="af-seg" aria-label="Direction">
+        {{range .DirTabs}}<a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+      </nav>
+      <form class="af-form" method="get" action="ui/bo/traffic" hx-get="ui/bo/traffic" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
+        {{if .Filter.Src}}<input type="hidden" name="src" value="{{.Filter.Src}}">{{end}}
+        {{if and (ne .Filter.Dir "all") (not .Filter.Platform) (not .Filter.Src)}}<input type="hidden" name="dir" value="{{.Filter.Dir}}">{{end}}
+        <label><span class="sr-only">Platform</span>
+          <select name="platform">{{range .PlatOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+        <label><span class="sr-only">Status</span>
+          <select name="status">{{range .StatOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+        <noscript><button class="btn" type="submit">Apply</button></noscript>
+        {{if .Filtered}}<a class="af-reset" href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+      </form>
+    </div>
+    {{if .Calls}}
+    <div class="tm-scroll af-scroll">
+      <table class="af-table">
+        <caption class="sr-only">Recent calls, newest first</caption>
+        <thead><tr><th scope="col">When</th><th scope="col"><span class="sr-only">Direction</span></th><th scope="col">Who</th><th scope="col">Call</th><th scope="col">Status</th><th scope="col" class="r">Time</th><th scope="col" class="r af-md">Bytes</th></tr></thead>
+        <tbody>
+        {{range .Calls}}
+          <tr><td><span title="{{.WhenAt}}">{{.When}}</span></td>
+            <td>{{if .Out}}<span aria-hidden="true">&rarr;</span><span class="sr-only">outbound</span>{{else}}<span aria-hidden="true">&larr;</span><span class="sr-only">inbound</span>{{end}}</td>
+            <td class="mono" title="{{.WhoFull}}">{{.Who}}</td>
+            <td class="mono" title="{{.CallFull}}">{{.Call}}</td>
+            <td><span class="chip {{.Chip}}">{{.Status}}</span></td>
+            <td class="r">{{.Time}}</td><td class="r af-md">{{.Bytes}}</td></tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{template "pager" .Pager}}
+    {{else if eq .State "filtered"}}
+      <p class="af-empty"><b>No call matches these filters.</b> <a href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see every kept call.</p>
+    {{else}}
+      <p class="af-empty"><b>No call recorded in the last 48 hours.</b> Outbound calls appear when GAOS calls a platform; inbound ones when something calls GAOS.</p>
+    {{end}}
+  </div>
+  {{end}}
   </div>
 </div>
 {{end}}

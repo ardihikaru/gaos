@@ -109,6 +109,9 @@ type ghConfig struct {
 	token string
 	base  string
 	why   string // non-empty: the client is unusable
+	// platform is the traffic label (D-107): "" is "github", the review token;
+	// newGHWriter sets "github-write".
+	platform string
 }
 
 // ghConfigFromEnv reads the two settings.
@@ -174,10 +177,14 @@ func newGHClient(cfg ghConfig) *ghClient {
 	if cfg.token == "" {
 		return nil
 	}
+	platform := cfg.platform
+	if platform == "" {
+		platform = "github"
+	}
 	return &ghClient{
 		token: cfg.token, base: strings.TrimSuffix(cfg.base, "/"), logf: log.Printf,
 		hc: &http.Client{Timeout: 20 * time.Second,
-			Transport: &http.Transport{DisableCompression: true},
+			Transport: trafficWrap(platform, cfg.base, &http.Transport{DisableCompression: true}),
 			// A redirect is refused, as the QA client refuses one: a credential
 			// must never follow a Location header.
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},

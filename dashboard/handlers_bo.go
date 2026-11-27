@@ -264,6 +264,10 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		s.buildPRs(r, bo)
 		return bo
 
+	case "traffic":
+		s.buildTraffic(r, bo)
+		return bo
+
 	case "agents":
 		bo.Title, bo.Sub = "Agents", "Agents and the products they are assigned to. Capability and model routing are read from here when a task is dispatched."
 		roster, _ := s.store.Agents(r.Context())

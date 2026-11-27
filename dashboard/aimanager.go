@@ -132,7 +132,8 @@ func (c *AIMClient) client() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	// D-107: the default client's calls are recorded; an injected one is used as is.
+	return &http.Client{Timeout: 30 * time.Second, Transport: trafficWrap("ai-manager", c.Base, nil)}
 }
 
 // do sends one request with the Basic login. The credentials never appear in

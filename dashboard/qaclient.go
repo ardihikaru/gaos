@@ -160,6 +160,12 @@ func newQaOutbound(rawURL, token string, denyHosts []string) *qaOutbound {
 			o.base, o.token = u, token
 		}
 	}
+	// D-107: the QA tool's calls are recorded, relative to the configured base.
+	base := ""
+	if o.base != nil {
+		base = o.base.String()
+	}
+	o.hc.Transport = trafficWrap("qa-tool", base, nil)
 	return o
 }
 
@@ -171,7 +177,7 @@ func qaOutboundFromEnv() *qaOutbound {
 		return ""
 	}
 	o := newQaOutbound(os.Getenv("GAOS_QA_URL"), readTokenFile("GAOS_QA_TOKEN_FILE"),
-		[]string{hostOf("GAOS_ARCADE_URL"), hostOf("GAOS_AIM_URL")})
+		[]string{hostOf("GAOS_ARCADE_URL"), hostOf("GAOS_AIM_URL"), trafficStoreHost()})
 	if o.why != "" {
 		log.Printf("qa sync: outbound is off (%s)", o.why)
 	} else {

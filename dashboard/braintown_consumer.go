@@ -318,13 +318,18 @@ var btRetryWaits = []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.
 // newBTConsumer builds the reader. A nil reader means the setting is off.
 func newBTConsumer(cfg btConsumerConfig, st Store) *btConsumer {
 	c := &btConsumer{cfg: cfg, st: st, logf: log.Printf, out: make(chan PREvent, btConsumerQueue), retries: map[int64]int{}}
+	base := ""
+	if cfg.url != nil {
+		base = cfg.url.String()
+	}
 	c.hc = &http.Client{
 		Timeout: 0, // a stream has no whole-request deadline; the watchdog is the deadline
-		Transport: &http.Transport{
+		// D-107: one record per request, at the stream's headers.
+		Transport: trafficWrap("brain-town-reader", base, &http.Transport{
 			DialContext:           (&net.Dialer{Timeout: btConsumerConnectTimeout}).DialContext,
 			ResponseHeaderTimeout: btConsumerConnectTimeout,
 			DisableCompression:    true,
-		},
+		}),
 	}
 	return c
 }

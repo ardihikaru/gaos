@@ -31,7 +31,7 @@ import (
 var pageViews = []struct{ ID, Label string }{
 	{"inbox", "Inbox"}, {"stories", "Stories"}, {"diagrams", "Diagrams"},
 	{"knowledge", "Knowledge"}, {"agents", "Agents"}, {"archive", "Archive"},
-	{"integrations", "Integrations"}, {"autofix", "Auto-fix"}, {"prs", "Pull requests"},
+	{"integrations", "Integrations"}, {"traffic", "Traffic"}, {"autofix", "Auto-fix"}, {"prs", "Pull requests"},
 }
 
 // productSections are a product's tabs, with their labels (the product menu).
@@ -251,6 +251,8 @@ func (s *server) address(bo *BOView, products []Product, productID string) {
 		f := bo.PRs.Filter
 		f.Open = boundValue(f.Open)
 		bo.Href = prPageHref(f)
+	case bo.View == "traffic" && bo.Traffic != nil:
+		bo.Href = pageHref(trafficHref(bo.Traffic.Filter))
 	case bo.View == "agents":
 		// The product filter is the validated one (D-102); the page comes last.
 		bo.Href = agentsHref("agents", bo.Assign.Product, bo.Page)

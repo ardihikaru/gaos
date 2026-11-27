@@ -106,6 +106,16 @@ window.DOCS.nav.push({
       ]
     },
     {
+      id: "traffic", file: "integrations/traffic.html", title: "Traffic",
+      desc: "The back-office Traffic page: the calls GAOS makes to other platforms and the calls made to it, edge and direct, masking, the direct-source summary, what it cannot see, the daily review and its states.",
+      tags: ["integration", "traffic", "monitoring", "back office", "security", "edge"],
+      sections: [
+        { anchor: "recorded", title: "What is recorded", text: "Outbound and inbound records and what they never hold." },
+        { anchor: "edge-direct", title: "Edge and direct", text: "The delivering hop, the four inbound kinds and their caps." },
+        { anchor: "review", title: "The daily review", text: "At least daily, within the shortest kept span of Direct, other." }
+      ]
+    },
+    {
       id: "autofix", file: "integrations/autofix.html", title: "Defect auto-fix",
       desc: "How GAOS triages a defect the QA tool reports and opens a draft pull request for an easy one: the nine steps, what easy means, the settings, the QA tool's route, the caps, the Auto-fix view and what GAOS never does.",
       tags: ["integration", "auto-fix", "defect", "triage", "github", "pull request", "qa tool"],

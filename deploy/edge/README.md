@@ -167,7 +167,19 @@ zone). `nginx -t` before the reload.
 
 ---
 
-## 5. The host firewall on the tunnel port (D-106) — an operator step
+## 5. The host firewall on the tunnel port (D-106) — recommended hardening (D-107)
+
+Since v0.69.0 the required step is reviewing the back office's **Traffic** page
+**at least daily** (within the shortest "kept since" of its unknown-direct
+stream). It records every request that reaches GAOS's dashboard without passing
+through this box, every machine-API call, and every direct source since the
+dashboard started. It is best-effort detection, not a control: it drops records
+under load, keeps each kind of call only up to its cap and at most 48 hours,
+loses its direct-source summary when the dashboard restarts, and does not see
+requests Traefik serves without the dashboard. **An empty direct list is not
+proof that no direct caller exists.** Until the rules below are applied, a
+direct peer can reach every route on the port; applying them remains
+recommended.
 
 **Not part of any automated deploy; host state outside the repository.** Since
 v0.68.0 Traefik trusts forwarded headers (`X-Forwarded-For`, `X-Real-IP`) from
@@ -184,7 +196,11 @@ VM at its own tunnel address):
 ```bash
 # 1. Sample who calls the published port directly, over a day; every legitimate
 #    caller that is not on this VM and not the edge gets a RETURN line below.
-sudo conntrack -L -p tcp --orig-port-dst 18301
+#    `conntrack -L` lists only the current table; for a period, log new connections
+#    to a file and stop it at the end of the period:
+sudo conntrack -E -e NEW -p tcp --orig-port-dst 18301 -o timestamp > ~/gaos-conntrack-<date>.log
+#    Every peer in the log other than the edge should be on the Traffic page's
+#    direct-source summary (design docs/designs/traffic-monitor.md §0).
 
 # 2. Docker rewrites the destination before DOCKER-USER, so match the ORIGINAL one.
 #    <vm-tunnel-ip> is this VM's WireGuard address (10.10.0.2 for the first instance).
@@ -199,7 +215,7 @@ Traffic the VM sends to its own published port never crosses `DOCKER-USER`, so
 the VM itself needs no line; a caller on the same VM (the seed script, a QA
 backend that calls `http://<vm-tunnel-ip>:18301/api/v1`) is unaffected.
 
-**The check is mandatory and recorded** (write the date and the two results in
+**When the rules are applied, the check is mandatory and recorded** (write the date and the two results in
 the deploy note): from a tunnel peer that is not listed,
 `curl -m 5 http://<vm-tunnel-ip>:18301/api/healthz` **times out**; and the edge
 still answers, `ssh clino "curl -sS -H 'Host: <host>' http://<vm-tunnel-ip>:18301/api/healthz"`

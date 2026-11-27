@@ -28,6 +28,17 @@ hasnt()   { grep -qF "$2" "$1" && bad "$3" || ok "$3"; }
 # broken test there is.
 hasre()   { grep -qE "$2" "$1" && ok "$3" || bad "$3"; }
 hasntre() { grep -qE "$2" "$1" && bad "$3" || ok "$3"; }
+# Block helpers (D-107). svcblock prints the lines of $PROD after "  <name>:" up to,
+# not including, the next line indented by at most two spaces (the next service or
+# top-level block). The others test that block and return a status; the caller
+# combines them in one if and prints one ok or one FAIL.
+svcblock() {
+  awk -v n="  $1:" 'f && (/^[a-z]/ || /^ [a-z]/ || /^  [a-z]/) {exit} f {print} $0 == n {f = 1}' "$PROD"
+}
+inblock()      { svcblock "$1" | grep -qF -e "$2"; }
+inblockre()    { svcblock "$1" | grep -qE -e "$2"; }
+notinblock()   { ! inblock "$1" "$2"; }
+notinblockre() { ! inblockre "$1" "$2"; }
 
 echo "== the two tiers never name each other's database =="
 # This is the expensive one. Everything else on this list is loud when it breaks.
@@ -103,6 +114,86 @@ fi
 hasnt deploy/stacks/traefik.yml '"10.10.0.0/24"' "traefik does not trust the whole tunnel"
 hasnt deploy/stacks/traefik.yml '"10.10.0.2/32"' "traefik does not trust the first GAOS VM"
 hasnt deploy/stacks/traefik.yml '"10.10.0.9/32"' "traefik does not trust the second GAOS VM"
+
+echo
+echo "== the traffic store =="
+# D-107 (TC-902): prod's Redis holds the Traffic page's capped streams. It persists
+# nothing, publishes nothing, sits on its own internal network with the dashboard
+# alone at a pinned address, turns the default user off, and admits the gaos user
+# to the traffic keys and three data commands. Prod only: dev is retired.
+TRS=deploy/stacks/traffic-redis.sh
+if grep -qE '^[[:space:]]+image: redis:[0-9]+\.[0-9]+\.[0-9]+-alpine@sha256:[0-9a-f]{64}$' $PROD; then
+  ok "prod pins the Redis image by version and digest"
+else
+  bad "prod pins the Redis image by version and digest"
+fi
+if grep -qF -e '--save "" --appendonly no' $TRS \
+   && inblock redis 'volumes: ["./traffic-redis.sh:/usr/local/bin/traffic-redis.sh:ro", "./prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro"]' \
+   && inblock redis 'tmpfs: ["/data:uid=${GAOS_UID:-1001},gid=${GAOS_GID:-1001},mode=0700"]'; then
+  ok "prod's Redis persists nothing"
+else
+  bad "prod's Redis persists nothing"
+fi
+if grep -qF -e '--maxmemory 64mb' $TRS && grep -qF -e '--maxmemory-policy noeviction' $TRS; then
+  ok "prod's Redis has a memory limit and refuses writes rather than evicting a stream"
+else
+  bad "prod's Redis has a memory limit and refuses writes rather than evicting a stream"
+fi
+if grep -qF 'user default off' $TRS \
+   && grep -qF "user gaos on #%s ~gaos:traffic:* resetchannels -@all +ping +xadd +xtrim +xrevrange\n'" $TRS \
+   && grep -qF -e '--aclfile /data/users.acl' $TRS \
+   && inblock redis 'entrypoint: ["/bin/sh", "/usr/local/bin/traffic-redis.sh"]' \
+   && ! grep -qE '(requirepass|REDIS_PASSWORD|nopass)' $PROD; then
+  ok "prod's Redis turns the default user off and admits the gaos user to the traffic keys and three commands"
+else
+  bad "prod's Redis turns the default user off and admits the gaos user to the traffic keys and three commands"
+fi
+if notinblockre redis '^[[:space:]]*(ports|expose):'; then
+  ok "prod's Redis publishes no port"
+else
+  bad "prod's Redis publishes no port"
+fi
+on_traffic=0
+for svc in $(awk '/^services:/ {f = 1; next} f && /^[a-z]/ {f = 0} f && /^  [a-z][a-z0-9_-]*:$/ {sub(/:$/, ""); sub(/^  /, ""); print}' $PROD); do
+  svcblock "$svc" | grep -qF traffic && on_traffic=$((on_traffic + 1))
+done
+if inblock redis 'traffic: {ipv4_address: 172.30.40.2}' \
+   && notinblockre redis '^[[:space:]]+internal' \
+   && notinblock redis 'network_mode' \
+   && inblock traffic 'name: gaos-prod-traffic' \
+   && inblock traffic 'internal: true' \
+   && inblock traffic 'subnet: 172.30.40.0/29' \
+   && inblock traffic 'ip_range: 172.30.40.4/30' \
+   && [ "$on_traffic" = 2 ]; then
+  ok "prod's Redis is on the internal traffic network only, at its pinned address outside the dynamic range"
+else
+  bad "prod's Redis is on the internal traffic network only, at its pinned address outside the dynamic range"
+fi
+if inblock redis '/usr/local/bin/traffic-redis.sh", "health"]'; then
+  ok "prod's Redis has an authenticated healthcheck"
+else
+  bad "prod's Redis has an authenticated healthcheck"
+fi
+if inblock dashboard 'networks: [internal, traffic]' \
+   && grep -qF 'GAOS_REDIS_ADDR: "172.30.40.2:6379"' $PROD \
+   && grep -qF 'GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"' $PROD \
+   && inblock dashboard './prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro'; then
+  ok "prod's dashboard joins the traffic network and reaches Redis by address, with the shared password file"
+else
+  bad "prod's dashboard joins the traffic network and reaches Redis by address, with the shared password file"
+fi
+edge_go="$(grep -oE '^const edgeHop = "[0-9.]+"' dashboard/traffic.go | grep -oE '[0-9.]+')"
+edge_traefik="$(grep -E '^[[:space:]]*- "[0-9./]+"' deploy/stacks/traefik.yml | grep -oE '[0-9./]+')"
+if [ -n "$edge_go" ] && [ "$edge_go/32" = "$edge_traefik" ]; then
+  ok "the dashboard's edge hop is the one address Traefik trusts"
+else
+  bad "the dashboard's edge hop is the one address Traefik trusts"
+fi
+if ! grep -qE '^[[:space:]]*depends_on:' $PROD; then
+  ok "nothing in prod has a start-order dependency"
+else
+  bad "nothing in prod has a start-order dependency"
+fi
 
 echo
 echo "== no secret is committed =="
@@ -211,6 +302,17 @@ for f in deploy/stacks/*.pr-*; do
   fi
   if [ ! -f "$f" ]; then
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
+  fi
+done
+for f in deploy/stacks/*.traffic-*; do
+  # The traffic store's password (D-107, TC-902): generated by rebuild-restart.sh,
+  # host-side, never tracked, mode 600.
+  [ -e "$f" ] || continue
+  if ! git ls-files --error-unmatch "$f" >/dev/null 2>&1 && [ -f "$f" ] \
+     && [ "$(stat -L -c %a "$f")" = 600 ]; then
+    ok "the traffic store's password file is untracked, a regular file, mode 600"
+  else
+    bad "the traffic store's password file is untracked, a regular file, mode 600"
   fi
 done
 has $PROD 'prod.pr-github-token:/run/secrets/pr-github-token:ro' "prod mounts the GitHub token file read-only"

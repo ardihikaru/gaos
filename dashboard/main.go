@@ -195,6 +195,13 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// D-107: the traffic recorder, before any outbound client is built, so every
+	// one of them is wrapped. Off, it changes nothing; the store down, it drops
+	// and counts. GAOS never waits for it.
+	traffic := trafficFromEnv()
+	trafficPtr.Store(traffic)
+	traffic.start(ctx)
+
 	arc := ArcadeFromEnv()
 	store, err := selectStore(ctx, arc, seed)
 	if err != nil {
@@ -606,6 +613,7 @@ func (s *server) routes() http.Handler {
 	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive)                 // the Auto-fix view's 30 s poll
 	handle("POST /products/{id}/prs/{fixPRID}/retarget", s.handleRetarget) // D-092
 	handle("GET /ui/bo/prs/live", s.handlePRsLive)                         // the Pull requests view's 30 s poll (D-092)
+	handle("GET /ui/bo/traffic/live", s.handleTrafficLive)                 // the Traffic view's 30 s poll (D-107)
 
 	handle("GET /products", s.handleProductList)
 	handle("POST /products", s.handleProductCreate)

@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-69-0">v0.69.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A Traffic page: the calls GAOS made to other platforms and the calls made to it, kept for at most 48 hours in a small Redis of its own (<a href="product/decision-log.html#d-107">D-107</a>, <a href="product/brd.html#rules-commercial">BR-66</a>; <a href="product/decision-log.html#d-106">D-106</a> amended). Reviewing it daily is the required step; the host firewall on the tunnel port is now recommended hardening.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>The Traffic page</strong> in the back office, after Integrations (<a href="integrations/traffic.html">Traffic</a>): four tiles, every direct caller since the dashboard started, each platform&rsquo;s calls, refusals, failures, p50/p95 and how far back its records reach, inbound calls per source and route, and the recent calls with direction, platform and status filters, refreshed every 30 seconds. A public source address is shown in full only to auto-fix admins, as its /24 or /48 to everyone else.</li>
+        <li><span class="chg add">Added</span> <strong>Outbound recording</strong> on the QA tool, AI manager, Brain Town (both directions), GitHub (review and auto-fix tokens), WhatsApp and TaskMgr clients: host, a templated path relative to the configured base, status or error class, duration and sizes; never a header, body, query, token or configured path. ArcadeDB is not recorded.</li>
+        <li><span class="chg add">Added</span> <strong>Inbound recording</strong> at the top of the gate: every machine-API call with its route pattern, source, edge or direct and client name, and every request that reached GAOS directly, whatever its route and answer.</li>
+        <li><span class="chg add">Added</span> <strong>The traffic store.</strong> A <code>redis</code> service pinned by version and digest on its own internal network with the dashboard alone; no port, no disk, the default user off and a password-protected user limited to three data commands and <code>PING</code> on the traffic keys. <code>rebuild-restart.sh</code> creates the password file on the first prod deploy and warns, without failing, when Redis is not healthy. GAOS starts and serves without it.</li>
+        <li><span class="chg change">Changed</span> A stdlib RESP2 client (no dependency); <code>check-stacks.sh</code> gains &ldquo;the traffic store&rdquo; block. Twenty new test cases, TC-884 to TC-903.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-68-0">v0.68.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Unit-test results can come from Jenkins: the organisation&rsquo;s Jenkins posts each merge build&rsquo;s result, and GAOS treats it exactly as a GitHub Actions check (<a href="product/decision-log.html#d-106">D-106</a>, <a href="product/brd.html#rules-gateway">BR-65 and BR-52 amended</a>). Still off for every product until an auto-fix admin turns it on.</p>
       <ul>
