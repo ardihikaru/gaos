@@ -27,6 +27,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -323,12 +324,42 @@ func (c *taskmgrClient) call(ctx context.Context, path string, req []byte, timeo
 	return m, err
 }
 
-func (c *taskmgrClient) do(ctx context.Context, path string, req []byte, timeout time.Duration, user, pass string) (pbMsg, error) {
+// tmOutcome is a call's outcome for its traffic record (D-107 §7.6): failed
+// means auth or unavailable, the codes the breaker counts as failures.
+func tmOutcome(err error) string {
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.Is(err, errTMNotFound):
+		return "notfound"
+	case errors.Is(err, errTMInvalid):
+		return "invalid"
+	case errors.Is(err, errTMAuth):
+		return "auth"
+	}
+	return "unavailable"
+}
+
+func (c *taskmgrClient) do(ctx context.Context, path string, req []byte, timeout time.Duration, user, pass string) (m pbMsg, err error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	frame := make([]byte, 5, 5+len(req))
 	binary.BigEndian.PutUint32(frame[1:], uint32(len(req)))
 	frame = append(frame, req...)
+	// D-107 §7.6: one traffic record on every return path, with the raw gRPC code
+	// read (-1 when none) and the outcome mapped from the error do returns.
+	var trace *trafficOut
+	if rec := trafficRec(); rec.on() {
+		trace = &trafficOut{label: "taskmgr", start: time.Now(), method: http.MethodPost, grpc: -1, rb: -1,
+			qb: int64(len(frame))}
+		if u, perr := url.Parse(c.base + path); perr == nil {
+			trace.host, trace.path = u.Host, trafficPath("", u.EscapedPath())
+		}
+		defer func() {
+			trace.dur, trace.outcome = time.Since(trace.start), tmOutcome(err)
+			rec.out(*trace)
+		}()
+	}
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+path, bytes.NewReader(frame))
 	if err != nil {
 		return nil, errTMUnavailable
@@ -338,9 +369,15 @@ func (c *taskmgrClient) do(ctx context.Context, path string, req []byte, timeout
 	r.Header.Set("authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(user+":"+pass)))
 	resp, err := c.hc.Do(r)
 	if err != nil {
+		if trace != nil {
+			trace.errCls = trafficErrClass(err)
+		}
 		return nil, errTMUnavailable
 	}
 	defer resp.Body.Close()
+	if trace != nil {
+		trace.status, trace.rb = resp.StatusCode, resp.ContentLength
+	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, tmMaxAnswer+1))
 	if err != nil || len(body) > tmMaxAnswer || resp.StatusCode != http.StatusOK {
 		return nil, errTMUnavailable
@@ -348,6 +385,9 @@ func (c *taskmgrClient) do(ctx context.Context, path string, req []byte, timeout
 	code := resp.Trailer.Get("grpc-status")
 	if code == "" {
 		code = resp.Header.Get("grpc-status") // a trailers-only answer
+	}
+	if n, cerr := strconv.Atoi(code); cerr == nil && trace != nil && n >= 0 {
+		trace.grpc = n
 	}
 	switch code {
 	case "0":
@@ -364,7 +404,7 @@ func (c *taskmgrClient) do(ctx context.Context, path string, req []byte, timeout
 	if len(body) < 5 || body[0] != 0 || int(binary.BigEndian.Uint32(body[1:5])) != len(body)-5 {
 		return nil, errTMUnavailable
 	}
-	m, err := pbParse(body[5:])
+	m, err = pbParse(body[5:])
 	if err != nil {
 		return nil, errTMUnavailable
 	}

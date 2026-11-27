@@ -856,3 +856,14 @@ Severities are the reviewers'. No contests.
 | SEC-16 Masking side channels | Low | PROPOSE FIX | Masked in the page model; tiles count masked values; TC-901 asserts no full public address anywhere in a non-admin's HTML |
 | SEC-17 `GAOS_REDIS_ADDR` accepts any IP | Low | PROPOSE FIX | Must be inside `172.30.14.0/29` (§4.3); TC-886 |
 | SEC-18 The template keeps branch names and file paths | Low | PROPOSE FIX | `{ref}` and `{path}` (§7.4); TC-887 |
+
+## 23. Implementation notes
+
+Deviations from rev 3, each the smallest faithful one, recorded as they were taken.
+
+### T1
+
+1. **`errClass` is `trafficErrClass`.** `braintown.go:575` already declares an `errClass` (a different order, used by the Brain Town row). The traffic one keeps §7.5's closed set and order under its own name.
+2. **TaskMgr's record in `do` lands in T1, not T2.** TC-889 (a T1 row) asserts it through `taskmgrClient.do`, so the deferred record (§7.6) is written with it. `taskmgr.go`'s transport is untouched; `do` gains named results so the `defer` reads the error it returns.
+3. **A successful trim counts as a write for `firstWriteAt`.** The writer trims once when it starts and then every 60 s (§9.2 says every 60 s). Without this, a dashboard that made no call in its first minute would show "the traffic store may have been emptied" on a store nothing emptied. The trim is a write command, so "the first successful write after every (re)connect" still holds.
+4. **The anonymous-drop counter.** A record bound for `in:anon` that is refused at ¾ of the queue, or by a full queue, counts in `droppedAnon` only; every other refusal counts in `dropped`. The page shows both (§10.2 item 2).
