@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-63-2">v0.63.2 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The deploy accepts the two new secret directories inside its tag worktree.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> Inside a deploy&rsquo;s tag worktree, <code>prod.bt-state</code> and <code>prod.api-clients</code> are symlinks to the checkout&rsquo;s directories, so <code>check-stacks.sh</code> read the links&rsquo; mode (777) and refused to deploy. The mode, owner and file checks now follow the link (TC-014, TC-523, TC-600).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-63-1">v0.63.1 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The missing-code alert never reaches a pull request that was open before v0.62.0 (<a href="product/decision-log.html#d-100">D-100</a>).</p>
       <ul>

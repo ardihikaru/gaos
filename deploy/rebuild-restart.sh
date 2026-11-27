@@ -206,7 +206,7 @@ if [ -z "$INSIDE" ]; then
     # (an empty one is fine: no clients), owned by the deploy user and mode 700.
     if [ "$ENVIRON" = prod ] && grep -q 'prod.api-clients' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
       d="deploy/stacks/prod.api-clients"
-      if [ ! -d "$d" ] || [ "$(stat -c %u "$d")" != "$(id -u)" ] || [ "$(stat -c %a "$d")" != 700 ]; then
+      if [ ! -d "$d" ] || [ "$(stat -L -c %u "$d")" != "$(id -u)" ] || [ "$(stat -L -c %a "$d")" != 700 ]; then
         bad "$d is missing, not owned by $(id -un), or not mode 700"
         info "create it: mkdir -m 700 $d && install -m 600 /dev/null $d/clients -- then re-run."
         exit 1
@@ -218,7 +218,7 @@ if [ -z "$INSIDE" ]; then
     # and the container (running as the deploy user) could then never save its cursor.
     if [ "$ENVIRON" = prod ] && grep -q 'prod.bt-state' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
       d="deploy/stacks/prod.bt-state"
-      if [ ! -d "$d" ] || [ "$(stat -c %u "$d")" != "$(id -u)" ] || [ "$(stat -c %a "$d")" != 700 ]; then
+      if [ ! -d "$d" ] || [ "$(stat -L -c %u "$d")" != "$(id -u)" ] || [ "$(stat -L -c %a "$d")" != 700 ]; then
         bad "$d is missing, not owned by $(id -un), or not mode 700"
         info "create it: mkdir -m 700 $d -- then re-run."
         exit 1
