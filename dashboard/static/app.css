@@ -1713,7 +1713,12 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .kind-switch.is-waiting label{color:var(--ink-2)}
 .kind-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
 .kind-actions .tm-line{margin:0}
+/* Emil: a pressable element answers the press (scale .97, 160 ms, strong ease-out); under
+   reduced motion the movement goes and only the colour change stays. */
+.kind-actions .btn{transition:transform 160ms cubic-bezier(0.23,1,0.32,1)}
 .kind-actions .btn:active{transform:scale(.97)}
+.kinds-sum{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){ .kind-actions .btn{transition:none} .kind-actions .btn:active{transform:none} }
 .kind-saved{color:var(--done)}
 /* D-102: the reviewer's severity. The level is always written as text; the
    colour only repeats it. none has no chip on the kanban. */
