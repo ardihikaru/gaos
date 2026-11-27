@@ -57,8 +57,11 @@
   // half-typed form, the scroll position and the focus. So a pane refreshes
   // only when nothing in it is being edited and no dialog is up; otherwise the
   // refresh waits until the operator lets go.
+  // An open sub-menu in the bar counts too: the refresh would replace the
+  // panel under the pointer (docs/designs/top-bar-menu.md §4.6).
+  function menuOpen() { return !!document.querySelector("#boSheet .bo-pop:popover-open"); }
   function busy() {
-    if (document.querySelector(".modal-back:not([hidden])")) return true;
+    if (document.querySelector(".modal-back:not([hidden])") || menuOpen()) return true;
     var a = document.activeElement;
     return !!(a && a.closest && a.closest("#boSheet") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
   }
@@ -204,7 +207,7 @@
     document.addEventListener(name, function () { dragging = false; setTimeout(boardCatchUp, 0); });
   });
   function boardBusy() {
-    if (dragging || document.querySelector(".modal-back:not([hidden])")) return true;
+    if (dragging || document.querySelector(".modal-back:not([hidden])") || menuOpen()) return true;
     var a = document.activeElement;
     return !!(a && a.closest && a.closest("#boSheet") && !a.closest("#boardFilters") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
   }
@@ -237,6 +240,7 @@
   }
   document.addEventListener("visibilitychange", boardCatchUp);
   document.addEventListener("gaos:modal-closed", boardCatchUp);
+  document.addEventListener("gaos:menu-closed", function () { runDeferred(); boardCatchUp(); });
   document.addEventListener("focusout", function () { setTimeout(boardCatchUp, 0); });
 
   function onTask(hint) {

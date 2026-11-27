@@ -443,21 +443,114 @@
     var max = menu.scrollWidth - menu.clientWidth;
     var start = menu.scrollLeft > 1, end = menu.scrollLeft < max - 1;
     var v = start && end ? "both" : start ? "start" : end ? "end" : "";
-    if (v) menu.setAttribute("data-more", v); else menu.removeAttribute("data-more");
+    // The wrapper carries it too: it shows the arrow on the side with more.
+    var wrap = menu.parentNode && menu.parentNode.classList && menu.parentNode.classList.contains("bo-nav") ? menu.parentNode : null;
+    [menu, wrap].forEach(function (el) {
+      if (!el) return;
+      if (v) el.setAttribute("data-more", v); else el.removeAttribute("data-more");
+    });
   }
   function syncMenu() {
     var menu = document.querySelector("#boSheet .bo-menu");
     if (!menu) return;
-    var cur = menu.querySelector('[aria-current="page"]');
+    // A grouped current view's link is in a panel outside the menu, so its
+    // group's trigger is what has to be in view.
+    var cur = menu.querySelector('[aria-current="page"], .bo-grp.is-current');
     // "nearest" moves nothing when the item already shows; scroll-padding in
     // app.css keeps it clear of the faded edge when it does move.
     if (cur && menu.scrollWidth > menu.clientWidth) cur.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "instant" });
     syncMenuFade(menu);
+    if (menu.parentNode.classList.contains("bo-nav")) bindBar(menu.parentNode, menu);
   }
   document.addEventListener("scroll", function (e) {
     if (e.target.classList && e.target.classList.contains("bo-menu")) syncMenuFade(e.target);
   }, true);
-  window.addEventListener("resize", syncMenu);
+  window.addEventListener("resize", function () { closeMenuPanels(); syncMenu(); });
+
+  /* The arrows, the wheel and the groups (docs/designs/top-bar-menu.md §4.4).
+     Everything binds to the one .bo-nav on the page, never by class across
+     the document: a re-rendered bar is a new element and is bound afresh.
+     A group is <button popovertarget> + <div popover="auto">: the browser
+     owns open, close, Esc, light dismiss, the Tab order and the expanded
+     state. The script only positions the panel and keeps the bar honest. */
+  function closeMenuPanels() {
+    document.querySelectorAll("#boSheet .bo-pop").forEach(function (p) {
+      if (p.matches(":popover-open")) p.hidePopover();
+    });
+  }
+  function bindBar(nav, menu) {
+    if (nav.dataset.bound === "1") return;
+    nav.dataset.bound = "1";
+    var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)");
+
+    nav.querySelectorAll(".bo-step").forEach(function (step) {
+      step.addEventListener("click", function () {
+        var dir = Number(step.getAttribute("data-dir")) || 1;
+        menu.scrollBy({ left: dir * Math.round(menu.clientWidth * 0.7), behavior: reduce && reduce.matches ? "instant" : "smooth" });
+      });
+    });
+
+    // Only this strip opts out of passive scrolling; it never scrolls
+    // vertically, so turning the wheel sideways here takes nothing away.
+    nav.addEventListener("wheel", function (e) {
+      if (e.ctrlKey || menu.scrollWidth <= menu.clientWidth + 1) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      var k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? menu.clientWidth : 1;
+      menu.scrollLeft += e.deltaY * k;
+    }, { passive: false });
+
+    // A panel's position is taken from its trigger at open; once the menu
+    // moves under it, it is stale.
+    menu.addEventListener("scroll", closeMenuPanels);
+
+    nav.querySelectorAll(".bo-pop").forEach(function (panel) {
+      var trigger = null;
+      nav.querySelectorAll(".bo-grp").forEach(function (b) {
+        if (b.getAttribute("popovertarget") === panel.id) trigger = b;
+      });
+      // beforetoggle runs before the first frame, and nothing here measures
+      // the panel itself, so it opens already in place.
+      panel.addEventListener("beforetoggle", function (e) {
+        if (!trigger) return;
+        if (e.newState !== "open") { trigger.classList.remove("is-open"); return; }
+        var r = trigger.getBoundingClientRect(), W = window.innerWidth, st = panel.style;
+        st.inset = "auto"; st.margin = "0"; st.top = Math.round(r.bottom + 4) + "px";
+        if (r.left + r.width / 2 <= W / 2) {
+          var left = Math.max(8, Math.round(r.left));
+          st.left = left + "px"; st.right = "auto";
+          st.maxWidth = Math.min(320, W - left - 8) + "px"; st.transformOrigin = "top left";
+        } else {
+          var right = Math.max(8, Math.round(W - r.right));
+          st.right = right + "px"; st.left = "auto";
+          st.maxWidth = Math.min(320, W - right - 8) + "px"; st.transformOrigin = "top right";
+        }
+        trigger.classList.add("is-open");
+      });
+      // A live refresh held back while the panel was open runs once it closes.
+      panel.addEventListener("toggle", function (e) {
+        if (e.newState === "closed") document.dispatchEvent(new Event("gaos:menu-closed"));
+      });
+      // Tab past the last link closes the panel and focus moves on to what
+      // follows the trigger. Shift+Tab before the first closes it and lands
+      // on the trigger itself (the browser's own restore would put focus on
+      // the trigger and then move it one further back).
+      panel.addEventListener("keydown", function (e) {
+        if (e.key !== "Tab") return;
+        var links = panel.querySelectorAll("a");
+        if (!links.length) return;
+        if (e.shiftKey && document.activeElement === links[0]) {
+          e.preventDefault(); panel.hidePopover(); if (trigger) trigger.focus();
+        } else if (!e.shiftKey && document.activeElement === links[links.length - 1]) {
+          panel.hidePopover();
+        }
+      });
+      // A click on a child closes the panel at once, before the response.
+      panel.addEventListener("htmx:beforeRequest", function () {
+        if (panel.matches(":popover-open")) panel.hidePopover();
+      });
+    });
+  }
 
   /* ---------- links that are also htmx requests (D-094) ----------
      Navigation is <a href="page" hx-get="fragment">: a plain click swaps the
