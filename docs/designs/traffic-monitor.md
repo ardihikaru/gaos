@@ -867,3 +867,21 @@ Deviations from rev 3, each the smallest faithful one, recorded as they were tak
 2. **TaskMgr's record in `do` lands in T1, not T2.** TC-889 (a T1 row) asserts it through `taskmgrClient.do`, so the deferred record (§7.6) is written with it. `taskmgr.go`'s transport is untouched; `do` gains named results so the `defer` reads the error it returns.
 3. **A successful trim counts as a write for `firstWriteAt`.** The writer trims once when it starts and then every 60 s (§9.2 says every 60 s). Without this, a dashboard that made no call in its first minute would show "the traffic store may have been emptied" on a store nothing emptied. The trim is a write command, so "the first successful write after every (re)connect" still holds.
 4. **The anonymous-drop counter.** A record bound for `in:anon` that is refused at ¾ of the queue, or by a full queue, counts in `droppedAnon` only; every other refusal counts in `dropped`. The page shows both (§10.2 item 2).
+
+### T2
+
+5. **A6, confirmed before any wiring** (2026-11-27, `traefik:v3.3` = v3.3.7, `deploy/stacks/traefik.yml` unchanged, a one-route echo backend, a docker network `10.10.0.0/24` with clients at `10.10.0.1` (trusted) and `10.10.0.9` (untrusted)). What the backend received:
+
+   | From | Sent | `X-Forwarded-For` | `X-Real-IP` |
+   |---|---|---|---|
+   | `10.10.0.1` | nothing | `10.10.0.1` | `10.10.0.1` |
+   | `10.10.0.1` | XFF `198.51.100.7` | `198.51.100.7, 10.10.0.1` | `10.10.0.1` |
+   | `10.10.0.1` | XFF `198.51.100.7`, X-Real-IP `192.0.2.66` | `198.51.100.7, 10.10.0.1` | `192.0.2.66` |
+   | `10.10.0.9` | nothing | `10.10.0.9` | `10.10.0.9` |
+   | `10.10.0.9` | XFF `198.51.100.7` | `10.10.0.9` | `10.10.0.9` |
+   | `10.10.0.9` | XFF `198.51.100.7`, X-Real-IP `192.0.2.66` | `10.10.0.9` | `10.10.0.9` |
+
+   A trusted peer's chain is kept and the delivering peer appended; an untrusted peer's chain is replaced by the peer. `X-Real-IP` is kept from a trusted peer (the edge sets it to `$remote_addr`, so the backend receives the client) and is the peer for an untrusted one. One nuance the design did not state: a trusted peer that sets **no** `X-Real-IP` gets the peer itself; the edge always sets it, so `via` (last XFF entry) and `src` (`jenkinsSource`) are as §8.3 says. The design stands.
+6. **The gate's body moved into `gateServe`.** `gate` installs the source, the via, the tag, the wrapped writer and the deferred record, then calls `gateServe`, which is the old body unchanged except that it reports the matched pattern and the request handed to the mux (for `PathValue("id")`) through a small `gateTrace`. With no recorder installed (tests, and any process before `serve()`), `gate` calls `gateServe` directly.
+7. **The admin principal.** `apiGate` names `admin` for the admin token and `cl.Name` for a client; the clients file's names are already bounded, and the recorder cuts at 64 bytes anyway.
+8. **TC-893's tunnel-peer call carries `X-Real-IP: 10.10.0.9`.** `jenkinsSource` skips a private `X-Forwarded-For` hop, so the source of a request from a tunnel peer is the `X-Real-IP` Traefik sets to that peer (A6, row 4). The test sends what Traefik sends.

@@ -84,7 +84,7 @@ func btConfigFromEnv(api *apiConfig) btConfig {
 	}
 	return newBTConfig(os.Getenv("BRAIN_TOWN_ENABLED"), os.Getenv("BRAIN_TOWN_URL"),
 		os.Getenv("BRAIN_TOWN_TOKEN_FILE"), os.Getenv("BRAIN_TOWN_PUBLIC_PRODUCTS"),
-		[]string{host("GAOS_ARCADE_URL"), host("GAOS_AIM_URL"), host("GAOS_QA_URL")}, api)
+		[]string{host("GAOS_ARCADE_URL"), host("GAOS_AIM_URL"), host("GAOS_QA_URL"), trafficStoreHost()}, api)
 }
 
 func newBTConfig(enabled, rawURL, tokenFile, public string, deny []string, api *apiConfig) btConfig {
@@ -289,9 +289,14 @@ func newBrainTown(cfg btConfig, st Store) *brainTown {
 			}
 		}}
 	_, _ = rand.Read(b.bootKey[:])
-	b.hc = &http.Client{Timeout: btTimeout, CheckRedirect: func(*http.Request, []*http.Request) error {
-		return errors.New("redirects are refused")
-	}}
+	base := ""
+	if cfg.url != nil {
+		base = cfg.url.String()
+	}
+	b.hc = &http.Client{Timeout: btTimeout, Transport: trafficWrap("brain-town", base, nil),
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return errors.New("redirects are refused")
+		}}
 	b.products = st.Products
 	if tl, ok := st.(taskLookup); ok {
 		b.task = tl.TaskInfo

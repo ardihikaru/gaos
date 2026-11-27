@@ -402,6 +402,7 @@ func (s *server) jenkinsGate(w http.ResponseWriter, r *http.Request, a *stagingA
 		return "", false
 	}
 	a.ok(prodKey)
+	trafficPrincipal(r, "basic:"+a.route) // D-107 §8.4: after authentication only
 	return id, true
 }
 

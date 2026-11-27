@@ -195,6 +195,13 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// D-107: the traffic recorder, before any outbound client is built, so every
+	// one of them is wrapped. Off, it changes nothing; the store down, it drops
+	// and counts. GAOS never waits for it.
+	traffic := trafficFromEnv()
+	trafficPtr.Store(traffic)
+	traffic.start(ctx)
+
 	arc := ArcadeFromEnv()
 	store, err := selectStore(ctx, arc, seed)
 	if err != nil {

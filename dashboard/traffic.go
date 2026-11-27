@@ -909,3 +909,24 @@ func (w *trafficWriterLoop) trim() {
 	}
 	w.wrote()
 }
+
+// trafficStoreHost is the host of GAOS_REDIS_ADDR, which the QA client and the
+// Brain Town client refuse as a destination (§13.4).
+func trafficStoreHost() string {
+	if h, _, err := net.SplitHostPort(strings.TrimSpace(os.Getenv("GAOS_REDIS_ADDR"))); err == nil {
+		return h
+	}
+	return ""
+}
+
+// unknownDirectSources counts the direct sources that never authenticated, on
+// the values mask shows: two sources one mask hides as one count once (§10.2).
+func unknownDirectSources(rows []directSource, mask func(string) string) int {
+	seen := map[string]bool{}
+	for _, r := range rows {
+		if !r.Principal {
+			seen[mask(r.Src)] = true
+		}
+	}
+	return len(seen)
+}

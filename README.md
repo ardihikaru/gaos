@@ -140,9 +140,9 @@ cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-workspace.sh
 ```
 
-753 Go tests: 728 in `dashboard/` and 25 in `pustaka/`. Every test case —
+759 Go tests: 734 in `dashboard/` and 25 in `pustaka/`. Every test case —
 implemented, retired or a forward specification — is in the register,
-`pustaka/docs/product/qa-test-plan.html`: 891 registered test cases. There is
+`pustaka/docs/product/qa-test-plan.html`: 897 registered test cases. There is
 no CI: the product owner runs the checks (D-025), and a test that is not on that
 page is one nobody knows to run. `check-workspace.sh` keeps the agent
 workspace honest — paths, orphan skills, every count against its register, rule

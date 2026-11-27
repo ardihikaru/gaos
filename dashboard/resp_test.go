@@ -330,3 +330,75 @@ func TestRESPRefusesMalformedOrOversizedReplies(t *testing.T) {
 		t.Errorf("the AUTH error %q carries the password", err)
 	}
 }
+
+// fakeStreams is a fake store with stream semantics: XADD appends and trims the
+// key to its MAXLEN exactly, XREVRANGE answers newest first. It is the reply
+// script of a fakeRedis.
+type fakeStreams struct {
+	mu   sync.Mutex
+	seq  int64
+	keys map[string][]fakeEntry
+}
+
+type fakeEntry struct {
+	id     string
+	fields []string
+}
+
+func newFakeStreams() *fakeStreams { return &fakeStreams{keys: map[string][]fakeEntry{}} }
+
+func (fs *fakeStreams) reply(cmd []string) string {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	switch strings.ToUpper(cmd[0]) {
+	case "AUTH":
+		return "+OK\r\n"
+	case "XADD":
+		// XADD key MAXLEN ~ cap * field value …
+		key := cmd[1]
+		capN, _ := strconv.Atoi(cmd[4])
+		fs.seq++
+		id := strconv.FormatInt(fs.seq, 10) + "-0"
+		es := append(fs.keys[key], fakeEntry{id: id, fields: append([]string(nil), cmd[6:]...)})
+		if capN > 0 && len(es) > capN {
+			es = append([]fakeEntry(nil), es[len(es)-capN:]...)
+		}
+		fs.keys[key] = es
+		return "$" + strconv.Itoa(len(id)) + "\r\n" + id + "\r\n"
+	case "XTRIM":
+		return ":0\r\n"
+	case "XREVRANGE":
+		n := 1 << 30
+		if len(cmd) >= 6 {
+			n, _ = strconv.Atoi(cmd[5])
+		}
+		es := fs.keys[cmd[1]]
+		var b strings.Builder
+		k := min(n, len(es))
+		b.WriteString("*" + strconv.Itoa(k) + "\r\n")
+		for i := len(es) - 1; i >= len(es)-k; i-- {
+			e := es[i]
+			b.WriteString("*2\r\n$" + strconv.Itoa(len(e.id)) + "\r\n" + e.id + "\r\n")
+			b.WriteString("*" + strconv.Itoa(len(e.fields)) + "\r\n")
+			for _, f := range e.fields {
+				b.WriteString("$" + strconv.Itoa(len(f)) + "\r\n" + f + "\r\n")
+			}
+		}
+		return b.String()
+	}
+	return "-ERR unknown command\r\n"
+}
+
+// add stores one entry directly, as a record the writer would have written.
+func (fs *fakeStreams) add(key string, fields ...string) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	fs.seq++
+	fs.keys[key] = append(fs.keys[key], fakeEntry{id: strconv.FormatInt(fs.seq, 10) + "-0", fields: fields})
+}
+
+func (fs *fakeStreams) entries(key string) []fakeEntry {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	return append([]fakeEntry(nil), fs.keys[key]...)
+}

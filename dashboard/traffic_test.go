@@ -597,3 +597,430 @@ func TestTrafficWriterTrimsByLengthAndAge(t *testing.T) {
 		t.Errorf("the running writer wrote %d records, want 1", rec2.written.Load())
 	}
 }
+
+// ---------------------------------------------------------------- TC-892
+
+func TestEveryExternalClientIsRecorded(t *testing.T) {
+	st := NewMemStore(1)
+	bu, _ := url.Parse("https://bt.example/feed")
+	cu, _ := url.Parse("https://bt.example/reader")
+	type built struct {
+		name string
+		rt   func() http.RoundTripper
+	}
+	clients := []built{
+		{"qa-tool", func() http.RoundTripper {
+			return newQaOutbound("https://qa.example/base", "gaos_"+strings.Repeat("q", 32), nil).hc.Transport
+		}},
+		{"ai-manager", func() http.RoundTripper { return (&AIMClient{Base: "https://aim.example"}).client().Transport }},
+		{"brain-town", func() http.RoundTripper { return newBrainTown(btConfig{enabled: true, url: bu}, st).hc.Transport }},
+		{"brain-town-reader", func() http.RoundTripper {
+			return newBTConsumer(btConsumerConfig{enabled: true, url: cu}, st).hc.Transport
+		}},
+		{"github", func() http.RoundTripper {
+			return newGHClient(ghConfig{token: "ghp_" + strings.Repeat("g", 36), base: "https://api.github.com"}).hc.Transport
+		}},
+		{"github-write", func() http.RoundTripper {
+			return newGHWriter(ghConfig{token: "ghp_" + strings.Repeat("w", 36), base: "https://api.github.com"}).c.hc.Transport
+		}},
+		{"whatsapp", func() http.RoundTripper { return newWANotifier(waConfig{base: "https://wa.example/inst-x"}).hc.Transport }},
+	}
+	wantBase := map[string]string{"qa-tool": "/base", "brain-town": "/feed", "brain-town-reader": "/reader", "whatsapp": "/inst-x"}
+
+	// Off: today's transports.
+	noTraffic(t)
+	off := map[string]http.RoundTripper{}
+	for _, c := range clients {
+		rt := c.rt()
+		if _, ok := rt.(*recordingTransport); ok {
+			t.Errorf("%s is wrapped with recording off", c.name)
+		}
+		off[c.name] = rt
+	}
+	if off["qa-tool"] != nil || off["ai-manager"] != nil || off["brain-town"] != nil {
+		t.Errorf("with recording off the QA, AI-manager and Brain Town clients have %T %T %T, want the default (nil)",
+			off["qa-tool"], off["ai-manager"], off["brain-town"])
+	}
+	if _, ok := off["github"].(*http.Transport); !ok {
+		t.Errorf("with recording off the GitHub client has %T, want *http.Transport", off["github"])
+	}
+
+	// On: every one carries a recording transport with its label and base.
+	useTraffic(t, "127.0.0.1:1", false)
+	for _, c := range clients {
+		rt, ok := c.rt().(*recordingTransport)
+		if !ok {
+			t.Errorf("%s is not recorded", c.name)
+			continue
+		}
+		if rt.label != c.name || rt.basePath != wantBase[c.name] {
+			t.Errorf("%s records as %q with base %q, want %q and %q", c.name, rt.label, rt.basePath, c.name, wantBase[c.name])
+		}
+		if off[c.name] != nil && fmt.Sprintf("%T", rt.rt) != fmt.Sprintf("%T", off[c.name]) {
+			t.Errorf("%s wraps %T, want today's %T", c.name, rt.rt, off[c.name])
+		}
+	}
+	injected := &http.Client{}
+	if got := (&AIMClient{Base: "https://aim.example", HTTP: injected}).client(); got != injected {
+		t.Error("an injected AI-manager client was not returned as is")
+	}
+	tmTestEnv(t, "127.0.0.1:1")
+	if cl := newTaskMgrClient(taskmgrConfigFromEnv()); cl == nil {
+		t.Fatal("fixture: the TaskMgr client is off")
+	} else if _, ok := cl.hc.Transport.(*http.Transport); !ok {
+		t.Errorf("TaskMgr's transport is %T, want the plain *http.Transport (it records in do)", cl.hc.Transport)
+	}
+	a := ArcadeFromEnv()
+	if _, ok := a.client.Transport.(*http.Transport); !ok {
+		t.Errorf("the Arcade client's transport is %T; ArcadeDB is not recorded", a.client.Transport)
+	}
+	if _, ok := a.stmtClient.Transport.(*http.Transport); !ok {
+		t.Errorf("the Arcade statement client's transport is %T; ArcadeDB is not recorded", a.stmtClient.Transport)
+	}
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Error("an unknown platform label did not panic")
+			}
+		}()
+		trafficWrap("pastebin", "", nil)
+	}()
+}
+
+// ---------------------------------------------------------------- TC-893
+
+func TestInboundRecordsRouteSourceAndClient(t *testing.T) {
+	srv, _, pids := apiFixture(t, bothTokens)
+	urFile := filepath.Join(t.TempDir(), "unit-results")
+	if err := os.WriteFile(urFile, []byte(pids[0]+":jenkins-p1:"+urPass1+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GAOS_UNIT_RESULTS_BASIC_AUTH_FILE", urFile)
+	srv.unitResults = unitResultsAuthFromEnv()
+	srv.unitResults.logf = func(string, ...any) {}
+	rec := useTraffic(t, "127.0.0.1:1", false)
+	h := srv.routes()
+	const secretQ = "query-secret-value"
+	do := func(method, path string, hdr ...string) (*httptest.ResponseRecorder, []trafficRecord) {
+		t.Helper()
+		req := httptest.NewRequest(method, path, nil)
+		req.RemoteAddr = "172.30.12.5:5555"
+		for i := 0; i+1 < len(hdr); i += 2 {
+			req.Header.Add(hdr[i], hdr[i+1])
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		return w, drain(rec)
+	}
+	one := func(what string, rs []trafficRecord, stream string) map[string]string {
+		t.Helper()
+		if len(rs) != 1 || rs[0].stream != stream {
+			t.Fatalf("%s made %d records %v, want one on %s", what, len(rs), rs, stream)
+		}
+		for _, v := range rs[0].fields {
+			for _, s := range []string{tokQA, urPass1, secretQ, "nope"} {
+				if strings.Contains(v, s) {
+					t.Errorf("%s stored %q", what, v)
+				}
+			}
+		}
+		return fieldsOf(rs[0])
+	}
+	summary := pids[0]
+	edge := []string{"X-Forwarded-For", "203.0.113.9, 10.10.0.1", "X-Real-IP", "203.0.113.9"}
+
+	_, rs := do("GET", "/v1/products/"+summary+"/qa/summary", append([]string{"Authorization", "Bearer " + tokQA}, edge...)...)
+	f := one("a QA call through the edge", rs, inAuth)
+	if f["r"] != "/v1/products/{id}/qa/summary" || f["c"] != "qa-tools" || f["pid"] != summary || f["via"] != "edge" ||
+		f["src"] != "203.0.113.9" || f["k"] != "api" || fieldNames(rs[0]) != "t m s d qb rb k r src via c pid" {
+		t.Errorf("a QA call through the edge recorded %v; want the pattern, qa-tools, the product, edge", f)
+	}
+	_, rs = do("GET", "/v1/products/"+summary+"/qa/summary", "Authorization", "Bearer "+tokQA,
+		"X-Forwarded-For", "203.0.113.9", "X-Forwarded-For", "10.10.0.1", "X-Real-IP", "203.0.113.9")
+	if f := one("two X-Forwarded-For lines", rs, inAuth); f["via"] != "edge" || f["c"] != "qa-tools" {
+		t.Errorf("two X-Forwarded-For lines recorded %v, want the same as one", f)
+	}
+	// Traefik replaces an untrusted peer's chain with the peer and sets X-Real-IP to it (A6).
+	_, rs = do("GET", "/v1/products", "Authorization", "Bearer "+tokQA, "X-Forwarded-For", "10.10.0.9", "X-Real-IP", "10.10.0.9")
+	if f := one("a QA call from a tunnel peer", rs, inDirectAuth); f["via"] != "direct" || f["src"] != "10.10.0.9" {
+		t.Errorf("a direct QA call recorded %v, want direct from 10.10.0.9", f)
+	}
+	_, rs = do("GET", "/v1/products", "Authorization", "Bearer "+tokQA)
+	if f := one("a QA call with no X-Forwarded-For", rs, inDirectAuth); f["via"] != "direct" || f["src"] != "172.30.12.5" {
+		t.Errorf("a call with no X-Forwarded-For recorded %v, want direct from the peer", f)
+	}
+	w, rs := do("GET", "/v1/products", append([]string{"Authorization", "Bearer gaos_" + strings.Repeat("z", 64)}, edge...)...)
+	if f := one("a wrong token through the edge", rs, inAnon); w.Code != 401 || f["s"] != "401" || f["c"] != "" {
+		t.Errorf("a wrong token answered %d and recorded %v, want 401 with no principal", w.Code, f)
+	}
+	req := httptest.NewRequest("POST", "/v1/products/"+summary+"/unit-results", strings.NewReader("{}"))
+	req.SetBasicAuth("jenkins-p1", urPass1)
+	req.RemoteAddr = "172.30.12.5:5555"
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if f := one("a Basic unit-results call", drain(rec), inDirectAuth); f["c"] != "basic:unit-results" || f["pid"] != summary {
+		t.Errorf("a Basic unit-results call recorded %v, want basic:unit-results", f)
+	}
+	w, rs = do("GET", "/v1/nope?x="+secretQ, edge...)
+	if f := one("an unmatched /v1/ path", rs, inAnon); w.Code != 404 || f["r"] != "(no route)" || f["s"] != "404" || f["k"] != "api" {
+		t.Errorf("/v1/nope answered %d and recorded %v, want (no route) 404", w.Code, f)
+	}
+	w, rs = do("DELETE", "/v1/products", edge...)
+	if f := one("a wrong method on /v1/products", rs, inAnon); w.Code != 405 || f["r"] != "(no route)" || f["s"] != "405" {
+		t.Errorf("DELETE /v1/products answered %d and recorded %v, want (no route) 405", w.Code, f)
+	}
+
+	reduced := "t m s d k src via"
+	w, rs = do("GET", "/inbox")
+	if f := one("a direct signed-out page", rs, inDirectOther); f["k"] != "backoffice" || f["s"] != "401" || fieldNames(rs[0]) != reduced {
+		t.Errorf("a direct signed-out GET /inbox (%d) recorded %v; want a reduced record, backoffice, 401", w.Code, rs[0].fields)
+	}
+	w, rs = do("GET", "/ui/bo/inbox", "HX-Request", "true")
+	if f := one("a direct signed-out htmx request", rs, inDirectOther); f["s"] != fmt.Sprint(w.Code) || w.Code != 401 {
+		t.Errorf("a direct signed-out htmx request answered %d and recorded %v, want the requireBO status", w.Code, f)
+	}
+	w, rs = do("POST", "/contacts", "Sec-Fetch-Site", "cross-site")
+	if f := one("a direct cross-origin POST", rs, inDirectOther); w.Code != 403 || f["s"] != "403" {
+		t.Errorf("a direct cross-origin POST answered %d and recorded %v, want 403", w.Code, f)
+	}
+	_, rs = do("GET", "/healthz")
+	if f := one("a direct health probe", rs, inDirectOther); f["k"] != "healthz" || f["s"] != "200" {
+		t.Errorf("a direct GET /healthz recorded %v, want healthz 200", f)
+	}
+	_, rs = do("GET", "/static/app.css")
+	if f := one("a direct static file", rs, inDirectOther); f["k"] != "static" {
+		t.Errorf("a direct static file recorded %v, want static", f)
+	}
+	for _, p := range []string{"/inbox", "/healthz", "/ui/bo/inbox", "/static/app.css"} {
+		if _, rs := do("GET", p, edge...); len(rs) != 0 {
+			t.Errorf("GET %s through the edge made %d records, want none", p, len(rs))
+		}
+	}
+	srcs := map[string]directSource{}
+	for _, r := range rec.sum.rows() {
+		srcs[r.Src] = r
+	}
+	if len(srcs) != 2 || !srcs["10.10.0.9"].Principal || !srcs["172.30.12.5"].Principal || srcs["172.30.12.5"].Count != 7 {
+		t.Errorf("the summary holds %v; want 10.10.0.9 and 172.30.12.5, both with a principal, every direct request counted", srcs)
+	}
+	if _, ok := srcs["203.0.113.9"]; ok {
+		t.Error("an edge caller is in the direct-source summary")
+	}
+}
+
+// ---------------------------------------------------------------- TC-894
+
+func TestInboundRecorderKeepsTheResponseController(t *testing.T) {
+	srv, _ := newTestServer(t)
+	rec := useTraffic(t, "127.0.0.1:1", false)
+	mux := http.NewServeMux()
+	var deadlineErr, flushErr error
+	mux.HandleFunc("POST /v1/body", func(w http.ResponseWriter, r *http.Request) {
+		deadlineErr = http.NewResponseController(w).SetReadDeadline(time.Now().Add(time.Second))
+		var v map[string]any
+		if apiDecodeLimit(w, r, &v, 16) {
+			w.WriteHeader(204)
+		}
+	})
+	mux.HandleFunc("GET /v1/flush", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "part")
+		flushErr = http.NewResponseController(w).Flush()
+	})
+	mux.HandleFunc("GET /v1/nothing", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc("GET /v1/panic", func(http.ResponseWriter, *http.Request) { panic("boom") })
+	bearer := map[string]bool{"POST /v1/body": true, "GET /v1/flush": true, "GET /v1/nothing": true, "GET /v1/panic": true}
+	ts := httptest.NewUnstartedServer(srv.gate(mux, bearer))
+	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
+	ts.Start()
+	defer ts.Close()
+	// status waits for the request's one record: it is sent after the handler
+	// returns, so what the handler wrote is visible once it arrives.
+	status := func(what string) string {
+		t.Helper()
+		select {
+		case r := <-rec.q:
+			if rs := drain(rec); len(rs) != 0 {
+				t.Fatalf("%s made %d records, want one", what, 1+len(rs))
+			}
+			return fieldsOf(r)["s"]
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s made %d records, want one", what, 0)
+		}
+		return ""
+	}
+	resp, err := http.Post(ts.URL+"/v1/body", "application/json", strings.NewReader(`{"a":"b"}`))
+	_ = status("a small body")
+	if err != nil || resp.StatusCode != 204 || deadlineErr != nil {
+		t.Fatalf("a small body answered %v %v; SetReadDeadline through the wrapper: %v", resp, err, deadlineErr)
+	}
+	resp.Body.Close()
+	resp, err = http.Post(ts.URL+"/v1/body", "application/json", strings.NewReader(`{"a":"`+strings.Repeat("x", 64)+`"}`))
+	if err != nil || resp.StatusCode != 413 {
+		t.Fatalf("an over-limit body answered %v %v, want 413", resp, err)
+	}
+	resp.Body.Close()
+	if s := status("an over-limit body"); s != "413" {
+		t.Errorf("an over-limit body recorded %s, want 413", s)
+	}
+	resp, err = http.Get(ts.URL + "/v1/flush")
+	_ = status("a flush")
+	if err != nil || flushErr != nil {
+		t.Fatalf("Flush through the wrapper: %v %v", err, flushErr)
+	}
+	resp.Body.Close()
+	resp, err = http.Get(ts.URL + "/v1/nothing")
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("a handler that writes nothing answered %v %v", resp, err)
+	}
+	resp.Body.Close()
+	if s := status("a handler that writes nothing"); s != "200" {
+		t.Errorf("a handler that writes nothing recorded %s, want 200", s)
+	}
+	fresh := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+	if _, err := fresh.Get(ts.URL + "/v1/panic"); err == nil {
+		t.Error("a panicking handler's panic did not reach net/http (the connection was answered)")
+	}
+	if s := status("a panic"); s != "500" {
+		t.Errorf("a panic recorded %s, want 500", s)
+	}
+}
+
+// waitDrained waits until the writer has taken every queued record.
+func waitDrained(t *testing.T, rec *trafficRecorder) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for len(rec.q) > 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(400 * time.Millisecond) // the last batch's flush
+}
+
+// ---------------------------------------------------------------- TC-895
+
+func TestAnAnonymousFloodEvictsNoDirectOrAuthenticatedRecord(t *testing.T) {
+	srv, _, _ := apiFixture(t, bothTokens)
+	fs := newFakeStreams()
+	f := newFakeRedis(t, fs.reply)
+	rec := useTraffic(t, f.addr(), true)
+	h := srv.routes()
+	call := func(src, token string, edge bool) {
+		req := httptest.NewRequest("GET", "/v1/products", nil)
+		req.RemoteAddr = "172.30.12.5:5555"
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		if edge {
+			req.Header.Set("X-Forwarded-For", src+", 10.10.0.1")
+			req.Header.Set("X-Real-IP", src)
+		} else {
+			req.Header.Set("X-Forwarded-For", src)
+		}
+		h.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	call("10.10.0.9", tokQA, false)
+	call("198.51.100.4", tokQA, true)
+	for i := 0; i < 10000; i++ {
+		call(fmt.Sprintf("203.0.%d.%d", 113+(i%5000)/250, 1+(i%5000)%250), "", true)
+	}
+	waitDrained(t, rec)
+	if n := len(fs.entries("gaos:traffic:in:direct:auth")); n != 1 {
+		t.Errorf("in:direct:auth holds %d records after the flood, want its one", n)
+	}
+	if n := len(fs.entries("gaos:traffic:in:auth")); n != 1 {
+		t.Errorf("in:auth holds %d records after the flood, want its one", n)
+	}
+	if n := len(fs.entries("gaos:traffic:in:anon")); n != 1000 {
+		t.Errorf("in:anon holds %d records after 10 000 anonymous calls, want its cap 1000", n)
+	}
+
+	// The writer unstarted: anonymous records stop at ¾ of the queue, and an
+	// outbound record still enqueues.
+	rec2 := useTraffic(t, "127.0.0.1:1", false)
+	for i := 0; i < 4000; i++ {
+		rec2.in(trafficIn{start: time.Now(), method: "GET", status: 401, class: kAPI, src: "203.0.113.1", via: "edge"})
+	}
+	if len(rec2.q) != trafficQueueLen*3/4 || rec2.droppedAnon.Load() != 4000-trafficQueueLen*3/4 {
+		t.Errorf("4000 anonymous records left %d queued and %d dropped, want %d and %d",
+			len(rec2.q), rec2.droppedAnon.Load(), trafficQueueLen*3/4, 4000-trafficQueueLen*3/4)
+	}
+	rec2.out(trafficOut{label: "qa-tool", start: time.Now(), method: "GET"})
+	if len(rec2.q) != trafficQueueLen*3/4+1 || rec2.dropped.Load() != 0 {
+		t.Errorf("an outbound record after the flood: %d queued, %d dropped; it must still enqueue", len(rec2.q), rec2.dropped.Load())
+	}
+}
+
+// ---------------------------------------------------------------- TC-896
+
+func TestAnAuthenticatedDirectBurstEvictsNoOtherDirectRecord(t *testing.T) {
+	srv, _, _ := apiFixture(t, bothTokens)
+	fs := newFakeStreams()
+	f := newFakeRedis(t, fs.reply)
+	rec := useTraffic(t, f.addr(), true)
+	h := srv.routes()
+	call := func(src, token string) {
+		req := httptest.NewRequest("GET", "/v1/products", nil)
+		req.RemoteAddr = src + ":5555"
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		h.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	call("10.10.0.77", "")
+	for i := 0; i < 10000; i++ {
+		call("10.10.0.2", tokQA)
+		if i%1000 == 999 {
+			waitDrained(t, rec)
+		}
+	}
+	waitDrained(t, rec)
+	other := fs.entries("gaos:traffic:in:direct:other")
+	if len(other) != 1 || !strings.Contains(strings.Join(other[0].fields, " "), "10.10.0.77") {
+		t.Errorf("in:direct:other holds %v after the burst, want the one unauthenticated record", other)
+	}
+	if n := len(fs.entries("gaos:traffic:in:direct:auth")); n != 2000 {
+		t.Errorf("in:direct:auth holds %d after 10 000 authenticated calls, want its cap 2000", n)
+	}
+	rows := rec.sum.rows()
+	if len(rows) != 2 {
+		t.Fatalf("the summary holds %d sources, want both", len(rows))
+	}
+	if n := unknownDirectSources(rows, func(s string) string { return s }); n != 1 {
+		t.Errorf("the summary counts %d unknown direct sources, want 1", n)
+	}
+}
+
+// ---------------------------------------------------------------- TC-897
+
+func TestOutboundURLsRefuseTheTrafficStore(t *testing.T) {
+	tok := filepath.Join(t.TempDir(), "qa-token")
+	if err := os.WriteFile(tok, []byte("gaos_"+strings.Repeat("t", 40)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	btTok := filepath.Join(t.TempDir(), "bt-token")
+	if err := os.WriteFile(btTok, []byte("bt_live_"+strings.Repeat("b", 32)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GAOS_QA_TOKEN_FILE", tok)
+	t.Setenv("GAOS_QA_URL", "https://172.30.14.2:6379/")
+	t.Setenv("BRAIN_TOWN_ENABLED", "true")
+	t.Setenv("BRAIN_TOWN_URL", "https://172.30.14.2:6379/events")
+	t.Setenv("BRAIN_TOWN_TOKEN_FILE", btTok)
+	const reason = "names a host GAOS already uses for its gateway or database"
+
+	t.Setenv("GAOS_REDIS_ADDR", "")
+	if o := qaOutboundFromEnv(); strings.Contains(o.why, reason) {
+		t.Fatalf("fixture: the QA URL is refused without the store set: %s", o.why)
+	}
+	t.Setenv("GAOS_QA_URL", "") // the Brain Town deny-list holds the QA host too
+	if c := btConfigFromEnv(nil); strings.Contains(c.why, reason) {
+		t.Fatalf("fixture: the Brain Town URL is refused without the store set: %s", c.why)
+	}
+	t.Setenv("GAOS_REDIS_ADDR", "172.30.14.2:6379")
+	t.Setenv("GAOS_QA_URL", "https://172.30.14.2:6379/")
+	if o := qaOutboundFromEnv(); !strings.Contains(o.why, reason) {
+		t.Errorf("a QA URL on the traffic store's host answered %q, want refused: %s", o.why, reason)
+	}
+	t.Setenv("GAOS_QA_URL", "")
+	if c := btConfigFromEnv(nil); !strings.Contains(c.why, reason) {
+		t.Errorf("a Brain Town URL on the traffic store's host answered %q, want refused: %s", c.why, reason)
+	}
+}

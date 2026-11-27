@@ -327,6 +327,14 @@ func (s *server) apiGate(w http.ResponseWriter, r *http.Request, need apiScope) 
 		return scopeNone, nil, false
 	}
 	got, cl := s.api.authorize(r)
+	// D-107 §8.4: the principal that authenticated, for the traffic record; a 403
+	// below keeps it. Nothing of the credential is read here.
+	switch {
+	case got == scopeAdmin:
+		trafficPrincipal(r, "admin")
+	case got != scopeNone && cl != nil:
+		trafficPrincipal(r, cl.Name)
+	}
 	switch {
 	case got == scopeNone:
 		w.Header().Set("WWW-Authenticate", `Bearer realm="gaos"`)

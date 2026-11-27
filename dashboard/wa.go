@@ -179,7 +179,7 @@ func newWANotifier(cfg waConfig) *waNotifier {
 	}
 	return &waNotifier{cfg: cfg, logf: log.Printf, wait: time.Sleep, hc: &http.Client{
 		Timeout:   waTimeout,
-		Transport: waTransport(cfg),
+		Transport: trafficWrap("whatsapp", cfg.base, waTransport(cfg)), // D-107
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("the WhatsApp gateway answered with a redirect; redirects are refused")
 		},

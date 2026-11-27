@@ -540,53 +540,101 @@ const backOfficeCSP = "frame-ancestors 'none'; object-src 'none'; base-uri 'self
 
 func (s *server) gate(mux *http.ServeMux, bearer map[string]bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, pat := mux.Handler(r)
-		if pat == "" {
-			mux.ServeHTTP(w, r)
+		rec := trafficRec()
+		if rec == nil {
+			s.gateServe(mux, bearer, w, r, &gateTrace{})
 			return
 		}
-		class := classBackOffice
-		switch {
-		case publicPatterns[pat]:
-			class = classPublic
-		case bearer[pat]:
-			class = classBearer
-		}
-		if class != classBearer {
-			// D-082: the back office renders model-written text. The parts of a
-			// policy that need no audit of the templates' inline handlers: no
-			// framing, no plugins, no foreign <base>, no foreign form target.
-			w.Header().Set("Content-Security-Policy", backOfficeCSP)
-			// D-094: an address now names a product. It is not handed to
-			// another origin in a Referer.
-			w.Header().Set("Referrer-Policy", "same-origin")
-		}
-		if class != classBearer && !crossOriginOK(r) {
-			http.Error(w, "cross-origin request refused", http.StatusForbidden)
-			return
-		}
-		if class == classBackOffice {
-			ss, ok := s.auth.sessionFrom(r)
-			if !ok {
-				if r.Header.Get("HX-Request") != "" {
-					s.requireBO(w, r)
-					return
-				}
-				// A page route is refused like any other (BR-55), but its
-				// refusal is read by a person: the sign-in page, not JSON.
-				// The handler is never called, so the body cannot say
-				// whether the product in the URL exists (D-094).
-				if pagePatterns[pat] {
-					s.signedOutPage(w, r)
-					return
-				}
-				jsonStatus(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})
+		// D-107 §8.1: the source, the via, the tag, the wrapped writer and the
+		// deferred record come first, so every exit below is recorded -- the
+		// unmatched answer, the cross-origin 403, requireBO, the sign-in page, the
+		// JSON 401 and the mux. A panic is recorded as 500 and goes on unchanged.
+		start := time.Now()
+		src, via := jenkinsSource(r), trafficVia(r)
+		r = r.WithContext(context.WithValue(r.Context(), trafficTagKey{}, &trafficTag{}))
+		tw := &trafficWriter{ResponseWriter: w}
+		tr := &gateTrace{}
+		defer func() {
+			status := tw.code()
+			p := recover()
+			if p != nil {
+				status = http.StatusInternalServerError
+			}
+			pid := ""
+			if tr.served != nil {
+				pid = tr.served.PathValue("id")
+			}
+			tag, _ := r.Context().Value(trafficTagKey{}).(*trafficTag)
+			rec.in(trafficIn{start: start, dur: time.Since(start), method: r.Method, status: status,
+				qb: r.ContentLength, rb: tw.n, class: trafficClass(tr.pat, r.URL.Path, bearer), pattern: tr.pat,
+				src: src, via: via, principal: tag.get(), pid: pid})
+			if p != nil {
+				panic(p)
+			}
+		}()
+		s.gateServe(mux, bearer, tw, r, tr)
+	})
+}
+
+// gateTrace is what the gate tells the traffic recorder: the matched pattern
+// and the request the mux served (its PathValue is read after it returns).
+type gateTrace struct {
+	pat    string
+	served *http.Request
+}
+
+// gateServe is the gate's body: the pattern, the class, the headers, the
+// cross-origin and session checks, and the mux.
+func (s *server) gateServe(mux *http.ServeMux, bearer map[string]bool, w http.ResponseWriter, r *http.Request, tr *gateTrace) {
+	_, pat := mux.Handler(r)
+	tr.pat = pat
+	if pat == "" {
+		tr.served = r
+		mux.ServeHTTP(w, r)
+		return
+	}
+	class := classBackOffice
+	switch {
+	case publicPatterns[pat]:
+		class = classPublic
+	case bearer[pat]:
+		class = classBearer
+	}
+	if class != classBearer {
+		// D-082: the back office renders model-written text. The parts of a
+		// policy that need no audit of the templates' inline handlers: no
+		// framing, no plugins, no foreign <base>, no foreign form target.
+		w.Header().Set("Content-Security-Policy", backOfficeCSP)
+		// D-094: an address now names a product. It is not handed to
+		// another origin in a Referer.
+		w.Header().Set("Referrer-Policy", "same-origin")
+	}
+	if class != classBearer && !crossOriginOK(r) {
+		http.Error(w, "cross-origin request refused", http.StatusForbidden)
+		return
+	}
+	if class == classBackOffice {
+		ss, ok := s.auth.sessionFrom(r)
+		if !ok {
+			if r.Header.Get("HX-Request") != "" {
+				s.requireBO(w, r)
 				return
 			}
-			r = r.WithContext(context.WithValue(r.Context(), sessionKey{}, ss))
+			// A page route is refused like any other (BR-55), but its
+			// refusal is read by a person: the sign-in page, not JSON.
+			// The handler is never called, so the body cannot say
+			// whether the product in the URL exists (D-094).
+			if pagePatterns[pat] {
+				s.signedOutPage(w, r)
+				return
+			}
+			jsonStatus(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})
+			return
 		}
-		mux.ServeHTTP(w, r)
-	})
+		r = r.WithContext(context.WithValue(r.Context(), sessionKey{}, ss))
+	}
+	tr.served = r
+	mux.ServeHTTP(w, r)
 }
 
 // crossOriginOK refuses a non-GET request that a browser marks cross-site, or
