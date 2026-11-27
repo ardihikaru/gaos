@@ -36,6 +36,13 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-69-1">v0.69.1 <time datetime="2026-11-28">2026-11-28</time> <span class="bump patch">patch</span></h3>
+      <ul>
+        <li><span class="chg fix">Fixed</span> Changing the page of any table in the back office (Traffic, Pull requests, Agents, the Board table and the rest) no longer throws the sheet back to the top: the scroll position is kept, so the operator does not have to scroll down again for every page.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-69-0">v0.69.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A Traffic page: the calls GAOS made to other platforms and the calls made to it, kept for at most 48 hours in a small Redis of its own (<a href="product/decision-log.html#d-107">D-107</a>, <a href="product/brd.html#rules-commercial">BR-66</a>; <a href="product/decision-log.html#d-106">D-106</a> amended). Reviewing it daily is the required step; the host firewall on the tunnel port is now recommended hardening.</p>
       <ul>

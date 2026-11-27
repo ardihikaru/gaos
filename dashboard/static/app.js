@@ -477,6 +477,27 @@
     if (e.target.closest && e.target.closest("a[href][hx-get]")) e.stopPropagation();
   }, true);
 
+  /* A pager click re-renders the whole back-office sheet, and the new
+     .sheet-body starts at the top: the operator who scrolled down to the pager
+     would have to scroll down again for every page. Remember where the
+     scroller was and put it back once the swap settles. (live.js keepPlace does
+     the same for the background refresh.) */
+  var pagerKeep = null;
+  document.body.addEventListener("htmx:beforeRequest", function (e) {
+    var el = e.detail && e.detail.elt;
+    var b = el && el.closest && el.closest(".pager") ? document.querySelector("#boSheet .sheet-body") : null;
+    pagerKeep = b ? [b.scrollLeft, b.scrollTop] : null;
+  });
+  document.body.addEventListener("htmx:afterSettle", function () {
+    if (!pagerKeep) return;
+    var b = document.querySelector("#boSheet .sheet-body"), k = pagerKeep;
+    pagerKeep = null;
+    if (b) { b.scrollLeft = k[0]; b.scrollTop = k[1]; }
+  });
+  ["htmx:responseError", "htmx:sendError", "htmx:timeout"].forEach(function (n) {
+    document.body.addEventListener(n, function () { pagerKeep = null; });
+  });
+
   document.body.addEventListener("htmx:afterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); syncMenu(); });
   document.body.addEventListener("htmx:oobAfterSwap", function (e) { afterSwap(e.target); mountBoard(e.target); if (e.target.id === "boSheet") syncMenu(); });
 
