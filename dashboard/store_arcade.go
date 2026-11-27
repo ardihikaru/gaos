@@ -538,8 +538,8 @@ func (s *ArcadeStore) SetDefectContext(ctx context.Context, productID, key strin
 func (s *ArcadeStore) ResolveTriage(ctx context.Context, productID, taskID string, v TriageVerdict) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.ResolveTriage(ctx, productID, taskID, v) })
 }
-func (s *ArcadeStore) CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseDefect(ctx, productID, ref, actor) })
+func (s *ArcadeStore) CloseDefect(ctx context.Context, productID, ref, actor string, admin bool) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseDefect(ctx, productID, ref, actor, admin) })
 }
 func (s *ArcadeStore) FixPRs(ctx context.Context, productID string) ([]FixPR, error) {
 	return s.proj.FixPRs(ctx, productID)

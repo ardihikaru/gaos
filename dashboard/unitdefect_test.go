@@ -2,7 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -415,5 +420,258 @@ func TestUnitDefectFieldsSurviveARestart(t *testing.T) {
 	}
 	if outcomes[ucSHAn(1)] != UnitFailed+"/"+key || outcomes[ucSHAn(2)] != UnitPassed+"/"+key {
 		t.Errorf("the watches came back as %v", outcomes)
+	}
+}
+
+// heldUnitDefect is a product with one filed unit defect, its triage card held.
+func heldUnitDefect(t *testing.T) (*MemStore, string, Defect) {
+	t.Helper()
+	s, pid := unitOnStore(t, UnitChecks{})
+	res, _ := failOn(t, s, pid, "develop", 1, 1000, UnitDefectIn{Failing: uf("TestTotal")})
+	return s, pid, res.Defects[0]
+}
+
+func moveJSON(t *testing.T, srv *server, pid, card, column string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPut, "/products/"+pid+"/board/cards/"+card+"/move", strings.NewReader(`{"column":"`+column+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	for _, c := range boCookies() {
+		req.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	srv.routes().ServeHTTP(w, req)
+	return w
+}
+
+func movesOf(b Board, id string) string {
+	for _, c := range b.Cards {
+		if c.ID == id {
+			return strings.Join(c.Moves, ",")
+		}
+	}
+	return "missing"
+}
+
+// TC-863
+func TestTheHeldCardIsAdminOnly(t *testing.T) {
+	ctx := context.Background()
+	s, pid, d := heldUnitDefect(t)
+	card := d.TriageTask
+	for _, col := range []string{ColReady, ColCanceled} {
+		if _, err := s.MoveCard(ctx, pid, card, CardMove{Column: col, Actor: "someone@example.test"}); !errors.Is(err, ErrUnitHeld) {
+			t.Errorf("a non-admin's move to %s answered %v; want ErrUnitHeld", col, err)
+		}
+	}
+	if err := ErrUnitHeld; err.Error() != "Only an auto-fix admin releases a held unit-test defect." || !errors.Is(err, ErrRejected) {
+		t.Errorf("the refusal reads %q", err)
+	}
+	if _, err := s.CloseDefect(ctx, pid, d.CaseID, "someone@example.test", false); !errors.Is(err, ErrUnitHeld) {
+		t.Errorf("a non-admin's close answered %v", err)
+	}
+	if _, err := s.ResolvePRCard(ctx, pid, card, StatusDone, "x"); err == nil {
+		t.Error("ResolvePRCard moved a held card")
+	}
+	if !operatorHolds(ReasonUnitHeld) {
+		t.Error("a drift release would free a held unit card")
+	}
+	// The board trims the moves for a viewer who is not an admin; an admin keeps them.
+	srv, _ := newTestServer(t)
+	srv.store = s
+	autoFixAdminsFile(t, 0o600, "admin@example.test")
+	req := httptest.NewRequest(http.MethodGet, "/products/"+pid+"/board", nil)
+	for _, c := range boCookies() {
+		req.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	srv.routes().ServeHTTP(w, req)
+	var b Board
+	_ = json.Unmarshal(w.Body.Bytes(), &b)
+	if m := movesOf(b, card); strings.Contains(m, ColReady) || strings.Contains(m, ColCanceled) {
+		t.Errorf("a non-admin is offered %q on the held card", m)
+	}
+	if w := moveJSON(t, srv, pid, card, ColReady); w.Code != http.StatusConflict {
+		t.Errorf("a non-admin's release answered %d; want 409", w.Code)
+	}
+	autoFixAdminsFile(t, 0o600, testEmail)
+	w = httptest.NewRecorder()
+	srv.routes().ServeHTTP(w, req)
+	_ = json.Unmarshal(w.Body.Bytes(), &b)
+	if m := movesOf(b, card); !strings.Contains(m, ColReady) || !strings.Contains(m, ColCanceled) {
+		t.Errorf("an admin is offered %q on the held card", m)
+	}
+	// An admin's release names the admin and the rule.
+	rec := moveJSON(t, srv, pid, card, ColReady)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("an admin's release answered %d", rec.Code)
+	}
+	evs, _ := s.Events(ctx)
+	last := evs[len(evs)-1]
+	if last.Type != TaskMoved || !strings.Contains(last.Text, ": unit-release (BLOCKED → READY) by ardi") {
+		t.Errorf("the release event reads %q; want unit-release by ardi", last.Text)
+	}
+	// Released, a non-admin still cannot cancel; an admin's cancel of a released card leaves the defect.
+	if _, err := s.MoveCard(ctx, pid, card, CardMove{Column: ColCanceled}); !errors.Is(err, ErrUnitHeld) {
+		t.Errorf("a non-admin cancelled a unit card: %v", err)
+	}
+	if _, err := s.MoveCard(ctx, pid, card, CardMove{Column: ColCanceled, Admin: true, Actor: testEmail}); err != nil {
+		t.Fatal(err)
+	}
+	if got := defectOf(t, s, pid, d.Key); defectFinal(got.State) {
+		t.Errorf("an admin's cancel of a released card closed the defect: %s", got.State)
+	}
+	// An admin's cancel of a held card closes the defect.
+	s2, pid2, d2 := heldUnitDefect(t)
+	res, err := s2.MoveCard(ctx, pid2, d2.TriageTask, CardMove{Column: ColCanceled, Admin: true, Actor: testEmail})
+	if err != nil || len(res.Defects) != 1 || res.Defects[0].State != DefectStateClosed {
+		t.Errorf("an admin's cancel of the held card: %+v %v; want the defect closed", res.Defects, err)
+	}
+	// The close route: 409 for a non-admin, done for an admin.
+	s3, pid3, d3 := heldUnitDefect(t)
+	srv3, _ := newTestServer(t)
+	srv3.store = s3
+	autoFixAdminsFile(t, 0o600, "admin@example.test")
+	if w := formPost(t, srv3, "/products/"+pid3+"/defects/"+url.PathEscape(d3.CaseID)+"/close", "", true); w.Code != http.StatusConflict {
+		t.Errorf("a non-admin's close answered %d; want 409", w.Code)
+	}
+	if _, err := s3.CloseDefect(ctx, pid3, d3.CaseID, testEmail, true); err != nil {
+		t.Errorf("an admin's close answered %v", err)
+	}
+}
+
+// TC-864
+func TestAUnitFixMayNotWeakenTheFailingTests(t *testing.T) {
+	af := fixAF()
+	guard := fixGuard{Unit: true, Protected: []string{fxTestPath}}
+	packet := fxPacket()
+	packet[fxTestPath] = DefectContextFile{Repo: defRepo, Path: fxTestPath, SHA: "b-" + fxTestPath, Text: fxTestBody}
+	packet["pkg/other/other_test.go"] = DefectContextFile{Repo: defRepo, Path: "pkg/other/other_test.go", SHA: "b-pkg/other/other_test.go", Text: fxTestBody}
+	look := func(p string) (ghTreeEntry, error) {
+		if f, ok := packet[p]; ok {
+			return ghTreeEntry{Exists: true, Mode: "100644", Type: "blob", SHA: f.SHA}, nil
+		}
+		return ghTreeEntry{}, nil
+	}
+	fix := func(edits []fixEdit, adds ...fixNewFile) FixReply {
+		return FixReply{Summary: "s", Before: "b", After: "a", Edits: edits, NewFiles: adds}
+	}
+	src := fixEdit{Path: fxFile, Find: "if qty == 0 {", Replace: "if qty <= 0 {"}
+	for name, c := range map[string]struct {
+		r    FixReply
+		g    fixGuard
+		want string
+	}{
+		"a protected file": {fix([]fixEdit{src, {Path: fxTestPath, Find: "check(-1)", Replace: "check(1)"}}), guard, unitGuardProtected},
+		"another packet test": {fix([]fixEdit{src, {Path: "pkg/other/other_test.go", Find: "check(-1)", Replace: "check(1)"}}),
+			guard, unitGuardProtected},
+		"a test beside":     {fix([]fixEdit{src}, fixNewFile{Path: "pkg/records/more_test.go", Content: fxTestBody}), guard, unitGuardBeside},
+		"a TestMain":        {fix([]fixEdit{src}, fixNewFile{Path: "pkg/new/a_test.go", Content: "package x\nfunc TestMain(m *testing.M) {}\n"}), guard, unitGuardMainInit},
+		"an init":           {fix([]fixEdit{{Path: fxFile, Find: "func check", Replace: "func init() {}\nfunc check"}}, fixNewFile{Path: "pkg/new/a_test.go", Content: fxTestBody}), guard, unitGuardMainInit},
+		"a build test edit": {fix([]fixEdit{src, {Path: "pkg/other/other_test.go", Find: "check(-1)", Replace: "check(1)"}}), fixGuard{Build: true, Summary: "cannot compile " + fxTestPath}, unitGuardBuild},
+	} {
+		_, err := checkFix(c.r, packet, af, look, c.g)
+		var fb *fixBlock
+		if !errors.As(err, &fb) || fb.Detail != c.want {
+			t.Errorf("%s: answered %v; want %q", name, err, c.want)
+		}
+	}
+	// Allowed: a source fix with a new test elsewhere; a build fix of the test file its summary names.
+	if _, err := checkFix(fix([]fixEdit{src}, fixNewFile{Path: "pkg/new/a_test.go", Content: fxTestBody}), packet, af, look, guard); err != nil {
+		t.Errorf("a source fix with a test elsewhere was refused: %v", err)
+	}
+	if _, err := checkFix(fix([]fixEdit{src, {Path: fxTestPath, Find: "check(-1)", Replace: "check(-2)"}}), packet, af, look,
+		fixGuard{Build: true, Summary: "cannot compile " + fxTestPath}); err != nil {
+		t.Errorf("a build fix of the named test file was refused: %v", err)
+	}
+	// Every other kind is unguarded.
+	if _, err := checkFix(fix([]fixEdit{src, {Path: fxTestPath, Find: "check(-1)", Replace: "check(1)"}}), packet, af, look, fixGuard{}); err != nil {
+		t.Errorf("the zero guard refused: %v", err)
+	}
+	// The draft lists the test files a unit fix adds.
+	body := renderPRBody("", prBodyIn{Defect: "x", Before: "b", After: "a", Added: []string{"pkg/new/a_test.go"}})
+	if !strings.Contains(body, "**Test files added**") || !strings.Contains(body, "`pkg/new/a_test.go`") {
+		t.Errorf("the body lists no added test file:\n%s", body)
+	}
+}
+
+// TC-865
+func TestTheUnitBaseIsRecheckedAndNeverRetargeted(t *testing.T) {
+	ctx := context.Background()
+	af := fixAF()
+	af.TargetRepos = []string{defRepo}
+	d := Defect{Key: "p-1/unit:" + defRepo + "~develop~0123456789abcdef", CaseID: "unit:" + defRepo + "~develop~0123456789abcdef",
+		Kind: DefectKindUnit, FixTask: "c-1", Difficulty: "easy", AutomationType: "be", Gen: 2, Regression: true,
+		State: DefectStateTriaged, Repo: defRepo, TargetRepos: []string{defRepo}, UnitBase: "develop"}
+	if why := fixEligible(d, "c-1", 2, af, tokenKindFine, UnitChecks{}, "develop"); why != "" {
+		t.Errorf("a reopened unit defect on its base: %q; want eligible", why)
+	}
+	if why := fixEligible(d, "c-1", 2, af, tokenKindFine, UnitChecks{Bases: []string{"develop"}}, "main"); why != "" {
+		t.Errorf("a unit defect on a listed base: %q; want eligible", why)
+	}
+	if why := fixEligible(d, "c-1", 2, af, tokenKindFine, UnitChecks{}, "main"); why != "the unit-test base is no longer allowed" {
+		t.Errorf("a unit base no longer allowed: %q", why)
+	}
+	qa := d
+	qa.Kind = DefectKindFail
+	if why := fixEligible(qa, "c-1", 2, af, tokenKindFine, UnitChecks{}, ""); why != "the defect is a regression" {
+		t.Errorf("a QA regression: %q; want refused", why)
+	}
+	if b := fixBranch(d); b != "gaos/fix-unit-01234567-acme-org-sample-service-develop-2" {
+		t.Errorf("the branch is %q", b)
+	}
+	other := d
+	other.CaseID = strings.Replace(d.CaseID, "0123456789abcdef", "fedcba9876543210", 1)
+	if fixBranch(other) == fixBranch(d) {
+		t.Error("two unit defects share a branch")
+	}
+	// A reopened unit defect's verdict plans an easy card the loop may claim.
+	s, pid, held := heldUnitDefect(t)
+	releaseHeld(t, s, held)
+	passOn(t, s, pid, "develop", 2, 2000)
+	res, _ := failOn(t, s, pid, "develop", 3, 3000, UnitDefectIn{Failing: uf("TestTotal")})
+	re := res.Defects[0]
+	if _, err := s.SetDefectContext(ctx, pid, re.Key, DefectContext{Built: true, Repos: []DefectContextRepo{{Repo: defRepo, Head: ucSHAn(3)}},
+		Files: []DefectContextFile{{Repo: defRepo, Path: fxFile, SHA: "b-" + fxFile, Text: fxText}}}); err != nil {
+		t.Fatal(err)
+	}
+	releaseHeld(t, s, re)
+	s.mu.Lock()
+	tk := s.taskByIDLocked(re.TriageTask)
+	_, _ = s.moveTaskLocked(tk.ID, StatusRunning, "test")
+	_, _ = s.moveTaskLocked(tk.ID, StatusReview, "test")
+	s.mu.Unlock()
+	if _, err := s.ResolveTriage(ctx, pid, re.TriageTask, TriageVerdict{Difficulty: "easy", Class: "validation", Repo: defRepo,
+		Files: []string{fxFile}, Reason: "r"}); err != nil {
+		t.Fatal(err)
+	}
+	re = defectOf(t, s, pid, re.Key)
+	fixCard := cardByKey(s, defectCardKey(re.Key, re.Gen, defectJobFix))
+	if fixCard == nil || fixCard.Status == StatusBlocked || !re.Regression {
+		t.Fatalf("a reopened unit defect's fix card is %+v; want it not blocked", fixCard)
+	}
+	s.mu.Lock()
+	ft := s.taskByIDLocked(fixCard.ID)
+	err := s.autoClaimLocked(pid, ft, false)
+	s.mu.Unlock()
+	if err != nil {
+		t.Errorf("the loop may not claim a released reopened unit defect: %v", err)
+	}
+	// Never retargeted.
+	f := FixPR{ID: "fx-1", ProductID: pid, DefectKey: re.Key, Repo: defRepo, Number: 5, State: FixPRDraft, Branch: fixBranch(re), Base: "develop"}
+	s.mu.Lock()
+	s.fixPRs[f.ID] = f
+	err = s.retargetChecksLocked(s.masterPtr(pid), f, s.defects[re.Key], "main", tokenKindFine)
+	s.mu.Unlock()
+	if err == nil || err.Error() != unitNoRetarget {
+		t.Errorf("a unit fix's retarget answered %v", err)
+	}
+	if rt := prRetargetOf(pid, f, re, map[string]TaskRecord{}, af, nil, true); rt.Off != unitNoRetarget {
+		t.Errorf("the drawer offers a retarget: %q", rt.Off)
+	}
+	// The packets: the failing tests fenced as data, the verdict for the fixer.
+	tri := renderUnitDefectPacket(re, false)
+	fx := renderUnitDefectPacket(re, true)
+	if !strings.Contains(tri, unitFailingHeading) || strings.Contains(tri, "The triage verdict") ||
+		!strings.Contains(fx, "The triage verdict") || !strings.Contains(fx, "Base: develop") {
+		t.Errorf("the packets read:\n%s\n---\n%s", tri, fx)
 	}
 }

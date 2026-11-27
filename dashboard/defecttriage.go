@@ -471,6 +471,9 @@ func (s *MemStore) defectPartsLocked(t TaskRecord) []PacketPart {
 	if d == nil {
 		return nil
 	}
+	if d.Kind == DefectKindUnit { // D-105 §7.5: the failing tests, fenced
+		return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderUnitDefectPacket(*d, false)}}
+	}
 	return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderDefectPacket(*d)}}
 }
 
@@ -746,7 +749,7 @@ func (s *MemStore) ResolveTriage(ctx context.Context, productID, taskID string, 
 	switch {
 	case len(d.TargetRepos) == 0:
 		born, why = StatusBlocked, BlockNoRepo
-	case diff != "easy" || d.AutomationType != "be" || d.Regression:
+	case diff != "easy" || d.AutomationType != "be" || (d.Regression && d.Kind != DefectKindUnit):
 		born, why = StatusBlocked, BlockNotEasy
 	}
 	_, planned := s.planDefectCardLocked(d, defectJobFix, born, why, label)

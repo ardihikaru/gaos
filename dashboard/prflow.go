@@ -658,6 +658,10 @@ func (s *MemStore) ResolvePRCard(ctx context.Context, productID, taskID, to, rea
 // hold for every caller: a card an operator blocked or canceled stays there and
 // a finished card never comes back.
 func (s *MemStore) resolveCardLocked(t *TaskRecord, to, reason, rule string) ([]Event, error) {
+	// A held unit-test card moves only by an auto-fix admin's hand (D-105 §7.3).
+	if t.Status == StatusBlocked && t.BlockReason == ReasonUnitHeld {
+		return nil, reject("The card is held for an auto-fix admin; it does not move to " + to + ".")
+	}
 	allowed := false
 	for _, from := range resolveFrom[to] {
 		allowed = allowed || from == t.Status

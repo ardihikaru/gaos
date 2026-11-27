@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -272,7 +274,50 @@ type fixLookup func(path string) (ghTreeEntry, error)
 // lookup is a tree lookup at the current head: it supplies the blob SHA and the
 // mode of an edited file and says whether a new file's path is taken. The
 // answer is a plan, a *fixBlock, or the lookup's own error.
-func checkFix(r FixReply, packet map[string]DefectContextFile, af AutoFix, lookup fixLookup) (fixPlan, error) {
+// fixGuard is what a unit fix may not touch (D-105 §7.5): with Unit, the failing
+// tests' files (Protected, exact paths), any other test file of the packet, a new
+// test beside a protected one, and a new TestMain or init; with Build, every
+// existing test file but one the build summary names. The zero value guards nothing.
+type fixGuard struct {
+	Unit, Build bool
+	Protected   []string
+	Summary     string // the build failure's summary
+}
+
+// The unit fix's refusals.
+const (
+	unitGuardProtected = "a unit-test fix may not change the failing tests' files"
+	unitGuardBeside    = "a unit-test fix may not add tests beside the failing ones"
+	unitGuardMainInit  = "a unit-test fix may not add TestMain or init"
+	unitGuardBuild     = "a build fix may change only the test file its summary names"
+)
+
+// check applies the guard to a plan.
+func (g fixGuard) check(plan fixPlan) error {
+	if !g.Unit && !g.Build {
+		return nil
+	}
+	dirs := map[string]bool{}
+	for _, p := range g.Protected {
+		dirs[path.Dir(p)] = true
+	}
+	for _, f := range plan.Files {
+		switch {
+		case g.Unit && !f.Add && (f.Test || slices.Contains(g.Protected, f.Path)):
+			return &fixBlock{BlockLimits, unitGuardProtected}
+		case g.Unit && f.Add && dirs[path.Dir(f.Path)]:
+			return &fixBlock{BlockLimits, unitGuardBeside}
+		case g.Unit && (strings.Count(f.New, "func TestMain(") > strings.Count(f.Old, "func TestMain(") ||
+			strings.Count(f.New, "func init(") > strings.Count(f.Old, "func init(")):
+			return &fixBlock{BlockLimits, unitGuardMainInit}
+		case g.Build && !f.Add && f.Test && !strings.Contains(g.Summary, f.Path):
+			return &fixBlock{BlockLimits, unitGuardBuild}
+		}
+	}
+	return nil
+}
+
+func checkFix(r FixReply, packet map[string]DefectContextFile, af AutoFix, lookup fixLookup, g fixGuard) (fixPlan, error) {
 	isTest := func(p string) bool { return matchAny(af.TestGlobs, p) }
 	var order []string
 	edits := map[string][]fixEdit{}
@@ -350,6 +395,9 @@ func checkFix(r FixReply, packet map[string]DefectContextFile, af AutoFix, looku
 			text = strings.Replace(text, e.Find, e.Replace, 1)
 		}
 		plan.Files = append(plan.Files, fixFile{Path: p, Old: pf.Text, New: text, Mode: entry.Mode, Test: isTest(p), SHA: pf.SHA})
+	}
+	if err := g.check(plan); err != nil {
+		return fixPlan{}, err
 	}
 	anyTest := false
 	for _, f := range plan.Files {

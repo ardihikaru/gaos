@@ -742,6 +742,18 @@ func (s *server) fail(w http.ResponseWriter, r *http.Request, err error) {
 	s.rend.RenderWithChrome(w, "empty", v)
 }
 
+// failStatus is fail with a status of the caller's choosing (409 for a held unit card, D-105).
+func (s *server) failStatus(w http.ResponseWriter, r *http.Request, err error, code int) {
+	if !wantsHTMX(r) {
+		writeBoardJSON(w, code, map[string]string{"error": err.Error()})
+		return
+	}
+	v, _ := s.newView(r)
+	v.Toast = err.Error()
+	w.WriteHeader(code)
+	s.rend.RenderWithChrome(w, "empty", v)
+}
+
 // ---------- tiny request helpers ----------
 
 func atoiDefault(s string, def int) int {

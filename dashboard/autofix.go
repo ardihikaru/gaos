@@ -172,8 +172,9 @@ func (s *MemStore) autoClaimLocked(productID string, t *TaskRecord, stamp bool) 
 	case job == defectJobTriage && hasLabel(t.Labels, LabelDefectTriage):
 	case job == defectJobFix && hasLabel(t.Labels, LabelDefectEasy):
 		d := s.defects[key]
+		// A reopened unit defect is fixable: an auto-fix admin released it (D-105).
 		if d == nil || d.ProductID != productID || d.FixTask != t.ID || d.Difficulty != "easy" ||
-			d.AutomationType != "be" || d.Regression {
+			d.AutomationType != "be" || (d.Regression && d.Kind != DefectKindUnit) {
 			return reject("the record of " + t.ID + " is not an easy backend defect; a person moves it")
 		}
 	default:
@@ -393,6 +394,9 @@ func (s *MemStore) fixerPartsLocked(t TaskRecord) []PacketPart {
 	}
 	if d == nil {
 		return nil
+	}
+	if d.Kind == DefectKindUnit { // D-105 §7.5: the verdict kept, the failing tests fenced
+		return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderUnitDefectPacket(*d, true)}}
 	}
 	if d.Kind == DefectKindReview { // D-102 §6.3: the verdict first, the findings fenced
 		return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderReviewDefectPacket(*d)}}

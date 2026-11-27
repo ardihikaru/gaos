@@ -162,7 +162,11 @@ func (s *server) handleCloseDefect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, ref := r.PathValue("id"), r.PathValue("ref")
-	res, err := s.mut(r).CloseDefect(r.Context(), id, ref, ss.Email)
+	res, err := s.mut(r).CloseDefect(r.Context(), id, ref, ss.Email, autoFixAdmin(ss.Email))
+	if errors.Is(err, ErrUnitHeld) {
+		s.failStatus(w, r, err, http.StatusConflict)
+		return
+	}
 	if err != nil {
 		s.autoFixError(w, r, err)
 		return

@@ -140,7 +140,7 @@ cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-workspace.sh
 ```
 
-727 Go tests: 702 in `dashboard/` and 25 in `pustaka/`. Every test case —
+730 Go tests: 705 in `dashboard/` and 25 in `pustaka/`. Every test case —
 implemented, retired or a forward specification — is in the register,
 `pustaka/docs/product/qa-test-plan.html`: 868 registered test cases. There is
 no CI: the product owner runs the checks (D-025), and a test that is not on that

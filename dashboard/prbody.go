@@ -149,6 +149,8 @@ type prBodyIn struct {
 	Defect, Title, Summary, Before, After string
 	Files                                 []string
 	Limits                                string
+	// Added are the test files a unit fix adds (D-105 §7.5), listed for the reviewer.
+	Added []string
 }
 
 // templateHasSlots reports whether a template names the two slots every body needs.
@@ -176,6 +178,14 @@ func renderPRBody(tpl string, in prBodyIn) string {
 		slotFiles, strings.TrimRight(files.String(), "\n"),
 		slotLimits, in.Limits,
 	).Replace(tpl)
+	if len(in.Added) > 0 {
+		var added strings.Builder
+		added.WriteString("\n\n**Test files added**\n\n")
+		for _, f := range in.Added {
+			fmt.Fprintf(&added, "- `%s`\n", strings.ReplaceAll(f, "`", ""))
+		}
+		body = strings.TrimRight(body, "\n") + strings.TrimRight(added.String(), "\n")
+	}
 	body = stripBidi(strings.TrimRight(body, "\n")) + "\n\n" + prAgentNotice + "\n"
 	return wrapAt(body, prLineMax)
 }

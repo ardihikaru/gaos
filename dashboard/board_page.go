@@ -429,6 +429,7 @@ func (s *MemStore) decorateCardsLocked(cards []BoardCard, byID map[string]*TaskR
 	s.decorateCardsTiming(cards, byID, productID, time.Now().Unix(), eventsOf)
 	s.decorateCardsConversationWith(cards, byID, eventsOf)
 	s.decorateCardsGate(cards, byID)
+	s.decorateCardsUnit(cards, byID)
 }
 
 // BoardPage is a product's board cut to one page. Read-only.

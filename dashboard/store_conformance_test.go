@@ -959,7 +959,7 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 			_, r, err := ro.ReportDefects(ctx, "p-1", DefectReportIn{})
 			return r, err
 		},
-		"CloseDefect": func() (Result, error) { return ro.CloseDefect(ctx, "p-1", "DEF-1", "x") },
+		"CloseDefect": func() (Result, error) { return ro.CloseDefect(ctx, "p-1", "DEF-1", "x", true) },
 		"ResolveTriage": func() (Result, error) {
 			return ro.ResolveTriage(ctx, "p-1", "t-1", TriageVerdict{})
 		},

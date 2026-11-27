@@ -606,7 +606,7 @@ func (s *MemStore) DefectByKey(ctx context.Context, productID, key string) (Defe
 
 // CloseDefect is an operator's close (§5.2). ref is a defect id or a case id of
 // the product; a record of another product is not found.
-func (s *MemStore) CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error) {
+func (s *MemStore) CloseDefect(ctx context.Context, productID, ref, actor string, admin bool) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.masterPtr(productID) == nil {
@@ -618,6 +618,9 @@ func (s *MemStore) CloseDefect(ctx context.Context, productID, ref, actor string
 	}
 	if d == nil || d.ProductID != productID {
 		return Result{}, ErrNotFound
+	}
+	if d.Kind == DefectKindUnit && !admin { // D-105 §7.3
+		return Result{}, ErrUnitHeld
 	}
 	if d.State == DefectStateClosed {
 		return Result{}, nil

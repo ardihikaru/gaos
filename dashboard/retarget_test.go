@@ -479,7 +479,7 @@ func TestARevokedRetargetBaseOpensNothing(t *testing.T) {
 	e.s.mu.Lock()
 	e.s.defects[e.key].BaseOverride = "staging"
 	e.s.mu.Unlock()
-	if _, err := e.s.CloseDefect(ctx, e.pid, "DEF-101", "ops@example.test"); err != nil {
+	if _, err := e.s.CloseDefect(ctx, e.pid, "DEF-101", "ops@example.test", true); err != nil {
 		t.Fatal(err)
 	}
 	if d := e.defect(); d.BaseOverride != "" {

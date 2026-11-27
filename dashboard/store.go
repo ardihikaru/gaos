@@ -175,7 +175,7 @@ type Store interface {
 	DefectByKey(ctx context.Context, productID, key string) (Defect, error)
 	SetDefectContext(ctx context.Context, productID, key string, c DefectContext) (Result, error)
 	ResolveTriage(ctx context.Context, productID, taskID string, v TriageVerdict) (Result, error)
-	CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error)
+	CloseDefect(ctx context.Context, productID, ref, actor string, admin bool) (Result, error)
 	FixPRs(ctx context.Context, productID string) ([]FixPR, error)
 	UpsertFixPR(ctx context.Context, f FixPR) (Result, error)
 	// AutoDispatch dispatches one READY defect card behind the product's switch and
@@ -527,7 +527,7 @@ func (readOnly) SetDefectContext(context.Context, string, string, DefectContext)
 func (readOnly) ResolveTriage(context.Context, string, string, TriageVerdict) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
-func (readOnly) CloseDefect(context.Context, string, string, string) (Result, error) {
+func (readOnly) CloseDefect(context.Context, string, string, string, bool) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) UpsertFixPR(context.Context, FixPR) (Result, error) {

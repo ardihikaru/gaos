@@ -87,6 +87,9 @@ type BoardCard struct {
 	// UpdatedAt is when that last state change happened, unix seconds; the
 	// table's "Changed" column.
 	UpdatedAt int64 `json:"updatedAt,omitempty"`
+	// UnitDefect marks a card of a unit defect (D-105): read-time decoration, so a
+	// viewer who is not an auto-fix admin is not offered its cancel.
+	UnitDefect bool `json:"-"`
 }
 
 // BoardConversation is a card's conversation, as the board shows it.
@@ -128,6 +131,10 @@ type CardMove struct {
 	Column string `json:"column"`
 	Row    string `json:"row"`
 	Index  int    `json:"index"`
+	// Actor and Admin are the session's account and whether it is an auto-fix
+	// admin (D-105 §7.3): filled by the handler, never read from the body.
+	Actor string `json:"-"`
+	Admin bool   `json:"-"`
 }
 
 // Column ids.
@@ -268,6 +275,7 @@ func (s *MemStore) Board(ctx context.Context, productID string) (Board, error) {
 	s.decorateBoardTiming(&b, productID, time.Now().Unix())
 	s.decorateCardsConversation(b.Cards, byID)
 	s.decorateCardsGate(b.Cards, byID)
+	s.decorateCardsUnit(b.Cards, byID)
 	return b, nil
 }
 
@@ -353,6 +361,14 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 		s.mu.Unlock()
 		return Result{}, reject(why)
 	}
+	// D-105 §7.3: a held unit-test card is released or cancelled by an auto-fix admin
+	// only, and no card of a unit defect is cancelled by anyone else.
+	unitDef := s.unitDefectOfLocked(&t)
+	held := t.Status == StatusBlocked && t.BlockReason == ReasonUnitHeld
+	if ((held && (action == MoveUnblock || action == MoveCancel)) || (unitDef != nil && action == MoveCancel)) && !mv.Admin {
+		s.mu.Unlock()
+		return Result{}, ErrUnitHeld
+	}
 	if action == MoveDispatch {
 		s.mu.Unlock()
 		return s.dispatchNow(ctx, productID, taskID)
@@ -391,7 +407,24 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 		s.mu.Unlock()
 		return Result{}, err
 	}
-	e, _ := s.moveTaskLocked(taskID, to, action)
+	var e Event
+	var closed []Defect
+	var extra []Event
+	switch {
+	case held:
+		// An admin's release or cancel of a held card names the admin (BR-48), and a
+		// cancel closes the defect: it is how a marked defect is closed.
+		alias := actorAlias(mv.Actor)
+		e, _ = s.moveTaskWithLocked(taskID, to, RuleUnitRelease, EventPayload{Actor: alias})
+		if action == MoveCancel && unitDef != nil && !defectFinal(unitDef.State) {
+			extra = append(extra, s.setDefectStateLocked(unitDef, DefectStateClosed, RuleUnitRelease, alias))
+			closed = append(closed, unitDef.Clone())
+		}
+	case unitDef != nil:
+		e, _ = s.moveTaskWithLocked(taskID, to, action, EventPayload{Actor: actorAlias(mv.Actor)})
+	default:
+		e, _ = s.moveTaskLocked(taskID, to, action)
+	}
 	// An unblock ends the block, and its reason with it: a reason on a BLOCKED
 	// card always belongs to the block it is in (D-084).
 	if action == MoveUnblock {
@@ -399,7 +432,8 @@ func (s *MemStore) MoveCard(ctx context.Context, productID, taskID string, mv Ca
 			p.BlockReason = ""
 		}
 	}
-	r := s.result(fmt.Sprintf("%s: %s.", taskID, action), e)
+	r := s.result(fmt.Sprintf("%s: %s.", taskID, action), append([]Event{e}, extra...)...)
+	r.Defects = closed
 	s.mu.Unlock()
 	return r, nil
 }
