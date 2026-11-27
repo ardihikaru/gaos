@@ -111,11 +111,11 @@ else
 fi
 
 go_tests=$(grep -rhoE "^func Test[A-Za-z0-9_]+" dashboard/*_test.go pustaka/*_test.go 2>/dev/null | wc -l | tr -d ' ')
-if grep -q "seven hundred and fourteen" pustaka/docs/assets/toc/product.js \
-   && [ "$go_tests" = "714" ]; then
+if grep -q "seven hundred and fifteen" pustaka/docs/assets/toc/product.js \
+   && [ "$go_tests" = "715" ]; then
   ok "Go test count: $go_tests, matching the register"
 else
-  bad "Go test count: $go_tests tests on disk, register says seven hundred and fourteen"
+  bad "Go test count: $go_tests tests on disk, register says seven hundred and fifteen"
 fi
 
 prose_check() {

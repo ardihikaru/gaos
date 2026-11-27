@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-66-4">v0.66.4 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">No more intermittent <code>EOF</code> from ArcadeDB.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> ArcadeDB closes a keep-alive connection after about 30 seconds idle, while the dashboard&rsquo;s HTTP pool kept one for 90. A write that picked up such a connection failed with <code>EOF</code> (seen as &ldquo;merged reviews could not be finished&rdquo;), and a POST is never retried. Both ArcadeDB clients now share one pool that drops an idle connection after 20 seconds (TC-852).</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-66-3">v0.66.3 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The PR-template alerts reach a pull request opened while the review cap is full.</p>
       <ul>
