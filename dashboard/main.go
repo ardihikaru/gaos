@@ -64,6 +64,12 @@ func envOr(k, def string) string {
 type server struct {
 	// staging is the Jenkins callback's credentials (staging.go); never nil.
 	staging *stagingAuth
+	// unitResults is the unit-results route's credentials (D-106, unitresults.go):
+	// its own file, never the staging one. Nil in tests answers 503.
+	unitResults *stagingAuth
+	// unitNotify sends a unit notice to the group (the poller's closure, D-106);
+	// nil leaves it unsent and logged.
+	unitNotify func(ctx context.Context, productID string, pr int, text, cardID string)
 	// ghState is the GitHub client's row on the Integrations view.
 	ghState string
 	// codeSrc reads application source for a defect's packet (D-091); nil when
@@ -367,7 +373,8 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 
 	srv := &server{store: store, rend: rend, arc: arc, adapter: adapter, api: api, brain: brain, brainOff: brainOff,
 		btConsumer: btCons, btConsumerOff: btConsOff, qaOut: qaOutboundFromEnv(),
-		auth: authFromEnv(!dev), bootChecked: bootChecked, staging: stagingAuthFromEnv()}
+		auth: authFromEnv(!dev), bootChecked: bootChecked, staging: stagingAuthFromEnv(),
+		unitResults: unitResultsAuthFromEnv()}
 
 	// D-078: the answer webhook. One worker; with the outbound unconfigured it
 	// idles and the QA tool polls GET /v1/products/{id}/inbox/{externalId}.
@@ -448,6 +455,15 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	case srv.staging.why != "":
 		log.Printf("staging: callback off (%s)", srv.staging.why)
 	}
+	// D-106: the unit-results route's own credential file.
+	switch {
+	case srv.unitResults.enabled():
+		log.Printf("unit results: credentials for %d product(s)", len(srv.unitResults.sums))
+	case srv.unitResults.why != "":
+		log.Printf("unit results: off (%s)", srv.unitResults.why)
+	default:
+		log.Printf("unit results: off (no credential file)")
+	}
 	if h, ok := store.(interface {
 		SetPRHooks(func(TaskRecord) []PacketPart, func(TaskRecord, string))
 	}); ok {
@@ -473,6 +489,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		poller.unitNotify = func(ctx context.Context, productID string, pr int, text, cardID string) {
 			nt.NotifyPR(ctx, productID, "", "", pr, "unit:failure", text, cardID)
 		}
+		srv.unitNotify = poller.unitNotify // D-106: the unit-results route's withheld and conflict lines
 		if ghc != nil {
 			poller.alert.post = ghc
 		}
