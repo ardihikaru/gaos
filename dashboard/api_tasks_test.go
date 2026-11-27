@@ -67,7 +67,7 @@ func tasksFixture(t *testing.T, pr ghPR) (*server, *MemStore, *int) {
 	srv.api = c
 	calls := 0
 	srv.flow = &prFlow{st: st, gh: countingPR{pr: pr, calls: &calls}, ctx: &prContextCache{}, logf: func(string, ...any) {}}
-	srv.qaOut = &qaOutbound{}
+	srv.qaOut = newQaOutbound("http://127.0.0.1:1", "tok-tok-tok-tok-tok-tok-tok-tok-tok-tok", nil) // configured, never reached
 	return srv, st, &calls
 }
 

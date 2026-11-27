@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  eight hundred and forty-nine cases, positive and negative, across the four deploy automations, the product seed script and the
+  eight hundred and fifty cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All eight hundred and forty-nine cases in one filterable table. Filter by automation, kind, or any
+  <p>All eight hundred and fifty cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -938,6 +938,7 @@
       <tr data-tags="go test test plan ready qa bundle planned write-back comment 1500 other product d-104 positive negative implemented"><td>TC-847</td><td>dashboard (go test)</td><td>Negative</td><td>A DONE test plan sends <code>bundle:planned</code> to the task&rsquo;s QA and writes one comment within 1500 characters ending in the marker; another product&rsquo;s task or a <code>pr:</code> bundle writes nothing; case codes are filtered (<code>TestTestPlanReadyAndWriteBack</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test integrations taskmgr block status counts table admin only d-104 positive negative implemented"><td>TC-848</td><td>dashboard (go test)</td><td>Positive</td><td>The Integrations view shows the TaskMgr block with its status order, the counts to everyone and the per-person table only to an auto-fix admin (<code>TestIntegrationsShowTaskMgr</code>).</td><td>Implemented</td></tr>
       <tr data-tags="check-stacks compose prod taskmgr credential certificate mount address env d-104 positive negative implemented"><td>TC-849</td><td>check-stacks.sh</td><td>Positive</td><td>Prod mounts the TaskMgr credential and pinned certificate read-only, never passes the credential as an environment variable, and takes the TaskMgr address from the deploy shell, empty by default.</td><td>Implemented</td></tr>
+      <tr data-tags="go test qa outbound unconfigured nil base panic runner api qa-off fix negative implemented"><td>TC-850</td><td>dashboard (go test)</td><td>Negative</td><td>A QA client without GAOS_QA_URL is not usable: it answers no request, lists no capability and never dereferences its missing base URL, so the runner is not started and the API answers qa-off (<code>TestAnUnconfiguredQAToolIsNeverCalled</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4676,6 +4677,9 @@
   <p><strong>TC-847, negative and positive</strong> (<code>TestTestPlanReadyAndWriteBack</code>, <code>taskmgr_flow_test.go</code>): <code>the planner card is %s, want DONE</code>; <code>the QA notice is %v; want one bundle:planned line to the task's QA</code>; <code>the write-back wrote %d comment(s), want one</code>; <code>the write-back on %s reads %q</code>; <code>another product's task, an unknown task or a pr: bundle got %v and %v</code>; <code>an empty plan: %d comment(s), %d line(s); want one and none</code>; <code>a long write-back is %d runes or lost its marker</code>; <code>the write-back must list ten URLs, say how many more, and keep only valid case codes: %s</code></p>
   <p><strong>TC-848, negative and positive</strong> (<code>TestIntegrationsShowTaskMgr</code>, <code>integrations_test.go</code>): <code>the integrations view has no TaskMgr block</code>; <code>with no settings the block must read Off and carry the Third-party mark: %s</code>; <code>a bound, refreshed product must read Connected with its code and the counts: %s</code>; <code>an account that is not an admin sees %q</code>; <code>an admin must see the people, masked, and the binding form: %s</code>; <code>the block renders a whole number or the credential</code>; <code>%s reads %q, want %q</code></p>
   <p><strong>TC-849, positive</strong> (<code>deploy/check-stacks.sh</code>): <code>ok   prod mounts the TaskMgr credential file read-only</code>, <code>ok   prod mounts the TaskMgr pinned certificate read-only</code>, <code>ok   prod passes the TaskMgr credential only as a file, never as an environment variable</code>, <code>ok   prod passes the TaskMgr address from the deploy shell, empty (off) by default</code>; negative: each prints <code>FAIL</code> with the same message when the compose file lacks the mount, passes <code>GAOS_TASKMGR_AUTH:</code> as an environment variable, or hard-codes the address.</p>
+  <h3 id="go-qa-outbound">dashboard &mdash; an unconfigured QA tool is never called (TC-850)</h3>
+  <p><code>qaOutboundFromEnv</code> returns a client even when <code>GAOS_QA_URL</code> is unset, with the reason in <code>why</code> and no base URL. The QA-job runner, the test planner and the external-tasks API now ask <code>usable()</code> instead of comparing with nil, and <code>do</code> refuses an unusable client instead of dereferencing it (v0.66.1).</p>
+  <p><strong>TC-850, negative</strong> (<code>TestAnUnconfiguredQAToolIsNeverCalled</code>, <code>qajobs_test.go</code>): <code>newQaOutbound returned nil; the guard below is what main.go relies on</code>; <code>an unconfigured client reads as usable (why %q)</code>; <code>an unconfigured client answered a request</code>; <code>an unconfigured client lists capabilities %v</code>; <code>a nil client reads as usable</code>.</p>
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in
