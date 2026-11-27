@@ -436,7 +436,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		log.Printf("pull requests: %d review row(s) back-filled", n)
 	}
 	// The QA tool writes and runs the e2e specs; GAOS only asks and polls.
-	if srv.qaOut != nil {
+	if srv.qaOut.usable() {
 		jr := newQAJobRunner(store, srv.qaOut, flow.ctx, nt, flow.gh)
 		jr.logf = log.Printf
 		jr.autoMerge = storeAutoMerge(store) // D-103 §4.1
@@ -465,7 +465,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		}
 		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify, tm: tm, direct: nt.notifyTo}
 		poller.tm = tm
-		if srv.qaOut != nil {
+		if srv.qaOut.usable() {
 			tp.qa = srv.qaOut
 		}
 		poller.alert = prAlerter{nt: nt}

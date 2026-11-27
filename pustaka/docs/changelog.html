@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-66-1">v0.66.1 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A deployment without a QA tool no longer crashes when an e2e card appears.</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> Without <code>GAOS_QA_URL</code> the QA client still existed, so the QA-job runner started and its first call dereferenced a missing URL, which stopped the dashboard. The runner, the test planner and the external-tasks API now check that the QA tool is configured (<code>qa-off</code> answers again), and the client refuses a call it cannot make.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-66-0">v0.66.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">TaskMgr, the team&rsquo;s task manager, becomes a third-party platform bound to one product (<a href="product/decision-log.html#d-104">D-104</a>, answers <a href="product/open-questions.html#oq-41">OQ-41</a>).</p>
       <ul>

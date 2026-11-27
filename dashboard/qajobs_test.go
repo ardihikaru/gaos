@@ -477,3 +477,26 @@ func TestTheCancelCallSpeaksTheAgreedRoute(t *testing.T) {
 		t.Error("a 500 was taken for a cancel")
 	}
 }
+
+// TC-850: an unconfigured QA tool is never called. qaOutboundFromEnv returns a
+// client even without GAOS_QA_URL; before this fix the first QA call
+// dereferenced its nil base URL and panicked the runner.
+func TestAnUnconfiguredQAToolIsNeverCalled(t *testing.T) {
+	o := newQaOutbound("", "", nil)
+	if o == nil {
+		t.Fatal("newQaOutbound returned nil; the guard below is what main.go relies on")
+	}
+	if o.usable() {
+		t.Fatalf("an unconfigured client reads as usable (why %q)", o.why)
+	}
+	if _, _, err := o.do(context.Background(), "GET", "/api/v1/gaos/capabilities", nil, nil); err == nil {
+		t.Error("an unconfigured client answered a request")
+	}
+	if caps := o.capabilities(context.Background()); len(caps) != 0 {
+		t.Errorf("an unconfigured client lists capabilities %v", caps)
+	}
+	var none *qaOutbound
+	if none.usable() {
+		t.Error("a nil client reads as usable")
+	}
+}
