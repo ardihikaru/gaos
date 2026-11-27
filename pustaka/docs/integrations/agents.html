@@ -340,6 +340,17 @@
   the Pull requests page says <em>waiting for the catalog</em> and the run is planned when the result arrives (within
   14 days). A merge at another commit is noted on the row and in the activity feed, and its case is not run.</p>
 
+  <div class="adm warn">
+    <p class="adm-title">What GitHub must allow first</p>
+    <p>The QA tool turns auto-merge on only after it has read, through GitHub's API, a ruleset that restricts updates and
+    deletions of <code>qa-auto/*</code> branches and required checks bound to their source on the base branch. On a
+    <strong>private repository</strong> GitHub offers rulesets only on a paid plan (Team, or Pro for a personal account);
+    on the free plan the API answers <em>"Upgrade to GitHub Pro or make this repository public"</em> and every spec is
+    left for a person to merge. The QA tool's GitHub account must also be a bot account without admin or maintain rights
+    on the automation repository: an admin could bypass the rules, so the QA tool refuses one. Until both hold, keep the
+    auto-merge switch off: GAOS still runs each new case once a person merges its spec.</p>
+  </div>
+
   <h3 id="release-b-unit">4. Unit tests: decided, not built</h3>
   <p>Unit tests run through the QA tool in a sandbox it provides, a failure becoming a defect a person releases first.
   They need their own design and the QA tool's sandbox; until then the unit-test card behaves as
