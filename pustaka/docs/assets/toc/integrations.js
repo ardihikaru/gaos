@@ -56,14 +56,32 @@ window.DOCS.nav.push({
       tags: ["integration", "github", "pull request", "review", "staging", "jenkins", "whatsapp", "qa tool"],
       sections: [
         { anchor: "routing", title: "What opens what", text: "A pull request, a merge and a staging deploy; the cap, the draft and fork filters." },
+        { anchor: "assignment", title: "Which agents a product has", text: "Assigned agents switch the flows on per product; see Agents, severity and review fixes." },
         { anchor: "labels", title: "The labels", text: "A closed vocabulary, one per family; manual and QA-tool cards are never dispatched." },
         { anchor: "review", title: "The review", text: "The gaos-pr-review block; GAOS screens and posts it as a comment." },
         { anchor: "settings", title: "The settings", text: "The GitHub token, the staging credentials, the WhatsApp URL, login and group, the cap." },
+        { anchor: "review-fix", title: "A low finding fixed by an agent", text: "A draft into the reviewed pull request's own branch." },
         { anchor: "staging", title: "The staging callback", text: "HTTP Basic, one credential per product, and every answer." },
         { anchor: "qa", title: "The QA tool does the e2e work", text: "A job GAOS starts and polls; the QA-case line; the two routes live in the QA tool." },
         { anchor: "whatsapp", title: "WhatsApp and the contacts", text: "One line and the card id; the pinned group; the contact registry." },
         { anchor: "bundles", title: "Bundles from the PR template", text: "The task-manager code and links group pull requests; one test plan when all merged; the missing-code alert." },
         { anchor: "failure", title: "When something is down", text: "What each failure does to the card." }
+      ]
+    },
+    {
+      id: "agents", file: "integrations/agents.html", title: "Agents, severity and review fixes",
+      desc: "Which agents work on a product and what that switches on: assignment per product, the reviewer's severity on the board, requested changes on GitHub, low findings fixed into the reviewed branch, the card-source labels, the runbook, and the second release.",
+      tags: ["agents", "assignment", "severity", "review", "request changes", "review fix", "labels", "release b"],
+      sections: [
+        { anchor: "overview", title: "What it gives you", text: "The filter, the gate, the severity, requested changes, review fixes, the source labels." },
+        { anchor: "assignment", title: "Assignment", text: "Three states of a product, the roles it switches, who may change it." },
+        { anchor: "severity", title: "Severity on the board", text: "The severity:* label: a chip, a column, a filter with Medium or worse." },
+        { anchor: "review-event", title: "Comment or request changes", text: "Request changes for medium and worse on a configured product; never approve; the dismissal line." },
+        { anchor: "review-fix", title: "Low findings fixed by an agent", text: "A draft into the reviewed branch: when, the settings, the checks, what happens next." },
+        { anchor: "source-labels", title: "Where a card came from", text: "source:api and source:bundle mark the cards assignment does not gate." },
+        { anchor: "runbook", title: "Set it up for a product", text: "Assign the reviewer, unit-test, QA and fixer agents; the branch patterns." },
+        { anchor: "release-b", title: "The second release", text: "E2E kinds by repository, create then run on staging, the guarded merge, unit tests through the QA tool." },
+        { anchor: "failure", title: "When something is off", text: "No review card, 422 unassigned, a comment instead of changes, no fix planned." }
       ]
     },
     {

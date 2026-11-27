@@ -188,7 +188,7 @@ func (s *MemStore) PlanBundleCard(ctx context.Context, productID, bundleKey stri
 	}
 	title := fmt.Sprintf("Test plan for %s (%d PRs)", bundleKey, members)
 	item := cardItem{Key: key, ID: bundleCardID(productID, bundleKey), Title: title,
-		Spec: prCardSpec{Job: jobTestPlanner, Role: "test-planner"}, AutoDispatch: true}
+		Spec: prCardSpec{Job: jobTestPlanner, Role: "test-planner", Labels: []string{LabelSourceBundle}}, AutoDispatch: true}
 	planned, _, events := s.planCardsLocked(m, s.desks[idx], []cardItem{item},
 		"1 task(s) planned from bundle "+bundleKey+" on "+productID)
 	if len(planned) == 0 {

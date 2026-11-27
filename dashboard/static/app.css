@@ -1979,6 +1979,8 @@ td .chip{margin-right:6px}
   line-height:20px;padding:0;cursor:pointer;
 }
 .info-btn:hover{color:var(--ink);border-color:var(--ink-2)}
+/* D-102: an i that opens the docs page rather than a popover */
+a.info-btn.info-link{display:inline-grid;place-items:center;text-decoration:none;vertical-align:middle}
 .info-pop{
   max-width:min(440px,calc(100vw - 32px));padding:16px 18px;
   background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-s);

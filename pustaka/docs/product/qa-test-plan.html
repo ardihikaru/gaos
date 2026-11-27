@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  eight hundred and seventeen cases, positive and negative, across the four deploy automations, the product seed script and the
+  eight hundred and eighteen cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All eight hundred and seventeen cases in one filterable table. Filter by automation, kind, or any
+  <p>All eight hundred and eighteen cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -906,6 +906,7 @@
       <tr data-tags="go test review fix refusal check point throttle d-102 positive negative implemented"><td>TC-815</td><td>dashboard (go test)</td><td>Negative</td><td>Each of the ten review-fix refusals fires alone; the default branch is a shared branch; check point 1 blocks the card with its reason and closes the record before any model turn, and a second pass inside the throttle window makes no GitHub call (<code>TestReviewFixRefusals</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test review fix draft branch parent comment fence d-102 positive negative implemented"><td>TC-816</td><td>dashboard (go test)</td><td>Positive</td><td>A review fix opens one draft into the reviewed branch whose commit's parent is the reviewed head, posts the draft-fix line with the review client, fences the findings after the verdict; an edit outside the pull request's files, or a moved head at check point 2, blocks the card and creates no branch (<code>TestReviewFixOpensADraftIntoTheReviewedBranch</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test review fix lifecycle merge base change closed retarget own fix d-102 positive negative implemented"><td>TC-817</td><td>dashboard (go test)</td><td>Positive</td><td>Only a GitHub-confirmed merge closes a pending review fix; a base change closes the record and closes nothing on GitHub; GAOS's own review-fix merge plans nothing while a D-091 fix merge still plans its card; a closed draft closes the record with no new generation; a review fix is never retargeted (<code>TestReviewFixLifecycle</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test source label api bundle test planner filter d-102 positive negative implemented"><td>TC-818</td><td>dashboard (go test)</td><td>Negative</td><td>An API card carries source:api and a bundle's test-planner card source:bundle, a Brain Town card neither; an operator cannot set a source label; the board's label filter matches the API card (<code>TestCardSourceLabels</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4587,7 +4588,7 @@
   <p><strong>TC-798, positive</strong> (<code>TestHeldAndHighReviewsSendOneLine</code>): <code>a held review must send one review:needs-manual line whatever its severity, got %v</code>; <code>a held review must carry the secret-held reason, got %q</code>; <code>a high review must send review:high only, got %v</code>; <code>a high review's line must say a person must take over, got %q</code>.</p>
   <p><strong>TC-799, negative and positive</strong> (<code>TestNotifyOnWantsManualKindsExactly</code>): <code>a contact must be able to opt into %s: %v</code>; <code>a review:medium contact must not get the manual-review kinds through the severity rank</code>; <code>a review:medium contact must still get review:high</code>; <code>an empty list or an exact entry must get review:manual</code>.</p>
 
-  <h3 id="go-agent-assign">dashboard &mdash; agent assignment, review severity and review fixes (TC-800 &hellip; TC-817)</h3>
+  <h3 id="go-agent-assign">dashboard &mdash; agent assignment, review severity and review fixes (TC-800 &hellip; TC-818)</h3>
   <p>Agent assignment per product, the reviewer&rsquo;s severity on the card, the review event and the low-finding review fix (<a href="decision-log.html#d-102">D-102</a>, design <code>docs/designs/agent-seats-and-pr-agents.md</code>). A product that never saved its assignments behaves as before; a configured one runs a PR-flow role only when an agent of it is assigned (BR-61, <a href="brd.html#rules-gateway">§9.6</a>). TC-801, TC-806 and TC-813 need <code>GAOS_ARCADE_TEST_URL</code> (<code>deploy/schema/scratch.sh up</code>) and skip without it.</p>
   <p><strong>TC-800, negative and positive</strong> (<code>TestSetAssignedRefusesAndRecordsTheActor</code>, <code>assign_test.go</code>): <code>an unknown product answered %v, want ErrNotFound</code>; <code>an unknown agent answered %v, want a rejection naming it</code>; <code>a reset with agents answered %v, want a rejection</code>; <code>assigned %v set=%t, want a-10,a-11 and set</code>; <code>events %v, want one RecordUpdated</code>; <code>event %q actor %q: want the alias, the list and the first-save notice, never the address</code>; <code>second save said %q</code>; <code>after reset: %v set=%t, want empty and unset</code>.</p>
   <p><strong>TC-801, negative and positive</strong> (<code>TestAssignmentsSurviveARestart</code>, <code>assign_test.go</code>): <code>after a reopen: %v set=%t, want a-10,a-11 set</code>; <code>an untouched product reopened as %v set=%t</code>.</p>
@@ -4608,6 +4609,7 @@
   <p><strong>TC-816, negative and positive</strong> (<code>TestReviewFixOpensADraftIntoTheReviewedBranch</code>, <code>reviewdefect_test.go</code>): <code>%d pull request(s) opened; calls %v</code>; <code>the draft goes %s → %s, want into %s</code>; <code>the fix commit's parents %v, want the reviewed head</code>; <code>draft-fix line %v</code>; <code>packet %q</code>; <code>an outside edit left the card %s %q</code>; <code>a refused fix created %d branch(es)</code>; <code>a test beside the file refused: %s</code>; <code>a test elsewhere allowed: %q</code>; <code>a moved head left the card %s %q</code>; <code>a moved head created %d branch(es)</code>; <code>a moved head left the record %s</code>.</p>
   <p><strong>TC-817, negative and positive</strong> (<code>TestReviewFixLifecycle</code>, <code>reviewdefect_test.go</code>): <code>an unconfirmed merge moved the record to %s</code>; <code>confirmed merge: %v %d</code>; <code>a confirmed merge left the record %s</code>; <code>the fix card is %s after the merge</code>; <code>a base change left the record %s</code>; <code>own fix merge planned %v skipped %q err %v</code>; <code>a closed review fix left %s gen %d</code>; <code>a retarget answered %v</code>; <code>a D-091 fix merge planned %v skipped %q err %v, want its unit-test card</code>.</p>
 
+  <p><strong>TC-818, negative and positive</strong> (<code>TestCardSourceLabels</code>, <code>assign_test.go</code>): <code>an API card has labels %v (err %v), want source:api</code>; <code>a test-planner card has labels %v (created %t, err %v), want source:bundle</code>; <code>a Brain Town card carries %v</code>; <code>an operator set a source label</code>; <code>the label filter source:api kept %q and matched %d, err %v; want the one API card</code>.</p>
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the
   system works. Two are still forward specifications — Given / When / Then, so the target exists in

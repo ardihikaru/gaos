@@ -720,3 +720,28 @@ Two things on `main` meet this design and are left as they are, for the operator
 
 - **API-planned pull-request cards** (D-099 of `main`, `api_cards.go`) are an outside client's explicit request and are not gated by assignment; only cards planned from Brain Town events and the staging callback are.
 - **The test-planner role** (D-100 of `main`, agent `a-14`) plans its cards from bundles, not from `PlanPullRequestCards`, so assignment does not gate it either.
+
+## 22. Addendum: card-source labels and the docs links (operator request, 2026-11-27)
+
+**Request.** The operator accepted that cards planned by the external-tasks API (`main`'s D-099) and the test planner's bundle cards (`main`'s D-100) are not gated by assignment (§21), and asked for a label that marks them, so they can still be filtered. The operator also asked for an **i** on the GAOS pages that opens the docs.
+
+**Labels.** A new family `source`, two labels, added to the closed vocabulary (`labels.go`, `labelSet` and `labelOrder` after the severity family): 15 + 2 = **17** labels.
+
+| Label | Set where | On |
+|---|---|---|
+| `source:api` | `PlanAPICard`, `api_cards.go:369-371`, appended to the spec's labels before `planCardsLocked` | every card an API client creates (review, unit tests, e2e automation, e2e run, autorun) |
+| `source:bundle` | `PlanBundleCard`, `bundles.go:191`, the spec's labels | the test planner's card of a bundle |
+
+- A card planned from a Brain Town event or the staging callback carries no source label. An API request for a card Brain Town already planned **adopts** that card (`main`'s D-099 (2)) and adds nothing to it.
+- The family is **planner-only**, like `defect`: `SetTaskLabel` (`prflow.go:540-545`) refuses it with "The source labels are set by the planner only."
+- `labelsAllowDispatch` ignores it. It is a facet, so the board's Label select offers it and `?label=source:api` filters both views.
+- `TestPlanAPICardMatchesBrainTown` (`api_tasks_test.go`) compares an API card with Brain Town's without the source label, and asserts that the API card has it.
+- Test: **TC-818** `TestCardSourceLabels` (`assign_test.go`): an API card carries `source:api`; a bundle card carries `source:bundle`; a Brain Town card carries neither; an operator cannot set one; the label filter matches the one API card. Counts become 818 cases and 682 Go tests (657 + 25).
+
+**Docs links.** A new docs page, `pustaka/docs/integrations/agents.html` ("Agents, severity and review fixes"), with the runbook and the second release's plan. An **i** link (`<a class="info-btn info-link" … target="_blank">`, the integrations view's `info-btn` look) opens it from:
+- the Agents page title;
+- the Edit assignments summary (`#assignment`);
+- the board's Severity filter (`#severity`);
+- the Auto-fix page title (`#review-fix`).
+
+The links are relative (`../docs/integrations/agents.html`), as the other docs links of the back office are (`templates/backoffice.html:971`).

@@ -301,3 +301,36 @@ func TestGatedOpenStillWritesThePullRequestRow(t *testing.T) {
 		t.Errorf("the gated open's row did not survive a reopen (%d rows)", len(rows))
 	}
 }
+
+// TC-818: the cards assignment does not gate say where they came from (D-102 §22).
+func TestCardSourceLabels(t *testing.T) {
+	ctx := context.Background()
+	st := NewMemStore(1)
+	api, _, _, err := st.PlanAPICard(ctx, "p-1", APICardIn{Client: "plat", ExternalID: "e1", Kind: APIKindPRReview,
+		Owner: "loop", Repo: "laundry-api", Number: 51, Dispatch: true}, 1000)
+	if err != nil || !hasLabel(api.Labels, LabelSourceAPI) {
+		t.Fatalf("an API card has labels %v (err %v), want source:api", api.Labels, err)
+	}
+	tp, created, _, err := st.PlanBundleCard(ctx, "p-1", "taskmgr:ABC-1", 2)
+	if err != nil || !created || !hasLabel(tp.Labels, LabelSourceBundle) {
+		t.Fatalf("a test-planner card has labels %v (created %t, err %v), want source:bundle", tp.Labels, created, err)
+	}
+	// A Brain Town card carries no source label.
+	planned, _, _, _ := st.PlanPullRequestCards(ctx, "p-1", prEvent(prTypeOpened, "laundry-api", 52))
+	st.mu.RLock()
+	for _, id := range planned {
+		if l := st.taskByIDLocked(id).Labels; severityOf(l) != "" || strings.Contains(strings.Join(l, ","), "source:") {
+			t.Errorf("a Brain Town card carries %v", l)
+		}
+	}
+	st.mu.RUnlock()
+	// The planner sets it; an operator cannot.
+	if _, err := st.SetTaskLabel(ctx, "p-1", planned[0], LabelSourceAPI, testEmail); err == nil {
+		t.Error("an operator set a source label")
+	}
+	// It is a facet, so the board's label filter offers it.
+	p, err := st.BoardPage(ctx, "p-1", BoardQuery{Label: LabelSourceAPI}, BoardWindow{})
+	if err != nil || p.Query.Label != LabelSourceAPI || p.Matched != 1 {
+		t.Errorf("the label filter source:api kept %q and matched %d, err %v; want the one API card", p.Query.Label, p.Matched, err)
+	}
+}

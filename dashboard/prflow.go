@@ -540,6 +540,9 @@ func (s *MemStore) setTaskLabelLocked(productID, taskID, label, actor string) (R
 	if labelFamily(label) == labelFamilyDefect {
 		return Result{}, reject("The defect labels are set by the planner only.")
 	}
+	if labelFamily(label) == labelFamilySource {
+		return Result{}, reject("The source labels are set by the planner only.")
+	}
 	var t *TaskRecord
 	for i := range s.tasks {
 		if s.tasks[i].ID == taskID && s.tasks[i].DeskID == productID {

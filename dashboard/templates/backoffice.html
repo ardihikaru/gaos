@@ -461,6 +461,7 @@
       <select name="label">{{range .LabelOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
     <label><span class="sr-only">Severity</span>
       <select name="severity">{{range .SevOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <a class="info-btn info-link" href="../docs/integrations/agents.html#severity" target="_blank" rel="noopener" aria-label="Review severity: open the docs" title="Review severity: open the docs">i</a>
     {{if gt (len .WfOpts) 1}}<label><span class="sr-only">Workflow</span>
       <select name="wf">{{range .WfOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
     <label class="board-check"><input type="checkbox" name="waiting" value="1"{{if .Page.Query.Waiting}} checked{{end}}> Waiting on a person</label>
@@ -829,7 +830,7 @@
 {{end}}
 
 {{define "bo-agents"}}
-<header><div><span class="eyebrow">access</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+<header><div><span class="eyebrow">access</span><h2>{{.Title}} <a class="info-btn info-link" href="../docs/integrations/agents.html" target="_blank" rel="noopener" aria-label="Agents and assignment: open the docs" title="Agents and assignment: open the docs">i</a></h2><p>{{.Sub}}</p></div></header>
 {{/* D-102: the product filter, the same parts as the Pull requests filter. */}}
 <div class="block">
   <form class="af-form" method="get" action="ui/bo/agents" hx-get="ui/bo/agents" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
@@ -859,7 +860,7 @@
 {{template "pager" .Pager}}
 {{with .Assign}}{{if and .Admin .Product}}
 <details class="board-help"{{if .Open}} open{{end}}>
-  <summary>Edit assignments for {{.ProductName}}</summary>
+  <summary>Edit assignments for {{.ProductName}} <a class="info-btn info-link" href="../docs/integrations/agents.html#assignment" target="_blank" rel="noopener" aria-label="Assignment: open the docs" title="Assignment: open the docs">i</a></summary>
   <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor">
     <input type="hidden" name="product" value="{{.Product}}">
     {{range .Picks}}
@@ -1153,7 +1154,7 @@
 <section id="boAutoFix">
 {{with .AutoFix}}
 <header>
-  <div><span class="eyebrow">autonomous work</span><h2>{{$.Title}}</h2><p>{{$.Sub}}</p></div>
+  <div><span class="eyebrow">autonomous work</span><h2>{{$.Title}} <a class="info-btn info-link" href="../docs/integrations/agents.html#review-fix" target="_blank" rel="noopener" aria-label="Review fixes: open the docs" title="Review fixes: open the docs">i</a></h2><p>{{$.Sub}}</p></div>
   <div class="sp af-head">
     <span class="af-token af-token--{{.Token.Tone}}" title="{{.Token.Hint}}"><span class="af-token-k">Write token</span> <b>{{.Token.Kind}}</b></span>
   </div>

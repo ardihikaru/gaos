@@ -38,6 +38,13 @@ const (
 	LabelSeverityHigh     = "severity:high"
 	LabelSeverityCritical = "severity:critical"
 
+	// The source family (D-102 §22): where a card came from when it did not come
+	// from a Brain Town event or the staging callback, and so is not gated by
+	// assignment. Planner-only, like the defect family: an operator filters on it
+	// and never sets it.
+	LabelSourceAPI    = "source:api"
+	LabelSourceBundle = "source:bundle"
+
 	// The defect family (D-091). Only the planner sets it; the scheduler never
 	// dispatches it in any mode (the auto-fix loop does, with its caps).
 	LabelDefectTriage  = "defect:triage"
@@ -48,6 +55,9 @@ const (
 
 // labelFamilyDefect is the planner-only family.
 const labelFamilyDefect = "defect"
+
+// labelFamilySource is the planner-only card-source family (D-102 §22).
+const labelFamilySource = "source"
 
 // labelFamilySeverity is the reviewer's severity (D-102).
 const labelFamilySeverity = "severity"
@@ -86,6 +96,8 @@ var labelSet = map[string]bool{
 	LabelSeverityMedium:      true,
 	LabelSeverityHigh:        true,
 	LabelSeverityCritical:    true,
+	LabelSourceAPI:           true,
+	LabelSourceBundle:        true,
 	LabelDefectTriage:        true,
 	LabelDefectEasy:          true,
 	LabelDefectMedium:        true,
@@ -103,6 +115,8 @@ var labelOrder = []string{
 	LabelSeverityMedium,
 	LabelSeverityHigh,
 	LabelSeverityCritical,
+	LabelSourceAPI,
+	LabelSourceBundle,
 	LabelE2EAutomation,
 	LabelE2ERun,
 	LabelUnitTest,

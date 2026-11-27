@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Agents, severity and review fixes — GAOS</title>
+<meta name="description" content="Which agents work on a product and what that switches on: assignment per product, the reviewer's severity on the board, requested changes on GitHub, low findings fixed by an agent into the reviewed branch, the card-source labels, the operator's runbook, and how the second release will add e2e kinds, guarded merges and unit tests.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="agents">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Agents, severity and review fixes</h1>
+  <p class="lede">A product says which agents work on it. That switches its pull-request flows on, role by role. The
+  reviewer's finding becomes a severity you can see and filter on the board, a medium or worse finding asks GitHub for
+  changes, and a low one can be fixed by an agent with a draft pull request into the reviewed branch.</p>
+
+  <div class="page-meta"
+       data-tags="agents, assignment, product, severity, review, request changes, review fix, auto-fix, labels, board, release b"
+       data-hashtags="integrations"
+       data-published="2026-11-27"
+       data-updated="2026-11-27"
+       data-version-from="0.64.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">Where this comes from</p>
+    <p>Decision <a href="../product/decision-log.html#d-102">D-102</a>, rule BR-61 in
+    <a href="../product/brd.html#rules-gateway">BRD §9.6</a>, cases TC-800 &hellip; TC-818 in the
+    <a href="../product/qa-test-plan.html#go-agent-assign">QA test plan</a>. The pull-request flows themselves are
+    described in <a href="pr-agents.html">Pull-request agents</a>, and the fix machinery in
+    <a href="autofix.html">Defect auto-fix</a>. The examples use an invented product, <em>Route Planner</em>.</p>
+  </div>
+
+  <h2 id="overview">What it gives you</h2>
+  <table class="tbl">
+    <thead><tr><th>You want</th><th>Where</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>To see which agents serve a product</td><td>Back office &rarr; <strong>Agents</strong>, pick the product</td><td>The list narrows to that product's agents; each agent shows the products it is assigned to as chips.</td></tr>
+      <tr><td>To turn a pull-request flow on or off for one product</td><td>Agents &rarr; <strong>Edit assignments</strong></td><td>A role with an assigned agent runs; a role without one plans no card on that product.</td></tr>
+      <tr><td>To find the reviews a person must read</td><td>Board &rarr; Severity &rarr; <strong>Medium or worse</strong></td><td>The kanban and the table show only medium, high and critical reviews.</td></tr>
+      <tr><td>To have GAOS block a risky pull request</td><td>Configure the product (any save)</td><td>A medium or worse finding is posted as <em>changes requested</em>.</td></tr>
+      <tr><td>To have small findings fixed for you</td><td>Assign the fixer, turn auto-fix on, list the branches</td><td>A low finding becomes a draft pull request into the reviewed branch.</td></tr>
+      <tr><td>To find cards that did not come from GitHub</td><td>Board &rarr; Label &rarr; <code>source:api</code> or <code>source:bundle</code></td><td>Cards an API client or a bundle's test planner created.</td></tr>
+    </tbody>
+  </table>
+  <p>Every <strong>i</strong> button on the Agents page, beside the board's Severity filter and on the Auto-fix page
+  opens the matching section of this page.</p>
+
+  <h2 id="assignment">Assignment</h2>
+  <p>A product lists the agents assigned to it. One agent can be assigned to several products: Kite, the unit-test
+  builder, can serve Route Planner and three other products at once. The list is stored on the product record
+  (<code>Product.assignedAgents</code>, <code>Product.assignedSet</code>), so it survives a restart and needs no schema
+  change.</p>
+  <h3 id="assignment-states">Three states of a product</h3>
+  <table class="tbl">
+    <thead><tr><th>State</th><th>How you get there</th><th>Pull-request flows</th><th>Review event</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Not configured</strong></td><td>The default for every product, old and new</td><td>All run, as before this feature</td><td>Comment only</td></tr>
+      <tr><td><strong>Configured</strong></td><td><strong>Save</strong> in Edit assignments, with at least one agent</td><td>Only the roles with an assigned agent</td><td>Medium or worse requests changes</td></tr>
+      <tr><td><strong>Configured, empty</strong></td><td><strong>Save</strong> with no agent ticked</td><td>None; the page says so</td><td>Medium or worse requests changes</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Stop gating</strong> returns a product to &ldquo;not configured&rdquo; and forgets its list. Cards already
+  on the board when a role is switched off are left alone and finish normally; only new cards are affected.</p>
+
+  <h3 id="assignment-roles">Which roles assignment switches</h3>
+  <table class="tbl">
+    <thead><tr><th>Role</th><th>Agent</th><th>The card it switches</th></tr></thead>
+    <tbody>
+      <tr><td><code>pr-reviewer</code></td><td>Juno</td><td>The review card when a pull request opens</td></tr>
+      <tr><td><code>qa</code></td><td>Ember, Flint</td><td>The e2e automation card on open and the e2e run card on a staging deploy; without one the staging callback answers <code>422 unassigned</code></td></tr>
+      <tr><td><code>unit-test</code></td><td>Kite</td><td>The unit-test card when a pull request merges</td></tr>
+      <tr><td><code>fixer</code></td><td>Mica</td><td>Review fixes only (<a href="#review-fix">below</a>); the defect auto-fix of D-091 keeps its own switch</td></tr>
+    </tbody>
+  </table>
+  <p>Assignment switches a role on for a product; it does not choose which agent runs a card. Each of these roles has one
+  agent except <code>qa</code>, and the QA tool, not an agent, runs the e2e work. Cards planned by an
+  <a href="external-tasks-api.html">external-tasks API</a> client and the test planner's cards from a
+  <a href="pr-agents.html#bundles">bundle</a> are never gated: they are explicit requests. They carry a
+  <a href="#source-labels">source label</a> instead, so you can filter them.</p>
+
+  <h3 id="assignment-who">Who may change it</h3>
+  <p>Only an account listed in <code>GAOS_AUTOFIX_ADMINS</code> sees the editor and may post to
+  <code>POST /agents/assign</code> (fields <code>product</code>, <code>agent</code> repeated, <code>action=save|reset</code>).
+  Every change is a <code>RecordUpdated</code> event naming the account's alias, never its address; the first save of a
+  product says that gating and requested changes are now on.</p>
+
+  <h2 id="severity">Severity on the board</h2>
+  <p>The reviewer ends its reply with a severity: <code>none</code>, <code>low</code>, <code>medium</code>,
+  <code>high</code> or <code>critical</code>. GAOS stores it as a label of the family <code>severity:*</code> on the card,
+  before anything is posted, so a review that was held for a secret or failed to post still shows what was found.</p>
+  <ul>
+    <li><strong>Kanban:</strong> a chip with the level written in it, first among the card's labels; <code>none</code> has no chip. Medium is amber, high red, critical a red block.</li>
+    <li><strong>Table:</strong> a <strong>Severity</strong> column (sortable; worst first, a card without a severity last both ways) and a <strong>Labels</strong> column.</li>
+    <li><strong>Filter:</strong> the <strong>Every severity</strong> select offers the levels on the product's cards and <strong>Medium or worse</strong>. The address keeps it, for example <code>?severity=medium%2B</code>.</li>
+  </ul>
+  <p>An operator may correct a severity through the label route (for example to downgrade a false critical). That
+  changes the record only: nothing is posted again and the card does not move.</p>
+
+  <h2 id="review-event">Comment or request changes</h2>
+  <table class="tbl">
+    <thead><tr><th>Severity</th><th>Not configured</th><th>Configured</th><th>Card afterwards</th></tr></thead>
+    <tbody>
+      <tr><td>none, low</td><td>Comment</td><td>Comment</td><td>Done (a low may plan a <a href="#review-fix">review fix</a>)</td></tr>
+      <tr><td>medium</td><td>Comment</td><td>Request changes</td><td>Done</td></tr>
+      <tr><td>high, critical</td><td>Comment</td><td>Request changes</td><td>Stays in Review, labelled <code>pr-review:needs-manual</code></td></tr>
+    </tbody>
+  </table>
+  <p>GAOS never approves. It requests changes only when it knows the pull request's author and the account that posts
+  the review, and they differ; otherwise it comments. GAOS reviews a pull request once and never dismisses its own
+  review, so a request-changes body ends with: <em>&ldquo;GAOS reviews once. When these points are addressed, a
+  maintainer dismisses this review.&rdquo;</em></p>
+  <div class="adm warn">
+    <p class="adm-title">Whose name is on the review</p>
+    <p>The review posts under the account of <code>GAOS_GITHUB_TOKEN_FILE</code>. If that is a person's token, a request
+    for changes appears as that person's judgement, and where branch protection requires approvals it blocks the merge
+    until someone dismisses it. Use a bot account's token before configuring a product.</p>
+  </div>
+
+  <h2 id="review-fix">Low findings fixed by an agent</h2>
+  <p>A low finding can become a <em>review fix</em>. GAOS records it as a defect of kind <code>review</code>, already
+  triaged easy, and the <a href="autofix.html">auto-fix</a> pipeline does the rest: the fixer agent edits the code, and
+  GAOS opens a <strong>draft</strong> pull request <strong>into the reviewed pull request's own branch</strong>, on top
+  of the exact commit the reviewer read.</p>
+  <p><strong>The fix follows the source's root branch.</strong> Route Planner's <code>feature/route-limits</code> was cut
+  from <code>staging</code> and targets <code>staging</code>; the fix lands in <code>feature/route-limits</code> and
+  reaches <code>staging</code> when that branch merges. GAOS never opens a review fix against <code>staging</code>,
+  <code>main</code> or any other shared branch.</p>
+
+  <h3 id="review-fix-when">When a review fix is planned</h3>
+  <ol>
+    <li>The product is configured and <strong>Mica (fixer)</strong> is assigned to it.</li>
+    <li><strong>Auto-fix is on</strong> for the product.</li>
+    <li>The head branch matches one of <code>reviewFixHeads</code> &mdash; patterns with a literal first segment such as
+      <code>feature/*</code>; <code>*</code>, <code>**</code> and a bare branch name are refused.</li>
+    <li>The repository is one of the auto-fix <code>targetRepos</code> and not an automation repository.</li>
+    <li>The day's <code>reviewFixCap</code> (default 3, at most 20, per product, UTC day) is not reached.</li>
+    <li>The head has not moved since the review, the file list is complete, and the pull request changes nothing under <code>.github/</code>.</li>
+  </ol>
+  <p>The review card's reason says what happened: <code>review posted; review fix planned (&lt;card&gt;)</code>, or a
+  reason such as <code>; no fixer assigned</code>, <code>; auto-fix off</code>,
+  <code>; branch not allowed for review fixes</code>, <code>; review fix cap reached</code>,
+  <code>; head moved since review</code>.</p>
+
+  <h3 id="review-fix-settings">The settings</h3>
+  <p>Two fields join the product's auto-fix settings (<code>POST /products/{id}/autofix</code>, admins only):</p>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>reviewFixHeads</code></td><td>One branch pattern per line, at most 8. Empty: review fixes are off.</td></tr>
+      <tr><td><code>reviewFixCap</code></td><td>Review fixes planned per UTC day. 0 means the default 3; at most 20. Counted apart from the defect fix cap.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="review-fix-checks">The checks before anything is written</h3>
+  <p>GAOS reads the pull request again before the agent runs, and once more before any branch exists. Any of these
+  blocks the card with the reason shown and closes the review fix:</p>
+  <table class="tbl">
+    <thead><tr><th>Reason</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>review-pr-closed</code></td><td>The pull request closed or merged.</td></tr>
+      <tr><td><code>review-base-changed</code></td><td>Its head is another branch now.</td></tr>
+      <tr><td><code>review-base-moved</code></td><td>Its head is not the commit the reviewer read.</td></tr>
+      <tr><td><code>review-fork</code></td><td>It comes from a fork (always refused).</td></tr>
+      <tr><td><code>review-shared-branch</code></td><td>Its branch is the default branch, the auto-fix base, an allowed retarget base, or protected.</td></tr>
+      <tr><td><code>review-branch-not-allowed</code></td><td>Its branch no longer matches <code>reviewFixHeads</code>.</td></tr>
+      <tr><td><code>review-files-incomplete</code></td><td>GitHub's file list was cut short.</td></tr>
+      <tr><td><code>review-workflows</code></td><td>It changes <code>.github/</code>.</td></tr>
+      <tr><td><code>review-not-target</code></td><td>The repository is no longer a fix target.</td></tr>
+      <tr><td><code>review-unassigned</code></td><td>The fixer was unassigned since.</td></tr>
+      <tr><td><code>review-outside-paths</code></td><td>The agent edited a file the pull request does not change, or added a file outside their folders.</td></tr>
+    </tbody>
+  </table>
+  <p>The fixer sees the review findings and the pull request's code as <em>untrusted data</em>, fenced, after its
+  instructions. Every other auto-fix check still applies: the allowed and forbidden paths, the CI-secret check, the
+  egress screen. When the draft opens, GAOS posts one line on the reviewed pull request:
+  <code>GAOS opened a draft fix: &lt;url&gt;</code>.</p>
+
+  <h3 id="review-fix-life">What happens next</h3>
+  <ul>
+    <li>The reviewed pull request merges before the fix starts: the fix card is canceled. GAOS checks the merge with GitHub first.</li>
+    <li>The draft's base changes (GitHub retargets it when the reviewed branch is deleted): GAOS records it and closes the review fix; it closes nothing on GitHub. A person decides what to do with the draft.</li>
+    <li>The draft is closed unmerged: the review fix closes; no second attempt is planned.</li>
+    <li>GAOS's own review fix merging into the feature branch plans no unit-test card; the feature branch's own merge does.</li>
+    <li>A review fix is never retargeted.</li>
+  </ul>
+
+  <h2 id="source-labels">Where a card came from</h2>
+  <p>Cards planned from a GitHub event or the staging callback carry no source label. The two kinds of card that
+  assignment does not gate say where they came from, so you can filter them on the board's Label select:</p>
+  <table class="tbl">
+    <thead><tr><th>Label</th><th>The card</th></tr></thead>
+    <tbody>
+      <tr><td><code>source:api</code></td><td>Created by an <a href="external-tasks-api.html">external-tasks API</a> client (a review, unit tests, an e2e automation or run it asked for).</td></tr>
+      <tr><td><code>source:bundle</code></td><td>The test planner's card for a <a href="pr-agents.html#bundles">bundle</a> of merged pull requests.</td></tr>
+    </tbody>
+  </table>
+  <p>The planner sets them; an operator cannot. An API request for a card GitHub already planned adopts that card and
+  adds no label to it.</p>
+
+  <h2 id="runbook">Set it up for a product</h2>
+  <ol>
+    <li>Sign in to the back office with an account listed in <code>GAOS_AUTOFIX_ADMINS</code>.</li>
+    <li>Open <strong>Agents</strong>, choose the product in the filter, open <strong>Edit assignments</strong>.</li>
+    <li>Tick <strong>Juno &middot; PR Reviewer</strong>, <strong>Kite &middot; Unit Test Builder</strong> and a QA agent
+      (<strong>Ember</strong> or <strong>Flint</strong>), then <strong>Save</strong>. The notice under the filter now
+      says which roles do not run.</li>
+    <li>For review fixes: also tick <strong>Mica &middot; Defect Fixer</strong>, and in the product's auto-fix settings
+      turn auto-fix on, list the target repositories, and set <code>reviewFixHeads</code> (for example
+      <code>feature/*</code> and <code>bugfix/*</code>).</li>
+    <li>Check the Board: the next opened pull request shows a review card, then a severity chip.</li>
+  </ol>
+  <p>To undo it, open Edit assignments and press <strong>Stop gating</strong>.</p>
+
+  <h2 id="release-b">The second release: e2e kinds, guarded merges and unit tests</h2>
+  <div class="adm warn">
+    <p class="adm-title">Planned, not built</p>
+    <p>Everything in this section is the plan recorded in <a href="../product/decision-log.html#d-102">D-102</a> (5) as
+    <em>proposed, not in force</em>. It needs its own design, its own review and changes in the QA tool before any of it
+    runs. Until then the e2e and unit-test cards behave as <a href="pr-agents.html#qa">Pull-request agents</a>
+    describes.</p>
+  </div>
+  <p>The second release finishes the two other agents of the request: the <strong>e2e automation builder</strong> and
+  the <strong>unit-test builder</strong>. It is built in four parts, each shippable on its own, in this order.</p>
+
+  <h3 id="release-b-kinds">1. Two e2e kinds, chosen by repository</h3>
+  <p>The QA tool already sorts every case by level &mdash; <code>API</code>, <code>GQL</code>, <code>WEB</code>,
+  <code>E2E</code> &mdash; but it has one generator that lets the model pick a browser spec
+  (<code>tests/web/&hellip;</code>) or an API spec (<code>tests/api/rest/&hellip;</code>). The plan:</p>
+  <ul>
+    <li>Each product repository gets a kind: <strong>backend only</strong> (<code>be</code>: API and GraphQL cases, no
+      browser) or <strong>frontend and backend</strong> (<code>fullstack</code>: browser cases that drive the backend).
+      A backend repository like Route Planner's <code>acme/route-api</code> is <code>be</code>; its web client
+      <code>acme/route-web</code> is <code>fullstack</code>. A repository with no kind is <code>fullstack</code>.</li>
+    <li>E2E cards carry a second label, <code>e2e-kind:be</code> or <code>e2e-kind:fullstack</code>, shown on the kanban
+      and in the table, and filterable like every label.</li>
+    <li>GAOS sends the kind to the QA tool; the QA tool restricts the generator to the matching spec folder and a run
+      to the matching case levels. GAOS sends the field only to a QA tool that says it understands it.</li>
+  </ul>
+
+  <h3 id="release-b-staging">2. On a staging deploy: create what is missing, then run</h3>
+  <p>The devops pipeline already calls GAOS when a repository has been deployed to staging (the
+  <a href="pr-agents.html#staging">staging callback</a>). Today that plans one card that runs every automated case.
+  The plan:</p>
+  <ol>
+    <li>GAOS reads its own copy of the QA catalog (it is synced already) and picks the planned cases of the repository's
+      kind that have no automation yet, at most a few per deploy, oldest first.</li>
+    <li>It plans one <em>create</em> card per case, keyed by repository and case so a second deploy does not create the
+      same automation twice. The QA tool writes the spec, runs and repairs it against staging, and waits for a person
+      to approve it (unchanged).</li>
+    <li>The QA tool opens the spec pull request on the automation repository (branch <code>qa-auto/&lt;case&gt;</code>).</li>
+    <li>The <em>run</em> card runs every automated case of that kind once the create cards are finished. A create card
+      that failed or still waits for its merge does not hold the run.</li>
+  </ol>
+
+  <h3 id="release-b-merge">3. GAOS merges an approved spec pull request &mdash; with guards</h3>
+  <p>Today a person merges every spec pull request. The plan lets GAOS merge one, but only one it can prove is the
+  spec a person approved. GAOS merges when <strong>all</strong> of these hold, and otherwise leaves the pull request
+  for a person with the reason on the card:</p>
+  <ul>
+    <li>The product turned it on (<code>autoMergeSpecs</code>, off by default) and its readiness band is not
+      <em>Minimum</em> (BR-08 forbids auto-merge there).</li>
+    <li>The pull request is in one of the product's automation repositories, its branch starts with
+      <code>qa-auto/</code>, it was opened by the QA tool's account, and it is open and not a draft.</li>
+    <li>Its head commit is <strong>the commit the person approved</strong>. The QA tool records nothing of the kind today;
+      it will report the approved commit with the job, and GAOS refuses when they differ.</li>
+    <li>It changes exactly one spec file under <code>tests/web/</code>, <code>tests/api/rest/</code> or
+      <code>tests/api/graphql/</code>, and nothing under <code>.github/</code>.</li>
+    <li>Every check run and commit status on that commit is green (all pages read), and GitHub says it can merge.</li>
+    <li>The merge pins that commit, so a push after the check cannot be merged unseen. The token is a fine-grained token
+      limited to the automation repositories.</li>
+  </ul>
+  <p>This changes a rule GAOS has kept from the start &mdash; &ldquo;GAOS proposes, a person merges&rdquo; &mdash; for
+  automation repositories only, so it needs the BRD's scope, D-091 (2) and BR-08 amended explicitly, and a security
+  review of its own.</p>
+
+  <h3 id="release-b-unit">4. Unit tests through the QA tool</h3>
+  <p>GAOS workspaces do not hold the product's code and GAOS runs no code, so the unit-test builder works through the
+  QA tool, which already runs code in a controlled place. The QA tool has no unit-test runner yet. The plan:</p>
+  <ul>
+    <li>A new run type in the QA tool's executor that checks out a product repository at the merged commit and runs its
+      own test command, with a time limit, no secrets in the environment, and network only to allowed hosts.</li>
+    <li>On a merged pull request GAOS asks the QA tool to <strong>run</strong> the tests that exist; when the changed
+      code has none, it asks it to <strong>create</strong> them, and the QA tool proposes them as a draft pull request
+      that a person approves, as for e2e specs.</li>
+    <li>When tests fail, GAOS plans a fix card that is <strong>Blocked until a person moves it to Ready</strong>; it
+      appears under <em>Waiting on a person</em> and in the WhatsApp notice.</li>
+  </ul>
+
+  <h3 id="release-b-order">Order and status</h3>
+  <table class="tbl">
+    <thead><tr><th>Part</th><th>Needs in the QA tool</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1. E2E kinds</td><td>A <code>kind</code> field on the automation route; the generator and run selection follow it</td><td>Design in progress</td></tr>
+      <tr><td>2. Create then run on staging</td><td>Nothing new (GAOS reads its synced catalog)</td><td>Design in progress</td></tr>
+      <tr><td>3. Guarded merge</td><td>The approved commit and the pull request's author on the job status</td><td>Design in progress; needs the BRD amended</td></tr>
+      <tr><td>4. Unit tests</td><td>A unit-test run type and routes, sandboxed</td><td>Design in progress</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="failure">When something is off</h2>
+  <table class="tbl">
+    <thead><tr><th>You see</th><th>Why, and what to do</th></tr></thead>
+    <tbody>
+      <tr><td>No review card for a new pull request</td><td>The product is configured and Juno is not assigned. Assign Juno, or press Stop gating.</td></tr>
+      <tr><td>The staging callback answers <code>422 unassigned</code></td><td>No QA agent is assigned. Assign Ember or Flint.</td></tr>
+      <tr><td>A medium review was posted as a comment</td><td>The product is not configured, or the author is the review account, or a login could not be read (the reason says <em>comment only</em>).</td></tr>
+      <tr><td>A low review planned no fix</td><td>Read the review card's reason; it names the missing condition.</td></tr>
+      <tr><td>A fix card is Blocked with <code>review-&hellip;</code></td><td>The <a href="#review-fix-checks">table above</a> says which check refused it; nothing was written to GitHub.</td></tr>
+    </tbody>
+  </table>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>
