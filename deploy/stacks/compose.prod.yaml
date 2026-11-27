@@ -184,6 +184,9 @@ services:
       GAOS_QA_APPROVAL_WAIT_HOURS: "${GAOS_QA_APPROVAL_WAIT_HOURS:-}"
       GAOS_PR_MAX_OPEN: "${GAOS_PR_MAX_OPEN:-}"
       GAOS_PR_ALLOW_FORKS: "${GAOS_PR_ALLOW_FORKS:-}"
+      # D-100: the products whose pull-request bodies GAOS reads as the team's PR template
+      # (bundles, the missing-code alert, the test planner). Empty (off) by default.
+      GAOS_PR_TEMPLATE_PRODUCTS: "${GAOS_PR_TEMPLATE_PRODUCTS:-}"
       # D-091: defect auto-fix. The write token is its own file (never the review token), the
       # admin list is a file of addresses, and a classic ghp_ token is refused unless the deploy
       # shell says 1 -- never hard-coded here.

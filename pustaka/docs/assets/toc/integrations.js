@@ -62,6 +62,7 @@ window.DOCS.nav.push({
         { anchor: "staging", title: "The staging callback", text: "HTTP Basic, one credential per product, and every answer." },
         { anchor: "qa", title: "The QA tool does the e2e work", text: "A job GAOS starts and polls; the QA-case line; the two routes live in the QA tool." },
         { anchor: "whatsapp", title: "WhatsApp and the contacts", text: "One line and the card id; the pinned group; the contact registry." },
+        { anchor: "bundles", title: "Bundles from the PR template", text: "The task-manager code and links group pull requests; one test plan when all merged; the missing-code alert." },
         { anchor: "failure", title: "When something is down", text: "What each failure does to the card." }
       ]
     },

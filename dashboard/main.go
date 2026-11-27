@@ -446,8 +446,16 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		if ghc != nil {
 			rv.gh = ghc
 		}
+		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify}
+		if srv.qaOut != nil {
+			tp.qa = srv.qaOut
+		}
+		poller.alert = prAlerter{nt: nt}
+		if ghc != nil {
+			poller.alert.post = ghc
+		}
 		h.SetPRHooks(
-			func(t TaskRecord) []PacketPart { return prPacketParts(flow.ctx, t) },
+			func(t TaskRecord) []PacketPart { return append(prPacketParts(flow.ctx, t), testPlannerParts(t)...) },
 			func(t TaskRecord, reply string) {
 				switch {
 				case t.Role == "pr-reviewer":
@@ -456,6 +464,8 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 					dt.afterRun(context.Background(), t, reply)
 				case t.Role == "fixer":
 					fx.afterRun(context.Background(), t, reply)
+				case t.Role == "test-planner":
+					tp.afterRun(context.Background(), t, reply)
 				case t.Role == "unit-test" && t.DedupKey != "" && t.Status == StatusFailed:
 					nt.Notify(context.Background(), t, "unit:failure", "unit tests failed")
 				}

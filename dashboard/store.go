@@ -160,6 +160,11 @@ type Store interface {
 	APICardGet(ctx context.Context, productID, taskID, externalID, client string) (TaskRecord, error)
 	APICardCancel(ctx context.Context, productID, taskID, client string) (Result, error)
 	APIAutoDispatch(ctx context.Context, productID, taskID string) (Result, error)
+	// PR bundles (D-100, bundles.go): the template's facts and key rules on a row, the alert's
+	// record, and a bundle's one test-planner card.
+	ApplyBundleLinks(ctx context.Context, productID, key string, tmpl prTemplate, now int64) (PullRequest, Result, error)
+	SetPRAlerted(ctx context.Context, productID, key, alert string) (Result, error)
+	PlanBundleCard(ctx context.Context, productID, bundleKey string, members int) (TaskRecord, bool, Result, error)
 	// PRCards are a product's pull-request cards (those carrying a dedup key), as
 	// copies: the QA-job runner reads their status, labels and reason (D-088).
 	PRCards(ctx context.Context, productID string) ([]TaskRecord, error)
@@ -409,6 +414,15 @@ func (readOnly) APICardCancel(context.Context, string, string, string) (Result, 
 }
 func (readOnly) APIAutoDispatch(context.Context, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
+}
+func (readOnly) ApplyBundleLinks(context.Context, string, string, prTemplate, int64) (PullRequest, Result, error) {
+	return PullRequest{}, Result{}, reject(replayRefusal)
+}
+func (readOnly) SetPRAlerted(context.Context, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) PlanBundleCard(context.Context, string, string, int) (TaskRecord, bool, Result, error) {
+	return TaskRecord{}, false, Result{}, reject(replayRefusal)
 }
 func (readOnly) ResolvePRCard(context.Context, string, string, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)

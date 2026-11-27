@@ -1373,7 +1373,7 @@
         {{range .Rows}}
           <tr class="af-r{{if .Open}} is-open{{end}}">
             <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span></td>
-            <td class="af-defect"><a data-af-row="{{.Key}}" href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Repo}}#{{.Number}}</span></a>
+            <td class="af-defect"><a data-af-row="{{.Key}}" href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Repo}}#{{.Number}}</span></a>{{if .NoTaskCode}} <span class="chip st-warn">no task code</span>{{end}}{{if .Bundle}}<span class="af-ref mono">bundle {{.Bundle}}</span>{{end}}
               {{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">GitHub<span class="sr-only"> (opens {{.Repo}}#{{.Number}})</span></a>{{end}}
               {{range .Relations}}<span class="prs-rel">{{.Label}} {{if .URL}}<a class="mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Ref}}</a>{{else}}<span class="mono">{{.Ref}}</span>{{end}}</span>{{end}}
               {{if .Follow}}<span class="prs-follow">{{.Follow}}</span>{{end}}</td>

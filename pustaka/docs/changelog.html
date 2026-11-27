@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-62-0">v0.62.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Related pull requests become a bundle; when they have all merged, an agent proposes the test cases QA should own (<a href="product/decision-log.html#d-100">D-100</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>The PR template.</strong> For a product listed in <code>GAOS_PR_TEMPLATE_PRODUCTS</code>, GAOS reads each pull request&rsquo;s source box, task-manager code, cross-repo and dependency links, and what QA must test.</li>
+        <li><span class="chg add">Added</span> <strong>Bundles.</strong> Pull requests that name one code, or that one links, form a bundle. Once every member is merged or closed, one <em>Test plan</em> card runs; its proposals go to the QA tool as draft cases and links to the pull requests. Nothing is written to the automation repository.</li>
+        <li><span class="chg add">Added</span> <strong>The missing-code alert.</strong> A pull request with no task-manager code and no other source gets one comment and one WhatsApp line; the Pull requests page shows <em>no task code</em> and each row&rsquo;s bundle.</li>
+        <li><span class="chg change">Changed</span> The QA tool needs its new route <code>POST /api/v1/gaos/case-proposals</code> before this release is deployed. A member of an unplanned bundle is kept past the 30-day prune. TC-787 &hellip; TC-796.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-61-0">v0.61.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Another platform can ask GAOS for work through the machine API, with no sign-in (<a href="product/decision-log.html#d-099">D-099</a>).</p>
       <ul>

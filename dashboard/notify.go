@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 	"strings"
 )
 
@@ -40,7 +41,7 @@ func (n *notifier) loginFor(ctx context.Context, t TaskRecord, kind string) stri
 		return ""
 	}
 	if owner, repo, num, ok := prKeyParts(t.DedupKey); ok {
-		if strings.HasPrefix(kind, "review:") {
+		if strings.HasPrefix(kind, "review:") || strings.HasPrefix(kind, "pr:") {
 			if pr, err := n.gh.pullRequest(ctx, owner, repo, num); err == nil {
 				return pr.User.Login
 			}
@@ -85,6 +86,45 @@ func (n *notifier) Notify(ctx context.Context, t TaskRecord, kind, text string) 
 	}
 	n.logf("wa: notify %s %s", alias, map[bool]string{true: "sent", false: "failed"}[err == nil])
 	if _, rerr := n.st.RecordNotification(ctx, t.DeskID, alias, kind, outcome); rerr != nil {
+		n.logf("wa: the notification could not be recorded")
+	}
+}
+
+// NotifyPR sends one line about owner/repo#n on productID, for a fact with no card (D-100): a
+// "pr:" kind goes to the pull request's author's contact, else the group; a "bundle:" kind to the
+// group. It records a ContactNotified like Notify. Like every line (D-088), it names no repository:
+// it ends "· card <cardID>" when the pull request has a card, else "· PR #<n>".
+func (n *notifier) NotifyPR(ctx context.Context, productID, owner, repo string, num int, kind, text, cardID string) {
+	if n == nil || n.wa == nil || !n.wa.covers(productID) {
+		return
+	}
+	login := ""
+	if strings.HasPrefix(kind, "pr:") && n.gh != nil {
+		if pr, err := n.gh.pullRequest(ctx, owner, repo, num); err == nil {
+			login = pr.User.Login
+		}
+	}
+	book := ContactBook{}
+	if cs, err := n.st.ListContacts(ctx); err == nil {
+		for _, c := range cs {
+			_ = book.Add(c)
+		}
+	}
+	dest, alias := resolveDestination(book, productID, login, kind)
+	suffix := ""
+	switch {
+	case cardID != "":
+		suffix = " · card " + cardID
+	case num > 0:
+		suffix = " · PR #" + strconv.Itoa(num)
+	}
+	err := n.wa.Send(ctx, dest, text+suffix)
+	outcome := "accepted"
+	if err != nil {
+		outcome = "failed"
+	}
+	n.logf("wa: notify %s %s", alias, map[bool]string{true: "sent", false: "failed"}[err == nil])
+	if _, rerr := n.st.RecordNotification(ctx, productID, alias, kind, outcome); rerr != nil {
 		n.logf("wa: the notification could not be recorded")
 	}
 }

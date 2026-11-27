@@ -842,6 +842,17 @@ func (n *notifier) NotifyPR(ctx context.Context, productID, owner, repo string, 
 `review:` branch (`notify.go:43-47`). The GitHub-login → WhatsApp mapping stays the contact registry;
 moving it to the team's task manager is OQ-41.
 
+### 8.3 As built (v0.62.0)
+
+- **No repository names in WhatsApp.** `NotifyPR` follows D-088's rule ("one line and the card id"; a
+  test asserts it), so its text names no repository. It ends `· card <id>` when the pull request has a
+  card, else `· PR #<n>`. The missing-code line reads `A pull request has no task-manager code`, and a
+  test plan's failure goes through `Notify` on the card: `A test plan failed: <reason>`.
+- **The poller constructor is unchanged.** `newFixPRPoller(st, gh)` keeps its signature, and `main.go`
+  sets the poller's `alert` field (the comment poster and the notifier) after building it.
+- **No new column.** The Pull requests page shows the bundle key and the chip inside the pull-request
+  cell, not in a column of their own.
+
 ## 9. Security
 
 | Boundary | Rule |

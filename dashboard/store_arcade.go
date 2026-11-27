@@ -452,6 +452,30 @@ func (s *ArcadeStore) PlanAPICard(ctx context.Context, productID string, in APIC
 func (s *ArcadeStore) APICardCancel(ctx context.Context, productID, taskID, client string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.APICardCancel(ctx, productID, taskID, client) })
 }
+func (s *ArcadeStore) ApplyBundleLinks(ctx context.Context, productID, key string, tmpl prTemplate, now int64) (PullRequest, Result, error) {
+	var row PullRequest
+	r, err := s.mutate(ctx, func() (Result, error) {
+		var res Result
+		var e error
+		row, res, e = s.proj.ApplyBundleLinks(ctx, productID, key, tmpl, now)
+		return res, e
+	})
+	return row, r, err
+}
+func (s *ArcadeStore) SetPRAlerted(ctx context.Context, productID, key, alert string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SetPRAlerted(ctx, productID, key, alert) })
+}
+func (s *ArcadeStore) PlanBundleCard(ctx context.Context, productID, bundleKey string, members int) (TaskRecord, bool, Result, error) {
+	var t TaskRecord
+	var created bool
+	r, err := s.mutate(ctx, func() (Result, error) {
+		var res Result
+		var e error
+		t, created, res, e = s.proj.PlanBundleCard(ctx, productID, bundleKey, members)
+		return res, e
+	})
+	return t, created, r, err
+}
 func (s *ArcadeStore) HoldReview(ctx context.Context, productID, taskID string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.HoldReview(ctx, productID, taskID) })
 }

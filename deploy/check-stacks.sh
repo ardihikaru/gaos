@@ -181,6 +181,7 @@ done
 has $PROD 'prod.api-clients:/run/secrets/api-clients:ro' "prod mounts the API clients directory read-only"
 has $PROD 'GAOS_API_CLIENTS_FILE: "/run/secrets/api-clients/clients"' "prod reads the API clients file from the clients directory"
 has $PROD 'GAOS_API_AUTORUN_PRODUCTS: "${GAOS_API_AUTORUN_PRODUCTS:-}"' "prod passes the unattended-start list from the deploy shell, empty (off) by default"
+has $PROD 'GAOS_PR_TEMPLATE_PRODUCTS: "${GAOS_PR_TEMPLATE_PRODUCTS:-}"' "prod passes the PR-template product list from the deploy shell, empty (off) by default"
 has $PROD 'prod.bt-token:/run/secrets/bt-token:ro' "prod mounts the Brain Town token file read-only"
 has $PROD 'BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"' "prod passes the Brain Town switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_TOKEN:' "prod passes the Brain Town token only as a file, never as an environment variable"

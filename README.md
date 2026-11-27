@@ -9,7 +9,7 @@ time, with the product's context, through a gateway. The thesis is in one line:
 an append-only event stream, not in a conversation; kill the orchestrator
 mid-run and it rebuilds from the graph.
 
-**Product version 0.61.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
+**Product version 0.62.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
 
 Three layers, each owning one thing: **GAOS** shapes the work with the product,
 the task and the Blueprint; **ai-manager** runs every model turn in the
@@ -107,6 +107,7 @@ values' shape, is `pustaka/docs/infra/environments.html`.
 | `GAOS_API_QA_PRODUCTS` | product ids the QA token may reach |
 | `GAOS_API_CLIENTS_FILE` | further machine clients, one per line; an optional sixth field holds the capabilities `inbox` (default) and `tasks` |
 | `GAOS_API_MAX_OPEN`, `GAOS_API_DAILY` | a task client's open cards (default 5) and cards per UTC day (default 20) |
+| `GAOS_PR_TEMPLATE_PRODUCTS` | products whose pull-request bodies GAOS reads as the team's PR template: bundles, the missing-code alert and the test planner; empty (off) by default |
 | `GAOS_API_AUTORUN_PRODUCTS`, `GAOS_API_AUTORUN_DAILY` | products whose API cards start unattended under `GAOS_RUNNER=manual`, and the daily cap (default 20) |
 | `GAOS_QA_URL`, `GAOS_QA_TOKEN_FILE`, `GAOS_QA_ORIGIN` | where GAOS calls the QA tools, its token, their host name |
 | `GAOS_BO_USERS_FILE`, `GAOS_BO_SESSION_KEY_FILE`, `GAOS_BO_LABEL`, `GAOS_COOKIE_SECURE` | back-office sign-in |
@@ -136,9 +137,9 @@ cd pustaka   && go test ./... && go run . check ./docs
 ./deploy/check-workspace.sh
 ```
 
-650 Go tests: 625 in `dashboard/` and 25 in `pustaka/`. Every test case —
+660 Go tests: 635 in `dashboard/` and 25 in `pustaka/`. Every test case —
 implemented, retired or a forward specification — is in the register,
-`pustaka/docs/product/qa-test-plan.html`: 786 registered test cases. There is
+`pustaka/docs/product/qa-test-plan.html`: 796 registered test cases. There is
 no CI: the product owner runs the checks (D-025), and a test that is not on that
 page is one nobody knows to run. `check-workspace.sh` keeps the agent
 workspace honest — paths, orphan skills, every count against its register, rule

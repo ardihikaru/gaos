@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // The pull-request flow (D-088, docs/designs/gaos-pr-agent-flows.md §6).
@@ -413,6 +414,12 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) flowOutcome {
 			f.logf("prflow: planned %d card(s) on %s", len(planned), m.ID)
 			if ev.Type == prTypeOpened && f.gh != nil && f.ctx != nil {
 				f.fetchContext(ctx, ev, pr)
+			}
+			if ev.Type == prTypeOpened && f.gh != nil && templateProducts()[m.ID] {
+				key := pullRequestKey(m.ID, ev.Org+"/"+ev.Repo, ev.PRNumber)
+				if _, _, err := f.st.ApplyBundleLinks(ctx, m.ID, key, parsePRTemplate(pr.Body), time.Now().Unix()); err != nil && !errors.Is(err, ErrNotFound) {
+					f.logf("prflow: the template could not be recorded: %v", err)
+				}
 			}
 		case len(existing) > 0:
 			f.logf("prflow: duplicate")

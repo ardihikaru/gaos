@@ -142,6 +142,10 @@ func contractsFor(kind, taskID, runID, role string) string {
 	if role == "triager" && taskKind(kind) == TaskKindImplement {
 		return triageContract(taskID, runID, role)
 	}
+	// The bundle's test planner owes a gaos-test-plan block, then the handoff (D-100).
+	if role == "test-planner" && taskKind(kind) == TaskKindImplement {
+		return testPlanContract(taskID, runID, role)
+	}
 	// The defect fixer owes a gaos-fix block, then the handoff (D-091).
 	if role == "fixer" && taskKind(kind) == TaskKindImplement {
 		return fixContract(taskID, runID, role)

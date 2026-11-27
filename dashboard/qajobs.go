@@ -247,14 +247,9 @@ func (r *qaJobRunner) caseCodeFor(ctx context.Context, c TaskRecord, mode string
 			body = pr.Body
 		}
 	}
-	for _, line := range strings.Split(body, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(strings.ToLower(line), "qa-case:") {
-			code := strings.TrimSpace(line[len("qa-case:"):])
-			if validCursor(code) {
-				return code
-			}
-		}
+	// One parser of a pull request's body (prtemplate.go, D-100).
+	if code := parsePRTemplate(body).QACase; validCursor(code) {
+		return code
 	}
 	return ""
 }
@@ -453,4 +448,20 @@ func qaRunCode(key string) string {
 		return "*"
 	}
 	return parts[2]
+}
+
+// proposeCases sends a bundle's test plan to the QA tool (D-100 §7.7).
+func (o *qaOutbound) proposeCases(ctx context.Context, in caseProposalIn) (caseProposalOut, error) {
+	code, body, err := o.do(ctx, "POST", "/api/v1/gaos/case-proposals", nil, in)
+	if err != nil {
+		return caseProposalOut{}, err
+	}
+	if code != 200 {
+		return caseProposalOut{}, fmt.Errorf("the QA tools answered HTTP %d", code)
+	}
+	var out caseProposalOut
+	if err := json.Unmarshal(body, &out); err != nil {
+		return caseProposalOut{}, fmt.Errorf("the QA tools' answer is not JSON")
+	}
+	return out, nil
 }
