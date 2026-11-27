@@ -262,7 +262,8 @@
 
   <h3 id="release-b-merge">3. The approved spec merges by itself, then runs</h3>
   <p>Tick <strong>Let the QA tool auto-merge a spec a person approved</strong> (off by default; it applies only in the
-  Working or Complete readiness band). After a person approves a spec, the <strong>QA tool</strong> asks GAOS
+  Working or Complete readiness band). After a person approves a spec <em>in the QA tool</em> (an answer given in the
+  GAOS Inbox leaves the pull request for a person), the <strong>QA tool</strong> asks GAOS
   (<code>GET /api/v1/products/{id}/spec-auto-merge</code>, QA token) and, when allowed, turns on GitHub's auto-merge
   pinned to the exact commit that was approved. It does so only when the automation repository has a ruleset that
   lets only the QA tool's account push <code>qa-auto/*</code> branches and a required check from a fixed source;
