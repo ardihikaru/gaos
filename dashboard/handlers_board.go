@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -214,7 +215,19 @@ func (s *server) handleSetLabel(w http.ResponseWriter, r *http.Request) {
 		writeBoardJSON(w, http.StatusBadRequest, map[string]string{"error": "the label could not be read"})
 		return
 	}
-	res, err := s.mut(r).SetTaskLabel(r.Context(), id, taskID, strings.TrimSpace(r.PostFormValue("label")), ss.Email)
+	label := strings.TrimSpace(r.PostFormValue("label"))
+	res, err := s.mut(r).SetTaskLabel(r.Context(), id, taskID, label, ss.Email)
+	if err == nil && len(res.NewEvents) > 0 && s.nt != nil &&
+		(label == LabelPRReviewManual || label == LabelPRReviewNeedsManual) {
+		// One notice per change: an unchanged label returns no event (D-101).
+		if cards, cerr := s.store.PRCards(r.Context(), id); cerr == nil {
+			for _, c := range cards {
+				if c.ID == taskID {
+					go s.nt.Notify(context.WithoutCancel(r.Context()), c, KindReviewManual, "A person must review this pull request")
+				}
+			}
+		}
+	}
 	if err != nil {
 		if wantsHTMX(r) {
 			s.fail(w, r, err)

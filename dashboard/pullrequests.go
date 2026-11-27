@@ -50,6 +50,16 @@ type PullRequest struct {
 	QALink    string
 	OpenedAt  int64
 	CheckedAt int64
+	// The PR template (D-100, prtemplate.go, bundles.go): the task-manager code, the parsed links
+	// (owner/repo#n, JSON on the vertex), the bundle the row belongs to and when that last changed,
+	// the alert already sent, and whether this code path has read the body (rows from before
+	// v0.62.0 stay false and are never alerted).
+	TaskCode     string
+	Links        []string
+	BundleKey    string
+	BundledAt    int64
+	Alerted      string
+	TemplateSeen bool
 }
 
 // PRFields are the fields the poller fills from GitHub.
@@ -234,7 +244,8 @@ func (s *MemStore) PrunePullRequests(ctx context.Context, finalBefore int64) (Re
 	defer s.mu.Unlock()
 	var res Result
 	for k, p := range s.pullRequests {
-		if prFinal(p.State) && p.CheckedAt > 0 && p.CheckedAt < finalBefore {
+		// A member of a bundle not yet planned is kept (D-100 §7.2).
+		if prFinal(p.State) && p.CheckedAt > 0 && p.CheckedAt < finalBefore && !s.pruneKeepLocked(p) {
 			delete(s.pullRequests, k)
 			res.PullRequestDeletes = append(res.PullRequestDeletes, k)
 		}

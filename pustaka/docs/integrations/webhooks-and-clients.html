@@ -37,8 +37,8 @@
 
   <h2 id="register">Register a client</h2>
   <p>A client is configuration and a token file, not code. GAOS reads the file named by
-  <code>GAOS_API_CLIENTS_FILE</code> once at boot: one client per line, five fields separated by spaces, and
-  <code>#</code> starts a comment.</p>
+  <code>GAOS_API_CLIENTS_FILE</code> once at boot: one client per line, five fields separated by spaces plus an
+  optional sixth, and <code>#</code> starts a comment.</p>
   <div class="codeblock">
     <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
     <pre><span class="c"># name        kind      origin            token file                          products</span>
@@ -52,7 +52,8 @@ chat-bot      bot       -                 /run/secrets/api-client-chat-bot     p
       <tr><td><code>kind</code></td><td>the same alphabet; <code>gaos</code> and <code>qa-tool</code> are reserved. It is what an answer's <code>source.kind</code> says.</td></tr>
       <tr><td><code>origin</code></td><td>the client's registered host name (optionally <code>:port</code>), or <code>-</code>. Recorded on every answer it gives; it may not be the QA tool's origin or the deployment's back-office label.</td></tr>
       <tr><td><code>token file</code></td><td>a regular file, mode 600, holding one <code>gaos_</code> token of 32 or more letters and digits. A file group or others can read is refused.</td></tr>
-      <tr><td><code>products</code></td><td>comma-separated GAOS product ids, or <code>-</code>. It may not list a product the QA token reaches.</td></tr>
+      <tr><td><code>products</code></td><td>comma-separated GAOS product ids, or <code>-</code>. A client holding <code>inbox</code> may not list a product the QA token reaches.</td></tr>
+      <tr><td><code>caps</code> (optional)</td><td>a comma list over <code>inbox</code> and <code>tasks</code>; absent means <code>inbox</code>, so a five-field line keeps its meaning. <code>inbox</code> reaches the inbox routes below; <code>tasks</code> reaches the <a href="external-tasks-api.html">external tasks API</a>. An unknown word skips the line. A <code>tasks</code>-only client may share a product with the QA token (v0.61.0, <a href="../product/decision-log.html#d-099">D-099</a>).</td></tr>
     </tbody>
   </table>
   <p>A bad line is skipped and logged by number and reason, never by token: <code>api: clients file line 3: the

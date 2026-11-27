@@ -561,13 +561,18 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
 <span class="k">CREATE PROPERTY</span> Task.status           <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>, default <span class="s">'PENDING'</span>,
                  regexp <span class="s">'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED'</span>);
 <span class="k">CREATE PROPERTY</span> Task.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
-                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer'</span>);
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner'</span>);
 <span class="c">-- D-088: the labels (a JSON array; the vocabulary is closed in dashboard/labels.go)
 -- and the de-duplication key of a pull-request card.</span>
 <span class="k">CREATE PROPERTY</span> Task.labels           <span class="s">STRING</span>;
 <span class="k">CREATE PROPERTY</span> Task.dedupKey         <span class="s">STRING</span>;
 <span class="c">-- D-091: the Unix second of an automatic defect dispatch; the daily caps count it.</span>
 <span class="k">CREATE PROPERTY</span> Task.autoAt           <span class="s">INTEGER</span>;
+<span class="c">-- D-099: the external-tasks API's owner, read grants, creation second and switch.</span>
+<span class="k">CREATE PROPERTY</span> Task.apiOwner         <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Task.apiRefs          <span class="s">STRING</span>;
+<span class="k">CREATE PROPERTY</span> Task.apiAt            <span class="s">INTEGER</span>;
+<span class="k">CREATE PROPERTY</span> Task.autoDispatch     <span class="s">BOOLEAN</span>;
 <span class="k">CREATE PROPERTY</span> Task.riskClass        <span class="s">STRING</span>  (default <span class="s">'normal'</span>,
                  regexp <span class="s">'low|normal|high|critical'</span>);
 <span class="k">CREATE PROPERTY</span> Task.modelHint        <span class="s">STRING</span>;
@@ -631,7 +636,7 @@ footer.doc{border-top:1px solid var(--line);padding-top:20px;color:var(--ink-3);
     <pre><span class="k">CREATE VERTEX TYPE</span> <span class="t">Agent</span> <span class="k">IF NOT EXISTS EXTENDS</span> GaosVertex;
 <span class="k">CREATE PROPERTY</span> Agent.name             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>);
 <span class="k">CREATE PROPERTY</span> Agent.role             <span class="s">STRING</span>  (mandatory <span class="k">true</span>, notnull <span class="k">true</span>,
-                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer'</span>);
+                 regexp <span class="s">'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner'</span>);
 <span class="k">CREATE PROPERTY</span> Agent.model            <span class="s">STRING</span>  (notnull <span class="k">true</span>);
 <span class="k">CREATE PROPERTY</span> Agent.availability     <span class="s">STRING</span>  (default <span class="s">'IDLE'</span>,
                  regexp <span class="s">'IDLE|RESERVED|BUSY|IN_MEETING|COOLDOWN|OFFLINE'</span>);
@@ -1619,8 +1624,8 @@ CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
 -- The role vocabulary on a database that already exists. CREATE PROPERTY above keeps
 -- the regexp it first declared, so an older deployment would refuse a newer role at
 -- commit. ALTER is idempotent and applies to every deployment.
-ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
-ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
+ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner';
+ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner';
 
 -- D-092 (docs/designs/gaos-pr-overview.md section 3.2): the base and the links of a fix pull request, and the
 -- base a retarget set for a defect (cleared again).
@@ -1647,6 +1652,13 @@ CREATE PROPERTY PullRequest.qaCase    STRING;
 CREATE PROPERTY PullRequest.qaLink    STRING;
 CREATE PROPERTY PullRequest.openedAt  LONG;
 CREATE PROPERTY PullRequest.checkedAt LONG;
+-- D-100: the PR template's facts and the bundle a row belongs to (bundles.go).
+CREATE PROPERTY PullRequest.taskCode     STRING;
+CREATE PROPERTY PullRequest.links        STRING;
+CREATE PROPERTY PullRequest.bundleKey    STRING;
+CREATE PROPERTY PullRequest.bundledAt    LONG;
+CREATE PROPERTY PullRequest.alerted      STRING;
+CREATE PROPERTY PullRequest.templateSeen BOOLEAN;
 CREATE INDEX IF NOT EXISTS ON PullRequest (tenantId, id) UNIQUE;
 </pre>
   </div>

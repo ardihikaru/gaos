@@ -27,7 +27,7 @@ CREATE PROPERTY Task.title            STRING  (mandatory true, notnull true);
 CREATE PROPERTY Task.status           STRING  (mandatory true, notnull true, default 'PENDING',
                  regexp 'PENDING|READY|DISPATCHED|RUNNING|REVIEW|BLOCKED|DEFERRED|DONE|FAILED|CANCELED|AWAITING_INPUT');
 CREATE PROPERTY Task.role             STRING  (mandatory true, notnull true,
-                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer');
+                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner');
 -- The labels of a task (D-088). One JSON array, because a property per label
 -- would make "does this card carry this label" a graph query rather than a
 -- read. The vocabulary is closed and lives in dashboard/labels.go.
@@ -39,6 +39,14 @@ CREATE PROPERTY Task.dedupKey         STRING;
 CREATE INDEX IF NOT EXISTS ON Task (dedupKey) NOTUNIQUE;
 -- D-091: the Unix second of an automatic defect dispatch; the daily caps count it.
 CREATE PROPERTY Task.autoAt           INTEGER;
+-- D-099: the external-tasks API. apiOwner is the creating client (immutable),
+-- apiRefs the clients' "<client>:<externalId>" read grants (a JSON array, at most 8),
+-- apiAt the Unix second of the API creation; autoDispatch lets the unattended pass
+-- start the card on a product listed in GAOS_API_AUTORUN_PRODUCTS.
+CREATE PROPERTY Task.apiOwner         STRING;
+CREATE PROPERTY Task.apiRefs          STRING;
+CREATE PROPERTY Task.apiAt            INTEGER;
+CREATE PROPERTY Task.autoDispatch     BOOLEAN;
 CREATE PROPERTY Task.riskClass        STRING  (default 'normal',
                  regexp 'low|normal|high|critical');
 CREATE PROPERTY Task.modelHint        STRING;

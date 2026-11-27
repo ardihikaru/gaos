@@ -181,10 +181,15 @@ func (s *server) buildIntegrations(ctx context.Context, bo *BOView) {
 		if qc := c.qaClient(); qc != nil {
 			p.QA.Origin = qc.Origin
 		}
+		p.API.Autorun = sortedKeys(autorunProducts())
 		for _, cl := range c.clients {
-			scope := "inbox"
+			caps := sortedKeys(cl.caps)
+			scope := strings.Join(caps, ", ")
 			if cl.scope == scopeQA {
-				scope = "qa"
+				scope = "qa, " + scope
+			}
+			if cl.caps[CapTasks] {
+				p.API.TaskClients++
 			}
 			p.Clients = append(p.Clients, ClientRow{Name: cl.Name, Kind: cl.Kind, Origin: cl.Origin,
 				Scope: scope, Products: sortedKeys(cl.products)})

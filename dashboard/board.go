@@ -529,7 +529,7 @@ func (s *MemStore) dispatch(ctx context.Context, productID, taskID, move string,
 	c, v, err := s.clearFor(ctx, d, attempt)
 	if err != nil {
 		s.refuseDispatch(d, v)
-		if move == MoveAutoFix {
+		if move == MoveAutoFix || move == MoveAPI {
 			s.mu.Lock()
 			if t := s.taskPtr(taskID); t != nil {
 				t.BlockReason = BlockEgress

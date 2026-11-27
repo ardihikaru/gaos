@@ -64,7 +64,15 @@ func maskDestination(d string) string {
 }
 
 // notifyKinds is the closed vocabulary of NotifyOn.
-var notifyKinds = map[string]bool{"review:medium": true, "review:high": true, "e2e:failure": true, "unit:failure": true}
+var notifyKinds = map[string]bool{"review:medium": true, "review:high": true, "e2e:failure": true, "unit:failure": true,
+	// D-101, D-100: a person must review; a pull request names no task-manager code.
+	KindReviewManual: true, KindReviewNeedsManual: true, "pr:" + alertNoTaskCode: true}
+
+// The two manual-review notice kinds (D-101). They match a contact exactly, never by rank.
+const (
+	KindReviewManual      = "review:manual"
+	KindReviewNeedsManual = "review:needs-manual"
+)
 
 // Alias is the name a log line and an event use for the contact: the display
 // name as a slug, or the account. Never the destination.
@@ -194,7 +202,7 @@ func notifyOnWants(c Contact, kind string) bool {
 		return true
 	}
 	sev := ""
-	if strings.HasPrefix(kind, "review:") {
+	if strings.HasPrefix(kind, "review:") && kind != KindReviewManual && kind != KindReviewNeedsManual {
 		sev = strings.TrimPrefix(kind, "review:")
 	}
 	for _, k := range c.NotifyOn {

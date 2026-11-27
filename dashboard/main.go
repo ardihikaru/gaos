@@ -95,6 +95,11 @@ type server struct {
 	// qaOut is the client for GAOS calling the QA tools (qaclient.go); nil or
 	// unconfigured means the sync buttons are disabled.
 	qaOut *qaOutbound
+	// flow is the pull-request flow; the task API prepares a pull request
+	// through it and fills its context cache (D-099).
+	flow *prFlow
+	// nt sends the manual-review notices of an operator's relabel (D-101); nil sends nothing.
+	nt *notifier
 
 	// inbox delivers the operator's answers to the QA tool's questions
 	// (inbox_worker.go); nil in tests that do not exercise it.
@@ -375,6 +380,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	gcfg := ghConfigFromEnv()
 	ghc := newGHClient(gcfg)
 	flow := &prFlow{st: store, ctx: &prContextCache{}, logf: log.Printf}
+	srv.flow = flow
 	var authors authorSource
 	if ghc != nil {
 		flow.gh = ghc
@@ -406,6 +412,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		log.Printf("whatsapp: notifier off (%s)", wcfg.why)
 	}
 	nt := &notifier{st: store, wa: wa, gh: authors, logf: log.Printf}
+	srv.nt = nt
 	srv.wa = wa
 	// Pull requests already open when this release starts get their rows (design §4.3); idempotent.
 	if res, err := store.BackfillReviewRows(ctx); err != nil {
@@ -439,8 +446,16 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		if ghc != nil {
 			rv.gh = ghc
 		}
+		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify}
+		if srv.qaOut != nil {
+			tp.qa = srv.qaOut
+		}
+		poller.alert = prAlerter{nt: nt}
+		if ghc != nil {
+			poller.alert.post = ghc
+		}
 		h.SetPRHooks(
-			func(t TaskRecord) []PacketPart { return prPacketParts(flow.ctx, t) },
+			func(t TaskRecord) []PacketPart { return append(prPacketParts(flow.ctx, t), testPlannerParts(t)...) },
 			func(t TaskRecord, reply string) {
 				switch {
 				case t.Role == "pr-reviewer":
@@ -449,6 +464,8 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 					dt.afterRun(context.Background(), t, reply)
 				case t.Role == "fixer":
 					fx.afterRun(context.Background(), t, reply)
+				case t.Role == "test-planner":
+					tp.afterRun(context.Background(), t, reply)
 				case t.Role == "unit-test" && t.DedupKey != "" && t.Status == StatusFailed:
 					nt.Notify(context.Background(), t, "unit:failure", "unit tests failed")
 				}

@@ -40,6 +40,7 @@ type ghPRState struct {
 	State         string
 	Title, Author string
 	Head, Base    string
+	Body          string // the PR template (D-100); pullRequest already reads it
 }
 
 // pullState reads a pull request's draft flag, merged flag, state, title, author and branches.
@@ -49,7 +50,7 @@ func (c *ghClient) pullState(ctx context.Context, owner, repo string, n int) (gh
 		return ghPRState{}, err
 	}
 	return ghPRState{Draft: pr.Draft, Merged: pr.Merged, State: pr.State, Title: pr.Title,
-		Author: pr.User.Login, Head: pr.Head.Ref, Base: pr.Base.Ref}, nil
+		Author: pr.User.Login, Head: pr.Head.Ref, Base: pr.Base.Ref, Body: pr.Body}, nil
 }
 
 // prRowStateOf maps what GitHub says to a PullRequest row's state.
@@ -116,6 +117,21 @@ type fixPRPoller struct {
 	lastDay   int64
 	status    FixPollStatus
 	haveDay   bool
+	// alert posts the missing-code comment and line (D-100 §7.4); set in main.go.
+	alert prAlerter
+	// ghSrc replaces gh for the bundle pass in tests.
+	ghSrc bundleSource
+}
+
+// bundleGH is the GitHub source of the bundle pass: nil when there is none.
+func (p *fixPRPoller) bundleGH() bundleSource {
+	if p.ghSrc != nil {
+		return p.ghSrc
+	}
+	if p.gh != nil {
+		return p.gh
+	}
+	return nil
 }
 
 func newFixPRPoller(st Store, gh *ghClient) *fixPRPoller {
@@ -153,6 +169,11 @@ func (p *fixPRPoller) Pass(ctx context.Context) {
 	}
 	now := p.now()
 	p.retain(ctx, now)
+	// A review that ends in REVIEW after its pull request merged has no poll left
+	// to finish it; this sweep does, every tick (design §3.1).
+	if _, err := p.st.FinishMergedReviews(ctx); err != nil {
+		p.logf("pull requests: merged reviews could not be finished: %v", err)
+	}
 	if p.gh == nil {
 		return
 	}
@@ -193,6 +214,7 @@ func (p *fixPRPoller) Pass(ctx context.Context) {
 		p.status.LastPoll, p.status.Polled = now, polled
 		p.mu.Unlock()
 	}
+	p.bundlePass(ctx, now)
 }
 
 // retain empties the excerpts of records last seen 30 days ago, once per UTC day.
@@ -344,6 +366,15 @@ func (p *fixPRPoller) pollRow(ctx context.Context, r PullRequest, m Master, now 
 		p.mu.Lock()
 		delete(p.due, id)
 		p.mu.Unlock()
+		return true
+	}
+	// D-100: a listed product's review row re-reads its template on every poll until its
+	// bundle is planned, then the missing-code alert is weighed.
+	if r.Kind == PRKindReview && templateProducts()[r.ProductID] {
+		tmpl := parsePRTemplate(gs.Body)
+		if row, _, err := p.st.ApplyBundleLinks(ctx, r.ProductID, r.Key, tmpl, now.Unix()); err == nil {
+			p.maybeAlert(ctx, row, tmpl, now)
+		}
 	}
 	return true
 }

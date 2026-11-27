@@ -146,7 +146,7 @@ func ownsItem(cl *apiClient, x ExternalItem) bool {
 
 func (s *server) apiInboxAsk(w http.ResponseWriter, r *http.Request) {
 	scope, cl, ok := s.apiGate(w, r, scopeClient)
-	if !ok {
+	if !ok || !needCap(w, scope, cl, CapInbox) {
 		return
 	}
 	id, ok := s.apiProduct(w, r, scope, cl)
@@ -221,7 +221,7 @@ type apiInboxState struct {
 
 func (s *server) apiInboxGet(w http.ResponseWriter, r *http.Request) {
 	scope, cl, ok := s.apiGate(w, r, scopeClient)
-	if !ok {
+	if !ok || !needCap(w, scope, cl, CapInbox) {
 		return
 	}
 	id, ok := s.apiProduct(w, r, scope, cl)
@@ -292,7 +292,7 @@ func apiStateWith(x ExternalItem, code, reason string) map[string]any {
 // retry by the same client is 200 with the first answer and writes nothing.
 func (s *server) apiInboxAnswer(w http.ResponseWriter, r *http.Request) {
 	scope, cl, ok := s.apiGate(w, r, scopeClient)
-	if !ok {
+	if !ok || !needCap(w, scope, cl, CapInbox) {
 		return
 	}
 	if cl == nil {

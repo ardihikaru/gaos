@@ -48,6 +48,10 @@
     <li>A GitHub failure shows a banner and leaves the rows as they were.</li>
   </ul>
 
+  <p>For a product listed in <code>GAOS_PR_TEMPLATE_PRODUCTS</code>, a row also shows the bundle it belongs to and,
+  when GAOS sent the missing-code alert, the chip <em>no task code</em> (<a href="pr-agents.html#bundles">Bundles
+  from the PR template</a>). A member of a bundle that is not planned yet is kept past the 30-day prune.</p>
+
   <h2 id="settings">The settings</h2>
   <p>Both are fields of <code>POST /products/{id}/autofix</code>, for the accounts on the auto-fix admin list. The post replaces the whole configuration, so a field left out is cleared.</p>
   <table class="tbl">

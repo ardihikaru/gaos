@@ -117,11 +117,27 @@ for f in deploy/stacks/*.aim-*; do
 done
 for f in deploy/stacks/*.api-*; do
   # The machine API's bearer tokens (D-072): host-side files mounted read-only.
+  # prod.api-clients is the clients DIRECTORY (D-099): mode 700, its files 600.
   [ -e "$f" ] || continue
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     bad "$f is tracked by git"
   else
     ok "$(basename "$f") is untracked"
+  fi
+  if [ "$(basename "$f")" = prod.api-clients ]; then
+    if [ ! -d "$f" ]; then
+      bad "$f is not a directory (the API clients file and tokens live in it)"
+    elif [ "$(stat -c %a "$f")" != 700 ]; then
+      bad "$f is mode $(stat -c %a "$f"), want 700"
+    else
+      open_files=$(find "$f" -type f ! -perm 600 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$open_files" != 0 ]; then
+        bad "$f holds $open_files file(s) that are not mode 600"
+      else
+        ok "prod.api-clients is a mode-700 directory of mode-600 files"
+      fi
+    fi
+    continue
   fi
   if [ ! -f "$f" ]; then
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
@@ -141,21 +157,37 @@ for f in deploy/stacks/*.bo-*; do
 done
 for f in deploy/stacks/*.bt-*; do
   # The Brain Town receiver's token (D-086): a host-side file, never tracked.
+  # prod.bt-state is the reader's writable cursor DIRECTORY (v0.60.1): mode 700.
   [ -e "$f" ] || continue
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     bad "$f is tracked by git"
   else
     ok "$(basename "$f") is untracked"
   fi
+  if [ "$(basename "$f")" = prod.bt-state ]; then
+    if [ ! -d "$f" ]; then
+      bad "$f is not a directory (the reader's cursor lives in it)"
+    elif [ "$(stat -c %a "$f")" != 700 ]; then
+      bad "$f is mode $(stat -c %a "$f"), want 700"
+    else
+      ok "prod.bt-state is a mode-700 directory"
+    fi
+    continue
+  fi
   if [ ! -f "$f" ]; then
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
   fi
 done
+has $PROD 'prod.api-clients:/run/secrets/api-clients:ro' "prod mounts the API clients directory read-only"
+has $PROD 'GAOS_API_CLIENTS_FILE: "/run/secrets/api-clients/clients"' "prod reads the API clients file from the clients directory"
+has $PROD 'GAOS_API_AUTORUN_PRODUCTS: "${GAOS_API_AUTORUN_PRODUCTS:-}"' "prod passes the unattended-start list from the deploy shell, empty (off) by default"
+has $PROD 'GAOS_PR_TEMPLATE_PRODUCTS: "${GAOS_PR_TEMPLATE_PRODUCTS:-}"' "prod passes the PR-template product list from the deploy shell, empty (off) by default"
 has $PROD 'prod.bt-token:/run/secrets/bt-token:ro' "prod mounts the Brain Town token file read-only"
 has $PROD 'BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"' "prod passes the Brain Town switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_TOKEN:' "prod passes the Brain Town token only as a file, never as an environment variable"
 has $PROD 'prod.bt-consumer-token:/run/secrets/bt-consumer-token:ro' "prod mounts the Brain Town consumer token file read-only"
-has $PROD 'prod.bt-consumer-cursor:/run/secrets/bt-consumer-cursor:ro' "prod mounts the Brain Town consumer cursor file read-only"
+has $PROD 'prod.bt-state:/var/lib/gaos-bt' "prod mounts the Brain Town reader's cursor directory writable"
+hasnt $PROD 'prod.bt-consumer-cursor' "prod no longer mounts the read-only cursor file (#56)"
 has $PROD 'BRAIN_TOWN_CONSUMER_ENABLED: "${BRAIN_TOWN_CONSUMER_ENABLED:-}"' "prod passes the Brain Town reader switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_CONSUMER_TOKEN:' "prod passes the Brain Town reader token only as a file, never as an environment variable"
 for f in deploy/stacks/*.pr-*; do

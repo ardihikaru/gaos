@@ -299,6 +299,10 @@ type APIStatus struct {
 	State               string
 	Admin, QA, Outbound bool
 	QAProducts          []string
+	// The external-tasks API (D-099): how many clients hold the tasks capability,
+	// and the products whose API cards start unattended under manual.
+	TaskClients int
+	Autorun     []string
 }
 
 // ClientRow is one machine client. There is no token field on purpose.
@@ -458,4 +462,7 @@ type BrainTownRow struct {
 	// Failing: the last attempt failed. It clears on the next success. Only
 	// the yes/no reaches the page, never the error's text.
 	Failing bool
+	// Cursor is the reader's cursor state: "saved <seq>" or "not saved", plus
+	// "· gave up <seq>" after the retry bound (design §3.2). Empty for the feed.
+	Cursor string
 }

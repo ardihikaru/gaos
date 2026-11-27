@@ -152,8 +152,8 @@ func TestConsumerRejectsTheWrongKindAndType(t *testing.T) {
 	var id int64
 	c.handle(`{"seq":1,"type":"pr.merged","source":"github","productKey":"r","orgLogin":"o","payload":{}}`, "pr.merged", &id)
 	c.handle(`{"seq":2,"type":"pr.opened","source":"qa","productKey":"r","orgLogin":"o","payload":{}}`, "pr.opened", &id)
-	if len(c.out) != 0 {
-		t.Fatalf("a frame outside the kinds or types must not be handed over, got %d", len(c.out))
+	if n := onlyMarkers(t, c); n != 2 {
+		t.Fatalf("a frame outside the kinds or types must be handed over only as a cursor marker, got %d markers", n)
 	}
 }
 
@@ -162,9 +162,24 @@ func TestConsumerRejectsAnUnownedRepository(t *testing.T) {
 	c := newBTConsumer(btConsumerConfig{enabled: true, cursor: filepath.Join(t.TempDir(), "cursor"), kinds: map[string]bool{"github": true}}, st)
 	var id int64
 	c.handle(`{"seq":1,"type":"pr.opened","source":"github","productKey":"elsewhere","orgLogin":"other-org","payload":{}}`, "pr.opened", &id)
-	if len(c.out) != 0 {
-		t.Fatalf("a repository GAOS does not own must not be handed over, got %d", len(c.out))
+	if n := onlyMarkers(t, c); n != 1 {
+		t.Fatalf("a repository GAOS does not own must be handed over only as a cursor marker, got %d markers", n)
 	}
+}
+
+// onlyMarkers drains the channel and fails on any real event; it answers the
+// number of cursor markers (design gaos-external-tasks-and-pr-bundles §3.2).
+func onlyMarkers(t *testing.T, c *btConsumer) int {
+	t.Helper()
+	n := 0
+	for len(c.out) > 0 {
+		ev := <-c.out
+		if !ev.isMarker() {
+			t.Fatalf("a filtered frame was handed over as an event: %+v", ev)
+		}
+		n++
+	}
+	return n
 }
 
 func TestConsumerTitleIsCappedAndScreened(t *testing.T) {

@@ -57,7 +57,18 @@ type apiClient struct {
 	products           map[string]bool // qa-tools: the same map as apiConfig.qaProducts
 	busy               *atomic.Bool    // qa-tools: &apiConfig.qaBusy; a registry client: its own
 	scope              apiScope        // scopeQA for qa-tools, scopeClient otherwise
+	// caps are the client's capabilities (D-099): "inbox", "tasks". qa-tools holds
+	// {inbox}; a clients-file line without the sixth field holds {inbox}.
+	caps map[string]bool
 }
+
+// The closed capability set of a clients-file line (D-099).
+const (
+	CapInbox = "inbox"
+	CapTasks = "tasks"
+)
+
+var validCaps = map[string]bool{CapInbox: true, CapTasks: true}
 
 // apiConfig is read once at boot. It holds digests, never the tokens.
 type apiConfig struct {
@@ -164,7 +175,7 @@ func newAPIConfig(admin, qa, out, products string) *apiConfig {
 	}
 	if c.hasQA {
 		c.clients = append(c.clients, &apiClient{Name: ClientQATools, Kind: SourceKindQATool, sum: c.qaSum,
-			products: c.qaProducts, busy: &c.qaBusy, scope: scopeQA})
+			products: c.qaProducts, busy: &c.qaBusy, scope: scopeQA, caps: map[string]bool{CapInbox: true}})
 	}
 	if !c.hasAdmin && !c.hasQA {
 		c.why = whyNoToken
@@ -219,10 +230,14 @@ next:
 				continue next
 			}
 		}
-		for id := range cl.products {
-			if c.qaProducts[id] {
-				drop("it lists " + id + ", which the QA token reaches")
-				continue next
+		// The overlap protects the QA tool's inbox ids; a client without the inbox
+		// capability can take none, so it may share a QA product (D-099).
+		if cl.caps[CapInbox] {
+			for id := range cl.products {
+				if c.qaProducts[id] {
+					drop("it lists " + id + ", which the QA token reaches")
+					continue next
+				}
 			}
 		}
 		c.clients = append(c.clients, cl)
@@ -239,8 +254,10 @@ func apiFromEnv() *apiConfig {
 	o := qaOrigin(os.Getenv("GAOS_QA_ORIGIN"), os.Getenv("GAOS_QA_URL"), log.Printf)
 	c.setQAOrigin(o)
 	if p := os.Getenv("GAOS_API_CLIENTS_FILE"); p != "" {
-		warnIfOpen(p, log.Printf)
-		if f, err := os.Open(p); err != nil {
+		if st, err := os.Stat(p); err == nil && st.Mode().Perm()&0o077 != 0 {
+			// It names every client and its token file: refused like a token (D-099).
+			log.Printf("api: GAOS_API_CLIENTS_FILE is readable by group or others; it must be mode 0600 (no further clients)")
+		} else if f, err := os.Open(p); err != nil {
 			log.Printf("api: GAOS_API_CLIENTS_FILE: %v (no further clients)", err)
 		} else {
 			c.addClients(parseClients(f, readTokenPathStrict, log.Printf), []string{o, os.Getenv("GAOS_BO_LABEL")}, log.Printf)
@@ -320,6 +337,16 @@ func (s *server) apiGate(w http.ResponseWriter, r *http.Request, need apiScope) 
 		return scopeNone, nil, false
 	}
 	return got, cl, true
+}
+
+// needCap answers 403 unless the caller is the admin token or a client whose
+// capabilities hold cap (D-099). It runs after apiGate and before apiProduct.
+func needCap(w http.ResponseWriter, scope apiScope, cl *apiClient, cap string) bool {
+	if scope == scopeAdmin || (cl != nil && cl.caps[cap]) {
+		return true
+	}
+	apiErr(w, http.StatusForbidden, "forbidden", "this token may not call this route")
+	return false
 }
 
 // apiProduct resolves {id} for the caller. The admin token reaches every
@@ -415,6 +442,11 @@ func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
 	// D-088: Basic, per product, its own gate (staging.go). BR-52/BR-55 are
 	// amended for this one route.
 	handle("POST /v1/products/{id}/staging", s.apiStaging)
+	// D-099: the external-tasks API, for a client with the tasks capability.
+	handle("POST /v1/products/{id}/tasks", s.apiTaskCreate)
+	handle("GET /v1/products/{id}/tasks", s.apiTaskGet)
+	handle("GET /v1/products/{id}/tasks/{taskId}", s.apiTaskGet)
+	handle("POST /v1/products/{id}/tasks/{taskId}/cancel", s.apiTaskCancel)
 }
 
 type apiProductOut struct {

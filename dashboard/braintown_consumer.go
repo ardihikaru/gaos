@@ -104,7 +104,15 @@ type PREvent struct {
 	Draft    bool   // the pull request is a draft
 	Commit   string // a staging deploy's commit sha (type "staging.deployed")
 	At       time.Time
+	// Gen is the reader session the event was read in. An event of an older
+	// generation than the one Drain was told to discard below is dropped: its
+	// session ended on a retry and the reconnect replays it (design §3.2).
+	Gen int64
 }
+
+// isMarker reports a frame the reader filtered or skipped: it carries only its
+// sequence number, so Drain advances the cursor past it in order.
+func (e PREvent) isMarker() bool { return e.Type == "" }
 
 // Key is the flow's de-duplication key. The flow owns the set; the card
 // carries the key, so a restart rebuilds it from the graph.
@@ -287,11 +295,26 @@ type btConsumer struct {
 	reposMu sync.Mutex
 	reposAt time.Time
 	repos   map[string]bool
+
+	// The session's generation and its cancel (design §3.2): Drain ends a
+	// session through restart, and drops what the old session queued.
+	gen, discardBelow int64
+	cancelSession     context.CancelFunc
+	// retries counts flowRetry per sequence number, across sessions.
+	retries map[int64]int
+	// saved is the last cursor written; gaveUp the last seq skipped after the
+	// retry bound; cursorErr why the last write failed ("" when it did not).
+	saved, gaveUp int64
+	cursorErr     string
 }
+
+// btRetryWaits is the backoff before each retry of one event; after the last,
+// the event is skipped (design §3.2).
+var btRetryWaits = []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second, 80 * time.Second}
 
 // newBTConsumer builds the reader. A nil reader means the setting is off.
 func newBTConsumer(cfg btConsumerConfig, st Store) *btConsumer {
-	c := &btConsumer{cfg: cfg, st: st, logf: log.Printf, out: make(chan PREvent, btConsumerQueue)}
+	c := &btConsumer{cfg: cfg, st: st, logf: log.Printf, out: make(chan PREvent, btConsumerQueue), retries: map[int64]int{}}
 	c.hc = &http.Client{
 		Timeout: 0, // a stream has no whole-request deadline; the watchdog is the deadline
 		Transport: &http.Transport{
@@ -325,8 +348,15 @@ func (c *btConsumer) Status() BrainTownRow {
 	if !c.lastAt.IsZero() {
 		last = strconv.FormatInt(c.last, 10) + " · " + c.lastAt.UTC().Format(time.RFC3339)
 	}
+	cursor := "not saved"
+	if c.cursorErr == "" && c.saved > 0 {
+		cursor = "saved " + strconv.FormatInt(c.saved, 10)
+	}
+	if c.gaveUp > 0 {
+		cursor += " · gave up " + strconv.FormatInt(c.gaveUp, 10)
+	}
 	return BrainTownRow{State: state, Host: host, Queue: len(c.out),
-		Last: last, Failed: int(c.skipped), Dropped: 0, Sent: int(c.frames), Failing: c.lastErr != ""}
+		Last: last, Failed: int(c.skipped), Dropped: 0, Sent: int(c.frames), Failing: c.lastErr != "", Cursor: cursor}
 }
 
 // Run is the reader loop. It never returns until the context is done.
@@ -364,7 +394,12 @@ func (c *btConsumer) Run(ctx context.Context) {
 
 // session holds one connection. It returns false when the connection ended and
 // the reader should reconnect.
-func (c *btConsumer) session(ctx context.Context) (time.Duration, bool) {
+func (c *btConsumer) session(parent context.Context) (time.Duration, bool) {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	c.mu.Lock()
+	c.cancelSession = cancel
+	c.mu.Unlock()
 	u := *c.cfg.url
 	u.Path = strings.TrimSuffix(u.Path, "/") + "/consumer/events"
 	if len(c.cfg.kinds) > 0 {
@@ -477,26 +512,38 @@ func (c *btConsumer) handle(raw, event string, id *int64) {
 	}
 	if err := json.Unmarshal([]byte(raw), &f); err != nil {
 		c.skip("a frame that is not JSON")
+		c.marker(*id)
 		return
 	}
+	seq := f.Seq
+	if seq == 0 {
+		seq = *id
+	}
 	if len(c.cfg.kinds) > 0 && !c.cfg.kinds[f.Source] {
+		c.marker(seq)
 		return
 	}
 	if len(c.cfg.types) > 0 && !c.cfg.types[f.Type] {
+		c.marker(seq)
 		return
 	}
 	org := trimField(f.OrgLogin, btConsumerFieldMax)
 	repo := trimField(f.ProductKey, btConsumerFieldMax)
 	if org == "" || repo == "" {
 		c.skip("a frame with no owner or no repository")
+		c.marker(seq)
 		return
 	}
-	if !c.ownsRepo(org + "/" + repo) {
+	owned, known := c.ownsRepoKnown(org + "/" + repo)
+	if known && !owned {
 		c.skip("a repository GAOS does not own")
+		c.marker(seq)
 		return
 	}
+	// Unknown (the products could not be read): hand it over, and the flow's own
+	// read answers flowRetry rather than the frame being acknowledged as unowned.
 	ev := PREvent{
-		Kind: f.Source, Type: f.Type, EventID: f.ID, Seq: f.Seq,
+		Kind: f.Source, Type: f.Type, EventID: f.ID, Seq: seq,
 		Org: org, Repo: repo, At: time.Now().UTC(),
 	}
 	if f.Payload != nil {
@@ -509,31 +556,61 @@ func (c *btConsumer) handle(raw, event string, id *int64) {
 			}
 		}
 	}
+	c.hand(ev)
+}
+
+// marker hands over a frame the reader did not pass on, so Drain -- the only
+// cursor writer -- moves the cursor past it in order (design §3.2).
+func (c *btConsumer) marker(seq int64) {
+	if seq <= 0 {
+		return
+	}
+	c.hand(PREvent{Seq: seq})
+}
+
+// hand puts one event on the channel. A full channel ends the session instead of
+// dropping the frame: nothing queued is discarded, and the reconnect resumes
+// after the saved cursor.
+func (c *btConsumer) hand(ev PREvent) {
+	c.mu.Lock()
+	ev.Gen = c.gen
+	c.mu.Unlock()
 	select {
 	case c.out <- ev:
+		if ev.isMarker() {
+			return
+		}
 		c.mu.Lock()
 		c.frames++
 		c.last = ev.Seq
 		c.lastAt = ev.At
 		c.mu.Unlock()
-		c.writeCursor(ev.Seq)
 	default:
-		// The channel is full. The cursor does not advance, so the event is
-		// replayed on the next reconnect rather than lost (BR-02).
-		c.skip("the hand-over channel was full")
+		c.skip("the hand-over channel was full; the session restarts")
+		c.restart(false)
 	}
 }
 
-// Drain reads the hand-over channel and calls handle for each event.
-//
-// It is the reader's only consumer, and it runs on its own goroutine: the
-// flow must not block the reader, and the reader must not block the flow.
-// The handler returns false to stop the drain.
-//
-// A full channel is the *reader's* rule, not the flow's: the reader keeps the
-// event and does not advance the cursor, so the event is replayed on the next
-// reconnect rather than lost (BR-02).
-func (c *btConsumer) Drain(ctx context.Context, handle func(context.Context, PREvent) bool) {
+// restart ends the current session. discard drops what the old session queued:
+// Drain does that after a retry, so nothing behind the failed event is acked.
+func (c *btConsumer) restart(discard bool) {
+	c.mu.Lock()
+	c.gen++
+	if discard {
+		c.discardBelow = c.gen
+	}
+	cancel := c.cancelSession
+	c.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+// Drain reads the hand-over channel and calls handle for each event. It is the
+// only writer of the cursor (design §3.2): a marker or a flowDone moves it, in
+// frame order; a flowRetry ends the session, drops what it queued and waits,
+// and after the last wait the event is skipped so no event can stop the stream.
+func (c *btConsumer) Drain(ctx context.Context, handle func(context.Context, PREvent) flowOutcome) {
 	if c == nil {
 		return
 	}
@@ -542,8 +619,41 @@ func (c *btConsumer) Drain(ctx context.Context, handle func(context.Context, PRE
 		case <-ctx.Done():
 			return
 		case ev := <-c.out:
-			if !handle(ctx, ev) {
+			c.mu.Lock()
+			stale := ev.Gen < c.discardBelow
+			c.mu.Unlock()
+			if stale {
+				continue
+			}
+			if ev.isMarker() {
+				c.writeCursor(ev.Seq)
+				continue
+			}
+			if handle(ctx, ev) == flowDone {
+				c.mu.Lock()
+				delete(c.retries, ev.Seq)
+				c.mu.Unlock()
+				c.writeCursor(ev.Seq)
+				continue
+			}
+			c.mu.Lock()
+			c.retries[ev.Seq]++
+			n := c.retries[ev.Seq]
+			c.mu.Unlock()
+			if n > len(btRetryWaits) {
+				c.logf("brain town reader: gave up seq %d", ev.Seq)
+				c.mu.Lock()
+				delete(c.retries, ev.Seq)
+				c.gaveUp = ev.Seq
+				c.mu.Unlock()
+				c.writeCursor(ev.Seq)
+				continue
+			}
+			c.restart(true)
+			select {
+			case <-ctx.Done():
 				return
+			case <-time.After(btRetryWaits[n-1]):
 			}
 		}
 	}
@@ -554,20 +664,29 @@ func (c *btConsumer) Drain(ctx context.Context, handle func(context.Context, PRE
 // The match is owner-qualified: the product's repositories are `owner/repo`
 // pairs, so a repository of the same name under another owner does not match.
 func (c *btConsumer) ownsRepo(pair string) bool {
+	owned, _ := c.ownsRepoKnown(pair)
+	return owned
+}
+
+// ownsRepoKnown is ownsRepo plus whether the answer is known: a failed read of
+// the products is not cached, and answers known=false (design §3.2).
+func (c *btConsumer) ownsRepoKnown(pair string) (owned, known bool) {
 	c.reposMu.Lock()
 	defer c.reposMu.Unlock()
 	if c.repos == nil || time.Since(c.reposAt) > btConsumerRepoTTL {
+		masters, err := c.st.Masters(context.Background())
+		if err != nil {
+			return false, false
+		}
 		c.repos = map[string]bool{}
-		if masters, err := c.st.Masters(context.Background()); err == nil {
-			for _, m := range masters {
-				for _, r := range m.Repos {
-					c.repos[strings.ToLower(strings.TrimSpace(r))] = true
-				}
+		for _, m := range masters {
+			for _, r := range m.Repos {
+				c.repos[strings.ToLower(strings.TrimSpace(r))] = true
 			}
 		}
 		c.reposAt = time.Now()
 	}
-	return c.repos[strings.ToLower(pair)]
+	return c.repos[strings.ToLower(pair)], true
 }
 
 // trimField caps a field and strips control characters.
@@ -616,18 +735,38 @@ func (c *btConsumer) readCursor() int64 {
 	return n
 }
 
-// writeCursor records the last sequence number the reader handed over. The
-// cursor advances only after the hand-over succeeded, so an event that could
-// not be handed over is replayed.
+// writeCursor records the last sequence number Drain acknowledged. It never
+// moves backwards, and a failure is logged once per class (design §3.2).
 func (c *btConsumer) writeCursor(seq int64) {
+	c.mu.Lock()
+	if seq <= c.saved {
+		c.mu.Unlock()
+		return
+	}
+	c.mu.Unlock()
 	if c.cfg.cursor == "" {
 		return
 	}
 	tmp := c.cfg.cursor + ".tmp"
-	if err := os.WriteFile(tmp, []byte(strconv.FormatInt(seq, 10)+"\n"), 0o600); err != nil {
+	err := os.WriteFile(tmp, []byte(strconv.FormatInt(seq, 10)+"\n"), 0o600)
+	if err == nil {
+		err = os.Rename(tmp, c.cfg.cursor)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err != nil {
+		class := "io"
+		if errors.Is(err, os.ErrPermission) {
+			class = "permission"
+		}
+		if c.cursorErr != class {
+			c.logf("brain town reader: the cursor could not be saved: %s", class)
+		}
+		c.cursorErr = class
 		return
 	}
-	_ = os.Rename(tmp, c.cfg.cursor)
+	c.cursorErr = ""
+	c.saved = seq
 }
 
 func (c *btConsumer) skip(why string) {

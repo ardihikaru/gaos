@@ -200,11 +200,29 @@ func parseClients(r io.Reader, readToken func(path string) string, logf func(str
 			continue
 		}
 		skip := func(why string) { logf("api: clients file line %d: %s (skipped)", n, why) }
-		if len(f) != 5 {
-			skip("a line is name kind origin token-file products")
+		if len(f) != 5 && len(f) != 6 {
+			skip("a line is name kind origin token-file products [caps]")
 			continue
 		}
 		name, kind, origin, path, prods := f[0], f[1], f[2], f[3], f[4]
+		caps := map[string]bool{CapInbox: true}
+		if len(f) == 6 {
+			caps = map[string]bool{}
+			bad := ""
+			for _, c := range strings.Split(f[5], ",") {
+				if c = strings.TrimSpace(c); c == "" {
+					continue
+				} else if !validCaps[c] {
+					bad = c
+					break
+				}
+				caps[c] = true
+			}
+			if bad != "" || len(caps) == 0 {
+				skip("unknown capability " + bad)
+				continue
+			}
+		}
 		switch {
 		case !clientNamePattern.MatchString(name):
 			skip("the name is 2 to 32 of a-z 0-9 - and starts with a letter")
@@ -243,7 +261,7 @@ func parseClients(r io.Reader, readToken func(path string) string, logf func(str
 		}
 		seen[name] = true
 		out = append(out, &apiClient{Name: name, Kind: kind, Origin: origin, sum: sumOf(tok),
-			products: products, busy: new(atomic.Bool), scope: scopeClient})
+			products: products, busy: new(atomic.Bool), scope: scopeClient, caps: caps})
 	}
 	return out
 }

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>External tasks API — GAOS</title>
+<meta name="description" content="How an outside platform plans and follows GAOS work without signing in: a client with the tasks capability creates a PR review, unit tests, an e2e automation or an e2e run, polls it and cancels a run.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="external-tasks-api">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>External tasks API</h1>
+  <p class="lede">An outside platform can ask GAOS for work without signing in to the back office: a pull-request
+  review, unit tests for a merged pull request, an e2e automation, or an e2e run. GAOS plans the card on the
+  product's pull-request lane, starts the agent when the product allows it, and the platform polls the card until
+  it is done (<a href="../product/decision-log.html#d-099">D-099</a>). This page is also a
+  <a href="../downloads/gaos-external-tasks-api.md" download>markdown download</a>.</p>
+
+  <div class="page-meta"
+       data-tags="api, tasks, client, pull request, review, unit test, automation, tutorial"
+       data-hashtags="integrations, api, tutorial"
+       data-published="2026-11-27"
+       data-updated="2026-11-27"
+       data-version-from="0.61.0"
+       data-version-to=""></div>
+
+  <div class="adm note">
+    <p class="adm-title">Placeholders</p>
+    <p>The host is <code>gaos.example.org</code>, the product <code>p-2</code>, the repository
+    <code>acme/backend</code> and the client <code>plat-a</code>. The token is written
+    <code>$GAOS_TOKEN</code>; keep the real one in a file only your server can read.</p>
+  </div>
+
+  <h2 id="purpose">What it is for</h2>
+  <p>A platform that already knows about a pull request &mdash; a task manager, a CI job, a chat bot &mdash; can
+  hand the work to GAOS and follow it. Four kinds of work:</p>
+  <table class="tbl">
+    <thead><tr><th><code>kind</code></th><th>What GAOS does</th><th>Worked by</th></tr></thead>
+    <tbody>
+      <tr><td><code>pr-review</code></td><td>Reviews an open pull request and posts the review as a comment.</td><td>the PR reviewer agent</td></tr>
+      <tr><td><code>unit-test</code></td><td>Writes unit tests for a merged pull request.</td><td>the unit-test agent</td></tr>
+      <tr><td><code>automation-create</code></td><td>Asks the QA tool to write the e2e automation a pull request names.</td><td>the QA tool</td></tr>
+      <tr><td><code>automation-run</code></td><td>Asks the QA tool to run one automated case, or every one (<code>*</code>).</td><td>the QA tool</td></tr>
+    </tbody>
+  </table>
+  <p>A card for a pull request is the same card Brain Town's event would plan: same key, same title, same
+  labels. If it already exists, the API answers that card instead of planning a second one.</p>
+
+  <h2 id="client">Ask the operator for a client</h2>
+  <p>A client is a name, a token and a list of products, set up by the GAOS operator. Ask for a client with the
+  <code>tasks</code> capability on your products; the operator gives you the client name and the token. A client
+  with only <code>tasks</code> cannot use the inbox routes, and one with only <code>inbox</code> cannot use these.
+  Every call sends the token as a bearer:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>export GAOS=https://gaos.example.org/api/v1
+export GAOS_TOKEN="$(cat ~/.config/plat-a/gaos.token)"</pre>
+  </div>
+
+  <h2 id="create">Create a PR review</h2>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS -X POST "$GAOS/products/p-2/tasks" \
+  -H "Authorization: Bearer $GAOS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"kind":"pr-review","externalId":"plat-4711","pr":"acme/backend#42","review":"auto","dispatch":true}'</pre>
+  </div>
+  <p>The route is <code>POST /api/v1/products/{id}/tasks</code>. The body is read strictly (at most 16 KiB; an
+  unknown field is refused):</p>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><code>kind</code></td><td><code>pr-review</code>, <code>unit-test</code>, <code>automation-create</code> or <code>automation-run</code>.</td></tr>
+      <tr><td><code>externalId</code></td><td>Required: your own id for the request, 1 to 64 of letters, digits, <code>. _ -</code>, starting with a letter or digit. Sending it again returns the same card.</td></tr>
+      <tr><td><code>pr</code></td><td><code>owner/repo#n</code>. Required for <code>pr-review</code>, <code>unit-test</code> and <code>automation-create</code>; refused for <code>automation-run</code>. The repository must be one of the product's.</td></tr>
+      <tr><td><code>review</code></td><td><code>auto</code> (default) or <code>manual</code>; <code>pr-review</code> only. <code>manual</code> labels the card for a person, and it is never dispatched.</td></tr>
+      <tr><td><code>caseCode</code></td><td>Required for <code>automation-run</code>: <code>*</code> or a case code such as <code>TC-OUTREG-004</code>.</td></tr>
+      <tr><td><code>dispatch</code></td><td>Default <code>true</code>: start the agent. It matters for <code>pr-review</code> and <code>unit-test</code> only.</td></tr>
+    </tbody>
+  </table>
+  <p>The answer is <code>201</code> for a new card, or <code>200</code> with <code>"created":false</code> for a card
+  that already existed &mdash; one you asked for before, or one Brain Town planned for the same pull request.
+  Adopting an existing card changes nothing on it: not its label, not whether it starts.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre>{"taskId":"wf-pr-p-2-acme-backend-42-pr-reviewer","created":true,"status":"PENDING","column":"backlog",
+ "labels":["pr-review:auto"],"dispatch":"auto"}</pre>
+  </div>
+
+  <h2 id="poll">Poll it</h2>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre>curl -sS "$GAOS/products/p-2/tasks/wf-pr-p-2-acme-backend-42-pr-reviewer" -H "Authorization: Bearer $GAOS_TOKEN"
+curl -sS "$GAOS/products/p-2/tasks?externalId=plat-4711" -H "Authorization: Bearer $GAOS_TOKEN"</pre>
+  </div>
+  <p>The routes are <code>GET /api/v1/products/{id}/tasks/{taskId}</code> and
+  <code>GET /api/v1/products/{id}/tasks?externalId=</code>. Both answer the object above plus
+  <code>updatedAt</code> (unix seconds) and <code>reason</code>: <code>held</code> (a person must take over),
+  <code>blocked</code>, <code>failed</code>, or empty. You see only the cards you asked for; any other id is
+  <code>404</code>. A card moves on its own as the agent works: Backlog, Ready, Working, then Review or Done.</p>
+
+  <h2 id="kinds">The other kinds</h2>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre><span class="c"># unit tests for a merged pull request</span>
+curl -sS -X POST "$GAOS/products/p-2/tasks" -H "Authorization: Bearer $GAOS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"kind":"unit-test","externalId":"plat-4712","pr":"acme/backend#42"}'
+<span class="c"># the e2e automation a pull request names (its "QA-case:" line)</span>
+curl -sS -X POST "$GAOS/products/p-2/tasks" -H "Authorization: Bearer $GAOS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"kind":"automation-create","externalId":"plat-4713","pr":"acme/backend#42"}'
+<span class="c"># run one automated case</span>
+curl -sS -X POST "$GAOS/products/p-2/tasks" -H "Authorization: Bearer $GAOS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"kind":"automation-run","externalId":"plat-4714","caseCode":"TC-OUTREG-004"}'
+<span class="c"># cancel that run</span>
+curl -sS -X POST "$GAOS/products/p-2/tasks/wf-pr-p-2-qa-run-1/cancel" -H "Authorization: Bearer $GAOS_TOKEN"</pre>
+  </div>
+  <p>A <code>pr-review</code> needs an open pull request, a <code>unit-test</code> a merged one. Drafts, forks and
+  pull requests by people outside the repository are refused. Cancel,
+  <code>POST /api/v1/products/{id}/tasks/{taskId}/cancel</code>, works only on an <code>automation-run</code> card
+  you created; a card for a pull request belongs to the operator.</p>
+
+  <h2 id="dispatch">What <code>dispatch</code> answers</h2>
+  <table class="tbl">
+    <thead><tr><th>Card</th><th>Runner on</th><th>Runner manual, product listed for autorun</th><th>Runner manual, not listed</th></tr></thead>
+    <tbody>
+      <tr><td>agent kind, <code>dispatch</code> true</td><td><code>scheduler</code></td><td><code>auto</code></td><td><code>operator</code></td></tr>
+      <tr><td>agent kind, <code>dispatch</code> false</td><td><code>scheduler</code></td><td><code>operator</code></td><td><code>operator</code></td></tr>
+      <tr><td><code>review: manual</code></td><td><code>manual-review</code></td><td><code>manual-review</code></td><td><code>manual-review</code></td></tr>
+      <tr><td><code>automation-*</code></td><td><code>qa-tool</code></td><td><code>qa-tool</code></td><td><code>qa-tool</code></td></tr>
+    </tbody>
+  </table>
+  <p><code>scheduler</code>: GAOS's scheduler starts it. <code>auto</code>: GAOS starts it within about 15 seconds.
+  <code>operator</code>: it waits in Ready for a person. <code>qa-tool</code>: the QA tool runs it. With the runner off,
+  every request answers <code>409 runner-off</code>.</p>
+
+  <h2 id="errors">Errors</h2>
+  <p>Every error is <code>{"error":"&lt;code&gt;","reason":"&lt;sentence&gt;"}</code>.</p>
+  <table class="tbl">
+    <thead><tr><th>Status</th><th>Code</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>401</td><td><code>unauthorized</code></td><td>No bearer token, or an unknown one.</td></tr>
+      <tr><td>403</td><td><code>forbidden</code></td><td>The token has no <code>tasks</code> capability, or it is the admin token on a create or a cancel.</td></tr>
+      <tr><td>404</td><td><code>not-found</code></td><td>A product outside your list, or a card you did not ask for.</td></tr>
+      <tr><td>409</td><td><code>runner-off</code></td><td>GAOS runs nothing at the moment.</td></tr>
+      <tr><td>409</td><td><code>externalId-reused</code></td><td>The same <code>externalId</code> with a different body.</td></tr>
+      <tr><td>409</td><td><code>too-many-refs</code></td><td>Eight clients already follow this card.</td></tr>
+      <tr><td>409</td><td><code>skipped</code></td><td>A draft, a fork, a stranger's pull request, a review on one not open, or unit tests on one not merged.</td></tr>
+      <tr><td>409</td><td><code>cap</code></td><td>You already have the most open cards allowed.</td></tr>
+      <tr><td>409</td><td><code>daily-cap</code></td><td>You created the most cards allowed today (UTC).</td></tr>
+      <tr><td>409</td><td><code>run-in-flight</code></td><td>The product already has an e2e run open.</td></tr>
+      <tr><td>422</td><td><code>invalid-kind</code>, <code>invalid-field</code>, <code>repo-not-owned</code></td><td>The body breaks a rule above.</td></tr>
+      <tr><td>429</td><td><code>write-in-flight</code></td><td>Your previous write has not finished; retry after the <code>Retry-After</code> seconds.</td></tr>
+      <tr><td>503</td><td><code>api-disabled</code>, <code>github-off</code>, <code>qa-off</code></td><td>The API, GitHub or the QA tool is not configured on this GAOS.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="limits">Limits</h2>
+  <ul>
+    <li>One write at a time per client; a second answers <code>429</code>.</li>
+    <li>At most <code>GAOS_API_MAX_OPEN</code> (default 5) unfinished cards per client.</li>
+    <li>At most <code>GAOS_API_DAILY</code> (default 20) cards created per client per UTC day, cancelled ones included.</li>
+    <li>At most one open <code>automation-run</code> per product.</li>
+    <li>Under the manual runner, GAOS starts your cards itself only on products the operator lists in
+    <code>GAOS_API_AUTORUN_PRODUCTS</code>, and at most <code>GAOS_API_AUTORUN_DAILY</code> (default 20) a day.</li>
+  </ul>
+
+  <h2 id="troubleshooting">Troubleshooting</h2>
+  <ul>
+    <li><strong>401 with a token the operator gave you:</strong> the client line was skipped at boot. The operator
+    reads the boot log; a client holding both <code>inbox</code> and <code>tasks</code> on a product the QA tool
+    also reaches is skipped.</li>
+    <li><strong>403:</strong> the client has no <code>tasks</code> capability.</li>
+    <li><strong>The card stays in Ready:</strong> <code>dispatch</code> said <code>operator</code>. Ask the operator to
+    list the product for autorun, or to move the card.</li>
+    <li><strong><code>reason: held</code>:</strong> the review needs a person; GAOS will not finish it alone.</li>
+    <li><strong>A replay answers 200:</strong> that is the idempotency of <code>externalId</code>, not an error.</li>
+  </ul>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

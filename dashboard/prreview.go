@@ -192,6 +192,10 @@ func prPacketParts(cache *prContextCache, t TaskRecord) []PacketPart {
 
 // prKeyParts splits a card's key owner/repo#n:role.
 func prKeyParts(key string) (owner, repo string, n int, ok bool) {
+	// An automation run's and a bundle's keys are not pull requests (D-099, D-100).
+	if strings.HasPrefix(key, qaRunPrefix) || strings.HasPrefix(key, bundlePrefix) {
+		return "", "", 0, false
+	}
 	hash := strings.Index(key, "#")
 	colon := strings.LastIndex(key, ":")
 	if hash < 0 || colon < hash {
@@ -239,8 +243,10 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 	}
 	if screenBody(rv.Body) {
 		// Nothing is posted. A person takes over.
-		_, _ = p.st.SetTaskLabel(ctx, t.DeskID, t.ID, LabelPRReviewNeedsManual, "gaos")
-		p.notifyIf(ctx, t, "review", rv.Severity, "review held: the body carried a secret")
+		_, _ = p.st.HoldReview(ctx, t.DeskID, t.ID)
+		if p.notify != nil {
+			p.notify(ctx, t, KindReviewNeedsManual, "Review held: a person must take over") // D-101
+		}
 		return
 	}
 	if p.gh == nil {
@@ -254,11 +260,13 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 		return
 	}
 	if prSeverityRank(rv.Severity) >= prSeverityRank("high") {
-		// Posted, and a person must take over: the card stays in Review.
+		// Posted, and a person must take over: the card stays in Review. The kind stays
+		// review:<severity>, so a contact's severity opt-in still reaches it (D-101).
 		_, _ = p.st.SetTaskLabel(ctx, t.DeskID, t.ID, LabelPRReviewNeedsManual, "gaos")
-	} else {
-		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, "review posted")
+		p.notifyIf(ctx, t, "review", rv.Severity, "Review posted ("+rv.Severity+"): a person must take over")
+		return
 	}
+	_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, "review posted")
 	p.notifyIf(ctx, t, "review", rv.Severity, "review posted")
 }
 

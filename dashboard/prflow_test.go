@@ -239,8 +239,8 @@ func TestPRFlowSkipsAnEventNoProductOwns(t *testing.T) {
 	flow := &prFlow{st: st, logf: func(string, ...any) {}}
 	ev := prEvent(prTypeOpened, "laundry-api", 42)
 	ev.Org = "other-org"
-	if !flow.handle(context.Background(), ev) {
-		t.Error("the handler must keep the drain going")
+	if flow.handle(context.Background(), ev) != flowDone {
+		t.Error("an event no product owns must be acknowledged (flowDone), so the cursor passes it")
 	}
 	if n := len(prCards(t, st, "p-1")); n != 0 {
 		t.Errorf("an event no product owns planned %d cards", n)

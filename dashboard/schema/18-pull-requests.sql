@@ -22,5 +22,12 @@ CREATE PROPERTY PullRequest.qaCase    STRING;
 CREATE PROPERTY PullRequest.qaLink    STRING;
 CREATE PROPERTY PullRequest.openedAt  LONG;
 CREATE PROPERTY PullRequest.checkedAt LONG;
+-- D-100: the PR template's facts and the bundle a row belongs to (bundles.go).
+CREATE PROPERTY PullRequest.taskCode     STRING;
+CREATE PROPERTY PullRequest.links        STRING;
+CREATE PROPERTY PullRequest.bundleKey    STRING;
+CREATE PROPERTY PullRequest.bundledAt    LONG;
+CREATE PROPERTY PullRequest.alerted      STRING;
+CREATE PROPERTY PullRequest.templateSeen BOOLEAN;
 
 CREATE INDEX IF NOT EXISTS ON PullRequest (tenantId, id) UNIQUE;

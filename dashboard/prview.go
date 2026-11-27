@@ -63,6 +63,9 @@ type PRRow struct {
 	Href               string // opens the drawer
 	Open               bool
 	At                 int64 // when it was opened, for the sort
+	// D-100: the row's bundle and whether the missing-code alert was sent.
+	Bundle     string
+	NoTaskCode bool
 }
 
 // PRTaskLink is a task in the drawer.
@@ -290,7 +293,8 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin 
 			cls, lab := prChipState(pq.State)
 			row := PRRow{Key: "pr:" + pq.Key, Kind: pq.Kind, KindLabel: prKindLabels[pq.Kind], State: cls, StateLabel: lab,
 				Product: pr.Name, ProductID: pr.ID, Repo: pq.Repo, Number: pq.Number, URL: prGitHubURL(pq.Repo, pq.Number),
-				Title: afLine(pq.Title, 140), Head: pq.HeadRef, Base: pq.BaseRef, QACase: afLine(pq.QACase, 40), QAJob: afLine(pq.QAJob, 60)}
+				Title: afLine(pq.Title, 140), Head: pq.HeadRef, Base: pq.BaseRef, QACase: afLine(pq.QACase, 40), QAJob: afLine(pq.QAJob, 60),
+				Bundle: afLine(pq.BundleKey, 80), NoTaskCode: pq.Alerted == alertNoTaskCode}
 			if strings.HasPrefix(pq.QALink, "https://") {
 				row.QALink = pq.QALink
 			}
