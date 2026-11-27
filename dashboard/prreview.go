@@ -195,7 +195,8 @@ func prPacketParts(cache *prContextCache, t TaskRecord) []PacketPart {
 // prKeyParts splits a card's key owner/repo#n:role.
 func prKeyParts(key string) (owner, repo string, n int, ok bool) {
 	// An automation run's and a bundle's keys are not pull requests (D-099, D-100).
-	if strings.HasPrefix(key, qaRunPrefix) || strings.HasPrefix(key, bundlePrefix) {
+	if strings.HasPrefix(key, qaRunPrefix) || strings.HasPrefix(key, bundlePrefix) ||
+		strings.HasPrefix(key, stagingCreatePrefix) || strings.HasPrefix(key, qaMergedPrefix) {
 		return "", "", 0, false
 	}
 	hash := strings.Index(key, "#")

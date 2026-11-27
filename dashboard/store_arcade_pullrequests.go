@@ -16,6 +16,7 @@ func (s *ArcadeStore) writePullRequest(ctx context.Context, tx *ArcadeTx, p Pull
 		"openedAt": p.OpenedAt, "checkedAt": p.CheckedAt,
 		"taskCode": p.TaskCode, "links": refsJSON(p.Links), "bundleKey": p.BundleKey,
 		"bundledAt": p.BundledAt, "alerted": p.Alerted, "templateSeen": p.TemplateSeen,
+		"qaSha": p.QASha, "qaNote": p.QANote, "finalAt": p.FinalAt, // D-103, schema/20
 	})
 }
 
@@ -48,11 +49,14 @@ func (s *ArcadeStore) loadPullRequests(ctx context.Context) ([]PullRequest, erro
 		BundledAt int64  `json:"bundledAt"`
 		Alerted   string `json:"alerted"`
 		Seen      bool   `json:"templateSeen"`
+		QASha     string `json:"qaSha"`
+		QANote    string `json:"qaNote"`
+		FinalAt   int64  `json:"finalAt"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, productId, repo, number, kind, state, title, author, headRef, baseRef, taskId,
 		        qaJob, qaCase, qaLink, openedAt, checkedAt, taskCode, links, bundleKey, bundledAt,
-		        alerted, templateSeen
+		        alerted, templateSeen, qaSha, qaNote, finalAt
 		 FROM PullRequest WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err
@@ -63,7 +67,8 @@ func (s *ArcadeStore) loadPullRequests(ctx context.Context) ([]PullRequest, erro
 			Kind: r.Kind, State: r.State, Title: r.Title, Author: r.Author, HeadRef: r.HeadRef,
 			BaseRef: r.BaseRef, TaskID: r.TaskID, QAJob: r.QAJob, QACase: r.QACase, QALink: r.QALink,
 			OpenedAt: r.OpenedAt, CheckedAt: r.CheckedAt, TaskCode: r.TaskCode, BundleKey: r.BundleKey,
-			BundledAt: r.BundledAt, Alerted: r.Alerted, TemplateSeen: r.Seen})
+			BundledAt: r.BundledAt, Alerted: r.Alerted, TemplateSeen: r.Seen,
+			QASha: r.QASha, QANote: r.QANote, FinalAt: r.FinalAt})
 		if r.Links != "" {
 			_ = json.Unmarshal([]byte(r.Links), &out[len(out)-1].Links)
 		}

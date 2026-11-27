@@ -39,6 +39,26 @@ type qaJob struct {
 	// host GAOS_QA_ORIGIN names (qaLinkOK).
 	PRURL  string `json:"pr_url"`
 	JobURL string `json:"job_url"`
+	// PushedSHA and AutoMerge (D-103 §4.1): the commit the QA tool pushed after
+	// the approval, and whether it enabled GitHub auto-merge on the spec.
+	PushedSHA string `json:"pushed_sha"`
+	AutoMerge string `json:"auto_merge"`
+}
+
+// autoMergeOutcome maps the job's auto_merge to the words of a Done reason:
+// "enabled", "refused:<token>" or "off"/absent. Anything else is "off".
+func autoMergeOutcome(v string) string {
+	switch {
+	case v == "enabled":
+		return "it merges when its required check passes"
+	case strings.HasPrefix(v, "refused:"):
+		why := capRunes(stripBR53(strings.TrimPrefix(v, "refused:")), 80)
+		if why == "" || screenBody(why) {
+			return "a person merges it (auto-merge refused)"
+		}
+		return "a person merges it (auto-merge refused: " + why + ")"
+	}
+	return "a person merges it"
 }
 
 // waiting reports whether the job waits for a person: the QA tool holds an open
@@ -60,10 +80,20 @@ type qaStartAnswer struct {
 	JobID string `json:"job_id"`
 }
 
+// qaStartIn is one automation request (D-103 §2.3). Kind and AutoMerge are
+// sent only to a QA tool that lists the capability: omitted, the body is the
+// one a tool without them has always received.
+type qaStartIn struct {
+	Product   string `json:"product"`
+	CaseCode  string `json:"caseCode"`
+	Mode      string `json:"mode"`
+	Kind      string `json:"kind,omitempty"`
+	AutoMerge *bool  `json:"auto_merge,omitempty"`
+}
+
 // startAutomation asks the QA tool for a job.
-func (o *qaOutbound) startAutomation(ctx context.Context, productID, caseCode, mode string) (string, int, error) {
-	code, body, err := o.do(ctx, "POST", "/api/v1/gaos/automation", nil,
-		map[string]string{"product": productID, "caseCode": caseCode, "mode": mode})
+func (o *qaOutbound) startAutomation(ctx context.Context, in qaStartIn) (string, int, error) {
+	code, body, err := o.do(ctx, "POST", "/api/v1/gaos/automation", nil, in)
 	if err != nil {
 		return "", 0, err
 	}
@@ -111,8 +141,9 @@ func (o *qaOutbound) cancelJob(ctx context.Context, id string) error {
 // qaJobClient is the part of the outbound client the runner needs.
 type qaJobClient interface {
 	cancelJob(ctx context.Context, id string) error
-	startAutomation(ctx context.Context, productID, caseCode, mode string) (string, int, error)
+	startAutomation(ctx context.Context, in qaStartIn) (string, int, error)
 	jobStatus(ctx context.Context, id string) (qaJob, int, error)
+	capabilities(ctx context.Context) map[string]bool
 }
 
 type qaTracked struct {
@@ -131,6 +162,9 @@ type qaTracked struct {
 	// restart); recorded is set once the job's pull-request row was written (design §4.4).
 	caseCode string
 	recorded bool
+	// kindNotSent: the card has a repository kind the QA tool could not be told
+	// (D-103 §2.3); the final reason says so.
+	kindNotSent bool
 }
 
 type qaJobRunner struct {
@@ -147,6 +181,9 @@ type qaJobRunner struct {
 	approvalWait time.Duration
 	now          func() time.Time
 	jobs         map[string]*qaTracked
+	// autoMerge answers whether a product's spec may auto-merge (D-103 §4.1:
+	// its switch and its band); nil = never.
+	autoMerge func(ctx context.Context, productID string) bool
 	// linkOrigin is GAOS_QA_ORIGIN as set explicitly ("" when unset or not a host name): the one
 	// host a job's page may be linked on (qaLinkOK).
 	linkOrigin string
@@ -235,6 +272,10 @@ func (r *qaJobRunner) caseCodeFor(ctx context.Context, c TaskRecord, mode string
 	if strings.HasPrefix(c.DedupKey, qaRunPrefix) {
 		return qaRunCode(c.DedupKey)
 	}
+	// A staging create and a merged spec's run name their case in their key (D-103).
+	if code := r.keyedCase(c); code != "" {
+		return code
+	}
 	if mode == "run" {
 		return "*"
 	}
@@ -257,7 +298,42 @@ func (r *qaJobRunner) caseCodeFor(ctx context.Context, c TaskRecord, mode string
 // The card keeps its job id in its reason, as "qa-job:<id> <text>".
 const qaJobPrefix = "qa-job:"
 
-func qaJobReason(id, text string) string { return qaJobPrefix + id + " " + text }
+// qaJobReason writes "qa-job:<id> case:<code> <text>" (D-103 §3.2): every reason
+// carries the case, so a job adopted after a restart keeps it.
+func qaJobReason(id, caseCode, text string) string {
+	if caseCode != "" {
+		return qaJobPrefix + id + " " + qaCasePrefix + caseCode + " " + text
+	}
+	return qaJobPrefix + id + " " + text
+}
+
+const qaCasePrefix = "case:"
+
+// caseFromReason reads the case a card's reason carries, or "".
+func caseFromReason(reason string) string {
+	if !strings.HasPrefix(reason, qaJobPrefix) {
+		return ""
+	}
+	f := strings.Fields(strings.TrimPrefix(reason, qaJobPrefix))
+	if len(f) < 2 || !strings.HasPrefix(f[1], qaCasePrefix) {
+		return ""
+	}
+	code := strings.TrimPrefix(f[1], qaCasePrefix)
+	if !validCursor(code) {
+		return ""
+	}
+	return code
+}
+
+// repoKindOf is the card's e2e-kind label value, or "".
+func repoKindOf(labels []string) string {
+	for _, l := range labels {
+		if strings.HasPrefix(l, labelFamilyE2EKind+":") {
+			return strings.TrimPrefix(l, labelFamilyE2EKind+":")
+		}
+	}
+	return ""
+}
 
 // jobIDFromReason reads the job id a card's reason carries, or "".
 func jobIDFromReason(reason string) string {
@@ -277,7 +353,11 @@ func (r *qaJobRunner) start(ctx context.Context, product string, c TaskRecord, m
 	// an operator released a requeued card) is picked up, never started again:
 	// a second `create` job could open a second pull request.
 	if id := jobIDFromReason(c.BlockReason); id != "" {
-		r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now(), waiting: c.Status == StatusAwaitingInput}
+		code := caseFromReason(c.BlockReason)
+		if code == "" {
+			code = r.keyedCase(c) // a staging create's key names its case (D-103 §3.2)
+		}
+		r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now(), waiting: c.Status == StatusAwaitingInput, caseCode: code}
 		return
 	}
 	code := r.caseCodeFor(ctx, c, mode)
@@ -287,7 +367,21 @@ func (r *qaJobRunner) start(ctx context.Context, product string, c TaskRecord, m
 			"no QA-case line in the pull request description; add `QA-case: <code>` there and move the card to Ready")
 		return
 	}
-	id, status, err := r.qa.startAutomation(ctx, product, code, mode)
+	in := qaStartIn{Product: product, CaseCode: code, Mode: mode}
+	caps := r.qa.capabilities(ctx)
+	kindNotSent := false
+	if k := repoKindOf(c.Labels); k != "" {
+		if caps["kind"] {
+			in.Kind = k
+		} else {
+			kindNotSent = true
+		}
+	}
+	if caps["auto-merge"] && mode == "create" && r.autoMerge != nil {
+		v := r.autoMerge(ctx, product)
+		in.AutoMerge = &v
+	}
+	id, status, err := r.qa.startAutomation(ctx, in)
 	switch {
 	case status == 404:
 		r.fail(ctx, card, "qa-routes-missing")
@@ -296,10 +390,10 @@ func (r *qaJobRunner) start(ctx context.Context, product string, c TaskRecord, m
 		r.fail(ctx, card, "qa-start-failed")
 		return
 	}
-	if _, err := r.st.ResolvePRCard(ctx, product, c.ID, StatusRunning, qaJobReason(id, "started")); err != nil {
+	if _, err := r.st.ResolvePRCard(ctx, product, c.ID, StatusRunning, qaJobReason(id, code, "started")); err != nil {
 		r.logf("qajobs: the card could not be marked running")
 	}
-	r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now(), caseCode: code}
+	r.jobs[c.ID] = &qaTracked{jobID: id, card: card, lastPoll: r.now(), caseCode: code, kindNotSent: kindNotSent}
 }
 
 // qaMaxWaits bounds how many times one job may enter the approval wait: a QA
@@ -332,8 +426,8 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 			if done, ok := j.final(); done {
 				delete(r.jobs, id)
 				if ok {
-					_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusRunning, qaJobReason(t.jobID, "finished")) // a no-op unless it waited
-					_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusDone, "qa job succeeded")
+					_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusRunning, qaJobReason(t.jobID, t.caseCode, "finished")) // a no-op unless it waited
+					_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusDone, r.doneReason(t, j))
 				} else {
 					r.fail(ctx, t.card, "qa-job-failed")
 				}
@@ -351,7 +445,7 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 				// A person must approve the spec: Needs you, the clock stops.
 				t.waiting = true
 				_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusAwaitingInput,
-					qaJobReason(t.jobID, "the QA tool waits for you to approve the spec (open the QA Inbox)"))
+					qaJobReason(t.jobID, t.caseCode, "the QA tool waits for you to approve the spec (open the QA Inbox)"))
 				if !t.noticed && r.nt != nil {
 					t.noticed = true
 					r.nt.Notify(ctx, t.card, "e2e:approval", "e2e spec waits for approval")
@@ -359,7 +453,7 @@ func (r *qaJobRunner) poll(ctx context.Context) {
 			case !j.waiting() && t.waiting:
 				// Answered: the job works again, and so does the clock.
 				t.waiting = false
-				_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusRunning, qaJobReason(t.jobID, "resumed after approval"))
+				_, _ = r.st.ResolvePRCard(ctx, t.card.DeskID, t.card.ID, StatusRunning, qaJobReason(t.jobID, t.caseCode, "resumed after approval"))
 			}
 		}
 		if t.waited > r.approvalWait {
@@ -413,6 +507,14 @@ func (r *qaJobRunner) recordQARow(ctx context.Context, t *qaTracked, j qaJob) {
 	if t.recorded || j.PRURL == "" {
 		return
 	}
+	// The approved commit is recorded with the row (D-103 §4.2): a tool that reports
+	// auto-merge is waited for until it also reports pushed_sha, or the job ends.
+	sha := ""
+	if shaRe.MatchString(j.PushedSHA) {
+		sha = strings.ToLower(j.PushedSHA)
+	}
+	done, _ := j.final()
+	waitSHA := sha == "" && !done && r.qa.capabilities(ctx)["auto-merge"]
 	owner, repo, n, ok := parseGitHubPRURL(j.PRURL)
 	if !ok || t.caseCode == "*" {
 		t.recorded = true
@@ -420,12 +522,47 @@ func (r *qaJobRunner) recordQARow(ctx context.Context, t *qaTracked, j qaJob) {
 	}
 	row := PullRequest{ProductID: t.card.DeskID, Repo: owner + "/" + repo, Number: n, Kind: PRKindQA,
 		State: PRStateOpen, TaskID: t.card.ID, QAJob: t.jobID, QACase: t.caseCode,
-		QALink: qaLinkOK(r.linkOrigin, j.JobURL)}
+		QALink: qaLinkOK(r.linkOrigin, j.JobURL), QASha: sha}
 	if _, err := r.st.UpsertPullRequest(ctx, row); err != nil && !errors.Is(err, ErrRejected) {
 		r.logf("qajobs: the pull request of a job could not be recorded")
 		return // a store failure is retried on the next poll
 	}
-	t.recorded = true // recorded, or refused for good (a repository the product does not list)
+	if !waitSHA {
+		t.recorded = true // recorded, or refused for good (a repository the product does not list)
+	}
+}
+
+// keyedCase is the case a card's key names: a staging create's or a merged
+// spec's run (D-103 §3.2, §4.2); "" otherwise.
+func (r *qaJobRunner) keyedCase(c TaskRecord) string {
+	switch {
+	case strings.HasPrefix(c.DedupKey, stagingCreatePrefix):
+		return stagingCreateCase(c.DedupKey)
+	case strings.HasPrefix(c.DedupKey, qaMergedPrefix):
+		return qaMergedCase(c.DedupKey)
+	}
+	return ""
+}
+
+// doneReason is a succeeded job's final reason (D-103 §3.2): a create that
+// opened its spec pull request says so, with a link GAOS rebuilt and how it
+// merges; a kind the QA tool could not be told is said last.
+func (r *qaJobRunner) doneReason(t *qaTracked, j qaJob) string {
+	reason := "qa job succeeded"
+	if mode, _ := isE2ECard(t.card.Labels); mode == "create" && j.PRURL != "" {
+		if owner, repo, n, ok := parseGitHubPRURL(j.PRURL); ok {
+			reason = fmt.Sprintf("spec PR open (https://github.com/%s/%s/pull/%d); %s", owner, repo, n, autoMergeOutcome(j.AutoMerge))
+		} else {
+			reason = "spec PR open; " + autoMergeOutcome(j.AutoMerge)
+		}
+		if t.caseCode != "" {
+			reason = qaCasePrefix + t.caseCode + " " + reason
+		}
+	}
+	if t.kindNotSent {
+		reason += " (kind not sent)"
+	}
+	return reason
 }
 
 // explicitQAOrigin is GAOS_QA_ORIGIN when it is set and a host name, else "". Unlike qaOrigin it

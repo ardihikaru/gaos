@@ -182,7 +182,9 @@ func (s *MemStore) openPRCardsLocked(productID string) int {
 		// Defect cards have their own caps (D-091 §5.3); so do the API's cards and the
 		// bundles' test planners (D-099, D-100): neither may make Brain Town skip.
 		if t.DeskID != productID || t.DedupKey == "" || strings.HasPrefix(t.DedupKey, "defect:") ||
-			t.APIOwner != "" || strings.HasPrefix(t.DedupKey, bundlePrefix) {
+			t.APIOwner != "" || strings.HasPrefix(t.DedupKey, bundlePrefix) ||
+			// Creates have their own cap and merged-spec runs none (D-103 §3.1, §4.2).
+			strings.HasPrefix(t.DedupKey, stagingCreatePrefix) || strings.HasPrefix(t.DedupKey, qaMergedPrefix) {
 			continue
 		}
 		switch t.Status {
@@ -206,7 +208,12 @@ const RulePRMerged = "pr-merged"
 func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, ev PREvent) (planned []string, existing []string, res Result, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.planPullRequestCardsLocked(productID, ev)
+}
 
+// planPullRequestCardsLocked is PlanPullRequestCards under the caller's lock (the
+// staging planner calls it inside its own, D-103 §3.1).
+func (s *MemStore) planPullRequestCardsLocked(productID string, ev PREvent) (planned []string, existing []string, res Result, err error) {
 	m := s.masterPtr(productID)
 	if m == nil {
 		return nil, nil, Result{}, ErrNotFound
@@ -215,7 +222,7 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 	if idx < 0 {
 		return nil, nil, Result{}, fmt.Errorf("no such product")
 	}
-	specs := prCardsFor(ev)
+	specs := withRepoKind(*m, ev, prCardsFor(ev))
 	if len(specs) == 0 {
 		return nil, nil, Result{}, nil
 	}
@@ -295,7 +302,7 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 		// The moves above are already applied to the projection: commit them,
 		// or they would live in memory only (design §3.1). Nothing is planned.
 		c := m.Clone()
-		return nil, existing, Result{Master: &c, NewEvents: events, PullRequests: rows, Capped: true,
+		return nil, existing, Result{Master: &c, NewEvents: events, PullRequests: rows, Capped: true, Floor: s.floor(),
 			Toast: "the cap refused the new card(s); the moot moves were kept"}, nil
 	}
 
@@ -324,8 +331,10 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 		rows = s.reviewRowLocked(m, ev)
 	}
 	c := m.Clone()
+	// Floor: ArcadeDB writes Task rows only for the desks a Result lists; without it the
+	// cards planned here reached the database on the next mutation that carried one.
 	res = Result{Master: &c, NewEvents: events, PullRequests: rows, Skipped: skipped, Defects: closed,
-		Toast: fmt.Sprintf("%d task(s) planned from %s on %s.", len(planned), ev.Type, ev.Repo)}
+		Floor: s.floor(), Toast: fmt.Sprintf("%d task(s) planned from %s on %s.", len(planned), ev.Type, ev.Repo)}
 	return planned, existing, res, nil
 }
 
@@ -542,6 +551,9 @@ func (s *MemStore) setTaskLabelLocked(productID, taskID, label, actor string) (R
 	}
 	if labelFamily(label) == labelFamilySource {
 		return Result{}, reject("The source labels are set by the planner only.")
+	}
+	if labelFamily(label) == labelFamilyE2EKind {
+		return Result{}, reject("The repository-kind labels are set by the planner only.")
 	}
 	var t *TaskRecord
 	for i := range s.tasks {

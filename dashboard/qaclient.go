@@ -53,6 +53,45 @@ type qaOutbound struct {
 	mu        sync.Mutex
 	running   bool
 	lastStart time.Time
+
+	// The QA tool's capabilities (D-103 §2.3): read when a job starts, cached
+	// qaCapsTTL; an error keeps the last known set; a 404 is the empty set.
+	capsMu sync.Mutex
+	caps   map[string]bool
+	capsAt time.Time
+}
+
+const qaCapsTTL = 10 * time.Minute
+
+// capabilities answers what the QA tool says it supports.
+func (o *qaOutbound) capabilities(ctx context.Context) map[string]bool {
+	o.capsMu.Lock()
+	defer o.capsMu.Unlock()
+	if o.caps != nil && time.Since(o.capsAt) < qaCapsTTL {
+		return o.caps
+	}
+	code, body, err := o.do(ctx, "GET", "/api/v1/gaos/capabilities", nil, nil)
+	switch {
+	case err == nil && code == 404:
+		o.caps, o.capsAt = map[string]bool{}, time.Now()
+	case err == nil && code == 200:
+		var a struct {
+			Capabilities []string `json:"capabilities"`
+		}
+		if json.Unmarshal(body, &a) == nil {
+			set := map[string]bool{}
+			for _, c := range a.Capabilities {
+				if len(c) <= 32 {
+					set[c] = true
+				}
+			}
+			o.caps, o.capsAt = set, time.Now()
+		}
+	}
+	if o.caps == nil {
+		return map[string]bool{} // never read: nothing is assumed
+	}
+	return o.caps // an error keeps the last known set
 }
 
 // validQaURL accepts https, or http with an IP-literal host in loopback or the

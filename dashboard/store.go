@@ -199,6 +199,10 @@ type Store interface {
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// SetAssigned saves (set) or resets the agents assigned to a product (D-102, assign.go).
 	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
+	// SetRepoKinds replaces a product's repository kinds and sets its two Release B switches (D-103).
+	SetRepoKinds(ctx context.Context, productID string, kinds map[string]string, staging, autoMerge bool, actor string) (Result, error)
+	// PlanStagingCards is the staging callback's planner (D-103 §3.1).
+	PlanStagingCards(ctx context.Context, productID string, ev PREvent) (planned, existing []string, creates int, res Result, err error)
 	// Review defects (D-102, reviewdefect.go).
 	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
 	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
@@ -510,4 +514,10 @@ func (readOnly) SetAutoFix(context.Context, string, AutoFix, string, string) (Re
 }
 func (readOnly) SetAssigned(context.Context, string, []string, bool, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetRepoKinds(context.Context, string, map[string]string, bool, bool, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) PlanStagingCards(context.Context, string, PREvent) ([]string, []string, int, Result, error) {
+	return nil, nil, 0, Result{}, reject(replayRefusal)
 }

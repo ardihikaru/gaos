@@ -422,6 +422,13 @@ type Master struct {
 	// pull-request flows run as before assignment existed (assign.go).
 	Assigned    []string
 	AssignedSet bool
+
+	// Release B (D-103): the kind of each repository (lower-cased owner/repo →
+	// be|fullstack; absent = no kind), whether a staging deploy may plan creates,
+	// and whether the QA tool may auto-merge the product's approved specs.
+	RepoKinds      map[string]string
+	StagingCreates bool
+	AutoMergeSpecs bool
 }
 
 // AutoFix is a product's defect auto-fix configuration (design §6.1). The zero
@@ -537,6 +544,12 @@ func (m Master) Clone() Master {
 	c.Qa = m.Qa.Clone()
 	c.AutoFix = m.AutoFix.Clone()
 	c.Assigned = append([]string(nil), m.Assigned...)
+	if m.RepoKinds != nil {
+		c.RepoKinds = make(map[string]string, len(m.RepoKinds))
+		for k, v := range m.RepoKinds {
+			c.RepoKinds[k] = v
+		}
+	}
 	return c
 }
 

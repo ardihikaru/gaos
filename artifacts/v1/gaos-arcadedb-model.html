@@ -1666,6 +1666,12 @@ CREATE INDEX IF NOT EXISTS ON PullRequest (tenantId, id) UNIQUE;
 ALTER PROPERTY Defect.kind REGEXP 'xfail|fail|xpass|review';
 CREATE PROPERTY Defect.reviewBranch STRING;
 CREATE PROPERTY Defect.reviewHead   STRING;
+
+-- 20 - Release B (D-103): a QA spec pull request's approved commit, why its case was not run
+-- after the merge, and when the row became final (epoch seconds).
+CREATE PROPERTY PullRequest.qaSha   STRING;
+CREATE PROPERTY PullRequest.qaNote  STRING;
+CREATE PROPERTY PullRequest.finalAt LONG;
 </pre>
   </div>
 </section>

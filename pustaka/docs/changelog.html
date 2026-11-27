@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-65-0">v0.65.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Repository kinds for e2e, missing automation created on a staging deploy, and an approved spec that merges by itself and then runs (<a href="product/decision-log.html#d-103">D-103</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Repository kinds.</strong> On the Agents page an admin marks each product repository backend only or frontend and backend. A staging run of a repository with a kind carries an <code>e2e-kind:*</code> label and tells the QA tool which cases to run, once the tool lists the capability; a repository with no kind behaves as before.</li>
+        <li><span class="chg add">Added</span> <strong>Creates on staging.</strong> With the product&rsquo;s switch on, a staging deploy also plans create cards for planned, unimplemented cases of the repository&rsquo;s kind: two per deploy, four open, never twice for a case, a failure retried after a week. The callback&rsquo;s answer carries <code>creates</code>.</li>
+        <li><span class="chg add">Added</span> <strong>Merge, then run.</strong> GAOS never merges. With the product&rsquo;s auto-merge switch on, in the Working or Complete band, the QA tool may auto-merge a spec a person approved, pinned to that commit; it asks <code>GET /api/v1/products/{id}/spec-auto-merge</code> first. When the spec merges at the approved commit and the catalog shows the case implemented, GAOS runs that case once; another head is noted on the row and not run.</li>
+        <li><span class="chg fix">Fixed</span> Cards planned from a pull request or a staging deploy are written to ArcadeDB at once; before, they reached the database with the next change that wrote the floor, and a restart in between lost them.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-64-0">v0.64.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Agents are assigned to products, the reviewer&rsquo;s severity is on the board, and a low finding can be fixed by an agent (<a href="product/decision-log.html#d-102">D-102</a>).</p>
       <ul>
