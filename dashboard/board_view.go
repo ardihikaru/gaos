@@ -211,6 +211,7 @@ func (s *server) buildBoardView(r *http.Request, productID, slug string) (*Board
 	if err != nil {
 		return nil, err
 	}
+	trimUnitMoves(r, page.Columns)
 	n, _ := s.store.EventCount(r.Context(), productID)
 	bv := boardView(page, slug, n)
 	bv.Sisflow = boardParamsOf(r).get("surface") == "sisflow"
@@ -312,6 +313,7 @@ func (s *server) handleBoardPaged(w http.ResponseWriter, r *http.Request, id str
 		writeBoardJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+	trimUnitMoves(r, p.Columns)
 	doc := pagedBoard{ProductID: id, Columns: boardColumns, Rows: []BoardRow{}, Cards: []BoardCard{},
 		Workflows: []WorkflowTiming{}, Counts: map[string]int{}, Matched: p.Matched, All: p.All}
 	for _, c := range p.Columns {
@@ -339,4 +341,20 @@ func (s *server) runnerState() string {
 	default:
 		return m
 	}
+}
+
+// trimUnitMoves removes the unit-defect moves a viewer who is not an auto-fix admin
+// would be refused (D-105 §7.3). The admin list is a file read, so it runs here,
+// never under the store lock.
+func trimUnitMoves(r *http.Request, cols []BoardPageColumn) {
+	admin := requestAdmin(r)
+	for i := range cols {
+		trimUnitCards(admin, cols[i].Cards)
+	}
+}
+
+// requestAdmin reports whether the request's session is an auto-fix admin.
+func requestAdmin(r *http.Request) bool {
+	ss, ok := sessionOf(r)
+	return ok && ss.Email != "" && autoFixAdmin(ss.Email)
 }

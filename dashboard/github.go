@@ -56,7 +56,11 @@ type ghPR struct {
 	// ChangedFiles is GitHub's count of the files the pull request changes: a
 	// review fix compares it with the listing, so a truncated list is refused.
 	ChangedFiles int `json:"changed_files"`
-	Head         struct {
+	// MergeCommitSHA and MergedAt name a merged pull request's merge commit and
+	// when it merged (D-105 §3): the unit check is read on that commit.
+	MergeCommitSHA string     `json:"merge_commit_sha"`
+	MergedAt       *time.Time `json:"merged_at"`
+	Head           struct {
 		Ref  string `json:"ref"`
 		SHA  string `json:"sha"`
 		Repo struct {
@@ -480,4 +484,128 @@ func renderDiff(files []ghFile) string {
 		}
 	}
 	return sb.String()
+}
+
+// ---------------------------------------------------------------- unit checks (D-105 §5)
+
+// ghWorkflowRun is one GitHub Actions workflow run, as a unit check reads it.
+type ghWorkflowRun struct {
+	ID           int64  `json:"id"`
+	Path         string `json:"path"`
+	Event        string `json:"event"`
+	HeadBranch   string `json:"head_branch"`
+	HeadSHA      string `json:"head_sha"`
+	RunAttempt   int    `json:"run_attempt"`
+	CheckSuiteID int64  `json:"check_suite_id"`
+	Status       string `json:"status"`
+	Conclusion   string `json:"conclusion"`
+}
+
+// ghCheckRun is one check run of a commit.
+type ghCheckRun struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
+	App        struct {
+		Slug string `json:"slug"`
+	} `json:"app"`
+	CheckSuite struct {
+		ID int64 `json:"id"`
+	} `json:"check_suite"`
+	Output struct {
+		Title   string `json:"title"`
+		Summary string `json:"summary"`
+	} `json:"output"`
+}
+
+// ghAnnotation is one annotation of a check run.
+type ghAnnotation struct {
+	Path            string `json:"path"`
+	AnnotationLevel string `json:"annotation_level"`
+	Title           string `json:"title"`
+	Message         string `json:"message"`
+}
+
+// workflowRuns reads the push runs of a commit: one page of 20.
+func (c *ghClient) workflowRuns(ctx context.Context, owner, repo, sha string) ([]ghWorkflowRun, error) {
+	var out struct {
+		Runs []ghWorkflowRun `json:"workflow_runs"`
+	}
+	u := fmt.Sprintf("%s/repos/%s/%s/actions/runs?head_sha=%s&event=push&per_page=20", c.base, url.PathEscape(owner),
+		url.PathEscape(repo), url.QueryEscape(sha))
+	if err := c.get(ctx, u, &out); err != nil {
+		return nil, err
+	}
+	return out.Runs, nil
+}
+
+// unitCheckPages bounds the check-run listing of one commit.
+const unitCheckPages = 3
+
+// checkRuns reads the latest check runs of a commit that carry one name: at most
+// three pages of 100. Commit statuses are never read.
+func (c *ghClient) checkRuns(ctx context.Context, owner, repo, sha, name string) ([]ghCheckRun, error) {
+	var all []ghCheckRun
+	for page := 1; page <= unitCheckPages; page++ {
+		var out struct {
+			Runs []ghCheckRun `json:"check_runs"`
+		}
+		u := fmt.Sprintf("%s/repos/%s/%s/commits/%s/check-runs?check_name=%s&filter=latest&per_page=100&page=%d", c.base,
+			url.PathEscape(owner), url.PathEscape(repo), url.PathEscape(sha), url.QueryEscape(name), page)
+		if err := c.get(ctx, u, &out); err != nil {
+			return nil, err
+		}
+		all = append(all, out.Runs...)
+		if len(out.Runs) < 100 {
+			break
+		}
+	}
+	return all, nil
+}
+
+// checkAnnotations reads one page of 50 annotations of a check run.
+func (c *ghClient) checkAnnotations(ctx context.Context, owner, repo string, id int64) ([]ghAnnotation, error) {
+	var out []ghAnnotation
+	u := fmt.Sprintf("%s/repos/%s/%s/check-runs/%d/annotations?per_page=50", c.base, url.PathEscape(owner), url.PathEscape(repo), id)
+	if err := c.get(ctx, u, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// unitDirMax bounds the files one directory listing gives a unit defect's context.
+const unitDirMax = 20
+
+// dirAt lists a directory at a commit: one page, files only, the non-test .go
+// files, at most 20. A directory that is not there is empty.
+func (c *ghClient) dirAt(ctx context.Context, owner, repo, dir, sha string) ([]string, error) {
+	p := ""
+	if dir != "" && dir != "." {
+		p = "/" + escPath(dir)
+	}
+	u := fmt.Sprintf("%s/repos/%s/%s/contents%s?ref=%s", c.base, url.PathEscape(owner), url.PathEscape(repo), p, url.QueryEscape(sha))
+	var entries []struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	if err := c.get(ctx, u, &entries); err != nil {
+		var ge *ghError
+		if errors.As(err, &ge) && ge.Status == 404 {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		if e.Type != "file" || !strings.HasSuffix(e.Name, ".go") || strings.HasSuffix(e.Name, "_test.go") {
+			continue
+		}
+		out = append(out, e.Path)
+		if len(out) >= unitDirMax {
+			break
+		}
+	}
+	return out, nil
 }

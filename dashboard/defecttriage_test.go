@@ -255,6 +255,10 @@ func (p *lockProbe) searchCode(context.Context, string, string, string) ([]ghCod
 	p.probe()
 	return []ghCodeHit{{Path: "pkg/a.go"}}, nil
 }
+func (p *lockProbe) dirAt(context.Context, string, string, string, string) ([]string, error) {
+	p.probe()
+	return nil, nil
+}
 func (p *lockProbe) fileAt(context.Context, string, string, string, string) (ghBlob, bool, error) {
 	p.probe()
 	return ghBlob{Path: "pkg/a.go", SHA: "b1", Text: "package pkg\n"}, true, nil

@@ -1720,6 +1720,8 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .kinds-sum{font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){ .kind-actions .btn{transition:none} .kind-actions .btn:active{transform:none} }
 .kind-saved{color:var(--done)}
+/* D-105: a repository whose last three merges had no unit-test run; a full-width line in its row */
+.kind-row .kind-warn{grid-column:1/-1;margin:-8px 0 0;color:var(--block)}
 /* D-102: the reviewer's severity. The level is always written as text; the
    colour only repeats it. none has no chip on the kanban. */
 /* the client board renders the chip outside .card-labels: give it the chip box too */

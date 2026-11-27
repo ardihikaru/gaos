@@ -458,10 +458,10 @@ func TestDefectCardsAreReadiedAndNeverScheduled(t *testing.T) {
 func TestDefectCloseRouteStoreMethod(t *testing.T) {
 	s, pid := defectFixture(t)
 	report(t, s, pid, defItem(DefectKindXfail, "DEF-101", defCase1))
-	if _, err := s.CloseDefect(context.Background(), "p-2", "DEF-101", "x@example.test"); err == nil {
+	if _, err := s.CloseDefect(context.Background(), "p-2", "DEF-101", "x@example.test", true); err == nil {
 		t.Error("a record of another product must be not found")
 	}
-	res, err := s.CloseDefect(context.Background(), pid, "DEF-101", "Ops.Person@example.test")
+	res, err := s.CloseDefect(context.Background(), pid, "DEF-101", "Ops.Person@example.test", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,7 +476,7 @@ func TestDefectCloseRouteStoreMethod(t *testing.T) {
 	}
 	// By case id too.
 	report(t, s, pid, defItem(DefectKindFail, "", defCase2))
-	if _, err := s.CloseDefect(context.Background(), pid, defCase2, "ops"); err != nil {
+	if _, err := s.CloseDefect(context.Background(), pid, defCase2, "ops", true); err != nil {
 		t.Errorf("close by case id: %v", err)
 	}
 }

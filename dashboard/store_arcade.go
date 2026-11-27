@@ -538,8 +538,8 @@ func (s *ArcadeStore) SetDefectContext(ctx context.Context, productID, key strin
 func (s *ArcadeStore) ResolveTriage(ctx context.Context, productID, taskID string, v TriageVerdict) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.ResolveTriage(ctx, productID, taskID, v) })
 }
-func (s *ArcadeStore) CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseDefect(ctx, productID, ref, actor) })
+func (s *ArcadeStore) CloseDefect(ctx context.Context, productID, ref, actor string, admin bool) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseDefect(ctx, productID, ref, actor, admin) })
 }
 func (s *ArcadeStore) FixPRs(ctx context.Context, productID string) ([]FixPR, error) {
 	return s.proj.FixPRs(ctx, productID)
@@ -735,6 +735,16 @@ func (s *ArcadeStore) persist(ctx context.Context, r Result) error {
 	}
 	for _, k := range r.PullRequestDeletes {
 		if err := s.deletePullRequest(ctx, tx, k); err != nil {
+			return err
+		}
+	}
+	for _, w := range r.UnitWatches {
+		if err := s.writeUnitWatch(ctx, tx, w); err != nil {
+			return err
+		}
+	}
+	for _, k := range r.UnitWatchDeletes {
+		if err := s.deleteUnitWatch(ctx, tx, k); err != nil {
 			return err
 		}
 	}
@@ -964,6 +974,12 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	props["repoKinds"] = kinds
 	props["stagingCreates"] = m.StagingCreates
 	props["autoMergeSpecs"] = m.AutoMergeSpecs
+	// D-105: the unit-check setting, a schema-less document property like autoFix.
+	unitChecks, err := jsonMap(m.UnitChecks)
+	if err != nil {
+		return err
+	}
+	props["unitChecks"] = unitChecks
 	if m.Stage != "" {
 		props["stage"] = m.Stage
 	}
@@ -1636,6 +1652,7 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		RepoKinds map[string]string `json:"repoKinds"`
 		StagingC  *bool             `json:"stagingCreates"`
 		AutoMerge *bool             `json:"autoMergeSpecs"`
+		UnitCheck json.RawMessage   `json:"unitChecks"`
 	}
 	if err := s.arc.Query(ctx, arcadeProductSelect(), map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
@@ -1702,6 +1719,9 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		mr.StagingCreates = r.StagingC != nil && *r.StagingC
 		mr.AutoMergeSpecs = r.AutoMerge != nil && *r.AutoMerge
+		if err := decodeInto(r.UnitCheck, &mr.UnitChecks); err != nil {
+			return false, err
+		}
 		m.masters = append(m.masters, mr)
 	}
 
@@ -2160,6 +2180,11 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	m.restorePullRequests(prs)
+	watches, err := s.loadUnitWatches(ctx)
+	if err != nil {
+		return false, err
+	}
+	m.restoreUnitWatches(watches)
 	s.proj = m
 	return true, nil
 }
@@ -2331,6 +2356,6 @@ func decodeInto(raw json.RawMessage, out any) error {
 func arcadeProductSelect() string {
 	return `SELECT id, name, repo, goal, slug, code, owner, priority, stage, repos,
 		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix,
-		        assignedAgents, assignedSet, thirdParty, repoKinds, stagingCreates, autoMergeSpecs
+		        assignedAgents, assignedSet, thirdParty, repoKinds, stagingCreates, autoMergeSpecs, unitChecks
 		 FROM Product WHERE tenantId = :t ORDER BY id`
 }

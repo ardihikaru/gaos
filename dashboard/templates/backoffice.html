@@ -1247,8 +1247,43 @@
   {{template "af-live" .}}
   {{with .Drawer}}{{template "af-drawer" .}}{{end}}
 </div>
+{{range .Units}}{{template "af-unit" .}}{{end}}
 {{end}}
 </section>
+{{end}}
+
+{{/* D-105 §4.1: the unit checks of one product, outside the 30 s poll so a form
+     being filled is never replaced. The kinds panel's pattern: one plain line per
+     switch, a "Saved" line beside the button, no motion. */}}
+{{define "af-unit"}}
+<details class="board-help"{{if .Open}} open{{end}}>
+  <summary>Unit tests (CI) for {{.Name}} <a class="info-btn info-link" href="../docs/integrations/agents.html#release-b-unit" target="_blank" rel="noopener" aria-label="Unit tests (CI): open the docs" title="Unit tests (CI): open the docs">i</a>
+    <span class="kinds-sum">{{if .Enabled}}on{{else}}off{{end}} · {{.WorkflowPath}} · check {{.Check}} · cap {{.Cap}} a day</span></summary>
+  <form hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML" class="agent-editor" data-kinds-form>
+    <p class="tm-line kinds-intro">GAOS runs no test. It reads the check of the <b>{{.WorkflowPath}}</b> push run on each merge commit of a fix-target repository. A failing check becomes a defect held for an auto-fix admin; a missing check is never a pass.</p>
+    {{if .Repos}}
+    <div class="kinds-list">
+    {{range .Repos}}
+    <div class="kind-row"><span class="mono kind-repo">{{.Repo}}</span><span class="tm-line"{{with .Outcome}} title="{{.}}"{{end}}>{{.OutcomeLabel}}{{if .At}} · {{.At}}{{end}}</span>
+      {{if .Warn}}<p class="tm-line kind-warn">No <code>{{$.Check}}</code> run on recent merges: is the workflow installed?</p>{{end}}</div>
+    {{end}}
+    </div>
+    {{else}}<p class="tm-line">{{.Name}} lists no fix-target repository yet; add one to the auto-fix settings first.</p>{{end}}
+    <div class="kind-switch">
+      <input type="checkbox" id="unit-on-{{.ProductID}}" name="enabled" aria-describedby="unit-on-h-{{.ProductID}}"{{if .Enabled}} checked{{end}}>
+      <label for="unit-on-{{.ProductID}}">Read the unit-test check of every merge</label>
+      <p class="tm-line" id="unit-on-h-{{.ProductID}}">Needs auto-fix on, a fixer and a triager assigned, and the workflow merged in the repository.</p>
+    </div>
+    <div class="field"><label for="unit-wf-{{.ProductID}}">Workflow file</label><input id="unit-wf-{{.ProductID}}" name="workflow" value="{{.Workflow}}" placeholder=".github/workflows/unit-tests.yml"></div>
+    <div class="field"><label for="unit-ck-{{.ProductID}}">Check name</label><input id="unit-ck-{{.ProductID}}" name="checkName" value="{{.CheckName}}" placeholder="unit-tests"></div>
+    <div class="field"><label for="unit-bs-{{.ProductID}}">Other bases, one per line</label><textarea id="unit-bs-{{.ProductID}}" name="bases" rows="2">{{.Bases}}</textarea><p class="help">The auto-fix base branch, or the default branch, is always watched.</p></div>
+    <div class="field"><label for="unit-cap-{{.ProductID}}">New defects a day</label><input id="unit-cap-{{.ProductID}}" name="dailyCap" type="number" min="0" max="20" value="{{if .DailyCap}}{{.DailyCap}}{{end}}" placeholder="5"></div>
+    <div class="kind-actions">
+      <button class="btn btn-primary" type="submit">Save unit checks</button>
+      {{if .Open}}<span class="tm-line kind-saved" data-kinds-saved>Saved. The next merge uses these settings.</span>{{end}}
+    </div>
+  </form>
+</details>
 {{end}}
 
 {{define "af-live"}}

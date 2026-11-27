@@ -152,7 +152,7 @@ func (s *MemStore) designArtifactsOfLocked(designID string) int {
 // (BR-54). A Blueprint sync's drift release leaves such a task blocked.
 func operatorHolds(reason string) bool {
 	switch reason {
-	case ReasonDesignBlocked, ReasonDesignUnreviewed, ReasonQaEpicAdded:
+	case ReasonDesignBlocked, ReasonDesignUnreviewed, ReasonQaEpicAdded, ReasonUnitHeld:
 		return true
 	}
 	return false

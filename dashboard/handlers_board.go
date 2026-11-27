@@ -51,6 +51,7 @@ func (s *server) handleBoard(w http.ResponseWriter, r *http.Request) {
 		writeBoardJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+	trimUnitCards(requestAdmin(r), b.Cards)
 	writeBoardJSON(w, http.StatusOK, b)
 }
 
@@ -69,7 +70,16 @@ func (s *server) handleMoveCard(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		mv = CardMove{Column: r.FormValue("column"), Row: r.FormValue("row"), Index: atoiDefault(r.FormValue("index"), -1)}
 	}
+	// D-105 §7.3: who moves, from the session, never from the body.
+	if ss, ok := sessionOf(r); ok {
+		mv.Actor = ss.Email
+	}
+	mv.Admin = requestAdmin(r)
 	res, err := s.mut(r).MoveCard(r.Context(), id, taskID, mv)
+	if errors.Is(err, ErrUnitHeld) {
+		s.failStatus(w, r, err, http.StatusConflict)
+		return
+	}
 	if err != nil {
 		if wantsHTMX(r) {
 			s.fail(w, r, err)
@@ -91,7 +101,9 @@ func (s *server) handleMoveCard(w http.ResponseWriter, r *http.Request) {
 	}
 	// One card, not the board (D-095): on the client board every drag ends here.
 	if c, err := s.store.BoardCard(r.Context(), id, taskID); err == nil {
-		writeBoardJSON(w, http.StatusOK, map[string]any{"card": c})
+		one := []BoardCard{c}
+		trimUnitCards(mv.Admin, one)
+		writeBoardJSON(w, http.StatusOK, map[string]any{"card": one[0]})
 		return
 	}
 	writeBoardJSON(w, http.StatusOK, map[string]any{"card": nil})

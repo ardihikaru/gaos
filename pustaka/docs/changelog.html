@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-67-0">v0.67.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Unit tests from the repository&rsquo;s own CI check: a failing check of a merge becomes a defect held for a person (<a href="product/decision-log.html#d-105">D-105</a>, <a href="product/brd.html#rules-gateway">BR-65</a>). Off for every product until an auto-fix admin turns it on.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>The setting.</strong> &ldquo;Unit tests (CI)&rdquo; on the Auto-fix page, per product (<code>POST /products/{id}/autofix/unit</code>, auto-fix admins only): the workflow file, the check name, extra bases and a daily cap.</li>
+        <li><span class="chg add">Added</span> <strong>The read.</strong> A merge of a fix-target repository into a unit base plants a watch on its merge commit; every 2 minutes GAOS reads the push run of that one workflow and the check of that run&rsquo;s check suite. GAOS runs nothing; a missing, unread or inconclusive check is never a pass, and a failure counts only when the workflow reported its total (a job that never started files nothing).</li>
+        <li><span class="chg add">Added</span> <strong>The held defect.</strong> A failing check files, or updates, the one open unit defect of that repository and base; its triage card waits BLOCKED until an auto-fix admin releases it (or cancels it, which closes the defect). A later passing check closes it, or marks it while it is held. Group notices, once each.</li>
+        <li><span class="chg add">Added</span> <strong>The guarded fix.</strong> After release the auto-fix opens a draft against the branch whose tests failed; it may not change the failing tests, add tests beside them or add <code>TestMain</code> or <code>init</code>, and it is never retargeted.</li>
+        <li><span class="chg change">Changed</span> On a product with unit checks on, a fix-target repository&rsquo;s merge no longer plans the agent unit-test card (it ran nothing). Schema 21 adds <code>UnitWatch</code> and the unit defect&rsquo;s properties. Eighteen new test cases, TC-853 to TC-870.</li>
       <h3 id="v0-66-4">v0.66.4 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">No more intermittent <code>EOF</code> from ArcadeDB.</p>
       <ul>

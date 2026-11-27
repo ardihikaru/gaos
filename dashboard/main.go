@@ -469,6 +469,10 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 			tp.qa = srv.qaOut
 		}
 		poller.alert = prAlerter{nt: nt}
+		// D-105: the unit checks' notices go to the group, kind unit:failure, naming no repository.
+		poller.unitNotify = func(ctx context.Context, productID string, pr int, text, cardID string) {
+			nt.NotifyPR(ctx, productID, "", "", pr, "unit:failure", text, cardID)
+		}
 		if ghc != nil {
 			poller.alert.post = ghc
 		}
@@ -592,6 +596,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/board/cards/{taskId}/label", s.handleSetLabel)     // D-088
 	handle("POST /products/{id}/third-party", s.handleSaveThirdParty)              // D-104
 	handle("POST /products/{id}/autofix", s.handleSaveAutoFix)                     // D-091
+	handle("POST /products/{id}/autofix/unit", s.handleSaveUnitChecks)             // D-105
 	handle("POST /products/{id}/defects/{ref}/close", s.handleCloseDefect)         // D-091
 	handle("POST /agents/assign", s.handleAssign)                                  // D-102
 	handle("POST /contacts", s.handleContactSave)                                  // D-088
@@ -734,6 +739,18 @@ func (s *server) fail(w http.ResponseWriter, r *http.Request, err error) {
 		code = http.StatusNotFound
 		v.Toast = "That record is gone."
 	}
+	w.WriteHeader(code)
+	s.rend.RenderWithChrome(w, "empty", v)
+}
+
+// failStatus is fail with a status of the caller's choosing (409 for a held unit card, D-105).
+func (s *server) failStatus(w http.ResponseWriter, r *http.Request, err error, code int) {
+	if !wantsHTMX(r) {
+		writeBoardJSON(w, code, map[string]string{"error": err.Error()})
+		return
+	}
+	v, _ := s.newView(r)
+	v.Toast = err.Error()
 	w.WriteHeader(code)
 	s.rend.RenderWithChrome(w, "empty", v)
 }

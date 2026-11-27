@@ -433,6 +433,67 @@ type Master struct {
 	RepoKinds      map[string]string
 	StagingCreates bool
 	AutoMergeSpecs bool
+
+	// UnitChecks is the product's unit-test check (D-105, unitchecks.go): which
+	// GitHub Actions workflow and check of a fix-target repository's merge commit
+	// GAOS reads. Off by default.
+	UnitChecks UnitChecks
+}
+
+// UnitChecks is a product's unit-test check setting (D-105,
+// docs/designs/release-b4-unit-tests.md §4.1). The zero value is off and reads
+// the default workflow and check name.
+type UnitChecks struct {
+	Enabled   bool     `json:"enabled"`
+	Workflow  string   `json:"workflow"`  // "" = .github/workflows/unit-tests.yml
+	CheckName string   `json:"checkName"` // "" = unit-tests
+	Bases     []string `json:"bases"`     // extra unit bases beside the effective base, at most 8
+	DailyCap  int      `json:"dailyCap"`  // 0 = 5; 1..20
+	// LastNoCINoticeDay is the UTC day ("2006-01-02") of the last "no unit-tests
+	// run" notice, written by MarkUnitNotice only.
+	LastNoCINoticeDay string `json:"lastNoCINoticeDay"`
+}
+
+// The unit-check defaults (§4.1).
+const (
+	unitWorkflowDefault = ".github/workflows/unit-tests.yml"
+	unitCheckDefault    = "unit-tests"
+	unitCapDefault      = 5
+	unitCapMax          = 20
+	unitMaxBases        = 8
+)
+
+// WorkflowPath is the workflow file GAOS binds to.
+func (u UnitChecks) WorkflowPath() string {
+	if u.Workflow == "" {
+		return unitWorkflowDefault
+	}
+	return u.Workflow
+}
+
+// Name is the check run's name.
+func (u UnitChecks) Name() string {
+	if u.CheckName == "" {
+		return unitCheckDefault
+	}
+	return u.CheckName
+}
+
+// Cap is the unit defects first seen or reopened per UTC day.
+func (u UnitChecks) Cap() int {
+	switch {
+	case u.DailyCap <= 0:
+		return unitCapDefault
+	case u.DailyCap > unitCapMax:
+		return unitCapMax
+	}
+	return u.DailyCap
+}
+
+// Clone deep-copies the bases.
+func (u UnitChecks) Clone() UnitChecks {
+	u.Bases = append([]string(nil), u.Bases...)
+	return u
 }
 
 // AutoFix is a product's defect auto-fix configuration (design §6.1). The zero
@@ -549,6 +610,7 @@ func (m Master) Clone() Master {
 	c.AutoFix = m.AutoFix.Clone()
 	c.Assigned = append([]string(nil), m.Assigned...)
 	c.ThirdParty = append([]ThirdPartyLink(nil), m.ThirdParty...)
+	c.UnitChecks = m.UnitChecks.Clone()
 	if m.RepoKinds != nil {
 		c.RepoKinds = make(map[string]string, len(m.RepoKinds))
 		for k, v := range m.RepoKinds {

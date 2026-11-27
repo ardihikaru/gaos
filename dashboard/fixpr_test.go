@@ -122,35 +122,35 @@ func TestFixPRPathRules(t *testing.T) {
 	af.AllowedGlobs = []string{"pkg/records/*.go"}
 	r := goodFix()
 	r.Edits = append(r.Edits, fixEdit{Path: "cmd/main.go", Find: "package main", Replace: "package main // x"})
-	_, err := checkFix(r, fxPacket(), af, fxLook(nil))
+	_, err := checkFix(r, fxPacket(), af, fxLook(nil), fixGuard{})
 	wantBlock(t, "an edit outside the allowed paths", err, BlockLimits)
 
 	r = goodFix()
 	r.NewFiles[0].Path = "pkg/records/helper.go"
-	_, err = checkFix(r, fxPacket(), af, fxLook(nil))
+	_, err = checkFix(r, fxPacket(), af, fxLook(nil), fixGuard{})
 	wantBlock(t, "a new file that is not a test", err, BlockLimits)
 
 	r = goodFix()
 	r.Edits[0].Path = "pkg/auth/login.go"
-	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	wantBlock(t, "a built-in forbidden path", err, BlockLimits)
 
 	r = goodFix()
 	r.Edits[0].Path = "pkg/records/other.go"
-	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	wantBlock(t, "a file the packet does not hold", err, BlockLimits)
 
 	r = goodFix()
 	r.NewFiles = append(r.NewFiles, fixNewFile{Path: "pkg/records/a_test.go", Content: "x\n"}, fixNewFile{Path: "pkg/records/b_test.go", Content: "x\n"})
-	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	wantBlock(t, "four files", err, BlockLimits)
 
 	r = goodFix()
 	r.NewFiles = nil
-	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	wantBlock(t, "no test file", err, BlockLimits)
 
-	plan, err := checkFix(goodFix(), fxPacket(), fixAF(), fxLook(nil))
+	plan, err := checkFix(goodFix(), fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	if err != nil || len(plan.Files) != 2 {
 		t.Fatalf("a good fix gave %+v %v", plan, err)
 	}
@@ -160,13 +160,13 @@ func TestFixPREditFindMustOccurOnce(t *testing.T) {
 	for name, find := range map[string]string{"zero": "if qty == 99 {", "twice": "\t"} {
 		r := goodFix()
 		r.Edits[0].Find = find
-		_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+		_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 		wantBlock(t, name, err, BlockUnreadable)
 	}
 	// An edit that applies after another one is judged on the text it meets.
 	r := goodFix()
 	r.Edits = append(r.Edits, fixEdit{Path: fxFile, Find: "if qty <= 0 {", Replace: "if qty < 1 {"})
-	if _, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil)); err != nil {
+	if _, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{}); err != nil {
 		t.Errorf("two edits of one file: %v", err)
 	}
 }
@@ -177,7 +177,7 @@ func TestFixPRNewFileMustNotExist(t *testing.T) {
 			*e = ghTreeEntry{Exists: true, Mode: "100644", Type: "blob", SHA: "x"}
 		}
 	})
-	_, err := checkFix(goodFix(), fxPacket(), fixAF(), look)
+	_, err := checkFix(goodFix(), fxPacket(), fixAF(), look, fixGuard{})
 	wantBlock(t, "a new file that exists", err, BlockLimits)
 
 	e := newFixEnv(t)
@@ -225,7 +225,7 @@ func TestFixPRNonTestAndTestCaps(t *testing.T) {
 		r := goodFix()
 		r.Edits[0] = fixEdit{Path: fxFile, Find: "if qty == 0 {", Replace: "if qty == 0 {\n" + strings.TrimSuffix(lines(nonTest, "\t_ = qty"), "\n")}
 		r.NewFiles[0].Content = lines(test, "// t")
-		_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+		_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 		return err
 	}
 	if err := run(40, 120); err != nil {
@@ -241,7 +241,7 @@ func TestFixPRBlobShaMovedBlocks(t *testing.T) {
 			e.SHA = "moved"
 		}
 	})
-	_, err := checkFix(goodFix(), fxPacket(), fixAF(), look)
+	_, err := checkFix(goodFix(), fxPacket(), fixAF(), look, fixGuard{})
 	wantBlock(t, "a moved blob", err, BlockBaseMoved)
 
 	e := newFixEnv(t)
@@ -268,14 +268,14 @@ func TestFixPRModeIs100644(t *testing.T) {
 			e.Mode = "120000"
 		}
 	})
-	_, err := checkFix(goodFix(), fxPacket(), fixAF(), look)
+	_, err := checkFix(goodFix(), fxPacket(), fixAF(), look, fixGuard{})
 	wantBlock(t, "a symlink", err, BlockLimits)
 	look = fxLook(func(p string, e *ghTreeEntry) {
 		if p == fxFile {
 			e.Mode = "160000"
 		}
 	})
-	_, err = checkFix(goodFix(), fxPacket(), fixAF(), look)
+	_, err = checkFix(goodFix(), fxPacket(), fixAF(), look, fixGuard{})
 	wantBlock(t, "a submodule", err, BlockLimits)
 
 	// An existing 100755 is kept, a new file is 100644, on the wire.
@@ -308,16 +308,16 @@ func TestFixPRBidiRefused(t *testing.T) {
 	for name, content := range map[string]string{"right-to-left override": "// \u202e hidden\n", "zero width": "// a\u200bb\n", "NUL": "// a\x00b\n", "long line": "// " + strings.Repeat("x", 401) + "\n"} {
 		r := goodFix()
 		r.NewFiles[0].Content = content
-		_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+		_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 		wantBlock(t, name, err, BlockLimits)
 	}
 	r := goodFix()
 	r.Edits[0].Replace = "if qty <= 0 { // \u2066x"
-	_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+	_, err := checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	wantBlock(t, "an isolate in an edit", err, BlockLimits)
 	r = goodFix()
 	r.NewFiles[0].Content = "// token = AKIAIOSFODNN7EXAMPLE\n"
-	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil))
+	_, err = checkFix(r, fxPacket(), fixAF(), fxLook(nil), fixGuard{})
 	wantBlock(t, "a secret in a new file", err, BlockEgress)
 
 	// The pull-request text is stripped, never refused.

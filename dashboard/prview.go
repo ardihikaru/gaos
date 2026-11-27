@@ -267,6 +267,9 @@ func (s *server) prPage(ctx context.Context, q url.Values, now time.Time, admin 
 			}
 			if d, ok := byDefect[fx.DefectKey]; ok {
 				row.Defect, row.Title = d.Ref(), afLine(d.Title, 140)
+				if row.Base == "" && d.Kind == DefectKindUnit && prRefOK(d.UnitBase) {
+					row.Base = d.UnitBase // the branch whose tests failed (D-105)
+				}
 			}
 			if row.Title == "" {
 				row.Title = fx.DefectKey
@@ -524,6 +527,8 @@ func prRetargetOf(productID string, fx FixPR, d Defect, byCard map[string]TaskRe
 		rt.Off = "Only accounts on the auto-fix admin list can change a base branch. Ask an admin, or ask to be added."
 	case !strings.HasPrefix(fx.Branch, fixRefPrefix):
 		rt.Off = "GAOS only changes the base of pull requests it opened (branch gaos/fix-…)."
+	case d.Kind == DefectKindUnit:
+		rt.Off = unitNoRetarget
 	case fx.State != FixPRDraft && fx.State != FixPRReady:
 		rt.Off = "This pull request is closed. Nothing to change."
 	case fx.Base == "":

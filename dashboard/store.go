@@ -175,7 +175,7 @@ type Store interface {
 	DefectByKey(ctx context.Context, productID, key string) (Defect, error)
 	SetDefectContext(ctx context.Context, productID, key string, c DefectContext) (Result, error)
 	ResolveTriage(ctx context.Context, productID, taskID string, v TriageVerdict) (Result, error)
-	CloseDefect(ctx context.Context, productID, ref, actor string) (Result, error)
+	CloseDefect(ctx context.Context, productID, ref, actor string, admin bool) (Result, error)
 	FixPRs(ctx context.Context, productID string) ([]FixPR, error)
 	UpsertFixPR(ctx context.Context, f FixPR) (Result, error)
 	// AutoDispatch dispatches one READY defect card behind the product's switch and
@@ -209,6 +209,17 @@ type Store interface {
 	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
 	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
 	CloseReviewDefect(ctx context.Context, productID, key, rule string) (Result, error)
+	// Unit checks (D-105, unitchecks.go, unitdefect.go): the setting, the watches of
+	// merge commits whose check GAOS awaits, and the notices' bookkeeping.
+	SetUnitChecks(ctx context.Context, productID string, u UnitChecks, actor string) (Result, error)
+	PlantUnitWatch(ctx context.Context, productID string, w UnitWatch) (Result, error)
+	DelayUnitWatch(ctx context.Context, key string, nextAt int64, tries, reads int) (Result, error)
+	UnitWatches(ctx context.Context, productID string) ([]UnitWatch, error)
+	PruneUnitWatches(ctx context.Context, before int64) (Result, error)
+	MarkUnitNotice(ctx context.Context, productID, key, which string) (Result, error)
+	// FinishUnitWatch ends a watch and, in the same transaction, files its failure or
+	// applies its pass (unitdefect.go).
+	FinishUnitWatch(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)
@@ -295,6 +306,17 @@ type Result struct {
 	// (pullrequests.go); ArcadeStore writes them in the same transaction.
 	PullRequests       []PullRequest
 	PullRequestDeletes []string
+
+	// UnitWatches are the watches a mutation changed and UnitWatchDeletes the keys it
+	// pruned (D-105); ArcadeStore writes them in the same transaction. UnitNew and
+	// UnitReopened say a held unit card was planned; UnitMarked that a held defect's
+	// check passed, UnitClosed that a pass closed a released one. Never persisted.
+	UnitWatches      []UnitWatch
+	UnitWatchDeletes []string
+	UnitNew          bool
+	UnitReopened     bool
+	UnitMarked       bool
+	UnitClosed       bool
 
 	// Capped: PlanPullRequestCards committed its moot moves but the cap refused
 	// the new cards (design gaos-external-tasks-and-pr-bundles §3.1).
@@ -505,7 +527,7 @@ func (readOnly) SetDefectContext(context.Context, string, string, DefectContext)
 func (readOnly) ResolveTriage(context.Context, string, string, TriageVerdict) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
-func (readOnly) CloseDefect(context.Context, string, string, string) (Result, error) {
+func (readOnly) CloseDefect(context.Context, string, string, string, bool) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) UpsertFixPR(context.Context, FixPR) (Result, error) {

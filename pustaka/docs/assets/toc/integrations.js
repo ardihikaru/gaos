@@ -66,6 +66,7 @@ window.DOCS.nav.push({
         { anchor: "settings", title: "The settings", text: "The GitHub token, the staging credentials, the WhatsApp URL, login and group, the cap." },
         { anchor: "review-fix", title: "A low finding fixed by an agent", text: "A draft into the reviewed pull request's own branch." },
         { anchor: "staging", title: "The staging callback", text: "HTTP Basic, one credential per product, and every answer." },
+        { anchor: "unit-checks", title: "Unit tests come from the repository's CI", text: "A watched repository's merge is read from its own GitHub Actions check; a failure is a defect held for an auto-fix admin (D-105)." },
         { anchor: "qa", title: "The QA tool does the e2e work", text: "A job GAOS starts and polls; the QA-case line; the two routes live in the QA tool." },
         { anchor: "whatsapp", title: "WhatsApp and the contacts", text: "One line and the card id; the pinned group; the contact registry." },
         { anchor: "bundles", title: "Bundles from the PR template", text: "The task-manager code and links group pull requests; one test plan when all merged; the missing-code and unknown-code alerts." },
@@ -85,7 +86,8 @@ window.DOCS.nav.push({
         { anchor: "source-labels", title: "Where a card came from", text: "source:api and source:bundle mark the cards assignment does not gate." },
         { anchor: "runbook", title: "Set it up for a product", text: "Assign the reviewer, unit-test, QA and fixer agents; the branch patterns." },
         { anchor: "data-flow", title: "How it works: the data flow", text: "Three flows step by step: a staging deploy runs and creates automation; a new spec is approved, merged and run; a pull request is reviewed and a low finding fixed." },
-        { anchor: "release-b", title: "The second release", text: "Built in v0.65.0: repository kinds, creating missing automation on staging, approved specs the QA tool may auto-merge and GAOS then runs; the unit-test design is approved and not built yet." },
+        { anchor: "release-b", title: "The second release", text: "Built in v0.65.0: repository kinds, creating missing automation on staging, approved specs the QA tool may auto-merge (off by default everywhere) and GAOS then runs; unit tests read from the repository\'s own CI check, built in v0.67.0, with the workflow template." },
+        { anchor: "release-b-unit", title: "Unit tests from the CI check", text: "Turn it on, the watch, the check GAOS reads, the held defect, the guarded fix, the outcomes and the workflow template." },
         { anchor: "failure", title: "When something is off", text: "No review card, 422 unassigned, a comment instead of changes, no fix planned." }
       ]
     },

@@ -1,0 +1,38 @@
+{
+  "url": "https://api.github.com/repos/acme-org/sample-service/pulls/41",
+  "id": 2100000041,
+  "html_url": "https://github.com/acme-org/sample-service/pull/41",
+  "number": 41,
+  "state": "closed",
+  "locked": false,
+  "title": "records: reject a non-positive quantity",
+  "user": {"login": "someone", "id": 1001, "type": "User"},
+  "body": "Rejects a quantity of zero or less.",
+  "created_at": "2026-11-27T01:02:03Z",
+  "updated_at": "2026-11-27T02:10:00Z",
+  "closed_at": "2026-11-27T02:09:58Z",
+  "merged_at": "2026-11-27T02:09:58Z",
+  "merge_commit_sha": "3c5e7a9b1d2f4a6c8e0b1d3f5a7c9e1b3d5f7a9c",
+  "draft": false,
+  "head": {
+    "label": "acme-org:feature/quantity",
+    "ref": "feature/quantity",
+    "sha": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+    "repo": {"id": 77, "name": "sample-service", "full_name": "acme-org/sample-service", "private": true}
+  },
+  "base": {
+    "label": "acme-org:develop",
+    "ref": "develop",
+    "sha": "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
+    "repo": {"id": 77, "name": "sample-service", "full_name": "acme-org/sample-service", "private": true, "default_branch": "main"}
+  },
+  "author_association": "MEMBER",
+  "merged": true,
+  "mergeable": null,
+  "merged_by": {"login": "maintainer", "id": 1002, "type": "User"},
+  "comments": 1,
+  "commits": 2,
+  "additions": 9,
+  "deletions": 1,
+  "changed_files": 2
+}

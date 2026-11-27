@@ -28,6 +28,10 @@ var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
 // characters, with -<gen> appended for a later generation.
 func fixBranch(d Defect) string {
 	slug := strings.Trim(slugRe.ReplaceAllString(strings.ToLower(d.Ref()), "-"), "-")
+	if d.Kind == DefectKindUnit {
+		// unit-<h8>-<repo/base slug> (D-105 §7.5): two unit defects never share a branch.
+		slug = "unit-" + unitH8(d) + "-" + strings.Trim(slugRe.ReplaceAllString(strings.ToLower(d.Repo+"/"+d.UnitBase), "-"), "-")
+	}
 	if len(slug) > 60 {
 		slug = strings.Trim(slug[:60], "-")
 	}
@@ -73,7 +77,8 @@ func hasTrailer(message, key string) bool {
 // fixEligible is §5.3's record-based rule. The answer is "" when a pull request
 // may be opened, else why not. It looks at the record and the product's
 // configuration, never at a label, whoever dispatched the card.
-func fixEligible(d Defect, taskID string, gen int, af AutoFix, tokenKind string) string {
+func fixEligible(d Defect, taskID string, gen int, af AutoFix, tokenKind string, uc UnitChecks, effectiveBase string) string {
+	unit := d.Kind == DefectKindUnit
 	switch {
 	case d.FixTask != taskID:
 		return "the record names another fix card"
@@ -81,7 +86,7 @@ func fixEligible(d Defect, taskID string, gen int, af AutoFix, tokenKind string)
 		return "the verdict is not easy"
 	case d.AutomationType != "be":
 		return "the defect is not a backend defect"
-	case d.Regression:
+	case d.Regression && !unit: // an admin released a reopened unit defect (D-091 (8) amended)
 		return "the defect is a regression"
 	case d.Gen != gen:
 		return "the card is of an older generation"
@@ -89,6 +94,8 @@ func fixEligible(d Defect, taskID string, gen int, af AutoFix, tokenKind string)
 		return "the defect is " + d.State
 	case d.BaseOverride != "" && !containsFold(af.AllowedBases, d.BaseOverride):
 		return "the retarget base is no longer allowed"
+	case unit && (d.UnitBase == "" || (d.UnitBase != effectiveBase && !unitIsExtraBase(uc, d.UnitBase))):
+		return "the unit-test base is no longer allowed"
 	case !af.Enabled:
 		return "auto-fix is off"
 	case autoFixPreconditions(af, tokenKind) != nil:
@@ -163,7 +170,8 @@ func (p *defectFixer) afterRun(ctx context.Context, t TaskRecord, reply string) 
 	if err != nil {
 		return
 	}
-	if why := fixEligible(d, t.ID, gen, af, p.tokenKind); why != "" || p.gh == nil {
+	uc, eff := p.unitBases(ctx, d, af)
+	if why := fixEligible(d, t.ID, gen, af, p.tokenKind, uc, eff); why != "" || p.gh == nil {
 		p.logf("autofix: %s ends in review without a pull request", t.ID)
 		return
 	}
@@ -240,6 +248,15 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 	if review { // a review fix goes into the reviewed pull request's own branch (D-102 §6.3)
 		baseName = d.ReviewBranch
 	}
+	guard := fixGuard{}
+	if d.Kind == DefectKindUnit { // against the branch whose tests failed (D-105 §7.5)
+		baseName = d.UnitBase
+		if unitIsBuild(d) {
+			guard = fixGuard{Build: true, Summary: d.Excerpt}
+		} else {
+			guard = fixGuard{Unit: true, Protected: d.UnitFiles}
+		}
+	}
 	base, head, err := p.gh.head(ctx, owner, repo, baseName)
 	if err != nil {
 		p.failed(ctx, t, rec, err)
@@ -252,7 +269,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 	}
 	plan, err := checkFix(fr, packet, af, func(fp string) (ghTreeEntry, error) {
 		return p.gh.treeEntry(ctx, owner, repo, head, fp)
-	})
+	}, guard)
 	if err != nil {
 		p.failed(ctx, t, rec, err)
 		return
@@ -308,6 +325,9 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 			len(plan.Files), plan.NonTest, fixMaxNonTest, plan.TestLines, fixMaxTest)}
 	for _, f := range plan.Files {
 		in.Files = append(in.Files, f.Path)
+		if f.Add && d.Kind == DefectKindUnit {
+			in.Added = append(in.Added, f.Path)
+		}
 	}
 
 	created := false
@@ -487,7 +507,8 @@ func (p *defectFixer) resumeOne(ctx context.Context, pid string, r FixPR) {
 		return
 	}
 	_, gen, _, _ := parseDefectCardKey(card.DedupKey)
-	if why := fixEligible(d, card.ID, gen, af, p.tokenKind); why != "" {
+	uc, eff := p.unitBases(ctx, d, af)
+	if why := fixEligible(d, card.ID, gen, af, p.tokenKind, uc, eff); why != "" {
 		p.logf("autofix: a stored fix of %s is no longer eligible", card.ID)
 		p.closeRecord(ctx, r)
 		return
@@ -546,4 +567,26 @@ func baseOrUnknown(b string) string {
 		return b
 	}
 	return "unknown"
+}
+
+// unitBases is what fixEligible needs of a unit defect (D-105 §7.5): the product's
+// unit checks and the effective base, read only for a unit defect. An unreadable
+// default branch answers "", which refuses a unit defect on the default branch.
+func (p *defectFixer) unitBases(ctx context.Context, d Defect, af AutoFix) (UnitChecks, string) {
+	if d.Kind != DefectKindUnit {
+		return UnitChecks{}, ""
+	}
+	m, err := p.st.Master(ctx, d.ProductID)
+	if err != nil {
+		return UnitChecks{}, ""
+	}
+	eff := af.BaseBranch
+	if eff == "" && p.gh != nil {
+		if owner, repo, ok := ghOwnerRepo(d.Repo); ok {
+			if def, err := p.gh.repoDefault(ctx, owner, repo); err == nil {
+				eff = def
+			}
+		}
+	}
+	return m.UnitChecks, eff
 }

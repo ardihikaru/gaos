@@ -208,6 +208,8 @@ type codeSource interface {
 	// fileAt answers found=false for a path that is not there, is not a plain
 	// file or is too large.
 	fileAt(ctx context.Context, owner, repo, filePath, sha string) (ghBlob, bool, error)
+	// dirAt lists a directory's non-test .go files at a commit (D-105 §7.5).
+	dirAt(ctx context.Context, owner, repo, dir, sha string) ([]string, error)
 }
 
 // errSearchFailed says GitHub could not answer; it is not "nothing found".
@@ -425,7 +427,9 @@ func buildAndStoreDefectContext(ctx context.Context, st Store, src codeSource, p
 	if err != nil {
 		return err
 	}
-	if d.Context.Built || src == nil {
+	// A unit defect's context is built by the unit pass from its failing tests
+	// (D-105 §7.5): there is no QA search to run.
+	if d.Context.Built || src == nil || d.Kind == DefectKindUnit {
 		return nil
 	}
 	af, _ := st.AutoFixOf(ctx, productID)
@@ -466,6 +470,9 @@ func (s *MemStore) defectPartsLocked(t TaskRecord) []PacketPart {
 	}
 	if d == nil {
 		return nil
+	}
+	if d.Kind == DefectKindUnit { // D-105 §7.5: the failing tests, fenced
+		return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderUnitDefectPacket(*d, false)}}
 	}
 	return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderDefectPacket(*d)}}
 }
@@ -742,7 +749,7 @@ func (s *MemStore) ResolveTriage(ctx context.Context, productID, taskID string, 
 	switch {
 	case len(d.TargetRepos) == 0:
 		born, why = StatusBlocked, BlockNoRepo
-	case diff != "easy" || d.AutomationType != "be" || d.Regression:
+	case diff != "easy" || d.AutomationType != "be" || (d.Regression && d.Kind != DefectKindUnit):
 		born, why = StatusBlocked, BlockNotEasy
 	}
 	_, planned := s.planDefectCardLocked(d, defectJobFix, born, why, label)

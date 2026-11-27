@@ -216,6 +216,8 @@ type MemStore struct {
 	fixPRs  map[string]FixPR
 	// pullRequests are the review and QA-tool pull-request rows (pullrequests.go), by key.
 	pullRequests map[string]PullRequest
+	// unitWatches are the merge commits whose unit-test check is awaited (D-105), by key.
+	unitWatches map[string]UnitWatch
 }
 
 // SetPRHooks installs the pull-request flow's seams.
@@ -306,6 +308,7 @@ func newProjection() *MemStore {
 		defects:      map[string]*Defect{},
 		fixPRs:       map[string]FixPR{},
 		pullRequests: map[string]PullRequest{},
+		unitWatches:  map[string]UnitWatch{},
 
 		// The documented defaults of §7.6.1, so a store built without a
 		// configuration still screens. An egress policy that defaulted to
