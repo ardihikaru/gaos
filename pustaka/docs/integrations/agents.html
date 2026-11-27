@@ -351,19 +351,48 @@
     auto-merge switch off: GAOS still runs each new case once a person merges its spec.</p>
   </div>
 
-  <h3 id="release-b-unit">4. Unit tests: decided, not built</h3>
-  <p>Unit tests run through the QA tool in a sandbox it provides, a failure becoming a defect a person releases first.
-  They need their own design and the QA tool's sandbox; until then the unit-test card behaves as
+  <h3 id="release-b-unit">4. Unit tests: designed, not built</h3>
+  <p>The design is approved (<code>docs/designs/release-b4-unit-tests.md</code>, ten review rounds). It covers running a
+  repository's existing unit tests on every merge into a fix-target repository, in the QA tool's sandbox, and turning a
+  failure into a defect that waits for an auto-fix admin before any agent works on it. Writing missing tests is a later
+  design (<code>docs/designs/release-b4b-unit-create.md</code>). Nothing changes until it is built and the QA tool offers a
+  <code>unit-run</code> job with a sandbox attestation; until then the unit-test card behaves as
   <a href="pr-agents.html#qa">Pull-request agents</a> describes.</p>
+  <div class="flow">
+    <div class="node"><b>1 · Merge</b><span>Brain Town forwards it</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS</b><span>plans a <code>unit:qa</code> card</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · QA tool</b><span>runs the tests in its sandbox</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GAOS</b><span>a failure: defect, held</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · Admin</b><span>releases it; triage and fix</span></div>
+  </div>
+  <ol>
+    <li>A pull request merges into a repository the product lists as an auto-fix target, with the product's Unit tests
+      switch on.</li>
+    <li>GAOS plans one <code>unit:qa</code> card. No agent works it; GAOS's QA runner drives it, so it never holds the
+      product's one live model turn.</li>
+    <li>The runner reads the merge commit from GitHub, checks the QA tool's sandbox declaration, and asks the QA tool to
+      run the repository's existing tests at that commit.</li>
+    <li>A failure files a <em>unit defect</em>, deduplicated per repository, base and failing set, capped per day. Its
+      triage card is born Blocked and only an auto-fix admin can release, cancel or close it. A failure of the job itself
+      files nothing.</li>
+    <li>After release the usual auto-fix path runs: triage, then a draft fix pull request against the branch the tests
+      failed on. A fix may not edit the failing tests. A later merge where those tests pass closes the defect (a held one
+      is only marked, for the admin).</li>
+  </ol>
 
   <h3 id="release-b-order">Status</h3>
   <table class="tbl">
-    <thead><tr><th>Part</th><th>GAOS</th><th>Needs in the QA tool</th></tr></thead>
+    <thead><tr><th>Part</th><th>GAOS</th><th>QA tool</th></tr></thead>
     <tbody>
-      <tr><td>1. Repository kinds</td><td>Built (v0.65.0)</td><td>a <code>kind</code> field and <code>GET /api/v1/gaos/capabilities</code> listing <code>kind</code></td></tr>
-      <tr><td>2. Create on staging</td><td>Built (v0.65.0)</td><td>nothing new; better with <code>kind</code></td></tr>
-      <tr><td>3. Auto-merge, then run</td><td>Built (v0.65.0)</td><td><code>auto_merge</code> on create, the call to GAOS, the pinned auto-merge, <code>pushed_sha</code> and <code>auto_merge</code> on the job</td></tr>
-      <tr><td>4. Unit tests</td><td>Its own design</td><td>the sandbox, a unit run, a route, a separate identity</td></tr>
+      <tr><td>1. Repository kinds</td><td>Built (v0.65.0)</td><td>Built: <code>kind</code> and <code>GET /api/v1/gaos/capabilities</code></td></tr>
+      <tr><td>2. Create on staging</td><td>Built (v0.65.0)</td><td>Nothing new needed</td></tr>
+      <tr><td>3. Auto-merge, then run</td><td>Built (v0.65.0)</td><td>Built, off until <code>QA_SPEC_AUTO_MERGE=on</code>; needs the automation repository's rulesets (a paid GitHub plan for a private repository) and a bot account</td></tr>
+      <tr><td>4. Unit tests (run)</td><td>Design approved</td><td>Needs <code>unit-run</code> and a sandbox attestation (a design of its own there)</td></tr>
+      <tr><td>4b. Unit tests (write missing)</td><td>Draft design</td><td>Needs a separate GitHub identity and an approval in the QA tool</td></tr>
     </tbody>
   </table>
 
