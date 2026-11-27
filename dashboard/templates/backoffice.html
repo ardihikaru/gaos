@@ -874,6 +874,28 @@
     <p class="tm-line">Stop gating forgets these assignments; every PR flow runs in {{.ProductName}} again.</p>{{end}}
   </form>
 </details>
+<details class="board-help">
+  <summary>E2E repository kinds for {{.ProductName}} <a class="info-btn info-link" href="../docs/integrations/agents.html#repo-kinds" target="_blank" rel="noopener" aria-label="Repository kinds: open the docs" title="Repository kinds: open the docs">i</a></summary>
+  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor">
+    <input type="hidden" name="product" value="{{.Product}}">
+    <input type="hidden" name="action" value="kinds">
+    {{range .Repos}}
+    <label class="agent-pick"><span class="mono">{{.Repo}}</span>
+      <select name="kind.{{.Repo}}" aria-label="Kind of {{.Repo}}">
+        <option value=""{{if eq .Kind ""}} selected{{end}}>No kind (run every case)</option>
+        <option value="be"{{if eq .Kind "be"}} selected{{end}}>Backend only</option>
+        <option value="fullstack"{{if eq .Kind "fullstack"}} selected{{end}}>Frontend and backend</option>
+      </select>
+    </label>
+    {{else}}
+    <p class="tm-line">This product lists no repository.</p>
+    {{end}}
+    <label class="agent-pick"><input type="checkbox" name="stagingCreates"{{if .StagingCreates}} checked{{end}}> On a staging deploy, ask the QA tool to create missing automation (at most 2 per deploy)</label>
+    <label class="agent-pick"><input type="checkbox" name="autoMergeSpecs"{{if .AutoMergeSpecs}} checked{{end}}> Let the QA tool auto-merge a spec a person approved{{if not .AutoMergeBand}} <span class="mono tm-line">needs the Working band</span>{{end}}</label>
+    <p class="tm-line">GAOS never merges. A merged spec runs its case once the QA catalog shows it implemented.</p>
+    <button class="btn btn-primary" type="submit">Save kinds</button>
+  </form>
+</details>
 {{end}}{{end}}
 {{end}}
 

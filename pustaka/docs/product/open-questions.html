@@ -125,7 +125,7 @@
       <tr data-tags="technical auto-fix test runner verified after sample executed agent-reported new"><td><a href="#oq-39">OQ-39</a></td><td>Technical</td><td>Should a verified test runner execute the 'after' sample of an auto-fix, instead of taking the agent's word for it?</td><td>D-091, the Auto-fix view</td><td>Open — raised 2026-11-26 (today: the 'after' is shown as agent-reported, not run)</td></tr>
       <tr data-tags="technical auto-fix fork branch ci exposure same repository new"><td><a href="#oq-40">OQ-40</a></td><td>Technical</td><td>Should an auto-fix branch live in a fork instead of the application repository, so a pull request from it runs CI without secrets?</td><td>D-091, the CI check</td><td>Open — raised 2026-11-26 (today: a same-repository branch, guarded by the CI check and <code>CIConfirmed</code>)</td></tr>
       <tr data-tags="technical github whatsapp contact task manager mapping new"><td><a href="#oq-41">OQ-41</a></td><td>Technical</td><td>Should the GitHub-account-to-WhatsApp mapping come from the team&rsquo;s task manager instead of GAOS&rsquo;s contact registry?</td><td>D-101, the notices</td><td>Open &mdash; raised 2026-11-27 (today: the contact registry, filled in the back office)</td></tr>
-      <tr data-tags="technical external tasks api automation case code no pull request new"><td><a href="#oq-42">OQ-42</a></td><td>Technical</td><td>Should an outside client create an e2e automation from a case code alone, with no pull request?</td><td>D-099</td><td>Open &mdash; raised 2026-11-27 (today: <code>automation-create</code> needs a pull request)</td></tr>
+      <tr data-tags="technical external tasks api automation case code no pull request new"><td><a href="#oq-42">OQ-42</a></td><td>Technical</td><td>Should an outside client create an e2e automation from a case code alone, with no pull request?</td><td>D-099</td><td>Open &mdash; raised 2026-11-27 (today: <code>automation-create</code> needs a pull request; <a href="decision-log.html#d-103">D-103</a> answers the staging surface only)</td></tr>
       <tr data-tags="technical pull request bundle detach operator new"><td><a href="#oq-43">OQ-43</a></td><td>Technical</td><td>Should an operator be able to detach a pull request from a bundle?</td><td>D-100</td><td>Open &mdash; raised 2026-11-27 (today: a wrong link holds the bundle until the pull request is closed or its row expires)</td></tr>
     </tbody>
   </table>
@@ -953,6 +953,7 @@
 
   <h3 id="oq-42">OQ-42 · Should an outside client create an automation from a case code alone?</h3>
   <p><strong>Why it is open:</strong> <code>automation-create</code> takes a pull request and reads its <code>QA-case:</code> line. A case with no pull request would need its own key namespace and a QA-tool call keyed on the case, and no client has asked for it.</p>
+  <p><strong>Partly answered (2026-11-27).</strong> <a href="decision-log.html#d-103">D-103</a> lets the staging callback create automation from a case code, on a product that turned it on and within caps. An outside client through the external-tasks API still cannot; the question stays open for that surface.</p>
   <p><strong>The options:</strong> add a <code>caseCode</code> form keyed like an automation run; or keep the pull request as the only entry.</p>
   <p><strong>What it blocks:</strong> nothing today.</p>
 

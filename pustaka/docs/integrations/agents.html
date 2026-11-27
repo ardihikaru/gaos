@@ -217,89 +217,75 @@
   </ol>
   <p>To undo it, open Edit assignments and press <strong>Stop gating</strong>.</p>
 
-  <h2 id="release-b">The second release: e2e kinds, guarded merges and unit tests</h2>
-  <div class="adm warn">
-    <p class="adm-title">Planned, not built</p>
-    <p>Everything in this section is the plan recorded in <a href="../product/decision-log.html#d-102">D-102</a> (5) as
-    <em>proposed, not in force</em>. It needs its own design, its own review and changes in the QA tool before any of it
-    runs. Until then the e2e and unit-test cards behave as <a href="pr-agents.html#qa">Pull-request agents</a>
-    describes.</p>
+  <h2 id="release-b">The second release: e2e kinds, staging creates and merged specs</h2>
+  <div class="adm note">
+    <p class="adm-title">Built in v0.65.0, waiting on the QA tool</p>
+    <p>GAOS's half of parts 1&ndash;3 shipped in v0.65.0 (<a href="../product/decision-log.html#d-103">D-103</a>,
+    design <code>docs/designs/release-b-e2e-kinds-merge-unit-tests.md</code>). The QA tool's half follows in its own
+    pull requests. Until the QA tool lists a capability, GAOS sends what it sends today, so nothing changes by itself.
+    Unit tests (part 4) get a design of their own.</p>
   </div>
-  <p>The second release finishes the two other agents of the request: the <strong>e2e automation builder</strong> and
-  the <strong>unit-test builder</strong>. It is built in four parts, each shippable on its own, in this order.</p>
+  <p>The second release finishes the <strong>e2e automation builder</strong>. In short: when a repository is deployed
+  to staging, GAOS runs its automation of the repository's kind and, if the product asks for it, has the QA tool create
+  what is missing; a person approves each new spec; the QA tool may let it merge by itself once its checks pass; GAOS
+  then runs it.</p>
 
-  <h3 id="release-b-kinds">1. Two e2e kinds, chosen by repository</h3>
-  <p>The QA tool already sorts every case by level &mdash; <code>API</code>, <code>GQL</code>, <code>WEB</code>,
-  <code>E2E</code> &mdash; but it has one generator that lets the model pick a browser spec
-  (<code>tests/web/&hellip;</code>) or an API spec (<code>tests/api/rest/&hellip;</code>). The plan:</p>
-  <ul>
-    <li>Each product repository gets a kind: <strong>backend only</strong> (<code>be</code>: API and GraphQL cases, no
-      browser) or <strong>frontend and backend</strong> (<code>fullstack</code>: browser cases that drive the backend).
-      A backend repository like Route Planner's <code>acme/route-api</code> is <code>be</code>; its web client
-      <code>acme/route-web</code> is <code>fullstack</code>. A repository with no kind is <code>fullstack</code>.</li>
-    <li>E2E cards carry a second label, <code>e2e-kind:be</code> or <code>e2e-kind:fullstack</code>, shown on the kanban
-      and in the table, and filterable like every label.</li>
-    <li>GAOS sends the kind to the QA tool; the QA tool restricts the generator to the matching spec folder and a run
-      to the matching case levels. GAOS sends the field only to a QA tool that says it understands it.</li>
-  </ul>
+  <h3 id="repo-kinds">1. A kind per repository</h3>
+  <table class="tbl">
+    <thead><tr><th>Kind</th><th>A staging run runs</th><th>The QA tool may create</th></tr></thead>
+    <tbody>
+      <tr><td>none (not set)</td><td>every automated case, as today</td><td>nothing on staging</td></tr>
+      <tr><td><code>be</code> &mdash; backend only</td><td>API and GraphQL cases</td><td>API specs (<code>tests/api/rest/</code>)</td></tr>
+      <tr><td><code>fullstack</code> &mdash; frontend and backend</td><td>every case</td><td>browser specs (<code>tests/web/</code>); API specs too when the product has no <code>be</code> repository</td></tr>
+    </tbody>
+  </table>
+  <p>Open the Agents page, pick the product, and open <strong>E2E repository kinds</strong> (admins only, the same
+  accounts as auto-fix). Choose a kind for each repository and save. The staging run card of a repository with a kind
+  carries <code>e2e-kind:be</code> or <code>e2e-kind:fullstack</code>: shown and filterable like every label, never
+  settable by hand. Route Planner's <code>acme/route-api</code> is <code>be</code>; <code>acme/route-web</code> is
+  <code>fullstack</code>. Saving kinds never touches assignment.</p>
 
-  <h3 id="release-b-staging">2. On a staging deploy: create what is missing, then run</h3>
-  <p>The devops pipeline already calls GAOS when a repository has been deployed to staging (the
-  <a href="pr-agents.html#staging">staging callback</a>). Today that plans one card that runs every automated case.
-  The plan:</p>
+  <h3 id="release-b-staging">2. On a staging deploy: create what is missing</h3>
+  <p>Tick <strong>On a staging deploy, ask the QA tool to create missing automation</strong> in the same editor. It is
+  off by default, because it lets the staging credential start generation jobs. Then:</p>
   <ol>
-    <li>GAOS reads its own copy of the QA catalog (it is synced already) and picks the planned cases of the repository's
-      kind that have no automation yet, at most a few per deploy, oldest first.</li>
-    <li>It plans one <em>create</em> card per case, keyed by repository and case so a second deploy does not create the
-      same automation twice. The QA tool writes the spec, runs and repairs it against staging, and waits for a person
-      to approve it (unchanged).</li>
-    <li>The QA tool opens the spec pull request on the automation repository (branch <code>qa-auto/&lt;case&gt;</code>).</li>
-    <li>The <em>run</em> card runs every automated case of that kind once the create cards are finished. A create card
-      that failed or still waits for its merge does not hold the run.</li>
+    <li>The devops pipeline calls the <a href="pr-agents.html#staging">staging callback</a>, as today. GAOS plans the run
+      of the repository's kind.</li>
+    <li>On a new commit only, GAOS reads the product's QA catalog for planned cases with no automation at the kind's
+      levels, and plans a <em>create</em> card for each: at most 2 per deploy (<code>GAOS_E2E_CREATE_MAX</code>) and
+      4 open per product (<code>GAOS_E2E_CREATE_OPEN</code>). The answer carries <code>creates</code>.</li>
+    <li>A case is never created twice. Each of these blocks it: an open card creating it; its spec pull request open
+      (30 days); merged but not yet implemented in the catalog (14 days); closed, or its create card failed (7 days).</li>
+    <li>The QA tool writes the spec and waits for a person to approve it in the QA tool. The card ends Done when the
+      spec pull request is open, and its reason says how it will merge.</li>
   </ol>
 
-  <h3 id="release-b-merge">3. GAOS merges an approved spec pull request &mdash; with guards</h3>
-  <p>Today a person merges every spec pull request. The plan lets GAOS merge one, but only one it can prove is the
-  spec a person approved. GAOS merges when <strong>all</strong> of these hold, and otherwise leaves the pull request
-  for a person with the reason on the card:</p>
-  <ul>
-    <li>The product turned it on (<code>autoMergeSpecs</code>, off by default) and its readiness band is not
-      <em>Minimum</em> (BR-08 forbids auto-merge there).</li>
-    <li>The pull request is in one of the product's automation repositories, its branch starts with
-      <code>qa-auto/</code>, it was opened by the QA tool's account, and it is open and not a draft.</li>
-    <li>Its head commit is <strong>the commit the person approved</strong>. The QA tool records nothing of the kind today;
-      it will report the approved commit with the job, and GAOS refuses when they differ.</li>
-    <li>It changes exactly one spec file under <code>tests/web/</code>, <code>tests/api/rest/</code> or
-      <code>tests/api/graphql/</code>, and nothing under <code>.github/</code>.</li>
-    <li>Every check run and commit status on that commit is green (all pages read), and GitHub says it can merge.</li>
-    <li>The merge pins that commit, so a push after the check cannot be merged unseen. The token is a fine-grained token
-      limited to the automation repositories.</li>
-  </ul>
-  <p>This changes a rule GAOS has kept from the start &mdash; &ldquo;GAOS proposes, a person merges&rdquo; &mdash; for
-  automation repositories only, so it needs the BRD's scope, D-091 (2) and BR-08 amended explicitly, and a security
-  review of its own.</p>
+  <h3 id="release-b-merge">3. The approved spec merges by itself, then runs</h3>
+  <p>Tick <strong>Let the QA tool auto-merge a spec a person approved</strong> (off by default; it applies only in the
+  Working or Complete readiness band). After a person approves a spec <em>in the QA tool</em> (an answer given in the
+  GAOS Inbox leaves the pull request for a person), the <strong>QA tool</strong> asks GAOS
+  (<code>GET /api/v1/products/{id}/spec-auto-merge</code>, QA token) and, when allowed, turns on GitHub's auto-merge
+  pinned to the exact commit that was approved. It does so only when the automation repository has a ruleset that
+  lets only the QA tool's account push <code>qa-auto/*</code> branches and a required check from a fixed source;
+  otherwise it leaves the pull request for a person. GAOS never merges and holds no merge token.</p>
+  <p>When the spec pull request merges, GAOS plans one run of that case if the merged head is the approved commit, a qa
+  agent is assigned, and the QA catalog shows the case implemented. If the catalog has not caught up yet, the row on
+  the Pull requests page says <em>waiting for the catalog</em> and the run is planned when the result arrives (within
+  14 days). A merge at another commit is noted on the row and in the activity feed, and its case is not run.</p>
 
-  <h3 id="release-b-unit">4. Unit tests through the QA tool</h3>
-  <p>GAOS workspaces do not hold the product's code and GAOS runs no code, so the unit-test builder works through the
-  QA tool, which already runs code in a controlled place. The QA tool has no unit-test runner yet. The plan:</p>
-  <ul>
-    <li>A new run type in the QA tool's executor that checks out a product repository at the merged commit and runs its
-      own test command, with a time limit, no secrets in the environment, and network only to allowed hosts.</li>
-    <li>On a merged pull request GAOS asks the QA tool to <strong>run</strong> the tests that exist; when the changed
-      code has none, it asks it to <strong>create</strong> them, and the QA tool proposes them as a draft pull request
-      that a person approves, as for e2e specs.</li>
-    <li>When tests fail, GAOS plans a fix card that is <strong>Blocked until a person moves it to Ready</strong>; it
-      appears under <em>Waiting on a person</em> and in the WhatsApp notice.</li>
-  </ul>
+  <h3 id="release-b-unit">4. Unit tests: decided, not built</h3>
+  <p>Unit tests run through the QA tool in a sandbox it provides, a failure becoming a defect a person releases first.
+  They need their own design and the QA tool's sandbox; until then the unit-test card behaves as
+  <a href="pr-agents.html#qa">Pull-request agents</a> describes.</p>
 
-  <h3 id="release-b-order">Order and status</h3>
+  <h3 id="release-b-order">Status</h3>
   <table class="tbl">
-    <thead><tr><th>Part</th><th>Needs in the QA tool</th><th>Status</th></tr></thead>
+    <thead><tr><th>Part</th><th>GAOS</th><th>Needs in the QA tool</th></tr></thead>
     <tbody>
-      <tr><td>1. E2E kinds</td><td>A <code>kind</code> field on the automation route; the generator and run selection follow it</td><td>Design in progress</td></tr>
-      <tr><td>2. Create then run on staging</td><td>Nothing new (GAOS reads its synced catalog)</td><td>Design in progress</td></tr>
-      <tr><td>3. Guarded merge</td><td>The approved commit and the pull request's author on the job status</td><td>Design in progress; needs the BRD amended</td></tr>
-      <tr><td>4. Unit tests</td><td>A unit-test run type and routes, sandboxed</td><td>Design in progress</td></tr>
+      <tr><td>1. Repository kinds</td><td>Built (v0.65.0)</td><td>a <code>kind</code> field and <code>GET /api/v1/gaos/capabilities</code> listing <code>kind</code></td></tr>
+      <tr><td>2. Create on staging</td><td>Built (v0.65.0)</td><td>nothing new; better with <code>kind</code></td></tr>
+      <tr><td>3. Auto-merge, then run</td><td>Built (v0.65.0)</td><td><code>auto_merge</code> on create, the call to GAOS, the pinned auto-merge, <code>pushed_sha</code> and <code>auto_merge</code> on the job</td></tr>
+      <tr><td>4. Unit tests</td><td>Its own design</td><td>the sandbox, a unit run, a route, a separate identity</td></tr>
     </tbody>
   </table>
 

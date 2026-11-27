@@ -442,6 +442,8 @@ func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
 	// D-088: Basic, per product, its own gate (staging.go). BR-52/BR-55 are
 	// amended for this one route.
 	handle("POST /v1/products/{id}/staging", s.apiStaging)
+	// D-103 §4.1: the QA tool asks before it auto-merges an approved spec.
+	handle("GET /v1/products/{id}/spec-auto-merge", s.apiSpecAutoMerge)
 	// D-099: the external-tasks API, for a client with the tasks capability.
 	handle("POST /v1/products/{id}/tasks", s.apiTaskCreate)
 	handle("GET /v1/products/{id}/tasks", s.apiTaskGet)

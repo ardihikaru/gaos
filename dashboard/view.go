@@ -174,6 +174,16 @@ type AgentAssign struct {
 	Open        bool // the editor is shown open (after a save)
 	Opts        []AFOpt
 	Picks       []AgentPick // the editor: every agent, gated roles first
+	// Release B (D-103 §2.1): the product's repositories with their kinds, and the two switches.
+	Repos          []RepoKindPick
+	StagingCreates bool
+	AutoMergeSpecs bool
+	AutoMergeBand  bool // the product's band allows auto-merge today (working or complete)
+}
+
+// RepoKindPick is one repository row of the kinds editor.
+type RepoKindPick struct {
+	Repo, Kind string
 }
 
 // AgentPick is one checkbox of the assignment editor.
