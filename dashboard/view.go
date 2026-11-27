@@ -458,4 +458,7 @@ type BrainTownRow struct {
 	// Failing: the last attempt failed. It clears on the next success. Only
 	// the yes/no reaches the page, never the error's text.
 	Failing bool
+	// Cursor is the reader's cursor state: "saved <seq>" or "not saved", plus
+	// "· gave up <seq>" after the retry bound (design §3.2). Empty for the feed.
+	Cursor string
 }

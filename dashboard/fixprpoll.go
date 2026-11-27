@@ -153,6 +153,11 @@ func (p *fixPRPoller) Pass(ctx context.Context) {
 	}
 	now := p.now()
 	p.retain(ctx, now)
+	// A review that ends in REVIEW after its pull request merged has no poll left
+	// to finish it; this sweep does, every tick (design §3.1).
+	if _, err := p.st.FinishMergedReviews(ctx); err != nil {
+		p.logf("pull requests: merged reviews could not be finished: %v", err)
+	}
 	if p.gh == nil {
 		return
 	}

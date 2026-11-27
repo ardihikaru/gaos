@@ -83,8 +83,15 @@ data: {"seq":1975,"id":"gh-…","type":"pr.opened","source":"github","at":"…",
   <ul>
     <li>One goroutine, one stream. Nothing here blocks a GAOS action: a slow or dead town slows nothing.</li>
     <li>The hand-over is a bounded channel of 256. A full channel does <strong>not</strong> drop the event:
-    the reader keeps it and does not advance the cursor, so the event is replayed on the next reconnect. An
-    event that was never handed over is a state change that never happened, and it must not be lost.</li>
+    it ends the session, and the reconnect resumes after the saved cursor. An event that was never handed
+    over is a state change that never happened, and it must not be lost.</li>
+    <li>The cursor has one writer: the drain, after the flow has committed the event or skipped it on
+    purpose. A frame the reader filters out still moves the cursor, in order, as a marker. A transient
+    failure (the products could not be read, a GitHub network error, a 5xx or a 429) keeps the cursor,
+    ends the session and is tried again after 5, 10, 20, 40 and 80 s; after that the event is skipped, the
+    log says <code>brain town reader: gave up seq &lt;n&gt;</code> and the <em>Cursor</em> row shows it
+    (v0.60.1). A GitHub 403, 404 or 422 and a store error are skipped at once: the pull-request poller is the
+    source of truth for a merge, and finishes the review card it left in Review.</li>
     <li>The waits before the second, third and fourth attempt are 1 s, 5 s and 30 s; after the fourth
     consecutive failure the reader holds at 30 s. A <code>401</code> or a <code>403</code> stops the reader and
     says so &mdash; but the token file is re-read on the next attempt, so a rotated token is picked up without
@@ -98,10 +105,11 @@ data: {"seq":1975,"id":"gh-…","type":"pr.opened","source":"github","at":"…",
   <ol>
     <li>In the town's back office, open <em>Consumers</em>, create one for GAOS and give it the scope: the
     owners, the repositories, the kinds and the event types. Copy the token &mdash; it is shown once.</li>
-    <li>Create the two files:
+    <li>Create the token file and the cursor directory, as the deploy user:
     <code>install -m 600 /dev/null deploy/stacks/prod.bt-consumer-token</code> and
-    <code>install -m 600 /dev/null deploy/stacks/prod.bt-consumer-cursor</code>, then put the token in the
-    first one. Both must exist before <code>up</code>.</li>
+    <code>mkdir -m 700 deploy/stacks/prod.bt-state</code>, then put the token in the file. Both must exist
+    before <code>up</code>; the deploy refuses a missing directory, one owned by someone else, or one that is
+    not mode 700. The container runs as the deploy user and writes <code>cursor</code> inside it.</li>
     <li>Redeploy with the settings on the line, and repeat them on every redeploy:
     <code>BRAIN_TOWN_CONSUMER_ENABLED=true BRAIN_TOWN_CONSUMER_URL=https://town.example.org ./deploy/rebuild-restart.sh prod deploy --tag vX.Y.Z</code>.</li>
     <li>Open the back office's <em>Integrations</em> view: the <em>Brain Town reader</em> block says

@@ -147,6 +147,11 @@ type Store interface {
 	MoveCard(ctx context.Context, productID, taskID string, m CardMove) (Result, error)
 	// SetTaskLabel changes a card's label and emits TaskLabeled (D-088).
 	SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error)
+	// HoldReview sets pr-review:needs-manual and the secret-held reason in one
+	// event; FinishMergedReviews finishes REVIEW review cards whose pull request
+	// merged (docs/designs/gaos-external-tasks-and-pr-bundles.md §3.1).
+	HoldReview(ctx context.Context, productID, taskID string) (Result, error)
+	FinishMergedReviews(ctx context.Context) (Result, error)
 	// PRCards are a product's pull-request cards (those carrying a dedup key), as
 	// copies: the QA-job runner reads their status, labels and reason (D-088).
 	PRCards(ctx context.Context, productID string) ([]TaskRecord, error)
@@ -265,6 +270,10 @@ type Result struct {
 	// (pullrequests.go); ArcadeStore writes them in the same transaction.
 	PullRequests       []PullRequest
 	PullRequestDeletes []string
+
+	// Capped: PlanPullRequestCards committed its moot moves but the cap refused
+	// the new cards (design gaos-external-tasks-and-pr-bundles §3.1).
+	Capped bool
 }
 
 // Sentinel errors. ErrRejected is the "rejection reason" half of the §09 rule:
@@ -377,6 +386,10 @@ func (readOnly) PruneConversations(context.Context, string, []CardRef) (Result, 
 func (readOnly) SetTaskLabel(context.Context, string, string, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
+func (readOnly) HoldReview(context.Context, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) FinishMergedReviews(context.Context) (Result, error) { return Result{}, nil }
 func (readOnly) ResolvePRCard(context.Context, string, string, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }

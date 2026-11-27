@@ -422,6 +422,12 @@ func (s *ArcadeStore) CancelTask(ctx context.Context, i int) (Result, error) {
 func (s *ArcadeStore) SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SetTaskLabel(ctx, productID, taskID, label, actor) })
 }
+func (s *ArcadeStore) HoldReview(ctx context.Context, productID, taskID string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.HoldReview(ctx, productID, taskID) })
+}
+func (s *ArcadeStore) FinishMergedReviews(ctx context.Context) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.FinishMergedReviews(ctx) })
+}
 func (s *ArcadeStore) ResolvePRCard(ctx context.Context, productID, taskID, to, reason string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.ResolvePRCard(ctx, productID, taskID, to, reason) })
 }

@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-60-1">v0.60.1 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A merged pull request finishes its review card, and the Brain Town reader saves its cursor (#56; design <code>docs/designs/gaos-external-tasks-and-pr-bundles.md</code> &sect;3).</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> A review card waiting in Review now moves to Done when its pull request merges, by the merge event or, if the review was still running then, by the poller&rsquo;s next pass. A review held because its reply carried a secret stays for a person.</li>
+        <li><span class="chg fix">Fixed</span> When the open-card cap refused a merge&rsquo;s unit-test card, the merge&rsquo;s cancel and finish moves were kept only in memory; they are now saved.</li>
+        <li><span class="chg fix">Fixed</span> The Brain Town reader saves its cursor only after an event is committed or skipped on purpose, from one writer, in order. A transient failure is retried five times and then skipped and shown; a full hand-over channel restarts the stream instead of dropping a frame.</li>
+        <li><span class="chg change">Changed</span> Production keeps the cursor in a writable directory, <code>deploy/stacks/prod.bt-state/</code> (mode 700, the deploy user). Create it before deploying; the deploy refuses without it. The read-only <code>prod.bt-consumer-cursor</code> file is no longer mounted. The Integrations view shows the cursor. TC-767 &hellip; TC-772.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-60-0">v0.60.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The Integrations view says at a glance what works, what GAOS needs, and what each integration does (<a href="product/decision-log.html#d-098">D-098</a>).</p>
       <ul>

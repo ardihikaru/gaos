@@ -149,14 +149,16 @@ services:
       BRAIN_TOWN_TOKEN_FILE: "/run/secrets/bt-token"
       # D-087: the Brain Town READER, the other direction. GAOS pulls the town's
       # pull-request events. The token is a FILE (deploy/stacks/prod.bt-consumer-token,
-      # gitignored, mode 600) and the cursor is a FILE too (prod.bt-consumer-cursor), so
-      # a restart resumes where it stopped instead of replaying the whole retention.
+      # gitignored, mode 600). The cursor lives in a writable DIRECTORY
+      # (deploy/stacks/prod.bt-state/, mode 700, owned by the deploy user, created by
+      # hand): a file bind mount cannot take the rename the reader saves it with, and
+      # the old read-only file mount meant it was never saved (#56, v0.60.1).
       BRAIN_TOWN_CONSUMER_ENABLED: "${BRAIN_TOWN_CONSUMER_ENABLED:-}"
       BRAIN_TOWN_CONSUMER_URL: "${BRAIN_TOWN_CONSUMER_URL:-}"
       BRAIN_TOWN_CONSUMER_TYPES: "${BRAIN_TOWN_CONSUMER_TYPES:-}"
       BRAIN_TOWN_CONSUMER_KINDS: "${BRAIN_TOWN_CONSUMER_KINDS:-}"
       BRAIN_TOWN_CONSUMER_TOKEN_FILE: "/run/secrets/bt-consumer-token"
-      BRAIN_TOWN_CONSUMER_CURSOR_FILE: "/run/secrets/bt-consumer-cursor"
+      BRAIN_TOWN_CONSUMER_CURSOR_FILE: "/var/lib/gaos-bt/cursor"
       # D-088: the pull-request flow. Every credential is a FILE (deploy/stacks/prod.pr-*,
       # gitignored, mode 600, must EXIST before `up`; empty = that part is off). None is ever
       # an environment value. GAOS_WA_URL has no default and is https unless GAOS_WA_ALLOW_HTTP says otherwise.
@@ -188,7 +190,7 @@ services:
       - ./prod.bo-session-key:/run/secrets/bo-session-key:ro
       - ./prod.bt-token:/run/secrets/bt-token:ro
       - ./prod.bt-consumer-token:/run/secrets/bt-consumer-token:ro
-      - ./prod.bt-consumer-cursor:/run/secrets/bt-consumer-cursor:ro
+      - ./prod.bt-state:/var/lib/gaos-bt
       - ./prod.pr-github-token:/run/secrets/pr-github-token:ro
       - ./prod.pr-staging-auth:/run/secrets/pr-staging-auth:ro
       - ./prod.pr-wa-auth:/run/secrets/pr-wa-auth:ro

@@ -141,11 +141,22 @@ for f in deploy/stacks/*.bo-*; do
 done
 for f in deploy/stacks/*.bt-*; do
   # The Brain Town receiver's token (D-086): a host-side file, never tracked.
+  # prod.bt-state is the reader's writable cursor DIRECTORY (v0.60.1): mode 700.
   [ -e "$f" ] || continue
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     bad "$f is tracked by git"
   else
     ok "$(basename "$f") is untracked"
+  fi
+  if [ "$(basename "$f")" = prod.bt-state ]; then
+    if [ ! -d "$f" ]; then
+      bad "$f is not a directory (the reader's cursor lives in it)"
+    elif [ "$(stat -c %a "$f")" != 700 ]; then
+      bad "$f is mode $(stat -c %a "$f"), want 700"
+    else
+      ok "prod.bt-state is a mode-700 directory"
+    fi
+    continue
   fi
   if [ ! -f "$f" ]; then
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
@@ -155,7 +166,8 @@ has $PROD 'prod.bt-token:/run/secrets/bt-token:ro' "prod mounts the Brain Town t
 has $PROD 'BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"' "prod passes the Brain Town switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_TOKEN:' "prod passes the Brain Town token only as a file, never as an environment variable"
 has $PROD 'prod.bt-consumer-token:/run/secrets/bt-consumer-token:ro' "prod mounts the Brain Town consumer token file read-only"
-has $PROD 'prod.bt-consumer-cursor:/run/secrets/bt-consumer-cursor:ro' "prod mounts the Brain Town consumer cursor file read-only"
+has $PROD 'prod.bt-state:/var/lib/gaos-bt' "prod mounts the Brain Town reader's cursor directory writable"
+hasnt $PROD 'prod.bt-consumer-cursor' "prod no longer mounts the read-only cursor file (#56)"
 has $PROD 'BRAIN_TOWN_CONSUMER_ENABLED: "${BRAIN_TOWN_CONSUMER_ENABLED:-}"' "prod passes the Brain Town reader switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_CONSUMER_TOKEN:' "prod passes the Brain Town reader token only as a file, never as an environment variable"
 for f in deploy/stacks/*.pr-*; do

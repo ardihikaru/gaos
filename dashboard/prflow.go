@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -235,11 +236,19 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 	}
 	var events []Event
 
-	// A merge makes a review or an e2e build that has not started moot.
+	// A merge makes a review or an e2e build that has not started moot, and
+	// finishes a review that is waiting in REVIEW (design §3.1).
 	if ev.Type == prTypeMerged {
 		for _, job := range []string{prJobReviewer, prJobE2EBuild} {
 			t := s.taskByDedupKeyLocked(ev.Key(job))
-			if t == nil || (t.Status != StatusPending && t.Status != StatusReady) {
+			if t == nil {
+				continue
+			}
+			if job == prJobReviewer && t.Status == StatusReview {
+				events = append(events, s.finishMergedReviewLocked(t)...)
+				continue
+			}
+			if t.Status != StatusPending && t.Status != StatusReady {
 				continue
 			}
 			if mv, ok := s.moveTaskLocked(t.ID, StatusCanceled, RulePRMerged); ok {
@@ -255,7 +264,14 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 		return nil, existing, Result{PullRequests: rows}, nil
 	}
 	if len(fresh) > 0 && s.openPRCardsLocked(productID) >= prMaxOpen() {
-		return nil, existing, Result{}, fmt.Errorf("%w: cap", ErrPRSkipped)
+		if len(events) == 0 {
+			return nil, existing, Result{}, fmt.Errorf("%w: cap", ErrPRSkipped)
+		}
+		// The moves above are already applied to the projection: commit them,
+		// or they would live in memory only (design §3.1). Nothing is planned.
+		c := m.Clone()
+		return nil, existing, Result{Master: &c, NewEvents: events, PullRequests: rows, Capped: true,
+			Toast: "the cap refused the new card(s); the moot moves were kept"}, nil
 	}
 
 	ordinal := 0
@@ -344,18 +360,38 @@ func prAssociationOK(a string) bool {
 	return false
 }
 
+// flowOutcome is what the reader does with the cursor after an event (design §3.2).
+type flowOutcome int
+
+const (
+	// flowDone: committed, or skipped on purpose -- the cursor may pass the event.
+	flowDone flowOutcome = iota
+	// flowRetry: a transient failure -- the cursor stays and the event comes back.
+	flowRetry
+)
+
+// lookupTransient reports whether a GitHub lookup failure may pass on a retry:
+// the network, a 5xx or a rate limit. A 403, 404, 410 or 422 will not.
+func lookupTransient(err error) bool {
+	var ge *ghError
+	if errors.As(err, &ge) {
+		return ge.Status >= 500 || ge.Status == http.StatusTooManyRequests
+	}
+	return true
+}
+
 // handle plans the cards for one event. It returns only after the cards are
-// committed, so the reader advances its cursor past a frame that is safe
-// (§6.5). It always answers true: a refused or failed event is logged, and the
-// stream moves on.
-func (f *prFlow) handle(ctx context.Context, ev PREvent) bool {
+// committed, so the reader saves its cursor past a frame only when it is safe
+// (design §3.2). A store error is not retried: the projection already holds the
+// change, so a replay would plan nothing; the poller repairs the state.
+func (f *prFlow) handle(ctx context.Context, ev PREvent) flowOutcome {
 	if ev.Type != prTypeOpened && ev.Type != prTypeMerged {
-		return true
+		return flowDone
 	}
 	masters, err := f.st.Masters(ctx)
 	if err != nil {
 		f.logf("prflow: the products could not be read: %v", err)
-		return true
+		return flowRetry
 	}
 	for _, m := range masters {
 		if !productOwns(m.Repos, ev.Org, ev.Repo) {
@@ -366,26 +402,31 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) bool {
 			var err error
 			pr, err = f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber)
 			switch {
+			case err != nil && lookupTransient(err):
+				f.logf("prflow: pr-lookup-failed %s; retrying", ghErrorClass(err))
+				return flowRetry
 			case err != nil:
 				// The check could not be made; open nothing rather than spend on a stranger.
-				f.logf("prflow: skip pr-lookup-failed")
-				return true
+				f.logf("prflow: skip pr-lookup-%s", ghErrorClass(err))
+				return flowDone
 			case pr.Draft:
 				ev.Draft = true
 			case !prAllowForks() && pr.Head.Repo.FullName != "" && !strings.EqualFold(pr.Head.Repo.FullName, pr.Base.Repo.FullName):
 				f.logf("prflow: skip fork")
-				return true
+				return flowDone
 			case !prAssociationOK(pr.AuthorAssociation):
 				f.logf("prflow: skip association")
-				return true
+				return flowDone
 			}
 		}
-		planned, existing, _, err := f.st.PlanPullRequestCards(ctx, m.ID, ev)
+		planned, existing, res, err := f.st.PlanPullRequestCards(ctx, m.ID, ev)
 		switch {
 		case errors.Is(err, ErrPRSkipped):
 			f.logf("prflow: skip %s", strings.TrimPrefix(err.Error(), ErrPRSkipped.Error()+": "))
 		case err != nil:
 			f.logf("prflow: planning failed: %v", err)
+		case res.Capped:
+			f.logf("prflow: skip cap")
 		case len(planned) > 0:
 			f.logf("prflow: planned %d card(s) on %s", len(planned), m.ID)
 			if ev.Type == prTypeOpened && f.gh != nil && f.ctx != nil {
@@ -394,10 +435,10 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) bool {
 		case len(existing) > 0:
 			f.logf("prflow: duplicate")
 		}
-		return true
+		return flowDone
 	}
 	f.logf("prflow: no product owns this repository; skipped")
-	return true
+	return flowDone
 }
 
 // labelFamily is the part of a label before the colon: one label per family.
@@ -424,6 +465,10 @@ func actorAlias(email string) string {
 func (s *MemStore) SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.setTaskLabelLocked(productID, taskID, label, actor)
+}
+
+func (s *MemStore) setTaskLabelLocked(productID, taskID, label, actor string) (Result, error) {
 	m := s.masterPtr(productID)
 	if m == nil {
 		return Result{}, ErrNotFound
@@ -600,4 +645,74 @@ func (s *MemStore) PRCards(ctx context.Context, productID string) ([]TaskRecord,
 		}
 	}
 	return out, nil
+}
+
+// RuleSecretHeld is the reason a review card carries when its reply held a
+// secret: it is never finished by a merge (design §3.1).
+const RuleSecretHeld = "secret-held"
+
+// finishMergedReviewLocked moves t, a pr-reviewer card in REVIEW, to DONE with
+// rule pr-merged. Any other status, or a secret hold, moves nothing.
+func (s *MemStore) finishMergedReviewLocked(t *TaskRecord) []Event {
+	if t == nil || t.Role != "pr-reviewer" || t.Status != StatusReview || t.BlockReason == RuleSecretHeld {
+		return nil
+	}
+	evs, err := s.resolveCardLocked(t, StatusDone, "pull request merged", RulePRMerged)
+	if err != nil {
+		return nil
+	}
+	return evs
+}
+
+// FinishMergedReviews finishes every REVIEW pr-reviewer card whose pull request
+// row is merged. The poller calls it every tick: a review that was RUNNING when
+// its pull request merged reaches REVIEW after the row went final, and no poll of
+// the row comes again (design §3.1).
+func (s *MemStore) FinishMergedReviews(ctx context.Context) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var evs []Event
+	for i := range s.tasks {
+		t := &s.tasks[i]
+		if t.Role != "pr-reviewer" || t.Status != StatusReview || t.DedupKey == "" {
+			continue
+		}
+		owner, repo, n, ok := prKeyParts(t.DedupKey)
+		if !ok {
+			continue
+		}
+		row, ok := s.pullRequests[pullRequestKey(t.DeskID, owner+"/"+repo, n)]
+		if !ok || row.State != PRStateMerged {
+			continue
+		}
+		evs = append(evs, s.finishMergedReviewLocked(t)...)
+	}
+	if len(evs) == 0 {
+		return Result{}, nil
+	}
+	return Result{NewEvents: evs, Floor: s.floor()}, nil
+}
+
+// HoldReview sets pr-review:needs-manual and the secret-held reason on one card,
+// in one TaskLabeled event: a held review must never be finished by a merge.
+func (s *MemStore) HoldReview(ctx context.Context, productID, taskID string) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	res, err := s.setTaskLabelLocked(productID, taskID, LabelPRReviewNeedsManual, "gaos")
+	if err != nil {
+		return res, err
+	}
+	t := s.taskByIDLocked(taskID)
+	if t == nil || t.DeskID != productID {
+		return Result{}, ErrNotFound
+	}
+	t.BlockReason = RuleSecretHeld
+	if res.Master == nil {
+		if m := s.masterPtr(productID); m != nil {
+			c := m.Clone()
+			res.Master = &c
+		}
+	}
+	res.Floor = s.floor()
+	return res, nil
 }

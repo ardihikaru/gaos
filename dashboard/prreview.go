@@ -239,7 +239,7 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 	}
 	if screenBody(rv.Body) {
 		// Nothing is posted. A person takes over.
-		_, _ = p.st.SetTaskLabel(ctx, t.DeskID, t.ID, LabelPRReviewNeedsManual, "gaos")
+		_, _ = p.st.HoldReview(ctx, t.DeskID, t.ID)
 		p.notifyIf(ctx, t, "review", rv.Severity, "review held: the body carried a secret")
 		return
 	}
