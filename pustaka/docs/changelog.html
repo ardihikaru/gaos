@@ -36,6 +36,14 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-63-1">v0.63.1 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The missing-code alert never reaches a pull request that was open before v0.62.0 (<a href="product/decision-log.html#d-100">D-100</a>).</p>
+      <ul>
+        <li><span class="chg fix">Fixed</span> A pull-request row already polled before the release was marked as seen by its first later read, so it could be alerted. Now only a row this release saw from its start can be. TC-791 asserts it.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-63-0">v0.63.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A card that waits for a person&rsquo;s review tells somebody (<a href="product/decision-log.html#d-101">D-101</a>).</p>
       <ul>

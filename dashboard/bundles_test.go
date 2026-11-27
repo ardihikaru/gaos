@@ -316,6 +316,16 @@ func TestMissingTaskCodeAlertOnce(t *testing.T) {
 		t.Errorf("alert (b) after 60 minutes: %v", bodies)
 	}
 	bodies = nil
+	// A row polled before the release is never marked seen by a later read, so never alerted.
+	if _, err := st.UpsertPullRequest(ctx, PullRequest{ProductID: "p-1", Repo: "loop/laundry-api", Number: 6, Kind: PRKindReview, OpenedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	st.AdvancePullRequest(ctx, "p-1", keyOf("loop/laundry-api#6"), PRFields{State: PRStateOpen, CheckedAt: 50})
+	bodies = nil
+	run(st, "loop/laundry-api#6", empty, 3*time.Hour)
+	if bundleRow(t, st, "loop/laundry-api#6").TemplateSeen || len(bodies) != 0 {
+		t.Errorf("a row polled before the release was marked seen or alerted: %v", bodies)
+	}
 	// A member of any bundle, and a row from before the release, are never alerted.
 	st.ApplyBundleLinks(ctx, "p-1", keyOf("loop/laundry-api#5"), prTemplate{Present: true, Links: []string{"loop/laundry-api#4"}}, now.Unix())
 	run(st, "loop/laundry-api#4", empty, 2*time.Hour)
