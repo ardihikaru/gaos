@@ -1688,6 +1688,7 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .agent-row{padding:8px 0;align-items:flex-start}
 .agent-who{display:flex;align-items:flex-start;gap:9px;flex-wrap:wrap;min-width:0;font-family:var(--font-body);font-size:13px;color:var(--ink)}
 .agent-row b{flex-shrink:0;white-space:nowrap;margin-left:12px}
+.agent-who .card-labels{font-size:11px}
 .agent-editor{padding:4px 12px 12px}
 .agent-pick{display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px}
 /* D-102: the reviewer's severity. The level is always written as text; the
