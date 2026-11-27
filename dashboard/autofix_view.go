@@ -79,7 +79,15 @@ type AutoFixPage struct {
 	AnyOff       bool
 	ProductsMore int
 	Waiting      []AFWait
-	WaitingMore  int
+	WaitPager    Pager // five cards a page (D-108 design §7.1)
+
+	// Sections is the nav of the three sections (design §7.2); Section is the active one
+	// ("" = Fix pull requests). Dups are the duplicate findings (§5); Admin is whether the
+	// viewer may close one.
+	Sections []AFTab
+	Section  string
+	Dups     []AFDup
+	Admin    bool
 
 	Filter      AFFilter
 	StateTabs   []AFTab
@@ -273,7 +281,27 @@ type AFWait struct {
 // AFFilter is the query.
 type AFFilter struct {
 	Product, State, Difficulty, Open string
-	Page                             int // 0 = the first page (D-097)
+	Page                             int    // 0 = the first page (D-097)
+	WPage                            int    // the Cards waiting page, 0 = the first (D-108)
+	Section                          string // "" (Fix pull requests) | products | waiting
+}
+
+// The page's sections (design §7.2). The empty value is Fix pull requests and is never written.
+const (
+	afSectionProducts = "products"
+	afSectionWaiting  = "waiting"
+)
+
+// afSectionOf reads the section key; an open drawer always shows Fix pull requests.
+func afSectionOf(q url.Values) string {
+	if q.Get("open") != "" {
+		return ""
+	}
+	switch v := q.Get("section"); v {
+	case afSectionProducts, afSectionWaiting:
+		return v
+	}
+	return ""
 }
 
 // AFTab is a state link with its count.
@@ -303,6 +331,11 @@ type AFRow struct {
 	WA                    bool
 	Href                  string
 	Open                  bool
+	// D-108: the head branch and the base, why the pull request exists, and whether a
+	// retarget replaced it (an S finding).
+	Branch, Base string
+	Trigger      string
+	Replaced     bool
 }
 
 // AFDrawer is the detail panel of one pull request.
@@ -314,6 +347,9 @@ type AFDrawer struct {
 	Number                int
 	URL                   string
 	Card, Branch, Class   string
+	Base                  string
+	Trigger, TriggerHref  string
+	TriggerGet            string
 	Opened, OpenedTitle   string
 	Updated, UpdatedTitle string
 	WA                    bool
@@ -416,11 +452,11 @@ func (s *server) buildAutoFix(r *http.Request, bo *BOView) {
 	ctx := r.Context()
 	bo.Title = "Auto-fix"
 	bo.Sub = "Defects the QA tools report, and the draft pull requests GAOS opens for the easy ones. Nothing is merged here: a person always has the last word on GitHub."
-	bo.AutoFix = s.autoFixPage(ctx, r.URL.Query(), time.Now())
+	bo.AutoFix = s.autoFixPage(ctx, r.URL.Query(), time.Now(), prViewerIsAdmin(r))
 }
 
-func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *AutoFixPage {
-	p := &AutoFixPage{}
+func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time, admin bool) *AutoFixPage {
+	p := &AutoFixPage{Admin: admin}
 	products, _ := s.store.Products(ctx)
 
 	// ---- the filter, validated against what exists ----
@@ -444,6 +480,8 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 	}
 	f.Open = q.Get("open")
 	f.Page = pageParam(q.Get("page"))
+	f.WPage = pageParam(q.Get("wpage"))
+	f.Section = afSectionOf(q)
 
 	// ---- the records of every product in scope ----
 	type scoped struct {
@@ -493,6 +531,21 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 		return m
 	}
 
+	// ---- duplicates (D-108 design §5): per product, over every record ----
+	replaced := map[string]bool{}
+	for _, sc := range in {
+		defs := map[string]Defect{}
+		for _, d := range sc.defs {
+			defs[d.Key] = d
+		}
+		for _, dup := range afDuplicates(sc.fixes, defs) {
+			if dup.Rule == dupSuperseded {
+				replaced[dup.Close] = true
+			}
+			p.Dups = append(p.Dups, dup)
+		}
+	}
+
 	// ---- tiles ----
 	var drafts, ready, merged, awaiting, blocked, held int
 	var fixUsed, fixCap, trgUsed, trgCap, defects int
@@ -508,7 +561,9 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 		for _, fx := range sc.fixes {
 			switch fx.State {
 			case FixPRDraft:
-				drafts++
+				if !replaced[fx.ID] {
+					drafts++
+				}
 			case FixPRReady:
 				ready++
 			case FixPRMerged:
@@ -601,9 +656,18 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 		}
 	}
 	sort.SliceStable(p.Waiting, func(i, j int) bool { return p.Waiting[i].Person && !p.Waiting[j].Person })
-	if len(p.Waiting) > 10 {
-		p.WaitingMore, p.Waiting = len(p.Waiting)-10, p.Waiting[:10]
+	// Five a page (design §7.1), clamped and written back before any address is built.
+	p.WaitPager = paginate(len(p.Waiting), f.WPage, listPageSize, func(n int) (string, string) {
+		g := f
+		g.Open, g.WPage = "", n
+		return afHref(g), afPageHref(g)
+	})
+	p.WaitPager.Sync, p.WaitPager.Label = "#afLive:replace", "Waiting cards pages"
+	f.WPage = p.WaitPager.Page
+	if f.WPage <= 1 {
+		f.WPage = 0
 	}
+	p.Waiting = sliceFor(p.Waiting, p.WaitPager)
 	// the ones that are working first; the order the store gave otherwise
 	sort.SliceStable(p.Products, func(i, j int) bool { return p.Products[i].State == "on" && p.Products[j].State != "on" })
 	if len(p.Products) > 30 {
@@ -611,7 +675,7 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 	}
 
 	p.Tiles = []AFTile{
-		{Label: "Open drafts", Value: thousands(drafts), Tone: "run", Zero: drafts == 0, Note: "waiting for a reviewer"},
+		{Label: "Open drafts", Value: thousands(drafts), Tone: "run", Zero: drafts == 0, Note: draftNote(len(replaced))},
 		{Label: "Ready for review", Value: thousands(ready), Tone: "ask", Zero: ready == 0, Note: "a person is next"},
 		{Label: "Merged, 7 days", Value: thousands(merged), Tone: "done", Zero: merged == 0, Note: "fixes that landed"},
 		{Label: "Awaiting triage", Value: thousands(awaiting), Zero: awaiting == 0, Note: "defects not yet judged"},
@@ -631,7 +695,10 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 	}
 	for _, sc := range in {
 		for _, fx := range sc.fixes {
-			all = append(all, afRow(fx, defByKey[fx.DefectKey], afLine(sc.pr.Name, 80), sc.pr.ID, now))
+			r := afRow(fx, defByKey[fx.DefectKey], afLine(sc.pr.Name, 80), sc.pr.ID, now)
+			r.Trigger, _ = afTrigger(fx, defByKey[fx.DefectKey], byID)
+			r.Replaced = replaced[fx.ID]
+			all = append(all, r)
 		}
 	}
 	rank := func(st string) int {
@@ -684,18 +751,35 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 	shown = sliceFor(shown, p.Pager)
 	for i := range shown {
 		shown[i].Open = f.Open != "" && shown[i].ID == f.Open
-		shown[i].Href = afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty, Open: shown[i].ID, Page: f.Page})
+		shown[i].Href = afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty, Open: shown[i].ID, Page: f.Page, WPage: f.WPage})
 	}
 	p.Rows = shown
 
 	p.StateTabs = append(p.StateTabs, AFTab{Value: "", Label: "All", Count: total, On: f.State == "",
-		Href: afHref(AFFilter{Product: f.Product, Difficulty: f.Difficulty})})
+		Href: afHref(AFFilter{Product: f.Product, Difficulty: f.Difficulty, WPage: f.WPage, Section: f.Section})})
 	for _, st := range afStateOrder {
 		if st.Value == FixPRPreparing && counts[st.Value] == 0 && f.State != st.Value {
 			continue // a state with nothing in it and nobody asking is noise
 		}
 		p.StateTabs = append(p.StateTabs, AFTab{Value: st.Value, Label: st.Label, Count: counts[st.Value], On: f.State == st.Value,
-			Href: afHref(AFFilter{Product: f.Product, State: st.Value, Difficulty: f.Difficulty})})
+			Href: afHref(AFFilter{Product: f.Product, State: st.Value, Difficulty: f.Difficulty, WPage: f.WPage, Section: f.Section})})
+	}
+	// The sections (design §7.2): a link to another one keeps the product and the difficulty.
+	for _, sec := range []struct {
+		v, label string
+		n        int
+	}{{"", "Fix pull requests", p.RowsTotal}, {afSectionWaiting, "Cards waiting", p.WaitPager.Total}, {afSectionProducts, "Auto-fix by product", len(p.Products) + p.ProductsMore}} {
+		p.Sections = append(p.Sections, AFTab{Value: sec.v, Label: sec.label, Count: sec.n, On: f.Section == sec.v,
+			Href: afHref(AFFilter{Product: f.Product, Difficulty: f.Difficulty, Section: sec.v})})
+	}
+	p.Section = f.Section
+	for i := range p.Dups {
+		dp := &p.Dups[i]
+		dp.CloseGet = afHref(AFFilter{Product: f.Product, Open: dp.Close})
+		dp.KeepGet = afHref(AFFilter{Product: f.Product, Open: dp.Keep})
+		dp.CloseHref, dp.KeepHref = pageHref(dp.CloseGet), pageHref(dp.KeepGet)
+		dp.PostURL = "products/" + url.PathEscape(dp.ProductID) + "/prs/" + url.PathEscape(dp.Close) + "/close"
+		dp.Confirm = "Close " + dp.CloseRef + " on GitHub? Its branch is kept; the defect is not changed."
 	}
 	p.ProductOpts = []AFOpt{{Value: "", Label: "All products", On: f.Product == ""}}
 	for _, pr := range products {
@@ -705,7 +789,7 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 	for _, d := range afDifficulties {
 		p.DiffOpts = append(p.DiffOpts, AFOpt{Value: d, Label: d, On: f.Difficulty == d})
 	}
-	p.ResetHref = afHref(AFFilter{})
+	p.ResetHref = afHref(AFFilter{Section: f.Section})
 	p.PollURL = afHref(f, "live")
 
 	switch {
@@ -737,6 +821,14 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 		for _, sc := range in {
 			if sc.pr.ID == prodOf[fx.ID] {
 				p.Drawer = s.afDrawer(ctx, fx, defByKey[fx.DefectKey], sc.pr, sc.af, meterOf(sc.fixUse, mustCap(sc.af, true)), meterOf(sc.trgUse, mustCap(sc.af, false)), now, f)
+				var openID string
+				p.Drawer.Trigger, openID = afTrigger(fx, defByKey[fx.DefectKey], byID)
+				if openID != "" {
+					g := f
+					g.Open = openID
+					p.Drawer.TriggerGet = afHref(g)
+					p.Drawer.TriggerHref = pageHref(p.Drawer.TriggerGet)
+				}
 			}
 		}
 	}
@@ -749,6 +841,13 @@ func mustCap(a AutoFix, fix bool) int {
 		return f
 	}
 	return t
+}
+
+func draftNote(replaced int) string {
+	if replaced == 0 {
+		return "waiting for a reviewer"
+	}
+	return fmt.Sprintf("waiting for a reviewer · %d replaced", replaced)
 }
 
 func waitNote(held int) string {
@@ -824,6 +923,12 @@ func afHref(f AFFilter, live ...string) string {
 	if f.Page > 1 {
 		v.Set("page", strconv.Itoa(f.Page))
 	}
+	if f.WPage > 1 {
+		v.Set("wpage", strconv.Itoa(f.WPage))
+	}
+	if f.Section != "" {
+		v.Set("section", f.Section)
+	}
 	path := "ui/bo/autofix"
 	if len(live) > 0 {
 		path += "/live"
@@ -849,7 +954,8 @@ func afRow(fx FixPR, d Defect, product, productID string, now time.Time) AFRow {
 		state = "unknown"
 	}
 	r := AFRow{ID: fx.ID, State: state, StateLabel: afStateLabel(fx.State), Product: product, ProductID: productID,
-		Card: afLine(fx.TaskID, 24), WA: fx.WaSent, Diff: afDiff(fx.Difficulty, d.Difficulty)}
+		Card: afLine(fx.TaskID, 24), WA: fx.WaSent, Diff: afDiff(fx.Difficulty, d.Difficulty),
+		Branch: afLine(fx.Branch, 90), Base: afLine(fx.Base, 60)}
 	if d.Key != "" {
 		r.Ref, r.Title = afLine(d.Ref(), 40), afLine(d.Title, 200)
 	} else {
@@ -902,7 +1008,7 @@ func (s *server) afDrawer(ctx context.Context, fx FixPR, d Defect, pr Product, a
 	row := afRow(fx, d, afLine(pr.Name, 80), pr.ID, now)
 	dr := &AFDrawer{ID: fx.ID, State: row.State, StateLabel: row.StateLabel, Ref: row.Ref, Title: row.Title, Diff: row.Diff,
 		Product: row.Product, ProductID: pr.ID, Repo: row.Repo, Number: row.Number, URL: row.URL, Card: row.Card,
-		Branch: afLine(fx.Branch, 90), Class: afLine(d.Class, 40), WA: fx.WaSent,
+		Branch: afLine(fx.Branch, 90), Base: row.Base, Class: afLine(d.Class, 40), WA: fx.WaSent,
 		Opened: row.Age, OpenedTitle: afClock(fx.CreatedAt),
 		Before: afText(fx.Before, 1024), After: afText(fx.After, 1024),
 		CloseHref: afHref(AFFilter{Product: f.Product, State: f.State, Difficulty: f.Difficulty, Page: f.Page})}
@@ -1035,7 +1141,7 @@ func (s *server) handleAutoFixLive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	page := s.autoFixPage(r.Context(), r.URL.Query(), time.Now())
+	page := s.autoFixPage(r.Context(), r.URL.Query(), time.Now(), prViewerIsAdmin(r))
 	page.OOB = true
 	s.rend.Render(w, http.StatusOK, "af-live", page)
 }
@@ -1079,4 +1185,149 @@ func afUnit(pr Product, m Master, ws []UnitWatch, jenkinsReady bool, origin stri
 		out.Repos = append(out.Repos, r)
 	}
 	return out
+}
+
+// ---------------------------------------------------------------- duplicates (D-108)
+
+// AFDup is one duplicate finding: the open record to close, the one kept, the rule
+// (superseded | same-defect) and the sentence a person reads. Every string is plain text.
+type AFDup struct {
+	Rule, RuleLabel     string
+	Close, Keep         string // record ids
+	CloseRef, KeepRef   string // "owner/repo#n"
+	CloseHref, KeepHref string
+	CloseGet, KeepGet   string
+	Sentence            string
+	PostURL, Confirm    string
+	ProductID           string
+}
+
+const (
+	dupSuperseded = "superseded"
+	dupSameDefect = "same-defect"
+)
+
+func fixOpen(state string) bool { return state == FixPRDraft || state == FixPRReady }
+
+func fixRef(f FixPR) string {
+	if f.Number > 0 {
+		return afLine(f.Repo, 120) + "#" + strconv.Itoa(f.Number)
+	}
+	return afLine(f.ID, 60)
+}
+
+// afDuplicates is the duplicate check of one product's records (design §5.1). It takes every
+// record and names only open ones to close. Rule S: an open record a retarget replaced, whose
+// successor is open or merged. Rule D: two or more open records of one defect; the defect's own
+// record is kept when it is open, else the newest. A record is the close side of one finding at most.
+func afDuplicates(fixes []FixPR, defs map[string]Defect) []AFDup {
+	byID := make(map[string]FixPR, len(fixes))
+	for _, f := range fixes {
+		byID[f.ID] = f
+	}
+	newer := func(a, b FixPR) bool { // a after b
+		if a.CreatedAt != b.CreatedAt {
+			return a.CreatedAt > b.CreatedAt
+		}
+		return a.Number > b.Number
+	}
+	var out []AFDup
+	closed := map[string]bool{}
+	mk := func(rule string, c, k FixPR, sentence string) AFDup {
+		label := "Superseded"
+		if rule == dupSameDefect {
+			label = "Same defect"
+		}
+		return AFDup{Rule: rule, RuleLabel: label, Close: c.ID, Keep: k.ID, CloseRef: fixRef(c), KeepRef: fixRef(k),
+			Sentence: afLine(sentence, 200), ProductID: c.ProductID}
+	}
+	for _, x := range fixes {
+		if !fixOpen(x.State) || x.RetargetedTo == "" {
+			continue
+		}
+		y, ok := byID[x.RetargetedTo]
+		if !ok || !(fixOpen(y.State) || y.State == FixPRMerged) {
+			continue
+		}
+		closed[x.ID] = true
+		out = append(out, mk(dupSuperseded, x, y, fmt.Sprintf("Replaced by %s (base %s) after a retarget.", fixRef(y), baseOrUnknown(y.Base))))
+	}
+	groups := map[string][]FixPR{}
+	var keys []string
+	for _, f := range fixes {
+		if !fixOpen(f.State) || closed[f.ID] || f.DefectKey == "" {
+			continue
+		}
+		if _, ok := groups[f.DefectKey]; !ok {
+			keys = append(keys, f.DefectKey)
+		}
+		groups[f.DefectKey] = append(groups[f.DefectKey], f)
+	}
+	for _, k := range keys {
+		g := groups[k]
+		if len(g) < 2 {
+			continue
+		}
+		keep := g[0]
+		for _, f := range g[1:] {
+			if newer(f, keep) {
+				keep = f
+			}
+		}
+		if live, ok := byID[defs[k].FixPR]; ok && defs[k].FixPR != "" && fixOpen(live.State) && !closed[live.ID] {
+			keep = live
+		}
+		for _, f := range g {
+			if f.ID != keep.ID {
+				out = append(out, mk(dupSameDefect, f, keep, "Another open pull request fixes the same defect: "+fixRef(keep)+"."))
+			}
+		}
+	}
+	created := func(id string) FixPR { return byID[id] }
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Rule != out[j].Rule {
+			return out[i].Rule == dupSuperseded
+		}
+		a, b := created(out[i].Close), created(out[j].Close)
+		if a.CreatedAt != b.CreatedAt {
+			return a.CreatedAt < b.CreatedAt
+		}
+		return a.Number < b.Number
+	})
+	return out
+}
+
+// afTrigger says why a fix pull request exists (design §6.2): the first case that applies.
+// openID names an earlier record the text refers to, "" when there is none.
+func afTrigger(fx FixPR, d Defect, byID map[string]FixPR) (text, openID string) {
+	v := func(s string) string { return afLine(s, 60) }
+	if o, ok := byID[fx.RetargetedFrom]; ok && fx.RetargetedFrom != "" {
+		return afLine(fmt.Sprintf("Retarget of %s (base %s)", fixRef(o), v(baseOrUnknown(o.Base))), 160), o.ID
+	}
+	switch {
+	case d.Key == "":
+		return "The defect record is gone", ""
+	case d.Kind == DefectKindReview:
+		return afLine(fmt.Sprintf("Review finding on %s#%d (%s)", v(d.Repo), reviewNumber(d), v(d.ReviewBranch)), 160), ""
+	case d.Kind == DefectKindUnit:
+		sha := d.UnitSHA
+		if len(sha) > 7 {
+			sha = sha[:7]
+		}
+		return afLine(fmt.Sprintf("Unit tests failed on %s after merge %s", v(d.UnitBase), v(sha)), 160), ""
+	}
+	if d.Gen > 1 {
+		var prev FixPR
+		found := false
+		for _, o := range byID {
+			if o.DefectKey == fx.DefectKey && o.ID != fx.ID && fixPRFinal(o.State) && o.CreatedAt < fx.CreatedAt &&
+				(!found || o.CreatedAt > prev.CreatedAt) {
+				prev, found = o, true
+			}
+		}
+		if found {
+			return afLine(fmt.Sprintf("Second attempt after %s was %s", fixRef(prev), prev.State), 160), prev.ID
+		}
+	}
+	return afLine(fmt.Sprintf("QA report %s (%s)", v(d.CaseID), v(d.Kind)), 160), ""
 }

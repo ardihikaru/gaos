@@ -17,7 +17,8 @@ import (
 // dashboard process: the write token never enters a workspace or a packet. The
 // agent's reply is persisted on the FixPR record before the first write, every
 // step is idempotent and keyed by the branch, and GAOS never marks a pull
-// request ready, merges, force-updates or pushes to a default branch.
+// request ready, merges, force-updates or pushes to a default branch. It closes
+// only the gaos/fix- draft a retarget replaced (D-108, closeSuperseded).
 
 // The labels every auto-fix pull request carries.
 var fixPRLabels = []string{"ai-assisted", "defect-auto-fix"}
@@ -411,6 +412,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		p.logf("autofix: the opened pull request could not be recorded: %v", err)
 		return
 	}
+	p.closeSuperseded(ctx, d.ProductID, rec)
 	if p.notify != nil {
 		tag := ""
 		if rec.RetargetedFrom != "" {
@@ -482,6 +484,70 @@ func (p *defectFixer) resumeFixPRs(ctx context.Context) {
 			}
 			p.afterRun(ctx, c, conv.Attempts[len(conv.Attempts)-1].Reply)
 		}
+		// D-108 §4.4: a replaced record a crash or a failed close left open is closed now.
+		recs, _ = p.st.FixPRs(ctx, pid)
+		byID := map[string]FixPR{}
+		for _, r := range recs {
+			byID[r.ID] = r
+		}
+		for _, o := range recs {
+			if n, ok := byID[o.RetargetedTo]; ok && fixOpen(o.State) && o.RetargetedTo != "" && (fixOpen(n.State) || n.State == FixPRMerged) {
+				p.closeSuperseded(ctx, pid, n)
+			}
+		}
+	}
+}
+
+// closeSuperseded closes, on GitHub, the pull request a retarget's new one replaced (D-108,
+// design §4.2). rec is the new record, already stored. GitHub is read first: a pull request
+// already closed or merged is recorded as it is. Best effort: a failure is logged, the record
+// stays open, the page lists it as superseded and the next boot's sweep tries again.
+func (p *defectFixer) closeSuperseded(ctx context.Context, productID string, rec FixPR) {
+	if rec.RetargetedFrom == "" || p.gh == nil {
+		return
+	}
+	recs, err := p.st.FixPRs(ctx, productID)
+	if err != nil {
+		return
+	}
+	m, err := p.st.Master(ctx, productID)
+	if err != nil {
+		return
+	}
+	var old FixPR
+	for _, r := range recs {
+		if r.ID == rec.RetargetedFrom {
+			old = r
+		}
+	}
+	if old.ID == "" || !fixOpen(old.State) || !closableFix(m, old) {
+		return
+	}
+	oo, or, _ := ghOwnerRepo(old.Repo)
+	sentence := func(tail string) string {
+		return fmt.Sprintf("Superseded by %s#%d (base %s). %s", rec.Repo, rec.Number, baseOrUnknown(rec.Base), tail)
+	}
+	comment := func(body string) {
+		if err := p.gh.addComment(ctx, oo, or, old.Number, body); err != nil {
+			p.logf("autofix: the superseded comment of %s#%d could not be posted: %s", old.Repo, old.Number, ghErrorClass(err))
+		}
+	}
+	state, err := p.gh.prState(ctx, oo, or, old.Number)
+	if err == nil && state != "open" {
+		_, _ = p.st.AdvanceFixPR(ctx, productID, FixPR{ID: old.ID, State: state, UpdatedAt: autoFixNow()})
+		return
+	}
+	if err == nil {
+		err = p.gh.closePR(ctx, oo, or, old.Number)
+	}
+	if err != nil {
+		p.logf("autofix: the superseded pull request %s#%d could not be closed: %s", old.Repo, old.Number, ghErrorClass(err))
+		comment(sentence("This pull request is left open for a person to close."))
+		return
+	}
+	comment(sentence("GAOS closed this pull request; its branch is kept."))
+	if _, err := p.st.CloseFixPR(ctx, productID, old.ID, RuleRetarget, ""); err != nil {
+		p.logf("autofix: the close of %s#%d could not be recorded: %v", old.Repo, old.Number, err)
 	}
 }
 
@@ -534,7 +600,8 @@ func retargetedFromOf(d Defect) string {
 	return ""
 }
 
-// linkRetarget posts the two comments that link a retarget's pull request and the one it replaced.
+// linkRetarget posts the comment that links a retarget's pull request to the one it replaced; the
+// replaced one is commented on by closeSuperseded once its close is known (D-108).
 // Fixed sentences, validated branch names and numbers only; best effort, never blocking (design §6.4).
 func (p *defectFixer) linkRetarget(ctx context.Context, owner, repo string, d Defect, rec FixPR) {
 	if rec.RetargetedFrom == "" {
@@ -548,17 +615,13 @@ func (p *defectFixer) linkRetarget(ctx context.Context, owner, repo string, d De
 		if old.ID != rec.RetargetedFrom || old.Number <= 0 {
 			continue
 		}
-		oo, or, ok := ghOwnerRepo(old.Repo)
-		if !ok {
+		if _, _, ok := ghOwnerRepo(old.Repo); !ok {
 			return
 		}
 		if err := p.gh.addComment(ctx, owner, repo, rec.Number, fmt.Sprintf("Retargeted from %s#%d (base %s).", old.Repo, old.Number, baseOrUnknown(old.Base))); err != nil {
 			p.logf("autofix: the retarget comment of %s#%d could not be posted: %s", rec.Repo, rec.Number, ghErrorClass(err))
 		}
-		if err := p.gh.addComment(ctx, oo, or, old.Number, fmt.Sprintf("Superseded by %s#%d (base %s). This pull request is left open for a person to close.", rec.Repo, rec.Number, baseOrUnknown(rec.Base))); err != nil {
-			p.logf("autofix: the superseded comment of %s#%d could not be posted: %s", old.Repo, old.Number, ghErrorClass(err))
-		}
-		return
+		return // the old pull request's comment follows its close (closeSuperseded, D-108)
 	}
 }
 

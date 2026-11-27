@@ -155,8 +155,9 @@ var errRefExists = errors.New("the branch already exists")
 // ghWriter is the write-scoped client. Its methods are the whole list: read the
 // head and a ref, read a tree entry and a commit, read the workflow files,
 // create a blob, a tree, a commit and a ref, delete a gaos/fix- ref, create a
-// draft pull request, add labels and a comment. It can mark nothing ready,
-// merge nothing and update no ref.
+// draft pull request, add labels and a comment, and close a pull request it
+// opened (D-108: only a replaced or duplicate gaos/fix- draft). It can mark
+// nothing ready, merge nothing and update no ref.
 type ghWriter struct{ c *ghClient }
 
 func newGHWriter(cfg ghConfig) *ghWriter {
@@ -465,4 +466,29 @@ func (w *ghWriter) addLabels(ctx context.Context, owner, repo string, number int
 
 func (w *ghWriter) addComment(ctx context.Context, owner, repo string, number int, body string) error {
 	return w.post(ctx, fmt.Sprintf("%s/issues/%d/comments", w.repoURL(owner, repo), number), map[string]string{"body": body}, nil)
+}
+
+// closePR closes a pull request (PATCH state=closed). The branch is kept (D-108).
+// Callers check closableFix first.
+func (w *ghWriter) closePR(ctx context.Context, owner, repo string, number int) error {
+	b, _ := json.Marshal(map[string]string{"state": "closed"})
+	_, err := w.c.do(ctx, http.MethodPatch, fmt.Sprintf("%s/pulls/%d", w.repoURL(owner, repo), number), b)
+	return err
+}
+
+// prState reads a pull request's state as a fix record names it: open, closed or
+// merged. A close reads it first, so a pull request the poller no longer follows is
+// recorded as it is instead of being closed twice (D-108).
+func (w *ghWriter) prState(ctx context.Context, owner, repo string, number int) (string, error) {
+	pr, err := w.c.pullRequest(ctx, owner, repo, number)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case pr.Merged:
+		return FixPRMerged, nil
+	case pr.State == "closed":
+		return FixPRClosed, nil
+	}
+	return "open", nil
 }

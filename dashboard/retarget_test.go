@@ -350,8 +350,8 @@ func TestTheRetargetFixerUsesTheNewBase(t *testing.T) {
 	if _, ok := e.gh.refs["gaos/fix-def-101-2"]; !ok {
 		t.Error("the next-generation branch was not created")
 	}
-	if c := e.gh.body("POST /repos/acme-org/sample-service/issues/7/comments"); !strings.Contains(string(c), "Superseded by") {
-		t.Errorf("the last comment is %q; want the superseded notice", c)
+	if c := e.gh.body("POST /repos/acme-org/sample-service/issues/7/comments"); !strings.Contains(string(c), "Superseded by") || !strings.Contains(string(c), "GAOS closed this pull request") {
+		t.Errorf("the last comment is %q; want the superseded notice saying GAOS closed it (D-108)", c)
 	}
 	if len(e.notes) == 0 || !strings.Contains(e.notes[len(e.notes)-1], "(retarget)") {
 		t.Errorf("the notice is %v; want it to say retarget", e.notes)

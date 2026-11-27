@@ -134,11 +134,15 @@ func TestAutoFixViewTiles(t *testing.T) {
 			`af-st af-st--draft">Draft`, `af-st af-st--merged">Merged`, `af-d af-d--easy">easy`, `af-d af-d--medium">medium`,
 			`href="https://github.com/acme-org/sample-service/pull/12" target="_blank" rel="noopener noreferrer"`,
 			`acme-org/sample-service#12`, `a negative quantity is accepted`, `DEF-101`, `T-9`,
-			`class="af-wa is-on">Sent`, `title="opened `, `Needs a person: the fix went over GAOS&#39;s size limits`,
+			`class="af-wa is-on">Sent`, `title="opened `,
 			`hx-trigger="every 30s `, `ui/bo/autofix/live`} {
 			if !strings.Contains(sec, want) {
 				t.Errorf("the Auto-fix view on %s does not show %q", path, want)
 			}
+		}
+		// The waiting cards are their own section since D-108.
+		if w := afSection(afGet(t, f, "/ui/bo/autofix?section=waiting")); !strings.Contains(w, `Needs a person: the fix went over GAOS&#39;s size limits`) {
+			t.Errorf("the Cards waiting section does not show the size-limit reason")
 		}
 		if !strings.Contains(rec.Body.String(), `<a aria-current="page"   href="autofix" hx-get="ui/bo/autofix"`) {
 			t.Errorf("the navigation does not mark Auto-fix as the current view on %s", path)
@@ -264,7 +268,7 @@ func TestAutoFixViewOffState(t *testing.T) {
 	f.s.mu.Lock()
 	f.s.masterPtr(f.pid).AutoFix = AutoFix{}
 	f.s.mu.Unlock()
-	sec := afSection(afGet(t, f, "/ui/bo/autofix"))
+	sec := afSection(afGet(t, f, "/ui/bo/autofix?section=products")) + afSection(afGet(t, f, "/ui/bo/autofix?section=waiting"))
 	for _, want := range []string{
 		`af-sw af-sw--off">Off`, "Auto-fix is off for this product.", "Auto-fix needs at least one allowed path.",
 		"GAOS_AUTOFIX_ADMINS", "POST /products/{id}/autofix",
@@ -277,7 +281,7 @@ func TestAutoFixViewOffState(t *testing.T) {
 	// the write token is gone: a product that is on says it is not ready
 	f2 := newAFFixture(t)
 	f2.srv.writeTokenKind = ""
-	sec = afSection(afGet(t, f2, "/ui/bo/autofix"))
+	sec = afSection(afGet(t, f2, "/ui/bo/autofix?section=products"))
 	for _, want := range []string{`af-sw af-sw--stuck">On, not ready`, "GAOS_GITHUB_WRITE_TOKEN_FILE", `af-token--off`} {
 		if !strings.Contains(sec, want) {
 			t.Errorf("the no-token state does not show %q", want)
@@ -288,7 +292,7 @@ func TestAutoFixViewOffState(t *testing.T) {
 	f3.s.mu.Lock()
 	f3.s.masterPtr(f3.pid).AutoFix.FixCap = 1
 	f3.s.mu.Unlock()
-	sec = afSection(afGet(t, f3, "/ui/bo/autofix"))
+	sec = afSection(afGet(t, f3, "/ui/bo/autofix?section=waiting"))
 	if !strings.Contains(sec, "Fix cap 1/1 until 00:00 UTC") || !strings.Contains(sec, `af-meter is-full`) {
 		t.Errorf("a spent cap is not shown as 1/1 until 00:00 UTC")
 	}

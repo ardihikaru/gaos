@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -123,4 +125,111 @@ func (s *server) handleRetarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderBOView(w, r, res, "prs")
+}
+
+// handleCloseFixPR is POST /products/{id}/prs/{fixPRID}/close (D-108, design §5.3): an auto-fix
+// admin closes, on GitHub, an open fix pull request the Auto-fix page lists as a duplicate. The
+// gate's session and origin checks apply; a replay refuses before any GitHub call; GitHub is read
+// first, so a pull request already closed or merged is recorded as it is; the store re-checks the
+// finding under its lock. The branch is kept and the defect is never moved.
+func (s *server) handleCloseFixPR(w http.ResponseWriter, r *http.Request) {
+	ss, ok := sessionOf(r)
+	if !ok || ss.Email == "" {
+		writeBoardJSON(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})
+		return
+	}
+	if !autoFixAdmin(ss.Email) {
+		s.retargetFail(w, r, http.StatusForbidden, "Only accounts on the auto-fix admin list can close a pull request.")
+		return
+	}
+	mut := s.mut(r)
+	if _, replay := mut.(readOnly); replay {
+		s.retargetFail(w, r, http.StatusConflict, "This view is a replay; nothing is written.")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	if err := r.ParseForm(); err != nil {
+		s.retargetFail(w, r, http.StatusBadRequest, "The form could not be read.")
+		return
+	}
+	ctx := r.Context()
+	id, fixID := r.PathValue("id"), r.PathValue("fixPRID")
+	recs, err := s.store.FixPRs(ctx, id)
+	m, merr := s.store.Master(ctx, id)
+	var rec FixPR
+	for _, f := range recs {
+		if f.ID == fixID {
+			rec = f
+		}
+	}
+	if err != nil || merr != nil || rec.ID == "" {
+		s.retargetFail(w, r, http.StatusNotFound, "No such pull request.")
+		return
+	}
+	defs := map[string]Defect{}
+	if ds, err := s.store.Defects(ctx, id); err == nil {
+		for _, d := range ds {
+			defs[d.Key] = d
+		}
+	}
+	listed := false
+	for _, dup := range afDuplicates(recs, defs) {
+		listed = listed || dup.Close == fixID
+	}
+	switch {
+	case !listed:
+		s.retargetFail(w, r, http.StatusConflict, "This pull request is not a duplicate any more. Reload the page.")
+		return
+	case !closableFix(m, rec):
+		s.retargetFail(w, r, http.StatusUnprocessableEntity, "GAOS only closes pull requests it opened (branch gaos/fix-…).")
+		return
+	case s.fixWriter == nil:
+		s.retargetFail(w, r, http.StatusUnprocessableEntity, "The GitHub write token is not configured.")
+		return
+	}
+	owner, repo, _ := ghOwnerRepo(rec.Repo)
+	ghFail := func(err error) {
+		switch c := ghErrorClass(err); c {
+		case "token", "refused":
+			s.retargetFail(w, r, http.StatusBadGateway, "GitHub refused the request ("+c+"); check the write token.")
+		default:
+			s.retargetFail(w, r, http.StatusBadGateway, "GitHub cannot be reached; try again in a minute.")
+		}
+	}
+	state, err := s.fixWriter.prState(ctx, owner, repo, rec.Number)
+	if err != nil {
+		ghFail(err)
+		return
+	}
+	ref := rec.Repo + "#" + strconv.Itoa(rec.Number)
+	var res Result
+	if state != "open" {
+		res, err = mut.AdvanceFixPR(ctx, id, FixPR{ID: rec.ID, State: state, UpdatedAt: autoFixNow()})
+		res.Toast = ref + " was already " + state + " on GitHub."
+	} else {
+		if err := s.fixWriter.closePR(ctx, owner, repo, rec.Number); err != nil {
+			ghFail(err)
+			return
+		}
+		res, err = mut.CloseFixPR(ctx, id, rec.ID, RuleDedup, ss.Email)
+		res.Toast = "Closed " + ref + "."
+	}
+	if err != nil {
+		var re *RetargetError
+		if errors.As(err, &re) {
+			s.retargetFail(w, r, re.Status, re.Msg)
+			return
+		}
+		s.retargetFail(w, r, http.StatusConflict, err.Error())
+		return
+	}
+	// The page the admin keeps sight of: the Auto-fix view of the posted filter.
+	q := url.Values{}
+	for _, k := range []string{"product", "state", "difficulty", "page"} {
+		if v := r.PostFormValue(k); v != "" {
+			q.Set(k, v)
+		}
+	}
+	r.URL.RawQuery = q.Encode()
+	s.renderBOView(w, r, res, "autofix")
 }

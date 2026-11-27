@@ -484,7 +484,10 @@ func (s *MemStore) AdvanceFixPR(ctx context.Context, productID string, f FixPR) 
 		res.Defects = []Defect{d.Clone()}
 	case pending:
 		// a close or a draft/ready change while the retarget is pending: the defect is left alone
-	case d != nil && d.ProductID == productID && d.State == DefectStateFixing:
+	// A close of a record the defect does not wait on (a duplicate, D-108) updates only itself;
+	// a merge of any of its records still lands the fix.
+	case d != nil && d.ProductID == productID && d.State == DefectStateFixing &&
+		(cur.State != FixPRClosed || d.FixPR == "" || d.FixPR == cur.ID):
 		switch cur.State {
 		case FixPRMerged:
 			evs = append(evs, s.setDefectStateLocked(d, DefectStateFixed, RuleFixPRPoll, ""))

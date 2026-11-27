@@ -13,7 +13,8 @@ import (
 // GAOS does not edit the pull request: it raises the defect's generation, records the new base as an
 // override, and plans an ordinary fix card for the next generation. That card re-applies the fix on
 // the new base's code and opens a NEW draft pull request; the two are linked when it opens. The old
-// pull request is never closed, edited or re-based.
+// pull request is never edited or re-based; since D-108 GAOS closes it once the new one is recorded
+// (closeSuperseded, autofixpr.go), keeping its branch.
 
 // RetargetError is a refusal with the HTTP status of the route and a sentence a person reads.
 type RetargetError struct {
@@ -33,6 +34,85 @@ const retargetMaxChain = 3
 
 // RuleRetarget names the actor of a retarget in an event.
 const RuleRetarget = "autofix-retarget"
+
+// RuleDedup names an auto-fix admin's close of a duplicate fix pull request (D-108).
+const RuleDedup = "autofix-dedup"
+
+// closableFix is the guard every close of a fix pull request passes (D-108): GAOS closes only
+// a pull request on its own gaos/fix- branch, in one of the product's repositories, that it holds
+// a numbered record of.
+func closableFix(m Master, f FixPR) bool {
+	if !strings.HasPrefix(f.Branch, fixRefPrefix) || !defectRepo.MatchString(f.Repo) || f.Number <= 0 {
+		return false
+	}
+	owner, repo, ok := ghOwnerRepo(f.Repo)
+	return ok && productOwns(defectOwnedRepos(m), owner, repo)
+}
+
+// CloseFixPR records that GAOS closed a fix pull request on GitHub (D-108, design §4.3). Under
+// the lock it re-checks the guard and the duplicate finding; it never moves the defect, because a
+// replaced or duplicate record is never the one the defect waits on.
+func (s *MemStore) CloseFixPR(ctx context.Context, productID, fixPRID, rule, actor string) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.masterPtr(productID)
+	f, ok := s.fixPRs[fixPRID]
+	if m == nil || !ok || f.ProductID != productID {
+		return Result{}, ErrNotFound
+	}
+	if fixPRFinal(f.State) {
+		return Result{}, nil
+	}
+	var fixes []FixPR
+	defs := map[string]Defect{}
+	for _, o := range s.fixPRs {
+		if o.ProductID == productID {
+			fixes = append(fixes, o)
+			if d := s.defects[o.DefectKey]; d != nil {
+				defs[d.Key] = *d
+			}
+		}
+	}
+	listed := false
+	for _, dup := range afDuplicates(fixes, defs) {
+		if dup.Close == fixPRID {
+			listed = true
+		}
+	}
+	if !closableFix(*m, f) || !listed {
+		return Result{}, retargetRefusal(http.StatusConflict, "This pull request is not a duplicate any more. Reload the page.")
+	}
+	from := f.State
+	f.State, f.UpdatedAt = FixPRClosed, autoFixNow()
+	s.fixPRs[f.ID] = f
+	why := "duplicate"
+	if n, ok := s.fixPRs[f.RetargetedTo]; ok && f.RetargetedTo != "" {
+		why = fmt.Sprintf("superseded by %s#%d", n.Repo, n.Number)
+	}
+	ref := f.DefectKey
+	if d := s.defects[f.DefectKey]; d != nil {
+		ref = d.Ref()
+	}
+	alias := ""
+	if actor != "" {
+		alias = actorAlias(actor)
+	}
+	text := fmt.Sprintf("pull request %s#%d of defect %s: %s → closed (%s)", f.Repo, f.Number, ref, from, why)
+	if alias != "" {
+		text += " by " + alias
+	}
+	ev := s.defectEventLocked(FixPRStateChanged, productID, text, KindInfo,
+		EventPayload{Task: f.DefectKey, Rule: rule, To: FixPRClosed, Reason: from + "→" + FixPRClosed, Actor: alias})
+	return Result{Floor: s.floor(), NewEvents: []Event{ev}, FixPRs: []FixPR{f}}, nil
+}
+
+func (s *ArcadeStore) CloseFixPR(ctx context.Context, productID, fixPRID, rule, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.CloseFixPR(ctx, productID, fixPRID, rule, actor) })
+}
+
+func (readOnly) CloseFixPR(context.Context, string, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
 
 // containsFold reports whether list holds s, ignoring case.
 func containsFold(list []string, s string) bool {

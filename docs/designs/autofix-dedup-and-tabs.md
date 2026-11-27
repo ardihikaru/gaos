@@ -140,7 +140,7 @@ func (w *ghWriter) closePR(ctx context.Context, owner, repo string, number int) 
 - `f.Number > 0`;
 - `productOwns(defectOwnedRepos(m), owner, repo)`.
 
-`retargetChecksLocked`'s first case and its owned-repo case (`retarget.go:63,72-75`) call it, so the guard
+`retargetChecksLocked` keeps its own two checks, because their refusal sentences differ; the implementation did not merge them (an implementation note, v0.71.0).
 lives in one place.
 
 The honest claim: **GAOS closes only pull requests on its own `gaos/fix-` branches, in the product's

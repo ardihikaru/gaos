@@ -150,10 +150,22 @@ Authorization: Bearer &lt;QA token&gt;
   told; filters for product, state and difficulty live in the URL; a detail drawer shows the before and after, the
   changed files and the timeline. It refreshes every 30 seconds, says why auto-fix is off for a product, announces an
   unreachable GitHub, and shows the kind of write token in use. It never shows a token or a failure excerpt.</p>
+  <p>Since v0.71.0 (<a href="../product/decision-log.html#d-108">D-108</a>) the view has three sections &mdash; Fix pull
+  requests (the default, and always when a drawer is open), Cards waiting (five a page) and Auto-fix by product &mdash;
+  with the product and difficulty filters above them. Each pull request shows its branch and base, and what triggered
+  it: a QA report, a review finding, a unit-test failure, a retarget of an earlier pull request or a second attempt
+  after one was closed, linked to the earlier record in the drawer.</p>
+  <h3 id="duplicates">Duplicates</h3>
+  <p>Above the table, a <strong>Duplicates</strong> panel lists open fix pull requests that should be closed: one a
+  retarget replaced (<em>Superseded</em>), and extra open ones of the same defect (<em>Same defect</em>; the one the
+  defect waits on is kept). An auto-fix admin closes one with <strong>Close &hellip; on GitHub</strong>, after a
+  confirmation. GAOS reads the pull request first (one already closed or merged is recorded as it is), closes it, keeps
+  its branch and records the close; the defect is not changed. A retarget closes the pull request it replaced by
+  itself, so a superseded finding appears only when that close failed.</p>
 
   <h2 id="never">What GAOS never does</h2>
   <ul>
-    <li>Marks a pull request ready, approves it or merges it, or pushes to a default branch.</li>
+    <li>Marks a pull request ready, approves it or merges it, or pushes to a default branch. It closes only its own <code>gaos/fix-</code> drafts that a retarget replaced or an admin closed as a duplicate (D-108).</li>
     <li>Lets the agent hold the write token or open the pull request.</li>
     <li>Fixes a medium, complex, regression or end-to-end defect automatically, or opens a pull request from a card that fails the record-based check, however it was dispatched or relabelled.</li>
     <li>Starts a fix under <code>GAOS_RUNNER=on</code> when a product's switch is off: the scheduler never dispatches a defect card in any mode.</li>
@@ -190,7 +202,7 @@ Authorization: Bearer &lt;QA token&gt;
       <tr><td>CI runs secrets on the branch</td><td>Blocked <code>autofix-ci-secrets</code>. A workflow with a <code>paths</code> or <code>paths-ignore</code> filter counts only when a changed file matches it (see the operating notes).</td></tr>
       <tr><td>The branch exists and is not ours</td><td>Blocked <code>autofix-branch-exists</code>; it is never used or deleted.</td></tr>
       <tr><td>GitHub refuses a draft</td><td>Blocked <code>autofix-draft-unsupported</code>; there is no non-draft fallback.</td></tr>
-      <tr><td>The pull request is closed unmerged</td><td>A new person-only card, blocked <code>autofix-pr-closed</code>.</td></tr>
+      <tr><td>The pull request is closed unmerged</td><td>A new person-only card, blocked <code>autofix-pr-closed</code>. A pull request GAOS closed as replaced or duplicate, or any record the defect no longer waits on, plans nothing.</td></tr>
       <tr><td>GitHub refuses a write</td><td>The fix card fails <code>github-token</code>; a branch this run created is deleted.</td></tr>
       <tr><td>GAOS restarts mid-way</td><td>The stored reply is resumed; no second agent turn and no second pull request.</td></tr>
       <tr><td>WhatsApp is down</td><td>The pull request stays; one failed <code>ContactNotified</code> is recorded.</td></tr>
