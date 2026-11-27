@@ -88,8 +88,12 @@ func (s *MemStore) ApplyBundleLinks(ctx context.Context, productID, key string, 
 	}
 	self := prSelfRef(row)
 	links := tmpl.linksWithout(self)
-	if !row.TemplateSeen || row.TaskCode != tmpl.TaskCode || strings.Join(row.Links, ",") != strings.Join(links, ",") {
-		row.TemplateSeen, row.TaskCode, row.Links = true, tmpl.TaskCode, links
+	// templateSeen marks a row this release saw from its start: one never polled yet (a row
+	// planned from pr.opened, or a linked one bundlePass just created). A row that was polled
+	// before the release keeps false, so it is never alerted (design §7.1).
+	seen := row.TemplateSeen || row.CheckedAt == 0
+	if seen != row.TemplateSeen || row.TaskCode != tmpl.TaskCode || strings.Join(row.Links, ",") != strings.Join(links, ",") {
+		row.TemplateSeen, row.TaskCode, row.Links = seen, tmpl.TaskCode, links
 		set(key, row)
 	}
 	final := row.BundleKey != "" && s.bundlePlannedLocked(productID, row.BundleKey)

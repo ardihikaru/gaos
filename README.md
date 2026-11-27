@@ -9,7 +9,7 @@ time, with the product's context, through a gateway. The thesis is in one line:
 an append-only event stream, not in a conversation; kill the orchestrator
 mid-run and it rebuilds from the graph.
 
-**Product version 0.63.0** (`pustaka/docs/assets/toc.js`). Apache-2.0.
+**Product version 0.63.1** (`pustaka/docs/assets/toc.js`). Apache-2.0.
 
 Three layers, each owning one thing: **GAOS** shapes the work with the product,
 the task and the Blueprint; **ai-manager** runs every model turn in the
