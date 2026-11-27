@@ -235,9 +235,15 @@ func (s *MemStore) planPullRequestCardsLocked(productID string, ev PREvent) (pla
 	d := s.desks[idx]
 	wf := prWorkflowID(productID)
 
+	// A fix-target repository of a product with unit checks on gets a watch instead of
+	// the agent unit-test card, whatever the base (D-105 §4.2): that card ran nothing.
+	unitDropped := ev.Type == prTypeMerged && m.UnitChecks.Enabled && unitFixTarget(*m, ev.Org+"/"+ev.Repo)
 	// Which of the cards already exist.
 	var fresh []prCardSpec
 	for _, spec := range specs {
+		if unitDropped && spec.Job == prJobUnitTest {
+			continue
+		}
 		if t := s.taskByDedupKeyLocked(ev.Key(spec.Job)); t != nil {
 			existing = append(existing, t.ID)
 			continue
@@ -292,6 +298,9 @@ func (s *MemStore) planPullRequestCardsLocked(productID string, ev PREvent) (pla
 	// assigned agent plans no card. It runs after the merge cancel and the row,
 	// and it is not an error, so the row above is persisted with the result.
 	fresh, skipped := gateUnassigned(*m, fresh)
+	if unitDropped {
+		skipped = joinSkipped(skipped, skippedUnitChecks)
+	}
 	if len(fresh) == 0 && len(events) == 0 {
 		return nil, existing, Result{PullRequests: rows, Skipped: skipped}, nil
 	}
@@ -404,6 +413,9 @@ type prFlow struct {
 	// ctx holds the fetched pull request until the reviewer card is dispatched.
 	ctx  *prContextCache
 	logf func(string, ...any)
+	// unitDefaults caches a repository's default branch for 10 minutes, for the
+	// effective base of a unit check (D-105 §4.2).
+	unitDefaults unitDefaultCache
 }
 
 // prAssociationOK reports whether the author's association may open cards.
@@ -455,8 +467,18 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) flowOutcome {
 		var pr ghPR
 		if ev.Type == prTypeMerged && f.gh != nil {
 			// The event alone never closes a review defect (D-102 §7): GitHub must agree.
-			if got, err := f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber); err == nil && got.Merged {
+			got, err := f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber)
+			if err == nil && got.Merged {
 				ev.MergeChecked = true
+			}
+			// A watched repository's merge plants the watch of its unit check (D-105 §4.2).
+			// Planting is idempotent, so a transient failure replays the event.
+			if m.UnitChecks.Enabled && unitFixTarget(m, ev.Org+"/"+ev.Repo) {
+				if err != nil && lookupTransient(err) {
+					f.logf("prflow: unit-watch re-read %s; retrying", ghErrorClass(err))
+					return flowRetry
+				}
+				f.plantUnitWatch(ctx, m, ev, got, err)
 			}
 		}
 		if ev.Type == prTypeOpened && f.gh != nil && !ev.Draft {

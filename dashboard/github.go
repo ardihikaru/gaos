@@ -56,6 +56,10 @@ type ghPR struct {
 	// ChangedFiles is GitHub's count of the files the pull request changes: a
 	// review fix compares it with the listing, so a truncated list is refused.
 	ChangedFiles int `json:"changed_files"`
+	// MergeCommitSHA and MergedAt name a merged pull request's merge commit and
+	// when it merged (D-105 §3): the unit check is read on that commit.
+	MergeCommitSHA string     `json:"merge_commit_sha"`
+	MergedAt       *time.Time `json:"merged_at"`
 	Head         struct {
 		Ref  string `json:"ref"`
 		SHA  string `json:"sha"`

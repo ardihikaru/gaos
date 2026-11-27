@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,6 +34,18 @@ const (
 	unitZeroSHA        = "0000000000000000000000000000000000000000"
 	unitBaseUnknown    = "unknown"
 	unitDefaultCacheTT = 10 * time.Minute
+)
+
+// The waits between two reads of a pending watch (§5.1): every 2 minutes for the
+// first 30 minutes after the merge, every 10 until 2 hours, then every 30. A watch
+// with no answer 6 hours after its merge ends.
+const (
+	unitWaitFast    = 2 * time.Minute
+	unitWaitMid     = 10 * time.Minute
+	unitWaitSlow    = 30 * time.Minute
+	unitFastWindow  = 30 * time.Minute
+	unitMidWindow   = 2 * time.Hour
+	unitGiveUpAfter = 6 * time.Hour
 )
 
 // The watch outcomes (§6).
@@ -358,5 +372,121 @@ func (s *MemStore) restoreUnitWatches(ws []UnitWatch) {
 	defer s.mu.Unlock()
 	for _, w := range ws {
 		s.unitWatches[w.Key] = w
+	}
+}
+
+// skippedUnitChecks is Result.Skipped's word when the planner dropped the agent
+// unit-test card for a watched repository (§4.2).
+const skippedUnitChecks = "unit-checks"
+
+// joinSkipped adds a reason to Result.Skipped.
+func joinSkipped(have, add string) string {
+	if have == "" {
+		return add
+	}
+	return have + ";" + add
+}
+
+// unitDefaultCache keeps repositories' default branches for unitDefaultCacheTT.
+type unitDefaultCache struct {
+	mu sync.Mutex
+	at map[string]unitDefault
+}
+
+type unitDefault struct {
+	branch string
+	read   time.Time
+}
+
+// defaultReader is the slice of the GitHub client the effective base needs.
+type defaultReader interface {
+	repoDefault(ctx context.Context, owner, repo string) (string, error)
+}
+
+// errNoDefaultReader says the flow's GitHub source cannot read a default branch.
+var errNoDefaultReader = errors.New("no default-branch reader")
+
+// unitDefaultBranch is owner/repo's default branch, read at most once per 10 minutes.
+func (f *prFlow) unitDefaultBranch(ctx context.Context, owner, repo string) (string, error) {
+	key := strings.ToLower(owner + "/" + repo)
+	now := time.Now()
+	f.unitDefaults.mu.Lock()
+	if d, ok := f.unitDefaults.at[key]; ok && now.Sub(d.read) < unitDefaultCacheTT {
+		f.unitDefaults.mu.Unlock()
+		return d.branch, nil
+	}
+	f.unitDefaults.mu.Unlock()
+	rd, ok := f.gh.(defaultReader)
+	if !ok {
+		return "", errNoDefaultReader
+	}
+	b, err := rd.repoDefault(ctx, owner, repo)
+	if err != nil {
+		return "", err
+	}
+	f.unitDefaults.mu.Lock()
+	if f.unitDefaults.at == nil {
+		f.unitDefaults.at = map[string]unitDefault{}
+	}
+	f.unitDefaults.at[key] = unitDefault{branch: b, read: now}
+	f.unitDefaults.mu.Unlock()
+	return b, nil
+}
+
+// plantUnitWatch is §4.2 for one merge of a watched repository: got is the fresh
+// read of the pull request and rerr its permanent error, if any. A merge that
+// cannot be read is recorded as a done watch "skipped:<class>", so the page and the
+// metric see the miss; a merge into a base that is not a unit base plants nothing.
+func (f *prFlow) plantUnitWatch(ctx context.Context, m Master, ev PREvent, got ghPR, rerr error) {
+	repo := strings.ToLower(ev.Org + "/" + ev.Repo)
+	now := autoFixNow()
+	base := got.Base.Ref
+	sha := strings.ToLower(got.MergeCommitSHA)
+	skip := func(class string) {
+		w := UnitWatch{Key: unitSkippedKey(m.ID, repo, ev.PRNumber), Repo: repo, PR: ev.PRNumber, SHA: unitZeroSHA,
+			Base: unitBaseUnknown, State: UnitWatchDone, Outcome: "skipped:" + class, DoneAt: now}
+		if rerr == nil && baseBranchRe.MatchString(base) {
+			w.Base = base
+		}
+		if got.MergedAt != nil && !got.MergedAt.IsZero() {
+			w.MergedAt = got.MergedAt.Unix()
+		}
+		if _, err := f.st.PlantUnitWatch(ctx, m.ID, w); err != nil {
+			f.logf("prflow: the skipped unit watch could not be recorded: %v", err)
+		}
+		f.logf("prflow: unit-watch skipped:%s", class)
+	}
+	switch {
+	case rerr != nil:
+		skip("read")
+		return
+	case got.MergedAt == nil || got.MergedAt.IsZero():
+		skip("merged-at")
+		return
+	case !shaRe.MatchString(sha) || !unitSHARe.MatchString(sha):
+		skip("sha")
+		return
+	}
+	effective := m.AutoFix.BaseBranch
+	if effective == "" && !unitIsExtraBase(m.UnitChecks, base) {
+		def, err := f.unitDefaultBranch(ctx, ev.Org, ev.Repo)
+		if err != nil {
+			f.logf("prflow: unit-watch-skipped default-%s", ghErrorClass(err))
+			return
+		}
+		effective = def
+	}
+	if !unitWatchFor(m, ev.Org, ev.Repo, base, effective) {
+		f.logf("prflow: no unit watch: the base is not a unit base")
+		return
+	}
+	w := UnitWatch{Repo: repo, PR: ev.PRNumber, SHA: sha, Base: base, MergedAt: got.MergedAt.Unix(),
+		FirstSeen: now, NextAt: now + int64(unitWaitFast/time.Second)}
+	res, err := f.st.PlantUnitWatch(ctx, m.ID, w)
+	switch {
+	case err != nil:
+		f.logf("prflow: the unit watch could not be planted: %v", err)
+	case len(res.UnitWatches) > 0:
+		f.logf("prflow: unit watch planted on %s", m.ID)
 	}
 }
