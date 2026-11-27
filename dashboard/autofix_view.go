@@ -97,6 +97,29 @@ type AutoFixPage struct {
 	Defects int
 
 	Drawer *AFDrawer
+
+	// Units are the "Unit tests (CI)" sections, one per product in scope (D-105 §4.1);
+	// UnitSaved names the product whose section was just saved (it opens with "Saved").
+	Units     []AFUnit
+	UnitSaved string
+}
+
+// AFUnit is one product's unit-check setting and its repositories' last watches.
+type AFUnit struct {
+	ProductID, Name, PostURL string
+	Enabled                  bool
+	Workflow, CheckName      string // the configured values ("" = the default)
+	WorkflowPath, Check      string // the values in force
+	Bases                    string // one per line
+	DailyCap, Cap            int
+	Repos                    []AFUnitRepo
+	Open                     bool
+}
+
+// AFUnitRepo is a fix-target repository's last watch. Warn: the last three ended no-ci.
+type AFUnitRepo struct {
+	Repo, Outcome, At string
+	Warn              bool
 }
 
 // AFToken is the kind of GitHub write token in use. Never the token.
@@ -603,6 +626,16 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 	p.Token = afToken(s.writeTokenKind)
 	p.GitHub = s.afGitHub(now)
 
+	// ---- the unit checks (D-105 §4.1) ----
+	for _, sc := range in {
+		m, err := s.store.Master(ctx, sc.pr.ID)
+		if err != nil {
+			continue
+		}
+		ws, _ := s.store.UnitWatches(ctx, sc.pr.ID)
+		p.Units = append(p.Units, afUnit(sc.pr, m, ws))
+	}
+
 	// ---- the drawer ----
 	if fx, ok := byID[f.Open]; ok {
 		for _, sc := range in {
@@ -909,4 +942,34 @@ func (s *server) handleAutoFixLive(w http.ResponseWriter, r *http.Request) {
 	page := s.autoFixPage(r.Context(), r.URL.Query(), time.Now())
 	page.OOB = true
 	s.rend.Render(w, http.StatusOK, "af-live", page)
+}
+
+// afUnit builds one product's "Unit tests (CI)" section: the setting and, per
+// fix-target repository, the last watch that ended (skipped ones included).
+func afUnit(pr Product, m Master, ws []UnitWatch) AFUnit {
+	u := m.UnitChecks
+	out := AFUnit{ProductID: pr.ID, Name: afLine(pr.Name, 80), PostURL: "products/" + url.PathEscape(pr.ID) + "/autofix/unit",
+		Enabled: u.Enabled, Workflow: u.Workflow, CheckName: u.CheckName, WorkflowPath: u.WorkflowPath(), Check: u.Name(),
+		Bases: strings.Join(u.Bases, "\n"), DailyCap: u.DailyCap, Cap: u.Cap()}
+	for _, repo := range m.AutoFix.TargetRepos {
+		if !unitFixTarget(m, repo) {
+			continue
+		}
+		var done []UnitWatch
+		for _, w := range ws {
+			if w.State == UnitWatchDone && strings.EqualFold(w.Repo, repo) {
+				done = append(done, w)
+			}
+		}
+		sort.Slice(done, func(i, j int) bool { return done[i].DoneAt > done[j].DoneAt })
+		r := AFUnitRepo{Repo: afLine(repo, 120), Outcome: "no merge watched yet"}
+		if len(done) > 0 {
+			r.Outcome, r.At = done[0].Outcome, afClock(done[0].DoneAt)
+		}
+		if len(done) >= 3 {
+			r.Warn = done[0].Outcome == UnitNoCI && done[1].Outcome == UnitNoCI && done[2].Outcome == UnitNoCI
+		}
+		out.Repos = append(out.Repos, r)
+	}
+	return out
 }

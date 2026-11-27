@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -472,5 +474,77 @@ func TestOtherMergesKeepTodaysUnitCard(t *testing.T) {
 	_, _, res, err := s3.PlanPullRequestCards(ctx, pid3, ev)
 	if err != nil || !strings.Contains(res.Skipped, skippedUnitChecks) || planned(s3) {
 		t.Errorf("a watched repository: err %v, skipped %q, card %t; want unit-checks and no card", err, res.Skipped, planned(s3))
+	}
+}
+
+// TC-866
+func TestUnitChecksRouteAndSection(t *testing.T) {
+	s, pid := unitStore(t)
+	srv, _ := newTestServer(t)
+	srv.store = s
+	path := "/products/" + pid + "/autofix/unit"
+	on := "enabled=on&bases=release%2Fnext&dailyCap=3"
+	autoFixAdminsFile(t, 0o600, "admin@example.test")
+	if w := formPost(t, srv, path, on, false); w.Code != http.StatusUnauthorized {
+		t.Errorf("no session answered %d; want 401", w.Code)
+	}
+	if w := formPost(t, srv, path, on, true); w.Code != http.StatusForbidden {
+		t.Errorf("an account that is not an admin answered %d; want 403", w.Code)
+	}
+	autoFixAdminsFile(t, 0o600, testEmail)
+	for want, c := range map[string]struct {
+		body  string
+		setup func()
+	}{
+		"GitHub is not configured; unit checks need it.":          {on, func() { srv.codeSrc, srv.btConsumer = nil, &btConsumer{} }},
+		"Brain Town is not connected; no merge would reach GAOS.": {on, func() { srv.codeSrc, srv.btConsumer = fakeCode{}, nil }},
+		"The daily cap is 1 to 20.":                               {"dailyCap=many", func() {}},
+		"Turn auto-fix on first.": {on, func() {
+			srv.codeSrc, srv.btConsumer = fakeCode{}, &btConsumer{}
+			a := unitAF()
+			a.Enabled = false
+			_, _ = s.SetAutoFix(context.Background(), pid, a, "ops", tokenKindFine)
+		}},
+	} {
+		c.setup()
+		w := formPost(t, srv, path, c.body, true)
+		if w.Code != http.StatusUnprocessableEntity || !strings.Contains(w.Body.String(), want) {
+			t.Errorf("%q: answered %d %s", want, w.Code, w.Body.String())
+		}
+		_, _ = s.SetAutoFix(context.Background(), pid, unitAF(), "ops", tokenKindFine)
+	}
+	if m := masterOf(t, s, pid); m.UnitChecks.Enabled {
+		t.Fatal("a refused save turned unit checks on")
+	}
+	// A save: the setting, and the Auto-fix page filtered to the product with its section open.
+	srv.codeSrc, srv.btConsumer = fakeCode{}, &btConsumer{}
+	w := formPost(t, srv, path, on, true)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Unit tests (CI) for") ||
+		!strings.Contains(w.Body.String(), "Saved. The next merge uses these settings.") {
+		t.Fatalf("the save answered %d without the open section", w.Code)
+	}
+	if u := masterOf(t, s, pid).UnitChecks; !u.Enabled || u.Cap() != 3 || strings.Join(u.Bases, ",") != "release/next" {
+		t.Errorf("the route saved %+v", u)
+	}
+	// The page: each fix-target repository's last watch, and the warning after three no-ci.
+	for i := 1; i <= 3; i++ {
+		if _, err := s.PlantUnitWatch(context.Background(), pid, UnitWatch{Repo: defRepo, SHA: fmt.Sprintf("%040x", i), Base: "develop",
+			State: UnitWatchDone, Outcome: UnitNoCI, DoneAt: int64(1000 + i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	req := httptest.NewRequest(http.MethodGet, "/ui/bo/autofix?product="+pid, nil)
+	for _, c := range boCookies() {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.routes().ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, defRepo) || !strings.Contains(body, "no-ci") ||
+		!strings.Contains(body, "</code> run on recent merges: is the workflow installed?") {
+		t.Errorf("the section does not show the last watch and the warning (%d)", rec.Code)
+	}
+	if strings.Contains(body, "Saved. The next merge") {
+		t.Error("a plain read shows the Saved line")
 	}
 }

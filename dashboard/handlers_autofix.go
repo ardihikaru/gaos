@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -176,4 +177,61 @@ func (s *server) handleCloseDefect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeBoardJSON(w, http.StatusOK, map[string]string{"ok": "defect closed"})
+}
+
+// handleSaveUnitChecks is POST /products/{id}/autofix/unit (D-105 §4.1): an auto-fix
+// admin saves a product's unit checks. 401 without a session, 403 for anyone else,
+// then the 64 KiB body; a refusal is 422 like the auto-fix settings.
+func (s *server) handleSaveUnitChecks(w http.ResponseWriter, r *http.Request) {
+	ss, ok := sessionOf(r)
+	if !ok || ss.Email == "" {
+		writeBoardJSON(w, http.StatusUnauthorized, map[string]string{"error": "sign in to the back office"})
+		return
+	}
+	if !autoFixAdmin(ss.Email) {
+		writeBoardJSON(w, http.StatusForbidden, map[string]string{"error": "unit checks are restricted to the accounts listed for auto-fix"})
+		return
+	}
+	id := r.PathValue("id")
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	if err := r.ParseForm(); err != nil {
+		writeBoardJSON(w, http.StatusBadRequest, map[string]string{"error": "the form could not be read"})
+		return
+	}
+	u := UnitChecks{Enabled: formBool(r.PostFormValue("enabled")), Workflow: strings.TrimSpace(r.PostFormValue("workflow")),
+		CheckName: strings.TrimSpace(r.PostFormValue("checkName")), Bases: formLines(r.PostFormValue("bases"))}
+	if v := strings.TrimSpace(r.PostFormValue("dailyCap")); v != "" {
+		u.DailyCap = atoiDefault(v, -1)
+	}
+	var err error
+	switch {
+	case u.Enabled && s.codeSrc == nil:
+		err = reject("GitHub is not configured; unit checks need it.")
+	case u.Enabled && s.btConsumer == nil:
+		err = reject("Brain Town is not connected; no merge would reach GAOS.")
+	}
+	var res Result
+	if err == nil {
+		res, err = s.mut(r).SetUnitChecks(r.Context(), id, u, ss.Email)
+	}
+	if err != nil {
+		s.autoFixError(w, r, err)
+		return
+	}
+	if wantsHTMX(r) {
+		v := s.applyResult(r, res)
+		r.URL.RawQuery = "product=" + url.QueryEscape(id) // the page the admin keeps sight of
+		s.sheet(w, r, v, "autofix", "", "")
+		if v.BO != nil && v.BO.AutoFix != nil {
+			for i := range v.BO.AutoFix.Units {
+				if v.BO.AutoFix.Units[i].ProductID == id {
+					v.BO.AutoFix.Units[i].Open = true
+					v.BO.AutoFix.UnitSaved = id
+				}
+			}
+		}
+		s.rend.RenderWithChrome(w, "bo-main-oob", v)
+		return
+	}
+	writeBoardJSON(w, http.StatusOK, map[string]string{"ok": "unit checks saved"})
 }

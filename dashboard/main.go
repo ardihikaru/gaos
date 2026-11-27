@@ -596,6 +596,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/board/cards/{taskId}/label", s.handleSetLabel)     // D-088
 	handle("POST /products/{id}/third-party", s.handleSaveThirdParty)              // D-104
 	handle("POST /products/{id}/autofix", s.handleSaveAutoFix)                     // D-091
+	handle("POST /products/{id}/autofix/unit", s.handleSaveUnitChecks)             // D-105
 	handle("POST /products/{id}/defects/{ref}/close", s.handleCloseDefect)         // D-091
 	handle("POST /agents/assign", s.handleAssign)                                  // D-102
 	handle("POST /contacts", s.handleContactSave)                                  // D-088

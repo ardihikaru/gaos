@@ -34,7 +34,7 @@
     <tbody>
       <tr><td>A pull request opens (not a draft, not from a fork)</td><td>A PR review card</td><td>The <code>pr-reviewer</code> agent</td></tr>
       <tr><td>The same event</td><td>An e2e automation card</td><td>The QA tool (a job GAOS starts and polls)</td></tr>
-      <tr><td>A pull request merges</td><td>A unit-test card; a review or e2e card that has not started is canceled</td><td>The <code>unit-test</code> agent</td></tr>
+      <tr><td>A pull request merges</td><td>A unit-test card; a review or e2e card that has not started is canceled. On a product with unit checks on, a fix-target repository gets no unit-test card: GAOS reads its CI check instead (<a href="agents.html#release-b-unit">unit tests</a>)</td><td>The <code>unit-test</code> agent; GitHub Actions for a watched repository</td></tr>
       <tr><td>The staging deploy finishes</td><td>An e2e run card</td><td>The QA tool</td></tr>
     </tbody>
   </table>
@@ -64,7 +64,7 @@
       <tr><td><code>pr-review:manual</code></td><td>A person reviews it. The scheduler never dispatches the card.</td></tr>
       <tr><td><code>pr-review:needs-manual</code></td><td>The agent found something high or critical, or its reply could not be posted. A person takes over.</td></tr>
       <tr><td><code>e2e:automation</code>, <code>e2e:run</code></td><td>The QA-tool jobs. Never dispatched to an agent.</td></tr>
-      <tr><td><code>unit:test</code></td><td>The unit-test card.</td></tr>
+      <tr><td><code>unit:test</code></td><td>The unit-test card. Not planned for a fix-target repository of a product with unit checks on (D-105).</td></tr>
       <tr><td><code>severity:none</code> &hellip; <code>severity:critical</code></td><td>What the reviewer found. Shown as a coloured chip on the board and as a Severity column in the table, and filterable &mdash; <em>Medium or worse</em> lists the cards a person must read. An operator may correct it; that changes the record only.</td></tr>
       <tr><td><code>source:api</code>, <code>source:bundle</code></td><td>Set by the planner on a card an <a href="external-tasks-api.html">API client</a> created or a <a href="#bundles">bundle</a>&rsquo;s test-planner card: the cards agent assignment does not gate. An operator cannot set them; filter on them. See <a href="agents.html#source-labels">Where a card came from</a>.</td></tr>
     </tbody>
@@ -148,6 +148,9 @@ Content-Type: application/json
   </table>
   <p>This is the one machine route that answers HTTP Basic instead of a bearer token, because a Jenkins credential
   step speaks Basic. The credential is per product and is compared in constant time.</p>
+
+  <h2 id="unit-checks">Unit tests come from the repository&rsquo;s CI</h2>
+  <p>Since v0.67.0 a product can read a fix-target repository&rsquo;s own unit-test check instead of planning the agent unit-test card (<a href="../product/decision-log.html#d-105">D-105</a>): the owner adds one GitHub Actions workflow, GitHub runs it on each merge commit, and GAOS reads that workflow&rsquo;s check. GAOS runs no test. A failing check becomes a unit defect whose triage card waits, Blocked, for an auto-fix admin; a missing, unread or inconclusive check is never a pass. It is off for every product until an auto-fix admin turns it on. Its notices use the kind <code>unit:failure</code> and go to the group. The flow, the outcomes and the workflow template are on <a href="agents.html#release-b-unit">Agents, severity and review fixes</a>.</p>
 
   <h2 id="qa">The QA tool does the e2e work</h2>
   <p>The QA tool already writes, runs, repairs and pushes an automation spec in its own automation repository. GAOS

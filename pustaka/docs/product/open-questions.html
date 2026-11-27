@@ -947,6 +947,7 @@
   <p><strong>The options:</strong> one fork per application repository, so the fork-pull-request no-secrets rule applies
   by construction; or keep same-repository branches with the check.</p>
   <p><strong>What it blocks:</strong> nothing today; it needs a fork to be created and kept for each repository.</p>
+  <p><strong>Amended by <a href="decision-log.html#d-105">D-105</a>:</strong> a unit-test fix adds test files on a same-repository <code>gaos/fix-*</code> branch, and the unit-test workflow&rsquo;s <code>pull_request</code> trigger runs them on the draft, with a read-only token and no secret in the test step &mdash; a standing case of this question, guarded by <code>CIConfirmed</code>, the admin release and the draft-only pull request.</p>
 
   <h3 id="oq-41">OQ-41 · Should the GitHub-to-WhatsApp mapping come from the task manager?</h3>
   <p><strong>Why it was open:</strong> a notice for a pull request goes to its author&rsquo;s WhatsApp number, found through GAOS&rsquo;s contact registry, which a person fills in the back office. The team&rsquo;s task manager already knows its users&rsquo; phone numbers, but not their GitHub accounts.</p>

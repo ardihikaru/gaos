@@ -350,39 +350,94 @@
     on the automation repository: an admin could bypass the rules, so the QA tool refuses one. Until both hold, keep the
     auto-merge switch off: GAOS still runs each new case once a person merges its spec.</p>
   </div>
+  <p><strong>Spec auto-merge is off by default everywhere.</strong> The GAOS switch is off for every product until an admin ticks it, and the QA tool&rsquo;s <code>QA_SPEC_AUTO_MERGE</code> is unset, which is off. Keep both off for a private automation repository on GitHub&rsquo;s free plan: without rulesets nothing can be merged safely, so every spec waits for a person.</p>
 
-  <h3 id="release-b-unit">4. Unit tests: designed, not built</h3>
-  <p>The design is approved (<code>docs/designs/release-b4-unit-tests.md</code>, ten review rounds). It covers running a
-  repository's existing unit tests on every merge into a fix-target repository, in the QA tool's sandbox, and turning a
-  failure into a defect that waits for an auto-fix admin before any agent works on it. Writing missing tests is a later
-  design (<code>docs/designs/release-b4b-unit-create.md</code>). Nothing changes until it is built and the QA tool offers a
-  <code>unit-run</code> job with a sandbox attestation; until then the unit-test card behaves as
-  <a href="pr-agents.html#qa">Pull-request agents</a> describes.</p>
+  <h3 id="release-b-unit">4. Unit tests: read from the repository&rsquo;s own CI check</h3>
+  <p>Built in v0.67.0 (<a href="../product/decision-log.html#d-105">D-105</a>, <a href="../product/brd.html#rules-gateway">BR-64</a>; design <code>docs/designs/release-b4-unit-tests.md</code>). <strong>GAOS runs no test.</strong> The repository owner adds one GitHub Actions workflow (the template is below); GitHub runs it on every merge commit in a disposable VM, and GAOS reads the result of that one workflow. A failure becomes a defect that waits for an auto-fix admin before any agent works on it. The feature is <strong>off for every product</strong> until an auto-fix admin turns it on. Writing missing tests is a later design (<code>docs/designs/release-b4b-unit-create.md</code>).</p>
   <div class="flow">
     <div class="node"><b>1 · Merge</b><span>Brain Town forwards it</span></div>
     <div class="arrow">→</div>
-    <div class="node"><b>2 · GAOS</b><span>plans a <code>unit:qa</code> card</span></div>
+    <div class="node"><b>2 · GitHub</b><span>runs the unit-tests workflow</span></div>
     <div class="arrow">→</div>
-    <div class="node"><b>3 · QA tool</b><span>runs the tests in its sandbox</span></div>
+    <div class="node"><b>3 · GAOS</b><span>reads that run&rsquo;s check</span></div>
     <div class="arrow">→</div>
     <div class="node"><b>4 · GAOS</b><span>a failure: defect, held</span></div>
     <div class="arrow">→</div>
     <div class="node"><b>5 · Admin</b><span>releases it; triage and fix</span></div>
   </div>
   <ol>
-    <li>A pull request merges into a repository the product lists as an auto-fix target, with the product's Unit tests
-      switch on.</li>
-    <li>GAOS plans one <code>unit:qa</code> card. No agent works it; GAOS's QA runner drives it, so it never holds the
-      product's one live model turn.</li>
-    <li>The runner reads the merge commit from GitHub, checks the QA tool's sandbox declaration, and asks the QA tool to
-      run the repository's existing tests at that commit.</li>
-    <li>A failure files a <em>unit defect</em>, deduplicated per repository, base and failing set, capped per day. Its
-      triage card is born Blocked and only an auto-fix admin can release, cancel or close it. A failure of the job itself
-      files nothing.</li>
-    <li>After release the usual auto-fix path runs: triage, then a draft fix pull request against the branch the tests
-      failed on. A fix may not edit the failing tests. A later merge where those tests pass closes the defect (a held one
-      is only marked, for the admin).</li>
+    <li><strong>Turn it on.</strong> On the Auto-fix page, open <em>Unit tests (CI) for &lt;product&gt;</em> (auto-fix admins only; <code>POST /products/{id}/autofix/unit</code>). It needs auto-fix on, a fixer and a triager assigned, a fix-target repository, GitHub and the Brain Town reader. You can name another workflow file or check name, extra bases beside the auto-fix base branch (or the default branch), and a daily cap of new unit defects (default 5). First merge the workflow and make sure its run on the base is green.</li>
+    <li><strong>A merge plants a watch.</strong> A pull request of a fix-target repository merged into a unit base gives GAOS its merge commit. For that repository the old agent unit-test card is no longer planned; other repositories and products keep it, as <a href="pr-agents.html#qa">Pull-request agents</a> describes.</li>
+    <li><strong>GAOS reads the check.</strong> Every 2 minutes, at most 10 merges at a time: the <code>push</code> run of the workflow on that commit and base, and the check run named <code>unit-tests</code> of that run&rsquo;s own check suite from the <code>github-actions</code> app. A check posted by anything else, and every commit status, is ignored. A failure counts only when the run carries the workflow&rsquo;s <code>unit-tests-total</code> notice, so a job that never started (a billing or spending limit) files nothing.</li>
+    <li><strong>A failure files a held defect.</strong> One open unit defect per repository and base (plus one for a failed build), naming at most ten failing tests; a new failing set updates it. Its triage card is born Blocked; only an auto-fix admin can release or cancel it (the cancel closes the defect), and nobody else can close it. The group gets one line.</li>
+    <li><strong>After release</strong> the usual auto-fix path runs: triage, then a draft fix pull request against the branch whose tests failed. The fix may not change the failing tests&rsquo; files, add tests beside them or add <code>TestMain</code> or <code>init</code>, and it is never retargeted.</li>
+    <li><strong>A later green check closes it</strong>, or, while its card is still held, marks it (&ldquo;checks passed at &hellip;&rdquo;) so the admin can close it by cancelling the card.</li>
   </ol>
+  <table class="tbl">
+    <thead><tr><th>The check</th><th>What GAOS does</th></tr></thead>
+    <tbody>
+      <tr><td>success</td><td>closes the open unit defects of that base (marks a held one)</td></tr>
+      <tr><td>failure, with the total notice</td><td>files or updates the unit defect (a build defect when no test was named)</td></tr>
+      <tr><td>failure, every test name withheld</td><td>files nothing; one line to the group</td></tr>
+      <tr><td>failure without the total notice</td><td><em>inconclusive</em>: the workflow did not report (job not started?); a line at most once a day</td></tr>
+      <tr><td>no run 6 hours after the merge</td><td><em>no-ci</em>: is the workflow installed? A line at most once a day</td></tr>
+      <tr><td>cancelled, skipped, timed out, unread, anything else</td><td><em>inconclusive</em>: nothing is filed or closed; never read as a pass</td></tr>
+    </tbody>
+  </table>
+
+  <h4 id="release-b-unit-workflow">The workflow the repository owner adds</h4>
+  <p>Merge it through an ordinary reviewed pull request as <code>.github/workflows/unit-tests.yml</code>; GAOS never writes workflow files. Set the repository&rsquo;s default workflow permissions to read-only and let no other workflow grant <code>checks: write</code>. Verify each pinned action SHA before merging (<code>gh api repos/actions/checkout/commits/&lt;sha&gt; --jq .sha</code>, and the tag&rsquo;s ref points to it). The <code>go test</code> step holds no secret; a private-module token is used only by <code>go mod download</code>. Tests that need a database or the network are skipped with <code>-short</code>.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">yaml</span><button class="copy">copy</button></div>
+    <pre>name: unit-tests
+on:
+  push:
+    branches: [develop, staging, main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: modules
+        env:
+          MODULES_TOKEN: ${{ secrets.MODULES_TOKEN }} # only if private modules are needed
+        run: |
+          if [ -n "$MODULES_TOKEN" ]; then
+            git config --global url."https://x-access-token:${MODULES_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
+          go mod download
+          git config --global --unset-all url."https://x-access-token:${MODULES_TOKEN}@github.com/".insteadOf || true
+      - name: go test
+        shell: bash
+        run: |
+          set +e +o pipefail
+          go test -short -json ./... &gt; test.json
+          status=$?
+          mod=$(go list -m)
+          # leaf tests only: a parent fails when a subtest fails; keep the deepest names
+          fails=$(jq -r 'select(.Action=="fail" and .Test!=null) | "\(.Package) \(.Test)"' test.json | sort -u |
+            awk '{a[NR]=$0} END {for(i=1;i&lt;=NR;i++){leaf=1; for(j=1;j&lt;=NR;j++) if(j!=i &amp;&amp; index(a[j], a[i]"/")==1) leaf=0; if(leaf) print a[i]}}')
+          n=$(printf '%s\n' "$fails" | grep -c . || true)
+          printf '%s\n' "$fails" | head -n 10 | while read -r pkg test; do
+            [ -z "$test" ] &amp;&amp; continue
+            dir=${pkg#"$mod"}; dir=${dir#/}; [ -z "$dir" ] &amp;&amp; dir=.
+            file=$(grep -l "func ${test%%/*}(" "$dir"/*_test.go 2&gt;/dev/null | head -n 1 || true)
+            file=${file#./}
+            echo "::error file=${file},title=${test}::${pkg} ${test} failed"
+          done
+          echo "::notice title=unit-tests-total::${n}"
+          exit $status</pre>
+  </div>
 
   <h3 id="release-b-order">Status</h3>
   <table class="tbl">
@@ -391,7 +446,7 @@
       <tr><td>1. Repository kinds</td><td>Built (v0.65.0)</td><td>Built: <code>kind</code> and <code>GET /api/v1/gaos/capabilities</code></td></tr>
       <tr><td>2. Create on staging</td><td>Built (v0.65.0)</td><td>Nothing new needed</td></tr>
       <tr><td>3. Auto-merge, then run</td><td>Built (v0.65.0)</td><td>Built, off until <code>QA_SPEC_AUTO_MERGE=on</code>; needs the automation repository's rulesets (a paid GitHub plan for a private repository) and a bot account</td></tr>
-      <tr><td>4. Unit tests (run)</td><td>Design approved</td><td>Needs <code>unit-run</code> and a sandbox attestation (a design of its own there)</td></tr>
+      <tr><td>4. Unit tests (run)</td><td>Built (v0.67.0), off by default</td><td>Nothing: GitHub Actions runs the repository&rsquo;s own workflow</td></tr>
       <tr><td>4b. Unit tests (write missing)</td><td>Draft design</td><td>Needs a separate GitHub identity and an approval in the QA tool</td></tr>
     </tbody>
   </table>
