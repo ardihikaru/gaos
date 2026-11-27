@@ -43,7 +43,7 @@ func unitStore(t *testing.T) (*MemStore, string) {
 	return s, pid
 }
 
-// TC-851
+// TC-853
 func TestUnitChecksAreSavedAndRefused(t *testing.T) {
 	ctx := context.Background()
 	// The refusals that need no product state, each alone.
@@ -142,7 +142,7 @@ func unitWatchIn(sha string) UnitWatch {
 	return UnitWatch{Repo: "Acme-Org/Sample-Service", PR: 7, SHA: strings.ToUpper(sha), Base: "develop", MergedAt: 1000, NextAt: 1120}
 }
 
-// TC-852
+// TC-854
 func TestUnitWatchIsPlantedOnceAndPersists(t *testing.T) {
 	ctx := context.Background()
 	s, pid := unitStore(t)
@@ -324,7 +324,7 @@ func unitWatchesOf(t *testing.T, s Store, pid string) []UnitWatch {
 	return ws
 }
 
-// TC-853
+// TC-855
 func TestAMergeIntoAUnitBasePlantsAWatchNotAnAgentCard(t *testing.T) {
 	ctx := context.Background()
 	pr := recordedMerge(t)
@@ -429,7 +429,7 @@ func TestAMergeIntoAUnitBasePlantsAWatchNotAnAgentCard(t *testing.T) {
 	}
 }
 
-// TC-854
+// TC-856
 func TestOtherMergesKeepTodaysUnitCard(t *testing.T) {
 	ctx := context.Background()
 	pr := recordedMerge(t)
@@ -477,7 +477,7 @@ func TestOtherMergesKeepTodaysUnitCard(t *testing.T) {
 	}
 }
 
-// TC-866
+// TC-868
 func TestUnitChecksRouteAndSection(t *testing.T) {
 	s, pid := unitStore(t)
 	srv, _ := newTestServer(t)

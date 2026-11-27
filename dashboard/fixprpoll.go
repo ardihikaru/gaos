@@ -383,21 +383,36 @@ func (p *fixPRPoller) pollRow(ctx context.Context, r PullRequest, m Master, now 
 	p.due[id] = now.Add(every)
 	p.status.LastError = ""
 	p.mu.Unlock()
+	// D-100 (BR-64): a listed product's review row reads its template BEFORE the poll records
+	// CheckedAt. ApplyBundleLinks marks a row never polled (CheckedAt == 0) as templateSeen, and
+	// that first read is the only one that can: a row whose pr.opened planned no card (the
+	// daily cap, a skip, a duplicate) reaches its template here for the first time. Recording
+	// CheckedAt first silenced both template alerts for every such row (v0.66.3).
+	var tmpl prTemplate
+	templated := r.Kind == PRKindReview && templateProducts()[r.ProductID]
+	if templated {
+		tmpl = parsePRTemplate(gs.Body)
+		if _, _, err := p.st.ApplyBundleLinks(ctx, r.ProductID, r.Key, tmpl, now.Unix()); err != nil && !errors.Is(err, ErrNotFound) {
+			p.logf("pull requests: the template of %s#%d could not be recorded: %v", r.Repo, r.Number, err)
+		}
+	}
 	f := PRFields{State: prRowStateOf(gs), Title: gs.Title, Author: gs.Author, HeadRef: gs.Head, BaseRef: gs.Base, CheckedAt: now.Unix(), HeadSHA: gs.HeadSHA}
-	if _, err := p.st.AdvancePullRequest(ctx, r.ProductID, r.Key, f); err != nil && !errors.Is(err, ErrNotFound) {
+	res, err := p.st.AdvancePullRequest(ctx, r.ProductID, r.Key, f)
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		p.logf("pull requests: %s#%d could not be recorded: %v", r.Repo, r.Number, err)
 		p.mu.Lock()
 		delete(p.due, id)
 		p.mu.Unlock()
 		return true
 	}
-	// D-100: a listed product's review row re-reads its template on every poll until its
-	// bundle is planned, then the missing-code alert is weighed.
-	if r.Kind == PRKindReview && templateProducts()[r.ProductID] {
-		tmpl := parsePRTemplate(gs.Body)
-		if row, _, err := p.st.ApplyBundleLinks(ctx, r.ProductID, r.Key, tmpl, now.Unix()); err == nil {
-			p.maybeAlert(ctx, row, tmpl, now)
-			p.maybeAlertUnknown(ctx, row, now)
+	// The alerts are weighed on the row as it now stands: its template read above and its state
+	// just recorded.
+	if templated && err == nil {
+		for _, row := range res.PullRequests {
+			if row.Key == r.Key {
+				p.maybeAlert(ctx, row, tmpl, now)
+				p.maybeAlertUnknown(ctx, row, now)
+			}
 		}
 	}
 	return true

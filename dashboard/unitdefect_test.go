@@ -81,7 +81,7 @@ func releaseHeld(t *testing.T, s *MemStore, d Defect) {
 	}
 }
 
-// TC-855
+// TC-857
 func TestUnitDefectRecordDedupAndUpdate(t *testing.T) {
 	ctx := context.Background()
 	s, pid := unitOnStore(t, UnitChecks{})
@@ -189,7 +189,7 @@ func TestUnitDefectRecordDedupAndUpdate(t *testing.T) {
 	}
 }
 
-// TC-856
+// TC-858
 func TestUnitDefectGateAndCaps(t *testing.T) {
 	ctx := context.Background()
 	in := UnitDefectIn{Failing: uf("TestTotal")}
@@ -253,7 +253,7 @@ func TestUnitDefectGateAndCaps(t *testing.T) {
 	}
 }
 
-// TC-857
+// TC-859
 func TestAPassClosesOrMarksUnitDefects(t *testing.T) {
 	ctx := context.Background()
 	s, pid := unitOnStore(t, UnitChecks{Bases: []string{"release/next"}})
@@ -324,7 +324,7 @@ func TestAPassClosesOrMarksUnitDefects(t *testing.T) {
 	_ = ctx
 }
 
-// TC-858
+// TC-860
 func TestAnOlderFailureNeverFilesWhatAPassCovered(t *testing.T) {
 	s, pid := unitOnStore(t, UnitChecks{})
 	// A newer merge passed, no defect exists yet: the older failure files nothing.
@@ -357,7 +357,7 @@ func TestAnOlderFailureNeverFilesWhatAPassCovered(t *testing.T) {
 	}
 }
 
-// TC-859
+// TC-861
 func TestUnitDefectFieldsSurviveARestart(t *testing.T) {
 	arc := arcadeTestTarget(t)
 	ctx := t.Context()
@@ -452,7 +452,7 @@ func movesOf(b Board, id string) string {
 	return "missing"
 }
 
-// TC-863
+// TC-865
 func TestTheHeldCardIsAdminOnly(t *testing.T) {
 	ctx := context.Background()
 	s, pid, d := heldUnitDefect(t)
@@ -538,7 +538,7 @@ func TestTheHeldCardIsAdminOnly(t *testing.T) {
 	}
 }
 
-// TC-864
+// TC-866
 func TestAUnitFixMayNotWeakenTheFailingTests(t *testing.T) {
 	af := fixAF()
 	guard := fixGuard{Unit: true, Protected: []string{fxTestPath}}
@@ -593,7 +593,7 @@ func TestAUnitFixMayNotWeakenTheFailingTests(t *testing.T) {
 	}
 }
 
-// TC-865
+// TC-867
 func TestTheUnitBaseIsRecheckedAndNeverRetargeted(t *testing.T) {
 	ctx := context.Background()
 	af := fixAF()

@@ -357,3 +357,26 @@ func TestEverySchemaStatementSurvivesTheSplit(t *testing.T) {
 			"hundred and a number this low means a file stopped being read", total)
 	}
 }
+
+// TestArcadeDropsIdleConnectionsBeforeTheServer: ArcadeDB closes an idle keep-alive connection
+// after about 30 seconds, so both clients must drop theirs sooner, or a POST on a just-closed
+// connection fails with EOF and is never retried.
+func TestArcadeDropsIdleConnectionsBeforeTheServer(t *testing.T) {
+	a := ArcadeFromEnv()
+	for name, c := range map[string]*http.Client{"client": a.client, "stmtClient": a.stmtClient} {
+		tr, ok := c.Transport.(*http.Transport)
+		if !ok || tr.IdleConnTimeout <= 0 || tr.IdleConnTimeout >= 30*time.Second {
+			t.Errorf("the %s keeps idle connections for %v; want a positive timeout under ArcadeDB's 30 seconds", name, idleOf(c))
+		}
+	}
+	if a.client.Transport != a.stmtClient.Transport {
+		t.Error("the two Arcade clients must share one connection pool")
+	}
+}
+
+func idleOf(c *http.Client) any {
+	if tr, ok := c.Transport.(*http.Transport); ok {
+		return tr.IdleConnTimeout
+	}
+	return "the default transport (90s)"
+}

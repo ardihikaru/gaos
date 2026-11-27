@@ -183,7 +183,7 @@ func (e *unitPollEnv) greenAt(n int, conclusion string) {
 	})
 }
 
-// TC-860
+// TC-862
 func TestOnlyTheWorkflowsCheckIsRead(t *testing.T) {
 	ctx := context.Background()
 	e := newUnitPollEnv(t, UnitChecks{})
@@ -274,7 +274,7 @@ func unitPickRunN(r ghWorkflowRun, workflow string) int {
 	return n
 }
 
-// TC-861
+// TC-863
 func TestUnitOutcomes(t *testing.T) {
 	ctx := context.Background()
 	// success, failure, build, all withheld, other conclusions: one watch each.
@@ -457,7 +457,7 @@ func TestUnitOutcomes(t *testing.T) {
 	}
 }
 
-// TC-862
+// TC-864
 func TestAnnotationsAreScreened(t *testing.T) {
 	anns := []map[string]any{
 		ucAnn("failure", "main_test.go", "TestRoot", "the root package"),
@@ -523,7 +523,7 @@ func TestAnnotationsAreScreened(t *testing.T) {
 	}
 }
 
-// TC-867
+// TC-869
 func TestUnitNoticesAreSentOnceAndResent(t *testing.T) {
 	ctx := context.Background()
 	e := newUnitPollEnv(t, UnitChecks{})
@@ -598,7 +598,7 @@ func TestUnitNoticesAreSentOnceAndResent(t *testing.T) {
 	}
 }
 
-// TC-868
+// TC-870
 func TestUnitRetentionAndContext(t *testing.T) {
 	ctx := context.Background()
 	e := newUnitPollEnv(t, UnitChecks{})
