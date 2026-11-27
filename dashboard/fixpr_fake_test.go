@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -36,6 +37,10 @@ type fakeGHW struct {
 	pull      map[string]any
 	pullFiles []map[string]any
 	protected map[string]bool
+	// D-108: the close of a pull request. prStates is GitHub's state per number
+	// ("open" when absent, "closed" or "merged"); closeFail answers the PATCH with it.
+	prStates  map[int]string
+	closeFail int
 }
 
 func newFakeGHW() *fakeGHW {
@@ -129,6 +134,20 @@ func (f *fakeGHW) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fakeJSON(w, 200, f.pullFiles)
 	case f.pull != nil && strings.HasPrefix(p, base+"/pulls/") && !strings.Contains(strings.TrimPrefix(p, base+"/pulls/"), "/") && r.Method == "GET":
 		fakeJSON(w, 200, f.pull)
+	case strings.HasPrefix(p, base+"/pulls/") && !strings.Contains(strings.TrimPrefix(p, base+"/pulls/"), "/") && (r.Method == "GET" || r.Method == "PATCH"):
+		n, _ := strconv.Atoi(strings.TrimPrefix(p, base+"/pulls/"))
+		if r.Method == "PATCH" {
+			if f.closeFail != 0 {
+				w.WriteHeader(f.closeFail)
+				return
+			}
+			if f.prStates == nil {
+				f.prStates = map[int]string{}
+			}
+			f.prStates[n] = "closed"
+		}
+		st := f.prStates[n]
+		fakeJSON(w, 200, map[string]any{"number": n, "state": map[bool]string{true: "closed", false: "open"}[st == "closed" || st == "merged"], "merged": st == "merged"})
 	case strings.HasPrefix(p, base+"/branches/") && r.Method == "GET":
 		fakeJSON(w, 200, map[string]bool{"protected": f.protected[strings.TrimPrefix(p, base+"/branches/")]})
 	case strings.HasPrefix(p, base+"/git/ref/heads/"):

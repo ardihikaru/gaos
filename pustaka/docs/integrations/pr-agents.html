@@ -126,7 +126,7 @@ body: the review, at most 6000 characters, each finding with a file:line and a R
   agent runs, and again before any branch exists, GAOS refuses the fix when the pull request closed, its head moved, it
   comes from a fork, its branch is the default, the auto-fix base, an allowed retarget base or a protected branch, its
   file list is incomplete, it changes <code>.github/</code>, or the fixer was unassigned. A refused card is Blocked with
-  the reason. GAOS never merges and never closes a pull request; a review fix is never retargeted.</p>
+  the reason. GAOS never merges a pull request, and closes only its own superseded or duplicate drafts (<a href="../product/decision-log.html#d-108">D-108</a>); a review fix is never retargeted.</p>
 
   <h2 id="staging">The staging callback</h2>
   <p>Jenkins calls GAOS when the staging deploy has finished:</p>

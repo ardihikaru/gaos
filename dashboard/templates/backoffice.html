@@ -1378,6 +1378,23 @@
     </div>
   </div>
 
+  <div id="afFilters" class="af-filters">
+    <nav class="af-seg af-sections" aria-label="Auto-fix sections">
+      {{range .Sections}}<a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
+    </nav>
+    <form class="af-form" method="get" action="ui/bo/autofix" hx-get="ui/bo/autofix" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
+      {{if .Filter.State}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
+      {{if .Filter.Section}}<input type="hidden" name="section" value="{{.Filter.Section}}">{{end}}
+      <label><span class="sr-only">Product</span>
+        <select name="product">{{range .ProductOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+      <label><span class="sr-only">Difficulty</span>
+        <select name="difficulty">{{range .DiffOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+      <noscript><button class="btn" type="submit">Apply</button></noscript>
+      {{if or .Filter.Product .Filter.State .Filter.Difficulty}}<a class="af-reset" href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
+    </form>
+  </div>
+
+  {{if eq .Section "products"}}
   <div class="block af-block">
     <h4>Auto-fix by product</h4>
     {{if .Products}}
@@ -1395,10 +1412,12 @@
     {{if .ProductsMore}}<p class="tm-line">and {{num .ProductsMore}} more products. Filter by product to see them.</p>{{end}}
     {{else}}<p class="tm-line">No product exists yet. Create one under Products; auto-fix is configured per product.</p>{{end}}
   </div>
+  {{end}}
 
-  {{if .Waiting}}
+  {{if eq .Section "waiting"}}
   <div class="block af-block">
-    <h4>Cards waiting <span class="sp">{{len .Waiting}}{{if .WaitingMore}} + {{num .WaitingMore}} more{{end}}</span></h4>
+    <h4>Cards waiting <span class="sp">{{num .WaitPager.Total}}</span></h4>
+    {{if .Waiting}}
     <ul class="af-wait">
       {{range .Waiting}}
       <li class="af-w{{if .Person}} is-person{{end}}">
@@ -1409,25 +1428,36 @@
       </li>
       {{end}}
     </ul>
+    {{template "pager" .WaitPager}}
+    {{else}}<p class="af-empty">No defect card is waiting.</p>{{end}}
   </div>
   {{end}}
 
+  {{if not .Section}}
   <div class="block af-block af-prs">
     <h4>Fix pull requests <span class="sp">{{num .RowsTotal}}</span></h4>
-    <div id="afFilters" class="af-filters">
+    <div id="afStates" class="af-filters">
       <nav class="af-seg" aria-label="Pull request state">
         {{range .StateTabs}}<a href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML"{{if .On}} aria-current="true"{{end}}>{{.Label}} <span class="n">{{num .Count}}</span></a>{{end}}
       </nav>
-      <form class="af-form" method="get" action="ui/bo/autofix" hx-get="ui/bo/autofix" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
-        {{if .Filter.State}}<input type="hidden" name="state" value="{{.Filter.State}}">{{end}}
-        <label><span class="sr-only">Product</span>
-          <select name="product">{{range .ProductOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
-        <label><span class="sr-only">Difficulty</span>
-          <select name="difficulty">{{range .DiffOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
-        <noscript><button class="btn" type="submit">Apply</button></noscript>
-        {{if or .Filter.Product .Filter.State .Filter.Difficulty}}<a class="af-reset" href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear filters</a>{{end}}
-      </form>
     </div>
+    {{if .Dups}}
+    <div class="af-note af-dups" role="note" aria-labelledby="afDupsH">
+      <b id="afDupsH">Duplicates <span class="n">{{len .Dups}}</span></b>
+      <ul class="af-wait">
+        {{range .Dups}}
+        <li class="af-w">
+          <span class="af-w-k" title="{{.Rule}}">{{.RuleLabel}}</span>
+          <span class="af-w-t">close <a class="mono" href="{{.CloseHref}}" hx-get="{{.CloseGet}}" hx-target="#sink" hx-swap="innerHTML">{{.CloseRef}}</a> &middot; keep <a class="mono" href="{{.KeepHref}}" hx-get="{{.KeepGet}}" hx-target="#sink" hx-swap="innerHTML">{{.KeepRef}}</a></span>
+          <span class="af-w-why">{{.Sentence}}</span>
+          <span class="af-w-c">{{if $.Admin}}<form hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML" hx-confirm="{{.Confirm}}" hx-disabled-elt="find button">
+            <input type="hidden" name="product" value="{{$.Filter.Product}}"><input type="hidden" name="state" value="{{$.Filter.State}}"><input type="hidden" name="difficulty" value="{{$.Filter.Difficulty}}">
+            <button class="btn" type="submit">Close {{.CloseRef}} on GitHub</button></form>{{else}}An auto-fix admin can close it.{{end}}</span>
+        </li>
+        {{end}}
+      </ul>
+    </div>
+    {{end}}
 
     {{if .Rows}}
     <div class="tm-scroll af-scroll">
@@ -1435,17 +1465,18 @@
         <caption class="sr-only">Fix pull requests, active ones first</caption>
         <thead><tr>
           <th scope="col">State</th><th scope="col">Defect</th><th scope="col">Difficulty</th>
-          <th scope="col" class="af-md">Product</th><th scope="col">Pull request</th><th scope="col" class="af-md">Card</th>
+          <th scope="col" class="af-md">Product</th><th scope="col">Pull request</th><th scope="col" class="af-md">Branch</th><th scope="col" class="af-md">Card</th>
           <th scope="col">Age</th><th scope="col"><span class="sr-only">WhatsApp </span>Sent</th>
         </tr></thead>
         <tbody>
         {{range .Rows}}
           <tr class="af-r{{if .Open}} is-open{{end}}">
-            <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span></td>
-            <td class="af-defect"><a data-af-row="{{.ID}}" href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Ref}}</span></a></td>
+            <td><span class="af-st af-st--{{.State}}">{{.StateLabel}}</span>{{if .Replaced}} <span class="badge" title="A retarget replaced this pull request">replaced</span>{{end}}</td>
+            <td class="af-defect"><a data-af-row="{{.ID}}" href="{{pagehref .Href}}" hx-get="{{.Href}}" hx-target="#sink" hx-swap="innerHTML" title="{{.Title}}"{{if .Open}} aria-current="true"{{end}}><span class="af-t">{{.Title}}</span><span class="af-ref mono">{{.Ref}}</span>{{if .Trigger}}<span class="af-ref af-trig">Triggered by {{.Trigger}}</span>{{end}}</a></td>
             <td>{{if .Diff}}<span class="badge af-d af-d--{{.Diff}}">{{.Diff}}</span>{{else}}<span class="af-dash" aria-label="not judged yet">&mdash;</span>{{end}}</td>
             <td class="af-md af-prod-cell" title="{{.Product}}">{{.Product}}</td>
             <td>{{if .URL}}<a class="af-pr mono" href="{{.URL}}" target="_blank" rel="noopener noreferrer" title="{{.Repo}}#{{.Number}}">{{.Repo}}#{{.Number}}<span class="sr-only"> (opens GitHub)</span></a>{{else}}<span class="af-dash" title="The pull request is not opened yet">not opened</span>{{end}}</td>
+            <td class="af-md mono af-branch" title="{{.Branch}} → {{if .Base}}{{.Base}}{{else}}base not known yet{{end}}"><code>{{.Branch}}</code> &rarr; {{if .Base}}<code>{{.Base}}</code>{{else}}&mdash;{{end}}</td>
             <td class="af-md mono cell-id" title="{{.Card}}">{{.Card}}</td>
             <td class="af-age mono">{{if .Age}}<span title="{{.AgeTitle}}">{{.Age}}</span>{{else}}<span class="af-dash">&mdash;</span>{{end}}</td>
             <td>{{if .WA}}<span class="af-wa is-on">Sent</span>{{else}}<span class="af-wa"><span aria-hidden="true">&mdash;</span><span class="sr-only">not sent</span></span>{{end}}</td>
@@ -1463,6 +1494,7 @@
       <p class="af-empty"><b>No pull request matches these filters.</b> <a href="{{pagehref .ResetHref}}" hx-get="{{.ResetHref}}" hx-target="#sink" hx-swap="innerHTML">Clear them</a> to see all of them.</p>
     {{end}}
   </div>
+  {{end}}
   </div>
 </div>
 {{end}}
@@ -1482,7 +1514,8 @@
   <div class="af-dr-body">
     <dl class="af-facts">
       {{if .Card}}<div><dt>Card</dt><dd class="mono">{{.Card}}</dd></div>{{end}}
-      {{if .Branch}}<div><dt>Branch</dt><dd class="mono">{{.Branch}}</dd></div>{{end}}
+      {{if .Trigger}}<div><dt>Triggered by</dt><dd>{{if .TriggerHref}}<a href="{{.TriggerHref}}" hx-get="{{.TriggerGet}}" hx-target="#sink" hx-swap="innerHTML">{{.Trigger}}</a>{{else}}{{.Trigger}}{{end}}</dd></div>{{end}}
+      {{if .Branch}}<div><dt>Branch</dt><dd class="mono">{{.Branch}} &rarr; {{if .Base}}{{.Base}}{{else}}&mdash;{{end}}</dd></div>{{end}}
       {{if .Class}}<div><dt>Class</dt><dd class="mono">{{.Class}}</dd></div>{{end}}
       {{if .Opened}}<div><dt>Opened</dt><dd title="{{.OpenedTitle}}">{{.Opened}}</dd></div>{{end}}
       {{if .Updated}}<div><dt>Last change</dt><dd title="{{.UpdatedTitle}}">{{.Updated}}</dd></div>{{end}}

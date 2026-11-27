@@ -184,6 +184,9 @@ type Store interface {
 	OpenFixPR(ctx context.Context, productID, taskID string, f FixPR) (Result, error)
 	// AdvanceFixPR and ExpireExcerpts are the poller's writes (fixprpoll.go).
 	AdvanceFixPR(ctx context.Context, productID string, f FixPR) (Result, error)
+	// CloseFixPR records that GAOS closed a replaced or duplicate fix pull request on
+	// GitHub (D-108); it re-checks the finding under the lock and never moves the defect.
+	CloseFixPR(ctx context.Context, productID, fixPRID, rule, actor string) (Result, error)
 	// The Pull requests page's rows (pullrequests.go, D-092): review and QA-tool pull requests.
 	PullRequests(ctx context.Context, productID string) ([]PullRequest, error)
 	UpsertPullRequest(ctx context.Context, p PullRequest) (Result, error)

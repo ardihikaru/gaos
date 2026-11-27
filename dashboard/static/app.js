@@ -578,7 +578,7 @@
   var pagerKeep = null;
   document.body.addEventListener("htmx:beforeRequest", function (e) {
     var el = e.detail && e.detail.elt;
-    var b = el && el.closest && el.closest(".pager") ? document.querySelector("#boSheet .sheet-body") : null;
+    var b = el && el.closest && el.closest(".pager, #afFilters, #afStates, #prsFilters, .af-sections, .af-dups") ? document.querySelector("#boSheet .sheet-body") : null;
     pagerKeep = b ? [b.scrollLeft, b.scrollTop] : null;
   });
   document.body.addEventListener("htmx:afterSettle", function () {

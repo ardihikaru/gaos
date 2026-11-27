@@ -82,6 +82,8 @@ type server struct {
 	branches branchChecker
 	// writeTokenKind is the kind of the auto-fix write token in use ("" = none).
 	writeTokenKind string
+	// fixWriter is the write-token client, nil when no token is set: the duplicate close (D-108).
+	fixWriter *ghWriter
 	// fixPoll is the pull-request poller, for the Auto-fix view's GitHub status; nil when off.
 	fixPoll fixPollSource
 	// wa is the WhatsApp notifier (wa.go); nil when off.
@@ -416,6 +418,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	wtcfg := ghWriteConfigFromEnv()
 	ghw := newGHWriter(wtcfg)
 	if ghw != nil {
+		srv.fixWriter = ghw
 		srv.writeTokenKind = ghTokenKind(wtcfg.token)
 		log.Printf("auto-fix: write token on (%s)", srv.writeTokenKind)
 	} else {
@@ -612,6 +615,7 @@ func (s *server) routes() http.Handler {
 	handle("GET /ui/bo/{view}", s.handleBOView)
 	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive)                 // the Auto-fix view's 30 s poll
 	handle("POST /products/{id}/prs/{fixPRID}/retarget", s.handleRetarget) // D-092
+	handle("POST /products/{id}/prs/{fixPRID}/close", s.handleCloseFixPR)  // D-108
 	handle("GET /ui/bo/prs/live", s.handlePRsLive)                         // the Pull requests view's 30 s poll (D-092)
 	handle("GET /ui/bo/traffic/live", s.handleTrafficLive)                 // the Traffic view's 30 s poll (D-107)
 

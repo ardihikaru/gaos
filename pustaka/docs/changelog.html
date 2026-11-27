@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-71-0">v0.71.0 <time datetime="2026-11-28">2026-11-28</time> <span class="bump minor">minor</span></h3>
+      <ul>
+        <li><span class="chg change">Changed</span> <strong>A retarget closes the pull request it replaced</strong> on GitHub once the new draft is recorded, keeping its branch (<a href="product/decision-log.html#d-108">D-108</a>, amends D-092 and BR-61). A close GitHub refuses is retried at the next restart.</li>
+        <li><span class="chg add">Added</span> <strong>Duplicates</strong> on the Auto-fix page: open fix pull requests a retarget replaced, or extra ones of the same defect, with a one-click <strong>Close on GitHub</strong> for auto-fix admins. The defect is never changed.</li>
+        <li><span class="chg add">Added</span> Each fix pull request shows its <strong>branch and base</strong> and <strong>what triggered it</strong> (a QA report, a review finding, a unit-test failure, a retarget or a second attempt, linked to the earlier pull request).</li>
+        <li><span class="chg change">Changed</span> The Auto-fix page shows <strong>three sections</strong> &mdash; Fix pull requests, Cards waiting and Auto-fix by product &mdash; and Cards waiting pages five at a time.</li>
+        <li><span class="chg fix">Fixed</span> Changing the product, the difficulty, a state or a section no longer throws the sheet back to the top (the Pull requests page&rsquo;s filters too). Eight new test cases, TC-906 to TC-913.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-70-0">v0.70.0 <time datetime="2026-11-28">2026-11-28</time> <span class="bump minor">minor</span></h3>
       <ul>
         <li><span class="chg add">Added</span> <strong>Sub-menus in the back-office bar.</strong> Stories, Diagrams, Knowledge and Archive are under <strong>Library</strong>; Auto-fix and Pull requests under <strong>Automation</strong>; Integrations and Traffic under <strong>System</strong>; in a product, Blueprint and AI vendors under <strong>Setup</strong>. Every page keeps its address, and the group of the page you are on is underlined.</li>
