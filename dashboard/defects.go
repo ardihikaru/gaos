@@ -37,6 +37,9 @@ const (
 	DefectKindXfail = "xfail"
 	DefectKindFail  = "fail"
 	DefectKindXpass = "xpass"
+	// DefectKindReview is a low PR-review finding (D-099, reviewdefect.go). It
+	// never arrives from the QA tool: validateDefectItem refuses it.
+	DefectKindReview = "review"
 )
 
 // The rules a defect move or event names.
@@ -103,6 +106,11 @@ type Defect struct {
 	// otherwise. It is cleared when the defect is fixed or closed and on any other generation
 	// change, and checked against AutoFix.AllowedBases at use.
 	BaseOverride string
+	// ReviewBranch and ReviewHead are a review defect's branch and pinned head
+	// (D-099): the fix goes into that branch, on top of that commit. Empty on
+	// every other defect.
+	ReviewBranch string
+	ReviewHead   string
 }
 
 // Clone deep-copies a record.
@@ -688,9 +696,10 @@ func (s *MemStore) SetAutoFix(ctx context.Context, productID string, a AutoFix, 
 		tpl = "custom"
 	}
 	p := EventPayload{Actor: actorAlias(actor), Rule: "autofix-config", Reason: fmt.Sprintf(
-		"enabled=%t fixCap=%d triageCap=%d allowed=%d forbidden=%d test=%d template=%s ci=%t token=%s base=%s bases=%s targets=%d automation=%s",
+		"enabled=%t fixCap=%d triageCap=%d allowed=%d forbidden=%d test=%d template=%s ci=%t token=%s base=%s bases=%s targets=%d automation=%s reviewHeads=%s reviewCap=%d",
 		a.Enabled, fix, triage, len(a.AllowedGlobs), len(a.ForbiddenGlobs), len(a.TestGlobs), tpl, a.CIConfirmed, tokenKind,
-		reasonList([]string{a.BaseBranch}), reasonList(a.AllowedBases), len(a.TargetRepos), reasonList(a.AutomationRepos))}
+		reasonList([]string{a.BaseBranch}), reasonList(a.AllowedBases), len(a.TargetRepos), reasonList(a.AutomationRepos),
+		reasonList(a.ReviewFixHeads), a.ReviewCap())}
 	ev := s.defectEventLocked(AutoFixConfigured, productID, "auto-fix configured by "+p.Actor, KindInfo, p)
 	c := m.Clone()
 	return Result{Master: &c, NewEvents: []Event{ev}, Toast: "Auto-fix settings saved."}, nil

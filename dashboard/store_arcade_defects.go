@@ -52,6 +52,7 @@ func (s *ArcadeStore) writeDefect(ctx context.Context, tx *ArcadeTx, d Defect) e
 		"repo": d.Repo, "files": listJSON(d.Files), "reason": d.Reason, "state": d.State,
 		"supersededBy": d.SupersededBy, "triageTask": d.TriageTask, "fixTask": d.FixTask,
 		"fixPR": d.FixPR, "context": ctxJSON, "baseOverride": d.BaseOverride,
+		"reviewBranch": d.ReviewBranch, "reviewHead": d.ReviewHead, // D-099, schema/19
 	})
 }
 
@@ -88,12 +89,14 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 		FixPR           string `json:"fixPR"`
 		Context         string `json:"context"`
 		BaseOverride    string `json:"baseOverride"`
+		ReviewBranch    string `json:"reviewBranch"`
+		ReviewHead      string `json:"reviewHead"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, productId, defectId, caseId, kind, level, automationType, backend, targetRepos,
 		        operations, spec, title, excerpt, excerptWithheld, firstSeen, lastSeen, runRef, gen,
 		        regression, difficulty, triageClass, repo, files, reason, state, supersededBy,
-		        triageTask, fixTask, fixPR, context, baseOverride
+		        triageTask, fixTask, fixPR, context, baseOverride, reviewBranch, reviewHead
 		 FROM Defect WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err
@@ -109,6 +112,7 @@ func (s *ArcadeStore) loadDefects(ctx context.Context) ([]Defect, error) {
 			Regression: r.Regression, Difficulty: r.Difficulty, Class: r.Class, Repo: r.Repo,
 			Files: listFrom(r.Files), Reason: r.Reason, State: r.State, SupersededBy: r.SupersededBy,
 			TriageTask: r.TriageTask, FixTask: r.FixTask, FixPR: r.FixPR, BaseOverride: r.BaseOverride,
+			ReviewBranch: r.ReviewBranch, ReviewHead: r.ReviewHead,
 		}
 		if r.Context != "" {
 			_ = json.Unmarshal([]byte(r.Context), &d.Context)

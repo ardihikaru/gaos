@@ -239,6 +239,11 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 	}
 	var events []Event
 
+	// A merge of GAOS's own review fix into a feature branch is not a change of
+	// its own (D-102 §3.4): that branch's merge is the one that gets a card.
+	if ev.Type == prTypeMerged && s.ownReviewFixLocked(productID, ev) {
+		return nil, nil, Result{Skipped: "own-fix"}, nil
+	}
 	// A merge makes a review or an e2e build that has not started moot, and
 	// finishes a review that is waiting in REVIEW (design §3.1).
 	if ev.Type == prTypeMerged {
@@ -256,6 +261,19 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 			}
 			if mv, ok := s.moveTaskLocked(t.ID, StatusCanceled, RulePRMerged); ok {
 				events = append(events, mv)
+			}
+		}
+	}
+	// ... and so does its review fix, if the fix has not started (D-099 §7).
+	var closed []Defect
+	if ev.Type == prTypeMerged && ev.MergeChecked {
+		if d := s.defects[reviewDefectKey(productID, ev.Org, ev.Repo, ev.PRNumber)]; d != nil && !defectFinal(d.State) {
+			if t := s.taskByIDLocked(d.FixTask); t != nil && (t.Status == StatusPending || t.Status == StatusReady) {
+				if mv, ok := s.moveTaskLocked(t.ID, StatusCanceled, RulePRMerged); ok {
+					events = append(events, mv)
+				}
+				events = append(events, s.setDefectStateLocked(d, DefectStateClosed, RulePRMerged, ""))
+				closed = append(closed, d.Clone())
 			}
 		}
 	}
@@ -306,9 +324,23 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 		rows = s.reviewRowLocked(m, ev)
 	}
 	c := m.Clone()
-	res = Result{Master: &c, NewEvents: events, PullRequests: rows, Skipped: skipped,
+	res = Result{Master: &c, NewEvents: events, PullRequests: rows, Skipped: skipped, Defects: closed,
 		Toast: fmt.Sprintf("%d task(s) planned from %s on %s.", len(planned), ev.Type, ev.Repo)}
 	return planned, existing, res, nil
+}
+
+// ownReviewFixLocked reports whether a merged pull request is one of GAOS's own
+// review-fix drafts (a FixPR of a review defect). Caller holds s.mu.
+func (s *MemStore) ownReviewFixLocked(productID string, ev PREvent) bool {
+	for _, f := range s.fixPRs {
+		if f.ProductID != productID || f.Number != ev.PRNumber || !strings.EqualFold(f.Repo, ev.Org+"/"+ev.Repo) {
+			continue
+		}
+		if d := s.defects[f.DefectKey]; d != nil && d.Kind == DefectKindReview {
+			return true
+		}
+	}
+	return false
 }
 
 // skippedUnassigned is the prefix of Result.Skipped when the assignment gate
@@ -412,6 +444,12 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) flowOutcome {
 			continue
 		}
 		var pr ghPR
+		if ev.Type == prTypeMerged && f.gh != nil {
+			// The event alone never closes a review defect (D-099 §7): GitHub must agree.
+			if got, err := f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber); err == nil && got.Merged {
+				ev.MergeChecked = true
+			}
+		}
 		if ev.Type == prTypeOpened && f.gh != nil && !ev.Draft {
 			var err error
 			pr, err = f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber)

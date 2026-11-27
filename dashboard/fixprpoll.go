@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -391,6 +392,20 @@ func (s *MemStore) AdvanceFixPR(ctx context.Context, productID string, f FixPR) 
 	if !ok || cur.ProductID != productID || s.masterPtr(productID) == nil {
 		return Result{}, ErrNotFound
 	}
+	// A review fix whose base changed under it (GitHub retargets a draft whose base
+	// branch went away after a merge, D-099 §7): the change is recorded and the
+	// defect closed; GAOS closes nothing on GitHub, a person decides.
+	if d := s.defects[cur.DefectKey]; d != nil && d.Kind == DefectKindReview && cur.Base != "" && f.Base != "" &&
+		prRefOK(f.Base) && !strings.EqualFold(cur.Base, f.Base) {
+		cur.Base = f.Base
+		s.fixPRs[cur.ID] = cur
+		res := Result{FixPRs: []FixPR{cur}}
+		if !defectFinal(d.State) {
+			res.NewEvents = []Event{s.setDefectStateLocked(d, DefectStateClosed, ReviewBaseChanged, "")}
+			res.Defects = []Defect{d.Clone()}
+		}
+		return res, nil
+	}
 	// The base back-fill: a record with no base learns it even if its state did not change.
 	if cur.Base == "" && f.Base != "" && prRefOK(f.Base) {
 		cur.Base = f.Base
@@ -438,6 +453,12 @@ func (s *MemStore) AdvanceFixPR(ctx context.Context, productID string, f FixPR) 
 			d.BaseOverride = ""
 			res.Defects = []Defect{d.Clone()}
 		case FixPRClosed:
+			if d.Kind == DefectKindReview {
+				// A review fix closed unmerged is done with (D-099 §7): no new generation.
+				evs = append(evs, s.setDefectStateLocked(d, DefectStateClosed, ReviewFixClosed, ""))
+				res.Defects = []Defect{d.Clone()}
+				break
+			}
 			// A person-only second attempt: never an easy card, never automatic.
 			d.Gen++
 			d.BaseOverride = "" // any generation change the retarget did not cause ends its override

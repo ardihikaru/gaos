@@ -53,6 +53,9 @@ type ghPR struct {
 		Login string `json:"login"`
 	} `json:"user"`
 	AuthorAssociation string `json:"author_association"`
+	// ChangedFiles is GitHub's count of the files the pull request changes: a
+	// review fix compares it with the listing, so a truncated list is refused.
+	ChangedFiles int `json:"changed_files"`
 	Head              struct {
 		Ref  string `json:"ref"`
 		SHA  string `json:"sha"`

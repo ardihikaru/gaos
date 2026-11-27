@@ -1660,6 +1660,12 @@ CREATE PROPERTY PullRequest.bundledAt    LONG;
 CREATE PROPERTY PullRequest.alerted      STRING;
 CREATE PROPERTY PullRequest.templateSeen BOOLEAN;
 CREATE INDEX IF NOT EXISTS ON PullRequest (tenantId, id) UNIQUE;
+
+-- 19 - review defects (D-099): a low PR-review finding fixed into the reviewed pull request's own branch.
+-- reviewBranch is its head.ref; reviewHead the commit the reviewer read (the pinned head).
+ALTER PROPERTY Defect.kind REGEXP 'xfail|fail|xpass|review';
+CREATE PROPERTY Defect.reviewBranch STRING;
+CREATE PROPERTY Defect.reviewHead   STRING;
 </pre>
   </div>
 </section>

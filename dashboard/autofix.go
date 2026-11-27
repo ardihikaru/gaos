@@ -88,6 +88,17 @@ func validateAutoFix(a AutoFix, tokenKind string) error {
 	if len(a.AutomationRepos) > 4 || !validTargetRepos(a.AutomationRepos) {
 		return reject("Each automation repository must be owner/repo, at most 4.")
 	}
+	if a.ReviewFixCap < 0 || a.ReviewFixCap > reviewFixCapMax {
+		return reject(fmt.Sprintf("The review-fix cap is between 1 and %d (0 for the default %d).", reviewFixCapMax, reviewFixCapDefault))
+	}
+	if len(a.ReviewFixHeads) > 8 {
+		return reject("At most 8 review-fix branch patterns.")
+	}
+	for _, h := range a.ReviewFixHeads {
+		if !reviewFixHeadOK(h) {
+			return reject("A review-fix branch pattern is a literal first segment, a slash and a pattern, such as feature/*; * and ** alone are refused.")
+		}
+	}
 	if a.PRTemplate != "" {
 		if len(a.PRTemplate) > 8<<10 {
 			return reject("The pull-request template is longer than 8 KiB.")
@@ -173,6 +184,19 @@ func (s *MemStore) autoClaimLocked(productID string, t *TaskRecord, stamp bool) 
 	if job == defectJobFix {
 		limit = fixCap
 	}
+	// A review fix has its own cap (D-099 §6.1); FixCap counts QA defects only.
+	isReview := func(dedup string) bool {
+		k, _, _, ok := parseDefectCardKey(dedup)
+		if !ok {
+			return false
+		}
+		d := s.defects[k]
+		return d != nil && d.Kind == DefectKindReview
+	}
+	review := job == defectJobFix && isReview(t.DedupKey)
+	if review {
+		limit = m.AutoFix.ReviewCap()
+	}
 	day := autoFixNow() / 86400
 	n := 0
 	for i := range s.tasks {
@@ -180,7 +204,7 @@ func (s *MemStore) autoClaimLocked(productID string, t *TaskRecord, stamp bool) 
 		if o.DeskID != productID || o.ID == t.ID || o.AutoAt == 0 || o.AutoAt/86400 != day {
 			continue
 		}
-		if _, _, j, ok := parseDefectCardKey(o.DedupKey); ok && j == job {
+		if _, _, j, ok := parseDefectCardKey(o.DedupKey); ok && j == job && (job != defectJobFix || isReview(o.DedupKey) == review) {
 			n++
 		}
 	}
@@ -298,6 +322,29 @@ func autoFixPass(ctx context.Context, st Store, src codeSource) int {
 				}
 			}
 			if job == defectJobFix {
+				// A review fix (D-099 §6.4, check point 1): fresh reads before the model
+				// turn, at most once per card per reviewCheckEvery. The reader is the code
+				// source when it can read pull requests (*ghClient can); without one the
+				// card waits.
+				if rec, err := st.DefectByKey(ctx, d.ID, key); err == nil && rec.Kind == DefectKindReview {
+					rd, ok := src.(reviewReads)
+					if !ok || !reviewCheckDue(c.ID, time.Now()) {
+						continue
+					}
+					m, _ := configuredProduct(ctx, st, d.ID)
+					why, err := checkReviewFix(ctx, rd, rec, m)
+					if err != nil {
+						log.Printf("autofix: a review fix could not be checked: %s", ghErrorClass(err))
+						continue
+					}
+					if why != "" {
+						// Close first, then block: the card keeps its status and its reason.
+						_, _ = st.CloseReviewDefect(ctx, d.ID, key, why)
+						_, _ = st.ResolvePRCard(ctx, d.ID, c.ID, StatusBlocked, why)
+						log.Printf("autofix: %s blocked %s", c.ID, why)
+						continue
+					}
+				}
 				// A retarget's fix card: the base it reads must still be allowed (revoking a base
 				// refuses it for every later attempt), and its source slice is read from that base.
 				if rec, err := st.DefectByKey(ctx, d.ID, key); err == nil && rec.BaseOverride != "" {
@@ -346,6 +393,9 @@ func (s *MemStore) fixerPartsLocked(t TaskRecord) []PacketPart {
 	}
 	if d == nil {
 		return nil
+	}
+	if d.Kind == DefectKindReview { // D-099 §6.3: the verdict first, the findings fenced
+		return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderReviewDefectPacket(*d)}}
 	}
 	var sb strings.Builder
 	sb.WriteString(renderDefectPacket(*d))

@@ -32,6 +32,10 @@ type fakeGHW struct {
 	labels     map[string]bool
 	seq        int
 	lastCommit string
+	// D-099: the reviewed pull request a review fix reads.
+	pull      map[string]any
+	pullFiles []map[string]any
+	protected map[string]bool
 }
 
 func newFakeGHW() *fakeGHW {
@@ -117,6 +121,16 @@ func (f *fakeGHW) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case p == base && r.Method == "GET":
 		fakeJSON(w, 200, map[string]string{"default_branch": "main"})
+	case f.pull != nil && strings.HasPrefix(p, base+"/pulls/") && strings.HasSuffix(p, "/files") && r.Method == "GET":
+		if r.URL.Query().Get("page") != "1" {
+			fakeJSON(w, 200, []any{})
+			return
+		}
+		fakeJSON(w, 200, f.pullFiles)
+	case f.pull != nil && strings.HasPrefix(p, base+"/pulls/") && !strings.Contains(strings.TrimPrefix(p, base+"/pulls/"), "/") && r.Method == "GET":
+		fakeJSON(w, 200, f.pull)
+	case strings.HasPrefix(p, base+"/branches/") && r.Method == "GET":
+		fakeJSON(w, 200, map[string]bool{"protected": f.protected[strings.TrimPrefix(p, base+"/branches/")]})
 	case strings.HasPrefix(p, base+"/git/ref/heads/"):
 		sha, ok := f.refs[strings.TrimPrefix(p, base+"/git/ref/heads/")]
 		if !ok {

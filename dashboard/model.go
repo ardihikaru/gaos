@@ -453,6 +453,12 @@ type AutoFix struct {
 	// pull requests (at most 4); they are NOT Master.Repos, so the review flow never sees them.
 	AllowedBases    []string
 	AutomationRepos []string
+	// ReviewFixHeads are the head-branch patterns a low PR-review finding may be
+	// fixed into (D-099), at most 8, each a literal first segment and a pattern
+	// ("feature/*"). Empty = review fixes are off. ReviewFixCap is the review
+	// defects planned per UTC day (0 = the default 3, at most 20).
+	ReviewFixHeads []string
+	ReviewFixCap   int
 }
 
 // Auto-fix cap defaults and ceilings (design §6.1).
@@ -489,7 +495,25 @@ func (a AutoFix) Clone() AutoFix {
 	a.TargetRepos = append([]string(nil), a.TargetRepos...)
 	a.AllowedBases = append([]string(nil), a.AllowedBases...)
 	a.AutomationRepos = append([]string(nil), a.AutomationRepos...)
+	a.ReviewFixHeads = append([]string(nil), a.ReviewFixHeads...)
 	return a
+}
+
+// Review-fix cap (D-099 §6.1).
+const (
+	reviewFixCapDefault = 3
+	reviewFixCapMax     = 20
+)
+
+// ReviewCap is the review-defect cap in force.
+func (a AutoFix) ReviewCap() int {
+	switch {
+	case a.ReviewFixCap <= 0:
+		return reviewFixCapDefault
+	case a.ReviewFixCap > reviewFixCapMax:
+		return reviewFixCapMax
+	}
+	return a.ReviewFixCap
 }
 
 func (m Master) Clone() Master {

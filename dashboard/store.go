@@ -199,6 +199,10 @@ type Store interface {
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// SetAssigned saves (set) or resets the agents assigned to a product (D-099, assign.go).
 	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
+	// Review defects (D-099, reviewdefect.go).
+	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
+	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
+	CloseReviewDefect(ctx context.Context, productID, key, rule string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)

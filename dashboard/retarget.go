@@ -78,6 +78,9 @@ func (s *MemStore) retargetChecksLocked(m *Master, f FixPR, d *Defect, base stri
 	if d == nil || d.ProductID != m.ID {
 		return ErrNotFound
 	}
+	if d.Kind == DefectKindReview {
+		return retargetRefusal(http.StatusUnprocessableEntity, "A review fix follows its pull request; it cannot be retargeted.")
+	}
 	if d.State != DefectStateFixing || d.FixPR != f.ID {
 		return retargetRefusal(http.StatusConflict, "This defect is not waiting on this pull request any more.")
 	}

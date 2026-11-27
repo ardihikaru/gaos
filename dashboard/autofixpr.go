@@ -104,8 +104,13 @@ func fixEligible(d Defect, taskID string, gen int, af AutoFix, tokenKind string)
 
 // defectFixer is the after-run hook of a fixer card and the boot job.
 type defectFixer struct {
-	st        Store
-	gh        *ghWriter // nil: the write token is not configured
+	st Store
+	gh *ghWriter // nil: the write token is not configured
+	// review posts the "draft fix" line on a reviewed pull request with the
+	// review token (D-099 §6.4); nil: no line.
+	review interface {
+		postComment(ctx context.Context, owner, repo string, number int, body string) error
+	}
 	tokenKind string
 	notify    func(ctx context.Context, t TaskRecord, kind, text string)
 	logf      func(string, ...any)
@@ -176,6 +181,13 @@ func (p *defectFixer) afterRun(ctx context.Context, t TaskRecord, reply string) 
 	p.run(ctx, t, d, af, fr, FixPR{})
 }
 
+// refuseReview is a review fix's refusal (D-099 §6.4): the defect is closed
+// with the refusal as its rule, then the card is blocked with it as its reason.
+func (p *defectFixer) refuseReview(ctx context.Context, t TaskRecord, rec FixPR, d Defect, why string) {
+	_, _ = p.st.CloseReviewDefect(ctx, d.ProductID, d.Key, why)
+	p.block(ctx, t, rec, why, "review fix refused")
+}
+
 // block ends the card BLOCKED with a reason and closes the record, if any.
 func (p *defectFixer) block(ctx context.Context, t TaskRecord, rec FixPR, reason, detail string) {
 	p.logf("autofix: %s blocked %s (%s)", t.ID, reason, detail)
@@ -224,9 +236,18 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 	if d.BaseOverride != "" { // a retarget's fix opens against the new base (design §6.4)
 		baseName = d.BaseOverride
 	}
+	review := d.Kind == DefectKindReview
+	if review { // a review fix goes into the reviewed pull request's own branch (D-099 §6.3)
+		baseName = d.ReviewBranch
+	}
 	base, head, err := p.gh.head(ctx, owner, repo, baseName)
 	if err != nil {
 		p.failed(ctx, t, rec, err)
+		return
+	}
+	if review && !strings.EqualFold(head, d.ReviewHead) {
+		// The parent of the fix is exactly the reviewed commit, or there is no fix.
+		p.refuseReview(ctx, t, rec, d, ReviewBaseMoved)
 		return
 	}
 	plan, err := checkFix(fr, packet, af, func(fp string) (ghTreeEntry, error) {
@@ -235,6 +256,12 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 	if err != nil {
 		p.failed(ctx, t, rec, err)
 		return
+	}
+	if review {
+		if outside := reviewOutsidePaths(plan, d.Files); outside != "" {
+			p.refuseReview(ctx, t, rec, d, ReviewOutsidePaths)
+			return
+		}
 	}
 	if screenBody(fr.Summary + "\n" + fr.Before + "\n" + fr.After) {
 		p.block(ctx, t, rec, BlockEgress, "the pull-request text matched a secret detector")
@@ -284,6 +311,20 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 	}
 
 	created := false
+	if rec.Number == 0 && review {
+		// Check point 2 (D-099 §6.4): fresh reads with the write token's client,
+		// before any branch exists, so a refusal leaves nothing behind.
+		m, _ := configuredProduct(ctx, p.st, d.ProductID)
+		why, err := checkReviewFix(ctx, p.gh, d, m)
+		if err != nil {
+			p.failed(ctx, t, rec, err)
+			return
+		}
+		if why != "" {
+			p.refuseReview(ctx, t, rec, d, why)
+			return
+		}
+	}
 	if rec.Number == 0 {
 		headCommit, err := p.gh.commit(ctx, owner, repo, head)
 		if err != nil {
@@ -335,6 +376,11 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		// the branch is kept (deleting it would close the pull request).
 		if err := p.gh.addComment(ctx, owner, repo, num, prCommentBody(in)); err != nil {
 			p.logf("autofix: the comment of %s#%d could not be posted: %s", rec.Repo, num, ghErrorClass(err))
+		}
+		if review && p.review != nil {
+			if err := p.review.postComment(ctx, owner, repo, reviewNumber(d), "GAOS opened a draft fix: "+url); err != nil {
+				p.logf("autofix: the draft-fix line could not be posted: %s", ghErrorClass(err))
+			}
 		}
 		p.linkRetarget(ctx, owner, repo, d, rec)
 	}
