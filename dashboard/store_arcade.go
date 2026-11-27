@@ -452,18 +452,31 @@ func (s *ArcadeStore) PlanAPICard(ctx context.Context, productID string, in APIC
 func (s *ArcadeStore) APICardCancel(ctx context.Context, productID, taskID, client string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.APICardCancel(ctx, productID, taskID, client) })
 }
+// ApplyBundleLinks and SetPRAlerted run on every poll of a listed product's rows: a call that
+// changed no row writes nothing, rather than an empty transaction per row per poll.
 func (s *ArcadeStore) ApplyBundleLinks(ctx context.Context, productID, key string, tmpl prTemplate, now int64) (PullRequest, Result, error) {
-	var row PullRequest
-	r, err := s.mutate(ctx, func() (Result, error) {
-		var res Result
-		var e error
-		row, res, e = s.proj.ApplyBundleLinks(ctx, productID, key, tmpl, now)
-		return res, e
-	})
-	return row, r, err
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	row, r, err := s.proj.ApplyBundleLinks(ctx, productID, key, tmpl, now)
+	if err != nil || len(r.PullRequests) == 0 {
+		return row, r, err
+	}
+	if err := s.persist(ctx, r); err != nil {
+		return PullRequest{}, Result{}, err
+	}
+	return row, r, nil
 }
 func (s *ArcadeStore) SetPRAlerted(ctx context.Context, productID, key, alert string) (Result, error) {
-	return s.mutate(ctx, func() (Result, error) { return s.proj.SetPRAlerted(ctx, productID, key, alert) })
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r, err := s.proj.SetPRAlerted(ctx, productID, key, alert)
+	if err != nil || len(r.PullRequests) == 0 {
+		return r, err
+	}
+	if err := s.persist(ctx, r); err != nil {
+		return Result{}, err
+	}
+	return r, nil
 }
 func (s *ArcadeStore) PlanBundleCard(ctx context.Context, productID, bundleKey string, members int) (TaskRecord, bool, Result, error) {
 	var t TaskRecord
