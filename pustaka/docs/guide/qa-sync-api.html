@@ -234,8 +234,9 @@
   <p>A client is a token with a name, a kind and an origin. The qa token is the client <code>qa-tools</code>,
   kind <code>qa-tool</code>, origin <code>GAOS_QA_ORIGIN</code> (or the host of <code>GAOS_QA_URL</code> when that
   is a name rather than an IP). The admin token asks as the QA tool and may read any item, but never answers. Further
-  clients are lines of the file <code>GAOS_API_CLIENTS_FILE</code>; such a client reaches only the three inbox routes
-  of its own products. The source of an answer is built by GAOS from the token, never from the body:</p>
+  clients are lines of the file <code>GAOS_API_CLIENTS_FILE</code>; such a client reaches the routes of its capabilities
+  on its own products: the three inbox routes with <code>inbox</code> (the default), and the
+  <a href="../integrations/external-tasks-api.html">external tasks API</a> with <code>tasks</code> (v0.61.0). The source of an answer is built by GAOS from the token, never from the body:</p>
   <table class="tbl">
     <thead><tr><th>Answered by</th><th><code>kind</code></th><th><code>client</code></th><th><code>origin</code></th><th><code>actor</code></th></tr></thead>
     <tbody>

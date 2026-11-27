@@ -178,8 +178,10 @@ func (s *MemStore) openPRCardsLocked(productID string) int {
 	n := 0
 	for i := range s.tasks {
 		t := &s.tasks[i]
-		// Defect cards have their own caps (D-091 §5.3).
-		if t.DeskID != productID || t.DedupKey == "" || strings.HasPrefix(t.DedupKey, "defect:") {
+		// Defect cards have their own caps (D-091 §5.3); so do the API's cards and the
+		// bundles' test planners (D-099, D-100): neither may make Brain Town skip.
+		if t.DeskID != productID || t.DedupKey == "" || strings.HasPrefix(t.DedupKey, "defect:") ||
+			t.APIOwner != "" || strings.HasPrefix(t.DedupKey, bundlePrefix) {
 			continue
 		}
 		switch t.Status {
@@ -274,34 +276,14 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 			Toast: "the cap refused the new card(s); the moot moves were kept"}, nil
 	}
 
-	ordinal := 0
-	for i := range s.tasks {
-		if s.tasks[i].DeskID == productID && s.tasks[i].WorkflowID == wf {
-			ordinal++
-		}
-	}
-	plannedTasks := make([]PlannedTask, 0, len(fresh))
+	items := make([]cardItem, 0, len(fresh))
 	for _, spec := range fresh {
-		key := ev.Key(spec.Job)
-		id := s.freeCardID(prCardID(wf, ev, spec.Job))
-		ordinal++
-		task := TaskRecord{
-			ID: id, WorkflowID: wf, DeskID: productID,
-			Title: prTitle(spec.Title, id), Role: spec.Role, Model: roles[spec.Role].Model,
-			Kind: TaskKindImplement, Status: StatusPending, Labels: normalizeLabels(spec.Labels),
-			DedupKey: key, Priority: 50, Ordinal: ordinal,
-		}
-		s.tasks = append(s.tasks, task)
-		planned = append(planned, id)
-		plannedTasks = append(plannedTasks, PlannedTask{ID: id, Title: task.Title, Role: task.Role,
-			Model: task.Model, Priority: task.Priority, Kind: task.Kind, Labels: task.Labels, DedupKey: key})
+		items = append(items, cardItem{Key: ev.Key(spec.Job), ID: prCardID(wf, ev, spec.Job), Title: spec.Title, Spec: spec})
 	}
+	var pevs []Event
+	planned, _, pevs = s.planCardsLocked(m, d, items, fmt.Sprintf("%d task(s) planned from %s on %s", len(fresh), ev.Type, ev.Repo))
+	events = append(events, pevs...)
 	if len(planned) > 0 {
-		p := deskPayload(d)
-		p.WorkflowID = wf
-		p.Tasks = plannedTasks
-		events = append(events, s.emit(TaskPlanned,
-			productID, fmt.Sprintf("%d task(s) planned from %s on %s", len(planned), ev.Type, ev.Repo), KindKnow, p))
 		switch ev.Type {
 		case prTypeOpened:
 			events = append(events, s.emit(PullRequestOpened, productID,
@@ -715,4 +697,27 @@ func (s *MemStore) HoldReview(ctx context.Context, productID, taskID string) (Re
 	}
 	res.Floor = s.floor()
 	return res, nil
+}
+
+// errGitHubOff answers prepare when no GitHub client is configured.
+var errGitHubOff = errors.New("the GitHub client is off")
+
+// prepare reads a pull request and applies the flow's gates -- draft, fork, stranger -- for a
+// caller that is not Brain Town (D-099). skip names the gate that refused, "" when none did.
+func (f *prFlow) prepare(ctx context.Context, owner, repo string, n int) (ghPR, string, error) {
+	if f == nil || f.gh == nil {
+		return ghPR{}, "", errGitHubOff
+	}
+	pr, err := f.gh.pullRequest(ctx, owner, repo, n)
+	switch {
+	case err != nil:
+		return ghPR{}, "", err
+	case pr.Draft:
+		return pr, "draft", nil
+	case !prAllowForks() && pr.Head.Repo.FullName != "" && !strings.EqualFold(pr.Head.Repo.FullName, pr.Base.Repo.FullName):
+		return pr, "fork", nil
+	case !prAssociationOK(pr.AuthorAssociation):
+		return pr, "stranger", nil
+	}
+	return pr, "", nil
 }

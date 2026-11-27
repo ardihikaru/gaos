@@ -230,6 +230,11 @@ func (r *qaJobRunner) Tick(ctx context.Context) {
 // caseCodeFor is the QA case a card is for: every automated case for a run,
 // and the pull request's `QA-case: <code>` line for a new automation.
 func (r *qaJobRunner) caseCodeFor(ctx context.Context, c TaskRecord, mode string) string {
+	// An API automation run names its code in its key (D-099): read it before the
+	// staging shortcut, which runs every case.
+	if strings.HasPrefix(c.DedupKey, qaRunPrefix) {
+		return qaRunCode(c.DedupKey)
+	}
 	if mode == "run" {
 		return "*"
 	}
@@ -436,4 +441,16 @@ func explicitQAOrigin() string {
 		return v
 	}
 	return ""
+}
+
+// qaRunCode is the case code of a qa-run/<product>/<client>/<code|ALL>/<externalId>:e2e-run key.
+func qaRunCode(key string) string {
+	parts := strings.Split(strings.TrimPrefix(key, qaRunPrefix), "/")
+	if len(parts) < 4 {
+		return ""
+	}
+	if parts[2] == "ALL" {
+		return "*"
+	}
+	return parts[2]
 }

@@ -1079,9 +1079,11 @@
       <tr><th scope="row">QA token</th><td>{{if .API.QA}}configured{{else}}not set{{end}}</td></tr>
       <tr><th scope="row">Outbound token</th><td>{{if .API.Outbound}}configured{{else}}not set{{end}}</td></tr>
       <tr><th scope="row">QA products</th><td class="mono">{{if .API.QAProducts}}{{range $i, $p := .API.QAProducts}}{{if $i}}, {{end}}{{$p}}{{end}}{{else}}none{{end}}</td></tr>
+      <tr><th scope="row">External tasks API</th><td>{{.API.TaskClients}} client(s) with <code>tasks</code></td></tr>
+      <tr><th scope="row">Unattended start</th><td class="mono">{{if .API.Autorun}}{{range $i, $p := .API.Autorun}}{{if $i}}, {{end}}{{$p}}{{end}}{{else}}none{{end}}</td></tr>
     </tbody>
   </table></div>
-  <p class="tm-line"><a href="../docs/integrations/webhooks-and-clients.html" target="_blank" rel="noopener">Webhooks and external clients</a></p>
+  <p class="tm-line"><a href="../docs/integrations/webhooks-and-clients.html" target="_blank" rel="noopener">Webhooks and external clients</a> &middot; <a href="../docs/integrations/external-tasks-api.html" target="_blank" rel="noopener">External tasks API</a> &middot; <a href="../docs/downloads/gaos-external-tasks-api.md" download>Download the tutorial (.md)</a></p>
 </div>
 <div class="block">
   <h4>Registered clients</h4>
@@ -1098,7 +1100,7 @@
     </tr>{{end}}</tbody>
   </table></div>
   {{else}}<p class="tm-line">No machine client is registered.</p>{{end}}
-  <p class="tm-line">Set up: one line per client in <code>GAOS_API_CLIENTS_FILE</code> &mdash; name, kind, origin, token file (mode 600), products &mdash; then restart. <a href="../docs/integrations/webhooks-and-clients.html#register" target="_blank" rel="noopener">Webhooks and external clients</a> &middot; <a href="../docs/integrations/overview.html" target="_blank" rel="noopener">How integration works</a></p>
+  <p class="tm-line">Set up: one line per client in <code>GAOS_API_CLIENTS_FILE</code> &mdash; name, kind, origin, token file (mode 600), products and, optionally, the capabilities <code>inbox</code> (the default) and <code>tasks</code> &mdash; then restart. <a href="../docs/integrations/webhooks-and-clients.html#register" target="_blank" rel="noopener">Webhooks and external clients</a> &middot; <a href="../docs/integrations/overview.html" target="_blank" rel="noopener">How integration works</a></p>
 </div>
 {{end}}
 </section>

@@ -241,6 +241,7 @@ func autoFixLoop(ctx context.Context, st Store, src codeSource) {
 			return
 		case <-tk.C:
 			autoFixPass(ctx, st, src)
+			apiAutoPass(ctx, st)
 		}
 	}
 }

@@ -11,7 +11,7 @@
 CREATE VERTEX TYPE Agent IF NOT EXISTS EXTENDS GaosVertex;
 CREATE PROPERTY Agent.name             STRING  (mandatory true, notnull true);
 CREATE PROPERTY Agent.role             STRING  (mandatory true, notnull true,
-                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer');
+                 regexp 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner');
 CREATE PROPERTY Agent.model            STRING  (notnull true);
 CREATE PROPERTY Agent.availability     STRING  (default 'IDLE',
                  regexp 'IDLE|RESERVED|BUSY|IN_MEETING|COOLDOWN|OFFLINE');

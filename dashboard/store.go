@@ -152,6 +152,14 @@ type Store interface {
 	// merged (docs/designs/gaos-external-tasks-and-pr-bundles.md §3.1).
 	HoldReview(ctx context.Context, productID, taskID string) (Result, error)
 	FinishMergedReviews(ctx context.Context) (Result, error)
+	// The external-tasks API (D-099, api_cards.go): the lookup and the read are reads;
+	// adoption, planning, cancel and the unattended start are writes.
+	APICardLookup(ctx context.Context, productID string, in APICardIn) (TaskRecord, APILookup, error)
+	AdoptAPICard(ctx context.Context, productID, taskID string, in APICardIn) (TaskRecord, Result, error)
+	PlanAPICard(ctx context.Context, productID string, in APICardIn, now int64) (TaskRecord, bool, Result, error)
+	APICardGet(ctx context.Context, productID, taskID, externalID, client string) (TaskRecord, error)
+	APICardCancel(ctx context.Context, productID, taskID, client string) (Result, error)
+	APIAutoDispatch(ctx context.Context, productID, taskID string) (Result, error)
 	// PRCards are a product's pull-request cards (those carrying a dedup key), as
 	// copies: the QA-job runner reads their status, labels and reason (D-088).
 	PRCards(ctx context.Context, productID string) ([]TaskRecord, error)
@@ -390,6 +398,18 @@ func (readOnly) HoldReview(context.Context, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) FinishMergedReviews(context.Context) (Result, error) { return Result{}, nil }
+func (readOnly) AdoptAPICard(context.Context, string, string, APICardIn) (TaskRecord, Result, error) {
+	return TaskRecord{}, Result{}, reject(replayRefusal)
+}
+func (readOnly) PlanAPICard(context.Context, string, APICardIn, int64) (TaskRecord, bool, Result, error) {
+	return TaskRecord{}, false, Result{}, reject(replayRefusal)
+}
+func (readOnly) APICardCancel(context.Context, string, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) APIAutoDispatch(context.Context, string, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
 func (readOnly) ResolvePRCard(context.Context, string, string, string, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }

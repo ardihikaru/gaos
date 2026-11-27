@@ -422,6 +422,36 @@ func (s *ArcadeStore) CancelTask(ctx context.Context, i int) (Result, error) {
 func (s *ArcadeStore) SetTaskLabel(ctx context.Context, productID, taskID, label, actor string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SetTaskLabel(ctx, productID, taskID, label, actor) })
 }
+func (s *ArcadeStore) APICardLookup(ctx context.Context, productID string, in APICardIn) (TaskRecord, APILookup, error) {
+	return s.proj.APICardLookup(ctx, productID, in)
+}
+func (s *ArcadeStore) APICardGet(ctx context.Context, productID, taskID, externalID, client string) (TaskRecord, error) {
+	return s.proj.APICardGet(ctx, productID, taskID, externalID, client)
+}
+func (s *ArcadeStore) AdoptAPICard(ctx context.Context, productID, taskID string, in APICardIn) (TaskRecord, Result, error) {
+	var t TaskRecord
+	r, err := s.mutate(ctx, func() (Result, error) {
+		var res Result
+		var e error
+		t, res, e = s.proj.AdoptAPICard(ctx, productID, taskID, in)
+		return res, e
+	})
+	return t, r, err
+}
+func (s *ArcadeStore) PlanAPICard(ctx context.Context, productID string, in APICardIn, now int64) (TaskRecord, bool, Result, error) {
+	var t TaskRecord
+	var created bool
+	r, err := s.mutate(ctx, func() (Result, error) {
+		var res Result
+		var e error
+		t, created, res, e = s.proj.PlanAPICard(ctx, productID, in, now)
+		return res, e
+	})
+	return t, created, r, err
+}
+func (s *ArcadeStore) APICardCancel(ctx context.Context, productID, taskID, client string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.APICardCancel(ctx, productID, taskID, client) })
+}
 func (s *ArcadeStore) HoldReview(ctx context.Context, productID, taskID string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.HoldReview(ctx, productID, taskID) })
 }
@@ -996,6 +1026,10 @@ func (s *ArcadeStore) writeTasks(ctx context.Context, tx *ArcadeTx, deskID strin
 			"dedupKey": t.DedupKey,
 			// D-091: the automatic dispatch's Unix second, counted by the caps.
 			"autoAt": t.AutoAt,
+			// D-099: the external-tasks API's owner, read grants, creation second
+			// and the unattended-start switch.
+			"apiOwner": t.APIOwner, "apiRefs": refsJSON(t.APIRefs), "apiAt": t.APIAt,
+			"autoDispatch": t.AutoDispatch,
 		}); err != nil {
 			return err
 		}
@@ -1715,10 +1749,15 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		Labels     string `json:"labels"`
 		DedupKey   string `json:"dedupKey"`
 		AutoAt     int64  `json:"autoAt"`
+		APIOwner   string `json:"apiOwner"`
+		APIRefs    string `json:"apiRefs"`
+		APIAt      int64  `json:"apiAt"`
+		AutoDisp   bool   `json:"autoDispatch"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, workflowId, deskId, title, role, story, modelHint, status,
-		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind, labels, dedupKey, autoAt
+		        priority, ordinal, rank, approvalRequired, retryCount, escalationCount, blockReason, kind, labels, dedupKey, autoAt,
+		        apiOwner, apiRefs, apiAt, autoDispatch
 		 FROM Task WHERE tenantId = :t AND workflowId IS NOT NULL
 		 ORDER BY workflowId, ordinal`,
 		map[string]any{"t": s.tenant}, &trows); err != nil {
@@ -1756,6 +1795,10 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		t.DedupKey = r.DedupKey
 		t.AutoAt = r.AutoAt
+		t.APIOwner, t.APIAt, t.AutoDispatch = r.APIOwner, r.APIAt, r.AutoDisp
+		if r.APIRefs != "" {
+			_ = json.Unmarshal([]byte(r.APIRefs), &t.APIRefs)
+		}
 		for _, d := range deps {
 			t.Deps = append(t.Deps, d.ID)
 		}
@@ -2145,6 +2188,9 @@ func unixStamp(sec int64) string {
 // labelsJSON is the labels array on the task's property (D-088). An empty
 // list is an empty string, not "null": the column is optional and a card
 // written before the vocabulary existed carries none.
+// refsJSON is the API read grants as one JSON array (D-099); "" for none.
+func refsJSON(refs []string) string { return labelsJSON(refs) }
+
 func labelsJSON(labels []string) string {
 	if len(labels) == 0 {
 		return ""

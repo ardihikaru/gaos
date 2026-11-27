@@ -202,6 +202,17 @@ if [ -z "$INSIDE" ]; then
       fi
       ok "the Brain Town token file exists"
     fi
+    # D-099: the API clients DIRECTORY, mounted read-only, must exist before `up`
+    # (an empty one is fine: no clients), owned by the deploy user and mode 700.
+    if [ "$ENVIRON" = prod ] && grep -q 'prod.api-clients' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
+      d="deploy/stacks/prod.api-clients"
+      if [ ! -d "$d" ] || [ "$(stat -c %u "$d")" != "$(id -u)" ] || [ "$(stat -c %a "$d")" != 700 ]; then
+        bad "$d is missing, not owned by $(id -un), or not mode 700"
+        info "create it: mkdir -m 700 $d && install -m 600 /dev/null $d/clients -- then re-run."
+        exit 1
+      fi
+      ok "the API clients directory exists"
+    fi
     # v0.60.1 (#56): the Brain Town reader's cursor DIRECTORY must exist, owned by the
     # deploy user and mode 700, BEFORE `up`: Docker would create a missing one as root,
     # and the container (running as the deploy user) could then never save its cursor.

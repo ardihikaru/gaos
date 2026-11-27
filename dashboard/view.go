@@ -299,6 +299,10 @@ type APIStatus struct {
 	State               string
 	Admin, QA, Outbound bool
 	QAProducts          []string
+	// The external-tasks API (D-099): how many clients hold the tasks capability,
+	// and the products whose API cards start unattended under manual.
+	TaskClients int
+	Autorun     []string
 }
 
 // ClientRow is one machine client. There is no token field on purpose.

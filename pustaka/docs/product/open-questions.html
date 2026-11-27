@@ -14,7 +14,7 @@
 
   <p class="eyebrow">Product</p>
   <h1>Open questions</h1>
-  <p class="lede">Forty decisions the <a href="brd.html">BRD</a> refuses to invent, each with
+  <p class="lede">Forty-two decisions the <a href="brd.html">BRD</a> refuses to invent, each with
   the options actually available, the trade-off each one carries, and what it blocks. Twenty-three are
   answered — the entire commercial block, the licence, the budget guard, the submodule boundary,
   and now what success means, what Mission Control is, the provider strategy, tenancy, the
@@ -73,7 +73,7 @@
   </div>
 
   <h2 id="index">The register</h2>
-  <p>All forty in one place. Filter by any word in a question, or by theme.</p>
+  <p>All forty-two in one place. Filter by any word in a question, or by theme.</p>
   <div class="filterbox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
          stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -124,6 +124,8 @@
       <tr data-tags="technical qa tool routes automation job dependency repository new"><td><a href="#oq-38">OQ-38</a></td><td>Technical</td><td>When does the QA tool serve the two routes GAOS calls to write and run an e2e spec?</td><td>D-088, the e2e cards</td><td>Open — raised 2026-11-25 (today: the e2e cards fail with <code>qa-routes-missing</code>)</td></tr>
       <tr data-tags="technical auto-fix test runner verified after sample executed agent-reported new"><td><a href="#oq-39">OQ-39</a></td><td>Technical</td><td>Should a verified test runner execute the 'after' sample of an auto-fix, instead of taking the agent's word for it?</td><td>D-091, the Auto-fix view</td><td>Open — raised 2026-11-26 (today: the 'after' is shown as agent-reported, not run)</td></tr>
       <tr data-tags="technical auto-fix fork branch ci exposure same repository new"><td><a href="#oq-40">OQ-40</a></td><td>Technical</td><td>Should an auto-fix branch live in a fork instead of the application repository, so a pull request from it runs CI without secrets?</td><td>D-091, the CI check</td><td>Open — raised 2026-11-26 (today: a same-repository branch, guarded by the CI check and <code>CIConfirmed</code>)</td></tr>
+      <tr data-tags="technical github whatsapp contact task manager mapping new"><td><a href="#oq-41">OQ-41</a></td><td>Technical</td><td>Should the GitHub-account-to-WhatsApp mapping come from the team&rsquo;s task manager instead of GAOS&rsquo;s contact registry?</td><td>D-101, the notices</td><td>Open &mdash; raised 2026-11-27 (today: the contact registry, filled in the back office)</td></tr>
+      <tr data-tags="technical external tasks api automation case code no pull request new"><td><a href="#oq-42">OQ-42</a></td><td>Technical</td><td>Should an outside client create an e2e automation from a case code alone, with no pull request?</td><td>D-099</td><td>Open &mdash; raised 2026-11-27 (today: <code>automation-create</code> needs a pull request)</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="oq-empty">No question matches — try a broader word.</div>
@@ -942,6 +944,16 @@
   <p><strong>The options:</strong> one fork per application repository, so the fork-pull-request no-secrets rule applies
   by construction; or keep same-repository branches with the check.</p>
   <p><strong>What it blocks:</strong> nothing today; it needs a fork to be created and kept for each repository.</p>
+
+  <h3 id="oq-41">OQ-41 · Should the GitHub-to-WhatsApp mapping come from the task manager?</h3>
+  <p><strong>Why it is open:</strong> a notice for a pull request goes to its author&rsquo;s WhatsApp number, found through GAOS&rsquo;s contact registry, which a person fills in the back office. The team&rsquo;s task manager already knows its users&rsquo; phone numbers, but not their GitHub accounts.</p>
+  <p><strong>The options:</strong> keep the registry; have GAOS map a GitHub login to a task-manager user and read the phone from the task manager; or add a GitHub field to the task manager.</p>
+  <p><strong>What it blocks:</strong> nothing; the registry works. It is a separate piece of work with the task manager&rsquo;s owners.</p>
+
+  <h3 id="oq-42">OQ-42 · Should an outside client create an automation from a case code alone?</h3>
+  <p><strong>Why it is open:</strong> <code>automation-create</code> takes a pull request and reads its <code>QA-case:</code> line. A case with no pull request would need its own key namespace and a QA-tool call keyed on the case, and no client has asked for it.</p>
+  <p><strong>The options:</strong> add a <code>caseCode</code> form keyed like an automation run; or keep the pull request as the only entry.</p>
+  <p><strong>What it blocks:</strong> nothing today.</p>
 
   <div class="adm warn">
     <p class="adm-title">Nothing here is rhetorical</p>

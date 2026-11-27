@@ -821,8 +821,17 @@ type TaskRecord struct {
 	// owner/repo#n:role or owner/repo@sha:e2e-run. Empty on every other card.
 	DedupKey string
 	// AutoAt is the Unix second of the automatic dispatch of a defect card
-	// (D-091); the daily caps count it. Zero on every other card.
-	AutoAt      int64
+	// (D-091) or of an autoDispatch card (D-099); the daily caps count it.
+	AutoAt int64
+	// The external-tasks API (D-099). APIOwner is the client that created the card,
+	// immutable, "" for every other card; APIRefs are "<client>:<externalId>" read
+	// grants, one per client, at most 8, the owner's never evicted; APIAt is the
+	// Unix second of the API creation; AutoDispatch lets apiAutoPass start the
+	// card under GAOS_RUNNER=manual on a product listed in GAOS_API_AUTORUN_PRODUCTS.
+	APIOwner     string
+	APIRefs      []string
+	APIAt        int64
+	AutoDispatch bool
 	Deps        []string
 	Priority    int
 	Ordinal     int
@@ -847,6 +856,7 @@ func (t TaskRecord) Clone() TaskRecord {
 	c := t
 	c.Deps = append([]string(nil), t.Deps...)
 	c.Labels = append([]string(nil), t.Labels...)
+	c.APIRefs = append([]string(nil), t.APIRefs...)
 	return c
 }
 

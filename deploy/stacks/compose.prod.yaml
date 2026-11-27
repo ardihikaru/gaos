@@ -131,6 +131,16 @@ services:
       # Which products the QA token may reach: PRODUCT IDS (p-6), comma
       # separated. Unset reaches nothing. The id is known after the seed prints it.
       GAOS_API_QA_PRODUCTS: "${GAOS_API_QA_PRODUCTS:-}"
+      # D-099: the external-tasks API. Clients live in a mode-700 DIRECTORY
+      # (deploy/stacks/prod.api-clients/, mounted read-only) holding the clients file
+      # and one mode-600 token file per client; the token paths inside the clients
+      # file are container paths under /run/secrets/api-clients/. The caps and the
+      # unattended-start list come from the deploy shell, empty by default.
+      GAOS_API_CLIENTS_FILE: "/run/secrets/api-clients/clients"
+      GAOS_API_MAX_OPEN: "${GAOS_API_MAX_OPEN:-}"
+      GAOS_API_DAILY: "${GAOS_API_DAILY:-}"
+      GAOS_API_AUTORUN_PRODUCTS: "${GAOS_API_AUTORUN_PRODUCTS:-}"
+      GAOS_API_AUTORUN_DAILY: "${GAOS_API_AUTORUN_DAILY:-}"
       # The QA tools' base URL for the two sync buttons; empty = buttons off.
       GAOS_QA_URL: "${GAOS_QA_URL:-}"
       # The QA tool's public host name, recorded on every answer it sends (D-083).
@@ -186,6 +196,7 @@ services:
       - ./prod.api-admin:/run/secrets/api-admin:ro
       - ./prod.api-qa:/run/secrets/api-qa:ro
       - ./prod.api-qa-out:/run/secrets/api-qa-out:ro
+      - ./prod.api-clients:/run/secrets/api-clients:ro
       - ./prod.bo-users:/run/secrets/bo-users:ro
       - ./prod.bo-session-key:/run/secrets/bo-session-key:ro
       - ./prod.bt-token:/run/secrets/bt-token:ro

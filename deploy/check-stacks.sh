@@ -117,11 +117,27 @@ for f in deploy/stacks/*.aim-*; do
 done
 for f in deploy/stacks/*.api-*; do
   # The machine API's bearer tokens (D-072): host-side files mounted read-only.
+  # prod.api-clients is the clients DIRECTORY (D-099): mode 700, its files 600.
   [ -e "$f" ] || continue
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
     bad "$f is tracked by git"
   else
     ok "$(basename "$f") is untracked"
+  fi
+  if [ "$(basename "$f")" = prod.api-clients ]; then
+    if [ ! -d "$f" ]; then
+      bad "$f is not a directory (the API clients file and tokens live in it)"
+    elif [ "$(stat -c %a "$f")" != 700 ]; then
+      bad "$f is mode $(stat -c %a "$f"), want 700"
+    else
+      open_files=$(find "$f" -type f ! -perm 600 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$open_files" != 0 ]; then
+        bad "$f holds $open_files file(s) that are not mode 600"
+      else
+        ok "prod.api-clients is a mode-700 directory of mode-600 files"
+      fi
+    fi
+    continue
   fi
   if [ ! -f "$f" ]; then
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
@@ -162,6 +178,9 @@ for f in deploy/stacks/*.bt-*; do
     bad "$f is not a regular file (a missing bind-mount source is created by Docker as a root-owned directory)"
   fi
 done
+has $PROD 'prod.api-clients:/run/secrets/api-clients:ro' "prod mounts the API clients directory read-only"
+has $PROD 'GAOS_API_CLIENTS_FILE: "/run/secrets/api-clients/clients"' "prod reads the API clients file from the clients directory"
+has $PROD 'GAOS_API_AUTORUN_PRODUCTS: "${GAOS_API_AUTORUN_PRODUCTS:-}"' "prod passes the unattended-start list from the deploy shell, empty (off) by default"
 has $PROD 'prod.bt-token:/run/secrets/bt-token:ro' "prod mounts the Brain Town token file read-only"
 has $PROD 'BRAIN_TOWN_ENABLED: "${BRAIN_TOWN_ENABLED:-}"' "prod passes the Brain Town switch from the deploy shell, empty (off) by default"
 hasnt $PROD 'BRAIN_TOWN_TOKEN:' "prod passes the Brain Town token only as a file, never as an environment variable"

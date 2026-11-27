@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-61-0">v0.61.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Another platform can ask GAOS for work through the machine API, with no sign-in (<a href="product/decision-log.html#d-099">D-099</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>The <code>tasks</code> capability.</strong> A line of the clients file takes an optional sixth field, <code>inbox</code> (the default) and/or <code>tasks</code>. A client with <code>tasks</code> plans a pull-request review, unit tests, an e2e automation or an e2e run with <code>POST /api/v1/products/{id}/tasks</code>, reads it back by id or by its own <code>externalId</code>, and cancels a run it started.</li>
+        <li><span class="chg add">Added</span> <strong>The same cards as Brain Town.</strong> A review the API asks for is the review Brain Town would plan; if Brain Town already planned it, the client follows that card. Every pull request passes the draft, fork and stranger checks. A client holds at most five open cards and twenty a day, outside the pull-request cap, and a product one open run.</li>
+        <li><span class="chg add">Added</span> <strong>Unattended start.</strong> Under <code>GAOS_RUNNER=manual</code>, a card asked with <code>dispatch:true</code> starts by itself on a product listed in <code>GAOS_API_AUTORUN_PRODUCTS</code>, through the same gates as a board move, at most twenty a day.</li>
+        <li><span class="chg add">Added</span> <strong>A tutorial</strong>, <a href="integrations/external-tasks-api.html">External tasks API</a>, with a <a href="downloads/gaos-external-tasks-api.md" download>markdown download</a>; the Integrations view links to both and counts the task clients.</li>
+        <li><span class="chg change">Changed</span> Production reads its clients from <code>deploy/stacks/prod.api-clients/</code> (mode 700, mounted read-only); create it before deploying. A clients file others can read loads no client. The role <code>test-planner</code> and its agent seat ship here, ahead of their cards. TC-773 &hellip; TC-786.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-60-1">v0.60.1 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A merged pull request finishes its review card, and the Brain Town reader saves its cursor (#56; design <code>docs/designs/gaos-external-tasks-and-pr-bundles.md</code> &sect;3).</p>
       <ul>

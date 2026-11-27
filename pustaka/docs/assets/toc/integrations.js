@@ -117,6 +117,22 @@ window.DOCS.nav.push({
         { anchor: "enable", title: "Turn it on", text: "The token file, the redeploy line and the Integrations view." }
       ]
     },
+    {
+      id: "external-tasks-api", file: "integrations/external-tasks-api.html", title: "External tasks API",
+      desc: "How an outside platform plans and follows GAOS work without signing in: a PR review, unit tests, an e2e automation or an e2e run, polled and, for a run, cancelled; with a markdown download.",
+      tags: ["api", "tasks", "client", "pull request", "review", "unit test", "automation", "tutorial", "curl"],
+      sections: [
+        { anchor: "purpose", title: "What it is for", text: "The four kinds and who works each." },
+        { anchor: "client", title: "Ask the operator for a client", text: "A client with the tasks capability and its bearer token." },
+        { anchor: "create", title: "Create a PR review", text: "POST /api/v1/products/{id}/tasks, the body rules, 201 and adoption." },
+        { anchor: "poll", title: "Poll it", text: "GET by task id or by externalId; reason held, blocked, failed." },
+        { anchor: "kinds", title: "The other kinds", text: "Unit tests, an e2e automation, an e2e run and its cancel." },
+        { anchor: "dispatch", title: "What dispatch answers", text: "scheduler, auto, operator, manual-review, qa-tool per runner mode." },
+        { anchor: "errors", title: "Errors", text: "Every status and code." },
+        { anchor: "limits", title: "Limits", text: "One write in flight, the open and daily caps, one run per product, autorun." },
+        { anchor: "troubleshooting", title: "Troubleshooting", text: "401, 403, a card left in Ready, held, a replay." }
+      ]
+    },
     /* pustaka:insert — `pustaka new` adds entries above this marker */
   ]
 });

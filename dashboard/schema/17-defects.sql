@@ -76,5 +76,5 @@ CREATE INDEX IF NOT EXISTS ON FixPR (tenantId, id) UNIQUE;
 -- (04-execution.sql, 05-capacity.sql) keeps the regexp it first declared, so a
 -- deployment older than v0.48.0 would refuse a task or an agent of a newer role
 -- at commit. ALTER is idempotent and applies to every deployment.
-ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
-ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer';
+ALTER PROPERTY Task.role  REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner';
+ALTER PROPERTY Agent.role REGEXP 'planner|architect|backend|frontend|qa|security|devops|pr-reviewer|unit-test|triager|fixer|test-planner';

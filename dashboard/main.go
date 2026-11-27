@@ -95,6 +95,12 @@ type server struct {
 	// qaOut is the client for GAOS calling the QA tools (qaclient.go); nil or
 	// unconfigured means the sync buttons are disabled.
 	qaOut *qaOutbound
+	// flow is the pull-request flow; the task API prepares a pull request
+	// through it and fills its context cache (D-099).
+	flow *prFlow
+	// onAPIManual is told when a client plans a pr-review with review: manual; the
+	// notice is D-101's (v0.63.0). nil sends nothing.
+	onAPIManual func(t TaskRecord, client string)
 
 	// inbox delivers the operator's answers to the QA tool's questions
 	// (inbox_worker.go); nil in tests that do not exercise it.
@@ -375,6 +381,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 	gcfg := ghConfigFromEnv()
 	ghc := newGHClient(gcfg)
 	flow := &prFlow{st: store, ctx: &prContextCache{}, logf: log.Printf}
+	srv.flow = flow
 	var authors authorSource
 	if ghc != nil {
 		flow.gh = ghc

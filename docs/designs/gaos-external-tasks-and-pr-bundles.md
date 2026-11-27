@@ -446,7 +446,11 @@ Under `off`, step 4 has already refused.
 - its key is a `qa-run/` key.
 
 A natural-key card cannot be cancelled through the API, because the operator and Brain Town own it
-(SEC-1 (r1)). The store call is the board's cancel (`dashboard/handlers_tasks.go:119`), and `cardCanceled`
+(SEC-1 (r1)).
+
+**As built (v0.61.0):** `handlers_tasks.go:119` is a desk cancel, not a card cancel. The API cancel is a
+direct `TaskMoved` to CANCELED with rule `api-cancel`, which is the move the board's Cancel column makes.
+A natural-key card answers `409 not-cancelable`, and another client's card answers `404`. The store call is the board's cancel (`dashboard/handlers_tasks.go:119`), and `cardCanceled`
 (`qajobs.go:388`) then cancels the QA job. A cancelled run still counts toward `GAOS_API_DAILY`.
 
 ### 5.5 Unattended start under `manual` (amends BR-56)

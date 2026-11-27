@@ -82,6 +82,49 @@ invisible at runtime: a dev stack wired to the production database, and a Traefi
 published on every interface instead of the tunnel. Both start cleanly. Both pass
 a smoke test. Neither shows up in `docker compose ps`.
 
+## External tasks API clients
+
+An outside platform plans GAOS work through `/api/v1/products/{id}/tasks` with a
+client token (D-099; the public tutorial is
+`pustaka/docs/integrations/external-tasks-api.html`, which deliberately names no
+file on this host). Setting a client up is the operator's job:
+
+1. Create the directory once, as the deploy user: `mkdir -m 700 deploy/stacks/prod.api-clients`.
+   The deploy refuses it unless it is a directory, owned by the deploy user, mode 700.
+2. Mint the client's token, mode 600:
+
+   ```bash
+   umask 077; printf 'gaos_%s\n' "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" > deploy/stacks/prod.api-clients/<name>.token
+   ```
+
+3. Add one line to `deploy/stacks/prod.api-clients/clients` (mode 600; a file
+   others can read is refused). The format is
+   `name kind origin token-file products [caps]`, the token path is the
+   container path, and `caps` is a comma list over `inbox,tasks` (absent = `inbox`):
+
+   ```text
+   plat-a platform - /run/secrets/api-clients/plat-a.token p-2 tasks
+   ```
+
+   A `tasks`-only client may share a product with the QA token; a client that
+   also holds `inbox` there is skipped at boot.
+4. Prod mounts the directory read-only at `/run/secrets/api-clients` and sets
+   `GAOS_API_CLIENTS_FILE=/run/secrets/api-clients/clients`. Pass the limits on
+   the redeploy line when the defaults do not fit:
+
+   | Variable | Default | Meaning |
+   |---|---|---|
+   | `GAOS_API_MAX_OPEN` | 5 | unfinished cards per client |
+   | `GAOS_API_DAILY` | 20 | cards a client may create per UTC day |
+   | `GAOS_API_AUTORUN_PRODUCTS` | empty (off) | products whose API and bundle cards start without an operator under `GAOS_RUNNER=manual` |
+   | `GAOS_API_AUTORUN_DAILY` | 20 | unattended starts per product per UTC day |
+
+5. Restart and read the boot line: `clients=` counts the client.
+
+**Revoking a client:** remove its line (and its token file), restart, and confirm
+the old token now answers `401`. Tokens are digests computed at boot, so the
+restart is the revocation.
+
 ## Why the proxy holds no Docker socket
 
 Every other stack on the private VM mounts `/var/run/docker.sock` into Traefik
