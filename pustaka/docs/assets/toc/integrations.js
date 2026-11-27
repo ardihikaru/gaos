@@ -80,6 +80,7 @@ window.DOCS.nav.push({
         { anchor: "review-fix", title: "Low findings fixed by an agent", text: "A draft into the reviewed branch: when, the settings, the checks, what happens next." },
         { anchor: "source-labels", title: "Where a card came from", text: "source:api and source:bundle mark the cards assignment does not gate." },
         { anchor: "runbook", title: "Set it up for a product", text: "Assign the reviewer, unit-test, QA and fixer agents; the branch patterns." },
+        { anchor: "data-flow", title: "How it works: the data flow", text: "Three flows step by step: a staging deploy runs and creates automation; a new spec is approved, merged and run; a pull request is reviewed and a low finding fixed." },
         { anchor: "release-b", title: "The second release", text: "Built in v0.65.0: repository kinds, creating missing automation on staging, approved specs the QA tool may auto-merge and GAOS then runs; unit tests have their own design." },
         { anchor: "failure", title: "When something is off", text: "No review card, 422 unassigned, a comment instead of changes, no fix planned." }
       ]

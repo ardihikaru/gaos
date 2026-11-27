@@ -230,6 +230,73 @@
   what is missing; a person approves each new spec; the QA tool may let it merge by itself once its checks pass; GAOS
   then runs it.</p>
 
+  <h3 id="data-flow">How it works: the data flow</h3>
+  <p>Three systems take part: your <strong>CI</strong> (it deploys to staging), <strong>GAOS</strong> (it plans cards
+  and asks), and the <strong>QA tool</strong> (it writes and runs the specs). GitHub merges; GAOS never does. Each flow
+  below reads left to right; the numbered list says who calls whom.</p>
+
+  <p><strong>A. A staging deploy runs the automation, and creates what is missing.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · CI</b><span>calls GAOS's staging callback</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS</b><span>plans the run card (+ creates)</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · QA tool</b><span>runs the cases of the kind</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GAOS</b><span>card Done or Failed</span></div>
+  </div>
+  <ol>
+    <li>The pipeline calls <code>POST /api/v1/products/{id}/staging</code> with the repository and commit (HTTP Basic,
+      one credential per product).</li>
+    <li>GAOS plans one <em>run</em> card, labelled with the repository's kind. If <strong>staging creates</strong> is on and
+      this is a new commit, it also plans up to two <em>create</em> cards for planned cases with no automation yet.</li>
+    <li>GAOS's QA runner asks the QA tool for a job per card (<code>POST /api/v1/gaos/automation</code> with
+      <code>kind</code>, only when the QA tool lists that capability) and polls it.</li>
+    <li>A run ends the card Done (the results are on the QA side and in the catalog) or Failed with its reason.</li>
+  </ol>
+
+  <p><strong>B. A new spec: created, approved, merged, then run.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · QA tool</b><span>writes the spec, runs it on staging</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · Person</b><span>approves it in the QA tool</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · QA tool</b><span>pushes, opens the PR, arms auto-merge</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GitHub</b><span>merges when the checks pass</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · GAOS</b><span>runs that case once</span></div>
+  </div>
+  <ol>
+    <li>The create card's job generates the spec and repairs it against staging. The card waits in <em>Needs you</em>.</li>
+    <li>A person approves the spec. Only an approval given in the QA tool can lead to an auto-merge; an answer from the
+      GAOS Inbox opens the pull request for a person to merge.</li>
+    <li>The QA tool pushes the commit (GAOS records it as the <em>approved commit</em>) and opens the pull request. If
+      GAOS still allows it (<code>GET /api/v1/products/{id}/spec-auto-merge</code>: the product's auto-merge switch on, the
+      Working or Complete band) and every repository check passes, it turns on GitHub's auto-merge pinned to that commit.</li>
+    <li>GitHub merges when the required checks pass. Otherwise a person merges.</li>
+    <li>GAOS's pull-request poller sees the merge. If the merged head is the approved commit and the QA catalog shows the
+      case implemented, GAOS plans one run of that case. Any other head is noted on the Pull requests page and not run.</li>
+  </ol>
+
+  <p><strong>C. A pull request is opened, reviewed, and a low finding fixed.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · GitHub</b><span>PR opened (via Brain Town)</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS</b><span>review card for Juno</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · GAOS</b><span>posts the review, labels severity</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · Mica</b><span>a low finding: draft fix PR</span></div>
+  </div>
+  <ol>
+    <li>Brain Town forwards <code>pr.opened</code> for a repository the product lists.</li>
+    <li>GAOS plans a review card when a PR reviewer is assigned (see <a href="#assignment">Assignment</a>).</li>
+    <li>The review is posted on GitHub; medium and worse request changes, and the card gets a <code>severity:*</code> label.</li>
+    <li>A low finding on an allowed branch becomes a draft pull request into the reviewed pull request's own branch
+      (<a href="#review-fix">Low findings fixed by an agent</a>).</li>
+  </ol>
+
   <h3 id="repo-kinds">1. A kind per repository</h3>
   <table class="tbl">
     <thead><tr><th>Kind</th><th>A staging run runs</th><th>The QA tool may create</th></tr></thead>
@@ -272,6 +339,17 @@
   agent is assigned, and the QA catalog shows the case implemented. If the catalog has not caught up yet, the row on
   the Pull requests page says <em>waiting for the catalog</em> and the run is planned when the result arrives (within
   14 days). A merge at another commit is noted on the row and in the activity feed, and its case is not run.</p>
+
+  <div class="adm warn">
+    <p class="adm-title">What GitHub must allow first</p>
+    <p>The QA tool turns auto-merge on only after it has read, through GitHub's API, a ruleset that restricts updates and
+    deletions of <code>qa-auto/*</code> branches and required checks bound to their source on the base branch. On a
+    <strong>private repository</strong> GitHub offers rulesets only on a paid plan (Team, or Pro for a personal account);
+    on the free plan the API answers <em>"Upgrade to GitHub Pro or make this repository public"</em> and every spec is
+    left for a person to merge. The QA tool's GitHub account must also be a bot account without admin or maintain rights
+    on the automation repository: an admin could bypass the rules, so the QA tool refuses one. Until both hold, keep the
+    auto-merge switch off: GAOS still runs each new case once a person merges its spec.</p>
+  </div>
 
   <h3 id="release-b-unit">4. Unit tests: decided, not built</h3>
   <p>Unit tests run through the QA tool in a sandbox it provides, a failure becoming a defect a person releases first.
