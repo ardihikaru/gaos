@@ -69,35 +69,59 @@
     {{if $product}}{{with .BO.Detail}}
     {{/* D-094: each item is a link. href is the page (a new tab, a copied
          link); hx-get is the fragment a plain click swaps in. */}}
-    <nav class="bo-menu" aria-label="Product sections">
-      <a{{if eq .Tab "brd"}} aria-current="page"{{end}}       href="p/{{.Slug}}/brd" hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</a>
-      <a{{if eq .Tab "stories"}} aria-current="page"{{end}}   href="p/{{.Slug}}/stories" hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num (len .Master.Stories)}}</span></a>
-      <a{{if eq .Tab "diagrams"}} aria-current="page"{{end}}  href="p/{{.Slug}}/diagrams" hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num (len .Master.Diagrams)}}</span></a>
-      <a{{if eq .Tab "knowledge"}} aria-current="page"{{end}} href="p/{{.Slug}}/knowledge" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></a>
-      <a{{if eq .Tab "board"}} aria-current="page"{{end}}     href="p/{{.Slug}}/board" hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</a>
-      <a{{if eq .Tab "qa"}} aria-current="page"{{end}}        href="p/{{.Slug}}/qa" hx-get="products/{{.ID}}?tab=qa"        hx-target="#sink" hx-swap="innerHTML">QA</a>
-      <a{{if eq .Tab "timeline"}} aria-current="page"{{end}}  href="p/{{.Slug}}/timeline" hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n" id="navTimelineN">{{num .TimelineN}}</span></a>
-      <a{{if eq .Tab "blueprint"}} aria-current="page"{{end}} href="p/{{.Slug}}/blueprint" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></a>
-      <a{{if eq .Tab "vendors"}} aria-current="page"{{end}}   href="p/{{.Slug}}/vendors" hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</a>
-    </nav>
+    {{/* The bar's menu (docs/designs/top-bar-menu.md): the arrows are a mouse
+         affordance, a group is a popovertarget button, and its panel sits outside
+         the scroller so the top layer is never clipped by it. Every panel stays
+         inside {{if .BO}}. */}}
+    <div class="bo-nav">
+      <span class="bo-step" data-dir="-1" aria-hidden="true">&lsaquo;</span>
+      <nav class="bo-menu" aria-label="Product sections">
+        <a{{if eq .Tab "brd"}} aria-current="page"{{end}}       href="p/{{.Slug}}/brd" hx-get="products/{{.ID}}?tab=brd"       hx-target="#sink" hx-swap="innerHTML">Requirements</a>
+        <a{{if eq .Tab "stories"}} aria-current="page"{{end}}   href="p/{{.Slug}}/stories" hx-get="products/{{.ID}}?tab=stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num (len .Master.Stories)}}</span></a>
+        <a{{if eq .Tab "diagrams"}} aria-current="page"{{end}}  href="p/{{.Slug}}/diagrams" hx-get="products/{{.ID}}?tab=diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num (len .Master.Diagrams)}}</span></a>
+        <a{{if eq .Tab "knowledge"}} aria-current="page"{{end}} href="p/{{.Slug}}/knowledge" hx-get="products/{{.ID}}?tab=knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num (len .Master.Decisions)}}</span></a>
+        <a{{if eq .Tab "board"}} aria-current="page"{{end}}     href="p/{{.Slug}}/board" hx-get="products/{{.ID}}?tab=board"     hx-target="#sink" hx-swap="innerHTML">Board</a>
+        <a{{if eq .Tab "qa"}} aria-current="page"{{end}}        href="p/{{.Slug}}/qa" hx-get="products/{{.ID}}?tab=qa"        hx-target="#sink" hx-swap="innerHTML">QA</a>
+        <a{{if eq .Tab "timeline"}} aria-current="page"{{end}}  href="p/{{.Slug}}/timeline" hx-get="products/{{.ID}}?tab=timeline"  hx-target="#sink" hx-swap="innerHTML">Timeline <span class="n" id="navTimelineN">{{num .TimelineN}}</span></a>
+        <button type="button" class="bo-grp{{if or (eq .Tab "blueprint") (eq .Tab "vendors")}} is-current{{end}}" popovertarget="boGrpSetup">Setup<svg class="bo-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>
+      </nav>
+      <span class="bo-step" data-dir="1" aria-hidden="true">&rsaquo;</span>
+      <div class="bo-pop" id="boGrpSetup" popover="auto" role="group" aria-label="Setup">
+        <a{{if eq .Tab "blueprint"}} aria-current="page"{{end}} href="p/{{.Slug}}/blueprint" hx-get="products/{{.ID}}?tab=blueprint" hx-target="#sink" hx-swap="innerHTML">Blueprint <span class="n">{{num (len .Master.Blueprint.Policies)}}</span></a>
+        <a{{if eq .Tab "vendors"}} aria-current="page"{{end}}   href="p/{{.Slug}}/vendors" hx-get="products/{{.ID}}?tab=vendors"   hx-target="#sink" hx-swap="innerHTML">AI vendors</a>
+      </div>
+    </div>
     {{/* The inbox count is not in this bar, but chrome.html's oob and
          GET /ui/needs swap it by id on every mutation: without a target htmx
          logs oobErrorNoTarget. The needs chip on the right is the visible one. */}}
     <span id="navNeedsCount" hidden>{{num $.Needs}}</span>
     {{end}}{{else}}
-    <nav class="bo-menu" aria-label="Back office">
-      <a{{if eq .BO.View "inbox"}} aria-current="page"{{end}}     href="inbox" hx-get="ui/bo/inbox"     hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Inbox <span class="n" id="navNeedsCount">{{num .Needs}}</span></a>
-      <a{{if eq .BO.View "products"}} aria-current="page"{{end}}  href="./" hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="n">{{num .BO.Counts.Products}}</span></a>
-      <a{{if eq .BO.View "stories"}} aria-current="page"{{end}}   href="stories" hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num .BO.Counts.Stories}}</span></a>
-      <a{{if eq .BO.View "diagrams"}} aria-current="page"{{end}}  href="diagrams" hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num .BO.Counts.Diagrams}}</span></a>
-      <a{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} href="knowledge" hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></a>
-      <a{{if eq .BO.View "agents"}} aria-current="page"{{end}}    href="agents" hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></a>
-      <a{{if eq .BO.View "archive"}} aria-current="page"{{end}}   href="archive" hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></a>
-      <a{{if eq .BO.View "integrations"}} aria-current="page"{{end}} href="integrations" hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</a>
-      <a{{if eq .BO.View "traffic"}} aria-current="page"{{end}}   href="traffic" hx-get="ui/bo/traffic"   hx-target="#sink" hx-swap="innerHTML">Traffic</a>
-      <a{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   href="autofix" hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</a>
-      <a{{if eq .BO.View "prs"}} aria-current="page"{{end}}       href="prs" hx-get="ui/bo/prs"       hx-target="#sink" hx-swap="innerHTML">Pull requests</a>
-    </nav>
+    <div class="bo-nav">
+      <span class="bo-step" data-dir="-1" aria-hidden="true">&lsaquo;</span>
+      <nav class="bo-menu" aria-label="Back office">
+        <a{{if eq .BO.View "inbox"}} aria-current="page"{{end}}     href="inbox" hx-get="ui/bo/inbox"     hx-target="#sink" hx-swap="innerHTML" class="nav-needs{{if .Needs}} on{{end}}">Inbox <span class="n" id="navNeedsCount">{{num .Needs}}</span></a>
+        <a{{if eq .BO.View "products"}} aria-current="page"{{end}}  href="./" hx-get="ui/bo/products"  hx-target="#sink" hx-swap="innerHTML">Products <span class="n">{{num .BO.Counts.Products}}</span></a>
+        <button type="button" class="bo-grp{{if or (eq .BO.View "stories") (eq .BO.View "diagrams") (eq .BO.View "knowledge") (eq .BO.View "archive")}} is-current{{end}}" popovertarget="boGrpLibrary">Library<svg class="bo-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>
+        <a{{if eq .BO.View "agents"}} aria-current="page"{{end}}    href="agents" hx-get="ui/bo/agents"    hx-target="#sink" hx-swap="innerHTML">Agents <span class="n">{{num .BO.Counts.Agents}}</span></a>
+        <button type="button" class="bo-grp{{if or (eq .BO.View "autofix") (eq .BO.View "prs")}} is-current{{end}}" popovertarget="boGrpAutomation">Automation<svg class="bo-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>
+        <button type="button" class="bo-grp{{if or (eq .BO.View "integrations") (eq .BO.View "traffic")}} is-current{{end}}" popovertarget="boGrpSystem">System<svg class="bo-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>
+      </nav>
+      <span class="bo-step" data-dir="1" aria-hidden="true">&rsaquo;</span>
+      <div class="bo-pop" id="boGrpLibrary" popover="auto" role="group" aria-label="Library">
+        <a{{if eq .BO.View "stories"}} aria-current="page"{{end}}   href="stories" hx-get="ui/bo/stories"   hx-target="#sink" hx-swap="innerHTML">Stories <span class="n">{{num .BO.Counts.Stories}}</span></a>
+        <a{{if eq .BO.View "diagrams"}} aria-current="page"{{end}}  href="diagrams" hx-get="ui/bo/diagrams"  hx-target="#sink" hx-swap="innerHTML">Diagrams <span class="n">{{num .BO.Counts.Diagrams}}</span></a>
+        <a{{if eq .BO.View "knowledge"}} aria-current="page"{{end}} href="knowledge" hx-get="ui/bo/knowledge" hx-target="#sink" hx-swap="innerHTML">Knowledge <span class="n">{{num .BO.Counts.Knowledge}}</span></a>
+        <a{{if eq .BO.View "archive"}} aria-current="page"{{end}}   href="archive" hx-get="ui/bo/archive"   hx-target="#sink" hx-swap="innerHTML">Archive <span class="n">{{num .BO.Counts.Archived}}</span></a>
+      </div>
+      <div class="bo-pop" id="boGrpAutomation" popover="auto" role="group" aria-label="Automation">
+        <a{{if eq .BO.View "autofix"}} aria-current="page"{{end}}   href="autofix" hx-get="ui/bo/autofix"   hx-target="#sink" hx-swap="innerHTML">Auto-fix</a>
+        <a{{if eq .BO.View "prs"}} aria-current="page"{{end}}       href="prs" hx-get="ui/bo/prs"       hx-target="#sink" hx-swap="innerHTML">Pull requests</a>
+      </div>
+      <div class="bo-pop" id="boGrpSystem" popover="auto" role="group" aria-label="System">
+        <a{{if eq .BO.View "integrations"}} aria-current="page"{{end}} href="integrations" hx-get="ui/bo/integrations" hx-target="#sink" hx-swap="innerHTML">Integrations</a>
+        <a{{if eq .BO.View "traffic"}} aria-current="page"{{end}}   href="traffic" hx-get="ui/bo/traffic"   hx-target="#sink" hx-swap="innerHTML">Traffic</a>
+      </div>
+    </div>
     {{end}}
 
     <div class="bo-end">
