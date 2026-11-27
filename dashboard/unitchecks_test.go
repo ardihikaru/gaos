@@ -548,3 +548,126 @@ func TestUnitChecksRouteAndSection(t *testing.T) {
 		t.Error("a plain read shows the Saved line")
 	}
 }
+
+// TC-871
+func TestUnitSourceIsSavedAndValidated(t *testing.T) {
+	ctx := context.Background()
+	s, pid := unitStore(t)
+	// Only the two sources, or empty.
+	for _, src := range []string{"gitlab", "Jenkins", "github"} {
+		if _, err := s.SetUnitChecks(ctx, pid, UnitChecks{Source: src}, testEmail); err == nil || err.Error() != "The source is GitHub Actions or Jenkins." {
+			t.Errorf("the source %q answered %v; want The source is GitHub Actions or Jenkins.", src, err)
+		}
+	}
+	// Empty reads as github-actions, and the event names the workflow and the check.
+	res, err := s.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Workflow: ".github/workflows/go.yml", CheckName: "go test"}, testEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := masterOf(t, s, pid).UnitChecks; u.Source != "" || u.SourceName() != unitSourceGitHub {
+		t.Errorf("an empty source saved %q and reads %q; want github-actions", u.Source, u.SourceName())
+	}
+	if want := "unit checks on (.github/workflows/go.yml, go test, bases -, cap 5)"; len(res.NewEvents) != 1 || !strings.Contains(res.NewEvents[0].Text, want) {
+		t.Errorf("the github-actions event reads %v; want %q", res.NewEvents, want)
+	}
+	// Jenkins: the workflow and the check are kept, not in force, and not in the event.
+	res, err = s.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceJenkins, Workflow: ".github/workflows/go.yml",
+		CheckName: "go test", Bases: []string{"staging"}}, testEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := masterOf(t, s, pid).UnitChecks
+	if u.SourceName() != unitSourceJenkins || u.Workflow != ".github/workflows/go.yml" || u.CheckName != "go test" {
+		t.Errorf("the jenkins save is %+v; want the source and the workflow and check kept", u)
+	}
+	if want := "unit checks on (jenkins, bases staging, cap 5)"; len(res.NewEvents) != 1 || !strings.Contains(res.NewEvents[0].Text, want) ||
+		strings.Contains(res.NewEvents[0].Text, "go.yml") {
+		t.Errorf("the jenkins event reads %v; want %q", res.NewEvents, want)
+	}
+	// Switching back restores the workflow and the check.
+	if _, err := s.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceGitHub, Workflow: u.Workflow, CheckName: u.CheckName}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if u := masterOf(t, s, pid).UnitChecks; u.SourceName() != unitSourceGitHub || u.WorkflowPath() != ".github/workflows/go.yml" || u.Name() != "go test" {
+		t.Errorf("switching back reads %+v (workflow %s, check %s)", u, u.WorkflowPath(), u.Name())
+	}
+	// A bad workflow is refused whatever the source.
+	if _, err := s.SetUnitChecks(ctx, pid, UnitChecks{Source: unitSourceJenkins, Workflow: "ci/unit.yml"}, testEmail); err == nil ||
+		err.Error() != "The workflow is a file under .github/workflows/." {
+		t.Errorf("a bad workflow under jenkins answered %v", err)
+	}
+	// A GitHub run id is never 0: a posted result's run reads @jenkins.
+	if got := unitRunRef(ucSHA, 0); got != idSHA(ucSHA)+"@jenkins" {
+		t.Errorf("the run ref of a posted result is %q", got)
+	}
+	if got := unitRunRef(ucSHA, 42); got != idSHA(ucSHA)+"@42" {
+		t.Errorf("the run ref of a workflow run is %q", got)
+	}
+}
+
+// TC-872
+func TestAJenkinsResultSurvivesARestart(t *testing.T) {
+	arc := arcadeTestTarget(t)
+	ctx := t.Context()
+	tenant := "conf-unit-jenkins"
+	first := newArcadeTestStore(t, arc, tenant)
+	pid := "p-1"
+	repo := "loop/laundry-api"
+	if _, err := first.SetAutoFix(ctx, pid, AutoFix{Enabled: true, TargetRepos: []string{repo}}, "ops", tokenKindFine); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.SetAssigned(ctx, pid, []string{"a-12", "a-13"}, true, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceJenkins}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.PlantUnitWatch(ctx, pid, UnitWatch{Repo: repo, PR: 3, SHA: ucSHA, Base: "develop", MergedAt: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	key := unitWatchKey(pid, repo, ucSHA)
+	in := UnitDefectIn{Total: 2, Failing: []unitFailure{{Test: "TestTotal", File: "pkg/records/total_test.go"}}}
+	from := UnitPosted{RunURL: "https://jenkins.acme.example/job/route-api/job/develop/42/", From: "198.51.100.7", Result: UnitFailed}
+	res, err := first.FinishUnitWatchFrom(ctx, key, UnitFailed, &in, nil, from)
+	if err != nil || len(res.Defects) != 1 || len(res.NewEvents) == 0 {
+		t.Fatalf("finish from jenkins: %+v %v", res, err)
+	}
+	for _, e := range res.NewEvents {
+		if e.Payload.Actor != "jenkins:"+pid {
+			t.Errorf("the event %s carries the actor %q; want jenkins:%s", e.Type, e.Payload.Actor, pid)
+		}
+	}
+	dkey := res.Defects[0].Key
+	if r, err := first.MarkUnitWatchConflict(ctx, key); err != nil || len(r.UnitWatches) != 1 {
+		t.Fatalf("mark conflict: %+v %v", r, err)
+	}
+	if r, err := first.MarkUnitWatchConflict(ctx, key); err != nil || len(r.UnitWatches) != 0 {
+		t.Errorf("a second conflict mark changed the watch: %+v %v", r, err)
+	}
+	// An event after the posted finish has no jenkins actor: the override ends with the call.
+	res2, err := first.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceJenkins, DailyCap: 4}, testEmail)
+	if err != nil || len(res2.NewEvents) != 1 || res2.NewEvents[0].Payload.Actor != "ardi" {
+		t.Errorf("the next event's actor is %+v %v; want ardi", res2.NewEvents, err)
+	}
+	second, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := masterOf(t, second, pid).UnitChecks; u.Source != unitSourceJenkins || u.SourceName() != unitSourceJenkins {
+		t.Errorf("the source came back as %q", u.Source)
+	}
+	w, ok, err := second.UnitWatch(ctx, key)
+	if err != nil || !ok {
+		t.Fatalf("the watch did not come back: %v %v", ok, err)
+	}
+	if w.State != UnitWatchDone || w.Outcome != UnitFailed || w.RunURL != from.RunURL || w.PostedFrom != from.From ||
+		w.PostedResult != UnitFailed || !w.ConflictNoticeSent || w.DefectKey != dkey {
+		t.Errorf("the posted watch came back as %+v", w)
+	}
+	if d := defectOf(t, second, pid, dkey); d.RunRef != idSHA(ucSHA)+"@jenkins" {
+		t.Errorf("the defect's run ref came back as %q; want %s@jenkins", d.RunRef, idSHA(ucSHA))
+	}
+	if _, ok, _ := second.UnitWatch(ctx, unitWatchKey(pid, repo, ucSHA2)); ok {
+		t.Error("an unknown watch was found")
+	}
+}

@@ -108,8 +108,12 @@ func unitIsBuild(d Defect) bool {
 	return h == unitBuildHash
 }
 
-// unitRunRef is <sha12>@<runID>.
+// unitRunRef is <sha12>@<runID>, or <sha12>@jenkins for a result Jenkins posted
+// (run id 0: a GitHub run id is never 0, D-106).
 func unitRunRef(sha string, runID int64) string {
+	if runID == 0 {
+		return idSHA(sha) + "@jenkins"
+	}
 	return idSHA(sha) + "@" + strconv.FormatInt(runID, 10)
 }
 
@@ -436,23 +440,49 @@ func (s *MemStore) passUnitDefectsLocked(m *Master, in UnitPassIn) (evs []Event,
 	return evs, touched, marked, closed
 }
 
+// UnitPosted is what a Jenkins-posted result adds to a watch's finish (D-106,
+// §5.4): the build link, the caller's address, the posted result, and Late for
+// a result over a watch the poller already ended no-ci (state 6a). The zero
+// value is a GitHub Actions finish.
+type UnitPosted struct {
+	RunURL, From, Result string
+	Late                 bool
+}
+
 // FinishUnitWatch ends a pending watch with its outcome and, in the same lock,
 // files the failure (in) or applies the pass (pass): a crash never leaves a
 // defect without its watch ending, or the reverse (§5.1). A failure's outcome
 // is the planner's: failed, updated, dedup or refused:<slug>.
 func (s *MemStore) FinishUnitWatch(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn) (Result, error) {
+	return s.FinishUnitWatchFrom(ctx, key, outcome, in, pass, UnitPosted{})
+}
+
+// FinishUnitWatchFrom is FinishUnitWatch with a posted result's facts (D-106):
+// they are written on the watch in the same call, the events it causes carry
+// the actor jenkins:<product>, and with from.Late a done watch whose outcome is
+// no-ci is finished again (a late result). Any other done watch answers an
+// empty Result.
+func (s *MemStore) FinishUnitWatchFrom(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn, from UnitPosted) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	w, ok := s.unitWatches[key]
 	if !ok {
 		return Result{}, ErrNotFound
 	}
-	if w.State == UnitWatchDone {
+	if w.State == UnitWatchDone && !(from.Late && w.Outcome == UnitNoCI) {
 		return Result{}, nil
 	}
 	m := s.masterPtr(w.ProductID)
 	if m == nil {
 		return Result{}, ErrNotFound
+	}
+	if from.Result != "" {
+		if from.Result != UnitPassed && from.Result != UnitFailed && from.Result != unitResultBuildFailed {
+			return Result{}, reject("not a posted unit result")
+		}
+		s.emitActor = unitJenkinsActor(w.ProductID)
+		defer func() { s.emitActor = "" }()
+		w.RunURL, w.PostedFrom, w.PostedResult = from.RunURL, from.From, from.Result
 	}
 	now := autoFixNow()
 	var res Result
@@ -494,9 +524,23 @@ func (s *ArcadeStore) FinishUnitWatch(ctx context.Context, key, outcome string, 
 	return s.mutate(ctx, func() (Result, error) { return s.proj.FinishUnitWatch(ctx, key, outcome, in, pass) })
 }
 
+func (s *ArcadeStore) FinishUnitWatchFrom(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn, from UnitPosted) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.FinishUnitWatchFrom(ctx, key, outcome, in, pass, from) })
+}
+
 func (readOnly) FinishUnitWatch(context.Context, string, string, *UnitDefectIn, *UnitPassIn) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
+
+func (readOnly) FinishUnitWatchFrom(context.Context, string, string, *UnitDefectIn, *UnitPassIn, UnitPosted) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+
+// unitResultBuildFailed is the posted result of a build that failed with no test named.
+const unitResultBuildFailed = "build-failed"
+
+// unitJenkinsActor is the actor of the events a posted result causes (BR-48).
+func unitJenkinsActor(productID string) string { return "jenkins:" + productID }
 
 // ---------------------------------------------------------------- the hold (§7.3)
 

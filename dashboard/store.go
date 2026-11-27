@@ -220,6 +220,12 @@ type Store interface {
 	// FinishUnitWatch ends a watch and, in the same transaction, files its failure or
 	// applies its pass (unitdefect.go).
 	FinishUnitWatch(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn) (Result, error)
+	// D-106: a Jenkins-posted result. UnitWatch reads one watch by key;
+	// FinishUnitWatchFrom is FinishUnitWatch with the posted facts (and the late
+	// re-finish over no-ci); MarkUnitWatchConflict records the one conflict notice.
+	UnitWatch(ctx context.Context, key string) (UnitWatch, bool, error)
+	FinishUnitWatchFrom(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn, from UnitPosted) (Result, error)
+	MarkUnitWatchConflict(ctx context.Context, key string) (Result, error)
 	// The contact registry and the one event a notification leaves (D-088).
 	ListContacts(ctx context.Context) ([]Contact, error)
 	UpsertContact(ctx context.Context, c Contact, actor string) (Result, error)

@@ -218,6 +218,10 @@ type MemStore struct {
 	pullRequests map[string]PullRequest
 	// unitWatches are the merge commits whose unit-test check is awaited (D-105), by key.
 	unitWatches map[string]UnitWatch
+	// emitActor, when set, is the actor of every event emitted without one: the
+	// events a Jenkins-posted unit result causes carry "jenkins:<product>" (D-106,
+	// BR-48). Set and cleared under mu by FinishUnitWatchFrom only.
+	emitActor string
 }
 
 // SetPRHooks installs the pull-request flow's seams.
@@ -518,6 +522,9 @@ func (s *MemStore) emit(t EventType, deskID, text, kind string, p EventPayload) 
 	// shares a slice or a *Meeting with the live floor is an event that changes
 	// after it was written, which BR-04 says cannot happen and which would be
 	// invisible until a replay showed the wrong past.
+	if p.Actor == "" && s.emitActor != "" {
+		p.Actor = s.emitActor
+	}
 	e := Event{Seq: s.seq, Type: t, DeskID: deskID, Text: text, Kind: kind, T: s.clock, At: time.Now().Unix(), Payload: p.Clone()}
 	if needsNotice(e) {
 		s.notifs++
