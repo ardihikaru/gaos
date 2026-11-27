@@ -72,20 +72,15 @@ func (p *fixPRPoller) unitPass(ctx context.Context, now time.Time) int {
 			return read
 		}
 		m := masters[(start+i)%len(masters)]
-		if budget > 0 {
-			ws, _ := p.st.UnitWatches(ctx, m.ID)
-			var due []UnitWatch
-			for _, w := range ws {
-				if w.State == UnitWatchPending && w.NextAt <= now.Unix() {
-					due = append(due, w)
-				}
+		if m.UnitChecks.SourceName() == unitSourceJenkins {
+			// D-106 §5.5: Jenkins posts the result; a due watch only ends no-ci after
+			// 6 hours. No GitHub read, so outside the budget: it spends none, is not
+			// counted in read and never moves the round-robin.
+			for _, w := range p.unitDue(ctx, m.ID, now) {
+				p.unitCheckJenkins(ctx, m, w, now)
 			}
-			sort.Slice(due, func(a, b int) bool {
-				if due[a].NextAt != due[b].NextAt {
-					return due[a].NextAt < due[b].NextAt
-				}
-				return due[a].Key < due[b].Key
-			})
+		} else if budget > 0 {
+			due := p.unitDue(ctx, m.ID, now)
 			for _, w := range due {
 				if budget == 0 {
 					break
@@ -105,8 +100,54 @@ func (p *fixPRPoller) unitPass(ctx context.Context, now time.Time) int {
 	return read
 }
 
+// unitDue is a product's pending watches whose next read is due, oldest first.
+func (p *fixPRPoller) unitDue(ctx context.Context, productID string, now time.Time) []UnitWatch {
+	ws, _ := p.st.UnitWatches(ctx, productID)
+	var due []UnitWatch
+	for _, w := range ws {
+		if w.State == UnitWatchPending && w.NextAt <= now.Unix() {
+			due = append(due, w)
+		}
+	}
+	sort.Slice(due, func(a, b int) bool {
+		if due[a].NextAt != due[b].NextAt {
+			return due[a].NextAt < due[b].NextAt
+		}
+		return due[a].Key < due[b].Key
+	})
+	return due
+}
+
+// unitJenkinsNoCI is the daily line of a Jenkins watch that never got a result.
+const unitJenkinsNoCI = "no unit-test result from Jenkins on a merge; is the Jenkins stage installed?"
+
+// unitCheckJenkins is §5.5: a due watch of a product whose results Jenkins posts.
+// It reads nothing: a repository no longer a fix target ends inconclusive; before
+// MergedAt + 6 h the watch sleeps until then; after it, no-ci with the Jenkins
+// daily line, sent only when this finish changed the watch (the route may have
+// finished it first).
+func (p *fixPRPoller) unitCheckJenkins(ctx context.Context, m Master, w UnitWatch, now time.Time) {
+	if !unitFixTarget(m, w.Repo) {
+		p.unitFinish(ctx, m, w, UnitInconclusive, nil, nil)
+		return
+	}
+	deadline := time.Unix(w.MergedAt, 0).Add(unitGiveUpAfter)
+	if now.Before(deadline) {
+		p.unitDelay(ctx, w, deadline)
+		return
+	}
+	if res := p.unitFinish(ctx, m, w, UnitNoCI, nil, nil); len(res.UnitWatches) > 0 {
+		p.unitDaily(ctx, m, w.PR, unitJenkinsNoCI, now)
+	}
+}
+
 // unitCheck reads one watch's check and ends or delays it (§5.1 steps 1-5).
+// Under the jenkins source it reads nothing (§5.5).
 func (p *fixPRPoller) unitCheck(ctx context.Context, m Master, w UnitWatch, now time.Time) {
+	if m.UnitChecks.SourceName() == unitSourceJenkins {
+		p.unitCheckJenkins(ctx, m, w, now)
+		return
+	}
 	age := now.Sub(time.Unix(w.MergedAt, 0))
 	if !unitFixTarget(m, w.Repo) {
 		p.unitFinish(ctx, m, w, UnitInconclusive, nil, nil)
@@ -273,11 +314,11 @@ func (p *fixPRPoller) unitDelay(ctx context.Context, w UnitWatch, next time.Time
 
 // unitFinish ends a watch through the one store call, then builds the context of
 // a newly held defect outside every lock.
-func (p *fixPRPoller) unitFinish(ctx context.Context, m Master, w UnitWatch, outcome string, in *UnitDefectIn, pass *UnitPassIn) {
+func (p *fixPRPoller) unitFinish(ctx context.Context, m Master, w UnitWatch, outcome string, in *UnitDefectIn, pass *UnitPassIn) Result {
 	res, err := p.st.FinishUnitWatch(ctx, w.Key, outcome, in, pass)
 	if err != nil {
 		p.logf("unit checks: a watch could not be ended: %v", err)
-		return
+		return Result{}
 	}
 	if len(res.UnitWatches) > 0 {
 		p.logf("unit checks: %s ended %s", w.Key, res.UnitWatches[0].Outcome)
@@ -285,6 +326,7 @@ func (p *fixPRPoller) unitFinish(ctx context.Context, m Master, w UnitWatch, out
 	if (res.UnitNew || res.UnitReopened) && len(res.Defects) > 0 {
 		p.unitContext(ctx, res.Defects[0])
 	}
+	return res
 }
 
 // unitSay sends one group notice of kind unit:failure. The lines name no repository.

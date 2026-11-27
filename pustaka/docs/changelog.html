@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-68-0">v0.68.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Unit-test results can come from Jenkins: the organisation&rsquo;s Jenkins posts each merge build&rsquo;s result, and GAOS treats it exactly as a GitHub Actions check (<a href="product/decision-log.html#d-106">D-106</a>, <a href="product/brd.html#rules-gateway">BR-65 and BR-52 amended</a>). Still off for every product until an auto-fix admin turns it on.</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>A result source per product.</strong> &ldquo;Results come from&rdquo; on the Auto-fix page&rsquo;s &ldquo;Unit tests (CI)&rdquo;: GitHub Actions (the default; every existing setting keeps it) or Jenkins. The workflow and check name are kept across a switch.</li>
+        <li><span class="chg add">Added</span> <strong>The unit-results route.</strong> <code>POST /api/v1/products/{id}/unit-results</code>, HTTP Basic with the product&rsquo;s own unit-results credential (<code>GAOS_UNIT_RESULTS_BASIC_AUTH_FILE</code>, never the staging one; at least 32 characters). A strict body; the result finishes the merge&rsquo;s watch through the same store call as a GitHub check, so the held defect, the close on a pass and the notices are unchanged. A merge GAOS has not seen yet is 409 <code>no-watch</code> (retry); a late result within 24 hours of <em>no-ci</em> is accepted; a conflicting second result is refused and reported once. Under Jenkins a merge with no result ends <em>no-ci</em> after 6 hours without reading GitHub.</li>
+        <li><span class="chg add">Added</span> <strong>&ldquo;Before you switch this on&rdquo;.</strong> The section shows a checklist while the switch is off: the CI runs the tests on every merge to the unit bases, tests that need a database or the network <strong>skip under <code>go test -short</code></strong> (with the <code>testing.Short()</code> example), and the CI reports the result. Once on, it is one line. The docs gain the Jenkins stage and report job templates and the <code>-short</code> guidance.</li>
+        <li><span class="chg fix">Fixed</span> <strong>The Basic routes&rsquo; failure lock</strong> (the staging callback too): it is keyed on the address the edge sets (<code>X-Real-IP</code>, else the rightmost public <code>X-Forwarded-For</code> hop; IPv6 by its /64) and the route, plus the credential&rsquo;s own product, never on a caller-written first hop or the path&rsquo;s product id; a success clears only that product&rsquo;s key; the map holds at most 4096 keys. Traefik now trusts forwarded headers from the edge alone; the edge rate-limits the two Basic routes. A host firewall on the tunnel port is an operator step after this release (<code>deploy/edge/README.md</code>).</li>
+        <li><span class="chg change">Changed</span> Schema 22 adds the posted result&rsquo;s properties to <code>UnitWatch</code>; <code>GAOS_JENKINS_ORIGIN</code> (optional) makes a build a link on the page. Thirteen new test cases, TC-871 to TC-883.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-67-0">v0.67.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Unit tests from the repository&rsquo;s own CI check: a failing check of a merge becomes a defect held for a person (<a href="product/decision-log.html#d-105">D-105</a>, <a href="product/brd.html#rules-gateway">BR-65</a>). Off for every product until an auto-fix admin turns it on.</p>
       <ul>
@@ -44,6 +56,10 @@
         <li><span class="chg add">Added</span> <strong>The held defect.</strong> A failing check files, or updates, the one open unit defect of that repository and base; its triage card waits BLOCKED until an auto-fix admin releases it (or cancels it, which closes the defect). A later passing check closes it, or marks it while it is held. Group notices, once each.</li>
         <li><span class="chg add">Added</span> <strong>The guarded fix.</strong> After release the auto-fix opens a draft against the branch whose tests failed; it may not change the failing tests, add tests beside them or add <code>TestMain</code> or <code>init</code>, and it is never retargeted.</li>
         <li><span class="chg change">Changed</span> On a product with unit checks on, a fix-target repository&rsquo;s merge no longer plans the agent unit-test card (it ran nothing). Schema 21 adds <code>UnitWatch</code> and the unit defect&rsquo;s properties. Eighteen new test cases, TC-853 to TC-870.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-66-4">v0.66.4 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">No more intermittent <code>EOF</code> from ArcadeDB.</p>
       <ul>

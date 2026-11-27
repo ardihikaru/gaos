@@ -444,7 +444,10 @@ type Master struct {
 // docs/designs/release-b4-unit-tests.md §4.1). The zero value is off and reads
 // the default workflow and check name.
 type UnitChecks struct {
-	Enabled   bool     `json:"enabled"`
+	Enabled bool `json:"enabled"`
+	// Source is where the result comes from (D-106, §4.1): "" or "github-actions"
+	// (GAOS reads the workflow's check) or "jenkins" (Jenkins posts the result).
+	Source    string   `json:"source"`
 	Workflow  string   `json:"workflow"`  // "" = .github/workflows/unit-tests.yml
 	CheckName string   `json:"checkName"` // "" = unit-tests
 	Bases     []string `json:"bases"`     // extra unit bases beside the effective base, at most 8
@@ -462,6 +465,21 @@ const (
 	unitCapMax          = 20
 	unitMaxBases        = 8
 )
+
+// The result sources (D-106): the GitHub Actions check GAOS reads, or the result
+// Jenkins posts to POST /api/v1/products/{id}/unit-results.
+const (
+	unitSourceGitHub  = "github-actions"
+	unitSourceJenkins = "jenkins"
+)
+
+// SourceName is the source in force: "jenkins", or "github-actions" (also for "").
+func (u UnitChecks) SourceName() string {
+	if u.Source == unitSourceJenkins {
+		return unitSourceJenkins
+	}
+	return unitSourceGitHub
+}
 
 // WorkflowPath is the workflow file GAOS binds to.
 func (u UnitChecks) WorkflowPath() string {

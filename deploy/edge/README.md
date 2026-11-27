@@ -157,9 +157,55 @@ docker compose -f deploy/stacks/compose.prod.yaml logs --tail 1 traefik
 
 The first field of the access-log line is `ClientHost`. It **must** read
 `203.0.113.9`. If it shows `10.10.0.1`, the header was discarded and
-`deploy/stacks/traefik.yml`'s trust list is wrong.
+`deploy/stacks/traefik.yml`'s trust list is wrong. Since v0.68.0 that list is
+this box alone, `10.10.0.1/32` (D-106): a request that reaches a VM's Traefik
+from any other tunnel peer is logged with that peer's own address, and so is
+any `X-Real-IP` it sends. This box also limits the two Basic machine routes
+(`/api/v1/products/*/staging` and `*/unit-results`) to 1 r/s per client, burst
+10 (`gaos_machine_basic` in `gaos.conf`; a second instance's file uses the same
+zone). `nginx -t` before the reload.
 
 ---
+
+## 5. The host firewall on the tunnel port (D-106) — an operator step
+
+**Not part of any automated deploy; host state outside the repository.** Since
+v0.68.0 Traefik trusts forwarded headers (`X-Forwarded-For`, `X-Real-IP`) from
+the edge alone, `10.10.0.1/32` (`deploy/stacks/traefik.yml`; `check-stacks.sh`
+asserts the single entry). The two Basic machine routes (the staging callback
+and the unit results) key their failure lock on that address, so no tunnel
+peer can pick another caller's bucket. Traefik is still *reachable* from every
+WireGuard peer on the VM's published port, `18301`; a peer that is not the edge
+only gets its own address as its lock source, so it can lock out nobody but
+itself. To close the port to everyone but the edge and the known direct
+callers, apply this on **each GAOS VM** (`10.10.0.2`, and a second instance's
+VM at its own tunnel address):
+
+```bash
+# 1. Sample who calls the published port directly, over a day; every legitimate
+#    caller that is not on this VM and not the edge gets a RETURN line below.
+sudo conntrack -L -p tcp --orig-port-dst 18301
+
+# 2. Docker rewrites the destination before DOCKER-USER, so match the ORIGINAL one.
+#    <vm-tunnel-ip> is this VM's WireGuard address (10.10.0.2 for the first instance).
+sudo iptables -I DOCKER-USER -i wg0 -p tcp -m conntrack --ctorigdst <vm-tunnel-ip> \
+  --ctorigdstport 18301 -s 10.10.0.1 -j RETURN
+# ... one RETURN line per known direct caller on another tunnel host ...
+sudo iptables -A DOCKER-USER -i wg0 -p tcp -m conntrack --ctorigdst <vm-tunnel-ip> \
+  --ctorigdstport 18301 -j DROP
+```
+
+Traffic the VM sends to its own published port never crosses `DOCKER-USER`, so
+the VM itself needs no line; a caller on the same VM (the seed script, a QA
+backend that calls `http://<vm-tunnel-ip>:18301/api/v1`) is unaffected.
+
+**The check is mandatory and recorded** (write the date and the two results in
+the deploy note): from a tunnel peer that is not listed,
+`curl -m 5 http://<vm-tunnel-ip>:18301/api/healthz` **times out**; and the edge
+still answers, `ssh clino "curl -sS -H 'Host: <host>' http://<vm-tunnel-ip>:18301/api/healthz"`
+reads `ok`. Re-apply the rules when a VM is rebuilt (they are not persisted by
+the repository), and make them survive a reboot with the host's usual
+mechanism (`iptables-persistent` or equivalent).
 
 ## A second instance
 

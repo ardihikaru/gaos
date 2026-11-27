@@ -679,3 +679,102 @@ func TestUnitRetentionAndContext(t *testing.T) {
 		t.Errorf("after the prune %+v; want only the pending watch", ws)
 	}
 }
+
+// pollRaceStore finishes one watch as the unit-results route would, right
+// before the poller's own finish of it.
+type pollRaceStore struct {
+	Store
+	key string
+}
+
+func (r *pollRaceStore) FinishUnitWatch(ctx context.Context, key, outcome string, in *UnitDefectIn, pass *UnitPassIn) (Result, error) {
+	if key == r.key {
+		if _, err := r.Store.FinishUnitWatchFrom(ctx, key, UnitPassed, nil, &UnitPassIn{}, UnitPosted{From: "198.51.100.9", Result: UnitPassed}); err != nil {
+			return Result{}, err
+		}
+	}
+	return r.Store.FinishUnitWatch(ctx, key, outcome, in, pass)
+}
+
+// TC-880
+func TestAJenkinsWatchEndsNoCIWithoutReadingGitHub(t *testing.T) {
+	ctx := context.Background()
+	e := newUnitPollEnv(t, UnitChecks{})
+	// p-2 takes its results from Jenkins.
+	j := "p-2"
+	e.s.mu.Lock()
+	e.s.masterPtr(j).Repos = append(e.s.masterPtr(j).Repos, defRepo)
+	e.s.mu.Unlock()
+	if _, err := e.s.SetAutoFix(ctx, j, unitAF(), "ops", tokenKindFine); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.SetAssigned(ctx, j, []string{"a-11", "a-12", "a-13"}, true, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.SetUnitChecks(ctx, j, UnitChecks{Enabled: true, Source: unitSourceJenkins}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	jwatch := func(n int, age time.Duration) string {
+		w := UnitWatch{Repo: defRepo, PR: n, SHA: ucSHAn(n), Base: "develop", MergedAt: ucNow.Add(-age).Unix()}
+		if _, err := e.s.PlantUnitWatch(ctx, j, w); err != nil {
+			t.Fatal(err)
+		}
+		return unitWatchKey(j, defRepo, ucSHAn(n))
+	}
+	// A watch the route finished first: no daily line.
+	raced := jwatch(70, 7*time.Hour)
+	e.p.st = &pollRaceStore{Store: e.s, key: raced}
+	e.p.unitPass(ctx, ucNow)
+	e.p.st = e.s
+	if w := e.get(t, raced); w.Outcome != UnitPassed || w.PostedResult != UnitPassed {
+		t.Fatalf("the raced watch is %+v; want the route's pass", w)
+	}
+	if n := e.notices(); len(n) != 0 {
+		t.Errorf("a watch the route finished first sent %q", n)
+	}
+	// p-1 has 12 due GitHub watches, read first; p-2's Jenkins watches still end in the same pass.
+	for n := 1; n <= 12; n++ {
+		e.watch(t, n, time.Hour)
+	}
+	late := jwatch(71, 7*time.Hour)
+	young := jwatch(72, time.Hour)
+	read := e.p.unitPass(ctx, ucNow)
+	if read != unitPassBudget {
+		t.Errorf("the pass read %d watches; want the budget %d, the Jenkins ones not counted", read, unitPassBudget)
+	}
+	if e.p.unitLast != e.pid {
+		t.Errorf("the round-robin points at %q after the pass; want %s, never the Jenkins product", e.p.unitLast, e.pid)
+	}
+	if w := e.get(t, late); w.State != UnitWatchDone || w.Outcome != UnitNoCI {
+		t.Errorf("a Jenkins watch 7 hours after its merge is %+v; want no-ci in the same pass", w)
+	}
+	if w := e.get(t, young); w.State != UnitWatchPending || w.NextAt != ucNow.Add(-time.Hour).Add(unitGiveUpAfter).Unix() {
+		t.Errorf("a Jenkins watch 1 hour after its merge is %+v; want one wake-up at merged+6h", w)
+	}
+	for _, n := range []int{70, 71, 72} {
+		if got := e.gh.requests(ucSHAn(n)); got != 0 {
+			t.Errorf("a Jenkins watch read GitHub %d times", got)
+		}
+	}
+	if n := e.notices(); len(n) != 1 || !strings.Contains(n[0], unitJenkinsNoCI) {
+		t.Errorf("the Jenkins no-ci notices: %q; want %q once", n, unitJenkinsNoCI)
+	}
+	// A switch of source between reads: the source of the pass decides.
+	if _, err := e.s.SetUnitChecks(ctx, j, UnitChecks{Enabled: true}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	jwatch(73, time.Hour)
+	e.p.unitPass(ctx, ucNow)
+	if got := e.gh.requests(ucSHAn(73)); got == 0 {
+		t.Errorf("a watch read after a switch to github-actions read GitHub %d times", got)
+	}
+	if _, err := e.s.SetUnitChecks(ctx, e.pid, UnitChecks{Enabled: true, Source: unitSourceJenkins}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	before := e.gh.requests("actions/runs")
+	old := e.watch(t, 13, 8*time.Hour)
+	e.p.unitPass(ctx, ucNow)
+	if w := e.get(t, old); w.Outcome != UnitNoCI || e.gh.requests("actions/runs") != before {
+		t.Errorf("a watch read after a switch to jenkins is %+v after %d GitHub reads; want no-ci and none", w, e.gh.requests("actions/runs")-before)
+	}
+}

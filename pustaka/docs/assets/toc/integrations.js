@@ -86,8 +86,10 @@ window.DOCS.nav.push({
         { anchor: "source-labels", title: "Where a card came from", text: "source:api and source:bundle mark the cards assignment does not gate." },
         { anchor: "runbook", title: "Set it up for a product", text: "Assign the reviewer, unit-test, QA and fixer agents; the branch patterns." },
         { anchor: "data-flow", title: "How it works: the data flow", text: "Three flows step by step: a staging deploy runs and creates automation; a new spec is approved, merged and run; a pull request is reviewed and a low finding fixed." },
-        { anchor: "release-b", title: "The second release", text: "Built in v0.65.0: repository kinds, creating missing automation on staging, approved specs the QA tool may auto-merge (off by default everywhere) and GAOS then runs; unit tests read from the repository\'s own CI check, built in v0.67.0, with the workflow template." },
-        { anchor: "release-b-unit", title: "Unit tests from the CI check", text: "Turn it on, the watch, the check GAOS reads, the held defect, the guarded fix, the outcomes and the workflow template." },
+        { anchor: "release-b", title: "The second release", text: "Built in v0.65.0: repository kinds, creating missing automation on staging, approved specs the QA tool may auto-merge (off by default everywhere) and GAOS then runs; unit tests from the repository\'s CI result — the GitHub Actions check GAOS reads, or the result Jenkins posts (v0.68.0) — with the workflow template and the Jenkins stage." },
+        { anchor: "release-b-unit", title: "Unit tests from the CI result", text: "Turn it on, the two result sources, the watch, the check GAOS reads or the result Jenkins posts, the held defect, the guarded fix, the outcomes and the workflow template." },
+        { anchor: "release-b-unit-jenkins", title: "Jenkins posts the unit-test result", text: "Jenkins posts the unit-test result: the stage, the report job, the credential, the body and GAOS's answers." },
+        { anchor: "release-b-unit-short", title: "Tests that need a database skip under -short", text: "Tests that need a database or the network skip under go test -short, with a testing.Short() example." },
         { anchor: "failure", title: "When something is off", text: "No review card, 422 unassigned, a comment instead of changes, no fix planned." }
       ]
     },

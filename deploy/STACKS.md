@@ -252,6 +252,16 @@ docker compose -f deploy/stacks/compose.prod.yaml logs --tail 1 traefik
 The first access-log field is `ClientHost`. It **must** read `203.0.113.9`. If it
 shows `10.10.0.1`, the header was discarded and the trust list is wrong.
 
+**The trust list is the edge alone (v0.68.0, D-106).** `trustedIPs` is
+`10.10.0.1/32`, not the tunnel `/24`: the Basic machine routes key their
+failure lock on `X-Real-IP`, and a trusted tunnel peer could set it. Re-run the
+check above after any change to the list; `check-stacks.sh` refuses any other
+entry. The **host firewall** that closes the published port `18301` to every
+tunnel peer except the edge and the known direct callers is an operator step
+after the release, kept as host state outside the repository and re-applied
+when a VM is rebuilt: the commands and the mandatory recorded check are in
+`deploy/edge/README.md` (*The host firewall on the tunnel port*).
+
 ## Known gaps
 
 - **Graph queries are opt-in, not the default.** The DDL is applied to dev and

@@ -482,3 +482,63 @@ func TestTheSessionKeyFile(t *testing.T) {
 		t.Fatalf("fallbacks logged %d lines, want 3", len(logs))
 	}
 }
+
+// basicRoutes are the machine routes that answer HTTP Basic instead of a bearer
+// token (BR-52, D-088, D-106). A third one is an edit here, on purpose.
+var basicRoutes = map[string]bool{
+	"POST /v1/products/{id}/staging":      true,
+	"POST /v1/products/{id}/unit-results": true,
+}
+
+// TC-878
+func TestEveryMachineRouteAuthenticates(t *testing.T) {
+	for _, configured := range []bool{true, false} {
+		srv, _ := newTestServer(t)
+		if configured {
+			srv.api = newAPIConfig(tokAdmin, tokQA, tokOut, "p-1")
+			dir := t.TempDir()
+			for env, line := range map[string]string{
+				"GAOS_STAGING_BASIC_AUTH_FILE":      "p-1:jenkins:" + stagingPass1,
+				"GAOS_UNIT_RESULTS_BASIC_AUTH_FILE": "p-1:jenkins-p1:" + urPass1,
+			} {
+				p := filepath.Join(dir, env)
+				if err := os.WriteFile(p, []byte(line+"\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv(env, p)
+			}
+			srv.staging, srv.unitResults = stagingAuthFromEnv(), unitResultsAuthFromEnv()
+		} else {
+			srv.staging = &stagingAuth{}
+		}
+		h := srv.routes()
+		if len(srv.bearer) < 10 {
+			t.Fatalf("registerAPI recorded %d routes", len(srv.bearer))
+		}
+		for p := range basicRoutes {
+			if !srv.bearer[p] {
+				t.Errorf("the Basic route %q is not registered with the machine API", p)
+			}
+		}
+		for p := range srv.bearer {
+			method, path := samplePath(p)
+			req := httptest.NewRequest(method, path, strings.NewReader("{}"))
+			req.RemoteAddr = "192.0.2.7:4444"
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			challenge := rec.Header().Get("WWW-Authenticate")
+			switch {
+			case !configured:
+				if rec.Code != http.StatusServiceUnavailable {
+					t.Errorf("%s with its auth unconfigured answered %d, want 503", p, rec.Code)
+				}
+			case rec.Code != http.StatusUnauthorized:
+				t.Errorf("%s without Authorization answered %d, want 401", p, rec.Code)
+			case basicRoutes[p] && challenge != `Basic realm="gaos"`:
+				t.Errorf("the Basic route %s challenges %q", p, challenge)
+			case !basicRoutes[p] && challenge != `Bearer realm="gaos"`:
+				t.Errorf("%s challenges %q; a Basic route must be listed in basicRoutes", p, challenge)
+			}
+		}
+	}
+}

@@ -974,6 +974,11 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 		"PruneUnitWatches": func() (Result, error) { return ro.PruneUnitWatches(ctx, 0) },
 		"MarkUnitNotice":   func() (Result, error) { return ro.MarkUnitNotice(ctx, "p-1", "", "no-ci") },
 		"FinishUnitWatch":  func() (Result, error) { return ro.FinishUnitWatch(ctx, "k", "passed", nil, nil) },
+		// D-106: a Jenkins-posted result's writes.
+		"FinishUnitWatchFrom": func() (Result, error) {
+			return ro.FinishUnitWatchFrom(ctx, "k", "passed", nil, nil, UnitPosted{Result: "passed"})
+		},
+		"MarkUnitWatchConflict": func() (Result, error) { return ro.MarkUnitWatchConflict(ctx, "k") },
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+
@@ -991,6 +996,9 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 	}
 	if _, err := ro.Replay(ctx, -1); err != nil {
 		t.Errorf("readOnly.Replay back to live: %v", err)
+	}
+	if _, ok, err := ro.UnitWatch(ctx, "k"); ok || err != nil {
+		t.Errorf("readOnly.UnitWatch answered %t %v, want not found", ok, err)
 	}
 }
 

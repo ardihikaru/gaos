@@ -93,6 +93,16 @@ echo "== the proxy never holds the Docker socket =="
 hasnt $DEV  "/var/run/docker.sock"           "dev traefik has no Docker socket"
 hasnt $PROD "/var/run/docker.sock"           "prod traefik has no Docker socket"
 hasnt deploy/stacks/traefik.yml "docker:"    "the tunnelled proxy uses the file provider"
+# D-106 (TC-883): forwarded headers (X-Real-IP, X-Forwarded-For) are trusted from the edge alone,
+# so no tunnel peer and no process on a GAOS VM can pick the Basic routes' lock source.
+if [ "$(grep -cE '^[[:space:]]*- "[0-9./]+"' deploy/stacks/traefik.yml)" = 1 ] && grep -qF -e '- "10.10.0.1/32"' deploy/stacks/traefik.yml; then
+  ok "traefik trusts forwarded headers from the edge (10.10.0.1/32) only"
+else
+  bad "traefik trusts forwarded headers from the edge (10.10.0.1/32) only"
+fi
+hasnt deploy/stacks/traefik.yml '"10.10.0.0/24"' "traefik does not trust the whole tunnel"
+hasnt deploy/stacks/traefik.yml '"10.10.0.2/32"' "traefik does not trust the first GAOS VM"
+hasnt deploy/stacks/traefik.yml '"10.10.0.9/32"' "traefik does not trust the second GAOS VM"
 
 echo
 echo "== no secret is committed =="
@@ -207,6 +217,11 @@ has $PROD 'prod.pr-github-token:/run/secrets/pr-github-token:ro' "prod mounts th
 hasnt $PROD 'GAOS_GITHUB_TOKEN:' "prod passes the GitHub token only as a file, never as an environment variable"
 has $PROD 'prod.pr-staging-auth:/run/secrets/pr-staging-auth:ro' "prod mounts the staging callback's credential file read-only"
 hasnt $PROD 'GAOS_STAGING_BASIC_AUTH:' "prod passes the staging credential only as a file, never as an environment variable"
+# D-106 (TC-883): Jenkins' unit-results credential is its own file, never an environment value,
+# and the build-link origin comes from the deploy shell.
+has $PROD 'prod.pr-unit-results-auth:/run/secrets/pr-unit-results-auth:ro' "prod mounts the unit-results credential file read-only"
+hasnt $PROD 'GAOS_UNIT_RESULTS_BASIC_AUTH:' "prod passes the unit-results credential only as a file, never as an environment variable"
+has $PROD 'GAOS_JENKINS_ORIGIN: "${GAOS_JENKINS_ORIGIN:-}"' "prod passes the Jenkins origin from the deploy shell, empty (no build links) by default"
 has $PROD 'prod.pr-wa-auth:/run/secrets/pr-wa-auth:ro' "prod mounts the WhatsApp login file read-only"
 has $PROD 'prod.pr-wa-group:/run/secrets/pr-wa-group:ro' "prod mounts the WhatsApp pinned-group file read-only"
 hasnt $PROD 'GAOS_WA_BASIC_AUTH:' "prod passes the WhatsApp login only as a file, never as an environment variable"

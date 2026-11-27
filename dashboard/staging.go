@@ -6,10 +6,13 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"net/netip"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,52 +32,88 @@ import (
 // The credential is per PRODUCT: a credential valid for product A presented for
 // product B answers 404, as a bearer client's product check does.
 
-// stagingAuth is the callback's credentials, read once at boot.
+// stagingAuth is one Basic route's credentials, read once at boot: the staging
+// callback's (GAOS_STAGING_BASIC_AUTH_FILE) or the unit-results route's
+// (GAOS_UNIT_RESULTS_BASIC_AUTH_FILE, D-106). Each has its own lines and its own
+// failure map, so a credential of one never opens the other and a lock on one
+// never locks the other.
 type stagingAuth struct {
-	sums map[string][sha256.Size]byte // product id -> sha256("user:password")
-	why  string                       // non-empty: the file was set and unusable
+	sums  map[string][sha256.Size]byte // product id -> sha256("user:password")
+	why   string                       // non-empty: the file was set and unusable
+	route string                       // "staging" | "unit-results": the lock keys and the log lines
 
 	mu       sync.Mutex
 	fails    map[string]stagingFails
 	lastSeen map[string]time.Time // product id -> the last accepted callback
 	now      func() time.Time
+	logf     func(string, ...any)
 }
 
 type stagingFails struct {
 	n     int
 	until time.Time
 	first time.Time
+	quiet int // refusals not logged since the key's first failure or its lock (D-106 §5.4)
 }
 
 // The failure throttle: stagingMaxFails failures inside stagingWindow lock the
-// source out for stagingLock.
+// source out for stagingLock. The map holds at most stagingMaxKeys keys: when
+// it is full a new key is not inserted and the request is throttled (D-106).
 const (
 	stagingMaxFails = 5
 	stagingWindow   = 5 * time.Minute
 	stagingLock     = 5 * time.Minute
+	stagingMaxKeys  = 4096
+)
+
+// The routes' names, which are also the lock keys' route component.
+const (
+	routeStaging     = "staging"
+	routeUnitResults = "unit-results"
+)
+
+// The minimum password lengths: the staging file keeps D-088's 12, the
+// unit-results file wants a generated secret (openssl rand -base64 32).
+const (
+	stagingMinPass     = 12
+	unitResultsMinPass = 32
 )
 
 // stagingAuthFromEnv reads GAOS_STAGING_BASIC_AUTH_FILE. Unset means the
 // callback is off, which is not an error.
 func stagingAuthFromEnv() *stagingAuth {
+	return basicAuthFromEnv("GAOS_STAGING_BASIC_AUTH_FILE", routeStaging, "staging", stagingMinPass)
+}
+
+// unitResultsAuthFromEnv reads GAOS_UNIT_RESULTS_BASIC_AUTH_FILE (D-106): the
+// same format and parser as the staging file, its own lines, a 32-character
+// minimum. Unset means the route is off.
+func unitResultsAuthFromEnv() *stagingAuth {
+	return basicAuthFromEnv("GAOS_UNIT_RESULTS_BASIC_AUTH_FILE", routeUnitResults, "unit-results", unitResultsMinPass)
+}
+
+// basicAuthFromEnv reads one Basic route's credential file, named by the
+// environment variable env: lines of productId:user:password, mode 0600. A
+// refused file is named in why without its content.
+func basicAuthFromEnv(env, route, what string, minPass int) *stagingAuth {
 	a := &stagingAuth{sums: map[string][sha256.Size]byte{}, fails: map[string]stagingFails{},
-		lastSeen: map[string]time.Time{}, now: time.Now}
-	path := strings.TrimSpace(os.Getenv("GAOS_STAGING_BASIC_AUTH_FILE"))
+		lastSeen: map[string]time.Time{}, now: time.Now, route: route, logf: log.Printf}
+	path := strings.TrimSpace(os.Getenv(env))
 	if path == "" {
 		return a
 	}
 	st, err := os.Stat(path)
 	if err != nil || !st.Mode().IsRegular() {
-		a.why = "the staging credential file cannot be read"
+		a.why = "the " + what + " credential file cannot be read"
 		return a
 	}
 	if st.Mode().Perm()&0o077 != 0 {
-		a.why = "the staging credential file is readable by group or others; it must be mode 0600"
+		a.why = "the " + what + " credential file is readable by group or others; it must be mode 0600"
 		return a
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		a.why = "the staging credential file cannot be read"
+		a.why = "the " + what + " credential file cannot be read"
 		return a
 	}
 	for _, line := range strings.Split(string(b), "\n") {
@@ -83,8 +122,9 @@ func stagingAuthFromEnv() *stagingAuth {
 			continue
 		}
 		parts := strings.SplitN(line, ":", 3)
-		if len(parts) != 3 || parts[0] == "" || parts[1] == "" || len(parts[2]) < 12 {
-			a.why = "the staging credential file wants lines of productId:user:password with a password of at least 12 characters"
+		if len(parts) != 3 || parts[0] == "" || parts[1] == "" || len(parts[2]) < minPass {
+			a.why = "the " + what + " credential file wants lines of productId:user:password with a password of at least " +
+				strconv.Itoa(minPass) + " characters"
 			a.sums = map[string][sha256.Size]byte{}
 			return a
 		}
@@ -96,6 +136,15 @@ func stagingAuthFromEnv() *stagingAuth {
 }
 
 func (a *stagingAuth) enabled() bool { return a != nil && a.why == "" && len(a.sums) > 0 }
+
+// has reports whether the route is on and holds a line for the product.
+func (a *stagingAuth) has(productID string) bool {
+	if !a.enabled() {
+		return false
+	}
+	_, ok := a.sums[productID]
+	return ok
+}
 
 // match answers which products the presented credential belongs to. Every
 // stored sum is compared in constant time, with no early exit.
@@ -110,44 +159,94 @@ func (a *stagingAuth) match(user, pass string) map[string]bool {
 	return out
 }
 
-// locked reports whether a source is locked out, and for how long.
-func (a *stagingAuth) locked(src string) (time.Duration, bool) {
+// pruneLocked drops the keys whose window and lock have both passed, logging
+// the summary of a key that refused requests it did not log.
+func (a *stagingAuth) pruneLocked(now time.Time) {
+	for k, v := range a.fails {
+		if now.Sub(v.first) > stagingWindow && !v.until.After(now) {
+			a.summaryLocked(k, v)
+			delete(a.fails, k)
+		}
+	}
+}
+
+// summaryLocked writes the one line of a lock window's unlogged refusals.
+func (a *stagingAuth) summaryLocked(key string, f stagingFails) {
+	if f.quiet > 0 && a.logf != nil {
+		src, _, _ := strings.Cut(key, "|")
+		a.logf("%s: %d refused from %s in the last 5 m", a.route, f.quiet, src)
+	}
+}
+
+// locked reports whether a key is locked out, and for how long. A refusal
+// while locked is counted, not logged.
+func (a *stagingAuth) locked(key string) (time.Duration, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	f := a.fails[src]
+	f, ok := a.fails[key]
+	if !ok {
+		return 0, false
+	}
 	if left := f.until.Sub(a.now()); left > 0 {
+		f.quiet++
+		a.fails[key] = f
 		return left, true
 	}
 	return 0, false
 }
 
-// fail records a failure for a source.
-func (a *stagingAuth) fail(src string) {
+// failResult is what fail decided: full means the map was full and the key new,
+// so nothing was counted and the request is throttled; log means this failure
+// is the key's first or its transition into a lock, and gets a line.
+type failResult struct {
+	full, log, locked bool
+}
+
+// fail records a failure for a key. Expired keys are dropped first; when the
+// map is still full a new key is not inserted (the caller answers 429), while
+// an existing key still counts.
+func (a *stagingAuth) fail(key string) failResult {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	now := a.now()
-	f := a.fails[src]
-	if f.first.IsZero() || now.Sub(f.first) > stagingWindow {
-		f = stagingFails{first: now}
-	}
-	f.n++
-	if f.n >= stagingMaxFails {
-		f.until = now.Add(stagingLock)
-	}
-	a.fails[src] = f
-	if len(a.fails) > 4096 { // bounded: forget the oldest sources
-		for k, v := range a.fails {
-			if now.Sub(v.first) > stagingWindow && v.until.Before(now) {
-				delete(a.fails, k)
-			}
+	f, ok := a.fails[key]
+	if !ok && len(a.fails) >= stagingMaxKeys {
+		a.pruneLocked(now)
+		if len(a.fails) >= stagingMaxKeys {
+			return failResult{full: true}
 		}
 	}
+	var r failResult
+	if f.first.IsZero() || (now.Sub(f.first) > stagingWindow && !f.until.After(now)) {
+		a.summaryLocked(key, f)
+		f = stagingFails{first: now}
+		r.log = true
+	}
+	f.n++
+	if f.n >= stagingMaxFails && !f.until.After(now) {
+		f.until = now.Add(stagingLock)
+		r.log, r.locked = true, true
+	}
+	if !r.log {
+		f.quiet++
+	}
+	a.fails[key] = f
+	return r
 }
 
-func (a *stagingAuth) ok(src string) {
+// ok clears one key after a success: only the credential's own product key
+// (src|route|p), never src|route, which expires on its own window (D-106).
+func (a *stagingAuth) ok(key string) {
 	a.mu.Lock()
-	delete(a.fails, src)
+	delete(a.fails, key)
 	a.mu.Unlock()
+}
+
+// failCount is how many keys the map holds (a test reads it).
+func (a *stagingAuth) failCount() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.fails)
 }
 
 func (a *stagingAuth) seen(product string) {
@@ -167,17 +266,143 @@ func (a *stagingAuth) LastCallback(product string) (time.Time, bool) {
 	return t, ok
 }
 
-// stagingSource is the address a failure is counted against: the peer, and the
-// first X-Forwarded-For hop when the edge supplies one.
-func stagingSource(r *http.Request) string {
-	src := r.RemoteAddr
-	if i := strings.LastIndex(src, ":"); i > 0 {
-		src = src[:i]
+// jenkinsSource is the address a Basic route's failure is counted against
+// (D-106 §5.4, a fix to D-088's gate): the X-Real-IP header the edge sets from
+// $remote_addr when it parses as an address; else the rightmost X-Forwarded-For
+// hop that is not loopback, private or link-local (the hop the edge appended,
+// never the caller's first); else the peer. An IPv4 address is kept whole, an
+// IPv6 address becomes its /64, as the edge's own limiter keys it, so a caller
+// holding a /64 cannot rotate into fresh buckets.
+func jenkinsSource(r *http.Request) string {
+	if a, ok := parseSourceAddr(r.Header.Get("X-Real-IP")); ok {
+		return normSource(a)
 	}
-	if x := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); x != "" {
-		src += "|" + x
+	if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+		hops := strings.Split(strings.Join(xff, ","), ",")
+		for i := len(hops) - 1; i >= 0; i-- {
+			a, ok := parseSourceAddr(hops[i])
+			if !ok || a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() || a.IsUnspecified() {
+				continue
+			}
+			return normSource(a)
+		}
 	}
-	return src
+	if ap, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
+		return normSource(ap.Addr())
+	}
+	if a, ok := parseSourceAddr(r.RemoteAddr); ok {
+		return normSource(a)
+	}
+	return "unknown"
+}
+
+func parseSourceAddr(s string) (netip.Addr, bool) {
+	a, err := netip.ParseAddr(strings.TrimSpace(s))
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	return a.Unmap().WithZone(""), true
+}
+
+func normSource(a netip.Addr) string {
+	if a.Is4() {
+		return a.String()
+	}
+	p, err := a.Prefix(64)
+	if err != nil {
+		return a.String()
+	}
+	return p.String()
+}
+
+// jenkinsGate is the prelude of the two Basic routes, the staging callback and
+// the unit results (D-088, D-106 §5.4), in the order of rev 17:
+//
+//  1. X-Forwarded-Prefix set and not /api: 404 (BR-52);
+//  2. the route is off: 503 with off as the code;
+//  3. src|route locked: 429 (no product is known yet; the path id is never consulted);
+//  4. no credential, or one that matches nothing: 401, a failure against src|route;
+//  5. the credential's product p: src|route|p locked is 429; p not the path id
+//     is 404, a failure against src|route|p (never the path's id);
+//  6. otherwise only src|route|p is cleared.
+//
+// A full failure map answers 429 for a key it cannot hold. It answers the path's
+// product id when the caller may proceed.
+func (s *server) jenkinsGate(w http.ResponseWriter, r *http.Request, a *stagingAuth, off string) (string, bool) {
+	if p := r.Header.Get("X-Forwarded-Prefix"); p != "" && p != "/api" {
+		apiErr(w, http.StatusNotFound, "not-found", "no such route")
+		return "", false
+	}
+	if !a.enabled() {
+		msg := "the staging callback is not configured"
+		if a != nil && a.route == routeUnitResults {
+			msg = "the unit-results route is not configured"
+		}
+		apiErr(w, http.StatusServiceUnavailable, off, msg)
+		return "", false
+	}
+	src := jenkinsSource(r)
+	routeKey := src + "|" + a.route
+	throttled := func(left time.Duration) {
+		w.Header().Set("Retry-After", strconv.Itoa(int(left.Seconds())+1))
+		apiErr(w, http.StatusTooManyRequests, "throttled", "too many failed attempts")
+	}
+	counted := func(key string, status int, code string) bool {
+		fr := a.fail(key)
+		if fr.full {
+			throttled(stagingLock - time.Second)
+			return false
+		}
+		if fr.log && a.logf != nil {
+			line := fmt.Sprintf("%s: - - from %s %d %s", a.route, src, status, code)
+			if fr.locked {
+				line += " (locked for 5 m)"
+			}
+			a.logf("%s", line)
+		}
+		return true
+	}
+	if left, locked := a.locked(routeKey); locked {
+		throttled(left)
+		return "", false
+	}
+	user, pass, ok := r.BasicAuth()
+	owners := map[string]bool{}
+	if ok {
+		owners = a.match(user, pass)
+	}
+	if !ok || len(owners) == 0 {
+		if counted(routeKey, http.StatusUnauthorized, "unauthorized") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="gaos"`)
+			apiErr(w, http.StatusUnauthorized, "unauthorized", "a credential is required")
+		}
+		return "", false
+	}
+	id := r.PathValue("id")
+	p := id
+	if !owners[id] {
+		// The credential's own product: the smallest, so one credential is one key.
+		ids := make([]string, 0, len(owners))
+		for o := range owners {
+			ids = append(ids, o)
+		}
+		sort.Strings(ids)
+		p = ids[0]
+	}
+	prodKey := routeKey + "|" + p
+	if left, locked := a.locked(prodKey); locked {
+		throttled(left)
+		return "", false
+	}
+	if p != id {
+		// Valid, but for another product: the answer must not say which exist.
+		if counted(prodKey, http.StatusNotFound, "not-found") {
+			apiErr(w, http.StatusNotFound, "not-found", "no such product")
+		}
+		return "", false
+	}
+	a.ok(prodKey)
+	return id, true
 }
 
 // A full commit id, 40 hex (sha1) or 64 (sha256): a short one would key two
@@ -194,40 +419,11 @@ type stagingBody struct {
 
 // apiStaging is POST /v1/products/{id}/staging.
 func (s *server) apiStaging(w http.ResponseWriter, r *http.Request) {
-	if p := r.Header.Get("X-Forwarded-Prefix"); p != "" && p != "/api" {
-		apiErr(w, http.StatusNotFound, "not-found", "no such route")
-		return
-	}
 	a := s.staging
-	if !a.enabled() {
-		apiErr(w, http.StatusServiceUnavailable, "staging-off", "the staging callback is not configured")
+	id, ok := s.jenkinsGate(w, r, a, "staging-off")
+	if !ok {
 		return
 	}
-	src := stagingSource(r)
-	if left, locked := a.locked(src); locked {
-		w.Header().Set("Retry-After", strconv.Itoa(int(left.Seconds())+1))
-		apiErr(w, http.StatusTooManyRequests, "throttled", "too many failed attempts")
-		return
-	}
-	user, pass, ok := r.BasicAuth()
-	owners := map[string]bool{}
-	if ok {
-		owners = a.match(user, pass)
-	}
-	if !ok || len(owners) == 0 {
-		a.fail(src)
-		w.Header().Set("WWW-Authenticate", `Basic realm="gaos"`)
-		apiErr(w, http.StatusUnauthorized, "unauthorized", "a credential is required")
-		return
-	}
-	id := r.PathValue("id")
-	if !owners[id] {
-		// Valid, but for another product: the answer must not say which exist.
-		a.fail(src)
-		apiErr(w, http.StatusNotFound, "not-found", "no such product")
-		return
-	}
-	a.ok(src)
 
 	var b stagingBody
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))

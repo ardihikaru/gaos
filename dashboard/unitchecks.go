@@ -82,6 +82,16 @@ type UnitWatch struct {
 	Outcome   string
 	DefectKey string // set when the outcome filed or touched a defect
 	DoneAt    int64  // set when State becomes done
+
+	// D-106 (schema 22): a result Jenkins posted. RunURL is its build link
+	// (https, screened, else empty), PostedFrom the caller's address as the gate
+	// keyed it (never the credential), PostedResult what it posted (passed,
+	// failed or build-failed). ConflictNoticeSent: the "conflicting unit result"
+	// notice of this watch was sent, so later conflicting posts are only logged.
+	RunURL             string
+	PostedFrom         string
+	PostedResult       string
+	ConflictNoticeSent bool
 }
 
 // unitWatchKey is a watch's vertex id.
@@ -123,6 +133,8 @@ func unitIsExtraBase(u UnitChecks, base string) bool {
 // validateUnitChecks is SetUnitChecks's refusals that need no product (§4.1).
 func validateUnitChecks(u UnitChecks) error {
 	switch {
+	case u.Source != "" && u.Source != unitSourceGitHub && u.Source != unitSourceJenkins:
+		return reject("The source is GitHub Actions or Jenkins.")
 	case u.DailyCap < 0 || u.DailyCap > unitCapMax:
 		return reject("The daily cap is 1 to 20.")
 	case len(u.Bases) > unitMaxBases:
@@ -181,6 +193,11 @@ func (s *MemStore) SetUnitChecks(ctx context.Context, productID string, u UnitCh
 	alias := actorAlias(actor)
 	text := fmt.Sprintf("%s: unit checks %s (%s, %s, bases %s, cap %d)", s.productName(productID), onOff(u.Enabled),
 		u.WorkflowPath(), u.Name(), reasonList(u.Bases), u.Cap())
+	if u.SourceName() == unitSourceJenkins {
+		// The workflow and the check are kept, but not in force (D-106).
+		text = fmt.Sprintf("%s: unit checks %s (jenkins, bases %s, cap %d)", s.productName(productID), onOff(u.Enabled),
+			reasonList(u.Bases), u.Cap())
+	}
 	ev := s.emit(RecordUpdated, productID, text, KindInfo, EventPayload{Actor: alias, Rule: "unit-checks"})
 	c := m.Clone()
 	return Result{Master: &c, NewEvents: []Event{ev}, Toast: "Unit checks saved."}, nil
@@ -295,6 +312,50 @@ func (s *ArcadeStore) UnitWatches(ctx context.Context, productID string) ([]Unit
 }
 
 func (readOnly) UnitWatches(context.Context, string) ([]UnitWatch, error) { return nil, nil }
+
+// UnitWatch is one watch by its key, as a copy (D-106: the unit-results route).
+func (s *MemStore) UnitWatch(ctx context.Context, key string) (UnitWatch, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	w, ok := s.unitWatches[strings.ToLower(key)]
+	return w, ok, nil
+}
+
+func (s *ArcadeStore) UnitWatch(ctx context.Context, key string) (UnitWatch, bool, error) {
+	return s.proj.UnitWatch(ctx, key)
+}
+
+func (readOnly) UnitWatch(context.Context, string) (UnitWatch, bool, error) {
+	return UnitWatch{}, false, nil
+}
+
+// MarkUnitWatchConflict records that a done watch's "conflicting unit result"
+// notice is being sent (D-106, §5.4 state 6c): the first conflicting post sets
+// it and sends; later ones find it set and are only logged. Result.UnitWatches
+// is empty when it was already set. No event: bookkeeping, like MarkUnitNotice.
+func (s *MemStore) MarkUnitWatchConflict(ctx context.Context, key string) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key = strings.ToLower(key)
+	w, ok := s.unitWatches[key]
+	if !ok {
+		return Result{}, ErrNotFound
+	}
+	if w.ConflictNoticeSent {
+		return Result{}, nil
+	}
+	w.ConflictNoticeSent = true
+	s.unitWatches[key] = w
+	return Result{UnitWatches: []UnitWatch{w}}, nil
+}
+
+func (s *ArcadeStore) MarkUnitWatchConflict(ctx context.Context, key string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.MarkUnitWatchConflict(ctx, key) })
+}
+
+func (readOnly) MarkUnitWatchConflict(context.Context, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
 
 // PruneUnitWatches deletes the done watches that ended before before (§4.2).
 func (s *MemStore) PruneUnitWatches(ctx context.Context, before int64) (Result, error) {

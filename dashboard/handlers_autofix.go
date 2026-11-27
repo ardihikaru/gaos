@@ -200,6 +200,12 @@ func (s *server) handleSaveUnitChecks(w http.ResponseWriter, r *http.Request) {
 	}
 	u := UnitChecks{Enabled: formBool(r.PostFormValue("enabled")), Workflow: strings.TrimSpace(r.PostFormValue("workflow")),
 		CheckName: strings.TrimSpace(r.PostFormValue("checkName")), Bases: formLines(r.PostFormValue("bases"))}
+	// D-106: the source. An older form without the field keeps the stored one.
+	if _, ok := r.PostForm["source"]; ok {
+		u.Source = strings.TrimSpace(r.PostFormValue("source"))
+	} else if m, err := s.store.Master(r.Context(), id); err == nil {
+		u.Source = m.UnitChecks.Source
+	}
 	if v := strings.TrimSpace(r.PostFormValue("dailyCap")); v != "" {
 		u.DailyCap = atoiDefault(v, -1)
 	}
@@ -209,6 +215,8 @@ func (s *server) handleSaveUnitChecks(w http.ResponseWriter, r *http.Request) {
 		err = reject("GitHub is not configured; unit checks need it.")
 	case u.Enabled && s.btConsumer == nil:
 		err = reject("Brain Town is not connected; no merge would reach GAOS.")
+	case u.Enabled && u.SourceName() == unitSourceJenkins && !s.unitResults.has(id):
+		err = reject("No Jenkins credential for this product; add it to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.")
 	}
 	var res Result
 	if err == nil {

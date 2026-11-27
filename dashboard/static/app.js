@@ -91,6 +91,17 @@
   }
   document.addEventListener("input", clearSaved);
 
+  /* The unit checks' result source (D-106 §4.3): the fields of the source not
+     selected are hidden. A field swap, so no transition; without JavaScript
+     the blocks stay as rendered for the saved source. */
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest && e.target.closest("select[data-unit-source]");
+    if (!sel || !sel.form) return;
+    sel.form.querySelectorAll("[data-unit-src]").forEach(function (b) {
+      b.hidden = b.getAttribute("data-unit-src") !== sel.value;
+    });
+  });
+
   /* ---------- keyboard ---------- */
   document.addEventListener("keydown", function (e) {
     var tag = (e.target.tagName || "").toUpperCase();

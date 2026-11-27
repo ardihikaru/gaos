@@ -55,6 +55,8 @@ server {
         limit_req zone=gaos_docs_api  burst=20  nodelay;
         limit_req zone=gaos_docs_all  burst=100 nodelay;
         limit_req zone=gaos_docs_page burst=60  nodelay;
+        # The two Basic machine routes (staging, unit results; D-106); zone in gaos.conf.
+        limit_req zone=gaos_machine_basic burst=10 nodelay;
         limit_req_status 429;
         limit_conn gaos_docs_conn 20;
         limit_conn_status 429;

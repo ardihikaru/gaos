@@ -2,7 +2,8 @@ package main
 
 import "context"
 
-// The UnitWatch vertex (schema/21-unit-checks.sql, D-105): written in the transaction of the
+// The UnitWatch vertex (schema/21-unit-checks.sql, D-105; the posted result's
+// properties are schema/22-unit-results.sql, D-106): written in the transaction of the
 // change that touched it, read once at boot. Never folded from the event stream.
 
 func (s *ArcadeStore) writeUnitWatch(ctx context.Context, tx *ArcadeTx, w UnitWatch) error {
@@ -11,6 +12,8 @@ func (s *ArcadeStore) writeUnitWatch(ctx context.Context, tx *ArcadeTx, w UnitWa
 		"mergedAt": w.MergedAt, "firstSeen": w.FirstSeen, "nextAt": w.NextAt, "doneAt": w.DoneAt,
 		"tries": w.Tries, "reads": w.Reads, "state": w.State, "outcome": nilIfEmpty(w.Outcome),
 		"defectKey": w.DefectKey,
+		"runUrl":    w.RunURL, "postedFrom": w.PostedFrom, "postedResult": nilIfEmpty(w.PostedResult),
+		"conflictNoticeSent": w.ConflictNoticeSent,
 	})
 }
 
@@ -36,10 +39,14 @@ func (s *ArcadeStore) loadUnitWatches(ctx context.Context) ([]UnitWatch, error) 
 		State     string `json:"state"`
 		Outcome   string `json:"outcome"`
 		DefectKey string `json:"defectKey"`
+		RunURL    string `json:"runUrl"`
+		From      string `json:"postedFrom"`
+		Posted    string `json:"postedResult"`
+		Conflict  bool   `json:"conflictNoticeSent"`
 	}
 	if err := s.arc.Query(ctx,
 		`SELECT id, productId, repo, pr, sha, base, mergedAt, firstSeen, nextAt, doneAt, tries, reads,
-		        state, outcome, defectKey
+		        state, outcome, defectKey, runUrl, postedFrom, postedResult, conflictNoticeSent
 		 FROM UnitWatch WHERE tenantId = :t ORDER BY id`,
 		map[string]any{"t": s.tenant}, &rows); err != nil {
 		return nil, err
@@ -48,7 +55,8 @@ func (s *ArcadeStore) loadUnitWatches(ctx context.Context) ([]UnitWatch, error) 
 	for _, r := range rows {
 		out = append(out, UnitWatch{Key: r.ID, ProductID: r.ProductID, Repo: r.Repo, PR: r.PR, SHA: r.SHA,
 			Base: r.Base, MergedAt: r.MergedAt, FirstSeen: r.FirstSeen, NextAt: r.NextAt, DoneAt: r.DoneAt,
-			Tries: r.Tries, Reads: r.Reads, State: r.State, Outcome: r.Outcome, DefectKey: r.DefectKey})
+			Tries: r.Tries, Reads: r.Reads, State: r.State, Outcome: r.Outcome, DefectKey: r.DefectKey,
+			RunURL: r.RunURL, PostedFrom: r.From, PostedResult: r.Posted, ConflictNoticeSent: r.Conflict})
 	}
 	return out, nil
 }

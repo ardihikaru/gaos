@@ -442,6 +442,10 @@ func (s *server) registerAPI(handle func(string, http.HandlerFunc)) {
 	// D-088: Basic, per product, its own gate (staging.go). BR-52/BR-55 are
 	// amended for this one route.
 	handle("POST /v1/products/{id}/staging", s.apiStaging)
+	// D-106: Jenkins posts a merge build's unit-test result. Basic, per product,
+	// its own credential file, the staging callback's gate (jenkinsGate); BR-52
+	// names the two Basic routes, and TC-878 lists them by name.
+	handle("POST /v1/products/{id}/unit-results", s.apiUnitResults)
 	// D-103 §4.1: the QA tool asks before it auto-merges an approved spec.
 	handle("GET /v1/products/{id}/spec-auto-merge", s.apiSpecAutoMerge)
 	// D-099: the external-tasks API, for a client with the tasks capability.

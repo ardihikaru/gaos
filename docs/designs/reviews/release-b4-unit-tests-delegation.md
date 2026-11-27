@@ -17,6 +17,12 @@ changes, so the anchor exists before any code is written.
 
   > for this: ``` Partly done: the two auto-merge rulesets. They can't be created. GitHub answered "Upgrade to GitHub Pro or make this repository public" for the private [product] automation repository.``` . then, it is okay, set default auto merge as false then. then work among agents to decide the final decision. deep analysis. then apply it: ``` […] ``` . update docs as well. once done, make pr, merge to main. push. deploy latest
 
+- **Third message, the same day, same channel**, after v0.67.0 was deployed and the
+  repository's GitHub Actions run could not start (the organisation's billing). Verbatim,
+  with the private product name replaced by `[product]` (D-085):
+
+  > (1) `Fix the org's GitHub billing, then re-run the check on #4964.` - we dont care this. since we are using jenkins for the CI/CD. so we DONT need this PR `Merge #4964`. close it. (2) add this information properly in the platform `If tests that need a database fail, guard them with -short.`. explisitly tell with proper UI. also, work on this: `Switch Unit tests on in the [product] Auto-fix page`.
+
 ## What it delegates
 
 1. The approval of the unit-test design, after the design gate's rounds leave no
@@ -28,6 +34,11 @@ changes, so the anchor exists before any code is written.
    GAOS reads the repository's own GitHub Actions workflow run on the merge commit and
    executes nothing — and its implementation, pull request, merge and deployment. Spec
    auto-merge stays off by default (`QA_SPEC_AUTO_MERGE` unset, `autoMergeSpecs` false).
+4. (third message, read with the first) Rev 14–17 of the design: Jenkins as a second
+   result source (D-106), the "Before you switch this on" checklist with the `-short`
+   rule on the Auto-fix page, their approval after the security rounds leave no Blocker
+   and no Critical or High finding, the release v0.68.0 and its deployment, and turning
+   Unit tests on for the product with the Jenkins source.
 
 ## What the operator is told in the final summary
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -546,5 +547,285 @@ func TestUnitChecksRouteAndSection(t *testing.T) {
 	}
 	if strings.Contains(body, "Saved. The next merge") {
 		t.Error("a plain read shows the Saved line")
+	}
+}
+
+// TC-871
+func TestUnitSourceIsSavedAndValidated(t *testing.T) {
+	ctx := context.Background()
+	s, pid := unitStore(t)
+	// Only the two sources, or empty.
+	for _, src := range []string{"gitlab", "Jenkins", "github"} {
+		if _, err := s.SetUnitChecks(ctx, pid, UnitChecks{Source: src}, testEmail); err == nil || err.Error() != "The source is GitHub Actions or Jenkins." {
+			t.Errorf("the source %q answered %v; want The source is GitHub Actions or Jenkins.", src, err)
+		}
+	}
+	// Empty reads as github-actions, and the event names the workflow and the check.
+	res, err := s.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Workflow: ".github/workflows/go.yml", CheckName: "go test"}, testEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := masterOf(t, s, pid).UnitChecks; u.Source != "" || u.SourceName() != unitSourceGitHub {
+		t.Errorf("an empty source saved %q and reads %q; want github-actions", u.Source, u.SourceName())
+	}
+	if want := "unit checks on (.github/workflows/go.yml, go test, bases -, cap 5)"; len(res.NewEvents) != 1 || !strings.Contains(res.NewEvents[0].Text, want) {
+		t.Errorf("the github-actions event reads %v; want %q", res.NewEvents, want)
+	}
+	// Jenkins: the workflow and the check are kept, not in force, and not in the event.
+	res, err = s.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceJenkins, Workflow: ".github/workflows/go.yml",
+		CheckName: "go test", Bases: []string{"staging"}}, testEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := masterOf(t, s, pid).UnitChecks
+	if u.SourceName() != unitSourceJenkins || u.Workflow != ".github/workflows/go.yml" || u.CheckName != "go test" {
+		t.Errorf("the jenkins save is %+v; want the source and the workflow and check kept", u)
+	}
+	if want := "unit checks on (jenkins, bases staging, cap 5)"; len(res.NewEvents) != 1 || !strings.Contains(res.NewEvents[0].Text, want) ||
+		strings.Contains(res.NewEvents[0].Text, "go.yml") {
+		t.Errorf("the jenkins event reads %v; want %q", res.NewEvents, want)
+	}
+	// Switching back restores the workflow and the check.
+	if _, err := s.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceGitHub, Workflow: u.Workflow, CheckName: u.CheckName}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if u := masterOf(t, s, pid).UnitChecks; u.SourceName() != unitSourceGitHub || u.WorkflowPath() != ".github/workflows/go.yml" || u.Name() != "go test" {
+		t.Errorf("switching back reads %+v (workflow %s, check %s)", u, u.WorkflowPath(), u.Name())
+	}
+	// A bad workflow is refused whatever the source.
+	if _, err := s.SetUnitChecks(ctx, pid, UnitChecks{Source: unitSourceJenkins, Workflow: "ci/unit.yml"}, testEmail); err == nil ||
+		err.Error() != "The workflow is a file under .github/workflows/." {
+		t.Errorf("a bad workflow under jenkins answered %v", err)
+	}
+	// A GitHub run id is never 0: a posted result's run reads @jenkins.
+	if got := unitRunRef(ucSHA, 0); got != idSHA(ucSHA)+"@jenkins" {
+		t.Errorf("the run ref of a posted result is %q", got)
+	}
+	if got := unitRunRef(ucSHA, 42); got != idSHA(ucSHA)+"@42" {
+		t.Errorf("the run ref of a workflow run is %q", got)
+	}
+}
+
+// TC-872
+func TestAJenkinsResultSurvivesARestart(t *testing.T) {
+	arc := arcadeTestTarget(t)
+	ctx := t.Context()
+	tenant := "conf-unit-jenkins"
+	first := newArcadeTestStore(t, arc, tenant)
+	pid := "p-1"
+	repo := "loop/laundry-api"
+	if _, err := first.SetAutoFix(ctx, pid, AutoFix{Enabled: true, TargetRepos: []string{repo}}, "ops", tokenKindFine); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.SetAssigned(ctx, pid, []string{"a-12", "a-13"}, true, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceJenkins}, testEmail); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.PlantUnitWatch(ctx, pid, UnitWatch{Repo: repo, PR: 3, SHA: ucSHA, Base: "develop", MergedAt: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	key := unitWatchKey(pid, repo, ucSHA)
+	in := UnitDefectIn{Total: 2, Failing: []unitFailure{{Test: "TestTotal", File: "pkg/records/total_test.go"}}}
+	from := UnitPosted{RunURL: "https://jenkins.acme.example/job/route-api/job/develop/42/", From: "198.51.100.7", Result: UnitFailed}
+	res, err := first.FinishUnitWatchFrom(ctx, key, UnitFailed, &in, nil, from)
+	if err != nil || len(res.Defects) != 1 || len(res.NewEvents) == 0 {
+		t.Fatalf("finish from jenkins: %+v %v", res, err)
+	}
+	for _, e := range res.NewEvents {
+		if e.Payload.Actor != "jenkins:"+pid {
+			t.Errorf("the event %s carries the actor %q; want jenkins:%s", e.Type, e.Payload.Actor, pid)
+		}
+	}
+	dkey := res.Defects[0].Key
+	if r, err := first.MarkUnitWatchConflict(ctx, key); err != nil || len(r.UnitWatches) != 1 {
+		t.Fatalf("mark conflict: %+v %v", r, err)
+	}
+	if r, err := first.MarkUnitWatchConflict(ctx, key); err != nil || len(r.UnitWatches) != 0 {
+		t.Errorf("a second conflict mark changed the watch: %+v %v", r, err)
+	}
+	// An event after the posted finish has no jenkins actor: the override ends with the call.
+	res2, err := first.SetUnitChecks(ctx, pid, UnitChecks{Enabled: true, Source: unitSourceJenkins, DailyCap: 4}, testEmail)
+	if err != nil || len(res2.NewEvents) != 1 || res2.NewEvents[0].Payload.Actor != "ardi" {
+		t.Errorf("the next event's actor is %+v %v; want ardi", res2.NewEvents, err)
+	}
+	second, err := NewArcadeStoreFor(ctx, arc, 1, tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := masterOf(t, second, pid).UnitChecks; u.Source != unitSourceJenkins || u.SourceName() != unitSourceJenkins {
+		t.Errorf("the source came back as %q", u.Source)
+	}
+	w, ok, err := second.UnitWatch(ctx, key)
+	if err != nil || !ok {
+		t.Fatalf("the watch did not come back: %v %v", ok, err)
+	}
+	if w.State != UnitWatchDone || w.Outcome != UnitFailed || w.RunURL != from.RunURL || w.PostedFrom != from.From ||
+		w.PostedResult != UnitFailed || !w.ConflictNoticeSent || w.DefectKey != dkey {
+		t.Errorf("the posted watch came back as %+v", w)
+	}
+	if d := defectOf(t, second, pid, dkey); d.RunRef != idSHA(ucSHA)+"@jenkins" {
+		t.Errorf("the defect's run ref came back as %q; want %s@jenkins", d.RunRef, idSHA(ucSHA))
+	}
+	if _, ok, _ := second.UnitWatch(ctx, unitWatchKey(pid, repo, ucSHA2)); ok {
+		t.Error("an unknown watch was found")
+	}
+}
+
+// unitPage renders the Auto-fix page filtered to the product.
+func unitPage(t *testing.T, srv *server, pid string) string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/ui/bo/autofix?product="+pid, nil)
+	for _, c := range boCookies() {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the Auto-fix page answered %d", rec.Code)
+	}
+	return rec.Body.String()
+}
+
+// TC-881
+func TestTheUnitSectionShowsTheChecklistAndTheSource(t *testing.T) {
+	ctx := context.Background()
+	s, pid := unitStore(t)
+	srv, _ := newTestServer(t)
+	srv.store = s
+	srv.codeSrc, srv.btConsumer = fakeCode{}, &btConsumer{}
+	// Off, GitHub Actions: the checklist in full, the GitHub block shown, the Jenkins one hidden.
+	body := unitPage(t, srv, pid)
+	for _, want := range []string{
+		`<div class="af-note" role="note" aria-labelledby="unit-ready-` + pid + `">`,
+		`<b id="unit-ready-` + pid + `">Before you switch this on</b>`,
+		`href="../docs/integrations/agents.html#release-b-unit-short"`,
+		"Your CI runs the unit tests on every merge to the unit bases (the repository&#39;s default branch).",
+		"Tests that need a database, the network or another service are skipped under <code>go test -short</code>",
+		"    if testing.Short() {\n        t.Skip(\"needs a database\")\n    }",
+		`<a href="../docs/integrations/agents.html#release-b-unit-workflow" target="_blank" rel="noopener">the GitHub Actions workflow</a>`,
+		`<div data-unit-src="github-actions">`,
+		`<div data-unit-src="jenkins" hidden>`,
+		`<option value="github-actions" selected>`,
+		"No Jenkins credential for this product: add a line to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("off, GitHub Actions: the section lacks %q", want)
+		}
+	}
+	if strings.Count(body, "<li>") < 3 || !strings.Contains(body, `<div class="kind-row"><span class="kind-warn">No Jenkins credential`) {
+		t.Errorf("the checklist lacks its three items or the missing credential is not in a kind-row")
+	}
+	// The unit bases the checklist names: three cases.
+	for _, c := range []struct {
+		base  string
+		bases []string
+		want  string
+	}{
+		{"develop", nil, "develop"},
+		{"develop", []string{"staging", "main", "develop"}, "develop, staging, main"},
+		{"", []string{"staging"}, "the repository's default branch, staging"},
+	} {
+		m := Master{AutoFix: AutoFix{BaseBranch: c.base}, UnitChecks: UnitChecks{Bases: c.bases}}
+		if got, items := unitBaseList(m); got != c.want || len(items) == 0 || items[0].Code != (c.base != "") {
+			t.Errorf("base %q, bases %v: the list reads %q %+v; want %q", c.base, c.bases, got, items, c.want)
+		}
+	}
+	// Turning Jenkins on without a unit-results credential is refused.
+	autoFixAdminsFile(t, 0o600, testEmail)
+	path := "/products/" + pid + "/autofix/unit"
+	if w := formPost(t, srv, path, "enabled=on&source=jenkins", true); w.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(w.Body.String(), "No Jenkins credential for this product; add it to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.") {
+		t.Errorf("enabling Jenkins without a credential answered %d %s", w.Code, w.Body.String())
+	}
+	// With the credential, saved on, Jenkins: one line, the Jenkins block shown, the credential configured.
+	cred := filepath.Join(t.TempDir(), "unit-results")
+	if err := os.WriteFile(cred, []byte(pid+":jenkins-p1:"+urPass1+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GAOS_UNIT_RESULTS_BASIC_AUTH_FILE", cred)
+	srv.unitResults = unitResultsAuthFromEnv()
+	if w := formPost(t, srv, path, "enabled=on&source=jenkins&workflow=.github%2Fworkflows%2Fgo.yml", true); w.Code != http.StatusOK {
+		t.Fatalf("enabling Jenkins with a credential answered %d %s", w.Code, w.Body.String())
+	}
+	// An older form without the field keeps the stored source.
+	if w := formPost(t, srv, path, "enabled=on&dailyCap=4", true); w.Code != http.StatusOK || masterOf(t, s, pid).UnitChecks.Source != unitSourceJenkins {
+		t.Errorf("a save without the source field answered %d and left the source %q", w.Code, masterOf(t, s, pid).UnitChecks.Source)
+	}
+	// The last result: a no-ci in Jenkins' words, and a build link only for the configured origin.
+	if _, err := s.PlantUnitWatch(ctx, pid, UnitWatch{Repo: defRepo, SHA: ucSHA, Base: "develop", State: UnitWatchDone, Outcome: UnitNoCI, DoneAt: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	body = unitPage(t, srv, pid)
+	for _, want := range []string{
+		"on · Jenkins · cap 4 a day",
+		"Tests that need a database or the network are skipped under <code>go test -short</code>.",
+		`<div data-unit-src="jenkins">`,
+		`<div data-unit-src="github-actions" hidden>`,
+		`<option value="jenkins" selected>`,
+		"Jenkins posts to <code>POST /api/v1/products/" + pid + "/unit-results</code>",
+		"The product's unit-results credential is configured.",
+		"no result from Jenkins; nothing filed",
+		"the Jenkins stage installed with the product's credential.",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("on, Jenkins: the section lacks %q", want)
+		}
+	}
+	if strings.Contains(body, "Before you switch this on") || strings.Contains(body, "No Jenkins credential for this product") {
+		t.Error("on, Jenkins: the full checklist or the missing-credential line is still shown")
+	}
+	if strings.Contains(body, "no check run found") {
+		t.Error("the no-ci wording is GitHub's under Jenkins")
+	}
+	runURL := "https://jenkins.acme.example/job/route-api/job/develop/42/"
+	if _, err := s.PlantUnitWatch(ctx, pid, UnitWatch{Repo: defRepo, SHA: ucSHA2, Base: "develop", State: UnitWatchDone,
+		Outcome: UnitPassed, DoneAt: 2000}); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	w := s.unitWatches[unitWatchKey(pid, defRepo, ucSHA2)]
+	w.RunURL = runURL
+	s.unitWatches[w.Key] = w
+	s.mu.Unlock()
+	link := `<a href="` + runURL + `" target="_blank" rel="noopener noreferrer">Jenkins build</a>`
+	if body := unitPage(t, srv, pid); strings.Contains(body, link) || !strings.Contains(body, `<span class="mono">`+runURL+`</span>`) {
+		t.Errorf("with no origin configured the build is a link, or not shown as text")
+	}
+	srv.jenkinsOrigin = "https://jenkins.acme.example"
+	if body := unitPage(t, srv, pid); !strings.Contains(body, link) {
+		t.Errorf("with its origin configured the build is not a link")
+	}
+	srv.jenkinsOrigin = "https://other.acme.example"
+	if body := unitPage(t, srv, pid); strings.Contains(body, link) {
+		t.Errorf("a build of another origin is a link")
+	}
+	// GAOS_JENKINS_ORIGIN: an https origin and nothing more.
+	for raw, want := range map[string]string{
+		"https://Jenkins.Acme.example":      "https://jenkins.acme.example",
+		"https://jenkins.acme.example:8443": "https://jenkins.acme.example:8443",
+		"https://jenkins.acme.example/":     "https://jenkins.acme.example",
+		"http://jenkins.acme.example":       "",
+		"https://jenkins.acme.example/job":  "",
+		"https://u:p@jenkins.acme.example":  "",
+		"https://jenkins.acme.example?x=1":  "",
+		"jenkins.acme.example":              "",
+	} {
+		if got, _ := parseJenkinsOrigin(raw); got != want {
+			t.Errorf("the origin %q reads %q; want %q", raw, got, want)
+		}
+	}
+	// Back to GitHub Actions, the item-3 link and the no-ci words follow the saved source.
+	if w := formPost(t, srv, path, "source=github-actions", true); w.Code != http.StatusOK {
+		t.Fatalf("switching back answered %d", w.Code)
+	}
+	s.mu.Lock()
+	delete(s.unitWatches, unitWatchKey(pid, defRepo, ucSHA2))
+	s.mu.Unlock()
+	body = unitPage(t, srv, pid)
+	if !strings.Contains(body, "#release-b-unit-workflow") || strings.Contains(body, `#release-b-unit-jenkins"`) ||
+		!strings.Contains(body, "no check run found; nothing filed") {
+		t.Errorf("after switching back the checklist links or the no-ci words are Jenkins'")
 	}
 }
