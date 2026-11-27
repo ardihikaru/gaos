@@ -157,13 +157,13 @@ on_traffic=0
 for svc in $(awk '/^services:/ {f = 1; next} f && /^[a-z]/ {f = 0} f && /^  [a-z][a-z0-9_-]*:$/ {sub(/:$/, ""); sub(/^  /, ""); print}' $PROD); do
   svcblock "$svc" | grep -qF traffic && on_traffic=$((on_traffic + 1))
 done
-if inblock redis 'traffic: {ipv4_address: 172.30.14.2}' \
+if inblock redis 'traffic: {ipv4_address: 172.30.40.2}' \
    && notinblockre redis '^[[:space:]]+internal' \
    && notinblock redis 'network_mode' \
    && inblock traffic 'name: gaos-prod-traffic' \
    && inblock traffic 'internal: true' \
-   && inblock traffic 'subnet: 172.30.14.0/29' \
-   && inblock traffic 'ip_range: 172.30.14.4/30' \
+   && inblock traffic 'subnet: 172.30.40.0/29' \
+   && inblock traffic 'ip_range: 172.30.40.4/30' \
    && [ "$on_traffic" = 2 ]; then
   ok "prod's Redis is on the internal traffic network only, at its pinned address outside the dynamic range"
 else
@@ -175,7 +175,7 @@ else
   bad "prod's Redis has an authenticated healthcheck"
 fi
 if inblock dashboard 'networks: [internal, traffic]' \
-   && grep -qF 'GAOS_REDIS_ADDR: "172.30.14.2:6379"' $PROD \
+   && grep -qF 'GAOS_REDIS_ADDR: "172.30.40.2:6379"' $PROD \
    && grep -qF 'GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"' $PROD \
    && inblock dashboard './prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro'; then
   ok "prod's dashboard joins the traffic network and reaches Redis by address, with the shared password file"

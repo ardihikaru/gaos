@@ -24,20 +24,20 @@ networks:
     # PINNED. The subnet has to be nameable to reason about traefik.yml's
     # trustedIPs, and an unpinned bridge takes whatever 172.x is free that day.
     # 172.30.10/11 belong to the neighbouring product; .12 and .13 are ours;
-    # .14 is the traffic network.
+    # 172.30.40.0/29 is the traffic network (A3: .14 is taken on the office prod VM).
     ipam:
       config:
         - subnet: 172.30.12.0/24
   # D-107: the dashboard and the traffic store, nothing else. internal: no route out.
   # PINNED: Redis has the fixed address .2; dynamic endpoints (the dashboard) get .4-.7
-  # only, so they can never take it. 172.30.14.0/29 is GAOS's, beside .12 and .13.
+  # only, so they can never take it. 172.30.40.0/29 is GAOS's; .14 is taken on the office prod VM (A3).
   traffic:
     name: gaos-prod-traffic
     internal: true
     ipam:
       config:
-        - subnet: 172.30.14.0/29
-          ip_range: 172.30.14.4/30
+        - subnet: 172.30.40.0/29
+          ip_range: 172.30.40.4/30
 
 
 services:
@@ -218,8 +218,8 @@ services:
       GAOS_TASKMGR_AUTH_FILE: "/run/secrets/pr-taskmgr-auth"
       GAOS_TASKMGR_CA_FILE: "/run/secrets/pr-taskmgr-ca.pem"
       # D-107: the traffic store, by its fixed address on the traffic network (an IP inside
-      # 172.30.14.0/29, never a name), and the password file it shares with the store.
-      GAOS_REDIS_ADDR: "172.30.14.2:6379"
+      # 172.30.40.0/29, never a name), and the password file it shares with the store.
+      GAOS_REDIS_ADDR: "172.30.40.2:6379"
       GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
@@ -283,7 +283,7 @@ services:
       timeout: 3s
       retries: 3
     networks:
-      traffic: {ipv4_address: 172.30.14.2}
+      traffic: {ipv4_address: 172.30.40.2}
 
   docs:
     build:

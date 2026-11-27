@@ -97,7 +97,7 @@ The check is **inconclusive** (not passed) whenever E3 applies or the summary sh
                          ▼  one writer: AUTH once per connection; batch ≤128 or 250 ms, pipelined
           XADD gaos:traffic:<stream> MAXLEN ~ <cap> * …     every 60 s: XTRIM <each stream> MINID ~ <now − 48 h>
                          │
-                         ▼  redis 172.30.14.2 on gaos-prod-traffic (internal); user gaos: xadd xtrim xrevrange ping
+                         ▼  redis 172.30.40.2 on gaos-prod-traffic (internal); user gaos: xadd xtrim xrevrange ping
                          ▲
                          │  12 × XREVRANGE … COUNT <cap>, pipelined, at most once per 15 s (cached)
           traffic_view.go ── Traffic page, polled every 30 s
@@ -136,7 +136,7 @@ Added to `deploy/stacks/compose.prod.yaml` after `dashboard` (`:59-238`), before
       timeout: 3s
       retries: 3
     networks:
-      traffic: {ipv4_address: 172.30.14.2}
+      traffic: {ipv4_address: 172.30.40.2}
 ```
 
 **`deploy/stacks/traffic-redis.sh`** (new, tracked, read-only mount), in full:
@@ -168,7 +168,7 @@ exec redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy 
 | Eviction | `noeviction` | Twelve keys; `allkeys-lru` at the limit would delete a whole stream. An `XADD` past the limit is refused (`OOM`) and counted as a drop. The arithmetic says the limit is not reached. |
 | Authentication | `default` user **off**; user `gaos`, password from `prod.traffic-redis-auth` (64 hex characters, `openssl rand -hex 32`), ACL `~gaos:traffic:* resetchannels -@all +ping +xadd +xtrim +xrevrange` | Anything that reaches Redis without the password gets nothing; with it, it can add to, trim and read the traffic streams and `PING`, and nothing else (`FLUSHALL`, `DEL`, `XDEL`, `EVAL`, `CONFIG`, `ACL`, another key: `NOPERM`). The password is never an argument (the ACL file holds its SHA-256, `#<hex>` form) and never in the server's environment, so `docker inspect` shows neither. |
 | Secret file | Mounted read-only into `redis` and `dashboard`; mode 600, owned by the deploy user | Both containers run as `${GAOS_UID:-1001}:${GAOS_GID:-1001}`, the uid the dashboard already uses for its secrets (`compose.prod.yaml:229-234`), so both can read it and nobody else on the host can. |
-| Network | `traffic` only, static `172.30.14.2` | Only the dashboard can reach Redis; Redis has no route out; the dashboard resolves no name. |
+| Network | `traffic` only, static `172.30.40.2` | Only the dashboard can reach Redis; Redis has no route out; the dashboard resolves no name. |
 | Port | No `ports:`, no `expose:` | Nothing is published beyond Traefik's mapping (`check-stacks.sh:50-54`). |
 | Hardening | `read_only`, `tmpfs /data`, `cap_drop: [ALL]`, `no-new-privileges` | — |
 | Healthcheck | `traffic-redis.sh health`: an authenticated `PING` | `docker compose ps` shows `healthy`; the password reaches `redis-cli` through `REDISCLI_AUTH` inside the check, never in the healthcheck's arguments. |
@@ -184,17 +184,17 @@ exec redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy 
 ```yaml
   # D-107: the dashboard and the traffic store, nothing else. internal: no route out.
   # PINNED: Redis has the fixed address .2; dynamic endpoints (the dashboard) get .4-.7
-  # only, so they can never take it. 172.30.14.0/29 is GAOS's, beside .12 and .13.
+  # only, so they can never take it. 172.30.40.0/29 is GAOS's; .14 is taken on the office prod VM (A3).
   traffic:
     name: gaos-prod-traffic
     internal: true
     ipam:
       config:
-        - subnet: 172.30.14.0/29
-          ip_range: 172.30.14.4/30
+        - subnet: 172.30.40.0/29
+          ip_range: 172.30.40.4/30
 ```
 
-*A3 (T4):* `172.30.14.0/29` is free on both prod VMs (`docker network inspect $(docker network ls -q) --format '{{.IPAM.Config}}'`); if not, the next free /29 in `172.30.14.0/24` is used, with the address, range and assertions following. The header's neighbour comment (`:25`) gains ".14 is the traffic network"; the dev-parity comment (`:9-13`) gains "— and the traffic store (D-107), which is prod's alone: dev is retired". The `dashboard` service's `networks: [internal]` (`:238`) becomes `networks: [internal, traffic]`, and its `volumes:` gains `./prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro`.
+*A3 (T4):* `172.30.40.0/29` is free on both prod VMs (`docker network inspect $(docker network ls -q) --format '{{.IPAM.Config}}'` and the host routes). Rev 3 chose `172.30.40.0/29`; A3 found `172.30.14.0/24` taken on the office prod VM (§23 note 21), so the network moved to `172.30.40.0/29`, with the address, range and assertions following. The header's neighbour comment (`:25`) gains ".40 is the traffic network"; the dev-parity comment (`:9-13`) gains "— and the traffic store (D-107), which is prod's alone: dev is retired". The `dashboard` service's `networks: [internal]` (`:238`) becomes `networks: [internal, traffic]`, and its `volumes:` gains `./prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro`.
 
 ### 4.3 The settings
 
@@ -202,17 +202,17 @@ The dashboard's `environment:` gains, after `GAOS_TASKMGR_CA_FILE` (`:207`):
 
 ```yaml
       # D-107: the traffic store, by its fixed address on the traffic network (an IP inside
-      # 172.30.14.0/29, never a name), and the password file it shares with the store.
-      GAOS_REDIS_ADDR: "172.30.14.2:6379"
+      # 172.30.40.0/29, never a name), and the password file it shares with the store.
+      GAOS_REDIS_ADDR: "172.30.40.2:6379"
       GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"
 ```
 
 | Variable | Off when | Valid |
 |---|---|---|
-| `GAOS_REDIS_ADDR` | empty; a name; an IP outside `172.30.14.0/29` (a constant in `traffic.go`); no numeric port | `172.30.14.x:port` |
+| `GAOS_REDIS_ADDR` | empty; a name; an IP outside `172.30.40.0/29` (a constant in `traffic.go`); no numeric port | `172.30.40.x:port` |
 | `GAOS_REDIS_AUTH_FILE` | empty; the file missing, empty, not a regular file or readable by group or others | a mode-600 file; its content, trimmed, is the password |
 
-An off reason is logged once and shown on the page. **The caps and the window are constants** (§5.1, §5.3). The boot log prints `traffic: recording to 172.30.14.2:6379, 48 h` or `traffic: off (<reason>)`, never a recorded value or the password. The dev compose (retired) and the local `compose.yaml` get no Redis.
+An off reason is logged once and shown on the page. **The caps and the window are constants** (§5.1, §5.3). The boot log prints `traffic: recording to 172.30.40.2:6379, 48 h` or `traffic: off (<reason>)`, never a recorded value or the password. The dev compose (retired) and the local `compose.yaml` get no Redis.
 
 ### 4.4 `check-stacks.sh`
 
@@ -230,9 +230,9 @@ The conditions, numbered (**N = 30**):
 | `prod's Redis has a memory limit and refuses writes rather than evicting a stream` | C5 the script contains `--maxmemory 64mb`; C6 it contains `--maxmemory-policy noeviction` |
 | `prod's Redis turns the default user off and admits the gaos user to the traffic keys and three commands` | C7 the script contains `user default off`; C8 it contains `user gaos on #%s ~gaos:traffic:* resetchannels -@all +ping +xadd +xtrim +xrevrange\n'`; C9 it contains `--aclfile /data/users.acl`; C10 `inblock redis 'entrypoint: ["/bin/sh", "/usr/local/bin/traffic-redis.sh"]'`; C11 `hasntre $PROD '(requirepass|REDIS_PASSWORD|nopass)'` |
 | `prod's Redis publishes no port` | C12 `notinblockre redis '^[[:space:]]*(ports|expose):'` |
-| `prod's Redis is on the internal traffic network only, at its pinned address outside the dynamic range` | C13 `inblock redis 'traffic: {ipv4_address: 172.30.14.2}'`; C14 `notinblockre redis '^[[:space:]]+internal'`; C15 `notinblock redis 'network_mode'`; C16 `inblock traffic 'name: gaos-prod-traffic'`; C17 `inblock traffic 'internal: true'`; C18 `inblock traffic 'subnet: 172.30.14.0/29'`; C19 `inblock traffic 'ip_range: 172.30.14.4/30'`; C20 exactly two service blocks mention `traffic` (dashboard and redis), counted over `svcblock` of every service name |
+| `prod's Redis is on the internal traffic network only, at its pinned address outside the dynamic range` | C13 `inblock redis 'traffic: {ipv4_address: 172.30.40.2}'`; C14 `notinblockre redis '^[[:space:]]+internal'`; C15 `notinblock redis 'network_mode'`; C16 `inblock traffic 'name: gaos-prod-traffic'`; C17 `inblock traffic 'internal: true'`; C18 `inblock traffic 'subnet: 172.30.40.0/29'`; C19 `inblock traffic 'ip_range: 172.30.40.4/30'`; C20 exactly two service blocks mention `traffic` (dashboard and redis), counted over `svcblock` of every service name |
 | `prod's Redis has an authenticated healthcheck` | C21 `inblock redis '"traffic-redis.sh", "health"'` |
-| `prod's dashboard joins the traffic network and reaches Redis by address, with the shared password file` | C22 `inblock dashboard 'networks: [internal, traffic]'`; C23 `has $PROD 'GAOS_REDIS_ADDR: "172.30.14.2:6379"'`; C24 `has $PROD 'GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"'`; C25 `inblock dashboard './prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro'` |
+| `prod's dashboard joins the traffic network and reaches Redis by address, with the shared password file` | C22 `inblock dashboard 'networks: [internal, traffic]'`; C23 `has $PROD 'GAOS_REDIS_ADDR: "172.30.40.2:6379"'`; C24 `has $PROD 'GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"'`; C25 `inblock dashboard './prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro'` |
 | `the traffic store's password file is untracked, a regular file, mode 600` (in "no secret is committed", `:107-117`, a loop over `deploy/stacks/*.traffic-*` like the others) | C26 untracked; C27 a regular file; C28 mode 600 — each only when the file exists, as the existing loops do |
 | `the dashboard's edge hop is the one address Traefik trusts` | C29 `edgeHop = "…"` in `dashboard/traffic.go`, followed by `/32`, equals the single entry `check-stacks.sh:98` finds in `traefik.yml` |
 | `nothing in prod has a start-order dependency` | C30 `hasntre $PROD '^[[:space:]]*depends_on:'` (a key, never a comment) |
@@ -533,7 +533,7 @@ By construction (§7.3, §7.4, §7.6, §8.4) and by test (TC-888, TC-893). The R
 
 - **Reachability:** only the dashboard, over `gaos-prod-traffic` (`internal: true`, pinned subnet, Redis at `.2` outside the dynamic range `.4-.7`); no port; no route out; only an IP literal inside the subnet is accepted (§4.3), so no name is resolved and a mistyped value cannot point the writer outside it.
 - **Authentication:** `default` off; user `gaos` with a 256-bit password, admitted to `PING`, `XADD`, `XTRIM`, `XREVRANGE` on `gaos:traffic:*` only (§4.1). T4 records, with the password: `FLUSHALL` → `NOPERM`, `CONFIG GET maxmemory` → `NOPERM`, `XADD gaos:other * a b` → `NOPERM`; and without it: `PING` → `NOAUTH`.
-- *A7, recorded as information (T4):* from the VM host, `nc -z -w 3 172.30.14.2 6379`, and from a container on `gaos-prod-int`. Whatever the result, a reader needs the password, which only the deploy uid can read on the host.
+- *A7, recorded as information (T4):* from the VM host, `nc -z -w 3 172.30.40.2 6379`, and from a container on `gaos-prod-int`. Whatever the result, a reader needs the password, which only the deploy uid can read on the host.
 - **Read residual:** anyone holding the password — the deploy uid on the host, or code running in the dashboard or Redis container — can read the full trace and trim it. Both already hold every GAOS credential.
 - **Deny-lists:** the host of `GAOS_REDIS_ADDR` joins the hosts the QA client and the Brain Town client refuse (`qaclient.go:174`, `braintown.go:87`) (TC-897).
 - **Forged records:** need the password; even then they are parsed strictly, bounded and escaped (TC-901).
@@ -576,7 +576,7 @@ One `func Test…` per register row (`.claude/rules/qa-test-plan.md:129-130`). T
 |---|---|---|---|
 | TC-884 | `TestRESPRoundTripsTheTrafficCommands` (`resp_test.go`) | Positive | `AUTH`, `XADD … MAXLEN ~ n *`, `XTRIM … MINID ~`, `XREVRANGE … COUNT` encode byte-exact; every reply type parses; a pipeline of 128 returns 128 replies in order |
 | TC-885 | `TestRESPRefusesMalformedOrOversizedReplies` (`resp_test.go`) | Negative | each bound of §6 exceeded, a negative or non-numeric length, a truncated reply, an unknown type byte, a refused `AUTH`: an error that closes the connection, nothing allocated from the declared length, no password in the error |
-| TC-886 | `TestTrafficSettings` (`traffic_test.go`) | Positive, negative | `172.30.14.2:6379` with a mode-600 file → on; empty, `redis:6379`, `192.0.2.4`, `203.0.113.5:6379`, `10.0.0.5:6379` (outside the subnet), `172.30.14.2:x` → off with the reason; a missing, empty or mode-644 password file → off; the caps and window are the §5 constants |
+| TC-886 | `TestTrafficSettings` (`traffic_test.go`) | Positive, negative | `172.30.40.2:6379` with a mode-600 file → on; empty, `redis:6379`, `192.0.2.4`, `203.0.113.5:6379`, `10.0.0.5:6379` (outside the subnet), `172.30.40.2:x` → off with the reason; a missing, empty or mode-644 password file → off; the caps and window are the §5 constants |
 | TC-887 | `TestOutboundPathIsTemplated` (`traffic_test.go`) | Positive, negative | the §7.4 examples; `{base}`, `{other}`, `{ref}` (a multi-segment branch), `{path}` (a nested file, and `contents/.github/workflows`); 13 segments; 300 bytes; `%2F`; an e-mail; a phone number; an empty path; never a query or fragment |
 | TC-888 | `TestRecordingTransportKeepsNoSecret` (`traffic_test.go`) | Negative | base `https://h/inst-Kq7xTzLm`; `Authorization: Bearer <s1>`, userinfo `<u>:<s2>`, `?token=<s3>`, `#<s4>`, body `<s5>`, response header and body `<s6>`: no stored field contains any of them or `inst-Kq7xTzLm`; the fields are exactly the outbound set; the caller's response is unchanged |
 | TC-889 | `TestRecordingTransportClassifiesErrors` (`traffic_test.go`) | Positive, negative | timeout, canceled, refused, unknown-CA TLS, reset → their classes with `s = 0` and no error text; through `taskmgrClient.do` against a fake gRPC server: trailer `grpc-status: 16` → one record `s = 200, g = 16, x = auth`, Failed; trailers-only `5` → `g = 5, x = notfound`, not Failed; `3` → `invalid`, not Failed; an over-limit body → `g = -1, x = unavailable`, Failed; a transport error → `s = 0, x = unavailable`; exactly one record per call |
@@ -587,7 +587,7 @@ One `func Test…` per register row (`.claude/rules/qa-test-plan.md:129-130`). T
 | TC-894 | `TestInboundRecorderKeepsTheResponseController` (`traffic_test.go`) | Positive | `apiDecodeLimit`'s `SetReadDeadline` succeeds through the wrapper; an over-limit body answers 413; `Flush` reaches the recorder; a handler that writes nothing records 200; a panic records 500 and reaches net/http |
 | TC-895 | `TestAnAnonymousFloodEvictsNoDirectOrAuthenticatedRecord` (`traffic_test.go`) | Negative | after one direct and one authenticated record, 10 000 anonymous API calls from 5 000 sources: `in:direct:*` and `in:auth` keep their records, `in:anon` holds its cap; with the writer unstarted, anonymous records stop at ¾ of the queue and an outbound record still enqueues |
 | TC-896 | `TestAnAuthenticatedDirectBurstEvictsNoOtherDirectRecord` (`traffic_test.go`) | Negative | one unauthenticated direct record, then 10 000 authenticated direct API calls: `in:direct:other` keeps it, `in:direct:auth` holds its cap; the summary holds both sources, the tile counts one unknown source |
-| TC-897 | `TestOutboundURLsRefuseTheTrafficStore` (`traffic_test.go`) | Negative | with `GAOS_REDIS_ADDR=172.30.14.2:6379`, a QA URL and a Brain Town URL on that host are refused with the existing reason |
+| TC-897 | `TestOutboundURLsRefuseTheTrafficStore` (`traffic_test.go`) | Negative | with `GAOS_REDIS_ADDR=172.30.40.2:6379`, a QA URL and a Brain Town URL on that host are refused with the existing reason |
 | TC-898 | `TestTrafficSummaries` (`traffic_view_test.go`) | Positive | per-platform calls, 4xx, failed (TaskMgr by outcome), nearest-rank p50/p95 over answered calls, last call; **kept since** is the oldest kept record's time in every case, marked *cap* at and above the cap and not below it; the "store may have been emptied" note when `firstWriteAt` is later than start + 1 min and not otherwise; the eight platforms in order; inbound pairs newest first, ≤ 50; records older than 48 h not counted; the summary table with its "since" and the `untracked` note at 513 sources; the tiles |
 | TC-899 | `TestTrafficFiltersAndPages` (`traffic_view_test.go`) | Positive, negative | each filter as §10.3; `platform` forces `out`, `src` forces `in`, both set drops `src`; tabs show the forced direction; invalid values ignored, not echoed; 10 a page; the poll URL keeps the filters |
 | TC-900 | `TestTrafficPageStates` (`traffic_view_test.go`) | Positive, negative | Off, Unavailable, Empty, Filtered empty, Normal render their texts, Off and Unavailable with the summary; `no-store`; signed out both routes are refused (401) and touch no store; a failed read is not retried within 15 s |
@@ -696,11 +696,11 @@ Changed files (items 9–46; item 34 is two files, so 39 files):
 | # | Assumption | Checked |
 |---|---|---|
 | A1 | Redis 8.10.3's release date and the `8.10.3-alpine` digest are as §4.1 states | T4: `docker buildx imagetools inspect` |
-| A3 | `172.30.14.0/29` is free on both prod VMs | T4: §4.2 |
+| A3 | `172.30.40.0/29` is free on both prod VMs | T4: §4.2 |
 | A4 | The day's volumes of §5.1 (≈ 30 QA jobs, ≈ 15 long AI turns, ≈ 10 open fix PRs; inbound seconds to minutes apart) | after deploy, on the page (kept-since per stream) |
 | A5 | `ServeMux.ServeHTTP` sets `PathValue` on the request it is given | TC-893 |
 | A6 | Traefik v3.3 appends the delivering peer to `X-Forwarded-For`, drops an untrusted peer's chain, and sets `X-Real-IP` as §8.3 says | T2, before wiring |
-| A7 | Whether the VM host and other containers can reach `172.30.14.2:6379` | T4, recorded as information (§13.4); the password stands either way |
+| A7 | Whether the VM host and other containers can reach `172.30.40.2:6379` | T4, recorded as information (§13.4); the password stands either way |
 | A8 | Which known clients (the QA tool, Jenkins) call GAOS directly | T4, from the summary and the Traefik log |
 
 (A2 of rev 2 — the image's uid — is gone: Redis now runs as the deploy uid.)
@@ -828,7 +828,7 @@ Severities are the reviewers'. No contests.
 | Legitimate direct callers share `in:direct` with unknown peers | Major | PROPOSE FIX | `in:direct:auth` and `in:direct:other`; the since-boot summary of 512 sources (§8.7); the tile counts unknown direct sources; TC-896; A8 |
 | Masking collapses every tunnel peer for non-admins | Major | PROPOSE FIX | Only public addresses masked; masking in the page model; TC-901 |
 | "Kept since … 48 h" claims coverage the store may not have | Major | PROPOSE FIX | Always the oldest record's time, *cap* at or above the cap; `firstWriteAt` and the "may have been emptied" note (§9.2, §10.2); TC-898 |
-| A pinned address with dynamic neighbours can stop Redis | Major | PROPOSE FIX | `ip_range: 172.30.14.4/30` (§4.2, C19); `rebuild-restart.sh` warns unless Redis is healthy (§4.5, TC-903) |
+| A pinned address with dynamic neighbours can stop Redis | Major | PROPOSE FIX | `ip_range: 172.30.40.4/30` (§4.2, C19); `rebuild-restart.sh` warns unless Redis is healthy (§4.5, TC-903) |
 | "Reviewing the page" has no cadence or record (cadence part) | Major | PROPOSE FIX | At least daily, within the shortest `in:direct:other` kept-since, in D-107 and the README; the summary keeps a missed day's unknown peers (§0, §14, §17 item 33) |
 | "Reviewing the page" has no cadence or record (record part) | Major | DECLINE | The operator chose periodic monitoring (§0); the summary covers a missed review |
 | The `fail` and `warn` tile tones do not exist | Nit | PROPOSE FIX | `block` and `ask`; chips anchored `:2000-2003` (§10.2, §11) |
@@ -854,7 +854,7 @@ Severities are the reviewers'. No contests.
 | SEC-14 The `via` fallback fails open; the rightmost parse unspecified | Low | PROPOSE FIX | No XFF → direct; the last entry of the joined `Header.Values` (§8.3) |
 | SEC-15 check-stacks asserts presence, not exclusivity | Low | PROPOSE FIX | C14 no `internal`, C15 no `network_mode`, C20 exactly two services on `traffic` |
 | SEC-16 Masking side channels | Low | PROPOSE FIX | Masked in the page model; tiles count masked values; TC-901 asserts no full public address anywhere in a non-admin's HTML |
-| SEC-17 `GAOS_REDIS_ADDR` accepts any IP | Low | PROPOSE FIX | Must be inside `172.30.14.0/29` (§4.3); TC-886 |
+| SEC-17 `GAOS_REDIS_ADDR` accepts any IP | Low | PROPOSE FIX | Must be inside `172.30.40.0/29` (§4.3); TC-886 |
 | SEC-18 The template keeps branch names and file paths | Low | PROPOSE FIX | `{ref}` and `{path}` (§7.4); TC-887 |
 
 ## 23. Implementation notes
@@ -908,4 +908,8 @@ Deviations from rev 3, each the smallest faithful one, recorded as they were tak
     - The RESP client (`resp.go`) against it: `XADD … MAXLEN ~ 3000 *` → bulk id; `XTRIM … MINID ~ 0-0` → `:0`; `XREVRANGE … COUNT 3000` → the entry; `XADD gaos:other` → the error reply `NOPERM No permissions to access a key` as a value, not a failure of the pipeline; a wrong password → `traffic: the store refused the credential`. The recorder wrote 38 records (28 outbound through four wrapped clients, 10 inbound through the gate) with none dropped, `firstWriteAt` 0.7 ms after start (the start-up trim, note 3), and the Traffic page rendered them at 1440 and 390 px.
     - A7-like, information only: the local host reached the container's address on the internal bridge (`/dev/tcp` connect succeeded). As the design says, the password stands either way; A7 itself is recorded per VM at deploy.
 19. **TC-902's negative half** ran in a scratch copy (thirty of thirty `FAIL`, the comment case `ok`, the restored tree clean); C26 (a tracked password file) ran in a throwaway `git init` of that copy so the real index was never touched. **TC-903** ran its two blocks in a harness with a stubbed `dc` (creation, mode 600, 64 hex, unchanged on a second run, the warning for unhealthy, restarting and missing); the full path runs at the deploy.
-20. **Left for the deploy (not done here — no VM was touched):** A3 (`172.30.14.0/29` free on both prod VMs), A7 per VM, A6's headers on the live edge, A8, the `NOPERM`/`NOAUTH` results per instance, and the §0 firewall cross-check after 24 hours.
+20. **Left for the deploy (not done here — no VM was touched):** A7 per VM, A6's headers on the live edge, A8, the `NOPERM`/`NOAUTH` results per instance, and the §0 firewall cross-check after 24 hours.
+
+### After T4
+
+21. **A3 failed for `172.30.14.0/29`; the traffic network is `172.30.40.0/29`.** Checked on the prod VMs by the coordinator on 2026-11-27: on the office prod VM `172.30.14.0/24` is already taken by another project's network, and its host routes show `172.30.10`–`17` and `172.30.19` in use; the second prod VM uses only `172.30.12`. `172.30.40.0/29` is free on both as of 2026-11-27. Redis is at `172.30.40.2`, dynamic endpoints in `172.30.40.4/30`, and `GAOS_REDIS_ADDR` must be inside `172.30.40.0/29` (`trafficSubnet` in `traffic.go`). The compose file, the check-stacks assertions (C13, C18, C19, C23), the settings tests (TC-886, TC-897), `deploy/STACKS.md`, the register's TC-886 row and this design's text moved with it. No other `172.30.14.0/24` mention exists in the tree outside `docs/designs/reviews/`, whose round-2 records quote rev 3 as it was reviewed and are left as written.

@@ -87,11 +87,11 @@ func TestTrafficSettings(t *testing.T) {
 	if err := os.WriteFile(good, []byte("0123456789abcdef\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	addr, pass, why := trafficSettings("172.30.14.2:6379", good)
-	if why != "" || addr != "172.30.14.2:6379" || pass != "0123456789abcdef" {
+	addr, pass, why := trafficSettings("172.30.40.2:6379", good)
+	if why != "" || addr != "172.30.40.2:6379" || pass != "0123456789abcdef" {
 		t.Fatalf("a valid address and a mode-600 file answered %q %q, want on with the trimmed password", addr, why)
 	}
-	for _, bad := range []string{"", "redis:6379", "192.0.2.4", "203.0.113.5:6379", "10.0.0.5:6379", "172.30.14.2:x", "172.30.14.9:6379"} {
+	for _, bad := range []string{"", "redis:6379", "192.0.2.4", "203.0.113.5:6379", "10.0.0.5:6379", "172.30.40.2:x", "172.30.40.9:6379"} {
 		if a, p, why := trafficSettings(bad, good); why == "" || a != "" || p != "" {
 			t.Errorf("GAOS_REDIS_ADDR=%q turned recording on; want off with the reason", bad)
 		} else if strings.Contains(why, "0123456789abcdef") {
@@ -106,7 +106,7 @@ func TestTrafficSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, f := range map[string]string{"unset": "", "missing": filepath.Join(dir, "nope"), "empty": empty, "mode 644": open, "a directory": dir} {
-		if _, _, why := trafficSettings("172.30.14.2:6379", f); why == "" {
+		if _, _, why := trafficSettings("172.30.40.2:6379", f); why == "" {
 			t.Errorf("a password file that is %s turned recording on", name)
 		}
 	}
@@ -114,7 +114,7 @@ func TestTrafficSettings(t *testing.T) {
 	var logs bytes.Buffer
 	log.SetOutput(&logs)
 	t.Cleanup(func() { log.SetOutput(os.Stderr) })
-	t.Setenv("GAOS_REDIS_ADDR", "172.30.14.2:6379")
+	t.Setenv("GAOS_REDIS_ADDR", "172.30.40.2:6379")
 	t.Setenv("GAOS_REDIS_AUTH_FILE", good)
 	if rec := trafficFromEnv(); !rec.on() {
 		t.Fatalf("trafficFromEnv is off: %s", rec.why)
@@ -123,7 +123,7 @@ func TestTrafficSettings(t *testing.T) {
 	if rec := trafficFromEnv(); rec.on() || rec.why != "GAOS_REDIS_ADDR is not set" {
 		t.Fatalf("trafficFromEnv with no address answered %q", rec.why)
 	}
-	if out := logs.String(); !strings.Contains(out, "traffic: recording to 172.30.14.2:6379, 48 h") ||
+	if out := logs.String(); !strings.Contains(out, "traffic: recording to 172.30.40.2:6379, 48 h") ||
 		!strings.Contains(out, "traffic: off (GAOS_REDIS_ADDR is not set)") || strings.Contains(out, "0123456789abcdef") {
 		t.Errorf("the boot lines are %q; want the address and 48 h, the off reason, and never the password", out)
 	}
@@ -1002,9 +1002,9 @@ func TestOutboundURLsRefuseTheTrafficStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("GAOS_QA_TOKEN_FILE", tok)
-	t.Setenv("GAOS_QA_URL", "https://172.30.14.2:6379/")
+	t.Setenv("GAOS_QA_URL", "https://172.30.40.2:6379/")
 	t.Setenv("BRAIN_TOWN_ENABLED", "true")
-	t.Setenv("BRAIN_TOWN_URL", "https://172.30.14.2:6379/events")
+	t.Setenv("BRAIN_TOWN_URL", "https://172.30.40.2:6379/events")
 	t.Setenv("BRAIN_TOWN_TOKEN_FILE", btTok)
 	const reason = "names a host GAOS already uses for its gateway or database"
 
@@ -1016,8 +1016,8 @@ func TestOutboundURLsRefuseTheTrafficStore(t *testing.T) {
 	if c := btConfigFromEnv(nil); strings.Contains(c.why, reason) {
 		t.Fatalf("fixture: the Brain Town URL is refused without the store set: %s", c.why)
 	}
-	t.Setenv("GAOS_REDIS_ADDR", "172.30.14.2:6379")
-	t.Setenv("GAOS_QA_URL", "https://172.30.14.2:6379/")
+	t.Setenv("GAOS_REDIS_ADDR", "172.30.40.2:6379")
+	t.Setenv("GAOS_QA_URL", "https://172.30.40.2:6379/")
 	if o := qaOutboundFromEnv(); !strings.Contains(o.why, reason) {
 		t.Errorf("a QA URL on the traffic store's host answered %q, want refused: %s", o.why, reason)
 	}

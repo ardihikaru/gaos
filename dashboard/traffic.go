@@ -36,7 +36,7 @@ import (
 // deploy/stacks/compose.prod.yaml; GAOS_REDIS_ADDR must be an address inside
 // it. edgeHop is the one entry of Traefik's trust list (deploy/stacks/traefik.yml),
 // which check-stacks.sh asserts equal.
-var trafficSubnet = netip.MustParsePrefix("172.30.14.0/29")
+var trafficSubnet = netip.MustParsePrefix("172.30.40.0/29")
 
 const edgeHop = "10.10.0.1"
 

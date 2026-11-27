@@ -43,13 +43,13 @@ page (`dashboard/traffic.go`, `dashboard/traffic_view.go`, design
 | | |
 |---|---|
 | Image | `redis:8.10.3-alpine`, pinned by tag and digest |
-| Network | `gaos-prod-traffic`, `internal: true`, `172.30.14.0/29`; Redis at the fixed `172.30.14.2`, dynamic endpoints (the dashboard) in `172.30.14.4/30` only. The dashboard alone joins it. |
+| Network | `gaos-prod-traffic`, `internal: true`, `172.30.40.0/29`; Redis at the fixed `172.30.40.2`, dynamic endpoints (the dashboard) in `172.30.40.4/30` only. The dashboard alone joins it. |
 | Port | none published, none exposed |
 | Disk | none: `--save ""`, `--appendonly no`, `/data` a tmpfs. A Redis or whole-stack restart empties every stream; a dashboard redeploy does not. |
 | Memory | `--maxmemory 64mb` `noeviction` (an `XADD` past it is refused and counted), `mem_limit: 128m` |
 | Users | `default` **off**. `gaos`, with the password in `prod.traffic-redis-auth`, admitted to `~gaos:traffic:*` and `+ping +xadd +xtrim +xrevrange` only; every other command is `NOPERM` |
 | Start | `deploy/stacks/traffic-redis.sh` writes the ACL file into the tmpfs holding only the password's SHA-256, then execs `redis-server`; `traffic-redis.sh health` is the healthcheck (an authenticated `PING`). The password is never an argument or an environment value. |
-| Dashboard | `GAOS_REDIS_ADDR: "172.30.14.2:6379"` (an IP inside the subnet; anything else turns recording off) and `GAOS_REDIS_AUTH_FILE` |
+| Dashboard | `GAOS_REDIS_ADDR: "172.30.40.2:6379"` (an IP inside the subnet; anything else turns recording off) and `GAOS_REDIS_AUTH_FILE` |
 | Start order | none either way: GAOS starts, serves and calls out with Redis absent |
 
 The password file `deploy/stacks/prod.traffic-redis-auth` (64 hex characters,
