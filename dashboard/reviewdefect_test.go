@@ -182,6 +182,9 @@ func (f fakeCode) defaultHead(context.Context, string, string, string) (string, 
 func (f fakeCode) searchCode(context.Context, string, string, string) ([]ghCodeHit, error) {
 	return nil, nil
 }
+func (f fakeCode) dirAt(context.Context, string, string, string, string) ([]string, error) {
+	return nil, nil
+}
 func (f fakeCode) fileAt(_ context.Context, _, _, p, _ string) (ghBlob, bool, error) {
 	t, ok := f.files[p]
 	return ghBlob{SHA: "b-" + p, Text: t}, ok, nil

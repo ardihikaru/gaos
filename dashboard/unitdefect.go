@@ -428,6 +428,7 @@ func (s *MemStore) passUnitDefectsLocked(m *Master, in UnitPassIn) (evs []Event,
 		} else {
 			evs = append(evs, s.cancelDefectCardsLocked(d, RuleUnitPassed)...)
 			evs = append(evs, s.setDefectStateLocked(d, DefectStateFixed, RuleUnitPassed, ""))
+			d.UnitPassNoticeSent = false // the closed notice is still to be sent
 			closed = true
 		}
 		touched = append(touched, d.Clone())

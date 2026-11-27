@@ -125,6 +125,12 @@ type fixPRPoller struct {
 	ghSrc bundleSource
 	// tm is the TaskMgr link (D-104): it validates a row's task-manager code. nil: no check.
 	tm *taskmgrLink
+	// The unit checks (D-105, unitpoll.go): the pass counter, the product the last unit
+	// pass served, the context builds tried, and the group notice (nil: none is sent).
+	unitN      int
+	unitLast   string
+	unitCtx    map[string]time.Time
+	unitNotify func(ctx context.Context, productID string, pr int, text, cardID string)
 }
 
 // bundleGH is the GitHub source of the bundle pass: nil when there is none.
@@ -219,6 +225,14 @@ func (p *fixPRPoller) Pass(ctx context.Context) {
 		p.mu.Unlock()
 	}
 	p.bundlePass(ctx, now)
+	// The unit checks (D-105 §5.1): every fourth pass, 2 minutes at the 30 s tick.
+	p.mu.Lock()
+	run := p.unitN%unitPassEvery == 0
+	p.unitN++
+	p.mu.Unlock()
+	if run {
+		p.unitPass(ctx, now)
+	}
 }
 
 // retain empties the excerpts of records last seen 30 days ago, once per UTC day.
@@ -230,6 +244,11 @@ func (p *fixPRPoller) retain(ctx context.Context, now time.Time) {
 		return
 	}
 	p.mu.Unlock()
+	// The unit watches' retention (D-105 §4.2): its own branch, so a failed excerpt
+	// retention never skips it.
+	if _, err := p.st.PruneUnitWatches(ctx, now.Unix()-unitWatchKeepDays*86400); err != nil {
+		p.logf("unit checks: pruning the watches failed: %v", err)
+	}
 	if _, err := p.st.ExpireExcerpts(ctx, now.Unix()); err != nil {
 		p.logf("autofix: the excerpt retention failed: %v", err)
 		return
@@ -492,8 +511,9 @@ func (s *MemStore) ExpireExcerpts(ctx context.Context, now int64) (Result, error
 	defer s.mu.Unlock()
 	var res Result
 	for _, d := range s.defects {
-		if d.Excerpt != "" && now-d.LastSeen >= defectExcerptDays*86400 {
-			d.Excerpt = ""
+		// A unit defect's failing tests go with its excerpt (D-105 §7.5); UnitFiles stay.
+		if (d.Excerpt != "" || d.UnitTests != "") && now-d.LastSeen >= defectExcerptDays*86400 {
+			d.Excerpt, d.UnitTests = "", ""
 			res.Defects = append(res.Defects, d.Clone())
 		}
 	}

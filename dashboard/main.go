@@ -469,6 +469,10 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 			tp.qa = srv.qaOut
 		}
 		poller.alert = prAlerter{nt: nt}
+		// D-105: the unit checks' notices go to the group, kind unit:failure, naming no repository.
+		poller.unitNotify = func(ctx context.Context, productID string, pr int, text, cardID string) {
+			nt.NotifyPR(ctx, productID, "", "", pr, "unit:failure", text, cardID)
+		}
 		if ghc != nil {
 			poller.alert.post = ghc
 		}
