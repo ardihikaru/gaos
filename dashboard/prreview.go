@@ -244,7 +244,9 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 	if screenBody(rv.Body) {
 		// Nothing is posted. A person takes over.
 		_, _ = p.st.HoldReview(ctx, t.DeskID, t.ID)
-		p.notifyIf(ctx, t, "review", rv.Severity, "review held: the body carried a secret")
+		if p.notify != nil {
+			p.notify(ctx, t, KindReviewNeedsManual, "Review held: a person must take over") // D-101
+		}
 		return
 	}
 	if p.gh == nil {
@@ -258,11 +260,13 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 		return
 	}
 	if prSeverityRank(rv.Severity) >= prSeverityRank("high") {
-		// Posted, and a person must take over: the card stays in Review.
+		// Posted, and a person must take over: the card stays in Review. The kind stays
+		// review:<severity>, so a contact's severity opt-in still reaches it (D-101).
 		_, _ = p.st.SetTaskLabel(ctx, t.DeskID, t.ID, LabelPRReviewNeedsManual, "gaos")
-	} else {
-		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, "review posted")
+		p.notifyIf(ctx, t, "review", rv.Severity, "Review posted ("+rv.Severity+"): a person must take over")
+		return
 	}
+	_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, "review posted")
 	p.notifyIf(ctx, t, "review", rv.Severity, "review posted")
 }
 

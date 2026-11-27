@@ -16,7 +16,7 @@
   <h1>QA test plan</h1>
   <p class="lede">Answers <a href="open-questions.html#oq-13">OQ-13</a> — who runs the acceptance
   tests and how often — and enumerates every test scenario that follows from it:
-  seven hundred and ninety-six cases, positive and negative, across the four deploy automations, the product seed script and the
+  seven hundred and ninety-nine cases, positive and negative, across the four deploy automations, the product seed script and the
   two Go test packages that actually run today — forty-four of them retired with the CLI execution
   layer in v0.29.0 and struck rather than deleted — all thirty-six of the gateway's forward
   specifications now running, plus
@@ -76,7 +76,7 @@
   <a href="decision-log.html#d-025">D-025</a>.</p>
 
   <h2 id="register">The register</h2>
-  <p>All seven hundred and ninety-six cases in one filterable table. Filter by automation, kind, or any
+  <p>All seven hundred and ninety-nine cases in one filterable table. Filter by automation, kind, or any
   word in a scenario — <code>go test</code> narrows it to the unit tests,
   <code>check-stacks</code> to the deploy pre-flight.</p>
   <div class="filterbox">
@@ -885,6 +885,9 @@
       <tr data-tags="go test pull request bundles test planner after run qa tool proposals retry failure d-100 negative positive implemented"><td>TC-794</td><td>dashboard (go test)</td><td>Negative and positive</td><td>A plan the QA tool takes ends the card DONE with the counts and carries the code and the merged pull requests; a retry sends the same positional codes; a QA-tool error fails the card with one bundle:failure line (<code>TestTestPlannerAfterRun</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request bundles notify pr author group contact notified d-100 positive implemented"><td>TC-795</td><td>dashboard (go test)</td><td>Positive</td><td>A pr: line goes to the pull request author&rsquo;s contact naming only the number, a bundle: line to the group, and both record a ContactNotified (<code>TestNotifyPRRecipients</code>).</td><td>Implemented</td></tr>
       <tr data-tags="go test pull request bundles arcade pull request bundle fields persist d-100 positive implemented"><td>TC-796</td><td>dashboard (go test)</td><td>Positive</td><td>The PullRequest upsert carries taskCode, links, bundleKey, bundledAt, alerted and templateSeen, against the recording fake graph (<code>TestArcadeBundleFieldsRoundTrip</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test manual review label notice whatsapp author group client d-101 negative positive implemented"><td>TC-797</td><td>dashboard (go test)</td><td>Negative and positive</td><td>An operator who sets pr-review:manual or pr-review:needs-manual sends one line to the pull request author&rsquo;s contact; the same label again or a return to auto sends nothing; a client&rsquo;s manual review reaches the group naming the client, and adoption sends nothing (<code>TestManualLabelSendsOneNotice</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test held high review needs-manual line d-101 positive implemented"><td>TC-798</td><td>dashboard (go test)</td><td>Positive</td><td>A held review sends one review:needs-manual line whatever its severity and carries the secret-held reason; a high review sends review:high only, saying a person must take over (<code>TestHeldAndHighReviewsSendOneLine</code>).</td><td>Implemented</td></tr>
+      <tr data-tags="go test notify on contact kinds exact manual d-101 negative positive implemented"><td>TC-799</td><td>dashboard (go test)</td><td>Negative and positive</td><td>A contact may opt into review:manual, review:needs-manual and pr:no-task-code; a review:medium contact does not get the manual kinds through the rank but still gets review:high; an empty or exact list does (<code>TestNotifyOnWantsManualKindsExactly</code>).</td><td>Implemented</td></tr>
     </tbody>
   </table>
   <div class="empty-state" id="tc-empty">No test case matches — try a broader word.</div>
@@ -4559,6 +4562,12 @@
   <p><strong>TC-794, negative and positive</strong> (<code>TestTestPlannerAfterRun</code>): <code>a plan the QA tool took must end DONE with the counts, got %s %q</code>; <code>the proposal must carry the bundle's code and its merged pull requests: %+v</code>; <code>a retry created %d new draft code(s); positional codes must be updated</code>; <code>a QA-tool error must fail the card and send one bundle:failure line, got %s %v</code>.</p>
   <p><strong>TC-795, positive</strong> (<code>TestNotifyPRRecipients</code>): <code>a pr: line must reach the author's contact and name only the number: %v</code>; <code>the line names the repository: %s</code>; <code>a bundle: line must go to the group: %v</code>; <code>NotifyPR must record a ContactNotified</code>.</p>
   <p><strong>TC-796, positive</strong> (<code>TestArcadeBundleFieldsRoundTrip</code>): <code>the PullRequest upsert does not carry %q</code>.</p>
+
+  <h3 id="go-manual-notices">dashboard &mdash; the manual-review notices (TC-797 &hellip; TC-799)</h3>
+  <p>The notices for the manual-review labels (<a href="decision-log.html#d-101">D-101</a>, design <code>docs/designs/gaos-external-tasks-and-pr-bundles.md</code> &sect;8): an operator&rsquo;s relabel, a held review, a high review, a client&rsquo;s manual review, and the contact kinds. Each case is one <code>func Test&hellip;</code> in <code>dashboard/notices_test.go</code>.</p>
+  <p><strong>TC-797, negative and positive</strong> (<code>TestManualLabelSendsOneNotice</code>): <code>the label route answered %d</code>; <code>an operator's manual label must send one line to the author's contact, got %v</code>; <code>the same label again, or a return to auto, must send nothing; %d lines</code>; <code>needs-manual set by an operator must send one line, got %d</code>; <code>the manual review answered %d %s</code>; <code>an API manual review must reach the group, naming the client, got %v</code>; <code>adopting a card must send no notice, got %d lines</code>.</p>
+  <p><strong>TC-798, positive</strong> (<code>TestHeldAndHighReviewsSendOneLine</code>): <code>a held review must send one review:needs-manual line whatever its severity, got %v</code>; <code>a held review must carry the secret-held reason, got %q</code>; <code>a high review must send review:high only, got %v</code>; <code>a high review's line must say a person must take over, got %q</code>.</p>
+  <p><strong>TC-799, negative and positive</strong> (<code>TestNotifyOnWantsManualKindsExactly</code>): <code>a contact must be able to opt into %s: %v</code>; <code>a review:medium contact must not get the manual-review kinds through the severity rank</code>; <code>a review:medium contact must still get review:high</code>; <code>an empty list or an exact entry must get review:manual</code>.</p>
 
   <h2 id="not-implemented">Test scenarios — not yet implemented</h2>
   <p><a href="brd.html#evaluation-method">BRD §4.1</a> names three tests as the only honest proof the

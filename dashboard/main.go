@@ -98,9 +98,8 @@ type server struct {
 	// flow is the pull-request flow; the task API prepares a pull request
 	// through it and fills its context cache (D-099).
 	flow *prFlow
-	// onAPIManual is told when a client plans a pr-review with review: manual; the
-	// notice is D-101's (v0.63.0). nil sends nothing.
-	onAPIManual func(t TaskRecord, client string)
+	// nt sends the manual-review notices of an operator's relabel (D-101); nil sends nothing.
+	nt *notifier
 
 	// inbox delivers the operator's answers to the QA tool's questions
 	// (inbox_worker.go); nil in tests that do not exercise it.
@@ -413,6 +412,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		log.Printf("whatsapp: notifier off (%s)", wcfg.why)
 	}
 	nt := &notifier{st: store, wa: wa, gh: authors, logf: log.Printf}
+	srv.nt = nt
 	srv.wa = wa
 	// Pull requests already open when this release starts get their rows (design §4.3); idempotent.
 	if res, err := store.BackfillReviewRows(ctx); err != nil {

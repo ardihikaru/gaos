@@ -842,7 +842,14 @@ func (n *notifier) NotifyPR(ctx context.Context, productID, owner, repo string, 
 `review:` branch (`notify.go:43-47`). The GitHub-login → WhatsApp mapping stays the contact registry;
 moving it to the team's task manager is OQ-41.
 
-### 8.3 As built (v0.62.0)
+### 8.3 As built (v0.63.0)
+
+- **The §8.1 lines name no repository** (D-088): `A person must review this pull request`,
+  `Review held: a person must take over`, `Review posted (<severity>): a person must take over` and
+  `Client <name> asked for a manual review`, each ending `· card <id>`.
+- **The relabel's line is sent on a goroutine**, so a slow gateway never delays the board move.
+
+### 8.4 As built (v0.62.0)
 
 - **No repository names in WhatsApp.** `NotifyPR` follows D-088's rule ("one line and the card id"; a
   test asserts it), so its text names no repository. It ends `· card <id>` when the pull request has a

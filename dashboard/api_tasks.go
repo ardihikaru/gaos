@@ -6,6 +6,7 @@ package main
 // api_cards.go; the unattended start is apidispatch.go.
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -242,8 +243,8 @@ func (s *server) apiTaskCreate(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusOK
 	if created {
 		status = http.StatusCreated
-		if in.Manual && s.onAPIManual != nil {
-			s.onAPIManual(t, cl.Name)
+		if in.Manual && s.nt != nil {
+			s.apiManualNotice(t, cl.Name)
 		}
 	}
 	apiJSON(w, status, apiTaskAnswer(t, created, false))
@@ -296,4 +297,13 @@ func (s *server) apiTaskCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apiJSON(w, http.StatusOK, apiTaskAnswer(t, false, true))
+}
+
+// apiManualNotice announces a client's manual-review request to the group, naming the client: an
+// outside caller never chooses who is messaged (D-101). The card's key is cleared on the copy so
+// the notifier looks up no author.
+func (s *server) apiManualNotice(t TaskRecord, client string) {
+	group := t
+	group.DedupKey = ""
+	go s.nt.Notify(context.Background(), group, KindReviewManual, "Client "+client+" asked for a manual review")
 }

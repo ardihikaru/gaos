@@ -145,8 +145,10 @@ Content-Type: application/json
   </div>
 
   <h2 id="whatsapp">WhatsApp and the contacts</h2>
-  <p>A review finding of <code>medium</code> or worse, a held review and a failed test or e2e run send <strong>one
-  line and the card's id</strong>. The findings stay on the card; no code is pasted into a chat. The line goes to the
+  <p>A review finding of <code>medium</code> or worse, a held review, a failed test or e2e run, and a card a person
+  must review &mdash; an operator&rsquo;s <code>pr-review:manual</code> or <code>pr-review:needs-manual</code>
+  (<a href="../product/decision-log.html#d-101">D-101</a>) &mdash; send <strong>one line and the card's id</strong>. A
+  client that asks the API for a manual review is announced to the group, naming the client. The findings stay on the card; no code is pasted into a chat. The line goes to the
   contact of the pull request's author (a review) or of the last committer (a failure), else to the pinned group.</p>
   <ul>
     <li>A <code>200</code> whose <code>code</code> is not <code>SUCCESS</code> is a failure. A <code>200</code> means
@@ -160,7 +162,9 @@ Content-Type: application/json
   </ul>
   <p>The contacts are managed at the foot of the back office's <em>Integrations</em> view: a GitHub account, a name, a
   product (or all), a destination and what it wants (<code>review:medium</code>, <code>review:high</code>,
-  <code>e2e:failure</code>, <code>e2e:approval</code>, <code>unit:failure</code>; a review value includes the worse severities). The registry is
+  <code>review:manual</code>, <code>review:needs-manual</code>, <code>pr:no-task-code</code>, <code>e2e:failure</code>,
+  <code>e2e:approval</code>, <code>unit:failure</code>; a review severity includes the worse severities, and the manual
+  kinds match only themselves). The registry is
   its own <code>Contact</code> record: it is not part of the product, so it is never rendered into a Blueprint or a
   workspace, and it is in no event. The list shows each destination masked.</p>
 

@@ -36,6 +36,16 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-63-0">v0.63.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">A card that waits for a person&rsquo;s review tells somebody (<a href="product/decision-log.html#d-101">D-101</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> Setting <code>pr-review:manual</code> or <code>pr-review:needs-manual</code> on a card sends one WhatsApp line to the pull request author&rsquo;s contact, or the group; once per change.</li>
+        <li><span class="chg change">Changed</span> A review held for a secret sends <code>review:needs-manual</code> whatever its severity; a high review sends one line that says a person must take over. A client&rsquo;s manual review is announced to the group, naming the client.</li>
+        <li><span class="chg add">Added</span> A contact can opt into <code>review:manual</code>, <code>review:needs-manual</code> and <code>pr:no-task-code</code>. TC-797 &hellip; TC-799.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-62-0">v0.62.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Related pull requests become a bundle; when they have all merged, an agent proposes the test cases QA should own (<a href="product/decision-log.html#d-100">D-100</a>).</p>
       <ul>
