@@ -36,6 +36,18 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-66-0">v0.66.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">TaskMgr, the team&rsquo;s task manager, becomes a third-party platform bound to one product (<a href="product/decision-log.html#d-104">D-104</a>, answers <a href="product/open-questions.html#oq-41">OQ-41</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>The binding.</strong> An auto-fix admin binds one product to TaskMgr on the Integrations view; an instance binds one product per platform kind, and every change is a <code>ThirdPartyConfigured</code> event. Three settings: <code>GAOS_TASKMGR_GRPC_ADDR</code>, <code>GAOS_TASKMGR_AUTH_FILE</code>, <code>GAOS_TASKMGR_CA_FILE</code>.</li>
+        <li><span class="chg add">Added</span> <strong>The client.</strong> A standard-library gRPC client over TLS to a pinned certificate, dialling one IP; the TaskMgr account holds a narrow integration grant (three methods, one product, no REST). A circuit breaker stops every call after a refused credential and backs off on an outage; every use then falls back to the behaviour before this release.</li>
+        <li><span class="chg add">Added</span> <strong>Task codes are checked.</strong> A pull request naming a code TaskMgr does not know, a deleted task or another product&rsquo;s task gets one <code>unknown-task-code</code> comment and line.</li>
+        <li><span class="chg change">Changed</span> <strong>Notice routing.</strong> A notice whose GitHub login has no GAOS contact goes to the TaskMgr person with that checked login before the group; a contact&rsquo;s own filter still wins. A finished test plan tells the task&rsquo;s QA (<code>bundle:planned</code>) and writes one note on the TaskMgr task.</li>
+        <li><span class="chg add">Added</span> <strong>The TaskMgr block</strong> on the Integrations view: status, counts for everyone, the per-person table for auto-fix admins only, numbers masked (<a href="product/brd.html#rules-gateway">BR-63</a>). New page <a href="integrations/taskmgr.html">TaskMgr</a>; the integrations overview now draws every flow added since v0.60. TC-839 &hellip; TC-849.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-64-0">v0.64.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Agents are assigned to products, the reviewer&rsquo;s severity is on the board, and a low finding can be fixed by an agent (<a href="product/decision-log.html#d-102">D-102</a>).</p>
       <ul>

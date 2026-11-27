@@ -127,6 +127,13 @@ CREATE PROPERTY GaosEdge.createdBy STRING;</pre>
     </tbody>
   </table>
 
+  <p><strong>v0.66.0 adds one event and no type</strong> (<a href="../product/decision-log.html#d-104">D-104</a>):
+  <code>ThirdPartyConfigured</code> (an operator bound, rebound or disabled a product&rsquo;s third-party platform: the
+  alias, the kind, the switch and the platform&rsquo;s product code, never a credential, an address or a person). The
+  binding itself is the Product document field <code>thirdParty</code>, like <code>autoFix</code>, so no DDL changes. The
+  people GAOS reads from the platform live in memory only and are in no event
+  (<a href="../product/brd.html#rules-gateway">BR-63</a>).</p>
+
   <p><strong>v0.52.0 adds six events and two types</strong> (<a href="../product/decision-log.html#d-091">D-091</a>):
   <code>DefectReported</code> (a defect of a case was recorded, by its key and kind, never its text),
   <code>DefectTriaged</code> (the verdict and, for a downgrade, its code), <code>DefectStateChanged</code> (a defect moved

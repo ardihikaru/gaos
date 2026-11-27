@@ -156,7 +156,7 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
     </tbody>
   </table>
 
-  <p>Four gitignored files hold everything secret, split per service and per tier so the docs
+  <p>Gitignored files hold everything secret, split per service and per tier so the docs
   container never holds the database password:</p>
 
   <table class="tbl">
@@ -164,6 +164,7 @@ docker compose -f $S ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'</pre>
     <tbody>
       <tr><td><code>deploy/stacks/{dev,prod}.dashboard.env</code></td><td>ArcadeDB user and password</td><td><code>600</code></td></tr>
       <tr><td><code>deploy/stacks/{dev,prod}.docs.env</code></td><td>The docs login (off since D-093) and its cookie secret</td><td><code>600</code></td></tr>
+      <tr><td><code>deploy/stacks/prod.pr-*</code></td><td>The pull-request flow&rsquo;s files: the GitHub tokens, the staging and WhatsApp logins, the pinned group, the auto-fix admin list, and TaskMgr&rsquo;s credential and pinned certificate (<code>prod.pr-taskmgr-auth</code>, <code>prod.pr-taskmgr-ca.pem</code>, <a href="../product/decision-log.html#d-104">D-104</a>). Each is mounted read-only; an empty one keeps its part off</td><td><code>600</code></td></tr>
     </tbody>
   </table>
 
