@@ -157,6 +157,27 @@ type AgentRow struct {
 	Label  string
 	Seated string
 	IsOn   bool
+	// Assigned are the products the agent is assigned to (D-099), by name.
+	Assigned []AgentProduct
+}
+
+// AgentProduct is one product an agent is assigned to.
+type AgentProduct struct{ ID, Name string }
+
+// AgentAssign is the Agents page's product filter and assignment editor (D-099).
+type AgentAssign struct {
+	Product     string // the validated ?product=, or ""
+	ProductName string
+	Configured  bool // the product's AssignedSet
+	Admin       bool // the signed-in account may edit (GAOS_AUTOFIX_ADMINS)
+	Opts        []AFOpt
+	Picks       []AgentPick // the editor: every agent, gated roles first
+}
+
+// AgentPick is one checkbox of the assignment editor.
+type AgentPick struct {
+	ID, Name, Label string
+	On, Gated       bool
 }
 
 type RollupGroup struct {
@@ -183,6 +204,7 @@ type BOView struct {
 	Title   string
 	Sub     string
 	Agents  []AgentRow
+	Assign  AgentAssign
 	NewOpen bool
 
 	// The list pages' pages (D-097): read with pageParam, then overwritten

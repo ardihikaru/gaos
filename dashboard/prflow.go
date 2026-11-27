@@ -263,8 +263,12 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 	// before the early return, so a repeated event fills a missing row. A pull request refused by
 	// the cap below has no card and so no row.
 	rows := s.reviewRowLocked(m, ev)
+	// The assignment gate (D-099 §3.4): on a configured product a role with no
+	// assigned agent plans no card. It runs after the merge cancel and the row,
+	// and it is not an error, so the row above is persisted with the result.
+	fresh, skipped := gateUnassigned(*m, fresh)
 	if len(fresh) == 0 && len(events) == 0 {
-		return nil, existing, Result{PullRequests: rows}, nil
+		return nil, existing, Result{PullRequests: rows, Skipped: skipped}, nil
 	}
 	if len(fresh) > 0 && s.openPRCardsLocked(productID) >= prMaxOpen() {
 		if len(events) == 0 {
@@ -302,9 +306,36 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 		rows = s.reviewRowLocked(m, ev)
 	}
 	c := m.Clone()
-	res = Result{Master: &c, NewEvents: events, PullRequests: rows,
+	res = Result{Master: &c, NewEvents: events, PullRequests: rows, Skipped: skipped,
 		Toast: fmt.Sprintf("%d task(s) planned from %s on %s.", len(planned), ev.Type, ev.Repo)}
 	return planned, existing, res, nil
+}
+
+// skippedUnassigned is the prefix of Result.Skipped when the assignment gate
+// dropped a card: "unassigned:<role>[,<role>]".
+const skippedUnassigned = "unassigned:"
+
+// gateUnassigned drops the specs whose role does not run for the product and
+// names the dropped roles, in order, once each.
+func gateUnassigned(m Master, specs []prCardSpec) ([]prCardSpec, string) {
+	if !m.AssignedSet {
+		return specs, ""
+	}
+	kept := make([]prCardSpec, 0, len(specs))
+	var gated []string
+	for _, spec := range specs {
+		if roleRuns(m, spec.Role) {
+			kept = append(kept, spec)
+			continue
+		}
+		if !containsFold(gated, spec.Role) {
+			gated = append(gated, spec.Role)
+		}
+	}
+	if len(gated) == 0 {
+		return kept, ""
+	}
+	return kept, skippedUnassigned + strings.Join(gated, ",")
 }
 
 // productOwns reports whether the product's repositories include owner/repo.
@@ -403,6 +434,9 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) flowOutcome {
 			}
 		}
 		planned, existing, res, err := f.st.PlanPullRequestCards(ctx, m.ID, ev)
+		if err == nil && res.Skipped != "" {
+			f.logf("prflow: skip %s", res.Skipped)
+		}
 		switch {
 		case errors.Is(err, ErrPRSkipped):
 			f.logf("prflow: skip %s", strings.TrimPrefix(err.Error(), ErrPRSkipped.Error()+": "))

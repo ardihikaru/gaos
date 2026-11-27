@@ -257,8 +257,12 @@ func (s *server) apiStaging(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ev := PREvent{Type: prTypeStaging, Org: owner, Repo: repo, Commit: strings.ToLower(b.Commit)}
-	planned, existing, _, err := s.store.PlanPullRequestCards(context.Background(), id, ev)
+	planned, existing, res, err := s.store.PlanPullRequestCards(context.Background(), id, ev)
 	switch {
+	case err == nil && len(planned) == 0 && len(existing) == 0 && strings.HasPrefix(res.Skipped, skippedUnassigned):
+		// A configuration state, not a transient one: 422, never the retryable 409 (D-099 §3.4).
+		apiErr(w, http.StatusUnprocessableEntity, "unassigned", "no qa agent is assigned to this product")
+		return
 	case errors.Is(err, ErrPRSkipped):
 		apiErr(w, http.StatusConflict, "capped", "the product holds too many open pull-request cards")
 		return

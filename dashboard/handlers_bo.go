@@ -264,10 +264,22 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		return bo
 
 	case "agents":
-		bo.Title, bo.Sub = "Agents", "Roles the scheduler can seat. Capability and model routing are read from here when a task is dispatched."
-		for _, a := range agents {
+		bo.Title, bo.Sub = "Agents", "Agents and the products they are assigned to. Capability and model routing are read from here when a task is dispatched."
+		roster, _ := s.store.Agents(r.Context())
+		bo.Assign = agentAssignView(r, masters, products, roster, productID)
+		var filter *Master
+		for i := range masters {
+			if masters[i].ID == bo.Assign.Product {
+				filter = &masters[i]
+			}
+		}
+		for _, a := range roster {
+			if filter != nil && filter.AssignedSet && !containsFold(filter.Assigned, a.ID) {
+				continue
+			}
 			role := roles[a.Role]
-			row := AgentRow{Style: cssVar("background", role.Color), Short: role.Short, Name: a.Name, Label: role.Label, Seated: "idle"}
+			row := AgentRow{Style: cssVar("background", role.Color), Short: role.Short, Name: a.Name, Label: role.Label, Seated: "idle",
+				Assigned: assignedProducts(masters, products, a.ID)}
 			for _, d := range f.Desks {
 				if d.State == StateIdle {
 					continue
@@ -281,7 +293,10 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 			}
 			bo.Agents = append(bo.Agents, row)
 		}
-		bo.Pager = paginate(len(bo.Agents), pageParam(r.URL.Query().Get("page")), listPageSize, listPageAt(view))
+		prod := bo.Assign.Product
+		bo.Pager = paginate(len(bo.Agents), pageParam(r.URL.Query().Get("page")), listPageSize, func(n int) (string, string) {
+			return agentsHref("ui/bo/agents", prod, n), agentsHref("agents", prod, n)
+		})
 		bo.Agents = sliceFor(bo.Agents, bo.Pager)
 		bo.Page = bo.Pager.Page
 		return bo

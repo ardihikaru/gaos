@@ -826,18 +826,49 @@
 
 {{define "bo-agents"}}
 <header><div><span class="eyebrow">access</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
+{{/* D-099: the product filter, the same parts as the Pull requests filter. */}}
+<div class="block">
+  <form class="af-form" method="get" action="ui/bo/agents" hx-get="ui/bo/agents" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
+    <label><span class="sr-only">Product</span>
+      <select name="product">{{range .Assign.Opts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <noscript><button class="btn" type="submit">Apply</button></noscript>
+    {{if .Assign.Product}}<a class="af-reset" href="{{pagehref "agents"}}" hx-get="ui/bo/agents" hx-target="#sink" hx-swap="innerHTML">Clear filter</a>{{end}}
+  </form>
+  {{if .Assign.Product}}
+  <p class="mono" style="margin:8px 0 0;color:var(--ink-3);font-size:12px">{{if .Assign.Configured}}Roles with no assigned agent do not run their PR flow in {{.Assign.ProductName}}.{{else}}Assignments not configured for {{.Assign.ProductName}} — every PR flow runs.{{end}}</p>
+  {{end}}
+</div>
 <div class="block">
   {{range .Agents}}
   <div class="proj" style="padding:8px 0">
-    <span style="display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:13px;color:var(--ink)">
+    <span style="display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:13px;color:var(--ink);min-width:0;flex-wrap:wrap">
       <em style="{{.Style}};width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700">{{.Short}}</em>
       {{.Name}} · {{.Label}}
+      {{with .Assigned}}<span class="mono card-labels">{{range .}} <span class="card-label" title="Assigned to {{.Name}}">{{.Name}}</span>{{end}}</span>{{end}}
     </span>
     <b class="{{if .IsOn}}seated{{end}}">{{.Seated}}</b>
   </div>
+  {{else}}
+  <p style="margin:0;color:var(--ink-3);font-size:13px">No agent is assigned to this product.</p>
   {{end}}
 </div>
 {{template "pager" .Pager}}
+{{with .Assign}}{{if and .Admin .Product}}
+<details class="block">
+  <summary>Edit assignments for {{.ProductName}}</summary>
+  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" style="margin-top:8px">
+    <input type="hidden" name="product" value="{{.Product}}">
+    {{range .Picks}}
+    <label style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px">
+      <input type="checkbox" name="agent" value="{{.ID}}"{{if .On}} checked{{end}}> {{.Name}} · {{.Label}}{{if .Gated}} <span class="mono" style="color:var(--ink-3);font-size:11px">PR flow</span>{{end}}
+    </label>
+    {{end}}
+    <p style="margin:8px 0;color:var(--ink-3);font-size:12px">Saving turns on assignment gating for this product, and GAOS will request changes on GitHub for medium and worse findings.</p>
+    <button class="btn" type="submit" name="action" value="save">Save</button>
+    {{if .Configured}}<button class="btn" type="submit" name="action" value="reset">Reset</button>{{end}}
+  </form>
+</details>
+{{end}}{{end}}
 {{end}}
 
 {{/* The Archive page (D-082). Archived conversations of finished cards, read

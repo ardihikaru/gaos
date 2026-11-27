@@ -251,6 +251,9 @@ func (s *server) address(bo *BOView, products []Product, productID string) {
 		f := bo.PRs.Filter
 		f.Open = boundValue(f.Open)
 		bo.Href = prPageHref(f)
+	case bo.View == "agents":
+		// The product filter is the validated one (D-099); the page comes last.
+		bo.Href = agentsHref("agents", bo.Assign.Product, bo.Page)
 	case bo.View == "autofix" && bo.AutoFix != nil:
 		f := bo.AutoFix.Filter
 		f.Open = boundValue(f.Open)

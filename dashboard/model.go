@@ -416,6 +416,12 @@ type Master struct {
 	// AutoFix is the product's defect auto-fix policy (D-091). Structured,
 	// because GAOS enforces it; never rendered into the Blueprint.
 	AutoFix AutoFix
+
+	// Assigned are the agents assigned to the product (D-099): sorted ids of
+	// the roster. AssignedSet is true once an admin saved them; until then the
+	// pull-request flows run as before assignment existed (assign.go).
+	Assigned    []string
+	AssignedSet bool
 }
 
 // AutoFix is a product's defect auto-fix configuration (design §6.1). The zero
@@ -506,6 +512,7 @@ func (m Master) Clone() Master {
 	c.Blueprint = m.Blueprint.Clone()
 	c.Qa = m.Qa.Clone()
 	c.AutoFix = m.AutoFix.Clone()
+	c.Assigned = append([]string(nil), m.Assigned...)
 	return c
 }
 
