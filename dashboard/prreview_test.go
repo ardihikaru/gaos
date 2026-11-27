@@ -46,11 +46,13 @@ func TestTheReviewerContractNamesTheBlockAndTheHandoff(t *testing.T) {
 
 type fakePoster struct {
 	posted []string
+	events []string
 	err    error
 }
 
-func (f *fakePoster) postReview(_ context.Context, _, _ string, _ int, body string) error {
+func (f *fakePoster) postReview(_ context.Context, _, _ string, _ int, body, event string) error {
 	f.posted = append(f.posted, body)
+	f.events = append(f.events, event)
 	return f.err
 }
 

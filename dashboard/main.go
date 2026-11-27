@@ -445,6 +445,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		go poller.Run(ctx)
 		if ghc != nil {
 			rv.gh = ghc
+			rv.rd = ghc // D-099: the fresh read before posting, and the review fix's reads
 		}
 		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify}
 		if srv.qaOut != nil {
@@ -454,6 +455,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		if ghc != nil {
 			poller.alert.post = ghc
 		}
+		rv.cache, rv.src = flow.ctx, srv.codeSrc
 		h.SetPRHooks(
 			func(t TaskRecord) []PacketPart { return append(prPacketParts(flow.ctx, t), testPlannerParts(t)...) },
 			func(t TaskRecord, reply string) {

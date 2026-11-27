@@ -263,7 +263,7 @@ func TestBundleScope(t *testing.T) {
 // recordPoster records review comments.
 type recordPoster struct{ bodies *[]string }
 
-func (r recordPoster) postReview(_ context.Context, _, _ string, _ int, body string) error {
+func (r recordPoster) postReview(_ context.Context, _, _ string, _ int, body, _ string) error {
 	*r.bodies = append(*r.bodies, body)
 	return nil
 }

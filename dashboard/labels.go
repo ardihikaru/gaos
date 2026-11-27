@@ -30,6 +30,14 @@ const (
 	// LabelUnitTest is the unit test builder and runner.
 	LabelUnitTest = "unit:test"
 
+	// The severity family (D-099): what the PR reviewer found. The reviewer
+	// sets it; an operator may correct it. It never changes who works a card.
+	LabelSeverityNone     = "severity:none"
+	LabelSeverityLow      = "severity:low"
+	LabelSeverityMedium   = "severity:medium"
+	LabelSeverityHigh     = "severity:high"
+	LabelSeverityCritical = "severity:critical"
+
 	// The defect family (D-091). Only the planner sets it; the scheduler never
 	// dispatches it in any mode (the auto-fix loop does, with its caps).
 	LabelDefectTriage  = "defect:triage"
@@ -41,6 +49,30 @@ const (
 // labelFamilyDefect is the planner-only family.
 const labelFamilyDefect = "defect"
 
+// labelFamilySeverity is the reviewer's severity (D-099).
+const labelFamilySeverity = "severity"
+
+// severityOf is a card's severity level from its labels, or "".
+func severityOf(labels []string) string {
+	for _, l := range labels {
+		if strings.HasPrefix(l, labelFamilySeverity+":") {
+			return strings.TrimPrefix(l, labelFamilySeverity+":")
+		}
+	}
+	return ""
+}
+
+// withoutSeverity is the labels minus the severity one, for the chips.
+func withoutSeverity(labels []string) []string {
+	var out []string
+	for _, l := range labels {
+		if !strings.HasPrefix(l, labelFamilySeverity+":") {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
 // labelSet is the closed vocabulary.
 var labelSet = map[string]bool{
 	LabelPRReviewAuto:        true,
@@ -49,6 +81,11 @@ var labelSet = map[string]bool{
 	LabelE2EAutomation:       true,
 	LabelE2ERun:              true,
 	LabelUnitTest:            true,
+	LabelSeverityNone:        true,
+	LabelSeverityLow:         true,
+	LabelSeverityMedium:      true,
+	LabelSeverityHigh:        true,
+	LabelSeverityCritical:    true,
 	LabelDefectTriage:        true,
 	LabelDefectEasy:          true,
 	LabelDefectMedium:        true,
@@ -61,6 +98,11 @@ var labelOrder = []string{
 	LabelPRReviewAuto,
 	LabelPRReviewManual,
 	LabelPRReviewNeedsManual,
+	LabelSeverityNone,
+	LabelSeverityLow,
+	LabelSeverityMedium,
+	LabelSeverityHigh,
+	LabelSeverityCritical,
 	LabelE2EAutomation,
 	LabelE2ERun,
 	LabelUnitTest,

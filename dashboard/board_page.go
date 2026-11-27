@@ -53,6 +53,7 @@ type BoardQuery struct {
 	Role      string
 	Story     string // "plan", or a story id
 	Label     string
+	Severity  string // a level, or "medium+" (D-099)
 	Workflow  string
 	Waiting   bool   // only cards waiting on a person
 	HideEmpty bool   // hide columns with no matching card
@@ -69,6 +70,7 @@ type BoardWindow struct {
 // BoardFacets is what each select offers, before filtering, sorted.
 type BoardFacets struct {
 	Roles, Labels, Workflows []string   // the values present on any task of the product
+	Severities               []string   // the severity levels present, in ladder order (D-099)
 	Stories                  []BoardRow // "plan" first, then every story of the product
 }
 
@@ -93,7 +95,19 @@ type BoardPage struct {
 	Facets    BoardFacets
 }
 
-var boardSorts = map[string]bool{"id": true, "role": true, "story": true, "updated": true}
+var boardSorts = map[string]bool{"id": true, "role": true, "story": true, "updated": true, "severity": true}
+
+// severityMediumPlus is the filter value for medium, high and critical (D-099).
+const severityMediumPlus = "medium+"
+
+// severityMatches is the Severity filter.
+func severityMatches(want string, labels []string) bool {
+	got := severityOf(labels)
+	if want == severityMediumPlus {
+		return prSeverityRank(got) >= prSeverityRank("medium")
+	}
+	return got == want
+}
 
 func isColumnID(id string) bool {
 	for _, c := range boardColumns {
@@ -165,7 +179,7 @@ func (p boardParams) value(key string) string {
 func parseBoardQuery(r *http.Request) (BoardQuery, BoardWindow) {
 	p := boardParamsOf(r)
 	q := BoardQuery{
-		Role: p.value("role"), Story: p.value("story"), Label: p.value("label"), Workflow: p.value("wf"),
+		Role: p.value("role"), Story: p.value("story"), Label: p.value("label"), Severity: p.value("severity"), Workflow: p.value("wf"),
 		Waiting: p.get("waiting") == "1", HideEmpty: p.get("empty") == "hide",
 	}
 	if p.get("view") == "table" {
@@ -221,6 +235,9 @@ func (q BoardQuery) Encode() string {
 	}
 	if q.Label != "" {
 		v.Set("label", q.Label)
+	}
+	if q.Severity != "" {
+		v.Set("severity", q.Severity)
 	}
 	if q.Workflow != "" {
 		v.Set("wf", q.Workflow)
@@ -330,6 +347,9 @@ func (q BoardQuery) matches(t *TaskRecord, text string) bool {
 			return false
 		}
 	}
+	if q.Severity != "" && !severityMatches(q.Severity, t.Labels) {
+		return false
+	}
 	if text != "" {
 		if !strings.Contains(strings.ToLower(t.Title), text) && !strings.Contains(strings.ToLower(t.ID), text) &&
 			!strings.Contains(strings.ToLower(t.DedupKey), text) {
@@ -354,8 +374,11 @@ func (q BoardQuery) clean(f BoardFacets) BoardQuery {
 	if !in(f.Roles, q.Role) {
 		q.Role = ""
 	}
-	if !in(f.Labels, q.Label) {
+	if !in(f.Labels, q.Label) || strings.HasPrefix(q.Label, labelFamilySeverity+":") {
 		q.Label = ""
+	}
+	if q.Severity != severityMediumPlus && !in(f.Severities, q.Severity) {
+		q.Severity = ""
 	}
 	if !in(f.Workflows, q.Workflow) {
 		q.Workflow = ""
@@ -379,7 +402,8 @@ func (q BoardQuery) clean(f BoardFacets) BoardQuery {
 // cardOf is a task as a card, undecorated.
 func cardOf(t *TaskRecord, m *Master, last lastChange) BoardCard {
 	return BoardCard{ID: t.ID, Label: t.Title, Column: columnOf(t.Status), Status: t.Status, Role: t.Role,
-		Rank: t.Rank, Labels: t.Labels, Vendor: m.Vendors.VendorFor(t.Role), Moves: legalMoves(*t),
+		Rank: t.Rank, Labels: t.Labels, Severity: severityOf(t.Labels), Chips: withoutSeverity(t.Labels),
+		Vendor: m.Vendors.VendorFor(t.Role), Moves: legalMoves(*t),
 		Story: t.Story, Workflow: t.WorkflowID, Updated: last.Seq, UpdatedAt: last.At}
 }
 
@@ -435,8 +459,15 @@ func (s *MemStore) BoardPage(ctx context.Context, productID string, q BoardQuery
 			labels[l] = true
 		}
 	}
+	var sevs []string
+	for _, lv := range prSeverities {
+		if labels[labelFamilySeverity+":"+lv] {
+			sevs = append(sevs, lv)
+		}
+		delete(labels, labelFamilySeverity+":"+lv) // the Label select never lists them
+	}
 	facets := BoardFacets{Roles: sortedKeys(roles), Labels: sortedKeys(labels), Workflows: sortedKeys(wfs),
-		Stories: []BoardRow{{ID: PlanLane, Label: "Plan"}}}
+		Severities: sevs, Stories: []BoardRow{{ID: PlanLane, Label: "Plan"}}}
 	for _, st := range m.Stories {
 		facets.Stories = append(facets.Stories, BoardRow{ID: st.ID, Label: st.ID + " · " + st.Want})
 	}
@@ -545,6 +576,25 @@ func (s *MemStore) BoardPage(ctx context.Context, productID string, q BoardQuery
 // newest first unless told otherwise; everything else ascends.
 func sortTableRows(rows []*TaskRecord, q BoardQuery, last map[string]lastChange) {
 	if q.Sort == "" {
+		return
+	}
+	if q.Sort == "severity" {
+		// Worst first unless told otherwise; a card with no severity is last
+		// in both directions, so it never fills the top of the table.
+		asc := q.Dir == "asc"
+		sort.SliceStable(rows, func(i, j int) bool {
+			a, b := prSeverityRank(severityOf(rows[i].Labels)), prSeverityRank(severityOf(rows[j].Labels))
+			if (a < 0) != (b < 0) {
+				return b < 0
+			}
+			if a != b {
+				if asc {
+					return a < b
+				}
+				return a > b
+			}
+			return rows[i].ID < rows[j].ID
+		})
 		return
 	}
 	desc := q.Dir == "desc" || (q.Dir == "" && q.Sort == "updated")

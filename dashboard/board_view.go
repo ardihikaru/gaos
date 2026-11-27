@@ -49,6 +49,7 @@ type BoardView struct {
 	// The bar.
 	Text                                   string
 	RoleOpts, StoryOpts, LabelOpts, WfOpts []AFOpt
+	SevOpts                                []AFOpt // D-099
 	Filtered                               bool // a filter or a search narrows the board
 	LiveURL                                string
 	BoardGet, BoardHref                    string
@@ -68,7 +69,7 @@ type BoardView struct {
 
 // tableHeads are the table's columns that sort, in order.
 var tableHeads = []struct{ Key, Label string }{
-	{"id", "ID"}, {"", "Title"}, {"status", "Status"}, {"role", "Role"}, {"story", "Story"},
+	{"id", "ID"}, {"", "Title"}, {"status", "Status"}, {"severity", "Severity"}, {"role", "Role"}, {"", "Labels"}, {"story", "Story"},
 	{"", "Workflow"}, {"", "Attempts"}, {"", "Lead time"}, {"updated", "Changed"}, {"", "Actions"},
 }
 
@@ -84,7 +85,7 @@ func boardOpts(all string, values []string, label func(string) string, on string
 func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 	q := p.Query
 	bv := &BoardView{ProductID: p.ProductID, Slug: slug, Page: p, Table: q.View == "table", Text: p.Text, TimelineN: timelineN,
-		Filtered: p.Text != "" || q.Role != "" || q.Story != "" || q.Label != "" || q.Workflow != "" || q.Waiting}
+		Filtered: p.Text != "" || q.Role != "" || q.Story != "" || q.Label != "" || q.Severity != "" || q.Workflow != "" || q.Waiting}
 	same := func(v string) string { return v }
 	bv.RoleOpts = boardOpts("Every role", p.Facets.Roles, func(v string) string {
 		if r, ok := roles[v]; ok {
@@ -93,6 +94,13 @@ func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 		return v
 	}, q.Role)
 	bv.LabelOpts = boardOpts("Every label", p.Facets.Labels, same, q.Label)
+	// The Severity select always offers medium+, the cards a person must read (D-099).
+	bv.SevOpts = boardOpts("Every severity", append(append([]string{}, p.Facets.Severities...), severityMediumPlus), func(v string) string {
+		if v == severityMediumPlus {
+			return "Medium or worse"
+		}
+		return v
+	}, q.Severity)
 	bv.WfOpts = boardOpts("Every workflow", p.Facets.Workflows, same, q.Workflow)
 	bv.StoryOpts = []AFOpt{{Value: "", Label: "Every story", On: q.Story == ""}}
 	for _, st := range p.Facets.Stories {
@@ -152,7 +160,7 @@ func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 				// Clicking the sorted column turns it round; any other starts
 				// in its own natural direction.
 				natural := "asc"
-				if h.Key == "updated" {
+				if h.Key == "updated" || h.Key == "severity" {
 					natural = "desc"
 				}
 				cur := q.Dir

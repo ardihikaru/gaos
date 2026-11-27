@@ -1683,6 +1683,13 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .card-reason{margin-top:4px;font-size:10px;line-height:14px;color:var(--ink-3);overflow-wrap:anywhere}
 /* The task's labels (D-088): a closed vocabulary, so they are chips and not free text. */
 .card-labels .card-label{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:0 4px;margin:1px 0 0 2px;color:var(--ink-3)}
+/* D-099: the reviewer's severity. The level is always written as text; the
+   colour only repeats it. none has no chip on the kanban. */
+.card-label.sev-none{color:var(--ink-3)}
+.card-label.sev-low{color:var(--done);border-color:color-mix(in srgb,var(--done) 45%,var(--line))}
+.card-label.sev-medium{color:var(--block);border-color:color-mix(in srgb,var(--block) 55%,var(--line))}
+.card-label.sev-high{color:var(--fail);border-color:color-mix(in srgb,var(--fail) 60%,var(--line))}
+.card-label.sev-critical{color:var(--bg);background:var(--fail);border-color:var(--fail);font-weight:600}
 .card-sendback{margin-top:5px;font-size:10px;padding:2px 6px}
 .sfb-card-content .card-sendback{display:flex;width:max-content}
 .modal.sendback{max-width:640px}

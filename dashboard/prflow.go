@@ -654,7 +654,7 @@ func (f *prFlow) fetchContext(ctx context.Context, ev PREvent, pr ghPR) {
 		return
 	}
 	f.ctx.put(ev.Key(prJobReviewer), prContext{
-		Title: pr.Title, Body: pr.Body, Author: pr.User.Login, Diff: renderDiff(files)})
+		Title: pr.Title, Body: pr.Body, Author: pr.User.Login, Diff: renderDiff(files), HeadSHA: pr.Head.SHA})
 }
 
 // PRCards are a product's pull-request cards, as copies.

@@ -459,6 +459,8 @@
       <select name="story">{{range .StoryOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
     {{if gt (len .LabelOpts) 1}}<label><span class="sr-only">Label</span>
       <select name="label">{{range .LabelOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    <label><span class="sr-only">Severity</span>
+      <select name="severity">{{range .SevOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
     {{if gt (len .WfOpts) 1}}<label><span class="sr-only">Workflow</span>
       <select name="wf">{{range .WfOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
     <label class="board-check"><input type="checkbox" name="waiting" value="1"{{if .Page.Query.Waiting}} checked{{end}}> Waiting on a person</label>
@@ -506,7 +508,7 @@
     {{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{end}}
     <div class="board-card-title">{{.Label}}</div>
     <div class="mono board-card-meta">{{.ID}} · {{.Role}} · {{.Status}} · {{if .Story}}{{.Story}}{{else}}plan{{end}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</div>
-    {{with .Labels}}<div class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
+    {{if or (and .Severity (ne .Severity "none")) .Chips}}<div class="mono card-labels">{{if and .Severity (ne .Severity "none")}}<span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span>{{end}}{{range .Chips}} <span class="card-label">{{.}}</span>{{end}}</div>{{end}}
     {{with .Qa}}{{template "qa-badge" .}}{{end}}
     {{$card := .ID}}
     {{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}
@@ -567,9 +569,11 @@
     {{range .Rows}}{{$card := .ID}}
     <tr class="board-row{{if eq .Status "AWAITING_INPUT"}} is-needs-you{{end}}" data-card="{{.ID}}" data-product="{{$id}}">
       <td class="mono cell-id" title="{{.ID}}">{{.ID}}</td>
-      <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Labels}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
+      <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
       <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
+      <td class="mono">{{if .Severity}}<span class="card-labels"><span class="card-label sev-{{.Severity}}">{{.Severity}}</span></span>{{end}}</td>
       <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
+      <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}</td>
       <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
       <td class="mono cell-id" title="{{.Workflow}}">{{.Workflow}}</td>
       <td>{{with .Conversation}}{{if not (or .Archived .Pruned)}}<button type="button" class="cv-chip mono" id="cv-{{$card}}" data-sheet-open="{{conversationURL $id $card}}" aria-label="Conversation of {{$card}}: {{.Attempts}} attempt(s)">{{.Attempts}} attempt{{if ne .Attempts 1}}s{{end}}</button>{{end}}{{end}}</td>
@@ -578,7 +582,7 @@
       <td class="board-row-moves">{{with .SendBack}}{{if .Open}}<button type="button" class="btn card-sendback" id="sb-{{$card}}" data-sheet-open="{{sendBackURL $id $card}}" aria-label="Send the design {{.Design}} back to its author">Revise design</button>{{end}}{{end}}{{range .Moves}}<button class="btn board-move" hx-put="products/{{$id}}/board/cards/{{$card}}/move" hx-vals='{"column":"{{.}}"}' hx-target="#sink" hx-swap="innerHTML">→ {{.}}</button>{{end}}</td>
     </tr>
     {{end}}
-    {{if not .Rows}}<tr><td colspan="10" class="board-norows">{{if eq .Page.All 0}}No tasks yet.{{else}}No cards match these filters.{{end}}</td></tr>{{end}}
+    {{if not .Rows}}<tr><td colspan="12" class="board-norows">{{if eq .Page.All 0}}No tasks yet.{{else}}No cards match these filters.{{end}}</td></tr>{{end}}
     </tbody>
   </table>
   </div>

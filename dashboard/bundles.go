@@ -493,7 +493,7 @@ func (p *fixPRPoller) maybeAlert(ctx context.Context, row PullRequest, tmpl prTe
 	}
 	owner, repo, _ := ghOwnerRepo(row.Repo)
 	if p.alert.post != nil {
-		if err := p.alert.post.postReview(ctx, owner, repo, row.Number, comment); err != nil {
+		if err := p.alert.post.postReview(ctx, owner, repo, row.Number, comment, ghEventComment); err != nil {
 			p.logf("bundles: the missing-code comment on %s failed: %s", prSelfRef(row), ghErrorClass(err))
 		}
 	}
