@@ -47,8 +47,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-850`;
-   next free number is `TC-851`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-851`;
+   next free number is `TC-852`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it
    — do not delete it and do not renumber anything after it. `TC-076` is the
    worked example: BR-07 made planning an empty record illegal, so the case
@@ -80,7 +80,7 @@ every check identical are exempt.
    - the register intro on the same page ("All eight hundred and fifty cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
-     the Go unit-test count, currently "seven hundred and thirteen"
+     the Go unit-test count, currently "seven hundred and fourteen"
 
    The same pages carry four more counts that move together with the registers:
    "Sixty-three rules" in `pustaka/docs/product/brd.html`, "One hundred and three entries"
@@ -117,7 +117,7 @@ grep -oE '<td>TC-0[0-9][0-9]</td><td>[^<]*' pustaka/docs/product/qa-test-plan.ht
 | `live-aim-run.sh` | Implemented | TC-300…TC-303 |
 | `check-workspace.sh` | Implemented | TC-357, TC-358, TC-380, TC-381, TC-437, TC-510, TC-751 |
 | `seed.sh` | Implemented | TC-411 |
-| `dashboard (go test)` | Implemented | TC-050, TC-051, TC-054…TC-075, TC-077…TC-086, TC-109…TC-126, TC-131…TC-146, TC-149, TC-156…TC-179, TC-185, TC-191, TC-193…TC-219, TC-227…TC-230, TC-247…TC-261, TC-266, TC-267, TC-274…TC-299, TC-304…TC-309, TC-311…TC-356, TC-359…TC-379, TC-382…TC-410, TC-412…TC-434, TC-439…TC-450, TC-453…TC-498, TC-500…TC-509, TC-511, TC-512, TC-513…TC-522, TC-524…TC-598, TC-601…TC-615, TC-617…TC-621, TC-624…TC-686, TC-689…TC-720, TC-722…TC-732, TC-734…TC-750, TC-753…TC-783, TC-785…TC-838, TC-839…TC-848, TC-850 |
+| `dashboard (go test)` | Implemented | TC-050, TC-051, TC-054…TC-075, TC-077…TC-086, TC-109…TC-126, TC-131…TC-146, TC-149, TC-156…TC-179, TC-185, TC-191, TC-193…TC-219, TC-227…TC-230, TC-247…TC-261, TC-266, TC-267, TC-274…TC-299, TC-304…TC-309, TC-311…TC-356, TC-359…TC-379, TC-382…TC-410, TC-412…TC-434, TC-439…TC-450, TC-453…TC-498, TC-500…TC-509, TC-511, TC-512, TC-513…TC-522, TC-524…TC-598, TC-601…TC-615, TC-617…TC-621, TC-624…TC-686, TC-689…TC-720, TC-722…TC-732, TC-734…TC-750, TC-753…TC-783, TC-785…TC-838, TC-839…TC-848, TC-850, TC-851 |
 | `pustaka (go test)` | Implemented | TC-087…TC-108, TC-721, TC-752, TC-784 |
 | `dashboard (go test)` | Retired | TC-076, TC-180…TC-184, TC-186…TC-190, TC-192, TC-220…TC-226, TC-231…TC-242, TC-262…TC-265 |
 | `kill-mid-task.sh` | Retired | TC-243…TC-246 |
@@ -125,7 +125,7 @@ grep -oE '<td>TC-0[0-9][0-9]</td><td>[^<]*' pustaka/docs/product/qa-test-plan.ht
 | Unsatisfiable task | Not implemented | TC-048, TC-049 |
 | Second run | Not implemented | TC-052, TC-053 |
 
-**850 rows in total. 688 in `dashboard/` and 25 in `pustaka/`** — 713 Go tests,
+**851 rows in total. 689 in `dashboard/` and 25 in `pustaka/`** — 714 Go tests,
 and **one register row per `func Test…`**, because that is the unit `go test
 -run` can select. A new top-level `func Test…` always gets its own row. The
 store conformance suite is the exception: it is one `func Test…` per
