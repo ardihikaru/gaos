@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>TaskMgr — GAOS</title>
+<meta name="description" content="TaskMgr, the team's task manager, as a third-party platform bound to one product: the binding, the settings, the TLS pin and the narrow grant, the people directory, the five uses, the circuit breaker and troubleshooting.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="taskmgr">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>TaskMgr</h1>
+  <p class="lede">TaskMgr is the team&rsquo;s task manager. It already knows each task&rsquo;s product, status and QA,
+  and each person&rsquo;s role, WhatsApp number and checked GitHub login. GAOS can bind <strong>one product</strong> to
+  it as a <em>third-party platform</em>. That product&rsquo;s pull-request codes are then checked against real tasks,
+  its notices reach people GAOS has no contact for, and a finished test plan is reported back on the task
+  (<a href="../product/decision-log.html#d-104">D-104</a>).</p>
+
+  <div class="page-meta"
+       data-tags="integration, taskmgr, task manager, grpc, whatsapp, third-party"
+       data-hashtags="integrations, taskmgr"
+       data-published="2026-11-27"
+       data-updated="2026-11-27"
+       data-version-from="0.66.0"
+       data-version-to=""></div>
+
+  <h2 id="what">What it does</h2>
+  <table class="tbl">
+    <thead><tr><th>Use</th><th>What happens</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>Task-code validation</td><td>A pull request whose <em>Kode (jika dari task manager)</em> names a task TaskMgr does not know, a deleted or archived task, or a task of another TaskMgr product gets one <code>unknown-task-code</code> comment and one WhatsApp line.</td><td>Each poll of an open, templated pull request; a known code is checked again after 30 minutes</td></tr>
+      <tr><td>Test plan ready</td><td>One line, <code>bundle:planned</code>, to the task&rsquo;s QA (the QA who has taken the task in TaskMgr; before that, the group): how many draft cases and links the test plan made.</td><td>A bundle&rsquo;s test-planner card ends DONE</td></tr>
+      <tr><td>Routing by login</td><td>A notice whose GitHub login has no GAOS contact goes to the TaskMgr person with that checked login, before the group.</td><td>Every notice of the product</td></tr>
+      <tr><td>Write-back</td><td>One comment on the TaskMgr task: the finished pull requests (merged and closed counted apart), the test plan&rsquo;s counts and case codes.</td><td>Once per DONE test plan</td></tr>
+      <tr><td>Directory</td><td>The Integrations view shows counts to everyone and the per-person table to auto-fix admins.</td><td>Refreshed every 15 minutes while a binding is enabled</td></tr>
+    </tbody>
+  </table>
+  <p>GAOS never changes a TaskMgr task&rsquo;s status, never creates a task and never writes a contact into TaskMgr.</p>
+
+  <h2 id="flow">The data flow</h2>
+  <div class="flow rv">
+    <div class="node"><b>GitHub</b><span>the PR template&rsquo;s code</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>GAOS</b><span>poller, notifier, test planner</span></div>
+    <div class="arrow">⇄</div>
+    <div class="node"><b>TaskMgr</b><span>gRPC over TLS</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>WhatsApp</b><span>a person, or the group</span></div>
+  </div>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>every 15 min      GAOS ── UserService/ListUsers ──────────▶ TaskMgr
+                       ◀── people: role, number, checked login ─   (memory only)
+
+PR polled         GAOS ── TaskService/GetTask(&lt;code&gt;) ───────▶ TaskMgr
+                       ◀── product, status, QA  |  not found ─
+                  unknown / deleted / other product ──▶ one GitHub comment + one WhatsApp line
+
+a notice          contact for the login?  yes ──▶ the contact (its filter applies)
+                                          no  ──▶ the TaskMgr person with that checked login
+                                          none ─▶ the pinned group
+
+test plan DONE    GAOS ── GetTask(&lt;code&gt;) again: must be this product's task
+                  GAOS ── WhatsApp bundle:planned ──▶ the task's QA
+                  GAOS ── TaskService/AddComment(&lt;code&gt;, note) ──▶ TaskMgr   (best-effort, once)</pre>
+  </div>
+
+  <h2 id="binding">The binding</h2>
+  <p>On the back office&rsquo;s <em>Integrations</em> view, an auto-fix admin (the accounts in
+  <code>GAOS_AUTOFIX_ADMINS</code>) picks a product, types its TaskMgr product code and ticks <em>enabled</em>. The
+  form posts <code>POST /products/{id}/third-party</code>.</p>
+  <ul>
+    <li>A product has at most one binding per kind; the only kind is <code>taskmgr</code>.</li>
+    <li>An instance binds one product per kind. Binding a second answers <strong>409</strong> and names the product
+    that holds it.</li>
+    <li>Disabling keeps the entry with <em>enabled</em> off; nothing is deleted.</li>
+    <li>Every change is a <code>ThirdPartyConfigured</code> event: the alias, the kind, the switch and the code.</li>
+    <li>The binding is stored on the product (<code>thirdParty</code>), like auto-fix, so it needs no schema change.</li>
+  </ul>
+  <p>The link is <strong>ready</strong> only when the settings below are usable, the circuit breaker is closed, the
+  binding is enabled, and the product is in <code>GAOS_PR_TEMPLATE_PRODUCTS</code> &mdash; without that, GAOS reads no
+  code at all. A bound product missing from that list shows <em>Degraded</em>.</p>
+
+  <h2 id="settings">The settings</h2>
+  <table class="tbl">
+    <thead><tr><th>Variable</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><code>GAOS_TASKMGR_GRPC_ADDR</code></td><td>TaskMgr&rsquo;s gRPC address, <code>ip:port</code>, an IP literal. A hostname is refused. Empty means off.</td></tr>
+      <tr><td><code>GAOS_TASKMGR_CA_FILE</code></td><td>The PEM certificate TaskMgr serves, pinned as the only root; the server name checked is the IP. Required unless the address is loopback. Prod: <code>deploy/stacks/prod.pr-taskmgr-ca.pem</code>, mounted at <code>/run/secrets/pr-taskmgr-ca.pem</code>.</td></tr>
+      <tr><td><code>GAOS_TASKMGR_AUTH_FILE</code></td><td>A regular file with no group or other permission bits, one line <code>username:password</code>. Empty means off. Prod: <code>deploy/stacks/prod.pr-taskmgr-auth</code>, mounted at <code>/run/secrets/pr-taskmgr-auth</code>.</td></tr>
+    </tbody>
+  </table>
+  <p>Both files match the <code>prod.pr-*</code> class, so the existing guards cover them: they are gitignored,
+  <code>check-stacks.sh</code> fails if one is tracked, and a prod deploy refuses to start while one is missing.</p>
+
+  <h2 id="tls">TLS and the pinned certificate</h2>
+  <p>The VPN between the VMs runs through a hub that decrypts WireGuard and encrypts it again. Plaintext gRPC would
+  show the hub every credential and every phone number. So GAOS speaks gRPC over <strong>TLS 1.3</strong> to the
+  certificate in <code>GAOS_TASKMGR_CA_FILE</code>, and dials only the configured IP; the hub relays ciphertext.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">bash</span><button class="copy">copy</button></div>
+    <pre><span class="c"># on the GAOS host: copy TaskMgr's public certificate (never its key)</span>
+install -m 600 grpc.crt deploy/stacks/prod.pr-taskmgr-ca.pem
+<span class="c"># the address, in the instance's env file</span>
+GAOS_TASKMGR_GRPC_ADDR=&lt;taskmgr-addr&gt;</pre>
+  </div>
+  <p>TaskMgr&rsquo;s certificate is self-signed and valid for three years. To renew it, replace the file on both sides
+  and restart GAOS.</p>
+
+  <h2 id="grant">The TaskMgr account</h2>
+  <p>GAOS signs in as a TaskMgr rest-client that holds the <strong>gRPC integration</strong> grant, never <em>gRPC
+  access</em> (the admin grant). The integration grant allows three methods &mdash; <code>ListUsers</code>,
+  <code>GetTask</code>, <code>AddComment</code> &mdash; only on the client&rsquo;s TaskMgr products. It has no REST access
+  and a comment rate limit. Create it with full access off, product access to the bound product only, and a
+  one-year expiry.</p>
+  <div class="adm warn">
+    <p class="adm-title">Never use the admin grant</p>
+    <p>A rest-client with <em>gRPC access</em> acts as a TaskMgr admin: it can reset passwords and change any task. A
+    GAOS secret holding it would be a full TaskMgr admin credential.</p>
+  </div>
+
+  <h2 id="people">The people directory</h2>
+  <p>GAOS keeps, in memory only, the active TaskMgr people the account may see: by id, and by lower-case GitHub login
+  for <em>checked</em> logins. A login two checked people share is dropped and counted as a conflict. A number is
+  usable when TaskMgr marks it active and it has 7 to 15 digits; it is sent as <code>&lt;digits&gt;@s.whatsapp.net</code>.</p>
+  <ul>
+    <li>A failed refresh keeps the previous directory, shown as <em>stale since</em> a time.</li>
+    <li>Disabling the binding empties it; nothing is fetched while no binding is enabled.</li>
+    <li>A number is never stored, logged, put in a packet, sent to Brain Town or written into an event
+    (<a href="../product/brd.html#rules-gateway">BR-63</a>). The one stored identifier is the alias
+    <code>tm:&lt;username&gt;</code> in <code>ContactNotified</code>.</li>
+    <li>Everyone sees the counts &mdash; people, GitHub-linked, usable numbers, login conflicts. Only an auto-fix admin
+    sees the table of name, role, GitHub login and masked number.</li>
+  </ul>
+
+  <h2 id="routing">Who gets a notice</h2>
+  <table class="tbl">
+    <thead><tr><th>Step</th><th>Goes to</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>The GAOS contact for the login, if it wants the kind. A contact that filters the kind out sends it to the group; it never falls through to TaskMgr.</td></tr>
+      <tr><td>2</td><td>No contact at all: the TaskMgr person with that checked GitHub login and a usable number.</td></tr>
+      <tr><td>3</td><td>Otherwise the pinned group.</td></tr>
+    </tbody>
+  </table>
+  <p><code>e2e:approval</code> and every <code>bundle:</code> kind keep their group routing; <code>bundle:planned</code>
+  alone goes to the task&rsquo;s QA when TaskMgr names one with a usable number.</p>
+
+  <h2 id="writeback">The note on the task</h2>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>GAOS: the pull requests of this task are finished: 2 merged, 1 closed without merging.
+https://github.com/example/app/pull/41
+https://github.com/example/api/pull/17
+Test plan: 3 draft case(s) created, 1 linked, 0 refused: TC-DEMO-001, TC-DEMO-002, TC-DEMO-003, TC-DEMO-010.
+[gaos bundle taskmgr:DEMO-FEATURE-00042 · card t-512]</pre>
+  </div>
+  <p>It is written only after a fresh lookup confirms the task belongs to the bound product, and only for a
+  <code>taskmgr:</code> bundle. At most ten pull-request links are listed, case codes must look like case codes,
+  and the text stays within TaskMgr&rsquo;s 1500 characters with the marker line kept. A failure is logged and never
+  retried; it never fails the card.</p>
+
+  <h2 id="breaker">When TaskMgr is down</h2>
+  <ul>
+    <li><strong>A refused credential</strong> (or TaskMgr&rsquo;s lockout) stops every call until the credential file
+    changes or an hour passes. The block shows <em>Unusable</em>: <em>TaskMgr refused the credential</em>.</li>
+    <li><strong>Three unavailable answers in a row</strong> stop calls for one minute, doubling to thirty. The block
+    shows <em>Degraded</em>.</li>
+    <li>While calls are stopped, nothing is checked, no notice uses TaskMgr, and every use falls back to the
+    behaviour before TaskMgr: the contact or the group, no validation, no note.</li>
+    <li>A lookup on the poll path waits at most three seconds, so a slow TaskMgr never stalls the pull-request poll.</li>
+  </ul>
+
+  <h2 id="troubleshooting">Troubleshooting</h2>
+  <table class="tbl">
+    <thead><tr><th>You see</th><th>Why, and what to do</th></tr></thead>
+    <tbody>
+      <tr><td><em>Off</em></td><td>No address, an empty credential file, or no enabled binding. Set all three.</td></tr>
+      <tr><td><em>Unusable</em> at boot</td><td>A hostname instead of an IP, no certificate for a non-loopback address, or an auth file readable by others (<code>chmod 600</code>).</td></tr>
+      <tr><td><em>Unusable</em>: refused the credential</td><td>The rest-client is wrong, expired or lacks the integration grant. Fix it in TaskMgr, rewrite the file; the change of file is enough to retry.</td></tr>
+      <tr><td><em>Degraded</em>: not in the template list</td><td>Add the product to <code>GAOS_PR_TEMPLATE_PRODUCTS</code> and redeploy.</td></tr>
+      <tr><td>A notice still goes to the group</td><td>The author has a GAOS contact (it wins), the TaskMgr login is not checked, or the number is inactive.</td></tr>
+      <tr><td>A valid code is called unknown</td><td>The case differs (TaskMgr ids are matched exactly), or the task belongs to another TaskMgr product, or the account lacks access to that product.</td></tr>
+      <tr><td>409 on the binding</td><td>Another product holds the TaskMgr binding. Disable it there first.</td></tr>
+    </tbody>
+  </table>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

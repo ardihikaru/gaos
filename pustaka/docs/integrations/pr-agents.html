@@ -179,7 +179,11 @@ Content-Type: application/json
   must review &mdash; an operator&rsquo;s <code>pr-review:manual</code> or <code>pr-review:needs-manual</code>
   (<a href="../product/decision-log.html#d-101">D-101</a>) &mdash; send <strong>one line and the card's id</strong>. A
   client that asks the API for a manual review is announced to the group, naming the client. The findings stay on the card; no code is pasted into a chat. The line goes to the
-  contact of the pull request's author (a review) or of the last committer (a failure), else to the pinned group.</p>
+  contact of the pull request's author (a review) or of the last committer (a failure). When that login has no
+  contact at all and the product is bound to <a href="taskmgr.html">TaskMgr</a>, it goes to the TaskMgr person with
+  that checked GitHub login (<a href="../product/decision-log.html#d-104">D-104</a>); otherwise, and always for a
+  contact whose filter refuses the kind, to the pinned group. <code>e2e:approval</code> and the bundle kinds keep the
+  group; <code>bundle:planned</code> goes to the TaskMgr task&rsquo;s QA.</p>
   <ul>
     <li>A <code>200</code> whose <code>code</code> is not <code>SUCCESS</code> is a failure. A <code>200</code> means
     WhatsApp <em>accepted</em> the message, never that it was delivered.</li>
@@ -192,7 +196,7 @@ Content-Type: application/json
   </ul>
   <p>The contacts are managed at the foot of the back office's <em>Integrations</em> view: a GitHub account, a name, a
   product (or all), a destination and what it wants (<code>review:medium</code>, <code>review:high</code>,
-  <code>review:manual</code>, <code>review:needs-manual</code>, <code>pr:no-task-code</code>, <code>e2e:failure</code>,
+  <code>review:manual</code>, <code>review:needs-manual</code>, <code>pr:no-task-code</code>, <code>pr:unknown-task-code</code>, <code>bundle:planned</code>, <code>e2e:failure</code>,
   <code>e2e:approval</code>, <code>unit:failure</code>; a review severity includes the worse severities, and the manual
   kinds match only themselves). The registry is
   its own <code>Contact</code> record: it is not part of the product, so it is never rendered into a Blueprint or a
@@ -223,6 +227,11 @@ Content-Type: application/json
     ticked (after ten minutes), or that uses no template and is linked by no other pull request (after an hour),
     gets one GitHub comment and one WhatsApp line, once. The Pull requests page shows the chip
     <em>no task code</em>.</li>
+    <li><strong>An unknown code</strong> (<a href="../product/decision-log.html#d-104">D-104</a>). For a product bound to
+    <a href="taskmgr.html">TaskMgr</a>, a code TaskMgr does not know, a deleted or archived task, or another
+    product&rsquo;s task gets one <code>unknown-task-code</code> comment and line &mdash; one text for every case &mdash;
+    even when the row was alerted for a missing code before. The bundle is unchanged. When the test plan ends DONE,
+    the task&rsquo;s QA gets a <code>bundle:planned</code> line and the TaskMgr task gets one note.</li>
   </ul>
 
   <h2 id="failure">When something is down</h2>

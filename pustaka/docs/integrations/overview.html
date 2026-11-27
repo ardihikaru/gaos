@@ -24,7 +24,7 @@
        data-tags="integration, api, webhook, ai-manager, qa"
        data-hashtags="integrations, architecture"
        data-published="2026-11-21"
-       data-updated="2026-11-21"
+       data-updated="2026-11-27"
        data-version-from="0.45.0"
        data-version-to=""></div>
 
@@ -48,8 +48,9 @@
   configured, the last turn, the last webhook delivery and the registered clients. It never shows a token.</p>
 
   <h2 id="connections">Every connection</h2>
-  <p>Seven connections, and only seven. Every credential is a file on the host, mode 600, named by an environment
-  variable; none is ever in the repository, a log line or a page.</p>
+  <p>Twelve connections, and only twelve. Every credential is a file on the host, mode 600, named by an environment
+  variable; none is ever in the repository, a log line or a page. The pull-request flow and the platforms bound to a
+  product are switched on per product; with none configured, the first seven are all there is.</p>
   <table class="tbl">
     <thead><tr><th>Direction</th><th>Paths</th><th>Auth</th><th>Credential</th><th>Started by</th></tr></thead>
     <tbody>
@@ -60,6 +61,11 @@
       <tr><td>GAOS → ai-manager: turns</td><td><code>/v1/chat</code>, <code>/v1/requests/…</code>, <code>/v1/questions/…</code>, <code>/v1/providers</code></td><td>HTTP Basic</td><td><code>GAOS_AIM_CHAT_AUTH_FILE</code>, base <code>GAOS_AIM_URL</code></td><td>the board or the scheduler</td></tr>
       <tr><td>GAOS → Brain Town (optional)</td><td><code>POST</code> to the one URL you configure</td><td>Bearer, the receiver's token</td><td><code>BRAIN_TOWN_TOKEN_FILE</code>, <code>BRAIN_TOWN_URL</code></td><td>GAOS, after a committed task or product change; off by default (<a href="brain-town.html">Brain Town feed</a>)</td></tr>
       <tr><td>GAOS → ai-manager: admin</td><td><code>/admin/workspaces/…</code>, <code>/admin/sessions/…</code></td><td>Bearer, admin key</td><td><code>GAOS_AIM_ADMIN_KEY_FILE</code></td><td>a Blueprint sync, a review, a prune</td></tr>
+      <tr><td>A client with the tasks capability → GAOS</td><td><code>/api/v1/products/{id}/tasks…</code></td><td>Bearer, its own token</td><td>a line of <code>GAOS_API_CLIENTS_FILE</code></td><td>the client (<a href="external-tasks-api.html">External tasks API</a>, <a href="../product/decision-log.html#d-099">D-099</a>)</td></tr>
+      <tr><td>GAOS ⇄ GitHub</td><td>the pull requests of the followed repositories: read, review, comment</td><td>Bearer, a fine-grained token</td><td><code>GAOS_GITHUB_TOKEN_FILE</code></td><td>GAOS&rsquo;s poller and the review cards (<a href="pr-agents.html">Pull-request agents</a>)</td></tr>
+      <tr><td>GAOS → WhatsApp gateway</td><td>one line per notice, to a person or the pinned group</td><td>HTTP Basic</td><td><code>GAOS_WA_BASIC_AUTH_FILE</code>, <code>GAOS_WA_URL</code></td><td>a notice (<a href="pr-agents.html#whatsapp">WhatsApp and the contacts</a>)</td></tr>
+      <tr><td>GAOS → QA tools: case proposals</td><td><code>POST /api/v1/gaos/case-proposals</code></td><td>Bearer, outbound</td><td><code>GAOS_QA_TOKEN_FILE</code></td><td>a bundle&rsquo;s test plan (<a href="../product/decision-log.html#d-100">D-100</a>)</td></tr>
+      <tr><td>GAOS → TaskMgr (optional)</td><td>gRPC <code>ListUsers</code>, <code>GetTask</code>, <code>AddComment</code>, over TLS to a pinned certificate</td><td>HTTP Basic, an integration grant</td><td><code>GAOS_TASKMGR_AUTH_FILE</code>, <code>GAOS_TASKMGR_CA_FILE</code>, <code>GAOS_TASKMGR_GRPC_ADDR</code></td><td>GAOS: the directory refresh, a polled pull request, a finished test plan (<a href="taskmgr.html">TaskMgr</a>, <a href="../product/decision-log.html#d-104">D-104</a>)</td></tr>
     </tbody>
   </table>
 
@@ -131,6 +137,71 @@ GAOS: the reply's handoff block is extracted; the card moves; a question goes to
   <p>Before a product's first turn, a Blueprint sync provisions its workspace through
   <code>POST /admin/workspaces/provision</code>. Every call is listed, with its statuses and its caller, in the
   <a href="ai-manager-api.html">ai-manager REST reference</a>.</p>
+
+  <h2 id="external-task">A task from an outside platform</h2>
+  <p>A client with the <em>tasks</em> capability plans work without signing in
+  (<a href="../product/decision-log.html#d-099">D-099</a>). GAOS checks the body, the product and the pull request, makes
+  one card, and says who will start it; the client polls by its own id.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>client ── POST /api/v1/products/p-1/tasks  {kind, externalId, pr}  ──▶ GAOS
+                                  GAOS: client scope → tasks capability → product → body
+                                        the product follows the repository? the runner is not off?
+                                        the same externalId again → 200, the same card (no second card)
+                                        GitHub: the pull request is open (review) or merged (unit test)
+       ◀── 201 {taskId, status, column, labels, dispatch} ──
+           dispatch: scheduler | auto | operator | manual-review | qa-tool
+client ── GET /api/v1/products/p-1/tasks?externalId=… ──▶ GAOS
+       ◀── 200 {status, column, reason, updatedAt} ──   (until DONE, FAILED or CANCELED)</pre>
+  </div>
+  <p>A manual review is never dispatched: GAOS announces it to the WhatsApp group, naming the client. An e2e kind is
+  worked by the QA tool, and <code>automation-run</code> can be cancelled by the client that started it.</p>
+
+  <h2 id="bundle">A bundle to a test plan</h2>
+  <p>For a product in <code>GAOS_PR_TEMPLATE_PRODUCTS</code>, the PR template ties pull requests in several repositories
+  into one bundle, and one test plan is made when all of them are finished
+  (<a href="../product/decision-log.html#d-100">D-100</a>).</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>GitHub PR body ──▶ GAOS poller: the code, the cross-repo links, the QA notes
+                   bundle key  taskmgr:&lt;code&gt;   or   pr:&lt;owner/repo#n&gt; of the linker
+                   no code, no source → one comment + one WhatsApp line (missing code)
+                   bound to TaskMgr → GetTask(&lt;code&gt;); unknown → one comment + one line
+every member merged or closed, one merged, 10 min quiet
+                   GAOS: one Test plan card (role test-planner) → a model turn proposes cases
+                   GAOS ── POST /api/v1/gaos/case-proposals ──▶ QA tools: draft cases, links to the PR URLs
+                   the card ends DONE  (each member's review card moved to DONE on its own merge, rule pr-merged)
+                   bound to TaskMgr → bundle:planned to the task's QA; one note on the task</pre>
+  </div>
+
+  <h2 id="notice">A notice</h2>
+  <p>A review finding of medium or worse, a held review, a failed run, a manual or needs-manual review label
+  (<a href="../product/decision-log.html#d-101">D-101</a>), a missing or unknown task code and a ready test plan each
+  send one WhatsApp line with the card&rsquo;s id &mdash; never code and never the findings.</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">text</span><button class="copy">copy</button></div>
+    <pre>event on a card ──▶ notifier: the login (the PR author, or the last committer)
+   GAOS contact for the login?         yes → that contact, if its filter wants the kind; else the group
+   no contact, product bound to TaskMgr → the TaskMgr person with that checked login (alias tm:&lt;user&gt;)
+   nobody                              → the pinned group
+   ContactNotified {alias, kind, outcome}   (never the number, never the text)</pre>
+  </div>
+
+  <h2 id="taskmgr">TaskMgr, a bound platform</h2>
+  <p>One product per instance can be bound to TaskMgr, the team&rsquo;s task manager
+  (<a href="../product/decision-log.html#d-104">D-104</a>). GAOS reads people and tasks over gRPC with TLS and writes one
+  note per finished bundle; the people stay in memory (<a href="../product/brd.html#rules-gateway">BR-63</a>).</p>
+  <div class="flow rv">
+    <div class="node"><b>TaskMgr</b><span>people, tasks</span></div>
+    <div class="arrow">⇄</div>
+    <div class="node"><b>GAOS</b><span>directory, validation, notifier</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>WhatsApp</b><span>a person or the group</span></div>
+  </div>
+  <p><code>ListUsers</code> fills the directory every fifteen minutes; <code>GetTask</code> checks a pull request&rsquo;s
+  code and, again, a finished test plan&rsquo;s task; <code>AddComment</code> writes the note. A refused credential or an
+  outage opens a circuit breaker, and every use falls back to the contact, the group and no validation. The whole
+  path is on the <a href="taskmgr.html">TaskMgr</a> page.</p>
 
 </main>
 </div>

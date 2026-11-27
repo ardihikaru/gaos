@@ -199,6 +199,8 @@ type Store interface {
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// SetAssigned saves (set) or resets the agents assigned to a product (D-102, assign.go).
 	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
+	// SetThirdParty saves a product's binding of one third-party kind (D-104, thirdparty.go).
+	SetThirdParty(ctx context.Context, productID string, link ThirdPartyLink, actor string) (Result, error)
 	// SetRepoKinds replaces a product's repository kinds and sets its two Release B switches (D-103).
 	SetRepoKinds(ctx context.Context, productID string, kinds map[string]string, staging, autoMerge bool, actor string) (Result, error)
 	// PlanStagingCards is the staging callback's planner (D-103 §3.1).
@@ -513,6 +515,9 @@ func (readOnly) SetAutoFix(context.Context, string, AutoFix, string, string) (Re
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SetAssigned(context.Context, string, []string, bool, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetThirdParty(context.Context, string, ThirdPartyLink, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SetRepoKinds(context.Context, string, map[string]string, bool, bool, string) (Result, error) {

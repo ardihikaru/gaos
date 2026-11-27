@@ -176,7 +176,9 @@ func TestReviewDefectSurvivesARestart(t *testing.T) {
 // fakeCode is a codeSource that answers files at any sha.
 type fakeCode struct{ files map[string]string }
 
-func (f fakeCode) defaultHead(context.Context, string, string, string) (string, error) { return rvHead, nil }
+func (f fakeCode) defaultHead(context.Context, string, string, string) (string, error) {
+	return rvHead, nil
+}
 func (f fakeCode) searchCode(context.Context, string, string, string) ([]ghCodeHit, error) {
 	return nil, nil
 }
@@ -257,12 +259,14 @@ func TestReviewFixRefusals(t *testing.T) {
 		t.Fatalf("the good case refused %q", why)
 	}
 	for want, mod := range map[string]func(*ghPR, *[]ghFile, *string, *bool, *Master){
-		ReviewPRClosed:        func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.State = "closed" },
-		ReviewBaseChanged:     func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.Head.Ref = "feature/other" },
-		ReviewBaseMoved:       func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.Head.SHA = rvHead2 },
-		ReviewFork:            func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.Head.Repo.FullName = "stranger/fork" },
-		ReviewSharedBranch:    func(_ *ghPR, _ *[]ghFile, _ *string, p *bool, _ *Master) { *p = true },
-		ReviewBranchNotAllow:  func(_ *ghPR, _ *[]ghFile, _ *string, _ *bool, m *Master) { m.AutoFix.ReviewFixHeads = []string{"bugfix/*"} },
+		ReviewPRClosed:     func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.State = "closed" },
+		ReviewBaseChanged:  func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.Head.Ref = "feature/other" },
+		ReviewBaseMoved:    func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.Head.SHA = rvHead2 },
+		ReviewFork:         func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.Head.Repo.FullName = "stranger/fork" },
+		ReviewSharedBranch: func(_ *ghPR, _ *[]ghFile, _ *string, p *bool, _ *Master) { *p = true },
+		ReviewBranchNotAllow: func(_ *ghPR, _ *[]ghFile, _ *string, _ *bool, m *Master) {
+			m.AutoFix.ReviewFixHeads = []string{"bugfix/*"}
+		},
 		ReviewFilesIncomplete: func(pr *ghPR, _ *[]ghFile, _ *string, _ *bool, _ *Master) { pr.ChangedFiles = 3 },
 		ReviewWorkflows: func(pr *ghPR, f *[]ghFile, _ *string, _ *bool, _ *Master) {
 			*f = append(*f, ghFile{Filename: ".github/workflows/x.yml"})

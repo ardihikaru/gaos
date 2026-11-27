@@ -123,6 +123,8 @@ type fixPRPoller struct {
 	alert prAlerter
 	// ghSrc replaces gh for the bundle pass in tests.
 	ghSrc bundleSource
+	// tm is the TaskMgr link (D-104): it validates a row's task-manager code. nil: no check.
+	tm *taskmgrLink
 }
 
 // bundleGH is the GitHub source of the bundle pass: nil when there is none.
@@ -376,6 +378,7 @@ func (p *fixPRPoller) pollRow(ctx context.Context, r PullRequest, m Master, now 
 		tmpl := parsePRTemplate(gs.Body)
 		if row, _, err := p.st.ApplyBundleLinks(ctx, r.ProductID, r.Key, tmpl, now.Unix()); err == nil {
 			p.maybeAlert(ctx, row, tmpl, now)
+			p.maybeAlertUnknown(ctx, row, now)
 		}
 	}
 	return true

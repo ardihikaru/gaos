@@ -157,6 +157,10 @@ type testPlanner struct {
 	qa     caseProposer // nil: the plan cannot be sent and the card fails
 	notify func(ctx context.Context, t TaskRecord, kind, text string)
 	logf   func(string, ...any)
+	// tm and direct are D-104's two TaskMgr uses after a DONE: the QA's notice and the write-back.
+	// nil: neither runs.
+	tm     *taskmgrLink
+	direct func(ctx context.Context, t TaskRecord, kind, text, dest, alias string)
 }
 
 // bundleOfCard splits bundle/<product>/<bundleKey>:test-planner.
@@ -235,7 +239,9 @@ func (p *testPlanner) afterRun(ctx context.Context, t TaskRecord, reply string) 
 		keep = append(keep, c)
 	}
 	if len(keep) == 0 {
-		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, fmt.Sprintf("0 created, 0 linked, %d refused", dropped))
+		if _, err := p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, fmt.Sprintf("0 created, 0 linked, %d refused", dropped)); err == nil {
+			p.afterDone(ctx, t, productID, bundleKey, rows, 0, 0, dropped, nil)
+		}
 		return
 	}
 	if p.qa == nil {
@@ -249,6 +255,7 @@ func (p *testPlanner) afterRun(ctx context.Context, t TaskRecord, reply string) 
 		return
 	}
 	created, linked, refused := 0, 0, dropped
+	var codes []string
 	for _, r := range out.Results {
 		switch r.Outcome {
 		case "created", "updated":
@@ -257,7 +264,96 @@ func (p *testPlanner) afterRun(ctx context.Context, t TaskRecord, reply string) 
 			linked++
 		default:
 			refused++
+			continue
+		}
+		if apiCaseCodePattern.MatchString(r.CaseCode) && len(codes) < tmCommentCodes {
+			codes = append(codes, r.CaseCode)
 		}
 	}
-	_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, fmt.Sprintf("%d created, %d linked, %d refused", created, linked, refused))
+	if _, err := p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusDone, fmt.Sprintf("%d created, %d linked, %d refused", created, linked, refused)); err == nil {
+		p.afterDone(ctx, t, productID, bundleKey, rows, created, linked, refused, codes)
+	}
+}
+
+// afterDone is D-104 §5.2 and §5.4, after a test-planner card resolved DONE: for a taskmgr:
+// bundle of a ready product whose task a fresh GetTask confirms, one line to the task's QA (when
+// the plan has cases) and one comment on the task. Both are best-effort and run once: afterRun
+// runs once per run, and a failure is logged by class and never retried.
+func (p *testPlanner) afterDone(ctx context.Context, t TaskRecord, productID, bundleKey string, rows []PullRequest,
+	created, linked, refused int, codes []string) {
+	code, ok := strings.CutPrefix(bundleKey, "taskmgr:")
+	if p.tm == nil || !ok || code == "" {
+		return
+	}
+	m, err := p.st.Master(ctx, productID)
+	if err != nil {
+		return
+	}
+	b, ok := p.tm.ready(m)
+	if !ok {
+		return
+	}
+	chk, err := p.tm.check(ctx, b, code, true)
+	if err != nil || chk.Result != "ok" {
+		p.logf("testplanner: TaskMgr does not confirm the task of %s (%s); nothing is written", bundleKey,
+			map[bool]string{true: "unknown", false: tmErrorClass(err)}[err == nil])
+		return
+	}
+	if created+linked > 0 && p.direct != nil {
+		dest, alias := "", "group"
+		if qa, ok := p.tm.people.person(chk.QAID); ok && qa.usable() {
+			dest, alias = qa.jid(), "tm:"+sanitizeIDPart(qa.Username)
+		}
+		p.direct(ctx, t, KindBundlePlanned, fmt.Sprintf("A test plan is ready: %d draft case(s), %d link(s)", created, linked), dest, alias)
+	}
+	text := taskMgrWriteBack(bundleKey, t.ID, rows, created, linked, refused, codes)
+	if err := p.tm.cl.addComment(ctx, code, text); err != nil {
+		p.logf("testplanner: the TaskMgr comment on %s failed: %s", bundleKey, tmErrorClass(err))
+	}
+}
+
+// taskMgrWriteBack is §5.4's comment, cut to TaskMgr's 1500 runes before the marker line so the
+// marker always survives.
+func taskMgrWriteBack(bundleKey, cardID string, rows []PullRequest, created, linked, refused int, codes []string) string {
+	var urls []string
+	merged, closed := 0, 0
+	for _, r := range rows {
+		if r.BundleKey != bundleKey || r.Kind != PRKindReview {
+			continue
+		}
+		switch r.State {
+		case PRStateMerged:
+			merged++
+			urls = append(urls, "https://github.com/"+r.Repo+"/pull/"+itoa(r.Number))
+		case PRStateClosed:
+			closed++
+		}
+	}
+	lines := []string{fmt.Sprintf("GAOS: the pull requests of this task are finished: %d merged, %d closed without merging.", merged, closed)}
+	if len(urls) > tmCommentURLs {
+		k := len(urls) - tmCommentURLs
+		urls = append(urls[:tmCommentURLs:tmCommentURLs], fmt.Sprintf("… and %d more", k))
+	}
+	lines = append(lines, urls...)
+	plan := fmt.Sprintf("Test plan: %d draft case(s) created, %d linked, %d refused", created, linked, refused)
+	var keep []string
+	for _, c := range codes {
+		if apiCaseCodePattern.MatchString(c) && len(keep) < tmCommentCodes {
+			keep = append(keep, c)
+		}
+	}
+	if len(keep) > 0 {
+		plan += ": " + strings.Join(keep, ", ")
+	}
+	lines = append(lines, plan+".")
+	marker := "[gaos bundle " + bundleKey + " · card " + cardID + "]"
+	body := []rune(strings.Join(lines, "\n"))
+	room := tmCommentRunes - len([]rune(marker)) - 1
+	if room < 0 {
+		room = 0
+	}
+	if len(body) > room {
+		body = body[:room]
+	}
+	return string(body) + "\n" + marker
 }

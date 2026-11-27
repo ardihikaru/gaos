@@ -964,6 +964,9 @@ func caseReadOnlyHandleRefusesEveryMutation(t *testing.T, s Store) {
 			return ro.ResolveTriage(ctx, "p-1", "t-1", TriageVerdict{})
 		},
 		"SetAutoFix": func() (Result, error) { return ro.SetAutoFix(ctx, "p-1", AutoFix{}, "x", "") },
+		"SetThirdParty": func() (Result, error) {
+			return ro.SetThirdParty(ctx, "p-1", ThirdPartyLink{Kind: ThirdPartyTaskMgr, ProductCode: "DEMO"}, "x")
+		},
 	} {
 		if _, err := call(); !errors.Is(err, ErrRejected) {
 			t.Errorf("readOnly.%s returned %v, want ErrRejected -- §08 asks for a "+

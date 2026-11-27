@@ -2001,6 +2001,7 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .chip.st-bad{border-color:var(--fail);background:color-mix(in srgb,var(--fail) 22%,transparent)}
 .chip.need-req{color:var(--ink);border-color:var(--ink-2);font-weight:600}
 .chip.need-opt{color:var(--ink-2)}
+.chip.third-party{color:var(--ink-2);border-style:dashed}
 td .chip{margin-right:6px}
 .info-btn{
   width:22px;height:22px;border-radius:50%;border:1px solid var(--line);

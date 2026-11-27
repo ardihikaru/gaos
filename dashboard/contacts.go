@@ -66,7 +66,15 @@ func maskDestination(d string) string {
 // notifyKinds is the closed vocabulary of NotifyOn.
 var notifyKinds = map[string]bool{"review:medium": true, "review:high": true, "e2e:failure": true, "unit:failure": true,
 	// D-101, D-100: a person must review; a pull request names no task-manager code.
-	KindReviewManual: true, KindReviewNeedsManual: true, "pr:" + alertNoTaskCode: true}
+	KindReviewManual: true, KindReviewNeedsManual: true, "pr:" + alertNoTaskCode: true,
+	// D-104: TaskMgr does not know the code; a bundle's test plan is ready.
+	"pr:" + alertUnknownTask: true, KindBundlePlanned: true}
+
+// KindBundlePlanned is the test-plan-ready notice (D-104 §5.2), sent to the bundle task's QA.
+const KindBundlePlanned = "bundle:planned"
+
+// notifyKindList is the vocabulary, sorted, for an error message.
+func notifyKindList() string { return strings.Join(sortedKeys(notifyKinds), ", ") }
 
 // The two manual-review notice kinds (D-101). They match a contact exactly, never by rank.
 const (
@@ -90,7 +98,7 @@ func contactID(c Contact) string { return contactKey(c) }
 func ValidContact(c Contact) error {
 	for _, k := range c.NotifyOn {
 		if !notifyKinds[strings.TrimSpace(k)] {
-			return fmt.Errorf("notifyOn %q is not one of review:medium, review:high, e2e:failure, unit:failure", k)
+			return fmt.Errorf("notifyOn %q is not one of %s", k, notifyKindList())
 		}
 	}
 	if strings.TrimSpace(c.GitHubLogin) == "" {
