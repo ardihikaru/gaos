@@ -25,7 +25,7 @@
        data-tags="integration, auto-fix, defect, triage, github, pull request, qa tool"
        data-hashtags="integrations"
        data-published="2026-11-26"
-       data-updated="2026-11-26"
+       data-updated="2026-11-28"
        data-version-from="0.52.0"
        data-version-to=""></div>
 
@@ -44,6 +44,106 @@
       <tr><td>9</td><td>GAOS follows the pull request (draft, ready, merged, closed) and shows it in the Auto-fix view.</td><td>GAOS</td></tr>
     </tbody>
   </table>
+
+  <h2 id="data-flow">How it works: the data flow</h2>
+  <p>Four systems take part: the <strong>QA tool</strong> (it reports defects), <strong>GAOS</strong> (it plans the
+  cards, applies the fix and writes to GitHub), <strong>ai-manager</strong> (the Defect Triager and the Defect Fixer
+  answer there) and <strong>GitHub</strong> (it holds the pull request). The agents never hold the write token: every
+  GitHub write is GAOS's own. Each flow reads left to right; the numbered list says who calls whom.</p>
+
+  <p><strong>A. A defect becomes a draft pull request.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · QA tool</b><span>reports the defect</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS</b><span>triage card</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · Triager</b><span>easy, medium or complex</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · Fixer</b><span>edits and a test</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · GAOS</b><span>checks, branch, draft PR</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>6 · GitHub</b><span>draft pull request</span></div>
+  </div>
+  <ol>
+    <li>The QA tool calls <code>POST /api/v1/products/{id}/qa/defects</code> (<a href="#route">the route</a>).</li>
+    <li>GAOS records the defect and plans a triage card, with the source files it found as data.</li>
+    <li>The Defect Triager answers through ai-manager; GAOS re-checks the verdict and plans the fix card.</li>
+    <li>An easy, backend-only fix on a product that is on, with cap left, is dispatched without an operator; the Defect
+      Fixer answers with edits and tests, never whole files.</li>
+    <li>GAOS stores the reply first (a restart never pays for a second turn), applies the edits against the base
+      branch, enforces <a href="#caps">the caps</a> and the CI-secrets check, and writes the blobs, the tree, the commit
+      and the branch <code>gaos/fix-&hellip;</code> with the write token.</li>
+    <li>GAOS opens the draft pull request, labels it, comments the before and after, records it
+      (<code>FixPROpened</code>) and sends one WhatsApp line.</li>
+  </ol>
+
+  <p><strong>B. GAOS follows the pull request.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · GitHub</b><span>draft, ready, merged or closed</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS poller</b><span>reads the state</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · GAOS</b><span>moves the record, maybe the defect</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · Auto-fix view</b><span>shows it</span></div>
+  </div>
+  <ol>
+    <li>A person reviews on GitHub; GAOS never marks a pull request ready and never merges.</li>
+    <li>The poller reads each open fix pull request (<code>FixPRStateChanged</code> on a change).</li>
+    <li>A merge moves the defect to fixed. A close of the pull request the defect waits on plans one person-only card
+      (<code>autofix-pr-closed</code>). A close of a record the defect does not wait on &mdash; one a retarget replaced, or a
+      duplicate &mdash; changes only that record (<a href="../product/decision-log.html#d-108">D-108</a>).</li>
+    <li>The view refreshes every 30 seconds.</li>
+  </ol>
+
+  <p><strong>C. A retarget opens a new draft and closes the one it replaced.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · Admin</b><span>Retarget to another base</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · GAOS</b><span>next-generation fix card</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · Fixer</b><span>redoes the fix on the new base</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GAOS</b><span>new draft, linked both ways</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · GitHub</b><span>old draft closed, branch kept</span></div>
+  </div>
+  <ol>
+    <li>An auto-fix admin presses <strong>Retarget</strong> in the Pull requests drawer
+      (<a href="pull-requests.html#retarget">Change the base branch</a>).</li>
+    <li>GAOS raises the defect&rsquo;s generation and plans a fix card against the chosen base; it writes nothing to GitHub yet.</li>
+    <li>The Defect Fixer gets the new base&rsquo;s source and the previous fix as untrusted data.</li>
+    <li>GAOS opens a new draft on <code>gaos/fix-&hellip;-&lt;gen&gt;</code> and records it, so the defect now waits on it.</li>
+    <li>Only then does GAOS read the old pull request and, while it is still open, close it and comment
+      &ldquo;Superseded by &hellip; GAOS closed this pull request; its branch is kept.&rdquo; If GitHub refuses, the old
+      one stays open, the Auto-fix view lists it under <a href="#duplicates">Duplicates</a>, and the next restart tries
+      again.</li>
+  </ol>
+
+  <p><strong>D. An admin closes a duplicate from the Auto-fix view.</strong></p>
+  <div class="flow">
+    <div class="node"><b>1 · Auto-fix view</b><span>Duplicates panel</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · Admin</b><span>Close on GitHub, confirmed</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · GAOS</b><span>checks, reads GitHub</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GitHub</b><span>pull request closed</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · GAOS</b><span>records it; defect unchanged</span></div>
+  </div>
+  <ol>
+    <li>The panel lists open fix pull requests to close: <em>Superseded</em> (a retarget replaced it) and <em>Same
+      defect</em> (another open one fixes the same defect; the one the defect waits on is kept).</li>
+    <li>The button posts <code>POST /products/{id}/prs/{fixPRID}/close</code>.</li>
+    <li>GAOS refuses an account not on the auto-fix admin list (403), a replay view (409), a record that is no longer a
+      duplicate (409) and a branch that is not <code>gaos/fix-</code> (422), all before calling GitHub. It then reads the
+      pull request: one already closed or merged is recorded as it is, with no close.</li>
+    <li>GAOS closes the pull request with the write token; the branch is kept. A GitHub failure answers 502 and changes nothing.</li>
+    <li>The store checks the finding again under its lock and records the close (<code>FixPRStateChanged</code>, rule
+      <code>autofix-dedup</code>, with the account). The defect is never changed.</li>
+  </ol>
 
   <h2 id="easy">What easy means</h2>
   <p>The policy is a product's own, written in its Blueprint under the key <code>defect-triage</code>. The shape GAOS
@@ -144,24 +244,48 @@ Authorization: Bearer &lt;QA token&gt;
   <p>A failing cap does not retry: the card is blocked with its reason and the verdict is kept.</p>
 
   <h2 id="view">The Auto-fix view</h2>
-  <p>The back office's Auto-fix view lists every product's drafts. Its tiles count open drafts, ready for review,
-  merged in seven days, defects awaiting triage, cards waiting for a person and today's automatic dispatches. The
-  table has a state chip, the defect, its difficulty, the pull request's link and age, and whether WhatsApp was
-  told; filters for product, state and difficulty live in the URL; a detail drawer shows the before and after, the
-  changed files and the timeline. It refreshes every 30 seconds, says why auto-fix is off for a product, announces an
-  unreachable GitHub, and shows the kind of write token in use. It never shows a token or a failure excerpt.</p>
-  <p>Since v0.71.0 (<a href="../product/decision-log.html#d-108">D-108</a>) the view has three sections &mdash; Fix pull
-  requests (the default, and always when a drawer is open), Cards waiting (five a page) and Auto-fix by product &mdash;
-  with the product and difficulty filters above them. Each pull request shows its branch and base, and what triggered
-  it: a QA report, a review finding, a unit-test failure, a retarget of an earlier pull request or a second attempt
-  after one was closed, linked to the earlier record in the drawer.</p>
+  <p>The back office's Auto-fix view (<code>/app/autofix</code>) shows every product's defects and fix pull requests. It
+  refreshes every 30 seconds, announces an unreachable GitHub, shows the kind of write token in use, and never shows a
+  token or a failure excerpt. Everything is in the address, so a link opens the same view.</p>
+  <table class="tbl">
+    <thead><tr><th>Part</th><th>What it shows</th></tr></thead>
+    <tbody>
+      <tr><td>Tiles</td><td>Open drafts (one a retarget replaced is not counted, and the note says how many there are), ready for review, merged in seven days, defects awaiting triage, cards waiting for a person, and today&rsquo;s automatic dispatches against the caps.</td></tr>
+      <tr><td>Filters</td><td>Product and difficulty, above the sections, for all of them (<code>product</code>, <code>difficulty</code>).</td></tr>
+      <tr><td>Sections</td><td><strong>Fix pull requests</strong> (the default, and always when a drawer is open), <strong>Cards waiting</strong> and <strong>Auto-fix by product</strong>, one at a time, each with its count (<code>section=waiting</code>, <code>section=products</code>).</td></tr>
+      <tr><td>Fix pull requests</td><td>The state links (all, preparing, draft, ready, merged, closed), the <a href="#duplicates">Duplicates</a> panel, and a table ten rows a page: state (and <em>replaced</em>), the defect and what triggered it, difficulty, product, the pull request, <strong>branch &rarr; base</strong>, card, age and whether WhatsApp was told.</td></tr>
+      <tr><td>Cards waiting</td><td>The defect cards that are not moving and why (a person is next, a switch is off, a cap is spent, a live turn), five a page (<code>wpage</code>).</td></tr>
+      <tr><td>Auto-fix by product</td><td>Each product&rsquo;s switch, today&rsquo;s dispatches against its caps, and why it is off or not ready.</td></tr>
+      <tr><td>The drawer</td><td>One pull request: what triggered it (linked to the earlier pull request when one caused it), branch and base, class, the before and after, the changed files with their line counts, the caps and the timeline (<code>open</code>).</td></tr>
+    </tbody>
+  </table>
+  <p>Changing a filter, a state, a section or a page keeps the sheet&rsquo;s scroll position.</p>
+
+  <h3 id="trigger">What triggered a pull request</h3>
+  <table class="tbl">
+    <thead><tr><th>Triggered by</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>Retarget of <code>owner/repo#n</code> (base &hellip;)</td><td>A retarget opened it; the drawer links to the one it replaced.</td></tr>
+      <tr><td>Review finding on <code>owner/repo#n</code> (branch)</td><td>A low finding of GAOS&rsquo;s pull-request review (<a href="pr-agents.html">Pull-request agents</a>).</td></tr>
+      <tr><td>Unit tests failed on &lt;base&gt; after merge &lt;sha&gt;</td><td>A failing unit-test result after a merge (<a href="agents.html#release-b-unit">Unit tests (CI)</a>).</td></tr>
+      <tr><td>Second attempt after <code>owner/repo#n</code> was closed</td><td>A later generation of the same defect after an earlier pull request ended; linked.</td></tr>
+      <tr><td>QA report &lt;case&gt; (&lt;kind&gt;)</td><td>Any other defect the QA tool reported.</td></tr>
+    </tbody>
+  </table>
+
   <h3 id="duplicates">Duplicates</h3>
-  <p>Above the table, a <strong>Duplicates</strong> panel lists open fix pull requests that should be closed: one a
-  retarget replaced (<em>Superseded</em>), and extra open ones of the same defect (<em>Same defect</em>; the one the
-  defect waits on is kept). An auto-fix admin closes one with <strong>Close &hellip; on GitHub</strong>, after a
-  confirmation. GAOS reads the pull request first (one already closed or merged is recorded as it is), closes it, keeps
-  its branch and records the close; the defect is not changed. A retarget closes the pull request it replaced by
-  itself, so a superseded finding appears only when that close failed.</p>
+  <p>Above the table, a <strong>Duplicates</strong> panel lists open fix pull requests that should be closed, each with
+  the one to keep and the reason (<a href="../product/decision-log.html#d-108">D-108</a>):</p>
+  <table class="tbl">
+    <thead><tr><th>Rule</th><th>Close</th><th>Keep</th></tr></thead>
+    <tbody>
+      <tr><td>Superseded</td><td>An open pull request a retarget replaced</td><td>The one that replaced it, while it is open or merged</td></tr>
+      <tr><td>Same defect</td><td>Every other open pull request of one defect</td><td>The one the defect waits on, else the newest</td></tr>
+    </tbody>
+  </table>
+  <p>An auto-fix admin closes one with <strong>Close &hellip; on GitHub</strong>, after a confirmation; everyone else sees
+  that an admin can close it. The steps are flow D above. A retarget closes the pull request it replaced by itself, so a
+  superseded finding appears only when that close failed.</p>
 
   <h2 id="never">What GAOS never does</h2>
   <ul>
@@ -204,6 +328,8 @@ Authorization: Bearer &lt;QA token&gt;
       <tr><td>GitHub refuses a draft</td><td>Blocked <code>autofix-draft-unsupported</code>; there is no non-draft fallback.</td></tr>
       <tr><td>The pull request is closed unmerged</td><td>A new person-only card, blocked <code>autofix-pr-closed</code>. A pull request GAOS closed as replaced or duplicate, or any record the defect no longer waits on, plans nothing.</td></tr>
       <tr><td>GitHub refuses a write</td><td>The fix card fails <code>github-token</code>; a branch this run created is deleted.</td></tr>
+      <tr><td>GitHub refuses to close a replaced pull request</td><td>It stays open with a comment that a person may close it; the view lists it as superseded, and the next restart tries again.</td></tr>
+      <tr><td>A duplicate close fails</td><td>The button answers with the reason (GitHub refused or cannot be reached, no longer a duplicate, not an admin); nothing changes.</td></tr>
       <tr><td>GAOS restarts mid-way</td><td>The stored reply is resumed; no second agent turn and no second pull request.</td></tr>
       <tr><td>WhatsApp is down</td><td>The pull request stays; one failed <code>ContactNotified</code> is recorded.</td></tr>
       <tr><td>The switch is off, a cap is spent or a turn is live</td><td>The card stays READY and the view says why.</td></tr>
