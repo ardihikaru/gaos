@@ -263,6 +263,7 @@ var readOnlyGET = map[string]string{
 	"GET /ui/bo/{view}":                              "renders a back-office pane",
 	"GET /ui/bo/autofix/live":                        "renders the Auto-fix poll fragment",
 	"GET /ui/bo/prs/live":                            "renders the Pull requests list (no GitHub call)",
+	"GET /ui/bo/traffic/live":                        "renders the Traffic poll fragment (reads the traffic store)",
 	"GET /products":                                  "lists products",
 	"GET /products/{id}":                             "renders one product",
 	"GET /products/{id}/board":                       "renders the board",
@@ -287,6 +288,7 @@ var readOnlyGET = map[string]string{
 	"GET /integrations":      "renders the Integrations page",
 	"GET /autofix":           "renders the Auto-fix page (no GitHub call)",
 	"GET /prs":               "renders the Pull requests page (no GitHub call)",
+	"GET /traffic":           "renders the Traffic page (reads the traffic store)",
 	"GET /p/{ref}":           "redirects to a product's first section",
 	"GET /p/{ref}/{section}": "renders one product section",
 }

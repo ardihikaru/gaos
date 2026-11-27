@@ -1540,7 +1540,7 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
 .qa-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:560px}
 .qa-tbl th{position:sticky;top:0;background:var(--panel);text-align:left;color:var(--ink-3);font-weight:500;padding:6px 8px;z-index:1;white-space:nowrap}
 .qa-tbl td{padding:5px 8px;border-top:1px solid var(--line-soft);vertical-align:top;overflow:hidden}
-.qa-tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.qa-tbl .r,.af-table .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .qa-tbl th:nth-child(1){width:7em}
 .qa-tbl th:nth-child(3){width:11.5em}
 .qa-tbl th:nth-child(4){width:7em}

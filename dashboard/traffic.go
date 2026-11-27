@@ -204,6 +204,9 @@ type trafficRecorder struct {
 
 	// noWriter leaves the writer unstarted (the test hook of §9.2).
 	noWriter bool
+
+	// rd is the page's reader and its cache (traffic_view.go).
+	rd trafficReader
 }
 
 // trafficPtr is the one handle (§7.2): set in serve(), read by the gate,

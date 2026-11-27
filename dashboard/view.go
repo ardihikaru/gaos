@@ -248,6 +248,9 @@ type BOView struct {
 
 	// The Pull requests page (D-092, design §5): read-only, no GitHub call.
 	PRs *PRPage
+
+	// The Traffic page (D-107): read-only, public addresses masked in the model.
+	Traffic *TrafficPage
 }
 
 // ---------- Integrations (D-085) ----------

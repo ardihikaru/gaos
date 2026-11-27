@@ -613,6 +613,7 @@ func (s *server) routes() http.Handler {
 	handle("GET /ui/bo/autofix/live", s.handleAutoFixLive)                 // the Auto-fix view's 30 s poll
 	handle("POST /products/{id}/prs/{fixPRID}/retarget", s.handleRetarget) // D-092
 	handle("GET /ui/bo/prs/live", s.handlePRsLive)                         // the Pull requests view's 30 s poll (D-092)
+	handle("GET /ui/bo/traffic/live", s.handleTrafficLive)                 // the Traffic view's 30 s poll (D-107)
 
 	handle("GET /products", s.handleProductList)
 	handle("POST /products", s.handleProductCreate)

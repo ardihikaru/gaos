@@ -230,8 +230,8 @@ func TestADeepURLRendersThePage(t *testing.T) {
 	for _, sec := range productSections {
 		check("/p/"+slug+"/"+sec.ID, sec.Label+" · Laundry Membership · GAOS", `data-view="products"`, `data-product="p-1"`, `data-tab="`+sec.ID+`"`)
 	}
-	if n := len(pageViews) + 2; len(pagePatterns) != n || n != 11 {
-		t.Errorf("there are %d page patterns, want eleven: nine views, a product section and the redirect", len(pagePatterns))
+	if n := len(pageViews) + 2; len(pagePatterns) != n || n != 12 {
+		t.Errorf("there are %d page patterns, want twelve: ten views, a product section and the redirect", len(pagePatterns))
 	}
 	if w := pageGet(t, s, "/p/"+slug, nil, cs...); w.Code != http.StatusFound {
 		t.Errorf("GET /p/%s answered %d, want 302 to its first section", slug, w.Code)

@@ -623,7 +623,9 @@ func TestEveryExternalClientIsRecorded(t *testing.T) {
 		{"github-write", func() http.RoundTripper {
 			return newGHWriter(ghConfig{token: "ghp_" + strings.Repeat("w", 36), base: "https://api.github.com"}).c.hc.Transport
 		}},
-		{"whatsapp", func() http.RoundTripper { return newWANotifier(waConfig{base: "https://wa.example/inst-x"}).hc.Transport }},
+		{"whatsapp", func() http.RoundTripper {
+			return newWANotifier(waConfig{base: "https://wa.example/inst-x"}).hc.Transport
+		}},
 	}
 	wantBase := map[string]string{"qa-tool": "/base", "brain-town": "/feed", "brain-town-reader": "/reader", "whatsapp": "/inst-x"}
 
