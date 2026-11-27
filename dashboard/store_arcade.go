@@ -452,6 +452,7 @@ func (s *ArcadeStore) PlanAPICard(ctx context.Context, productID string, in APIC
 func (s *ArcadeStore) APICardCancel(ctx context.Context, productID, taskID, client string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.APICardCancel(ctx, productID, taskID, client) })
 }
+
 // ApplyBundleLinks and SetPRAlerted run on every poll of a listed product's rows: a call that
 // changed no row writes nothing, rather than an empty transaction per row per poll.
 func (s *ArcadeStore) ApplyBundleLinks(ctx context.Context, productID, key string, tmpl prTemplate, now int64) (PullRequest, Result, error) {
@@ -498,6 +499,7 @@ func (s *ArcadeStore) FinishMergedReviews(ctx context.Context) (Result, error) {
 func (s *ArcadeStore) ResolvePRCard(ctx context.Context, productID, taskID, to, reason string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.ResolvePRCard(ctx, productID, taskID, to, reason) })
 }
+
 // SetPRHooks installs the pull-request flow's seams on the projection.
 func (s *ArcadeStore) SetPRHooks(parts func(TaskRecord) []PacketPart, after func(TaskRecord, string)) {
 	s.proj.SetPRHooks(parts, after)
@@ -554,6 +556,9 @@ func (s *ArcadeStore) SetAutoFix(ctx context.Context, productID string, a AutoFi
 func (s *ArcadeStore) SetAssigned(ctx context.Context, productID string, ids []string, set bool, actor string) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.SetAssigned(ctx, productID, ids, set, actor) })
 }
+func (s *ArcadeStore) SetThirdParty(ctx context.Context, productID string, link ThirdPartyLink, actor string) (Result, error) {
+	return s.mutate(ctx, func() (Result, error) { return s.proj.SetThirdParty(ctx, productID, link, actor) })
+}
 func (s *ArcadeStore) PRCards(ctx context.Context, productID string) ([]TaskRecord, error) {
 	return s.proj.PRCards(ctx, productID)
 }
@@ -572,6 +577,7 @@ func (s *ArcadeStore) AddDiagram(ctx context.Context, id string, g Diagram) (Res
 func (s *ArcadeStore) AddDecision(ctx context.Context, id string, a Decision) (Result, error) {
 	return s.mutate(ctx, func() (Result, error) { return s.proj.AddDecision(ctx, id, a) })
 }
+
 // PlanPullRequestCards plans the pull-request cards under the same lock as
 // every other mutation, so the graph and the desk agree on what exists.
 func (s *ArcadeStore) PlanPullRequestCards(ctx context.Context, productID string, ev PREvent) ([]string, []string, Result, error) {
@@ -930,6 +936,12 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 	}
 	props["assignedAgents"] = assigned
 	props["assignedSet"] = m.AssignedSet
+	// The third-party bindings (D-104); a schema-less document property like autoFix.
+	thirdParty, err := jsonList(m.ThirdParty)
+	if err != nil {
+		return err
+	}
+	props["thirdParty"] = thirdParty
 	if m.Stage != "" {
 		props["stage"] = m.Stage
 	}
@@ -1598,13 +1610,9 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		AutoFix   json.RawMessage `json:"autoFix"`
 		Assigned  []string        `json:"assignedAgents"`
 		AssignSet *bool           `json:"assignedSet"`
+		ThirdPty  json.RawMessage `json:"thirdParty"`
 	}
-	if err := s.arc.Query(ctx,
-		`SELECT id, name, repo, goal, slug, code, owner, priority, stage, repos,
-		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix,
-		        assignedAgents, assignedSet
-		 FROM Product WHERE tenantId = :t ORDER BY id`,
-		map[string]any{"t": s.tenant}, &prows); err != nil {
+	if err := s.arc.Query(ctx, arcadeProductSelect(), map[string]any{"t": s.tenant}, &prows); err != nil {
 		return false, err
 	}
 	if len(prows) == 0 {
@@ -1661,6 +1669,9 @@ func (s *ArcadeStore) load(ctx context.Context) (bool, error) {
 		}
 		mr.Assigned = normalizeAssigned(r.Assigned)
 		mr.AssignedSet = r.AssignSet != nil && *r.AssignSet
+		if err := decodeInto(r.ThirdPty, &mr.ThirdParty); err != nil {
+			return false, err
+		}
 		m.masters = append(m.masters, mr)
 	}
 
@@ -2283,4 +2294,13 @@ func decodeInto(raw json.RawMessage, out any) error {
 		return nil
 	}
 	return json.Unmarshal(raw, out)
+}
+
+// arcadeProductSelect is the Product load. A schema-less document property (autoFix, the
+// assignments, thirdParty) must be named here or it is never read back.
+func arcadeProductSelect() string {
+	return `SELECT id, name, repo, goal, slug, code, owner, priority, stage, repos,
+		        brd, stories, diagrams, decisions, policies, knowledgeSources, workspace, vendorPolicy, qaState, autoFix,
+		        assignedAgents, assignedSet, thirdParty
+		 FROM Product WHERE tenantId = :t ORDER BY id`
 }

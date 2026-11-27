@@ -252,7 +252,8 @@ func (s *server) buildBO(r *http.Request, view, productID, tab string) *BOView {
 		return bo
 
 	case "integrations":
-		s.buildIntegrations(r.Context(), bo)
+		ss, _ := sessionOf(r)
+		s.buildIntegrations(r.Context(), bo, autoFixAdmin(ss.Email))
 		return bo
 
 	case "autofix":

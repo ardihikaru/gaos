@@ -28,6 +28,52 @@ type notifier struct {
 	wa   *waNotifier
 	gh   authorSource // nil: every message goes to the group
 	logf func(string, ...any)
+	// tm is the TaskMgr link (D-104 §5.3): a login with no contact reaches the TaskMgr person with
+	// that checked GitHub login before the group. nil: contacts only.
+	tm *taskmgrLink
+}
+
+// viaTaskMgr is §5.3's second step. It applies only when the registry answered the group AND no
+// contact exists for the login at all: a contact that filters a kind out keeps its opt-out. An
+// approval and every bundle kind keep their group routing.
+func (n *notifier) viaTaskMgr(ctx context.Context, book ContactBook, productID, login, kind, dest, alias string) (string, string) {
+	if dest != "" || n.tm == nil || login == "" || kind == "e2e:approval" || strings.HasPrefix(kind, "bundle:") {
+		return dest, alias
+	}
+	if _, ok := book.Find(productID, login); ok {
+		return dest, alias
+	}
+	m, err := n.st.Master(ctx, productID)
+	if err != nil {
+		return dest, alias
+	}
+	if _, ok := n.tm.ready(m); !ok {
+		return dest, alias
+	}
+	if p, ok := n.tm.people.login(login); ok && p.usable() {
+		return p.jid(), "tm:" + sanitizeIDPart(p.Username)
+	}
+	return dest, alias
+}
+
+// notifyTo sends one line about a card to a destination chosen by the caller ("" is the group),
+// and records it under the alias. The bundle's QA notice uses it (D-104 §5.2).
+func (n *notifier) notifyTo(ctx context.Context, t TaskRecord, kind, text, dest, alias string) {
+	if n == nil || n.wa == nil || !n.wa.covers(t.DeskID) {
+		return
+	}
+	if dest == "" {
+		alias = "group"
+	}
+	err := n.wa.Send(ctx, dest, text+" · card "+t.ID)
+	outcome := "accepted"
+	if err != nil {
+		outcome = "failed"
+	}
+	n.logf("wa: notify %s %s", alias, map[bool]string{true: "sent", false: "failed"}[err == nil])
+	if _, rerr := n.st.RecordNotification(ctx, t.DeskID, alias, kind, outcome); rerr != nil {
+		n.logf("wa: the notification could not be recorded")
+	}
 }
 
 // loginFor finds the account a notification is for. Any failure answers "",
@@ -78,7 +124,9 @@ func (n *notifier) Notify(ctx context.Context, t TaskRecord, kind, text string) 
 			_ = book.Add(c)
 		}
 	}
-	dest, alias := resolveDestination(book, t.DeskID, n.loginFor(ctx, t, kind), kind)
+	login := n.loginFor(ctx, t, kind)
+	dest, alias := resolveDestination(book, t.DeskID, login, kind)
+	dest, alias = n.viaTaskMgr(ctx, book, t.DeskID, login, kind, dest, alias)
 	err := n.wa.Send(ctx, dest, text+" · card "+t.ID)
 	outcome := "accepted"
 	if err != nil {
@@ -111,6 +159,7 @@ func (n *notifier) NotifyPR(ctx context.Context, productID, owner, repo string, 
 		}
 	}
 	dest, alias := resolveDestination(book, productID, login, kind)
+	dest, alias = n.viaTaskMgr(ctx, book, productID, login, kind, dest, alias)
 	suffix := ""
 	switch {
 	case cardID != "":

@@ -157,6 +157,9 @@ const (
 	FixPRStateChanged EventType = "FixPRStateChanged"
 	// AutoFixConfigured: an operator changed a product's auto-fix settings.
 	AutoFixConfigured EventType = "AutoFixConfigured"
+	// ThirdPartyConfigured: an operator bound, rebound or disabled a product's
+	// third-party platform (D-104; Rule third-party-config, Reason the values).
+	ThirdPartyConfigured EventType = "ThirdPartyConfigured"
 )
 
 // collaboration

@@ -422,6 +422,11 @@ type Master struct {
 	// pull-request flows run as before assignment existed (assign.go).
 	Assigned    []string
 	AssignedSet bool
+
+	// ThirdParty are the product's third-party platform bindings (D-104,
+	// thirdparty.go): at most one entry per kind, and per instance at most one
+	// enabled product per kind.
+	ThirdParty []ThirdPartyLink
 }
 
 // AutoFix is a product's defect auto-fix configuration (design §6.1). The zero
@@ -537,6 +542,7 @@ func (m Master) Clone() Master {
 	c.Qa = m.Qa.Clone()
 	c.AutoFix = m.AutoFix.Clone()
 	c.Assigned = append([]string(nil), m.Assigned...)
+	c.ThirdParty = append([]ThirdPartyLink(nil), m.ThirdParty...)
 	return c
 }
 
@@ -863,17 +869,17 @@ type TaskRecord struct {
 	APIRefs      []string
 	APIAt        int64
 	AutoDispatch bool
-	Deps        []string
-	Priority    int
-	Ordinal     int
-	Gate        bool
-	Retry       int
-	Esc         int
-	BlockReason string
-	Workspace   string
-	LeaseUntil  int64
-	LastBeatAt  int64
-	Attempt     int
+	Deps         []string
+	Priority     int
+	Ordinal      int
+	Gate         bool
+	Retry        int
+	Esc          int
+	BlockReason  string
+	Workspace    string
+	LeaseUntil   int64
+	LastBeatAt   int64
+	Attempt      int
 	// Rank orders cards inside a board column (M14.6). Separate from Ordinal
 	// on purpose: Ordinal is plan order and the scheduler sorts by it, and a
 	// card dragged up a column must not silently change what runs first.

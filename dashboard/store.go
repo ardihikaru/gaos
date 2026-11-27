@@ -199,6 +199,8 @@ type Store interface {
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
 	// SetAssigned saves (set) or resets the agents assigned to a product (D-102, assign.go).
 	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
+	// SetThirdParty saves a product's binding of one third-party kind (D-104, thirdparty.go).
+	SetThirdParty(ctx context.Context, productID string, link ThirdPartyLink, actor string) (Result, error)
 	// Review defects (D-102, reviewdefect.go).
 	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
 	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
@@ -509,5 +511,8 @@ func (readOnly) SetAutoFix(context.Context, string, AutoFix, string, string) (Re
 	return Result{}, reject(replayRefusal)
 }
 func (readOnly) SetAssigned(context.Context, string, []string, bool, string) (Result, error) {
+	return Result{}, reject(replayRefusal)
+}
+func (readOnly) SetThirdParty(context.Context, string, ThirdPartyLink, string) (Result, error) {
 	return Result{}, reject(replayRefusal)
 }
