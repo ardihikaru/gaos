@@ -336,3 +336,15 @@ func (s *server) unitSay(ctx context.Context, productID string, pr int, text str
 	}
 	s.unitNotify(ctx, productID, pr, text, "")
 }
+
+// parseJenkinsOrigin reads GAOS_JENKINS_ORIGIN: an https origin with a host, an
+// optional port, and no path, query, fragment or userinfo. It answers the
+// origin as scheme://host, lower-cased.
+func parseJenkinsOrigin(raw string) (string, bool) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Opaque != "" ||
+		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" || strings.Contains(raw, "?") || strings.Contains(raw, "#") {
+		return "", false
+	}
+	return strings.ToLower(u.Scheme + "://" + u.Host), true
+}

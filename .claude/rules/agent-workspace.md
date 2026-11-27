@@ -103,7 +103,9 @@ A reviewer may read the repository — that is how it checks the author's
 
 - `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md`, `GEMINI.md` — the author's
   standing memory, and the whole point of a zero-context review;
-- `*.env`, `*.env.*`, `*.aim-*`, `*.api-*`, `*.bo-*` — the host-side credentials;
+- `*.env`, `*.env.*`, `*.aim-*`, `*.api-*`, `*.bo-*`, `*.pr-*`, `*.bt-*`, and every
+  `deploy/stacks/prod.*` except `*.example` — the host-side credentials (the
+  pull-request flow's, Brain Town's, and Jenkins' unit-results credential, D-106);
 - `*.pem`, `*.key`, `privkey.pem`, `**/credentials*`;
 - `deploy/local/**` — in this checkout and in any other checkout of the
   repository, the main one included: one operator's private instance material

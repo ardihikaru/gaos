@@ -32,7 +32,8 @@ break it.
    document's claims touch.
 
 **Off limits, never open:** `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md`,
-`GEMINI.md`, `.env*`, `*.env`, `*.aim-*`, `*.api-*`, `*.bo-*`, `*.pem`, `*.key`,
+`GEMINI.md`, `.env*`, `*.env`, `*.aim-*`, `*.api-*`, `*.bo-*`, `*.pr-*`, `*.bt-*`,
+`deploy/stacks/prod.*` (except `*.example`), `*.pem`, `*.key`,
 `**/credentials*`, `~/.ssh`, `~/.aws`, and any path outside this repository.
 Never print a secret, token or env value.
 

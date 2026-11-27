@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -669,5 +670,162 @@ func TestAJenkinsResultSurvivesARestart(t *testing.T) {
 	}
 	if _, ok, _ := second.UnitWatch(ctx, unitWatchKey(pid, repo, ucSHA2)); ok {
 		t.Error("an unknown watch was found")
+	}
+}
+
+// unitPage renders the Auto-fix page filtered to the product.
+func unitPage(t *testing.T, srv *server, pid string) string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/ui/bo/autofix?product="+pid, nil)
+	for _, c := range boCookies() {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the Auto-fix page answered %d", rec.Code)
+	}
+	return rec.Body.String()
+}
+
+// TC-881
+func TestTheUnitSectionShowsTheChecklistAndTheSource(t *testing.T) {
+	ctx := context.Background()
+	s, pid := unitStore(t)
+	srv, _ := newTestServer(t)
+	srv.store = s
+	srv.codeSrc, srv.btConsumer = fakeCode{}, &btConsumer{}
+	// Off, GitHub Actions: the checklist in full, the GitHub block shown, the Jenkins one hidden.
+	body := unitPage(t, srv, pid)
+	for _, want := range []string{
+		`<div class="af-note" role="note" aria-labelledby="unit-ready-` + pid + `">`,
+		`<b id="unit-ready-` + pid + `">Before you switch this on</b>`,
+		`href="../docs/integrations/agents.html#release-b-unit-short"`,
+		"Your CI runs the unit tests on every merge to the unit bases (the repository&#39;s default branch).",
+		"Tests that need a database, the network or another service are skipped under <code>go test -short</code>",
+		"    if testing.Short() {\n        t.Skip(\"needs a database\")\n    }",
+		`<a href="../docs/integrations/agents.html#release-b-unit-workflow" target="_blank" rel="noopener">the GitHub Actions workflow</a>`,
+		`<div data-unit-src="github-actions">`,
+		`<div data-unit-src="jenkins" hidden>`,
+		`<option value="github-actions" selected>`,
+		"No Jenkins credential for this product: add a line to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("off, GitHub Actions: the section lacks %q", want)
+		}
+	}
+	if strings.Count(body, "<li>") < 3 || !strings.Contains(body, `<div class="kind-row"><span class="kind-warn">No Jenkins credential`) {
+		t.Errorf("the checklist lacks its three items or the missing credential is not in a kind-row")
+	}
+	// The unit bases the checklist names: three cases.
+	for _, c := range []struct {
+		base  string
+		bases []string
+		want  string
+	}{
+		{"develop", nil, "develop"},
+		{"develop", []string{"staging", "main", "develop"}, "develop, staging, main"},
+		{"", []string{"staging"}, "the repository's default branch, staging"},
+	} {
+		m := Master{AutoFix: AutoFix{BaseBranch: c.base}, UnitChecks: UnitChecks{Bases: c.bases}}
+		if got, items := unitBaseList(m); got != c.want || len(items) == 0 || items[0].Code != (c.base != "") {
+			t.Errorf("base %q, bases %v: the list reads %q %+v; want %q", c.base, c.bases, got, items, c.want)
+		}
+	}
+	// Turning Jenkins on without a unit-results credential is refused.
+	autoFixAdminsFile(t, 0o600, testEmail)
+	path := "/products/" + pid + "/autofix/unit"
+	if w := formPost(t, srv, path, "enabled=on&source=jenkins", true); w.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(w.Body.String(), "No Jenkins credential for this product; add it to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.") {
+		t.Errorf("enabling Jenkins without a credential answered %d %s", w.Code, w.Body.String())
+	}
+	// With the credential, saved on, Jenkins: one line, the Jenkins block shown, the credential configured.
+	cred := filepath.Join(t.TempDir(), "unit-results")
+	if err := os.WriteFile(cred, []byte(pid+":jenkins-p1:"+urPass1+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GAOS_UNIT_RESULTS_BASIC_AUTH_FILE", cred)
+	srv.unitResults = unitResultsAuthFromEnv()
+	if w := formPost(t, srv, path, "enabled=on&source=jenkins&workflow=.github%2Fworkflows%2Fgo.yml", true); w.Code != http.StatusOK {
+		t.Fatalf("enabling Jenkins with a credential answered %d %s", w.Code, w.Body.String())
+	}
+	// An older form without the field keeps the stored source.
+	if w := formPost(t, srv, path, "enabled=on&dailyCap=4", true); w.Code != http.StatusOK || masterOf(t, s, pid).UnitChecks.Source != unitSourceJenkins {
+		t.Errorf("a save without the source field answered %d and left the source %q", w.Code, masterOf(t, s, pid).UnitChecks.Source)
+	}
+	// The last result: a no-ci in Jenkins' words, and a build link only for the configured origin.
+	if _, err := s.PlantUnitWatch(ctx, pid, UnitWatch{Repo: defRepo, SHA: ucSHA, Base: "develop", State: UnitWatchDone, Outcome: UnitNoCI, DoneAt: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	body = unitPage(t, srv, pid)
+	for _, want := range []string{
+		"on · Jenkins · cap 4 a day",
+		"Tests that need a database or the network are skipped under <code>go test -short</code>.",
+		`<div data-unit-src="jenkins">`,
+		`<div data-unit-src="github-actions" hidden>`,
+		`<option value="jenkins" selected>`,
+		"Jenkins posts to <code>POST /api/v1/products/" + pid + "/unit-results</code>",
+		"The product's unit-results credential is configured.",
+		"no result from Jenkins; nothing filed",
+		"the Jenkins stage installed with the product's credential.",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("on, Jenkins: the section lacks %q", want)
+		}
+	}
+	if strings.Contains(body, "Before you switch this on") || strings.Contains(body, "No Jenkins credential for this product") {
+		t.Error("on, Jenkins: the full checklist or the missing-credential line is still shown")
+	}
+	if strings.Contains(body, "no check run found") {
+		t.Error("the no-ci wording is GitHub's under Jenkins")
+	}
+	runURL := "https://jenkins.acme.example/job/route-api/job/develop/42/"
+	if _, err := s.PlantUnitWatch(ctx, pid, UnitWatch{Repo: defRepo, SHA: ucSHA2, Base: "develop", State: UnitWatchDone,
+		Outcome: UnitPassed, DoneAt: 2000}); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	w := s.unitWatches[unitWatchKey(pid, defRepo, ucSHA2)]
+	w.RunURL = runURL
+	s.unitWatches[w.Key] = w
+	s.mu.Unlock()
+	link := `<a href="` + runURL + `" target="_blank" rel="noopener noreferrer">Jenkins build</a>`
+	if body := unitPage(t, srv, pid); strings.Contains(body, link) || !strings.Contains(body, `<span class="mono">`+runURL+`</span>`) {
+		t.Errorf("with no origin configured the build is a link, or not shown as text")
+	}
+	srv.jenkinsOrigin = "https://jenkins.acme.example"
+	if body := unitPage(t, srv, pid); !strings.Contains(body, link) {
+		t.Errorf("with its origin configured the build is not a link")
+	}
+	srv.jenkinsOrigin = "https://other.acme.example"
+	if body := unitPage(t, srv, pid); strings.Contains(body, link) {
+		t.Errorf("a build of another origin is a link")
+	}
+	// GAOS_JENKINS_ORIGIN: an https origin and nothing more.
+	for raw, want := range map[string]string{
+		"https://Jenkins.Acme.example":      "https://jenkins.acme.example",
+		"https://jenkins.acme.example:8443": "https://jenkins.acme.example:8443",
+		"https://jenkins.acme.example/":     "https://jenkins.acme.example",
+		"http://jenkins.acme.example":       "",
+		"https://jenkins.acme.example/job":  "",
+		"https://u:p@jenkins.acme.example":  "",
+		"https://jenkins.acme.example?x=1":  "",
+		"jenkins.acme.example":              "",
+	} {
+		if got, _ := parseJenkinsOrigin(raw); got != want {
+			t.Errorf("the origin %q reads %q; want %q", raw, got, want)
+		}
+	}
+	// Back to GitHub Actions, the item-3 link and the no-ci words follow the saved source.
+	if w := formPost(t, srv, path, "source=github-actions", true); w.Code != http.StatusOK {
+		t.Fatalf("switching back answered %d", w.Code)
+	}
+	s.mu.Lock()
+	delete(s.unitWatches, unitWatchKey(pid, defRepo, ucSHA2))
+	s.mu.Unlock()
+	body = unitPage(t, srv, pid)
+	if !strings.Contains(body, "#release-b-unit-workflow") || strings.Contains(body, `#release-b-unit-jenkins"`) ||
+		!strings.Contains(body, "no check run found; nothing filed") {
+		t.Errorf("after switching back the checklist links or the no-ci words are Jenkins'")
 	}
 }

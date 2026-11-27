@@ -114,17 +114,89 @@ type AFUnit struct {
 	DailyCap, Cap            int
 	Repos                    []AFUnitRepo
 	Open                     bool
+
+	// D-106: the result source ("github-actions" or "jenkins"), Jenkins for the
+	// template's branches, whether the product holds a unit-results credential,
+	// and the unit bases the checklist names: BaseList as text (cut at 200),
+	// BaseItems the same names for the template to print, each in <code> unless
+	// it is the "default branch" phrase.
+	Source       string
+	Jenkins      bool
+	JenkinsReady bool
+	BaseList     string
+	BaseItems    []AFUnitBase
+}
+
+// AFUnitBase is one unit base in the checklist; Code is false for the phrase
+// that stands for the repository's default branch.
+type AFUnitBase struct {
+	Name string
+	Code bool
 }
 
 // AFUnitRepo is a fix-target repository's last watch. Warn: the last three ended no-ci.
 // Outcome is the stored token (shown as a title); OutcomeLabel says it in words.
+// RunURL is the last result's Jenkins build; RunLink when its origin is
+// GAOS_JENKINS_ORIGIN, else it is shown as text (D-106 §4.3).
 type AFUnitRepo struct {
 	Repo, Outcome, OutcomeLabel, At string
 	Warn                            bool
+	RunURL                          string
+	RunLink                         bool
 }
 
-// unitOutcomeLabel says a watch outcome (§6) the way an operator reads it.
-func unitOutcomeLabel(o string) string {
+// unitDefaultPhrase stands for the effective base when AutoFix.BaseBranch is empty.
+const unitDefaultPhrase = "the repository's default branch"
+
+// unitBaseList is the checklist's unit bases (§4.3): the auto-fix base, or the
+// default-branch phrase, then each configured extra base not equal to it, cut
+// at 200 characters of text.
+func unitBaseList(m Master) (string, []AFUnitBase) {
+	items := []AFUnitBase{{Name: unitDefaultPhrase}}
+	if b := m.AutoFix.BaseBranch; b != "" {
+		items = []AFUnitBase{{Name: b, Code: true}}
+	}
+	for _, b := range m.UnitChecks.Bases {
+		if b != m.AutoFix.BaseBranch {
+			items = append(items, AFUnitBase{Name: b, Code: true})
+		}
+	}
+	var names []string
+	var kept []AFUnitBase
+	n := 0
+	for _, it := range items {
+		name := afLine(it.Name, 200)
+		if n > 0 && n+2+len(name) > 200 {
+			kept = append(kept, AFUnitBase{Name: "…"})
+			names = append(names, "…")
+			break
+		}
+		n += len(name) + 2
+		kept = append(kept, AFUnitBase{Name: name, Code: it.Code})
+		names = append(names, name)
+	}
+	return afLine(strings.Join(names, ", "), 200), kept
+}
+
+// unitRunLink reports whether a stored build URL may be a link: its scheme and
+// host equal the configured Jenkins origin (D-106 §5.4). No origin, no link.
+func unitRunLink(raw, origin string) bool {
+	if raw == "" || origin == "" {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Scheme+"://"+u.Host, origin)
+}
+
+// unitOutcomeLabel says a watch outcome (§6) the way an operator reads it; the
+// source changes the words of no-ci.
+func unitOutcomeLabel(o, source string) string {
+	if o == UnitNoCI && source == unitSourceJenkins {
+		return "no result from Jenkins; nothing filed"
+	}
 	switch {
 	case o == UnitPassed:
 		return "passed"
@@ -657,7 +729,7 @@ func (s *server) autoFixPage(ctx context.Context, q url.Values, now time.Time) *
 			continue
 		}
 		ws, _ := s.store.UnitWatches(ctx, sc.pr.ID)
-		p.Units = append(p.Units, afUnit(sc.pr, m, ws))
+		p.Units = append(p.Units, afUnit(sc.pr, m, ws, s.unitResults.has(sc.pr.ID), s.jenkinsOrigin))
 	}
 
 	// ---- the drawer ----
@@ -970,11 +1042,15 @@ func (s *server) handleAutoFixLive(w http.ResponseWriter, r *http.Request) {
 
 // afUnit builds one product's "Unit tests (CI)" section: the setting and, per
 // fix-target repository, the last watch that ended (skipped ones included).
-func afUnit(pr Product, m Master, ws []UnitWatch) AFUnit {
+// jenkinsReady says the product holds a unit-results credential; origin is
+// GAOS_JENKINS_ORIGIN, the only origin a build link may point at.
+func afUnit(pr Product, m Master, ws []UnitWatch, jenkinsReady bool, origin string) AFUnit {
 	u := m.UnitChecks
 	out := AFUnit{ProductID: pr.ID, Name: afLine(pr.Name, 80), PostURL: "products/" + url.PathEscape(pr.ID) + "/autofix/unit",
 		Enabled: u.Enabled, Workflow: u.Workflow, CheckName: u.CheckName, WorkflowPath: u.WorkflowPath(), Check: u.Name(),
-		Bases: strings.Join(u.Bases, "\n"), DailyCap: u.DailyCap, Cap: u.Cap()}
+		Bases: strings.Join(u.Bases, "\n"), DailyCap: u.DailyCap, Cap: u.Cap(),
+		Source: u.SourceName(), Jenkins: u.SourceName() == unitSourceJenkins, JenkinsReady: jenkinsReady}
+	out.BaseList, out.BaseItems = unitBaseList(m)
 	for _, repo := range m.AutoFix.TargetRepos {
 		if !unitFixTarget(m, repo) {
 			continue
@@ -988,7 +1064,14 @@ func afUnit(pr Product, m Master, ws []UnitWatch) AFUnit {
 		sort.Slice(done, func(i, j int) bool { return done[i].DoneAt > done[j].DoneAt })
 		r := AFUnitRepo{Repo: afLine(repo, 120), OutcomeLabel: "no merge watched yet"}
 		if len(done) > 0 {
-			r.Outcome, r.OutcomeLabel, r.At = done[0].Outcome, unitOutcomeLabel(done[0].Outcome), afClock(done[0].DoneAt)
+			r.Outcome, r.OutcomeLabel, r.At = done[0].Outcome, unitOutcomeLabel(done[0].Outcome, out.Source), afClock(done[0].DoneAt)
+			if done[0].RunURL != "" {
+				r.RunLink = unitRunLink(done[0].RunURL, origin)
+				r.RunURL = done[0].RunURL
+				if !r.RunLink {
+					r.RunURL = afLine(done[0].RunURL, 120)
+				}
+			}
 		}
 		if len(done) >= 3 {
 			r.Warn = done[0].Outcome == UnitNoCI && done[1].Outcome == UnitNoCI && done[2].Outcome == UnitNoCI

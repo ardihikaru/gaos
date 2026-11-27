@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -469,5 +470,53 @@ func TestALateOrConflictingUnitResult(t *testing.T) {
 	}
 	if w := urWatch(t, st, pid, 3); w.Outcome != UnitNoCI || w.PostedResult != "" {
 		t.Errorf("a refused late result changed the watch: %+v", w)
+	}
+}
+
+// TC-882
+func TestTheDocumentedJenkinsBodyIsAccepted(t *testing.T) {
+	ctx := context.Background()
+	b, err := os.ReadFile("../pustaka/docs/integrations/agents.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(b)
+	at := strings.Index(page, `id="release-b-unit-jenkins"`)
+	if at < 0 {
+		t.Fatal("the agents page has no #release-b-unit-jenkins section")
+	}
+	const open = `<pre id="unit-results-sample">`
+	i := strings.Index(page[at:], open)
+	if i < 0 {
+		t.Fatal(`the #release-b-unit-jenkins section has no <pre id="unit-results-sample">`)
+	}
+	rest := page[at+i+len(open):]
+	j := strings.Index(rest, "</pre>")
+	if j < 0 {
+		t.Fatal("the sample is not closed")
+	}
+	sample := html.UnescapeString(rest[:j])
+
+	srv, st, pid, _ := unitResultsServer(t)
+	const repo = "acme/route-api"
+	st.mu.Lock()
+	st.masterPtr(pid).Repos = append(st.masterPtr(pid).Repos, repo)
+	st.mu.Unlock()
+	af := unitAF()
+	af.TargetRepos = append(af.TargetRepos, repo)
+	if _, err := st.SetAutoFix(ctx, pid, af, "ops", tokenKindFine); err != nil {
+		t.Fatal(err)
+	}
+	const commit = "0123456789abcdef0123456789abcdef01234567"
+	if _, err := st.PlantUnitWatch(ctx, pid, UnitWatch{Repo: repo, PR: 42, SHA: commit, Base: "develop", MergedAt: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	rec := urCall(srv, pid, "jenkins-p1", urPass1, sample)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("the documented body answered %d %s; want 202\n%s", rec.Code, rec.Body.String(), sample)
+	}
+	w, _, _ := st.UnitWatch(ctx, unitWatchKey(pid, repo, commit))
+	if w.Outcome != UnitFailed || w.RunURL != "https://jenkins.acme.example/job/route-api/job/develop/42/" {
+		t.Errorf("the documented body finished the watch as %+v", w)
 	}
 }

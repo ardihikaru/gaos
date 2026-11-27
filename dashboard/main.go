@@ -70,6 +70,9 @@ type server struct {
 	// unitNotify sends a unit notice to the group (the poller's closure, D-106);
 	// nil leaves it unsent and logged.
 	unitNotify func(ctx context.Context, productID string, pr int, text, cardID string)
+	// jenkinsOrigin is GAOS_JENKINS_ORIGIN ("" = unset): the only origin a posted
+	// result's build link is shown as a link for on the Auto-fix page (D-106).
+	jenkinsOrigin string
 	// ghState is the GitHub client's row on the Integrations view.
 	ghState string
 	// codeSrc reads application source for a defect's packet (D-091); nil when
@@ -463,6 +466,18 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		log.Printf("unit results: off (%s)", srv.unitResults.why)
 	default:
 		log.Printf("unit results: off (no credential file)")
+	}
+	if raw := os.Getenv("GAOS_JENKINS_ORIGIN"); raw != "" {
+		if o, ok := parseJenkinsOrigin(raw); ok {
+			srv.jenkinsOrigin = o
+		} else {
+			log.Printf("unit results: jenkins origin ignored (an https origin with no path, query or userinfo)")
+		}
+	}
+	if srv.jenkinsOrigin != "" {
+		log.Printf("unit results: jenkins origin set")
+	} else {
+		log.Printf("unit results: jenkins origin unset")
 	}
 	if h, ok := store.(interface {
 		SetPRHooks(func(TaskRecord) []PacketPart, func(TaskRecord, string))

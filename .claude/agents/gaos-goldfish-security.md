@@ -38,7 +38,8 @@ nobody, the security lens is the one that must never be optional.
    what is still open about them.
 
 **Off limits, never open:** `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md`,
-`GEMINI.md`, `.env*`, `*.env`, `*.aim-*`, `*.api-*`, `*.bo-*`, `*.pem`, `*.key`,
+`GEMINI.md`, `.env*`, `*.env`, `*.aim-*`, `*.api-*`, `*.bo-*`, `*.pr-*`, `*.bt-*`,
+`deploy/stacks/prod.*` (except `*.example`), `*.pem`, `*.key`,
 `**/credentials*`, `~/.ssh`, `~/.aws`, and any path outside this repository.
 Never print a secret, token or env value — write `<REDACTED:LABEL>` instead.
 

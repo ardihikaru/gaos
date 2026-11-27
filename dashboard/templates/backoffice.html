@@ -1084,7 +1084,7 @@
       <tr><th scope="row">Contacts</th><td class="mono">{{len .PR.Contacts}}</td></tr>
     </tbody>
   </table></div>
-  <p class="tm-line">Set up: <code>GAOS_GITHUB_TOKEN_FILE</code>; <code>GAOS_GITHUB_WRITE_TOKEN_FILE</code> (auto-fix only; the view shows its kind, never the token); <code>GAOS_STAGING_BASIC_AUTH_FILE</code> (lines <code>productId:user:password</code>); <code>GAOS_WA_URL</code> (https), <code>GAOS_WA_BASIC_AUTH_FILE</code> and <code>GAOS_WA_GROUP_FILE</code>. <a href="../docs/integrations/pr-agents.html" target="_blank" rel="noopener">Pull-request agents</a></p>
+  <p class="tm-line">Set up: <code>GAOS_GITHUB_TOKEN_FILE</code>; <code>GAOS_GITHUB_WRITE_TOKEN_FILE</code> (auto-fix only; the view shows its kind, never the token); <code>GAOS_STAGING_BASIC_AUTH_FILE</code> (lines <code>productId:user:password</code>); <code>GAOS_UNIT_RESULTS_BASIC_AUTH_FILE</code> (Jenkins&#39; unit results, its own lines); <code>GAOS_WA_URL</code> (https), <code>GAOS_WA_BASIC_AUTH_FILE</code> and <code>GAOS_WA_GROUP_FILE</code>. <a href="../docs/integrations/pr-agents.html" target="_blank" rel="noopener">Pull-request agents</a></p>
 </div>
 <div class="block">
   <div class="integ-h">
@@ -1258,26 +1258,62 @@
 {{define "af-unit"}}
 <details class="board-help"{{if .Open}} open{{end}}>
   <summary>Unit tests (CI) for {{.Name}} <a class="info-btn info-link" href="../docs/integrations/agents.html#release-b-unit" target="_blank" rel="noopener" aria-label="Unit tests (CI): open the docs" title="Unit tests (CI): open the docs">i</a>
-    <span class="kinds-sum">{{if .Enabled}}on{{else}}off{{end}} · {{.WorkflowPath}} · check {{.Check}} · cap {{.Cap}} a day</span></summary>
+    <span class="kinds-sum">{{if .Enabled}}on{{else}}off{{end}} · {{if .Jenkins}}Jenkins{{else}}{{.WorkflowPath}} · check {{.Check}}{{end}} · cap {{.Cap}} a day</span></summary>
   <form hx-post="{{.PostURL}}" hx-target="#sink" hx-swap="innerHTML" class="agent-editor" data-kinds-form>
-    <p class="tm-line kinds-intro">GAOS runs no test. It reads the check of the <b>{{.WorkflowPath}}</b> push run on each merge commit of a fix-target repository. A failing check becomes a defect held for an auto-fix admin; a missing check is never a pass.</p>
+    {{if .Jenkins}}<p class="tm-line kinds-intro">GAOS runs no test. Your Jenkins runs the unit tests on each merge commit of a fix-target repository and posts the result to GAOS. A failing result becomes a defect held for an auto-fix admin; a merge with no result is never a pass.</p>
+    {{else}}<p class="tm-line kinds-intro">GAOS runs no test. It reads the check of the <b>{{.WorkflowPath}}</b> push run on each merge commit of a fix-target repository. A failing check becomes a defect held for an auto-fix admin; a missing check is never a pass.</p>{{end}}
+    {{/* D-106 §4.3: the -short rule is in the product. In full while the switch
+         is off; one line once it is on. Existing classes only. */}}
+    {{if .Enabled}}
+    <p class="tm-line">Tests that need a database or the network are skipped under <code>go test -short</code>. <a class="info-btn info-link" href="../docs/integrations/agents.html#release-b-unit-short" target="_blank" rel="noopener" aria-label="Tests that need a database: open the docs" title="Tests that need a database: open the docs">i</a></p>
+    {{else}}
+    <div class="af-note" role="note" aria-labelledby="unit-ready-{{.ProductID}}">
+      <b id="unit-ready-{{.ProductID}}">Before you switch this on</b>
+      <a class="info-btn info-link" href="../docs/integrations/agents.html#release-b-unit-short" target="_blank" rel="noopener"
+         aria-label="Before you switch this on: open the docs" title="Before you switch this on: open the docs">i</a>
+      <div class="md">
+        <ol>
+          <li>Your CI runs the unit tests on every merge to the unit bases ({{range $i, $b := .BaseItems}}{{if $i}}, {{end}}{{if $b.Code}}<code>{{$b.Name}}</code>{{else}}{{$b.Name}}{{end}}{{end}}).</li>
+          <li>Tests that need a database, the network or another service are skipped under <code>go test -short</code>, so a clean merge is green:
+            <pre class="md-code"><code>func TestRouteStore(t *testing.T) {
+    if testing.Short() {
+        t.Skip("needs a database")
+    }
+    // …
+}</code></pre></li>
+          <li>Your CI reports the result to GAOS: {{if .Jenkins}}<a href="../docs/integrations/agents.html#release-b-unit-jenkins" target="_blank" rel="noopener">the Jenkins stage</a>{{else}}<a href="../docs/integrations/agents.html#release-b-unit-workflow" target="_blank" rel="noopener">the GitHub Actions workflow</a>{{end}}.</li>
+        </ol>
+      </div>
+    </div>
+    {{end}}
     {{if .Repos}}
     <div class="kinds-list">
     {{range .Repos}}
-    <div class="kind-row"><span class="mono kind-repo">{{.Repo}}</span><span class="tm-line"{{with .Outcome}} title="{{.}}"{{end}}>{{.OutcomeLabel}}{{if .At}} · {{.At}}{{end}}</span>
-      {{if .Warn}}<p class="tm-line kind-warn">No <code>{{$.Check}}</code> run on recent merges: is the workflow installed?</p>{{end}}</div>
+    <div class="kind-row"><span class="mono kind-repo">{{.Repo}}</span><span class="tm-line"{{with .Outcome}} title="{{.}}"{{end}}>{{.OutcomeLabel}}{{if .At}} · {{.At}}{{end}}{{if .RunURL}} · {{if .RunLink}}<a href="{{.RunURL}}" target="_blank" rel="noopener noreferrer">Jenkins build</a>{{else}}<span class="mono">{{.RunURL}}</span>{{end}}{{end}}</span>
+      {{if .Warn}}{{if $.Jenkins}}<p class="tm-line kind-warn">No result from Jenkins on recent merges: is the Jenkins stage installed?</p>{{else}}<p class="tm-line kind-warn">No <code>{{$.Check}}</code> run on recent merges: is the workflow installed?</p>{{end}}{{end}}</div>
     {{end}}
     </div>
     {{else}}<p class="tm-line">{{.Name}} lists no fix-target repository yet; add one to the auto-fix settings first.</p>{{end}}
-    <div class="kind-switch">
-      <input type="checkbox" id="unit-on-{{.ProductID}}" name="enabled" aria-describedby="unit-on-h-{{.ProductID}}"{{if .Enabled}} checked{{end}}>
-      <label for="unit-on-{{.ProductID}}">Read the unit-test check of every merge</label>
-      <p class="tm-line" id="unit-on-h-{{.ProductID}}">Needs auto-fix on, a fixer and a triager assigned, and the workflow merged in the repository.</p>
+    <div class="field"><label for="unit-src-{{.ProductID}}">Results come from</label><select id="unit-src-{{.ProductID}}" name="source" data-unit-source>
+      <option value="github-actions"{{if not .Jenkins}} selected{{end}}>GitHub Actions — GAOS reads the workflow's check</option>
+      <option value="jenkins"{{if .Jenkins}} selected{{end}}>Jenkins — Jenkins posts the result to GAOS</option>
+    </select></div>
+    <div data-unit-src="github-actions"{{if .Jenkins}} hidden{{end}}>
+      <div class="field"><label for="unit-wf-{{.ProductID}}">Workflow file</label><input id="unit-wf-{{.ProductID}}" name="workflow" value="{{.Workflow}}" placeholder=".github/workflows/unit-tests.yml"></div>
+      <div class="field"><label for="unit-ck-{{.ProductID}}">Check name</label><input id="unit-ck-{{.ProductID}}" name="checkName" value="{{.CheckName}}" placeholder="unit-tests"></div>
     </div>
-    <div class="field"><label for="unit-wf-{{.ProductID}}">Workflow file</label><input id="unit-wf-{{.ProductID}}" name="workflow" value="{{.Workflow}}" placeholder=".github/workflows/unit-tests.yml"></div>
-    <div class="field"><label for="unit-ck-{{.ProductID}}">Check name</label><input id="unit-ck-{{.ProductID}}" name="checkName" value="{{.CheckName}}" placeholder="unit-tests"></div>
+    <div data-unit-src="jenkins"{{if not .Jenkins}} hidden{{end}}>
+      <p class="tm-line">Jenkins posts to <code>POST /api/v1/products/{{.ProductID}}/unit-results</code></p>
+      {{if .JenkinsReady}}<p class="tm-line">The product's unit-results credential is configured.</p>
+      {{else}}<div class="kind-row"><span class="kind-warn">No Jenkins credential for this product: add a line to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.</span></div>{{end}}
+    </div>
     <div class="field"><label for="unit-bs-{{.ProductID}}">Other bases, one per line</label><textarea id="unit-bs-{{.ProductID}}" name="bases" rows="2">{{.Bases}}</textarea><p class="help">The auto-fix base branch, or the default branch, is always watched.</p></div>
     <div class="field"><label for="unit-cap-{{.ProductID}}">New defects a day</label><input id="unit-cap-{{.ProductID}}" name="dailyCap" type="number" min="0" max="20" value="{{if .DailyCap}}{{.DailyCap}}{{end}}" placeholder="5"></div>
+    <div class="kind-switch">
+      <input type="checkbox" id="unit-on-{{.ProductID}}" name="enabled" aria-describedby="unit-on-h-{{.ProductID}}"{{if .Enabled}} checked{{end}}>
+      <label for="unit-on-{{.ProductID}}">{{if .Jenkins}}Take the unit-test result Jenkins posts for every merge{{else}}Read the unit-test check of every merge{{end}}</label>
+      <p class="tm-line" id="unit-on-h-{{.ProductID}}">Needs auto-fix on, a fixer and a triager assigned, and {{if .Jenkins}}the Jenkins stage installed with the product's credential.{{else}}the workflow merged in the repository.{{end}}</p>
+    </div>
     <div class="kind-actions">
       <button class="btn btn-primary" type="submit">Save unit checks</button>
       {{if .Open}}<span class="tm-line kind-saved" data-kinds-saved>Saved. The next merge uses these settings.</span>{{end}}

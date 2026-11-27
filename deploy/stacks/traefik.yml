@@ -37,8 +37,20 @@ entryPoints:
       # No request arrived as 172.30.x, so bridge-gateway entries were left out
       # rather than added as a hedge. Re-run the check in deploy/STACKS.md if
       # the daemon's userland-proxy setting or the publish syntax ever changes.
+      #
+      # D-106 (2026-11-27): NARROWED TO THE EDGE ALONE. Traefik publishes on the
+      # VM's tunnel address, so every WireGuard peer can reach it directly, and
+      # a trusted peer may set X-Real-IP and X-Forwarded-For. The Basic routes
+      # (staging, unit results) key their failure lock on X-Real-IP, so a
+      # trusted peer could pick anyone's bucket. Only clino (10.10.0.1), which
+      # serves both instances, forwards other people's traffic. The GAOS VMs
+      # are NOT trusted: nothing on them forwards someone else's request, so a
+      # VM-local call is logged with the VM's own tunnel address, which is
+      # correct. If an instance ever adds a VM-local proxy, that instance lists
+      # only its own VM's address, in its own copy of this file.
+      # deploy/check-stacks.sh asserts this single entry (TC-883).
       trustedIPs:
-        - "10.10.0.0/24"
+        - "10.10.0.1/32"
 
 providers:
   # File, not docker -- see deploy/traefik/traefik.yml for the full reasoning.

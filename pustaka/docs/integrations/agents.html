@@ -352,8 +352,9 @@
   </div>
   <p><strong>Spec auto-merge is off by default everywhere.</strong> The GAOS switch is off for every product until an admin ticks it, and the QA tool&rsquo;s <code>QA_SPEC_AUTO_MERGE</code> is unset, which is off. Keep both off for a private automation repository on GitHub&rsquo;s free plan: without rulesets nothing can be merged safely, so every spec waits for a person.</p>
 
-  <h3 id="release-b-unit">4. Unit tests: read from the repository&rsquo;s own CI check</h3>
+  <h3 id="release-b-unit">4. Unit tests: read from the repository&rsquo;s own CI result</h3>
   <p>Built in v0.67.0 (<a href="../product/decision-log.html#d-105">D-105</a>, <a href="../product/brd.html#rules-gateway">BR-65</a>; design <code>docs/designs/release-b4-unit-tests.md</code>). <strong>GAOS runs no test.</strong> The repository owner adds one GitHub Actions workflow (the template is below); GitHub runs it on every merge commit in a disposable VM, and GAOS reads the result of that one workflow. A failure becomes a defect that waits for an auto-fix admin before any agent works on it. The feature is <strong>off for every product</strong> until an auto-fix admin turns it on. Writing missing tests is a later design (<code>docs/designs/release-b4b-unit-create.md</code>).</p>
+  <p><strong>Two result sources</strong> (v0.68.0, <a href="../product/decision-log.html#d-106">D-106</a>). Each product chooses where its result comes from: <em>GitHub Actions</em> (the default: GAOS reads the workflow&rsquo;s check, the flow below) or <em>Jenkins</em> (the organisation&rsquo;s Jenkins runs the tests on its own agents and posts the result to GAOS, <a href="#release-b-unit-jenkins">below</a>). Either way GAOS executes nothing, the defect, the hold, the close on a pass and the notices are the same, and a merge with no result is never a pass. Under either source, tests that need a database or the network must <a href="#release-b-unit-short">skip under <code>-short</code></a> before the switch is turned on.</p>
   <div class="flow">
     <div class="node"><b>1 · Merge</b><span>Brain Town forwards it</span></div>
     <div class="arrow">→</div>
@@ -366,7 +367,7 @@
     <div class="node"><b>5 · Admin</b><span>releases it; triage and fix</span></div>
   </div>
   <ol>
-    <li><strong>Turn it on.</strong> On the Auto-fix page, open <em>Unit tests (CI) for &lt;product&gt;</em> (auto-fix admins only; <code>POST /products/{id}/autofix/unit</code>). It needs auto-fix on, a fixer and a triager assigned, a fix-target repository, GitHub and the Brain Town reader. You can name another workflow file or check name, extra bases beside the auto-fix base branch (or the default branch), and a daily cap of new unit defects (default 5). First merge the workflow and make sure its run on the base is green.</li>
+    <li><strong>Turn it on.</strong> On the Auto-fix page, open <em>Unit tests (CI) for &lt;product&gt;</em> (auto-fix admins only; <code>POST /products/{id}/autofix/unit</code>), read its <em>Before you switch this on</em> checklist, and choose where results come from. It needs auto-fix on, a fixer and a triager assigned, a fix-target repository, GitHub and the Brain Town reader (and, for Jenkins, the product&rsquo;s unit-results credential). You can name another workflow file or check name, extra bases beside the auto-fix base branch (or the default branch), and a daily cap of new unit defects (default 5). First merge the workflow and make sure its run on the base is green.</li>
     <li><strong>A merge plants a watch.</strong> A pull request of a fix-target repository merged into a unit base gives GAOS its merge commit. For that repository the old agent unit-test card is no longer planned; other repositories and products keep it, as <a href="pr-agents.html#qa">Pull-request agents</a> describes.</li>
     <li><strong>GAOS reads the check.</strong> Every 2 minutes, at most 10 merges at a time: the <code>push</code> run of the workflow on that commit and base, and the check run named <code>unit-tests</code> of that run&rsquo;s own check suite from the <code>github-actions</code> app. A check posted by anything else, and every commit status, is ignored. A failure counts only when the run carries the workflow&rsquo;s <code>unit-tests-total</code> notice, so a job that never started (a billing or spending limit) files nothing.</li>
     <li><strong>A failure files a held defect.</strong> One open unit defect per repository and base (plus one for a failed build), naming at most ten failing tests; a new failing set updates it. Its triage card is born Blocked; only an auto-fix admin can release or cancel it (the cancel closes the defect), and nobody else can close it. The group gets one line.</li>
@@ -439,6 +440,229 @@ jobs:
           exit $status</pre>
   </div>
 
+  <h4 id="release-b-unit-jenkins">Jenkins posts the result</h4>
+  <p>With <em>Results come from: Jenkins</em>, GAOS reads no GitHub check. The organisation&rsquo;s Jenkins builds each merge commit of a unit base, runs <code>go test -short</code> on its own agents and posts one result per build. The result finishes that merge&rsquo;s watch exactly as a GitHub check would: a failure files or updates the held defect, a pass closes it (or marks a held one), and a merge with no result 6 hours after it was merged ends <em>no-ci</em> with a line to the group at most once a day (&ldquo;no unit-test result from Jenkins on a merge; is the Jenkins stage installed?&rdquo;). The events a posted result causes are attributed to <code>jenkins:&lt;product&gt;</code>.</p>
+  <div class="flow">
+    <div class="node"><b>1 · Merge</b><span>Brain Town forwards it</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>2 · Jenkins</b><span>tests the merge commit</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>3 · Jenkins</b><span>posts the result to GAOS</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>4 · GAOS</b><span>a failure: defect, held</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>5 · Admin</b><span>releases it; triage and fix</span></div>
+  </div>
+  <p><strong>The route and the credential.</strong> <code>POST /api/v1/products/{id}/unit-results</code>, HTTP Basic with the product&rsquo;s <strong>unit-results credential</strong>: a line <code>productId:user:password</code> in the file named by <code>GAOS_UNIT_RESULTS_BASIC_AUTH_FILE</code> (mode 0600, a password of at least 32 characters, made with <code>openssl rand -base64 32</code>). It is checked by the staging callback&rsquo;s gate but is never the staging credential: neither opens the other route. A credential of another product answers 404; five failures from one address in 5 minutes lock that address out of this route for 5 minutes. An empty file leaves the route off (503 <code>jenkins-off</code>). <code>GAOS_JENKINS_ORIGIN</code> (optional, e.g. <code>https://jenkins.acme.example</code>) is the only origin whose build links the Auto-fix page shows as links.</p>
+  <p><strong>The body</strong> is strict JSON, at most 64 KiB, no unknown field:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">json</span><button class="copy">copy</button></div>
+    <pre id="unit-results-sample">{"repo":"acme/route-api","commit":"0123456789abcdef0123456789abcdef01234567","branch":"develop",
+ "result":"failed","total":2,
+ "failing":[{"test":"TestPlanRoute/empty_stops","file":"planner/route_test.go"},
+            {"test":"TestDistance","file":"geo/distance_test.go"}],
+ "summary":"","runUrl":"https://jenkins.acme.example/job/route-api/job/develop/42/"}</pre>
+  </div>
+  <table class="tbl">
+    <thead><tr><th>Field</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><code>repo</code></td><td><code>owner/repo</code>, a fix-target repository of the product</td></tr>
+      <tr><td><code>commit</code></td><td>the merge commit, 40 hex</td></tr>
+      <tr><td><code>branch</code></td><td>the branch Jenkins built; it must be the merge&rsquo;s base</td></tr>
+      <tr><td><code>result</code></td><td><code>passed</code>, <code>failed</code> (at least one test named) or <code>build-failed</code> (no test named; <code>summary</code> says why)</td></tr>
+      <tr><td><code>total</code>, <code>failing</code></td><td>the failing leaf tests: the count (0 to 100000) and up to 50 named, <code>{"test","file"}</code>; GAOS keeps the first 10 it accepts, and drops a name that is not a Go test, a path that is unsafe, or anything over 512 bytes</td></tr>
+      <tr><td><code>summary</code></td><td><code>build-failed</code> only; cut to 2 KiB</td></tr>
+      <tr><td><code>runUrl</code></td><td>optional; an <code>https</code> build link, otherwise stored empty (never refused)</td></tr>
+    </tbody>
+  </table>
+  <table class="tbl">
+    <thead><tr><th>GAOS answers</th><th>Meaning, and what the stage does</th></tr></thead>
+    <tbody>
+      <tr><td>202 <code>{"accepted":true,"outcome":…}</code></td><td>the merge&rsquo;s watch ended with that outcome; done</td></tr>
+      <tr><td>200 <code>{"duplicate":true}</code></td><td>the same result was already recorded (a replayed build); done</td></tr>
+      <tr><td>409 <code>no-watch</code>, <code>Retry-After: 60</code></td><td>GAOS has not seen this merge yet; retry once a minute for 10 minutes</td></tr>
+      <tr><td>409 <code>already-finished</code></td><td>a different result was recorded first; it stands, and the group is told once</td></tr>
+      <tr><td>409 <code>branch-mismatch</code>, <code>unit-checks-off</code>, <code>not-jenkins</code></td><td>another branch, unit checks off, or the product reads GitHub Actions; not retried</td></tr>
+      <tr><td>422 <code>rejected</code>, <code>not-target</code></td><td>the body is wrong, or the repository is not a fix target; not retried</td></tr>
+      <tr><td>401, 404 <code>not-found</code></td><td>no or a wrong credential, or another product&rsquo;s; never retried (each counts toward the lock)</td></tr>
+      <tr><td>429 <code>throttled</code>, 502, 503, no answer</td><td>retry once a minute for 10 minutes</td></tr>
+    </tbody>
+  </table>
+  <p>A result that arrives within 24 hours after its merge ended <em>no-ci</em> (a long Jenkins queue) is still accepted. <strong>Verified on: none yet</strong> &mdash; the two templates below are checked by reading; the first real run is the check: merge a pull request with a deliberately failing test, see one held card and one group line, then revert it. On that first run, also check that the watch&rsquo;s commit is the pull request&rsquo;s merge commit, that the caller&rsquo;s address GAOS recorded is Jenkins&rsquo; public address, that a branch build cannot bind the credential, that a Jenkins account that is not an administrator sees neither Configure nor Replay nor Build on the report job, nor the credential on its folder, and that the report job runs with the Groovy sandbox off and no per-signature approval was added.</p>
+  <p><strong>The work is split in two</strong>, because in a multibranch pipeline every branch builds its own Jenkinsfile and whoever pushes a branch controls it:</p>
+  <ul>
+    <li><strong>The test stage, in the repository&rsquo;s Jenkinsfile.</strong> It runs on the unit bases only, holds <strong>no credential</strong>, downloads modules in one container and runs the tests in a second with <code>--network none</code>, resolves each failing test to its file, and archives four small files. At the very end (<code>post { always }</code>, so it never gates a deploy) it triggers the report job and does not wait.</li>
+    <li><strong>The report job, defined in Jenkins by an administrator, in no repository.</strong> It is the only holder of the credential, stored as <em>Username with password</em> in its folder only, on a <code>gaos-report</code> agent restricted to it. It reads the upstream build from the build cause (never a parameter), refuses any upstream that is not exactly <code>&lt;folder&gt;/&lt;repo&gt;/(develop|staging|main)</code>, refuses a replayed build, posts the commit the upstream checkout recorded, refuses a symlinked or oversized artifact, and passes the password to <code>curl</code> on its standard input. It runs with the Groovy sandbox <strong>off</strong> under a whole-script approval; <strong>never add per-signature approvals</strong> &mdash; they would open these calls to every pipeline on the instance.</li>
+  </ul>
+  <div class="adm warn">
+    <p class="adm-title">Conditions the owner must meet (GAOS cannot check them)</p>
+    <p>The credential is bound only by the report job (folder-scoped), or, if there is no separate job, is branch-restricted to the unit bases &mdash; otherwise anyone who can push a branch the pipeline builds can read it. Run and Replay on the unit-base jobs are restricted to the people trusted to post results. Configure, Replay and Build on the report job, and every credential permission on its folder, are held only by Jenkins administrators. A holder of the credential can post any result for a pending merge of its product; the hold and the admin release bound what a forged failure can do.</p>
+  </div>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">groovy</span><button class="copy">copy</button></div>
+    <pre>// Jenkinsfile (multibranch) — Route Planner (p-9), repository acme/route-api. Verified on: none yet.
+// The test stage holds no credential. The image tag matches the `go` line of go.mod.
+pipeline {
+  agent none
+  options { copyArtifactPermission('gaos-unit-report') }
+  stages {
+    // … the organisation's existing stages …
+    stage('unit tests') {
+      when { beforeAgent true; anyOf { branch 'develop'; branch 'staging'; branch 'main' } }
+      agent { label 'docker' }                          // a node with Docker; both containers share its workspace
+      steps {
+        script {
+          env.UNIT_COMMIT = env.GIT_COMMIT                  // Groovy, before any test runs (a cross-check only)
+          def go = docker.image('golang:1.24-bookworm')      // matches the go line of go.mod
+          def goEnv = "export HOME=$WORKSPACE/.home GOCACHE=$WORKSPACE/.cache/go-build GOMODCACHE=$WORKSPACE/.cache/go-mod;"
+          // Modules, with network. Private modules only: bind the module token here, then remove the rewrite.
+          go.inside { sh "${goEnv} go mod download" }
+          // Tests, with no network and no fetch: test code reaches no service.
+          go.inside('--network none') {
+            sh("${goEnv} export GOPROXY=off GOFLAGS=-mod=readonly;" + '''
+          set +e
+          mkdir -p unit
+          go test -short -json ./... &gt; unit/test.json 2&gt; unit/test.err
+          echo $? &gt; unit/status.txt
+          mod=$(go list -m)
+          # leaf tests only: a parent fails when a subtest fails; keep the deepest names
+          sed -n 's/.*"Action":"fail","Package":"\\([^"]*\\)","Test":"\\([^"]*\\)".*/\\1 \\2/p' unit/test.json | sort -u |
+            awk '{a[NR]=$0} END {for(i=1;i&lt;=NR;i++){leaf=1; for(j=1;j&lt;=NR;j++) if(j!=i &amp;&amp; index(a[j], a[i]"/")==1) leaf=0; if(leaf) print a[i]}}' &gt; unit/fails.txt
+          grep -c . unit/fails.txt &gt; unit/total.txt
+          : &gt; unit/failing.tsv
+          head -n 50 unit/fails.txt | while read -r pkg test; do
+            dir=${pkg#"$mod"}; dir=${dir#/}; [ -z "$dir" ] &amp;&amp; dir=.
+            case "$dir" in /*|*..*) continue;; esac
+            file=$(grep -l "func ${test%%/*}(" "$dir"/*_test.go 2&gt;/dev/null | head -n 1); file=${file#./}
+            [ ${#test} -gt 512 ] || [ ${#file} -gt 512 ] &amp;&amp; continue
+            printf '%s\t%s\n' "$test" "$file" &gt;&gt; unit/failing.tsv
+          done
+          { cat unit/test.err; sed -n 's/.*"Action":"build-output".*"Output":"\\(.*\\)"}$/\\1/p' unit/test.json; } | head -c 1800 &gt; unit/summary.txt
+          exit 0
+            ''')
+          }
+        }
+        archiveArtifacts artifacts: 'unit/status.txt,unit/total.txt,unit/failing.tsv,unit/summary.txt',
+                         followSymlinks: false            // a symlink left by test code archives nothing
+      }
+    }
+  }
+  post {
+    always {                                             // after every stage: never gates deploy
+      script {
+        if (env.UNIT_COMMIT) {
+          catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+            build job: 'gaos-unit-report', wait: false,
+                  parameters: [string(name: 'COMMIT', value: env.UNIT_COMMIT)]
+          }
+        }
+      }
+    }
+  }
+}</pre>
+  </div>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">groovy</span><button class="copy">copy</button></div>
+    <pre>// Job "gaos-unit-report" — a Pipeline job an administrator defines in Jenkins, in the folder that holds
+// the credential "gaos-p-9" (the product's unit-results credential). Not in any repository. Verified on: none yet.
+pipeline {
+  agent none
+  parameters { string(name: 'COMMIT', defaultValue: '') }
+  options { timeout(time: 15, unit: 'MINUTES') }
+  stages {
+    stage('report to GAOS') {
+      steps {
+        script {
+          def up = currentBuild.getBuildCauses('org.jenkinsci.plugins.workflow.support.steps.build.BuildUpstreamCause')
+          if (up.size() != 1) { error('not triggered by a unit-base build') }
+          def job = up[0].upstreamProject, num = up[0].upstreamBuild.toString()
+          def branch = job.tokenize('/').last()
+          // The full path, not any folder ending in route-api.
+          if (!(job ==~ /^acme\/route-api\/(develop|staging|main)$/)) { error("not a unit-base job: ${job}") }
+          // The commit the upstream build recorded, and no Replay. this job runs with the
+          // Groovy sandbox OFF and an administrator approves the WHOLE script once. Never approve these calls
+          // one signature at a time: that would open them to every pipeline on the instance.
+          def run = Jenkins.get().getItemByFullName(job)?.getBuildByNumber(num as int)
+          if (run == null) { error('upstream build not found') }
+          if (run.getCause(org.jenkinsci.plugins.workflow.cps.replay.ReplayCause) != null) { error('a replayed build is not reported') }
+          // Exact repository match: normalise scheme, user, host case and a trailing .git; exactly one BuildData.
+          def norm = { String u -&gt; u.replaceFirst(/^[a-z+]+:\/\//, '').replaceFirst(/^[^@\/]+@/, '').replaceFirst(/:/, '/').replaceFirst(/\.git$/, '').toLowerCase() }
+          def want = 'github.com/acme/route-api'
+          def hits = run.getActions(hudson.plugins.git.util.BuildData).findAll { d -&gt; d.remoteUrls.any { u -&gt; norm(u) == want } }
+          if (hits.size() != 1) { error("expected exactly one checkout of ${want}, found ${hits.size()}") }
+          def commit = hits[0].lastBuiltRevision?.sha1String
+          if (!(commit ==~ /[0-9a-f]{40}/)) { error('no recorded commit') }
+          if (params.COMMIT &amp;&amp; params.COMMIT != commit) { error('the COMMIT parameter differs from the recorded commit') }
+          def runUrl = "${env.JENKINS_URL}${up[0].upstreamUrl}${num}/"
+          def answer = ''
+          for (int i = 0; i &lt; 10; i++) {
+            node('gaos-report') {                       // label restricted to this job; has jq and curl
+              deleteDir()
+              catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                copyArtifacts projectName: job, selector: specific(num), filter: 'unit/*'
+                withEnv(["U_COMMIT=${commit}", "U_BRANCH=${branch}", "U_RUN=${runUrl}"]) {
+                  sh '''#!/bin/bash
+                    set -e
+                    for f in unit/*; do                       # no symlink, nothing over 64 KiB
+                      [ -L "$f" ] &amp;&amp; { echo "refused: $f is a symlink"; exit 1; }
+                      [ "$(stat -c %s "$f")" -le 65536 ] || { echo "refused: $f is over 64 KiB"; exit 1; }
+                    done
+                    status=$(cat unit/status.txt); n=$(cat unit/total.txt)
+                    jq -R -s 'split("\\n") | map(select(length &gt; 0) | split("\\t") | {test: .[0], file: (.[1] // "")})' \
+                      unit/failing.tsv &gt; failing.json
+                    summary=''
+                    if [ "$status" = 0 ]; then result=passed; n=0; echo '[]' &gt; failing.json
+                    elif [ "$(jq length failing.json)" -gt 0 ]; then result=failed
+                    else result=build-failed; echo '[]' &gt; failing.json; summary=$(cat unit/summary.txt)
+                    fi
+                    jq -n --arg repo acme/route-api --arg commit "$U_COMMIT" --arg branch "$U_BRANCH" \
+                      --arg result "$result" --argjson total "$n" --slurpfile failing failing.json \
+                      --arg summary "$summary" --arg runUrl "$U_RUN" \
+                      '{repo: $repo, commit: $commit, branch: $branch, result: $result, total: $total,
+                        failing: $failing[0], summary: $summary, runUrl: $runUrl}' &gt; body.json
+                  '''
+                }
+                withCredentials([usernamePassword(credentialsId: 'gaos-p-9',
+                                                  usernameVariable: 'GAOS_USER', passwordVariable: 'GAOS_PASS')]) {
+                  answer = sh(returnStdout: true, script: '''#!/bin/bash
+                    cred=$(printf '%s:%s' "$GAOS_USER" "$GAOS_PASS" | sed 's/[\\\\"]/\\\\&amp;/g')
+                    code=$(printf 'user = "%s"\\n' "$cred" |
+                      curl -sS -K - -o answer.json -w '%{http_code}' -H 'Content-Type: application/json' \
+                        --data-binary @body.json 'https://gaos.acme.example/api/v1/products/p-9/unit-results' || true)
+                    err=$(jq -r '.error // ""' answer.json 2&gt;/dev/null || true)
+                    echo "${code:-000} ${err}"
+                  ''').trim()
+                }
+              }
+            }
+            def code = answer.tokenize(' ')[0] ?: '000'
+            def err = answer.tokenize(' ').size() &gt; 1 ? answer.tokenize(' ')[1] : ''
+            def again = (code == '409' &amp;&amp; err == 'no-watch') || code in ['429', '000', '502', '503']
+            if (!again) { break }
+            sleep(time: 60, unit: 'SECONDS')               // outside node: no executor is held
+          }
+          if (!(answer.startsWith('200') || answer.startsWith('202'))) { unstable("GAOS answered ${answer}") }
+        }
+      }
+    }
+  }
+}</pre>
+  </div>
+  <p>GAOS never writes the Jenkinsfile or the report job. Review of the merged pull request does not guard branch builds; the credential&rsquo;s scope does.</p>
+
+  <h4 id="release-b-unit-short">Tests that need a database or the network skip under <code>-short</code></h4>
+  <p>Both sources run <code>go test -short</code>. A unit base whose suite needs a live database, the network or another service is red on every clean merge, and every merge would file a defect. So <strong>before the switch is turned on</strong>, make each such test skip under <code>-short</code>:</p>
+  <div class="codeblock">
+    <div class="bar"><span class="lang">go</span><button class="copy">copy</button></div>
+    <pre>func TestRouteStore(t *testing.T) {
+    if testing.Short() {
+        t.Skip("needs a database")
+    }
+    // …
+}</pre>
+  </div>
+  <p>A package whose <code>TestMain</code> opens the service checks <code>testing.Short()</code> after <code>flag.Parse()</code> and returns <code>m.Run()</code> without opening it. To find the tests to mark, run <code>go test -short ./...</code> once on a machine with no database and no network (for example in a container started with <code>--network none</code> after <code>go mod download</code>): every failure there is a test to mark or a real defect. A build tag (<code>//go:build integration</code>) is an equivalent way to keep such tests out; <code>-short</code> is the documented one because both templates pass it. The Auto-fix page shows the same rule in its <em>Before you switch this on</em> checklist.</p>
+
   <h3 id="release-b-order">Status</h3>
   <table class="tbl">
     <thead><tr><th>Part</th><th>GAOS</th><th>QA tool</th></tr></thead>
@@ -446,7 +670,7 @@ jobs:
       <tr><td>1. Repository kinds</td><td>Built (v0.65.0)</td><td>Built: <code>kind</code> and <code>GET /api/v1/gaos/capabilities</code></td></tr>
       <tr><td>2. Create on staging</td><td>Built (v0.65.0)</td><td>Nothing new needed</td></tr>
       <tr><td>3. Auto-merge, then run</td><td>Built (v0.65.0)</td><td>Built, off until <code>QA_SPEC_AUTO_MERGE=on</code>; needs the automation repository's rulesets (a paid GitHub plan for a private repository) and a bot account</td></tr>
-      <tr><td>4. Unit tests (run)</td><td>Built (v0.67.0), off by default</td><td>Nothing: GitHub Actions runs the repository&rsquo;s own workflow</td></tr>
+      <tr><td>4. Unit tests (run)</td><td>Built (v0.67.0; Jenkins source v0.68.0), off by default</td><td>Nothing: GitHub Actions runs the repository&rsquo;s own workflow, or the organisation&rsquo;s Jenkins posts the result</td></tr>
       <tr><td>4b. Unit tests (write missing)</td><td>Draft design</td><td>Needs a separate GitHub identity and an approval in the QA tool</td></tr>
     </tbody>
   </table>
