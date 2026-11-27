@@ -12,7 +12,7 @@
 #   restart  restart [service], no build at all -- restart-only
 #   status   docker compose ps + one healthz probe, no mutation
 #
-# service, if given, is one of: traefik landing dashboard docs
+# service, if given, is one of: traefik landing dashboard docs redis
 #
 # PROD BUILDS FROM A TAG. --tag <ref> checks that ref out into a detached
 # worktree and re-runs this script inside it, so every downstream step -- the
@@ -23,7 +23,7 @@ set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
-SERVICES="traefik landing dashboard docs"
+SERVICES="traefik landing dashboard docs redis"
 ALLOW_DIRTY=0
 FULL_VERIFY=0
 ENVIRON=""
@@ -240,7 +240,21 @@ if [ -z "$INSIDE" ]; then
       done
       ok "the pull-request flow's credential files exist"
     fi
-    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-* deploy/stacks/*.bt-* deploy/stacks/*.pr-*; do
+    # D-107: the traffic store's password, shared by the redis and dashboard
+    # containers. Generated here when absent -- never printed -- and left alone
+    # when present, so a redeploy keeps the password the running store holds.
+    if [ "$ENVIRON" = prod ] && grep -q 'prod.traffic-redis-auth' "$WT/deploy/stacks/compose.prod.yaml" 2>/dev/null; then
+      if [ ! -e deploy/stacks/prod.traffic-redis-auth ]; then
+        if (umask 077; openssl rand -hex 32 > deploy/stacks/prod.traffic-redis-auth); then
+          ok "created deploy/stacks/prod.traffic-redis-auth (mode 600)"
+        else
+          rm -f deploy/stacks/prod.traffic-redis-auth
+          bad "could not create deploy/stacks/prod.traffic-redis-auth (is openssl installed?)"
+          exit 1
+        fi
+      fi
+    fi
+    for e in deploy/stacks/*.env deploy/stacks/*.aim-* deploy/stacks/*.api-* deploy/stacks/*.bo-* deploy/stacks/*.bt-* deploy/stacks/*.pr-* deploy/stacks/*.traffic-*; do
       [ -e "$e" ] || continue
       case "$e" in *.example) continue;; esac
       ln -sfn "$PWD/$e" "$WT/$e"
@@ -372,6 +386,10 @@ fi
 echo
 echo "== containers =="
 dc ps --format '{{.Service}}\t{{.Status}}\t{{.Ports}}'
+# D-107: the traffic store is off the critical path -- a warning, never a failure.
+if [ "$ENVIRON" = prod ] && ! dc ps --format '{{.Service}} {{.Status}}' 2>/dev/null | grep -qE '^redis .*\(healthy\)'; then
+  info "WARN redis is not healthy: the Traffic page will say Unavailable"
+fi
 
 vfails=0
 vok()  { ok "$1"; }

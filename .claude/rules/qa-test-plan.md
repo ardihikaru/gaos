@@ -47,8 +47,8 @@ every check identical are exempt.
    <tr data-tags="short keywords for the filter, incl. positive|negative"><td>TC-0nn</td><td>the script or package</td><td>Positive|Negative</td><td>one sentence, what is being asserted</td><td>Implemented|Not implemented|Retired</td></tr>
    ```
 
-   IDs are sequential and never reused. **The highest in use is `TC-901`;
-   next free number is `TC-902`.** If a case is retired, strike the row, set its
+   IDs are sequential and never reused. **The highest in use is `TC-903`;
+   next free number is `TC-904`.** If a case is retired, strike the row, set its
    Status to `Retired` and say why on the row, naming the case that replaces it
    — do not delete it and do not renumber anything after it. `TC-076` is the
    worked example: BR-07 made planning an empty record illegal, so the case
@@ -70,20 +70,20 @@ every check identical are exempt.
      `t.Fatalf` / `t.Errorf` message — same rule, read it from the file.
 
 3. **The counts, which must agree.** Changing the number of cases means
-   changing all four or none. They are currently all "nine hundred and one", so
+   changing all four or none. They are currently all "nine hundred and three", so
    `grep -rn "six hundred and" pustaka/docs/product/qa-test-plan.html pustaka/docs/assets/toc/product.js`
    finds every one. Retired rows still count: the register is every ID ever
    issued, and `TC-076` is one of the eight hundred and twenty-nine. Older
    changelog notes keep their own numbers; they are release records and stay as
    written:
    - the lede in `pustaka/docs/product/qa-test-plan.html`
-   - the register intro on the same page ("All nine hundred and one cases…")
+   - the register intro on the same page ("All nine hundred and three cases…")
    - the `qa-test-plan` `desc` in `pustaka/docs/assets/toc/product.js`
    - that entry's `register` section `text` in the same file — which also carries
      the Go unit-test count, currently "seven hundred and sixty-three"
 
    The same pages carry four more counts that move together with the registers:
-   "Sixty-five rules" in `pustaka/docs/product/brd.html`, "One hundred and five entries"
+   "Sixty-six rules" in `pustaka/docs/product/brd.html`, "One hundred and six entries"
    in `pustaka/docs/product/decision-log.html`, and "Forty-five decisions" and
    "All forty-five in one place" in `pustaka/docs/product/open-questions.html`.
    The published ToC mirrors all of them in `pustaka/docs/assets/toc/product.js`.
@@ -111,8 +111,8 @@ grep -oE '<td>TC-0[0-9][0-9]</td><td>[^<]*' pustaka/docs/product/qa-test-plan.ht
 
 | Automation | Status | Cases |
 |---|---|---|
-| `check-stacks.sh` | Implemented | TC-001…TC-016, TC-127, TC-128, TC-150, TC-151, TC-310, TC-435, TC-436, TC-451, TC-452, TC-499, TC-523, TC-599, TC-616, TC-622, TC-623, TC-687, TC-849, TC-883 |
-| `rebuild-restart.sh` | Implemented | TC-017…TC-047, TC-147, TC-148, TC-152…TC-155, TC-438, TC-600, TC-688, TC-733 |
+| `check-stacks.sh` | Implemented | TC-001…TC-016, TC-127, TC-128, TC-150, TC-151, TC-310, TC-435, TC-436, TC-451, TC-452, TC-499, TC-523, TC-599, TC-616, TC-622, TC-623, TC-687, TC-849, TC-883, TC-902 |
+| `rebuild-restart.sh` | Implemented | TC-017…TC-047, TC-147, TC-148, TC-152…TC-155, TC-438, TC-600, TC-688, TC-733, TC-903 |
 | `scratch.sh` | Implemented | TC-129, TC-130 |
 | `live-aim-run.sh` | Implemented | TC-300…TC-303 |
 | `check-workspace.sh` | Implemented | TC-357, TC-358, TC-380, TC-381, TC-437, TC-510, TC-751 |
@@ -125,7 +125,7 @@ grep -oE '<td>TC-0[0-9][0-9]</td><td>[^<]*' pustaka/docs/product/qa-test-plan.ht
 | Unsatisfiable task | Not implemented | TC-048, TC-049 |
 | Second run | Not implemented | TC-052, TC-053 |
 
-**901 rows in total. 738 in `dashboard/` and 25 in `pustaka/`** — 763 Go tests,
+**903 rows in total. 738 in `dashboard/` and 25 in `pustaka/`** — 763 Go tests,
 and **one register row per `func Test…`**, because that is the unit `go test
 -run` can select. A new top-level `func Test…` always gets its own row. The
 store conformance suite is the exception: it is one `func Test…` per

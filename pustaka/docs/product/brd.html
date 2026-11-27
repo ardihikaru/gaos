@@ -1215,7 +1215,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
   </table>
 
   <h2 id="business-rules">9. Business rules</h2>
-  <p>Sixty-five rules, each one traceable to an artifact section, to committed code, or to a logged
+  <p>Sixty-six rules, each one traceable to an artifact section, to committed code, or to a logged
   decision. These are the statements a reviewer — human or agent — can score an implementation
   against. They are the reason domain rules are worth 12 points in the readiness rubric.</p>
 
@@ -1288,6 +1288,7 @@ effective_ceiling = min(cap × budgetThrottlePct/100,  paced_ceiling  <span clas
       <tr><td>BR-35</td><td>A limit that only warns is not a limit. The budget guard refuses to dispatch at the cap — and never kills a run already in flight, because that forfeits money already spent. <em>(J-9, J-13, <a href="decision-log.html#d-037">D-037</a>)</em></td></tr>
       <tr><td>BR-36</td><td>The escalation ladder is defined in the gateway's own normalised tiers, never in vendor model names. Every provider maps into those tiers, because "one model tier above" (<a href="#rules-scoring">BR-15</a>) has no meaning across vendors otherwise. <em>(D-7, <a href="decision-log.html#d-041">D-041</a>)</em></td></tr>
       <tr><td>BR-37</td><td>A cost that cannot be priced is reported as <strong>unavailable, never as zero</strong>. The estimator refuses an unknown model rather than guessing at it, and the refusal is visible to the operator — because after <a href="decision-log.html#d-037">D-037</a> a zero is a figure the budget guard will let through. <em>(D-11, <a href="decision-log.html#d-044">D-044</a>)</em></td></tr>
+      <tr><td>BR-66</td><td>GAOS keeps a short trace of the calls it makes to external platforms and of the calls made to it: every machine-API call, and every request that reached it without passing through the edge. A record holds the time, direction, platform or route, method, the host and a path relative to the platform's configured base with identifiers, branch names and file paths replaced, status, duration, sizes and an error class, and for an inbound call the source address, whether it came through the edge, the authenticated client's name and the product id — and never a header, a body, a query string, a token, a credential or a configured base path. The trace lives only in the deployment's own password-protected Redis, in streams capped per platform and per inbound kind, none older than 48 hours, never persisted; a summary of every direct source since the dashboard started is kept in memory. It is not an event and nothing in GAOS reads it to decide anything. Recording never delays or fails a call; a call that cannot be recorded is counted. Any signed-in back-office account may view the trace, with public source addresses in full for auto-fix admins only; nobody may change it. <em>(<a href="decision-log.html#d-107">D-107</a>)</em></td></tr>
     </tbody>
   </table>
 

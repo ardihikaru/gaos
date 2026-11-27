@@ -126,11 +126,11 @@ prose_check() {
     bad "$label: $file does not say \"$want\""
   fi
 }
-prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "nine hundred and one"
-prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "nine hundred and one"
-prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "One hundred and five entries"
+prose_check "QA case count in the register"  pustaka/docs/product/qa-test-plan.html "nine hundred and three"
+prose_check "QA case count in the ToC"       pustaka/docs/assets/toc/product.js      "nine hundred and three"
+prose_check "decision count in the log"      pustaka/docs/product/decision-log.html  "One hundred and six entries"
 prose_check "question count in the register"  pustaka/docs/product/open-questions.html "All forty-five in one place"
-prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Sixty-five rules"
+prose_check "rule count in the BRD"           pustaka/docs/product/brd.html           "Sixty-six rules"
 
 # The README's figures are compared with what this script computes, never with
 # a fixed string: a pinned string is how the README went stale while this check

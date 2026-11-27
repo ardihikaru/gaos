@@ -9,7 +9,8 @@
 # compose.dev.yaml is deliberately the same shape, differing ONLY in: the port,
 # the hostname, the compose project name, the internal subnet and the database
 # name (gaos here, gaos_dev there, on one shared server) -- and the gateway block,
-# which dev runs first. A difference outside that list is a bug rather than a
+# which dev runs first -- and the traffic store (D-107), which is prod's alone: dev is retired.
+# A difference outside that list is a bug rather than a
 # decision, and deploy/check-stacks.sh asserts the ones that matter.
 #
 #   docker compose -f deploy/stacks/compose.prod.yaml build
@@ -22,10 +23,21 @@ networks:
     name: gaos-prod-int
     # PINNED. The subnet has to be nameable to reason about traefik.yml's
     # trustedIPs, and an unpinned bridge takes whatever 172.x is free that day.
-    # 172.30.10/11 belong to the neighbouring product; .12 and .13 are ours.
+    # 172.30.10/11 belong to the neighbouring product; .12 and .13 are ours;
+    # .14 is the traffic network.
     ipam:
       config:
         - subnet: 172.30.12.0/24
+  # D-107: the dashboard and the traffic store, nothing else. internal: no route out.
+  # PINNED: Redis has the fixed address .2; dynamic endpoints (the dashboard) get .4-.7
+  # only, so they can never take it. 172.30.14.0/29 is GAOS's, beside .12 and .13.
+  traffic:
+    name: gaos-prod-traffic
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.14.0/29
+          ip_range: 172.30.14.4/30
 
 
 services:
@@ -205,6 +217,10 @@ services:
       GAOS_TASKMGR_GRPC_ADDR: "${GAOS_TASKMGR_GRPC_ADDR:-}"
       GAOS_TASKMGR_AUTH_FILE: "/run/secrets/pr-taskmgr-auth"
       GAOS_TASKMGR_CA_FILE: "/run/secrets/pr-taskmgr-ca.pem"
+      # D-107: the traffic store, by its fixed address on the traffic network (an IP inside
+      # 172.30.14.0/29, never a name), and the password file it shares with the store.
+      GAOS_REDIS_ADDR: "172.30.14.2:6379"
+      GAOS_REDIS_AUTH_FILE: "/run/secrets/traffic-redis-auth"
     volumes:
       - ./prod.aim-chat.json:/run/secrets/aim-chat.json:ro
       - ./prod.aim-admin-key:/run/secrets/aim-admin-key:ro
@@ -226,6 +242,7 @@ services:
       - ./prod.pr-autofix-admins:/run/secrets/pr-autofix-admins:ro
       - ./prod.pr-taskmgr-auth:/run/secrets/pr-taskmgr-auth:ro
       - ./prod.pr-taskmgr-ca.pem:/run/secrets/pr-taskmgr-ca.pem:ro
+      - ./prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro
     # The secrets are mode 600 and owned by the deploy user, so the container
     # runs as that uid (1001 on vm-rnd-ardi) rather than distroless's nonroot
     # 65532, which could not read them. Nothing else in the image is uid-bound.
@@ -234,8 +251,39 @@ services:
     user: "${GAOS_UID:-1001}:${GAOS_GID:-1001}"
     # No service joins an infra network: the database is an address on the
     # tunnel, and least privilege as topology is now simply "nobody resolves a
-    # neighbour's services by name".
-    networks: [internal]
+    # neighbour's services by name". The traffic network (D-107) reaches the
+    # traffic store alone, by address.
+    networks: [internal, traffic]
+
+  # D-107: the traffic store. Twelve capped Redis streams of recent calls in and out;
+  # nothing reads them but the Traffic page. Its own internal network, shared with the
+  # dashboard alone, at a fixed address: no port, no route out, no DNS name in use.
+  # No disk: a Redis restart -- or a whole-stack restart -- empties it, by design.
+  # The default user is off; the dashboard signs in as "gaos" with the password in
+  # prod.traffic-redis-auth (rebuild-restart.sh creates it). traffic-redis.sh writes the
+  # ACL file into the tmpfs at start, holding only the password's SHA-256.
+  # GAOS starts and serves without it: there is no start-order dependency either way.
+  redis:
+    image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/traffic-redis.sh"]
+    volumes: ["./traffic-redis.sh:/usr/local/bin/traffic-redis.sh:ro", "./prod.traffic-redis-auth:/run/secrets/traffic-redis-auth:ro"]
+    user: "${GAOS_UID:-1001}:${GAOS_GID:-1001}"
+    read_only: true
+    # The tmpfs is owned by the deploy uid: a plain tmpfs is root's, and the start
+    # script (run as that uid) could not write the ACL file into it.
+    tmpfs: ["/data:uid=${GAOS_UID:-1001},gid=${GAOS_GID:-1001},mode=0700"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "/bin/sh", "/usr/local/bin/traffic-redis.sh", "health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      traffic: {ipv4_address: 172.30.14.2}
 
   docs:
     build:

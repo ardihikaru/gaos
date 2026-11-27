@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Traffic — GAOS</title>
+<meta name="description" content="The back-office Traffic page: the calls GAOS makes to other platforms and the calls made to it, what a record holds, edge and direct, how addresses are masked, the direct-source summary, what the page cannot see, the daily review and the page's states.">
+<link rel="stylesheet" href="../assets/fonts.css"><!-- self-hosted, no third-party request -->
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-page="traffic">
+
+<div class="shell">
+<main class="doc">
+
+  <p class="eyebrow">Integrations</p>
+  <h1>Traffic</h1>
+  <p class="lede">The <strong>Traffic</strong> page in the back office shows the calls GAOS made to other platforms
+  &mdash; the QA tool, the AI manager, GitHub, the WhatsApp gateway, Brain Town and TaskMgr &mdash; and the calls made
+  to GAOS: every machine-API call, and every request that reached GAOS without passing through the edge. It keeps at
+  most 48 hours, each kind only its newest records, and every direct caller since the dashboard started. It is for
+  periodic monitoring; it blocks nobody (<a href="../product/decision-log.html#d-107">D-107</a>,
+  <a href="../product/brd.html#rules-commercial">BR-66</a>).</p>
+
+  <div class="page-meta"
+       data-tags="integration, traffic, monitoring, back office, security, edge"
+       data-hashtags="integrations, monitoring"
+       data-published="2026-11-27"
+       data-updated="2026-11-27"
+       data-version-from="0.69.0"
+       data-version-to=""></div>
+
+  <h2 id="recorded">What is recorded</h2>
+  <p>Each call is one record in a short trace that lives in the deployment&rsquo;s own traffic store. It is not an
+  event: nothing in GAOS reads it to decide anything, and it may be dropped, evicted or trimmed.</p>
+  <table class="tbl">
+    <thead><tr><th>Direction</th><th>A record holds</th><th>Never</th></tr></thead>
+    <tbody>
+      <tr><td>Outbound</td><td>The platform, the time, the method, the status (or the error class &mdash; timeout, canceled, dns, refused, reset, tls, other), the duration, the sizes, the host, and the path relative to the platform&rsquo;s configured base with identifiers replaced: <code>{base}</code> for the configured part, <code>{n}</code> and <code>{id}</code> for numbers and identifiers, <code>{ref}</code> after a branch, <code>{path}</code> after a file path. A TaskMgr call adds its gRPC code and outcome.</td><td rowspan="2">A header, a body, a query string, a fragment, a cookie, a token, a password, an error&rsquo;s text, a configured base path, a branch name or a file path.</td></tr>
+      <tr><td>Inbound</td><td>For an API call: the route pattern (never the path), the method, the status, the duration, the sizes, the source address, whether it came through the edge, the authenticated client&rsquo;s name and the product id. For any other direct request: only the time, the method, the status, the duration, the route class, the source and <em>direct</em>.</td></tr>
+    </tbody>
+  </table>
+  <p>ArcadeDB, GAOS&rsquo;s own database, is not recorded; its health is on <code>/api/healthz</code>. Recording never
+  delays or fails a call: a record that cannot be stored is counted, and the page shows the count.</p>
+
+  <h2 id="edge-direct">Edge and direct</h2>
+  <p>Every request carries the hop that delivered it to GAOS&rsquo;s proxy. When that hop is the edge, the request came
+  through the public site and is <em>edge</em>; otherwise it is <em>direct</em> &mdash; a machine on the tunnel, or a
+  process on the VM, calling GAOS&rsquo;s port. A request that passed through no proxy at all is direct too.</p>
+  <table class="tbl">
+    <thead><tr><th>Request</th><th>Kept in</th></tr></thead>
+    <tbody>
+      <tr><td>Direct, an API call by an authenticated client</td><td>Direct, authenticated</td></tr>
+      <tr><td>Direct, anything else (unauthenticated API calls, back-office pages, the health probe, static files)</td><td>Direct, other</td></tr>
+      <tr><td>Through the edge, an API call by an authenticated client</td><td>Authenticated</td></tr>
+      <tr><td>Through the edge, an API call with no valid credential</td><td>Anonymous</td></tr>
+      <tr><td>Through the edge, anything else</td><td>Not recorded</td></tr>
+    </tbody>
+  </table>
+  <p>Each kind and each platform has its own cap, sized to about a day of its expected volume, so a busy platform
+  cannot push a quiet one out, an anonymous flood evicts only anonymous records, and a known client calling directly
+  cannot push an unknown one out of <em>Direct, other</em>.</p>
+
+  <h2 id="masking">Who sees what</h2>
+  <p>Every signed-in back-office account may open the page; nobody can change or clear it. A <strong>public</strong>
+  source address is shown in full only to the auto-fix admins; everyone else sees its /24 (IPv4) or /48 (IPv6), so
+  <code>203.0.113.9</code> reads <code>203.0.113.0/24</code>. Private, tunnel, CGNAT, loopback and link-local addresses
+  are shown in full to everyone. The masking happens before the page is built, so no link, tooltip or filter carries
+  more than the viewer may see.</p>
+
+  <h2 id="summary">The direct-source summary</h2>
+  <p>Beside the capped records, the dashboard keeps in memory every source that reached it directly since it started
+  (up to 512): first seen, last seen, how many requests, the last route class and whether it ever authenticated. Caps
+  and trimming never touch it, so a missed day still shows that an unknown peer called. The <em>Unknown direct
+  sources</em> tile counts the ones that never authenticated. A dashboard restart empties it; the page says since
+  when it holds.</p>
+
+  <h2 id="limits">What the page cannot see</h2>
+  <ul>
+    <li>Requests the proxy answers without the dashboard: anything outside <code>/app/</code> and <code>/api/</code>
+    (the landing page and the docs), and the two slash redirects <code>/app</code> and <code>/docs</code>. The
+    proxy&rsquo;s own access log shows those.</li>
+    <li>A connection that never sends a complete HTTP request, such as a port scan.</li>
+    <li>Anything older than 48 hours, or pushed out by its kind&rsquo;s cap: each kind shows how far back it reaches
+    (&ldquo;kept since&rdquo;, marked <em>cap</em> when full).</li>
+    <li>Anything recorded before a restart of the traffic store or of the whole stack: nothing is written to disk, so
+    a restart empties every stream. A dashboard redeploy alone keeps them, and empties only the summary.</li>
+  </ul>
+  <div class="adm warn">
+    <p class="adm-title">Detection, not prevention</p>
+    <p>An empty direct list is not proof that no direct caller exists. Until the host firewall on the tunnel port is
+    applied (recommended hardening, the edge runbook&rsquo;s section 5), a direct peer can reach every route.</p>
+  </div>
+
+  <h2 id="review">The daily review</h2>
+  <p>Open <strong>Traffic</strong> at least once a day, and always before the shortest &ldquo;kept since&rdquo; of
+  <em>Direct, other</em> runs out. Look at the direct-source summary first: every source there should be a known
+  client (the QA tool&rsquo;s backend, Jenkins, the VM itself). An unknown one is the finding. Then the platforms:
+  failed calls, a platform that stopped answering, or a kind at its cap.</p>
+
+  <h2 id="states">The page&rsquo;s states</h2>
+  <table class="tbl">
+    <thead><tr><th>State</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td>Off</td><td>This deployment has no traffic store configured, and says why. The summary still shows.</td></tr>
+      <tr><td>Unavailable</td><td>The store is not answering. GAOS keeps working; calls made meanwhile are not recorded, and the count of those is shown. The summary still shows.</td></tr>
+      <tr><td>Empty</td><td>No call in the last 48 hours.</td></tr>
+      <tr><td>Filtered empty</td><td>Calls exist, none match the filters; <em>Clear them</em> resets.</td></tr>
+      <tr><td>Normal</td><td>The tiles, the summary, the platforms, the inbound pairs, the kept spans and the recent calls, refreshed every 30 seconds.</td></tr>
+    </tbody>
+  </table>
+  <p>The store itself is described in the repository&rsquo;s <code>deploy/STACKS.md</code>.</p>
+
+</main>
+</div>
+
+<script src="../assets/toc.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

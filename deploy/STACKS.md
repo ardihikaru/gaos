@@ -33,6 +33,35 @@ clino — the one public IP, wg 10.10.0.1 — PUBLIC edge VM, 1 vCPU / 957 MiB
 The private VM hosts several products this way. Each owns a Traefik and one
 tunnel port; nothing but the edge is ever publicly bound.
 
+## The traffic store (prod only, D-107)
+
+Prod runs a fifth service, `redis`, that serves no route: twelve capped Redis
+streams of recent calls in and out, read only by the back office's **Traffic**
+page (`dashboard/traffic.go`, `dashboard/traffic_view.go`, design
+`docs/designs/traffic-monitor.md`).
+
+| | |
+|---|---|
+| Image | `redis:8.10.3-alpine`, pinned by tag and digest |
+| Network | `gaos-prod-traffic`, `internal: true`, `172.30.14.0/29`; Redis at the fixed `172.30.14.2`, dynamic endpoints (the dashboard) in `172.30.14.4/30` only. The dashboard alone joins it. |
+| Port | none published, none exposed |
+| Disk | none: `--save ""`, `--appendonly no`, `/data` a tmpfs. A Redis or whole-stack restart empties every stream; a dashboard redeploy does not. |
+| Memory | `--maxmemory 64mb` `noeviction` (an `XADD` past it is refused and counted), `mem_limit: 128m` |
+| Users | `default` **off**. `gaos`, with the password in `prod.traffic-redis-auth`, admitted to `~gaos:traffic:*` and `+ping +xadd +xtrim +xrevrange` only; every other command is `NOPERM` |
+| Start | `deploy/stacks/traffic-redis.sh` writes the ACL file into the tmpfs holding only the password's SHA-256, then execs `redis-server`; `traffic-redis.sh health` is the healthcheck (an authenticated `PING`). The password is never an argument or an environment value. |
+| Dashboard | `GAOS_REDIS_ADDR: "172.30.14.2:6379"` (an IP inside the subnet; anything else turns recording off) and `GAOS_REDIS_AUTH_FILE` |
+| Start order | none either way: GAOS starts, serves and calls out with Redis absent |
+
+The password file `deploy/stacks/prod.traffic-redis-auth` (64 hex characters,
+mode 600, gitignored) is **created by `rebuild-restart.sh prod deploy --tag …`
+when it is absent** and left alone when present; its value is never printed.
+Both containers run as the deploy uid and read it read-only. To rotate it,
+delete the file, run the prod deploy (which creates a new one), then restart the
+`redis` and `dashboard` services so both read the new value. The deploy prints
+`WARN redis is not healthy: the Traffic page will say Unavailable` instead of
+failing when Redis is not healthy. `check-stacks.sh` asserts all of the above
+("the traffic store", TC-902).
+
 ## The port slot
 
 Ports are `1<env><product>1` — `18xx1` production, `19xx1` non-production. The

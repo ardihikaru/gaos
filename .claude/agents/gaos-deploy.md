@@ -35,7 +35,7 @@ deploy/rebuild-restart.sh prod <deploy|restart|status> [service] [--tag <ref> | 
 - `deploy` = rebuild + restart (build then `up -d`). `restart` = restart the
   existing container(s), no rebuild -- this is the "only restart" capability.
   `status` is read-only.
-- `service`, if given, is one of `traefik`, `landing`, `dashboard`, `docs` --
+- `service`, if given, is one of `traefik`, `landing`, `dashboard`, `docs`, `redis` --
   scopes the action to just that container instead of the whole stack.
 - **`--tag <ref>` is required for prod.** It builds from a detached worktree at
   that ref instead of the working tree.

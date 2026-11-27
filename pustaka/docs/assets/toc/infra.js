@@ -38,7 +38,7 @@ window.DOCS.nav.push({
       tags: ["deployment", "environments", "dev", "production", "compose", "arcadedb", "verification"],
       sections: [
         { anchor: "same-shape", title: "The same shape, twice",
-          text: "Four services behind one Traefik on a single origin: the landing page at the root, Mission Control under /app, these docs under /docs, and the health surface under /api." },
+          text: "Four services behind one Traefik on a single origin: the landing page at the root, Mission Control under /app, these docs under /docs, and the health surface under /api. Prod adds a fifth, Redis, the traffic store behind the Traffic page." },
         { anchor: "what-differs", title: "What differs, exactly",
           text: "Hostname, published port, compose project, internal subnet, shared infra network, ArcadeDB instance, certificate lineage and env files. A difference outside that table is a bug." },
         { anchor: "what-must-not", title: "What must not differ",
