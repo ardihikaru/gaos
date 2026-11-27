@@ -1,9 +1,9 @@
 # Release B part 4 — unit tests: a failing CI check of a merge, held for a person
 
-> **Status:** In Review (rev 14). Rev 13 was Approved (2026-11-27, under the operator's delegation, `docs/designs/reviews/release-b4-unit-tests-delegation.md:14` and `:18`) and is implemented in v0.67.0; rev 14 adds a second **result source**, Jenkins, at the operator's instruction of 2026-11-27 (§26): the target organisation runs its CI on Jenkins and its GitHub Actions cannot run, so the GitHub Actions workflow pull request was closed. Rev 12 replaced the QA-tool runner of rev 1–11 with a read of the target repository's own GitHub Actions check (decision C′, §0); rev 13 applies the rev-12 review (§25). Scope: running a repository's **existing** tests only; writing missing tests is `docs/designs/release-b4b-unit-create.md` (Draft). Registers **D-105, BR-65, TC-853 … TC-870**, schema 21 (v0.67.0); rev 14 adds **D-106, TC-871 … TC-879**, schema 22, amends **BR-65 and BR-52** (§10.1), release v0.68.0. History: review reports `docs/designs/reviews/release-b4-unit-tests-*-{1…11}.md`, triage §15–§25 (their § pointers refer to the revision reviewed), the rev-14 decision §26.
+> **Status:** In Review (rev 15). Rev 13 was Approved (2026-11-27, under the operator's delegation, `docs/designs/reviews/release-b4-unit-tests-delegation.md:14` and `:18`) and is implemented in v0.67.0; rev 14 adds a second **result source**, Jenkins, at the operator's instruction of 2026-11-27 (§26): the target organisation runs its CI on Jenkins and its GitHub Actions cannot run, so the GitHub Actions workflow pull request was closed; rev 15 applies the rev-14 review (§27): a separate unit-results credential, a lockout keyed on the edge-set address, a retry only on `no-watch`, attribution and the late-result rule, and a template that cannot fail the pipeline. Rev 12 replaced the QA-tool runner of rev 1–11 with a read of the target repository's own GitHub Actions check (decision C′, §0); rev 13 applies the rev-12 review (§25). Scope: running a repository's **existing** tests only; writing missing tests is `docs/designs/release-b4b-unit-create.md` (Draft). Registers **D-105, BR-65, TC-853 … TC-870**, schema 21 (v0.67.0); rev 14/15 add **D-106, TC-871 … TC-883**, schema 22, amends **BR-65 and BR-52** (§10.1), release v0.68.0. History: review reports `docs/designs/reviews/release-b4-unit-tests-*-{1…11}.md`, triage §15–§25 and §27 (their § pointers refer to the revision reviewed), the rev-14 decision §26; the rev-14 reports are `*-12.md`.
 > **Policy:** `docs/rules/gaos-design-review.md`
 > **Related:** `docs/designs/release-b-e2e-kinds-merge-unit-tests.md` (D-103 (5)), `docs/designs/agent-seats-and-pr-agents.md` (D-102, the review defect this copies), `docs/designs/gaos-defect-auto-fix.md` (D-091, the triage and fix path), `docs/designs/release-b4b-unit-create.md`.
-> **Paths.** A bare file name (`prflow.go`) is in `dashboard/`; every other path is from the repository root. Anchors are against `main` at v0.66.2 (`156214c`); the rev-14 sections (§0 *Rev 14*, §4.3, §5.4, §5.5, §9.1, §10.1, §11.1, §11.2, §12.1, §26) anchor against `main` at v0.67.0 (`7f63709`).
+> **Paths.** A bare file name (`prflow.go`) is in `dashboard/`; every other path is from the repository root. Anchors are against `main` at v0.66.2 (`156214c`); the rev-14 and rev-15 sections (§0 *Rev 14*, §4.1 *Route*, §4.3, §5.4, §5.5, §9.1, §10.1, §11.1, §11.2, §12.1, §26, §27) anchor against `main` at v0.67.0 (`7f63709`).
 > **Example.** The invented product **Route Planner** (`p-9`): application repository `acme/route-api` (in `Master.Repos` and `AutoFix.TargetRepos`), automation repository `acme/route-e2e` (in `AutoFix.AutomationRepos`). Published pages use only these `acme/*` names.
 
 ## 0. Why, the rev-12 decision, and the scope
@@ -24,11 +24,11 @@
 
 **Dropped from rev 11, explicitly:** the QA-tool `unit-run` mode and the whole QA-tool contract; the sandbox attestation (`unitSandbox`, `qaSandbox`, `sandboxOK`); the `unit:qa` label and runner card; `ResolveUnitQACard`; `qaToolKey`/`qaToolDriven`, `TaskNode.QADriven/QAKey`; `Reconcile(ctx, bool)` and the `qaOut` hoist in `main.go`; `GAOS_UNIT_QA_OPEN`, `GAOS_UNIT_QA_TIMEOUT_MIN`, the per-tick start budget and the 24-hour blocked retry; the API mapping and its codes (`unit-qa-*`); the `e2e:*` label refusal; the admin cancel of a RUNNING card; `watch`/`watched`; the amendments to **BR-38, BR-54, BR-61 and OQ-38**; the D-105 "declaration, not proof" residual.
 
-**Rev 14 (Jenkins as a result source).** The target organisation runs its CI/CD on Jenkins; its GitHub Actions cannot run, and the operator closed the GitHub Actions workflow pull request (operator instruction, 2026-11-27, §26). Rev 14 therefore adds `UnitChecks.Source`, `github-actions` (rev 13, the default for every existing record) or `jenkins`. With `jenkins`, GAOS still executes nothing (rule 1 holds: the code runs on the organisation's own Jenkins agents, never on a GAOS host) and reads nothing from GitHub's checks; instead **the organisation's Jenkins posts the result** of each merge build to `POST /api/v1/products/{id}/unit-results` (§5.4), authenticated exactly like the staging callback it already calls (`staging.go:195-230`). The result finishes the pending watch of that merge commit through the same `FinishUnitWatch` (`unitdefect.go:443-491`), so the outcome mapping, the defect, the hold, the pass-close and the notices of §5.3–§7 are unchanged. Rules 2 and 3 above describe the `github-actions` source; for `jenkins`, the trust anchor is the product's Jenkins credential (§5.4, D-106), and the owner adds a Jenkins stage (§11.1) instead of a workflow. Rule 4 holds for both sources: a merge with no posted result ends `no-ci` after 6 hours (§5.5). Rev 14 also makes the `-short` rule of §11 visible in the product: a "Before you switch this on" checklist on the Auto-fix page (§4.3) and a docs anchor (§11.2).
+**Rev 14 (Jenkins as a result source).** The target organisation runs its CI/CD on Jenkins; its GitHub Actions cannot run, and the operator closed the GitHub Actions workflow pull request (operator instruction, 2026-11-27, §26). Rev 14 therefore adds `UnitChecks.Source`, `github-actions` (rev 13, the default for every existing record) or `jenkins`. With `jenkins`, GAOS still executes nothing (rule 1 holds: the code runs on the organisation's own Jenkins agents, never on a GAOS host) and reads nothing from GitHub's checks; instead **the organisation's Jenkins posts the result** of each merge build to `POST /api/v1/products/{id}/unit-results` (§5.4), authenticated by the staging callback's mechanism (`staging.go:195-230`: HTTP Basic, one line per product, the lockout) but with **its own credential file**, `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE` (rev 15, §5.4). *Assumption:* the organisation's Jenkins already calls the staging callback; nothing in this design depends on it. The result finishes the pending watch of that merge commit through the same `FinishUnitWatch` (`unitdefect.go:443-491`), so the outcome mapping, the defect, the hold, the pass-close and the notices of §5.3–§7 are unchanged. Rules 2 and 3 above describe the `github-actions` source; for `jenkins`, the trust anchor is the product's Jenkins credential (§5.4, D-106), and the owner adds a Jenkins stage (§11.1) instead of a workflow. Rule 4 holds for both sources: a merge with no posted result ends `no-ci` after 6 hours (§5.5). Rev 14 also makes the `-short` rule of §11 visible in the product: a "Before you switch this on" checklist on the Auto-fix page (§4.3) and a docs anchor (§11.2).
 
 **Delegation.** The approval of this design and of the register changes in §10 rests on the operator's delegation (`docs/designs/reviews/release-b4-unit-tests-delegation.md:14`, `:18`); it does not waive the security gate (`docs/rules/gaos-design-review.md:99-100`) or the step-8 summary to the operator, which lists every register change of §10.
 
-**Success, and how the operator verifies the first real run.** Ships dormant: `UnitChecks.Enabled` is false for every product. After the workflow of §11 is merged into a fix-target repository and its baseline run on the base branch is green (or its exclusions are written down), an auto-fix admin turns the switch on. The first real run: merge a test-only pull request with a deliberately failing test → one held triage card naming the test on the Auto-fix page and one group notice; revert it and merge → the defect closes (or, if still held, is marked). With `Source jenkins` the same first run applies once the Jenkins stage of §11.1 is in the multibranch pipeline of the base and a merge build has posted `passed` (the Auto-fix page shows the last result and, for a configured Jenkins origin, links the build). Metrics read from the store: the share of watched merges whose watch ended `passed` or `failed` with `DoneAt - MergedAt ≤ 60 min` (`no-ci` and `inconclusive` count as misses), and the share of held unit defects released or closed within 3 days.
+**Success, and how the operator verifies the first real run.** Ships dormant: `UnitChecks.Enabled` is false for every product. After the workflow of §11 is merged into a fix-target repository and its baseline run on the base branch is green (or its exclusions are written down), an auto-fix admin turns the switch on. The first real run: merge a test-only pull request with a deliberately failing test → one held triage card naming the test on the Auto-fix page and one group notice; revert it and merge → the defect closes (or, if still held, is marked). With `Source jenkins` the same first run applies once the Jenkins stage and report job of §11.1 are in place and a merge build has posted `passed` (the Auto-fix page shows the last result and, for a configured Jenkins origin, links the build); *(rev 15)* the operator also checks, on that first run, that the watch's commit equals the pull request's merge commit, that its `postedFrom` is Jenkins' public address (the J2 assumption of §5.4), and that a branch build cannot bind the credential (§11.1). Metrics read from the store: the share of watched merges whose watch ended `passed` or `failed` with `DoneAt - MergedAt ≤ 60 min` (`no-ci` and `inconclusive` count as misses), and the share of held unit defects released or closed within 3 days.
 
 ## 1. Glossary
 
@@ -43,7 +43,7 @@
 | Unit defect | a `Defect` of kind `unit` filed from a failing check (§7) |
 | Held card | a unit defect's triage card, born BLOCKED with `ReasonUnitHeld`; only an auto-fix admin moves it out (a later pass only marks the defect) |
 | Result source | `UnitChecks.Source`: `github-actions` (GAOS reads the workflow's check, §5.1) or `jenkins` (Jenkins posts the result, §5.4); empty reads as `github-actions` |
-| Jenkins credential | the product's line `productId:user:password` in `GAOS_STAGING_BASIC_AUTH_FILE` (`staging.go:57-96`), shared by the staging callback and the unit-results route |
+| Jenkins credential | *(rev 15)* the product's line `productId:user:password` in `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`, the same format and parser as the staging file (`staging.go:57-96`) but its own lines: a unit-results credential never opens the staging callback, nor the reverse |
 | Posted result | the body Jenkins sends to `POST /api/v1/products/{id}/unit-results` (§5.4) |
 | Auto-fix admin | an account listed in `GAOS_AUTOFIX_ADMINS` (`autoFixAdmin`, `handlers_autofix.go:17-37`) |
 
@@ -59,7 +59,8 @@
 | 6 | Registers: D-105, BR-65, D-091 (8) amended, OQ-40 amended, BR-48 clarified for held moves (§10) | — |
 | 7 | Rev 14: a result source per product; with `jenkins`, step 3 is replaced by Jenkins posting the result (§5.4) and an unanswered watch ends `no-ci` without a GitHub read (§5.5) | — (the source is saved, nothing is read or accepted: the route answers 409) |
 | 8 | Rev 14: the Auto-fix section shows the source's own fields and a "Before you switch this on" checklist (§4.3) | the checklist is shown in full while the switch is off |
-| 9 | Rev 14 registers: D-106, BR-65 and BR-52 amended, TC-871 … TC-879, schema 22 (§10.1) | — |
+| 9 | Rev 14/15 registers: D-106, BR-65 and BR-52 amended, TC-871 … TC-883, schema 22 (§10.1) | — |
+| 10 | Rev 15: the Jenkins gate keys its lockout on the edge-set address and the product, for staging too (§5.4) | staging behaves as before except that a spoofed `X-Forwarded-For` no longer picks the lock bucket |
 
 Nothing else changes for e2e cards, the scheduler, boot reconciliation, the external-tasks API or labels. A reopened unit defect may be auto-fixed after release (§7.4), a change scoped to kind `unit`.
 
@@ -95,7 +96,7 @@ func (u UnitChecks) SourceName() string // rev 14: "jenkins" or "github-actions"
 
 **Store.** `SetUnitChecks(ctx, productID string, u UnitChecks, actor string) (Result, error)` (`MemStore` in new `unitchecks.go`; `ArcadeStore` through `mutate`; `readOnly` refuses; on `Store`). It keeps the stored `LastNoCINoticeDay` and refuses, with these texts: *(rev 14)* a source other than `""`, `github-actions` or `jenkins` (`The source is GitHub Actions or Jenkins.`, in `validateUnitChecks`, `unitchecks.go:123-141`; `Workflow` and `CheckName` are validated and kept whatever the source, so switching back restores them); a cap outside 0..20 (`The daily cap is 1 to 20.`); more than 8 bases or a bad one (`A unit-test base is a branch name.`); a bad check name (`The check name is 1 to 100 letters, digits, spaces, dots, dashes or underscores.`); a bad workflow path (`The workflow is a file under .github/workflows/.`); and, when `Enabled`, any of auto-fix off (`Turn auto-fix on first.`), no fixer or no triager assigned — `!m.AssignedSet` counts as unassigned, as in `reviewPlanRefusalLocked` (`reviewdefect.go:100`) — (`Assign a fixer and a triager first.`), no fix-target repository (`List a fix-target repository first.`). It emits `RecordUpdated` with `Actor: actorAlias(actor)` and the text `<product>: unit checks on|off (<workflow>, <check>, bases …, cap n)`.
 
-**Route.** `POST /products/{id}/autofix/unit` (beside `POST /products/{id}/autofix`, `main.go:594`): no session → 401; not an auto-fix admin → 403; `http.MaxBytesReader` 64 KiB; `ParseForm`; fields `enabled`, `source` (rev 14; absent reads as the stored source, so an older form never flips it), `workflow`, `checkName`, `bases` (one per line), `dailyCap`. The handler also refuses `Enabled` when GAOS has no GitHub reader (`srv.codeSrc == nil`: `GitHub is not configured; unit checks need it.`) or the Brain Town reader is off (`Brain Town is not connected; no merge would reach GAOS.`), and *(rev 14)* `Enabled` with `Source jenkins` when the product has no Jenkins credential (`s.staging` is not `enabled()` or holds no line for the product: `No Jenkins credential for this product; add it to GAOS_STAGING_BASIC_AUTH_FILE.`). GitHub stays required under `jenkins`: the merge commit comes from the pull-request re-read (§3 step 1) and the defect context from `dirAt` (§7.5). Refusals answer 422 like the sibling route (`autoFixError`, `handlers_autofix.go:102`).
+**Route.** `POST /products/{id}/autofix/unit` (beside `POST /products/{id}/autofix`, `main.go:594`): no session → 401; not an auto-fix admin → 403; `http.MaxBytesReader` 64 KiB; `ParseForm`; fields `enabled`, `source` (rev 14; absent reads as the stored source, so an older form never flips it — presence is `_, ok := r.PostForm["source"]`, and when absent the handler reads `s.store.Master(id).UnitChecks.Source` before the credential check), `workflow`, `checkName`, `bases` (one per line), `dailyCap`. The handler also refuses `Enabled` when GAOS has no GitHub reader (`srv.codeSrc == nil`: `GitHub is not configured; unit checks need it.`) or the Brain Town reader is off (`Brain Town is not connected; no merge would reach GAOS.`), and *(rev 14)* `Enabled` with `Source jenkins` when the product has no unit-results credential (`s.unitResults` is not `enabled()` or holds no line for the product: `No Jenkins credential for this product; add it to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.`). GitHub stays required under `jenkins`: the merge commit comes from the pull-request re-read (§3 step 1) and the defect context from `dirAt` (§7.5). Refusals answer 422 like the sibling route (`autoFixError`, `handlers_autofix.go:102`).
 
 **Page.** A "Unit tests (CI)" section on the Auto-fix page (`autofix_view.go`, `templates/backoffice.html`), read with `UnitWatches(ctx, productID)`: the switch, the workflow, the check name, the bases, the cap; per fix-target repository the last watch's outcome and `DoneAt` (outcomes `skipped:<class>` included); a warning line when the last three watches of a repository ended `no-ci` ("No `unit-tests` run on recent merges: is the workflow installed?"). UI/UX follows the operator's instruction: the URL the operator gave (`https://emilkowal.ski/skill`) redirects to `aiforui.dev/skills`, whose design-engineering skill is `github.com/emilkowalski/skills`, `skills/emil-design-eng/SKILL.md`, as applied to the kinds panel in v0.65.1: one plain line per switch, a "Saved" line beside the button, the press feedback and no motion under reduced motion, reusing the existing classes `.kind-switch`, `.kind-actions` and `.kind-saved` (`static/app.css`), so no new class.
 
@@ -141,7 +142,7 @@ The "Unit tests (CI)" section (`templates/backoffice.html:1258-1288`, built by `
 
 **The source field**, first in the form: `<div class="field"><label for="unit-src-{{.ProductID}}">Results come from</label><select id="unit-src-…" name="source" data-unit-source>` with two options, *GitHub Actions — GAOS reads the workflow's check* (`github-actions`) and *Jenkins — Jenkins posts the result to GAOS* (`jenkins`), the stored one selected.
 
-**Source-specific fields.** The workflow and check-name fields move into `<div data-unit-src="github-actions">`; a new `<div data-unit-src="jenkins">` holds two lines: `Jenkins posts to <code>POST /api/v1/products/{{.ProductID}}/unit-results</code>` and the credential state — `The product's Jenkins credential (the staging callback's) is configured.` or, in the `kind-warn` colour, `No Jenkins credential for this product: add a line to GAOS_STAGING_BASIC_AUTH_FILE.` (`AFUnit.JenkinsReady = s.staging.has(id)`, a new method: `enabled()` and a line for the product; `AFUnit` also gains `Source string`, `Jenkins bool` and `BaseList string`; `afUnit` gains the argument `jenkinsReady bool`, its one caller is `autofix_view.go:660`). The block of the source not in force carries the `hidden` attribute. `static/app.js` gains one delegated `change` listener beside the kinds form's (`app.js:84-89`): on a `select[data-unit-source]`, it sets `hidden` on every `[data-unit-src]` of the same form whose value differs from the selection. No transition: it is a field swap, and the kinds panel's rule (no motion, `.claude/rules/frontend.md`) applies. Without JavaScript both blocks stay as rendered for the saved source; the hidden inputs still post and are kept (§4.1).
+**Source-specific fields.** The workflow and check-name fields move into `<div data-unit-src="github-actions">`; a new `<div data-unit-src="jenkins">` holds two lines: `Jenkins posts to <code>POST /api/v1/products/{{.ProductID}}/unit-results</code>` and the credential state — `The product's unit-results credential is configured.` or, *(rev 15)* inside a `<div class="kind-row">` so the existing rule `.kind-row .kind-warn` (`app.css:1724`) colours it, `<span class="kind-warn">No Jenkins credential for this product: add a line to GAOS_UNIT_RESULTS_BASIC_AUTH_FILE.</span>` (`AFUnit.JenkinsReady = s.unitResults.has(id)`, a new method on `stagingAuth`: `enabled()` and a line for the product; `AFUnit` also gains `Source string`, `Jenkins bool` and `BaseList string`; *(rev 15)* the signature becomes `afUnit(pr Product, m Master, ws []UnitWatch, jenkinsReady bool, origin string) AFUnit` (`autofix_view.go:973`), `origin` being `server.jenkinsOrigin` for `RunLink`; its one caller is `autofix_view.go:660`). The block of the source not in force carries the `hidden` attribute. **Field order** in the form: the source select; the `github-actions` block (workflow, check name); the `jenkins` block (route line, credential line); the bases; the daily cap; the switch; the Save button and "Saved" line — so the credential state sits before the switch it gates. `static/app.js` gains one delegated `change` listener beside the existing one (`app.js:79-83`): on a `select[data-unit-source]`, it sets `hidden` on every `[data-unit-src]` of the same form whose value differs from the selection. No transition: it is a field swap, and the kinds panel's rule (no motion, `.claude/rules/frontend.md`) applies. Without JavaScript both blocks stay as rendered for the saved source; the hidden inputs still post and are kept (§4.1).
 
 **The summary line and the copy follow the source.** `on · Jenkins · cap 5 a day` or `on · <workflow> · check <name> · cap 5 a day`. The intro line under `jenkins`: "GAOS runs no test. Your Jenkins runs the unit tests on each merge commit of a fix-target repository and posts the result to GAOS. A failing result becomes a defect held for an auto-fix admin; a merge with no result is never a pass." The switch's help line ends "…and the Jenkins stage installed with the product's credential." under `jenkins`. The three-`no-ci` warning reads "No result from Jenkins on recent merges: is the Jenkins stage installed?" under `jenkins`. `unitOutcomeLabel` (`autofix_view.go:127`) gains the source: `no-ci` reads "no result from Jenkins; nothing filed" under `jenkins`.
 
@@ -170,7 +171,7 @@ The "Unit tests (CI)" section (`templates/backoffice.html:1258-1288`, built by `
 </div>
 ```
 
-`{{.BaseList}}` is the effective base wording ("the auto-fix base branch, or the default branch" plus the configured `Bases`, comma-joined, `afLine(…, 200)`). **Shown in full while the switch is off**; while it is on, the block collapses to one `tm-line`: "Tests that need a database or the network are skipped under `go test -short`." followed by the same `i` link — the rule stays visible without taking the section over once the operator has done it. The item 3 link follows the **saved** source (a change of the select does not re-render it; the field swap above is the only client-side change). No new class: `af-note`, `md`, `md-code`, `info-btn`, `info-link`, `tm-line`, `kind-warn` and `field` exist. If the review finds the 13.5 px `.md` text inside the 12.5 px note too loud, the fix is one rule in `app.css` (`.af-note .md{font-size:12.5px}`), not a new class.
+`{{.BaseList}}` *(rev 15, exact)*: with `AutoFix.BaseBranch` set, the base in `<code>` then each configured `Bases` entry not equal to it, joined by ", " — `develop`; `develop, staging, main`; with it empty, the literal `the repository's default branch` then the same entries — `the repository's default branch, staging`. Cut by `afLine(…, 200)`; the template prints it as text (each name in `<code>` is built with `html/template` escaping, never pre-rendered HTML). **Shown in full while the switch is off**; while it is on, the block collapses to one `tm-line`: "Tests that need a database or the network are skipped under `go test -short`." followed by the same `i` link — the rule stays visible without taking the section over once the operator has done it. The item 3 link follows the **saved** source (a change of the select does not re-render it; the field swap above is the only client-side change). No new class: `af-note`, `md`, `md-code`, `info-btn`, `info-link`, `tm-line`, `kind-row`, `kind-warn` and `field` exist. If the review finds the 13.5 px `.md` text inside the 12.5 px note too loud, the fix is one rule in `app.css` (`.af-note .md{font-size:12.5px}`), not a new class.
 
 ## 5. Reading the check
 
@@ -203,7 +204,7 @@ type UnitPassIn struct {
 The workflow (§11) writes one `::error file=<path>,title=<TestName>::` annotation per failing leaf test (GitHub keeps at most **10 error annotations per step**), and one `::notice title=unit-tests-total::<n>` with the number of failing leaf tests. GAOS:
 
 - counts the `failure`-level annotations (`F`);
-- keeps those whose `title` matches `^(Test|Example|Fuzz)[A-Za-z0-9_/]{0,195}$` and whose `path` (empty allowed) passes `contextPathOK` (`defecttriage.go:262`), one line, printable, `stripBR53` (`defects.go:251`) and `screenDefectText` (`defects.go:288`); a withheld entry is dropped and only counted. An entry with an empty `path` keeps its test name and adds no protected file;
+- keeps those whose `title` matches `^(Test|Example|Fuzz)[A-Za-z0-9_/]{0,195}$` and whose `path` (empty allowed) passes `contextPathOK` (`defecttriage.go:264`), one line, printable, `stripBR53` (`defects.go:270`) and `screenDefectText` (`defects.go:288`); a withheld entry is dropped and only counted. An entry with an empty `path` keeps its test name and adds no protected file;
 - reads `Total` from the `unit-tests-total` notice (clamped to `[kept, 100000]`), else `Total = kept`;
 - **`F == 0`** (the conclusion is `failure` and no failure-level annotation exists) files the **build** defect (`~build`), with `output.title` and `output.summary` (screened, one paragraph, ≤ 2 KiB) as its excerpt;
 - **`F > 0` and nothing kept** (every annotation withheld) files nothing: the watch ends `refused:withheld` with a notice (§5.3).
@@ -221,7 +222,8 @@ All unit notices go to the group with kind `unit:failure` (an existing kind, `co
 | "defect <h8> closed: its tests passed" | `Result.UnitClosed` for a released defect | `MarkUnitNotice(…, "closed")` |
 | "unit-test annotations on a merge were all withheld; nothing filed" | outcome `refused:withheld` | — |
 | "no unit-tests run on a merge; is the workflow installed?" | outcome `no-ci`, at most once per product per UTC day | `MarkUnitNotice(ctx, productID, "", "no-ci")` writes `UnitChecks.LastNoCINoticeDay` |
-| "no unit-test result from Jenkins on a merge; is the Jenkins step installed?" (rev 14) | outcome `no-ci` under `Source jenkins`, sharing the once-a-day slot | the same |
+| "no unit-test result from Jenkins on a merge; is the Jenkins stage installed?" (rev 14) | outcome `no-ci` under `Source jenkins`, sharing the once-a-day slot, and only when the finish changed the watch (§5.5) | the same |
+| "conflicting unit result on a merge; the first result stands, see the log" (rev 15) | a posted result on a `done` watch whose `PostedResult` (or, for a poller-finished watch, outcome class) differs (§5.4 state 6) | — (one per conflicting post; the route's lockout bounds the rate) |
 
 `MarkUnitNotice(ctx, productID, key, which string) (Result, error)` (`readOnly` refuses; on `Store`). **Re-send:** each `unitPass` also scans the non-final unit defects of the products it serves (`Defects(ctx, productID)`) for a held card with `!UnitNoticeSent`, and for a marked defect with `!UnitPassNoticeSent`, and sends and marks them, so a crash between the store write and the send re-sends. `reopenUnitDefectLocked` and the passed-mark reset the matching flag.
 
@@ -229,16 +231,18 @@ All unit notices go to the group with kind `unit:failure` (an existing kind, `co
 
 **Route.** `POST /v1/products/{id}/unit-results`, registered in `api_v1.go` beside the staging callback (`api_v1.go:442-444`), so it is reached as `POST /api/v1/products/{id}/unit-results`; handler `apiUnitResults` in new `dashboard/unitresults.go`.
 
-**Authentication — exactly the staging callback's.** The prelude of `apiStaging` (`staging.go:197-230`) moves into `func (s *server) jenkinsGate(w http.ResponseWriter, r *http.Request, off string) (productID string, ok bool)`, called by both handlers, with no change of behaviour for staging:
+**Authentication — the staging callback's mechanism, its own credential and its own lock (rev 15).** The prelude of `apiStaging` (`staging.go:197-230`) moves into `func (s *server) jenkinsGate(w http.ResponseWriter, r *http.Request, a *stagingAuth, off string) (productID string, ok bool)`, called by both handlers: staging passes `s.staging` (`GAOS_STAGING_BASIC_AUTH_FILE`, unchanged), the unit-results route passes **`s.unitResults`**, a second `stagingAuth` read at boot by the same parser from **`GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`** (same format `productId:user:password`, same 12-character minimum, its own lines, its own failure map). A unit-results credential never opens staging and a staging credential never opens unit results; a leak of one reaches one route (security review SEC-2).
 
 1. `X-Forwarded-Prefix` set and not `/api` → 404 `not-found` (a request through `/app` never reaches it, BR-52);
-2. `!s.staging.enabled()` → 503 with the caller's code (`staging-off` for staging, unchanged; `jenkins-off` here);
-3. the source locked (`stagingSource`, `staging.go:172-181`) → 429 `throttled` with `Retry-After`;
-4. no Basic credential or one that matches no product → 401 with `WWW-Authenticate: Basic realm="gaos"`, a failure counted;
-5. a credential valid for another product → 404 `not-found`, a failure counted;
-6. otherwise `a.ok(src)`.
+2. `!a.enabled()` → 503 with the caller's code (`staging-off` for staging, unchanged; `jenkins-off` here);
+3. the lock key `jenkinsSource(r) + "|" + r.PathValue("id")` is locked → 429 `throttled` with `Retry-After`;
+4. no Basic credential or one that matches no product → 401 with `WWW-Authenticate: Basic realm="gaos"`, **a failure counted**;
+5. a credential valid for another product → 404 `not-found`, **a failure counted**;
+6. otherwise `a.ok(key)`.
 
-One `stagingAuth` serves both routes, so **failures on either route count toward the same lock** (5 in 5 minutes lock the source for 5 minutes, `staging.go:51-55`). The unit-results route does **not** call `a.seen(id)`: the Integrations view's "last staging callback" keeps meaning the staging deploy.
+**Which answers count toward the lock:** only 4 and 5. A 503, a 429 and every answer after authentication (422, 409 including `no-watch`, 200, 202) count nothing, so a stage that retries `no-watch` can never lock itself out (SEC-3).
+
+**The lock key (rev 15, a fix to D-088's gate, applied to both routes).** `stagingSource` (`staging.go:172-181`) keys on the peer plus the **first** `X-Forwarded-For` hop, which the caller writes: the edge appends (`deploy/edge/gaos.conf:118-128`), so a caller can pick a fresh bucket per attempt or pick Jenkins' bucket and lock it out (SEC-1). It is replaced by `jenkinsSource(r)`: the `X-Real-IP` header when it parses as an IP (nginx sets it from `$remote_addr`, overwriting any caller value, `gaos.conf:117` and `:165`); else the **rightmost** `X-Forwarded-For` hop that is not a loopback, private (RFC 1918, RFC 4193) or link-local address (the hop the edge appended, not the caller's); else the peer. The key also carries the product of the path, so one product's failures never lock another's callbacks from the same Jenkins. Locks are **per route**: a failure on staging never locks unit results, nor the reverse. *Assumptions, verified in J2 on the first deploy:* GAOS is reached only through the edge (its port is not exposed beside it), and Traefik, which trusts the tunnel (`deploy/stacks/traefik.yml:40-41`), passes nginx's `X-Real-IP` through unchanged — the J2 check is one staging or unit-results call whose log line (below) names the caller's public address. No edge change is needed. The unit-results route does **not** call `a.seen(id)` on the staging auth: the Integrations view's "last staging callback" keeps meaning the staging deploy.
 
 **Body.** `http.MaxBytesReader` **64 KiB**; `json.Decoder` with `DisallowUnknownFields`, and a second `Decode` must answer `io.EOF` (trailing data is refused). Anything that does not decode is **422** `rejected` "the body must be {repo, commit, branch, result, total, failing, summary, runUrl}".
 
@@ -259,7 +263,7 @@ type unitResultFailure struct {
 }
 ```
 
-**Validation, in order; every refusal is 422 `rejected` with the reason, and stores nothing:**
+**Validation, in order; every refusal is 422 `rejected` with the reason, and stores nothing.** Only fields that carry the result are refused; the display-only and bounded ones are cut or dropped (rev 15):
 
 | Field | Refused when |
 |---|---|
@@ -268,11 +272,11 @@ type unitResultFailure struct {
 | `branch` | does not match `baseBranchRe` (`autofix.go:122`) or contains `..` |
 | `result` | not `passed`, `failed` or `build-failed` |
 | `total` | outside 0..100000 |
-| `failing` | more than 50 entries; any entry with a `test` or `file` longer than 512 bytes; non-empty with `passed` or `build-failed`; empty with `failed` (`a failed result names at least one test; use build-failed`) |
-| `summary` | longer than 2 KiB (`unitSummaryMax`, `unitpoll.go:25`); non-empty with `passed` or `failed` |
-| `runUrl` | non-empty and: longer than 512 bytes, not `url.Parse`-able, scheme not `https`, empty host, or userinfo present |
+| `failing` | more than 50 entries; non-empty with `passed` or `build-failed`; empty with `failed` (`a failed result names at least one test; use build-failed`). *(rev 15)* An entry whose `test` or `file` is longer than 512 bytes is **dropped and counted as withheld**, not refused (the template also drops them, §11.1) |
+| `summary` | non-empty with `passed` or `failed`. *(rev 15)* Its length is **capped**, not refused: `capBytes(summary, unitSummaryMax)` (`defects.go:294`, `unitpoll.go:25`), which cuts on a rune boundary |
+| `runUrl` | *never refused (rev 15).* Non-empty and longer than 512 bytes, not `url.Parse`-able, scheme not `https`, empty host or userinfo present → **stored empty** and the result accepted: the build link is display only, and an internal Jenkins with an `http` root URL must not lose its results |
 
-**Screening — the annotations' rules (§5.2), not a new set.** Each `failing` entry is kept only when `test` matches `unitTestRe` (`^(Test|Example|Fuzz)[A-Za-z0-9_/]{0,195}$`, `unitdefect.go:38`), `file` is empty or passes `contextPathOK` (`defecttriage.go:262`), both are one printable line (`unitPrintable`, `unitpoll.go:415`), unchanged by `stripBR53` (`defects.go:251`) and not hit by `screenBody` (`prreview.go:120`), the same predicate as `unitScreen` (`unitpoll.go:447-449`) and the detector `screenDefectText` applies (`defects.go:305-307`); a withheld entry is dropped and counted. Kept entries are de-duplicated and the first **10** (`unitMaxFailing`, `unitdefect.go:35`, the hash and excerpt bound of §7.1) become `UnitDefectIn.Failing`; Jenkins may send up to 50 so that later names can stand in for withheld ones. `Total = min(max(total, kept), 100000)`. A `build-failed` `summary` becomes one paragraph (newlines to spaces), `stripBR53`, and `(withheld: the summary matched a secret detector)` on a `screenBody` hit, as `unitScreen` does (`unitpoll.go:463-470`); an empty summary becomes `(Jenkins sent no summary)`. A `runUrl` hit by `screenBody` or changed by `stripBR53` is dropped (stored empty), not refused. The function is `unitResultIn(b unitResultBody) (in UnitDefectIn, pass bool, withheld bool, runURL string)`, shared with nothing else; `unitScreen` is unchanged.
+**Screening — the annotations' rules (§5.2), not a new set.** Each `failing` entry is kept only when `test` matches `unitTestRe` (`^(Test|Example|Fuzz)[A-Za-z0-9_/]{0,195}$`, `unitdefect.go:38`), `file` is empty or passes `contextPathOK` (`defecttriage.go:264`), both are one printable line (`unitPrintable`, `unitpoll.go:415`), unchanged by `stripBR53` (`defects.go:270`) and not hit by `screenBody` (`prreview.go:120`), the same predicate as `unitScreen` (`unitpoll.go:447-449`) and the detector `screenDefectText` applies (`defects.go:305-307`); a withheld entry is dropped and counted. Kept entries are de-duplicated and the first **10** (`unitMaxFailing`, `unitdefect.go:35`, the hash and excerpt bound of §7.1) become `UnitDefectIn.Failing`; Jenkins may send up to 50 so that later names can stand in for withheld ones. `Total = min(max(total, kept), 100000)`, where *(rev 15)* `kept` is the number of entries kept by screening **before** the 10-entry cut (so 0 … 50). A `build-failed` `summary` becomes one paragraph (newlines to spaces), `stripBR53`, and `(withheld: the summary matched a secret detector)` on a `screenBody` hit, as `unitScreen` does (`unitpoll.go:463-470`); an empty summary becomes `(Jenkins sent no summary)`. A `runUrl` hit by `screenBody` or changed by `stripBR53` is dropped (stored empty), not refused. The function is `unitResultIn(b unitResultBody) (in UnitDefectIn, pass bool, withheld bool, runURL string)`, shared with nothing else; `unitScreen` is unchanged.
 
 **State checks, after validation, in order:**
 
@@ -282,8 +286,8 @@ type unitResultFailure struct {
 | 2 | `!m.UnitChecks.Enabled` | **409** `unit-checks-off` | nothing |
 | 3 | `m.UnitChecks.SourceName() != "jenkins"` | **409** `not-jenkins` | nothing |
 | 4 | no watch with key `unitWatchKey(id, repo, commit)` (`unitchecks.go:88`), read with the new `UnitWatch(ctx, key) (UnitWatch, bool, error)`, and the repository is not a fix target (`unitFixTarget`, `unitchecks.go:100`) | 422 `not-target` | nothing |
-| 5 | no such watch, the repository a fix target | **404** `no-watch` with **`Retry-After: 60`**: GAOS saw no such merge (yet) | nothing |
-| 6 | the watch is `done` | **200** `{"accepted":true,"duplicate":true,"outcome":<stored>}` | nothing |
+| 5 | no such watch, the repository a fix target | *(rev 15)* **409** `{"error":"no-watch"}` with **`Retry-After: 60`**: GAOS saw no such merge (yet). Not 404, so the stage can tell "not yet" from "wrong product" (404 `not-found`, never retried, §11.1) | nothing |
+| 6 | the watch is `done` | *(rev 15)* **6a** outcome `no-ci` and `now - DoneAt ≤ 24 h` → the result is **accepted** as at step 9 (a late result: a long Jenkins queue or outage), through `FinishUnitWatchFrom` on the done watch, which re-opens nothing else; **6b** the same result as the stored one (`PostedResult` equal, or for a poller-finished watch the same class: `passed` ↔ `passed`, `failed`/`build-failed` ↔ `failed`, `updated`, `dedup`, `refused:*`) → **200** `{"accepted":true,"duplicate":true,"outcome":<stored>}`; **6c** a different result → **409** `{"error":"already-finished","outcome":<stored>}`, one log line and the "conflicting unit result" group notice (§5.3); the first result stands | 6a: the watch and its effects; 6b, 6c: nothing |
 | 7 | `branch != w.Base` | **409** `branch-mismatch` (the same commit built on another branch, e.g. a fast-forward of the base into a later one) | nothing |
 | 8 | the repository is no longer a fix target | `FinishUnitWatch(key, "inconclusive", nil, nil)` → **202** `{"accepted":true,"outcome":"inconclusive"}` (as the poller's re-check, `unitpoll.go:111-113`) | the watch |
 | 9 | otherwise | the outcome below → **202** `{"accepted":true,"outcome":<the watch's outcome>}` | the watch, and the defect or pass it causes |
@@ -297,23 +301,23 @@ type unitResultFailure struct {
 | `failed`, every entry withheld | `FinishUnitWatch(key, "refused:withheld", nil, nil)` and the withheld notice | `refused:withheld` |
 | `build-failed` | `FinishUnitWatch(key, "failed", &UnitDefectIn{Build: true, Summary: …}, nil)` | as `failed`, on the `~build` key |
 
-`RunID 0` makes `RunRef` read `<sha12>@jenkins`: `unitRunRef` (`unitdefect.go:111-114`) writes `jenkins` for 0 (a GitHub run id is never 0). The `runUrl` kept is written on the watch in the same call: `FinishUnitWatch` gains no argument; instead `apiUnitResults` calls the new `FinishUnitWatchFrom(ctx, key, outcome, in, pass, runURL string)`, and `FinishUnitWatch` becomes `FinishUnitWatchFrom(…, "")`, so the poller's call sites (`unitpoll.go:276-288`) are unchanged. `UnitWatch` gains `RunURL string` (schema 22). If `FinishUnitWatchFrom` answers an empty `Result` (the poller ended the watch between steps 6 and 9, §5.5), the handler re-reads the watch and answers step 6's 200.
+`RunID 0` makes `RunRef` read `<sha12>@jenkins`: `unitRunRef` (`unitdefect.go:111-114`) writes `jenkins` for 0 (a GitHub run id is never 0). **Attribution (rev 15, SEC-4).** The posted facts are written on the watch in the same call: `FinishUnitWatch` gains no argument; instead `apiUnitResults` calls the new `FinishUnitWatchFrom(ctx, key, outcome string, in *UnitDefectIn, pass *UnitPassIn, from UnitPosted) (Result, error)` with `type UnitPosted struct{ RunURL, From, Result string; Late bool }`, and `FinishUnitWatch` becomes `FinishUnitWatchFrom(…, UnitPosted{})`, so the poller's call sites (`unitpoll.go:276-288`) are unchanged. `UnitWatch` gains `RunURL`, `PostedFrom` (the lock source of §5.4, never the credential) and `PostedResult` (`passed`, `failed` or `build-failed`) (schema 22). The events the posted result causes carry `Actor: "jenkins:<productId>"` (BR-48), not an empty actor. `FinishUnitWatchFrom` accepts a done watch only when `from.Late` and its outcome is `no-ci` (state 6a); it then sets the new outcome, `DoneAt`, and the defect or pass, as for a pending watch. If it answers an empty `Result` (the poller ended the watch between steps 6 and 9, §5.5), the handler re-reads the watch and answers step 6 for the stored state.
 
 **Notices and context.** The route never sends a held, passed or closed notice itself and never builds context: the next `unitPass` re-send scan (`unitNotices`, `unitpoll.go:297-348`, every 2 minutes, §5.3) sends `UnitNoticeSent`/`UnitPassNoticeSent` lines and builds a held defect's context with `!Context.Built` — the same crash-repair path the poller relies on, so the route adds at most one pass (≤ 2 minutes) of latency. The one immediate line, "unit-test annotations on a merge were all withheld; nothing filed", is sent through `s.unitNotify`, a new server field `main.go` sets to the same closure as `poller.unitNotify` (`main.go:473-475`); nil leaves it unsent and logged.
 
-**Logging.** One line per answer: `unit-results: <product> <repo>@<sha12> <status> <code-or-outcome>`; never the credential, the body, the summary or the URL.
+**Logging.** One line per answer: `unit-results: <product> <repo>@<sha12> from <source> <status> <code-or-outcome>` (`<source>` is `jenkinsSource(r)`, rev 15); a conflicting post (6c) adds `conflict stored=<outcome> posted=<result>`; never the credential, the body, the summary or the URL.
 
 **The run link origin.** `GAOS_JENKINS_ORIGIN` (new, optional), read once at boot in `main.go`: an `https` origin with no path, query or userinfo (`https://jenkins.acme.example`, an explicit port allowed); anything else is logged `jenkins origin ignored` and treated as unset. A stored `RunURL` is a link on the page only when `strings.EqualFold(u.Scheme+"://"+u.Host, origin)`; otherwise it is text. It is never put in a packet or a notice. `deploy/stacks/compose.prod.yaml` passes it through beside `GAOS_STAGING_BASIC_AUTH_FILE` (`compose.prod.yaml:176`).
 
-**The race with the merge event — decision: no early-result store.** Jenkins can post before Brain Town's `pr.merged` has planted the watch (§4.2). GAOS answers **404 `no-watch` with `Retry-After: 60`** and stores nothing; the Jenkins stage (§11.1) retries on 404 and 429, once a minute, for up to 10 minutes, then marks its build *unstable* and stops. A merge whose result never lands (Brain Town later than 10 minutes, or Jenkins never built that commit) ends `no-ci` after 6 hours (§5.5) with the daily notice. Holding early results would need a second persisted record keyed `repo@sha`, a TTL and a reconciliation at planting — a new store type for a window that a one-minute retry already covers (§13). The same answer covers a build that is not a merge (a direct push to the base, a re-run of an old commit): GAOS cannot tell "not yet" from "never", so the stage's 10-minute retry is the bound, and the retry sleeps **outside** a Jenkins `node`, holding no executor (§11.1).
+**The race with the merge event — decision: no early-result store.** Jenkins can post before Brain Town's `pr.merged` has planted the watch (§4.2). GAOS answers **409 `no-watch` with `Retry-After: 60`** and stores nothing; the Jenkins stage (§11.1) reads `error` from the answer and retries only `no-watch` and `throttled` (and a transport failure `000`, 502 or 503), once a minute, for up to 10 minutes, then marks its stage *unstable* and stops; a 404 `not-found` (wrong product) is never retried. A merge whose result never lands (Brain Town later than 10 minutes, or Jenkins never built that commit) ends `no-ci` after 6 hours (§5.5) with the daily notice. Holding early results would need a second persisted record keyed `repo@sha`, a TTL and a reconciliation at planting — a new store type for a window that a one-minute retry already covers (§13). The same answer covers a build that is not a merge (a direct push to the base, a re-run of an old commit): GAOS cannot tell "not yet" from "never", so the stage's 10-minute retry is the bound, and the retry sleeps **outside** a Jenkins `node`, holding no executor (§11.1).
 
 ### 5.5 The poller under the `jenkins` source (rev 14)
 
-`unitCheck` (`unitpoll.go:109`) branches first on the source in force when the watch is read: under `jenkins` it makes **no GitHub read** and spends **no budget** (`unitPassBudget`, `unitpoll.go:22`); the due watches of a `jenkins` product are handled in the same per-product loop (`unitpoll.go:74-96`) before the budgeted ones:
+`unitCheck` (`unitpoll.go:109`) branches first on the source in force when the watch is read: under `jenkins` it makes **no GitHub read** and spends **no budget** (`unitPassBudget`, `unitpoll.go:22`); *(rev 15, exact)* in the per-product loop (`unitpoll.go:74-96`), a product whose `SourceName()` is `jenkins` is handled **outside the `if budget > 0` guard** (`unitpoll.go:75`): its due watches are handled whatever budget is left, **do not decrement** `budget`, **do not count** in the returned `read`, and **do not set** `p.unitLast` (`unitpoll.go:97-101`), so the GitHub round-robin is unchanged. Each due watch:
 
 1. the repository is no longer a fix target → `inconclusive` (as today);
 2. `now - MergedAt < 6 h` → `DelayUnitWatch(key, MergedAt + 6 h, Tries, Reads)` — one wake-up at the deadline, nothing in between;
-3. otherwise → **`no-ci`** (the `Reads > 0` condition of §5.1 step 3 is a GitHub-read guard and does not apply: there is nothing to read) and the daily notice **"no unit-test result from Jenkins on a merge; is the Jenkins step installed?"** through `unitDaily` (`unitpoll.go:228-240`), sharing `LastNoCINoticeDay` with the two existing daily lines.
+3. otherwise → **`no-ci`** (the `Reads > 0` condition of §5.1 step 3 is a GitHub-read guard and does not apply: there is nothing to read) and the daily notice **"no unit-test result from Jenkins on a merge; is the Jenkins stage installed?"** through `unitDaily` (`unitpoll.go:228-240`), sharing `LastNoCINoticeDay` with the two existing daily lines — *(rev 15)* **only when the finish changed the watch** (`len(res.UnitWatches) > 0`): if the route finished it first (a lost race), `FinishUnitWatch` answers an empty `Result` (`unitdefect.go:450-451`) and no line is sent. A result posted within 24 hours of this `no-ci` is still accepted (§5.4 state 6a).
 
 A watch planted while the source was `github-actions` and read after a switch to `jenkins` follows the `jenkins` branch, and the reverse; a posted result is accepted only under `jenkins` (§5.4 step 3). The source is read from the master of the pass, as `UnitChecks.WorkflowPath()` already is (`unitpoll.go:126`). `unitPass`'s early return without GitHub (`unitpoll.go:48-50`) stays: enabling needs GitHub under both sources (§4.1).
 
@@ -463,12 +467,21 @@ The same exit rule as §9 (tests, race, `check-workspace.sh`, `pustaka check`; e
 
 | Phase | Builds | TC |
 |---|---|---|
-| J1 Model, schema and store (A) | `UnitChecks.Source`, `SourceName()`, the validation and its text; `UnitWatch.RunURL`; `schema/22-unit-results.sql`; `writeUnitWatch`/`loadUnitWatches` carry `runUrl` (`store_arcade_unitwatch.go:7-14`); `UnitWatch(ctx, key)` on `Store`, `MemStore`, `ArcadeStore`, `readOnly` (answers not found); `FinishUnitWatchFrom`; `unitRunRef` writes `jenkins` for 0 | TC-871 `TestUnitSourceIsSavedAndValidated` (enum, `""` reads `github-actions`, workflow and check kept across a switch, event text per source), TC-872 `TestAJenkinsResultSurvivesARestart` (A: `source` on the product, `runUrl` on the watch, `RunRef` `@jenkins`) |
-| J2 The route | `jenkinsGate` (staging behaviour unchanged), `apiUnitResults`, `unitResultBody`, `unitResultIn`, the state checks and the mapping; `srv.unitNotify`; the route in `api_v1.go` | TC-873 `TestUnitResultsAreAuthenticatedLikeStaging` (prefix, 503 `jenkins-off`, 401 with the header, another product's credential 404, the shared 429 lock across both routes, no `seen`), TC-874 `TestUnitResultsBodyIsStrict` (unknown field, trailing data, 64 KiB, every row of the §5.4 validation table), TC-875 `TestAPostedResultFinishesTheWatch` (passed closes and marks, failed files a held defect, build-failed `~build`, all withheld `refused:withheld` and the notice, 50 sent and 10 kept with `Total`, screening drops, duplicate 200, `branch-mismatch` 409, not a target 422 and inconclusive 202, the poller-race re-read), TC-876 `TestUnitResultsRefusedWithoutAJenkinsWatch` (409 `unit-checks-off`, 409 `not-jenkins`, 404 `no-watch` with `Retry-After: 60`, nothing stored in each) |
-| J3 Poller | the `jenkins` branch of `unitCheck`: no GitHub read, no budget, one delay to `MergedAt + 6 h`, `no-ci` and the Jenkins daily line, a switch of source between reads | TC-877 `TestAJenkinsWatchEndsNoCIWithoutReadingGitHub` |
-| J4 Page, docs, registers | the source field and blocks, the `app.js` toggle, the checklist, the source copy, the build link and `GAOS_JENKINS_ORIGIN`, the credential refusal in `handleSaveUnitChecks`; `compose.prod.yaml`; the docs (§11.1, §11.2); D-106, BR-65, BR-52; changelog v0.68.0 | TC-878 `TestTheUnitSectionShowsTheChecklistAndTheSource` (checklist in full when off with the three items, the `testing.Short` example, the item-3 link per source and the `i` link; one line when on; the `hidden` block per source; the credential line both ways; the build link only for the configured origin; the `no-ci` wording per source; enabling `jenkins` without a credential refused), TC-879 `TestTheDocumentedJenkinsBodyIsAccepted` (the sample body in `agents.html#release-b-unit-jenkins` is extracted from the page and accepted by the route as `202`, so the docs and the decoder cannot drift) |
+| J1 Model, schema and store (A) | `UnitChecks.Source`, `SourceName()`, the validation and its text; `UnitWatch.RunURL`, `PostedFrom`, `PostedResult`; `schema/22-unit-results.sql`; `writeUnitWatch`/`loadUnitWatches` carry the three (`store_arcade_unitwatch.go:7-14`); `UnitWatch(ctx, key)` on `Store`, `MemStore`, `ArcadeStore`, `readOnly` (answers not found); `UnitPosted`, `FinishUnitWatchFrom` (the late re-finish over `no-ci`, the `jenkins:<product>` actor); `unitRunRef` writes `jenkins` for 0 | TC-871 `TestUnitSourceIsSavedAndValidated` (enum, `""` reads `github-actions`, workflow and check kept across a switch, event text per source), TC-872 `TestAJenkinsResultSurvivesARestart` (A: `source` on the product, `runUrl`, `postedFrom`, `postedResult` on the watch, `RunRef` `@jenkins`) |
+| J2 The route and the gate | `stagingAuth` read from a path argument, `s.unitResults` from `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`; `jenkinsSource`, the lock key per source, product and route (staging's key changes, its answers do not); `jenkinsGate`; `apiUnitResults`, `unitResultBody`, `unitResultIn`, the state checks (409 `no-watch`, 6a/6b/6c) and the mapping; `srv.unitNotify`; the route in `api_v1.go`; the conflict notice. **Verify on the first deploy (J2 assumption, §5.4):** one call's log line names the caller's public address | TC-873 `TestUnitResultsAreAuthenticatedLikeStaging` (prefix, 503 `jenkins-off`, 401 with the header, another product's credential 404 counted, a **staging** credential refused here and a unit-results credential refused on staging, no `seen`), TC-874 `TestUnitResultsBodyIsStrict` (unknown field, trailing data, 64 KiB, every refusal row of §5.4; an `http` or over-long `runUrl` stored empty and accepted, a 600-byte `test` dropped as withheld, a 3 KiB summary capped on a rune boundary), TC-875 `TestAPostedResultFinishesTheWatch` (passed closes and marks, failed files a held defect, build-failed `~build`, all withheld `refused:withheld` and the notice, 50 sent and 10 kept with `Total` from the pre-cut count, screening drops, `branch-mismatch` 409, not a target 422 and inconclusive 202, the poller-race re-read, the events' actor `jenkins:p-9`), TC-876 `TestUnitResultsRefusedWithoutAJenkinsWatch` (409 `unit-checks-off`, 409 `not-jenkins`, 409 `no-watch` with `Retry-After: 60` and no failure counted after 6 of them, nothing stored in each), TC-877 `TestTheJenkinsLockIgnoresTheCallersForwardedFor` (in `staging_test.go`, both routes: a fresh first `X-Forwarded-For` per attempt does not escape the lock; a first hop equal to Jenkins' address with a different `X-Real-IP` does not lock Jenkins; `X-Real-IP`, the rightmost public hop and the peer in that order; product A's lock does not block product B; a staging lock does not block unit results), TC-878 `TestEveryMachineRouteAuthenticates` (in `auth_test.go`: every `registerAPI` route without `Authorization` answers 401, or 503 when its auth is unconfigured; the Basic routes are an explicit list, staging and unit-results, so a third needs an edit), TC-879 `TestALateOrConflictingUnitResult` (a result over `no-ci` within 24 h is accepted and files; after 24 h it is 6b/6c; the same result 200 duplicate; a different one 409 `already-finished`, one log line and one conflict notice; nothing changed) |
+| J3 Poller | the `jenkins` branch of `unitCheck`: no GitHub read, outside the budget guard, no `read`, no `unitLast`; one delay to `MergedAt + 6 h`, `no-ci` and the Jenkins daily line only when the finish changed the watch; a switch of source between reads | TC-880 `TestAJenkinsWatchEndsNoCIWithoutReadingGitHub` (an earlier product with 12 due GitHub watches spends the budget and the `jenkins` watch still ends `no-ci` in the same pass; `read` and `unitLast` unchanged by it; a watch the route finished first sends no daily line) |
+| J4 Page, docs, registers, release | the source field and blocks, the `app.js` toggle, the checklist and `BaseList`, the source copy, the build link and `GAOS_JENKINS_ORIGIN`, the credential refusal in `handleSaveUnitChecks`; `compose.prod.yaml`, `check-stacks.sh`, `rebuild-restart.sh`; the docs (§11.1, §11.2) and `toc/integrations.js`; D-106, BR-65, BR-52; the version bump to 0.68.0 (`toc.js` `semver`, `page.html` `?v=` ×3, `README.md` "Product version 0.68.0"); changelog v0.68.0 | TC-881 `TestTheUnitSectionShowsTheChecklistAndTheSource` (checklist in full when off with the three items, the `testing.Short` example, `BaseList` for the three cases of §4.3, the item-3 link per source and the `i` link; one line when on; the `hidden` block per source; the credential line both ways, the missing one inside a `kind-row`; the build link only for the configured origin; the `no-ci` wording per source; enabling `jenkins` without a unit-results credential refused; an absent `source` keeps the stored one), TC-882 `TestTheDocumentedJenkinsBodyIsAccepted` (reads `../pustaka/docs/integrations/agents.html`, extracts the text of `<pre id="unit-results-sample">` under `#release-b-unit-jenkins`, unescapes HTML entities, and posts it to the route with the fixture p-9, `jenkins` on, a unit-results credential, a pending watch at that commit on `develop` for `acme/route-api`: answers 202, so the docs and the decoder cannot drift), TC-883 `check-stacks.sh` (prod mounts `prod.pr-unit-results-auth` read-only, never passes the unit-results credential as an environment value, and passes `GAOS_JENKINS_ORIGIN` from the deploy shell, empty by default) |
 
-TC-871 … TC-879: 9 cases (2 + 4 + 1 + 2). Go tests on `main` after v0.67.0: 733 → 742 (dashboard 708 → 717). After-counts written by the phase that adds the rows: QA cases "eight hundred and seventy-nine" (lede, register intro, `toc/product.js` ×2); Go tests "seven hundred and forty-two" (`toc/product.js`, `check-workspace.sh`); `README.md` 742 / 717; `.claude/rules/qa-test-plan.md` highest `TC-879` and the `dashboard (go test)` range `TC-850…TC-879`; phase J4 writes the decision log's "One hundred and five entries" (`decision-log.html:18`). The business-rule count stays "Sixty-five" (`brd.html:1218`, `:1524`): BR-65 and BR-52 are amended, none is added.
+TC-871 … TC-883: 13 cases (J1 2 + J2 7 + J3 1 + J4 3, of which TC-883 is a `check-stacks.sh` case). Go tests on `main` after v0.67.0: 733 → 745 (dashboard 708 → 720). After-counts, written by the phase that adds the rows (every phase exit runs `check-workspace.sh`):
+
+| After | Go tests (`toc/product.js`, `check-workspace.sh`) | `README.md` | QA cases (lede, register intro, `toc/product.js` ×2, `check-workspace.sh:128-129`) | Highest TC (`.claude/rules/qa-test-plan.md`) |
+|---|---|---|---|---|
+| J1 | seven hundred and thirty-five | 735 / 710 | eight hundred and seventy-two | TC-872 |
+| J2 | seven hundred and forty-two | 742 / 717 | eight hundred and seventy-nine | TC-879 |
+| J3 | seven hundred and forty-three | 743 / 718 | eight hundred and eighty | TC-880 |
+| J4 | seven hundred and forty-five | 745 / 720 | eight hundred and eighty-three | TC-883 |
+
+Rev 15 renumbers rev 14's poller, page and docs cases (TC-877 … TC-879) to TC-880 … TC-882 so that each phase's numbers follow the last one in use; nothing was implemented under the old numbers. The `dashboard (go test)` range becomes `TC-850…TC-882`, and the `check-stacks.sh` row gains `TC-883`. J4 also writes the decision log's "One hundred and five entries" (`decision-log.html:18` **and** `deploy/check-workspace.sh:131`), the `#go-unit-checks` heading "(TC-853 … TC-883)" and its intro naming TC-883 as `deploy/check-stacks.sh` (`qa-test-plan.html:4705`). The business-rule count stays "Sixty-five" (`brd.html:1218`, `:1524`): BR-65 and BR-52 are amended, none is added.
 
 ## 10. Registers
 
@@ -484,14 +497,14 @@ TC-871 … TC-879: 9 cases (2 + 4 + 1 + 2). Go tests on `main` after v0.67.0: 73
 
 Next free numbers verified on `main` at v0.67.0 (`7f63709`): the decision log ends at `d-105` (`pustaka/docs/product/decision-log.html`), the BRD at BR-65 (`brd.html:1310`), the QA plan at TC-870 (`.claude/rules/qa-test-plan.md:50`), the schema at `21-unit-checks.sql`.
 
-- **D-106** (new): "Unit-test results may come from the organisation's Jenkins instead of GitHub Actions. `UnitChecks.Source` is `github-actions` (the default and every existing record) or `jenkins`. With `jenkins`, Jenkins runs the unit tests on its own agents and posts each merge build's result to `POST /api/v1/products/{id}/unit-results` with the product's staging credential (D-088); the result finishes the pending watch of that merge commit through the same store call as a GitHub check, so the outcomes, the held defect, the pass-close and the notices of D-105 are unchanged. GAOS still executes nothing. A result for a merge GAOS has not seen is answered 404 and stored nowhere; the Jenkins stage retries for 10 minutes; a merge with no result ends `no-ci` after 6 hours. The Auto-fix page shows a 'Before you switch this on' checklist, including the rule that tests needing a database or the network skip under `go test -short`. **Residuals:** the Jenkins credential is the whole trust anchor — a holder of it can post any result for a pending merge of its product, closing a released defect with a forged pass or filing a held defect with invented test names (the hold and the admin release bound the second); the credential is shared with the staging callback, so one leak reaches both; a writer of the Jenkinsfile (or of a script it calls) can forge the result, as a writer of the workflow can under D-105; a merge Jenkins never built (coalesced builds) is not tested; the stage's report step must run where the code under test never ran, or a test could read the credential (§11.1) — GAOS cannot check that. Operator instruction of 2026-11-27 (design §26)."
+- **D-106** (new): "Unit-test results may come from the organisation's Jenkins instead of GitHub Actions. `UnitChecks.Source` is `github-actions` (the default and every existing record) or `jenkins`. With `jenkins`, Jenkins runs the unit tests on its own agents and posts each merge build's result to `POST /api/v1/products/{id}/unit-results` with the product's **unit-results credential**, a line in its own file `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`, checked by the staging callback's gate (D-088) but never shared with it; the result finishes the pending watch of that merge commit through the same store call as a GitHub check, so the outcomes, the held defect, the pass-close and the notices of D-105 are unchanged, and the watch records the caller's address, the posted result and the build link, with the actor `jenkins:<product>`. GAOS still executes nothing. A result for a merge GAOS has not seen is answered 409 `no-watch` and stored nothing; the Jenkins stage retries only that answer for 10 minutes; a merge with no result ends `no-ci` after 6 hours, and a result arriving within 24 hours after that is still accepted; a second, different result for a finished merge is refused and reported to the group. **Fix to D-088's gate:** the failure lock is keyed on the edge-set client address (`X-Real-IP`, else the rightmost public `X-Forwarded-For` hop), the product and the route, never on the caller-supplied first hop, for the staging callback too. The Auto-fix page shows a 'Before you switch this on' checklist, including the rule that tests needing a database or the network skip under `go test -short`. **Conditions the owner must meet (GAOS cannot check them):** the Jenkins credential is bound only by jobs that build the unit bases — folder-scoped or branch-restricted, or held by a separate report job defined outside the repository — and the report agent's label is restricted to that job. **Residuals:** the credential is the whole trust anchor — a holder can post any result for a pending merge of its product, closing a released defect with a forged pass or filing a held defect with invented test names (the hold and the admin release bound the second); **anyone who can push a branch the pipeline builds can read the credential unless it is scoped as above**; a writer of the Jenkinsfile (or of a script it calls) can forge the result, as a writer of the workflow can under D-105; a merge Jenkins never built (coalesced builds) is not tested; the report must run where the code under test never ran (§11.1). Operator instruction of 2026-11-27 (design §26, §27)."
 - **D-105** amended (one sentence appended): "Results may also come from Jenkins (D-106)."
 - **BR-65** amended: "A failing named CI check of a fix-target repository's merge commit, from the workflow the operator configured, **or a failing result the product's Jenkins posts for that commit with the product's credential**, files or updates …" (the rest unchanged); and the last sentence: "When the check passes, **or Jenkins posts a pass**, at a later merge on the same base, the defect closes, …". The `<em>` reference gains D-106.
-- **BR-52** amended (`brd.html:1352`): "One route is the stated exception: `POST /v1/products/{id}/staging` …" becomes "**Two routes are the stated exception: `POST /v1/products/{id}/staging` and `POST /v1/products/{id}/unit-results`** answer HTTP Basic, one credential per product from one file, shared by both, and a credential valid for another product is 404 (D-088, D-106); **they are** registered with the bearer routes, so BR-55 still holds." The reference gains D-106.
+- **BR-52** amended (`brd.html:1352`): "One route is the stated exception: `POST /v1/products/{id}/staging` …" becomes "**Two routes are the stated exception: `POST /v1/products/{id}/staging` and `POST /v1/products/{id}/unit-results`** answer HTTP Basic, one credential per product **from each route's own file**, and a credential valid for another product is 404 (D-088, D-106); **they are** registered with the bearer routes, so BR-55 still holds, **and a test lists them by name (TC-878)**." The reference gains D-106.
 - **BR-55** — verified, unchanged: it refuses every route "unless it is on a fixed public list or is a bearer route" (`brd.html:1355`); the new route is registered in the machine API beside staging (`api_v1.go:442-444`), so it is a bearer-mux route, as BR-52's sentence already records for staging.
 - **D-088** — unchanged; D-106 cites it for the credential.
-- Schema `22-unit-results.sql`; route `POST /api/v1/products/{id}/unit-results`; environment `GAOS_JENKINS_ORIGIN`; product `unitChecks.source`; QA test plan rows **TC-871 … TC-879** in `#go-unit-checks`; release **v0.68.0**.
-- No new event type (BR-05), task status, notice kind (`unit:failure` is reused) or label.
+- Schema `22-unit-results.sql`; route `POST /api/v1/products/{id}/unit-results`; environment `GAOS_JENKINS_ORIGIN` and `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`; product `unitChecks.source`; QA test plan rows **TC-871 … TC-883** in `#go-unit-checks`; release **v0.68.0**.
+- No new event type (BR-05), task status, notice kind (`unit:failure` is reused, also for the conflict line) or label.
 
 ## 11. The workflow the repository owner adds
 
@@ -556,82 +569,77 @@ jobs:
 
 The repository's existing workflows are untouched. The SHAs are the `v7.0.1` and `v7.1.0` release commits of `actions/checkout` and `actions/setup-go` (looked up and verified on 2026-11-27); the owner re-verifies them as above and may update them.
 
-### 11.1 The Jenkins stage the repository owner adds (rev 14, `Source jenkins`)
+### 11.1 The Jenkins stage the repository owner adds (rev 14, rewritten in rev 15, `Source jenkins`)
 
-GAOS needs one thing from Jenkins: for each build of a unit base whose commit is a merge GAOS watches, one `POST` of §5.4 with that commit's result. Its rules:
+GAOS needs one thing from Jenkins: for each build of a unit base whose commit is a merge GAOS watches, one `POST` of §5.4 with that commit's result. **Verified on: none yet** — the templates below are checked by reading, not by a run; the first real run is the check (§0 *Success*). Rev 15 splits the work in two, because in a multibranch pipeline every branch builds its own Jenkinsfile and a branch pusher controls it (review §27, SEC-2):
 
-- it runs in the repository's **multibranch** pipeline, on the unit bases only (`when { anyOf { branch … } }`); `GIT_COMMIT` is the built commit, which for a merge build is the pull request's `merge_commit_sha` (*assumption*: the organisation merges with GitHub's merge, squash or rebase button, each of which makes the branch head the commit GitHub reports as `merge_commit_sha`);
-- **the code under test never shares a machine or a container with the credential.** The test stage runs in a disposable container agent with no credential and `stash`es its outputs; the report stage `unstash`es them on an agent labelled `gaos-report` that has `jq` and `curl` and has never run the code under test, and only that stage binds the credential (`withCredentials`, `usernamePassword`). A test that left a process behind cannot read `/proc/<pid>/environ` of a later step it never shares a host with. *Assumption*: the organisation's Jenkins can run a Docker agent and has, or can label, a reporting agent; if it cannot, the report must at least run on a different agent from the test stage — the docs say so;
-- the credential is the product's staging credential (`productId:user:password` in `GAOS_STAGING_BASIC_AUTH_FILE`), stored in Jenkins as a *Username with password* credential; the password reaches `curl` on its standard input (`-K -`), never on its command line;
-- `go test -short -json ./...` — tests that need a database, the network or another service skip under `-short` (§11.2) before the switch is turned on; `go.mod` at the repository root;
-- leaf tests only, at most **50** named, the file found as in §11 (`func <TopLevelTest>(` in the package directory's `*_test.go`, not recursive);
-- the result: `passed` when `go test` exits 0; `failed` when it does not and a leaf test failed; `build-failed` otherwise, with the first 1,800 bytes of `go test`'s standard error followed by its `build-output` events (Go 1.24 and later report build errors in the JSON stream) as the summary, under the 2 KiB limit (*assumption*: the build output is mostly ASCII; a summary over 2 KiB is answered 422 and the build is marked unstable, which the docs state);
-- the report stage has no stage-level agent and allocates `node('gaos-report')` per attempt inside `script` (*assumption*, to verify on the first run: the organisation's declarative pipeline permits a stage with no agent under `agent none`, which Jenkins documents for stages whose steps allocate their own node);
-- on **404 or 429** the report retries once a minute, at most 10 times, **sleeping outside `node`** so no executor is held; any other answer but 200/202 marks the build *unstable* and stops (it never fails the build: the merge already happened).
+- **The test stage, in the repository's multibranch Jenkinsfile.** It runs `go test` on the unit bases only, in a disposable container with **no credential**, resolves each failing test to its file **there**, and archives four small data files (`unit/status.txt`, `unit/total.txt`, `unit/failing.tsv`, `unit/summary.txt`). At the end of the pipeline (`post { always }`, after every other stage, so it never gates deploy) it triggers the report job with the commit, `wait: false`.
+- **The report job, defined in Jenkins by an administrator, outside any repository** (a Pipeline job `gaos-unit-report` in a folder that holds the credential). It is the **only** holder of the credential. It takes the upstream job and build from the **build cause** Jenkins records (`currentBuild.getBuildCauses`), never from a parameter, and refuses any upstream that is not a unit-base job of the repository, so a branch build that triggers it gets nothing. It copies the four files, builds the body with `jq`, and posts it.
+
+Its rules:
+
+- **Credential scope (owner's condition, D-106).** The unit-results credential (`productId:user:password` in `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`, §5.4 — not the staging one) is stored as *Username with password* **in the report job's folder only**, so no multibranch build can bind it; the `gaos-report` agent label is restricted to that job (for example with the Job Restrictions plugin), so no other job's code runs there. GAOS cannot check either. If the organisation cannot run a separate job, the report steps run in the Jenkinsfile's `post { always }` on a `gaos-report` node, and the credential **must** then be branch-restricted to the unit bases; without that, anyone who can push a branch the pipeline builds can read it (the D-106 residual).
+- **The commit** is captured in Groovy in the test stage, `env.UNIT_COMMIT = env.GIT_COMMIT`, before any test runs, and passed to the report job; `GIT_COMMIT` is the built commit, which for a merge build is the pull request's `merge_commit_sha` (*assumption*: the organisation merges with GitHub's merge, squash or rebase button). The branch and the build URL come from the build cause.
+- **Go in the container.** The image tag matches the `go` line of `go.mod` (the owner sets it; the template shows `golang:1.24-bookworm` as an example). `HOME`, `GOCACHE` and `GOMODCACHE` are under `$WORKSPACE`, because a Jenkins Docker agent runs as the Jenkins user's uid and cannot write the image's `/go` or `/.cache`. Private modules are downloaded in a **separate** `go mod download` step that binds the module token and removes the git rewrite; `go test -short -json ./...` runs with no secret in its environment. Tests that need a database, the network or another service skip under `-short` (§11.2) before the switch is turned on; `go.mod` at the repository root.
+- **Leaf tests only**, at most **50** named; the file found as in §11 (`func <TopLevelTest>(` in the package directory's `*_test.go`, not recursive); a `$dir` that is absolute or contains `..` is skipped; an entry whose test or file is over 512 bytes is dropped (GAOS would drop it too, §5.4). The test events are read with `sed` because the Go image has no `jq` (*assumption*: `go test -json` writes `"Action"`, `"Package"`, `"Test"` in that order, which is the field order of `test2json`'s event).
+- **The result:** `passed` when `go test` exits 0; `failed` when it does not and a leaf test failed; `build-failed` otherwise, with up to 1,800 bytes of `go test`'s standard error and its `build-output` lines as the summary (GAOS caps it at 2 KiB on a rune boundary, §5.4).
+- **Never fails a build.** The trigger is `wait: false` inside `catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE')`; in the report job each attempt is inside the same `catchError`, and a curl transport error is the code `000`.
+- **Retry only what can change:** `409` with `error` `no-watch`, `429`, `000`, `502` and `503`, once a minute, at most 10 times, **sleeping outside `node`** so no executor is held. A `404` (wrong product) or any other answer is not retried; any answer but 200/202 marks the report job *unstable*. A Replay of a base build posts again: the same result is 200 duplicate, a different one is 409 `already-finished` and the group is told (§5.4 state 6).
+- **The password reaches `curl` on its standard input** (`-K -`), with `\` and `"` escaped for curl's config syntax, never on its command line.
 
 ```groovy
-// Jenkinsfile (multibranch) — Route Planner (p-9), repository acme/route-api.
-// The credential "gaos-p-9" is the product's staging credential (Username with password).
+// Jenkinsfile (multibranch) — Route Planner (p-9), repository acme/route-api. Verified on: none yet.
+// The test stage holds no credential. The image tag matches the `go` line of go.mod.
 pipeline {
   agent none
-  environment { GAOS_URL = 'https://gaos.acme.example' }
+  options { copyArtifactPermission('gaos-unit-report') }
   stages {
+    // … the organisation's existing stages …
     stage('unit tests') {
-      when { anyOf { branch 'develop'; branch 'staging'; branch 'main' } }
-      agent { docker { image 'golang:1.23-bookworm' } }   // the code under test runs here, with no credential
+      when { beforeAgent true; anyOf { branch 'develop'; branch 'staging'; branch 'main' } }
+      agent { docker { image 'golang:1.24-bookworm' } }
+      environment {
+        HOME       = "${WORKSPACE}/.home"
+        GOCACHE    = "${WORKSPACE}/.cache/go-build"
+        GOMODCACHE = "${WORKSPACE}/.cache/go-mod"
+      }
       steps {
+        script { env.UNIT_COMMIT = env.GIT_COMMIT }      // Groovy, before any test runs
+        // Private modules only: bind the module token here, then remove the rewrite.
+        sh 'go mod download'
         sh '''#!/bin/bash
-          go test -short -json ./... > test.json 2> test.err
-          echo $? > test.status
-          go list -m > module.txt
+          set +e
+          mkdir -p unit
+          go test -short -json ./... > unit/test.json 2> unit/test.err
+          echo $? > unit/status.txt
+          mod=$(go list -m)
+          # leaf tests only: a parent fails when a subtest fails; keep the deepest names
+          sed -n 's/.*"Action":"fail","Package":"\\([^"]*\\)","Test":"\\([^"]*\\)".*/\\1 \\2/p' unit/test.json | sort -u |
+            awk '{a[NR]=$0} END {for(i=1;i<=NR;i++){leaf=1; for(j=1;j<=NR;j++) if(j!=i && index(a[j], a[i]"/")==1) leaf=0; if(leaf) print a[i]}}' > unit/fails.txt
+          grep -c . unit/fails.txt > unit/total.txt
+          : > unit/failing.tsv
+          head -n 50 unit/fails.txt | while read -r pkg test; do
+            dir=${pkg#"$mod"}; dir=${dir#/}; [ -z "$dir" ] && dir=.
+            case "$dir" in /*|*..*) continue;; esac
+            file=$(grep -l "func ${test%%/*}(" "$dir"/*_test.go 2>/dev/null | head -n 1); file=${file#./}
+            [ ${#test} -gt 512 ] || [ ${#file} -gt 512 ] && continue
+            printf '%s\t%s\n' "$test" "$file" >> unit/failing.tsv
+          done
+          { cat unit/test.err; sed -n 's/.*"Action":"build-output".*"Output":"\\(.*\\)"}$/\\1/p' unit/test.json; } | head -c 1800 > unit/summary.txt
           exit 0
         '''
-        stash name: 'unit', includes: 'test.json,test.err,test.status,module.txt,**/*_test.go'
+        archiveArtifacts artifacts: 'unit/status.txt,unit/total.txt,unit/failing.tsv,unit/summary.txt'
       }
     }
-    stage('report to GAOS') {
-      when { anyOf { branch 'develop'; branch 'staging'; branch 'main' } }
-      steps {
-        script {
-          def code = ''
-          for (int i = 0; i < 10; i++) {
-            node('gaos-report') {                          // has jq and curl; never runs the code under test
-              unstash 'unit'
-              sh '''#!/bin/bash
-                status=$(cat test.status); mod=$(cat module.txt)
-                # leaf tests only: a parent fails when a subtest fails; keep the deepest names
-                jq -r 'select(.Action=="fail" and .Test!=null) | .Package + " " + .Test' test.json | sort -u |
-                  awk '{a[NR]=$0} END {for(i=1;i<=NR;i++){leaf=1; for(j=1;j<=NR;j++) if(j!=i && index(a[j], a[i]"/")==1) leaf=0; if(leaf) print a[i]}}' > fails.txt
-                n=$(grep -c . fails.txt)
-                head -n 50 fails.txt | while read -r pkg test; do
-                  dir=${pkg#"$mod"}; dir=${dir#/}; [ -z "$dir" ] && dir=.
-                  file=$(grep -l "func ${test%%/*}(" "$dir"/*_test.go 2>/dev/null | head -n 1); file=${file#./}
-                  jq -n --arg t "$test" --arg f "$file" '{test: $t, file: $f}'
-                done | jq -s . > failing.json
-                summary=''
-                if [ "$status" = 0 ]; then result=passed; n=0; echo '[]' > failing.json
-                elif [ "$n" -gt 0 ]; then result=failed
-                else result=build-failed; echo '[]' > failing.json; summary=$( { cat test.err; jq -r 'select(.Action=="build-output") | .Output' test.json; } | head -c 1800)
-                fi
-                jq -n --arg repo acme/route-api --arg commit "$GIT_COMMIT" --arg branch "$BRANCH_NAME" \
-                  --arg result "$result" --argjson total "$n" --slurpfile failing failing.json \
-                  --arg summary "$summary" --arg runUrl "$BUILD_URL" \
-                  '{repo: $repo, commit: $commit, branch: $branch, result: $result, total: $total,
-                    failing: $failing[0], summary: $summary, runUrl: $runUrl}' > body.json
-              '''
-              withCredentials([usernamePassword(credentialsId: 'gaos-p-9',
-                                                usernameVariable: 'GAOS_USER', passwordVariable: 'GAOS_PASS')]) {
-                code = sh(returnStdout: true, script: '''#!/bin/bash
-                  printf 'user = "%s:%s"\n' "$GAOS_USER" "$GAOS_PASS" |
-                    curl -sS -K - -o answer.json -w '%{http_code}' -H 'Content-Type: application/json' \
-                      --data-binary @body.json "$GAOS_URL/api/v1/products/p-9/unit-results"
-                ''').trim()
-              }
-            }
-            if (code != '404' && code != '429') { break }
-            sleep(time: 60, unit: 'SECONDS')               // outside node: no executor is held
+  }
+  post {
+    always {                                             // after every stage: never gates deploy
+      script {
+        if (env.UNIT_COMMIT) {
+          catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+            build job: 'gaos-unit-report', wait: false,
+                  parameters: [string(name: 'COMMIT', value: env.UNIT_COMMIT)]
           }
-          if (code != '200' && code != '202') { unstable("GAOS answered ${code} to the unit-test result") }
         }
       }
     }
@@ -639,7 +647,76 @@ pipeline {
 }
 ```
 
-The sample body the docs show beside it (and TC-879 posts to the route):
+```groovy
+// Job "gaos-unit-report" — a Pipeline job an administrator defines in Jenkins, in the folder that holds
+// the credential "gaos-p-9" (the product's unit-results credential). Not in any repository. Verified on: none yet.
+pipeline {
+  agent none
+  parameters { string(name: 'COMMIT', defaultValue: '') }
+  options { timeout(time: 15, unit: 'MINUTES') }
+  stages {
+    stage('report to GAOS') {
+      steps {
+        script {
+          def up = currentBuild.getBuildCauses('org.jenkinsci.plugins.workflow.support.steps.build.BuildUpstreamCause')
+          if (up.size() != 1) { error('not triggered by a unit-base build') }
+          def job = up[0].upstreamProject, num = up[0].upstreamBuild.toString()
+          def branch = job.tokenize('/').last()
+          if (!(job ==~ /(.*\/)?route-api\/(develop|staging|main)/)) { error("not a unit-base job: ${job}") }
+          if (!(params.COMMIT ==~ /[0-9a-f]{40}/)) { error('no commit') }
+          def runUrl = "${env.JENKINS_URL}${up[0].upstreamUrl}${num}/"
+          def answer = ''
+          for (int i = 0; i < 10; i++) {
+            node('gaos-report') {                       // label restricted to this job; has jq and curl
+              deleteDir()
+              catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                copyArtifacts projectName: job, selector: specific(num), filter: 'unit/*'
+                withEnv(["U_COMMIT=${params.COMMIT}", "U_BRANCH=${branch}", "U_RUN=${runUrl}"]) {
+                  sh '''#!/bin/bash
+                    set -e
+                    status=$(cat unit/status.txt); n=$(cat unit/total.txt)
+                    jq -R -s 'split("\\n") | map(select(length > 0) | split("\\t") | {test: .[0], file: (.[1] // "")})' \
+                      unit/failing.tsv > failing.json
+                    summary=''
+                    if [ "$status" = 0 ]; then result=passed; n=0; echo '[]' > failing.json
+                    elif [ "$(jq length failing.json)" -gt 0 ]; then result=failed
+                    else result=build-failed; echo '[]' > failing.json; summary=$(cat unit/summary.txt)
+                    fi
+                    jq -n --arg repo acme/route-api --arg commit "$U_COMMIT" --arg branch "$U_BRANCH" \
+                      --arg result "$result" --argjson total "$n" --slurpfile failing failing.json \
+                      --arg summary "$summary" --arg runUrl "$U_RUN" \
+                      '{repo: $repo, commit: $commit, branch: $branch, result: $result, total: $total,
+                        failing: $failing[0], summary: $summary, runUrl: $runUrl}' > body.json
+                  '''
+                }
+                withCredentials([usernamePassword(credentialsId: 'gaos-p-9',
+                                                  usernameVariable: 'GAOS_USER', passwordVariable: 'GAOS_PASS')]) {
+                  answer = sh(returnStdout: true, script: '''#!/bin/bash
+                    cred=$(printf '%s:%s' "$GAOS_USER" "$GAOS_PASS" | sed 's/[\\\\"]/\\\\&/g')
+                    code=$(printf 'user = "%s"\\n' "$cred" |
+                      curl -sS -K - -o answer.json -w '%{http_code}' -H 'Content-Type: application/json' \
+                        --data-binary @body.json 'https://gaos.acme.example/api/v1/products/p-9/unit-results' || true)
+                    err=$(jq -r '.error // ""' answer.json 2>/dev/null || true)
+                    echo "${code:-000} ${err}"
+                  ''').trim()
+                }
+              }
+            }
+            def code = answer.tokenize(' ')[0] ?: '000'
+            def err = answer.tokenize(' ').size() > 1 ? answer.tokenize(' ')[1] : ''
+            def again = (code == '409' && err == 'no-watch') || code in ['429', '000', '502', '503']
+            if (!again) { break }
+            sleep(time: 60, unit: 'SECONDS')               // outside node: no executor is held
+          }
+          if (!(answer.startsWith('200') || answer.startsWith('202'))) { unstable("GAOS answered ${answer}") }
+        }
+      }
+    }
+  }
+}
+```
+
+The sample body the docs show beside it, in `<pre id="unit-results-sample">` under `#release-b-unit-jenkins` (TC-882 extracts it from that element and posts it to the route):
 
 ```json
 {"repo":"acme/route-api","commit":"0123456789abcdef0123456789abcdef01234567","branch":"develop",
@@ -649,7 +726,7 @@ The sample body the docs show beside it (and TC-879 posts to the route):
  "summary":"","runUrl":"https://jenkins.acme.example/job/route-api/job/develop/42/"}
 ```
 
-GAOS never writes the Jenkinsfile. The owner merges it through an ordinary reviewed pull request; a writer of it can forge the result (D-106 residual), as a writer of the workflow can (D-105).
+GAOS never writes the Jenkinsfile or the report job. The owner merges the Jenkinsfile through an ordinary reviewed pull request and an administrator defines the report job; a writer of either can forge the result (D-106 residual), as a writer of the workflow can (D-105). Review of the merged pull request does not guard branch builds: the credential scope above does.
 
 ### 11.2 Tests that need a database or the network skip under `-short` (rev 14)
 
@@ -712,32 +789,40 @@ CREATE INDEX IF NOT EXISTS ON UnitWatch (tenantId, productId, state) NOTUNIQUE;
 
 | File | Change |
 |---|---|
-| new `dashboard/schema/22-unit-results.sql`, `artifacts/v1/gaos-arcadedb-model.html` | `CREATE PROPERTY UnitWatch.runUrl IF NOT EXISTS STRING;` (the DDL below); the model page's `UnitWatch` row gains `runUrl`. `unitChecks.source` is schema-less on the Product, like the rest of `unitChecks` (§4.1), so it needs no DDL |
+| new `dashboard/schema/22-unit-results.sql`, `artifacts/v1/gaos-arcadedb-model.html` | `UnitWatch.runUrl`, `postedFrom`, `postedResult` (the DDL below); the model page's `UnitWatch` row gains the three. `unitChecks.source` is schema-less on the Product, like the rest of `unitChecks` (§4.1), so it needs no DDL |
 | `dashboard/model.go` | `UnitChecks.Source`, `SourceName()`, the constants `unitSourceGitHub = "github-actions"`, `unitSourceJenkins = "jenkins"` |
-| `dashboard/unitchecks.go` | `validateUnitChecks` refuses another source; the `SetUnitChecks` event text per source (`<product>: unit checks on (jenkins, bases …, cap n)`); `UnitWatch.RunURL`; `UnitWatch(ctx, key)` on `MemStore`, `ArcadeStore` (reads the projection), `readOnly` |
-| `dashboard/unitdefect.go` | `FinishUnitWatchFrom` (and `FinishUnitWatch` delegating with `""`); `unitRunRef` writes `jenkins` for run id 0 |
-| `dashboard/store.go`, `store_arcade_unitwatch.go` | the two methods on `Store`; `runUrl` in `writeUnitWatch` and `loadUnitWatches` |
-| new `dashboard/unitresults.go` | `apiUnitResults`, `unitResultBody`, `unitResultFailure`, `unitResultIn`, the state checks and the mapping (§5.4) |
-| `dashboard/staging.go` | `jenkinsGate` holds the prelude of `apiStaging` (no behaviour change); `stagingAuth.has(id)` |
+| `dashboard/unitchecks.go` | `validateUnitChecks` refuses another source; the `SetUnitChecks` event text per source (`<product>: unit checks on (jenkins, bases …, cap n)`); `UnitWatch.RunURL`, `PostedFrom`, `PostedResult`; `UnitWatch(ctx, key)` on `MemStore`, `ArcadeStore` (reads the projection), `readOnly` |
+| `dashboard/unitdefect.go` | `UnitPosted`, `FinishUnitWatchFrom` (the late re-finish over `no-ci`, the `jenkins:<product>` actor; `FinishUnitWatch` delegating with `UnitPosted{}`); `unitRunRef` writes `jenkins` for run id 0 |
+| `dashboard/store.go`, `store_arcade_unitwatch.go` | the two methods on `Store`; `runUrl`, `postedFrom`, `postedResult` in `writeUnitWatch` and `loadUnitWatches` |
+| new `dashboard/unitresults.go` | `apiUnitResults`, `unitResultBody`, `unitResultFailure`, `unitResultIn`, the state checks (6a/6b/6c) and the mapping, the conflict notice and log line (§5.4) |
+| `dashboard/staging.go` | `jenkinsGate(w, r, a, off)` holds the prelude of `apiStaging`; `stagingAuthFromEnv` takes the variable name, so `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE` uses the same parser; `jenkinsSource` replaces `stagingSource` (X-Real-IP, the rightmost public hop, the peer) and the lock key gains the product — the one staging behaviour change (§5.4); `stagingAuth.has(id)` |
 | `dashboard/api_v1.go` | `handle("POST /v1/products/{id}/unit-results", s.apiUnitResults)` beside staging, with a comment naming D-106 and BR-52 |
 | `dashboard/unitpoll.go` | the `jenkins` branch of §5.5 in `unitPass`/`unitCheck`; the Jenkins daily line |
-| `dashboard/main.go` | `GAOS_JENKINS_ORIGIN` read at boot (`server.jenkinsOrigin`); `srv.unitNotify` set to the poller's closure; one boot log line `unit results: jenkins origin <set/unset>` |
-| `dashboard/handlers_autofix.go` | the `source` field (absent keeps the stored source); the credential refusal |
-| `dashboard/autofix_view.go`, `dashboard/templates/backoffice.html`, `dashboard/static/app.js` | `AFUnit.Source/Jenkins/JenkinsReady/BaseList`, `AFUnitRepo.RunURL/RunLink`, `afUnit(…, jenkinsReady)`, `unitOutcomeLabel(o, source)`; the select, the two blocks, the checklist, the source copy, the build link; the `change` listener. `static/app.css` is **not** changed (§4.3) |
-| `deploy/stacks/compose.prod.yaml` | `GAOS_JENKINS_ORIGIN: "${GAOS_JENKINS_ORIGIN:-}"` beside `GAOS_STAGING_BASIC_AUTH_FILE` |
-| tests | new `dashboard/unitresults_test.go` (TC-873 … TC-876, TC-879); `unitchecks_test.go` (TC-871, TC-872 (A), TC-878); `unitpoll_test.go` (TC-877); `staging_test.go` keeps passing unchanged (the refactor's guard); `store_conformance_test.go` read-only table gains `UnitWatch` and `FinishUnitWatchFrom` |
-| `pustaka/docs/integrations/agents.html` | `#release-b-unit`: a source paragraph and a second flow (Jenkins posts); new `#release-b-unit-jenkins` (§11.1: the stage, the sample body, the retry, the credential rule, the answers table of §5.4); new `#release-b-unit-short` (§11.2); the GitHub Actions template kept under `#release-b-unit-workflow` as the alternative source; `Route Planner` / `acme/*` only |
-| `pustaka/docs/integrations/pr-agents.html` | `#unit-checks` names both sources and links `#release-b-unit-jenkins`; the staging section's "This is the one machine route that answers HTTP Basic" becomes "one of two" and links the unit-results route; the merge row of the summary table names Jenkins (`pr-agents.html:37`) |
-| `pustaka/docs/product/{decision-log,brd,qa-test-plan}.html`, `pustaka/docs/changelog.html`, `pustaka/docs/assets/toc/product.js`, `pustaka/docs/assets/toc.js` (if a new anchor is listed), `README.md`, `deploy/check-workspace.sh`, `.claude/rules/qa-test-plan.md` | D-106, the D-105 sentence, BR-65, BR-52; TC-871 … TC-879 and the counts (§9.1); v0.68.0 |
+| `dashboard/main.go` | `server.unitResults` read from `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE` beside `staging` (`main.go:370`), with a boot line `unit results: credentials for <n> product(s)` or `unit results: off (<why>)` like staging's (`main.go:446-449`); `GAOS_JENKINS_ORIGIN` read at boot (`server.jenkinsOrigin`); `srv.unitNotify` set to the poller's closure; one boot log line `unit results: jenkins origin <set/unset>` |
+| `dashboard/handlers_autofix.go` | the `source` field (presence by `r.PostForm["source"]`; absent keeps the stored source); the credential refusal against `s.unitResults` |
+| `dashboard/autofix_view.go`, `dashboard/templates/backoffice.html`, `dashboard/static/app.js` | `AFUnit.Source/Jenkins/JenkinsReady/BaseList`, `AFUnitRepo.RunURL/RunLink`, `afUnit(pr, m, ws, jenkinsReady bool, origin string)`, `unitOutcomeLabel(o, source)`; the select, the two blocks in the field order of §4.3, the missing-credential line inside a `kind-row`, the checklist, the source copy, the build link; the `change` listener beside `app.js:79-83`. `static/app.css` is **not** changed (§4.3) |
+| `deploy/stacks/compose.prod.yaml` | `GAOS_JENKINS_ORIGIN: "${GAOS_JENKINS_ORIGIN:-}"` and `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE: "/run/secrets/pr-unit-results-auth"` beside `GAOS_STAGING_BASIC_AUTH_FILE` (`compose.prod.yaml:176`); the mount `./prod.pr-unit-results-auth:/run/secrets/pr-unit-results-auth:ro` beside `:216` |
+| `deploy/check-stacks.sh` | beside `:207-224`: `has $PROD 'GAOS_JENKINS_ORIGIN: "${GAOS_JENKINS_ORIGIN:-}"'`, `has $PROD 'prod.pr-unit-results-auth:/run/secrets/pr-unit-results-auth:ro'`, `hasnt $PROD 'GAOS_UNIT_RESULTS_BASIC_AUTH:'` (file only, never an environment value) — TC-883, recorded in the QA plan's `check-stacks.sh` row in J4 |
+| `deploy/rebuild-restart.sh` | `prod.pr-unit-results-auth` joins the credential-file loop (`rebuild-restart.sh:233`), so a missing file stops the deploy instead of Docker creating a directory; an empty file leaves the route off (503) |
+| tests | new `dashboard/unitresults_test.go` (TC-873 … TC-876, TC-879, TC-882); `unitchecks_test.go` (TC-871, TC-872 (A), TC-881); `unitpoll_test.go` (TC-880); `staging_test.go` (TC-877; its existing tests keep passing, the refactor's guard); `auth_test.go` (TC-878); `store_conformance_test.go` read-only table gains `UnitWatch` and `FinishUnitWatchFrom` |
+| `pustaka/docs/integrations/agents.html` | `#release-b-unit`: a source paragraph and a second flow (Jenkins posts); new `#release-b-unit-jenkins` (§11.1: the test stage, the report job, the credential scope, the sample body in `<pre id="unit-results-sample">`, the retry rule, the answers table of §5.4, `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`); new `#release-b-unit-short` (§11.2); the GitHub Actions template kept under `#release-b-unit-workflow` as the alternative source; `Route Planner` / `acme/*` only |
+| `pustaka/docs/integrations/pr-agents.html` | `#unit-checks` names both sources and links `#release-b-unit-jenkins`; the staging section's "This is the one machine route that answers HTTP Basic" becomes "one of two" and links the unit-results route; the merge row of the summary table names Jenkins (`pr-agents.html:37`); the status row at `agents.html:449` ("Nothing: GitHub Actions runs the repository's own workflow") names both sources |
+| `pustaka/docs/product/{decision-log,brd,qa-test-plan}.html`, `pustaka/docs/changelog.html`, `pustaka/docs/assets/toc/product.js`, `README.md`, `deploy/check-workspace.sh`, `.claude/rules/qa-test-plan.md` | D-106, the D-105 sentence, BR-65, BR-52; TC-871 … TC-883 and the counts (§9.1), the `#go-unit-checks` heading "(TC-853 … TC-883)" (`qa-test-plan.html:4705`), `check-workspace.sh:131` "One hundred and five entries"; v0.68.0 |
+| `pustaka/docs/assets/toc/integrations.js` | `:89-90`: `release-b` and `release-b-unit` read "the repository's CI result — the GitHub Actions check GAOS reads, or the result Jenkins posts — with the workflow template and the Jenkins stage"; new entries `release-b-unit-jenkins` ("Jenkins posts the unit-test result: the stage, the report job, the credential") and `release-b-unit-short` ("Tests that need a database skip under -short") |
+| **Release (unconditional)** `pustaka/docs/assets/toc.js`, `dashboard/templates/page.html`, `README.md` | `toc.js:22` `semver: "0.68.0"`; `page.html:48,50,51` `?v=0.68.0` on `app.css`, `app.js`, `live.js` (`TestStaticAssetsAreVersionedByTheProductVersion`, `external_inbox_test.go:893-915`, and browsers fetch the new `app.js`); `README.md` "Product version 0.68.0" (`check-workspace.sh:138,149`) |
 
 ```sql
 -- 22 - Unit results from Jenkins (D-106; docs/designs/release-b4-unit-tests.md §5.4).
--- runUrl is the Jenkins build URL a posted result carried (https, at most 512 bytes, screened);
+-- runUrl is the Jenkins build URL a posted result carried (https, at most 512 bytes, screened, else empty);
 -- empty for a GitHub Actions result. Shown on the Auto-fix page, never sent to an agent.
-CREATE PROPERTY UnitWatch.runUrl IF NOT EXISTS STRING;
+-- postedFrom is the caller's address as the gate keyed it; postedResult the result it posted
+-- (passed | failed | build-failed). Both empty for a GitHub Actions result.
+CREATE PROPERTY UnitWatch.runUrl       IF NOT EXISTS STRING;
+CREATE PROPERTY UnitWatch.postedFrom   IF NOT EXISTS STRING;
+CREATE PROPERTY UnitWatch.postedResult IF NOT EXISTS STRING (regexp '|passed|failed|build-failed');
 ```
 
-Count: 16 Go files in `dashboard/` — 11 changed code files (`model.go`, `unitchecks.go`, `unitdefect.go`, `store.go`, `store_arcade_unitwatch.go`, `staging.go`, `api_v1.go`, `unitpoll.go`, `main.go`, `handlers_autofix.go`, `autofix_view.go`), 2 new (`unitresults.go`, `unitresults_test.go`) and 3 changed test files (`unitchecks_test.go`, `unitpoll_test.go`, `store_conformance_test.go`) — plus 1 schema file, 1 template, 1 script (`app.js`), 1 stack file, and the docs and register files of the last three rows.
+Count: 18 Go files in `dashboard/` — 11 changed code files (`model.go`, `unitchecks.go`, `unitdefect.go`, `store.go`, `store_arcade_unitwatch.go`, `staging.go`, `api_v1.go`, `unitpoll.go`, `main.go`, `handlers_autofix.go`, `autofix_view.go`), 2 new (`unitresults.go`, `unitresults_test.go`) and 5 changed test files (`unitchecks_test.go`, `unitpoll_test.go`, `staging_test.go`, `auth_test.go`, `store_conformance_test.go`) — plus 1 schema file, 2 templates (`backoffice.html`, `page.html`), 1 script (`app.js`), 3 deploy files (`compose.prod.yaml`, `check-stacks.sh`, `rebuild-restart.sh`), and the docs, register and release files of the last rows.
 
 ## 13. Alternatives
 
@@ -755,7 +840,8 @@ Count: 16 Go files in `dashboard/` — 11 changed code files (`model.go`, `unitc
 | *(rev 14)* Hold a result that arrives before its watch (an "early result" keyed `repo@sha`, 2 h, persisted) | a second persisted type, a TTL and a reconciliation at planting, for a window of seconds to minutes that a one-minute retry for 10 minutes already covers; a 404 stores nothing, so a non-merge build leaves no trace (§5.4) |
 | *(rev 14)* Jenkins posts a commit status to GitHub and GAOS reads it | any token with `repo:status` can post one (the row above); it needs a GitHub write credential in Jenkins; and it would reopen the statuses GAOS deliberately never reads (§5.1) |
 | *(rev 14)* GAOS polls the Jenkins API for the build of the merge commit | a new outbound origin and an egress entry, a Jenkins API token held by GAOS, and a job-name mapping per repository; Jenkins already calls GAOS for staging with a credential GAOS holds (D-088) |
-| *(rev 14)* A separate credential file for unit results | the operator asked for the staging callback's authentication exactly; one credential per product to rotate; the shared residual is stated (D-106) and a separate file can follow without changing the route |
+| *(rev 14, reversed in rev 15)* Share the staging callback's credential | rev 14 chose it ("the staging callback's authentication exactly"); rev 15 keeps the **mechanism** (the gate, the format, the lock) and gives unit results **its own file**, because the credential now sits in every fix-target repository's pipeline and one leak would reach both routes (§27, SEC-2) |
+| *(rev 15)* A bearer client for Jenkins (an API-token client, as D-088's rejected alternatives keep for a follow-up) | it moves the secret, it does not scope it: a bearer token in the same Jenkins credential store is exactly as readable by a branch build as a Basic password; it would add a client to the API token file and a per-route scope check for one caller; the separate Basic file gives the same isolation with the existing gate. The scope rule of §11.1 is what protects either |
 | *(rev 14)* Keep only GitHub Actions | the organisation's Actions cannot run (§26); every merge would end `no-ci` |
 
 ## 14. Non-goals and risks
@@ -769,7 +855,7 @@ Non-goals: GAOS running code, merging or closing pull requests; writing missing 
 - **Flaky tests.** A flake opens, a pass closes, a recurrence reopens a held defect a person releases; bounded by the daily cap.
 - **Rate limits.** At most 50 reads per 2-minute unit pass (≈ 1,500 an hour) plus context builds, on the token the reviewer and pollers share; a limited read backs off and a watch never answered ends `inconclusive`, never `no-ci`.
 - **Injected text.** Test names, paths and summaries come from the code under test: screened on intake, fenced in the packet, screened at dispatch, read by the admin before release.
-- **Jenkins (rev 14).** The product's Jenkins credential is the trust anchor; a holder forges results for its product's pending merges, and it is shared with the staging callback (D-106). A Jenkins that coalesces builds never builds some merge commits: those end `no-ci` after 6 hours and the daily line says so. A result before the merge event is retried by Jenkins for 10 minutes, then lost (`no-ci` later). A report stage that shares a host with the test stage exposes the credential to the code under test; the template separates them and GAOS cannot check it. A forged or replayed post is bounded by the watch: only a pending watch of that exact commit accepts one, once.
+- **Jenkins (rev 14, rev 15).** The product's unit-results credential is the trust anchor; a holder forges results for its product's pending merges; it is its own file, not the staging callback's (D-106). Unless it is scoped to the report job (§11.1), anyone who can push a branch the pipeline builds can read it — GAOS cannot check the scope. A Jenkins that coalesces builds never builds some merge commits: those end `no-ci` after 6 hours and the daily line says so. A result before the merge event is retried by Jenkins for 10 minutes on `no-watch`, then lost; a result after `no-ci` is accepted for 24 hours. A forged or replayed post is bounded by the watch: only a pending (or recently `no-ci`) watch of that exact commit accepts one, once; a different second result is refused and reported, with the caller's address in the log and on the watch. The lockout keys on the edge-set address; if the edge stopped setting `X-Real-IP`, the fallback is the rightmost public hop, still never the caller's first hop.
 - **OQ-40.** A unit fix's test changes run in CI on a same-repository branch through the `pull_request` trigger, guarded by `CIConfirmed`, the admin release and the draft-only pull request.
 
 ## 15. Round-1 triage (kept as the record; § pointers refer to rev 2)
@@ -1185,4 +1271,43 @@ Round 11 (rev 12, decision C′): readiness B0 M10 N5; critic B0 M12 N9; securit
 **What rev 14 does not change:** §5.1–§5.3 for `github-actions`, §7 entirely, the outcomes' vocabulary and the `UnitWatch.outcome` DDL regexp, the event catalog (BR-05), the task-status vocabulary, labels and notice kinds.
 
 **Review.** Rev 14 touches authentication and a new machine route, so the security lens is required (`docs/rules/gaos-design-review.md:94-100`) beside the readiness and critic lenses; the reports will be `docs/designs/reviews/release-b4-unit-tests-*-12.md`, triaged in §27.
+
+**Rev 15 notes (2026-11-27).** Decisions 2 and 4 above are revised by the rev-14 review (§27): the route keeps the staging callback's **mechanism** but has **its own credential file** (`GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`) and **its own lock**; "not seen yet" is **409 `no-watch`**, never 404; the lock key no longer trusts the caller's first `X-Forwarded-For` hop, for staging too (the one staging change, recorded in D-106 as a fix to D-088's gate); a late result over `no-ci` is accepted for 24 hours and a conflicting one is refused and reported; the Jenkins work is a test stage in the repository plus a report job outside it. Decision 10's TC range becomes TC-871 … TC-883 (13 cases; rev 14's TC-877 … TC-879 renumbered to TC-880 … TC-882, §9.1). *Verified for rev 15:* `deploy/edge/gaos.conf:117` and `:165` set `X-Real-IP $remote_addr`, and `:128` and `:166` append `X-Forwarded-For`; `capBytes` is at `defects.go:294`; `afLine` at `autofix_view.go:323`; the credential-file loop at `deploy/rebuild-restart.sh:233`; the prod pass-through checks at `deploy/check-stacks.sh:207-224`.
+
+## 27. Round 12 triage (rev 14 → rev 15)
+
+Reports: `docs/designs/reviews/release-b4-unit-tests-security-review-12.md` (Critical 0, High 2, Medium 2, Low 2), `…-readiness-12.md` (B0 M5 N12), `…-critic-12.md` (B0 M6 N8). Every finding is PROPOSE FIX, applied in rev 15; none is contested, declined or escalated. Triage under the operator's delegation (`docs/designs/reviews/release-b4-unit-tests-delegation.md:14`, `:18`).
+
+| # | Finding (source) | Severity | Triage | Where |
+|---|---|---|---|---|
+| 1 | The lockout keys on the caller's first `X-Forwarded-For` hop: dodged per attempt, or used to lock Jenkins out (SEC-1) | High | PROPOSE FIX: `jenkinsSource` = `X-Real-IP` (nginx-set, `gaos.conf:117,165`), else the rightmost public hop, else the peer; key per source, product and route; applies to staging too, recorded in D-106 as a fix to D-088's gate; no edge change; the Traefik pass-through is a J2 assumption checked on the first deploy; TC-877 | §5.4, §10.1, §9.1 |
+| 2 | Any branch build can bind the credential; the shared staging credential spreads to every pipeline (SEC-2, critic M1) | High / Major | PROPOSE FIX: own file `GAOS_UNIT_RESULTS_BASIC_AUTH_FILE`, same gate; a report job outside the repository holding the credential, upstream taken from the build cause, the `gaos-report` label restricted to it; folder-scoped or branch-restricted credential as an owner condition in D-106; residual reworded to "anyone who can push a branch"; the bearer-client alternative in §13 | §1, §4.1, §5.4, §10.1, §11.1, §13, §14 |
+| 3 | Retrying every 404 counts toward the lock (SEC-3, critic M2) | Medium / Major | PROPOSE FIX: `no-watch` is 409 with `Retry-After: 60`; the report job reads `error` and retries only `no-watch`, 429, 000, 502, 503; wrong-product 404 never retried; which answers count is stated; TC-876 | §5.4, §11.1 |
+| 4 | No caller attribution; a conflicting result silently discarded (SEC-4) | Medium | PROPOSE FIX: log the source; `PostedFrom`, `PostedResult` on the watch (schema 22); 409 `already-finished`, a log line and a "conflicting unit result" notice (`unit:failure`); actor `jenkins:<product>`; TC-872, TC-875, TC-879 | §5.3, §5.4, §12.1 |
+| 5 | A late or re-run result is accepted and discarded (critic M6) | Major | PROPOSE FIX: a result over `no-ci` within 24 h is accepted (state 6a); same result 200, different 409; the replay rule in §11.1; TC-879 | §5.4, §5.5, §11.1 |
+| 6 | The credential-holding agent processes files the code under test wrote (SEC-5) | Low | PROPOSE FIX: files resolved in the test stage; only four data files archived; absolute or `..` dirs skipped; `deleteDir()` before the copy | §11.1 |
+| 7 | No central check that every machine route authenticates (SEC-6) | Low | PROPOSE FIX: TC-878 table test over `registerAPI`, Basic routes listed by name; BR-52 names the test | §9.1, §10.1 |
+| 8 | Version bump files missing; `toc.js` conditional (readiness M1) | Major | PROPOSE FIX: `toc.js` semver, `page.html` `?v=` ×3, README "Product version 0.68.0" listed unconditionally, in J4 | §9.1, §12.1 |
+| 9 | The budget guard for `jenkins` watches is unstated (readiness M2, critic N2) | Major / Nit | PROPOSE FIX: outside `budget > 0`, no decrement, not in `read`, no `unitLast`; TC-880 with 12 GitHub watches first | §5.5, §9.1 |
+| 10 | `GIT_COMMIT` in a stage with no checkout (readiness M3) | Major | PROPOSE FIX: `env.UNIT_COMMIT = env.GIT_COMMIT` in the test stage, passed as the report job's parameter; first-run check in §0 | §0, §11.1 |
+| 11 | curl failure fails the build; the stage can stall or fail the pipeline (readiness M4, critic M3) | Major | PROPOSE FIX: trigger in `post { always }`, `wait: false`, inside `catchError`; each attempt in `catchError`; `|| true` gives 000, retried; credential escaped for curl's config | §11.1 |
+| 12 | The Docker stage likely fails to build Go (critic M4, readiness nit) | Major / Nit | PROPOSE FIX: `HOME`, `GOCACHE`, `GOMODCACHE` under `$WORKSPACE`; image matches `go.mod`, no 1.24 claim; separate `go mod download`; `beforeAgent true`; "Verified on: none yet" | §11.1 |
+| 13 | An http `runUrl` or a long name rejects the whole result (readiness M5, critic M5) | Major | PROPOSE FIX: a bad `runUrl` stored empty; long entries dropped as withheld (route and template); TC-874 | §5.4, §11.1 |
+| 14 | Summary over 2 KiB after encoding (critic N7) | Nit | PROPOSE FIX: capped with `capBytes` on a rune boundary, not refused | §5.4 |
+| 15 | False Jenkins daily line on a lost race (critic N1) | Nit | PROPOSE FIX: only when the finish changed the watch; TC-880 | §5.5 |
+| 16 | `kind-warn` unstyled outside `.kind-row` (readiness, critic) | Nit | PROPOSE FIX: the line sits in a `kind-row`; `app.css` unchanged | §4.3 |
+| 17 | `afUnit` cannot reach the origin (readiness, critic) | Nit | PROPOSE FIX: `afUnit(pr, m, ws, jenkinsReady bool, origin string)` | §4.3, §12.1 |
+| 18 | Absent `source` detection (readiness) | Nit | PROPOSE FIX: `_, ok := r.PostForm["source"]`, else the stored source | §4.1 |
+| 19 | `check-workspace.sh:131` and the intermediate counts (readiness) | Nit | PROPOSE FIX: "One hundred and five entries" in J4; a per-phase after-count table | §9.1 |
+| 20 | Stale anchors (readiness, critic) | Nit | PROPOSE FIX: `defects.go:270`, `defecttriage.go:264`, `app.js:79-83` | §4.3, §5.2, §5.4 |
+| 21 | TC-879 marker unnamed (readiness) | Nit | PROPOSE FIX: `<pre id="unit-results-sample">`, the fixture stated (now TC-882) | §9.1, §11.1 |
+| 22 | "step" against "stage" (readiness, critic) | Nit | PROPOSE FIX: "stage" everywhere | §5.3, §5.5 |
+| 23 | `BaseList` and field order open (readiness) | Nit | PROPOSE FIX: exact output for the three cases; the field order | §4.3 |
+| 24 | `Total`'s `kept` ambiguous (readiness) | Nit | PROPOSE FIX: kept before the 10-cut (≤ 50) | §5.4 |
+| 25 | Register text unnamed: `qa-test-plan.html:4705`, `agents.html:449` (readiness) | Nit | PROPOSE FIX: both rows in §12.1 | §12.1 |
+| 26 | `toc/integrations.js` dropped; `check-stacks.sh` pass-through missing (readiness, critic) | Nit | PROPOSE FIX: the new ToC text; `check-stacks.sh` lines as TC-883; `rebuild-restart.sh` loop | §12.1 |
+| 27 | "The staging callback it already calls" unlabelled (critic) | Nit | PROPOSE FIX: labelled an assumption; nothing depends on it | §0 |
+| 28 | Rubric says `signedIn()` accepts any cookie (security, rubric note) | — | Not a design finding: noted for the rubric's owner; `auth.go:375-378` validates a session | — |
+
+Counts after rev 15: TC-871 … TC-883, 13 cases; Go tests 733 → 745 (dashboard 708 → 720). No new BR, event type, task status, notice kind or label.
 
