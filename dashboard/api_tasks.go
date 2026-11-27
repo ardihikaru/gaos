@@ -231,7 +231,7 @@ func (s *server) apiTaskCreate(w http.ResponseWriter, r *http.Request) {
 			s.flow.fetchContext(ctx, apiEvent(in), pr)
 		}
 	}
-	if (in.Kind == APIKindAutoCreate || in.Kind == APIKindAutoRun) && s.qaOut == nil {
+	if (in.Kind == APIKindAutoCreate || in.Kind == APIKindAutoRun) && !s.qaOut.usable() {
 		apiErr(w, http.StatusServiceUnavailable, "qa-off", "GAOS has no QA tool to run the automation (GAOS_QA_URL)")
 		return
 	}

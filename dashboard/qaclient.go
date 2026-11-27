@@ -199,6 +199,11 @@ func (o *qaOutbound) begin() (release func(), code, reason string, wait time.Dur
 // do sends one request and reads at most qaOutMaxBody. It returns the status
 // and the body; a body over the cap is an error, not a truncation.
 func (o *qaOutbound) do(ctx context.Context, method, path string, q url.Values, body any) (int, []byte, error) {
+	if !o.usable() {
+		// qaOutboundFromEnv always returns a client; an unconfigured one has no base
+		// URL and must never be dereferenced (it panicked the QA-job runner).
+		return 0, nil, errors.New("the QA tool is not configured")
+	}
 	u := *o.base
 	u.Path = strings.TrimRight(u.Path, "/") + path
 	u.RawQuery = q.Encode()
@@ -382,3 +387,7 @@ func (o *qaOutbound) qaPush(ctx context.Context, st Store, p Product, from QaSyn
 	side.Rejected = rejectedIDs
 	return side
 }
+
+// usable reports whether the client is configured: qaOutboundFromEnv returns a
+// client even when GAOS_QA_URL is unset, with the reason in why and no base.
+func (o *qaOutbound) usable() bool { return o != nil && o.why == "" && o.base != nil }
