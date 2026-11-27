@@ -108,7 +108,7 @@ type PREvent struct {
 	// generation than the one Drain was told to discard below is dropped: its
 	// session ended on a retry and the reconnect replays it (design §3.2).
 	Gen int64
-	// MergeChecked is set by the flow when GitHub confirmed a pr.merged (D-099):
+	// MergeChecked is set by the flow when GitHub confirmed a pr.merged (D-102):
 	// only then may the merge close a review defect. Never read from the town.
 	MergeChecked bool
 }

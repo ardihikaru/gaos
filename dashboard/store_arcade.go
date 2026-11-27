@@ -923,7 +923,7 @@ func (s *ArcadeStore) writeMaster(ctx context.Context, tx *ArcadeTx, m Master) e
 		"qaState":      qaState,   // the QA catalog's modules, epics, head and sync state, D-072
 	}
 	props["autoFix"] = autoFix // the defect auto-fix policy, D-091
-	// The agents assigned to the product (D-099); schema-less document properties.
+	// The agents assigned to the product (D-102); schema-less document properties.
 	assigned := m.Assigned
 	if assigned == nil {
 		assigned = []string{}

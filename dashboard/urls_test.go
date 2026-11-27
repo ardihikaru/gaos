@@ -635,7 +635,7 @@ func TestTheListPagesPageByFive(t *testing.T) {
 		t.Errorf("/stories?page=2&q=secret wrote the address %q; want stories?page=2 and nothing else", u)
 	}
 	ag := boardHX(t, srv, "GET", "/ui/bo/agents?page=3", at("agents")).Body.String()
-	if n := strings.Count(ag, `<div class="proj" style="padding:8px 0">`); n != len(agents)-10 || !strings.Contains(ag, "of "+strconv.Itoa(len(agents))) {
+	if n := strings.Count(ag, `<div class="proj agent-row">`); n != len(agents)-10 || !strings.Contains(ag, "of "+strconv.Itoa(len(agents))) {
 		t.Errorf("/agents?page=3 shows %d agent(s); want %d of %d", n, len(agents)-10, len(agents))
 	}
 }

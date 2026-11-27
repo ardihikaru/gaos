@@ -53,7 +53,7 @@ type BoardQuery struct {
 	Role      string
 	Story     string // "plan", or a story id
 	Label     string
-	Severity  string // a level, or "medium+" (D-099)
+	Severity  string // a level, or "medium+" (D-102)
 	Workflow  string
 	Waiting   bool   // only cards waiting on a person
 	HideEmpty bool   // hide columns with no matching card
@@ -70,7 +70,7 @@ type BoardWindow struct {
 // BoardFacets is what each select offers, before filtering, sorted.
 type BoardFacets struct {
 	Roles, Labels, Workflows []string   // the values present on any task of the product
-	Severities               []string   // the severity levels present, in ladder order (D-099)
+	Severities               []string   // the severity levels present, in ladder order (D-102)
 	Stories                  []BoardRow // "plan" first, then every story of the product
 }
 
@@ -97,7 +97,7 @@ type BoardPage struct {
 
 var boardSorts = map[string]bool{"id": true, "role": true, "story": true, "updated": true, "severity": true}
 
-// severityMediumPlus is the filter value for medium, high and critical (D-099).
+// severityMediumPlus is the filter value for medium, high and critical (D-102).
 const severityMediumPlus = "medium+"
 
 // severityMatches is the Severity filter.

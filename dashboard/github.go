@@ -83,7 +83,7 @@ type ghFile struct {
 // ghReview is the review GAOS posts.
 type ghReview struct {
 	Body  string `json:"body"`
-	Event string `json:"event"` // COMMENT or REQUEST_CHANGES (D-099): GAOS never approves
+	Event string `json:"event"` // COMMENT or REQUEST_CHANGES (D-102): GAOS never approves
 }
 
 // ghClient reads a pull request and posts a review.
@@ -93,7 +93,7 @@ type ghClient struct {
 	hc    *http.Client
 	logf  func(string, ...any)
 
-	// self is the token's own login, read once it is first needed (D-099).
+	// self is the token's own login, read once it is first needed (D-102).
 	// The token is read once per process (ghConfigFromVar), so the login cannot
 	// change under a running process; a failed read is tried again next time.
 	selfMu sync.Mutex
@@ -277,7 +277,7 @@ func (c *ghClient) commitAuthor(ctx context.Context, owner, repo, sha string) (s
 	return cm.Author.Login, nil
 }
 
-// The two review events GAOS sends (D-099). It never sends APPROVE: the pull
+// The two review events GAOS sends (D-102). It never sends APPROVE: the pull
 // request's author and its maintainers still decide.
 const (
 	ghEventComment        = "COMMENT"
@@ -285,7 +285,7 @@ const (
 )
 
 // postReview posts a review: a comment, or a request for changes on a
-// configured product's medium-or-worse finding (D-099 amends D-088). Any other
+// configured product's medium-or-worse finding (D-102 amends D-088). Any other
 // event is refused before a request is made.
 func (c *ghClient) postReview(ctx context.Context, owner, repo string, number int, body, event string) error {
 	if event != ghEventComment && event != ghEventRequestChanges {
@@ -434,7 +434,7 @@ func (c *ghClient) branchProtected(ctx context.Context, owner, repo, branch stri
 }
 
 // postComment posts one issue comment on a pull request with the review token
-// (D-099: the "draft fix" line; the write token's use stays as D-091 records).
+// (D-102: the "draft fix" line; the write token's use stays as D-091 records).
 func (c *ghClient) postComment(ctx context.Context, owner, repo string, number int, body string) error {
 	u := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments", c.base, url.PathEscape(owner), url.PathEscape(repo), number)
 	b, err := json.Marshal(map[string]string{"body": body})

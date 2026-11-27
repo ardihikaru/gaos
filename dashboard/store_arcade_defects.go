@@ -52,7 +52,7 @@ func (s *ArcadeStore) writeDefect(ctx context.Context, tx *ArcadeTx, d Defect) e
 		"repo": d.Repo, "files": listJSON(d.Files), "reason": d.Reason, "state": d.State,
 		"supersededBy": d.SupersededBy, "triageTask": d.TriageTask, "fixTask": d.FixTask,
 		"fixPR": d.FixPR, "context": ctxJSON, "baseOverride": d.BaseOverride,
-		"reviewBranch": d.ReviewBranch, "reviewHead": d.ReviewHead, // D-099, schema/19
+		"reviewBranch": d.ReviewBranch, "reviewHead": d.ReviewHead, // D-102, schema/19
 	})
 }
 

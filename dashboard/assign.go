@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 )
 
-// Agent assignment per product (D-099, docs/designs/agent-seats-and-pr-agents.md §3).
+// Agent assignment per product (D-102, docs/designs/agent-seats-and-pr-agents.md §3).
 //
 // A product lists the agents assigned to it. Until an admin saves that list
 // (AssignedSet), the product behaves as it did before assignment existed:
@@ -92,9 +93,9 @@ func (s *MemStore) SetAssigned(ctx context.Context, productID string, ids []stri
 	}
 	ev := s.emit(RecordUpdated, productID, text, KindInfo, EventPayload{Actor: alias, Rule: "assign"})
 	c := m.Clone()
-	toast := "Assignments saved."
+	toast := fmt.Sprintf("%s: %d agent(s) assigned — gating on.", name, len(ids))
 	if !set {
-		toast = "Assignments reset."
+		toast = name + ": gating off — every PR flow runs."
 	}
 	return Result{Master: &c, NewEvents: []Event{ev}, Toast: toast}, nil
 }

@@ -136,7 +136,7 @@ func screenBody(body string) bool {
 // prContext is what the reviewer is shown about a pull request.
 type prContext struct {
 	Title, Body, Author, Diff string
-	// HeadSHA is the commit the diff was read at: the reviewed head (D-099).
+	// HeadSHA is the commit the diff was read at: the reviewed head (D-102).
 	HeadSHA string
 }
 
@@ -219,7 +219,7 @@ type prPoster interface {
 	postReview(ctx context.Context, owner, repo string, number int, body, event string) error
 }
 
-// prReader is the review token's reads (D-099). *ghClient implements it.
+// prReader is the review token's reads (D-102). *ghClient implements it.
 type prReader interface {
 	pullRequest(ctx context.Context, owner, repo string, number int) (ghPR, error)
 	pullFiles(ctx context.Context, owner, repo string, number int) ([]ghFile, error)
@@ -235,7 +235,7 @@ type prReviewer struct {
 	notify func(ctx context.Context, t TaskRecord, kind, text string)
 	logf   func(string, ...any)
 
-	// D-099. rd reads the pull request fresh before posting (the author, and a
+	// D-102. rd reads the pull request fresh before posting (the author, and a
 	// low review's head); cache is the flow's review context (the reviewed head);
 	// src reads the files of a review defect. Nil means: comment only, no fix.
 	rd    prReader
@@ -246,12 +246,12 @@ type prReviewer struct {
 	lowFix func(ctx context.Context, t TaskRecord, owner, repo string, n int, pr ghPR, body string) string
 }
 
-// prChangesLine ends every body posted as REQUEST_CHANGES (D-099 §5): GAOS
+// prChangesLine ends every body posted as REQUEST_CHANGES (D-102 §5): GAOS
 // reviews once and never dismisses.
 const prChangesLine = "\n\n---\nGAOS reviews once. When these points are addressed, a maintainer dismisses this review."
 
 // configuredProduct answers a product's master and whether its assignments are
-// configured (D-099 §3.2).
+// configured (D-102 §3.2).
 func configuredProduct(ctx context.Context, st Store, productID string) (Master, bool) {
 	ms, err := st.Masters(ctx)
 	if err != nil {
@@ -281,7 +281,7 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusFailed, "review-unreadable")
 		return
 	}
-	// The severity is a label (D-099 §4.1), set before anything is posted, so a
+	// The severity is a label (D-102 §4.1), set before anything is posted, so a
 	// held or failed post still shows what was found.
 	if _, err := p.st.SetTaskLabel(ctx, t.DeskID, t.ID, labelFamilySeverity+":"+rv.Severity, "gaos"); err != nil {
 		p.logf("prreview: the severity label could not be set: %v", err)
@@ -298,7 +298,7 @@ func (p *prReviewer) afterRun(ctx context.Context, t TaskRecord, reply string) {
 		_, _ = p.st.ResolvePRCard(ctx, t.DeskID, t.ID, StatusFailed, "github-not-configured")
 		return
 	}
-	// The event (D-099 §5): REQUEST_CHANGES only on a configured product, for
+	// The event (D-102 §5): REQUEST_CHANGES only on a configured product, for
 	// medium and worse, and only when both logins are known and differ.
 	_, configured := configuredProduct(ctx, p.st, t.DeskID)
 	var fresh ghPR

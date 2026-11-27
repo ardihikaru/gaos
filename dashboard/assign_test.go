@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// Agent assignment per product (D-099, docs/designs/agent-seats-and-pr-agents.md §3).
+// Agent assignment per product (D-102, docs/designs/agent-seats-and-pr-agents.md §3).
 
 func masterOf(t *testing.T, st Store, id string) Master {
 	t.Helper()
@@ -26,7 +26,7 @@ func masterOf(t *testing.T, st Store, id string) Master {
 	return Master{}
 }
 
-// TC-767
+// TC-800
 func TestSetAssignedRefusesAndRecordsTheActor(t *testing.T) {
 	ctx := context.Background()
 	st := NewMemStore(1)
@@ -71,7 +71,7 @@ func TestSetAssignedRefusesAndRecordsTheActor(t *testing.T) {
 	}
 }
 
-// TC-769 (the gate half; the COMMENT half is in prreview_test.go)
+// TC-802 (the gate half; the COMMENT half is in prreview_test.go)
 func TestNotConfiguredIsTodaysBehaviour(t *testing.T) {
 	ctx := context.Background()
 	st := NewMemStore(1)
@@ -90,7 +90,7 @@ func TestNotConfiguredIsTodaysBehaviour(t *testing.T) {
 	}
 }
 
-// TC-772
+// TC-805
 func TestUnassignedRoleGetsNoCard(t *testing.T) {
 	ctx := context.Background()
 	st := NewMemStore(1)
@@ -141,7 +141,7 @@ func TestUnassignedRoleGetsNoCard(t *testing.T) {
 	}
 }
 
-// TC-773 (in memory; the ArcadeDB half is TestGatedOpenStillWritesThePullRequestRow)
+// TC-806 (in memory; the ArcadeDB half is TestGatedOpenStillWritesThePullRequestRow)
 func TestMergeStillCancelsWhenUnitTestIsUnassigned(t *testing.T) {
 	ctx := context.Background()
 	st := NewMemStore(1)
@@ -172,7 +172,7 @@ func TestMergeStillCancelsWhenUnitTestIsUnassigned(t *testing.T) {
 	}
 }
 
-// TC-771
+// TC-804
 func TestAssignRouteIsAdminOnly(t *testing.T) {
 	srv, st := newTestServer(t)
 	body := url.Values{"product": {"p-1"}, "agent": {"a-10"}, "action": {"save"}}.Encode()
@@ -206,14 +206,14 @@ func TestAssignRouteIsAdminOnly(t *testing.T) {
 	}
 }
 
-// TC-770
+// TC-803
 func TestAgentsPageFiltersByProductAndPagesKeepTheFilter(t *testing.T) {
 	srv, st := newTestServer(t)
 	ctx := context.Background()
 	if _, err := st.SetAssigned(ctx, "p-1", []string{"a-10", "a-11"}, true, testEmail); err != nil {
 		t.Fatal(err)
 	}
-	row := `<div class="proj" style="padding:8px 0">`
+	row := `<div class="proj agent-row">`
 	at := func(view string) map[string]string {
 		return map[string]string{"HX-Current-URL": "https://gaos.example/" + view}
 	}
@@ -250,7 +250,7 @@ func TestAgentsPageFiltersByProductAndPagesKeepTheFilter(t *testing.T) {
 	}
 }
 
-// TC-768: assignments survive a restart on ArcadeDB.
+// TC-801: assignments survive a restart on ArcadeDB.
 func TestAssignmentsSurviveARestart(t *testing.T) {
 	arc := arcadeTestTarget(t)
 	ctx := t.Context()
@@ -272,7 +272,7 @@ func TestAssignmentsSurviveARestart(t *testing.T) {
 	}
 }
 
-// TC-773: a gated-out open still writes its Pull requests row, on ArcadeDB too.
+// TC-806: a gated-out open still writes its Pull requests row, on ArcadeDB too.
 func TestGatedOpenStillWritesThePullRequestRow(t *testing.T) {
 	arc := arcadeTestTarget(t)
 	ctx := t.Context()

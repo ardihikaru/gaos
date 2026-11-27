@@ -417,7 +417,7 @@ type Master struct {
 	// because GAOS enforces it; never rendered into the Blueprint.
 	AutoFix AutoFix
 
-	// Assigned are the agents assigned to the product (D-099): sorted ids of
+	// Assigned are the agents assigned to the product (D-102): sorted ids of
 	// the roster. AssignedSet is true once an admin saved them; until then the
 	// pull-request flows run as before assignment existed (assign.go).
 	Assigned    []string
@@ -454,7 +454,7 @@ type AutoFix struct {
 	AllowedBases    []string
 	AutomationRepos []string
 	// ReviewFixHeads are the head-branch patterns a low PR-review finding may be
-	// fixed into (D-099), at most 8, each a literal first segment and a pattern
+	// fixed into (D-102), at most 8, each a literal first segment and a pattern
 	// ("feature/*"). Empty = review fixes are off. ReviewFixCap is the review
 	// defects planned per UTC day (0 = the default 3, at most 20).
 	ReviewFixHeads []string
@@ -499,7 +499,7 @@ func (a AutoFix) Clone() AutoFix {
 	return a
 }
 
-// Review-fix cap (D-099 §6.1).
+// Review-fix cap (D-102 §6.1).
 const (
 	reviewFixCapDefault = 3
 	reviewFixCapMax     = 20

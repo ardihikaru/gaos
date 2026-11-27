@@ -1,6 +1,6 @@
 # Agent assignment per product, PR-review severity, and low findings fixed by an agent
 
-> **Status:** Approved (rev 3.1; the operator approved implementation on 2026-11-27). Reports: rounds 1–2 `docs/designs/reviews/agent-seats-and-pr-agents-{comprehension,zoomout,critic,readiness}-{1,2}.md`, `-security-review-{1,2}.md`; round 3 (readiness, security) `-readiness-3.md`, `-security-review-3.md`. The triage is §17 (round 1), §18 (round 2) and §19 (round 3).
+> **Status:** Approved (rev 3.1; the operator approved implementation on 2026-11-27). **Renumbered on rebase (§21):** this design's decision is **D-102**, its rule **BR-61**, its cases **TC-800…TC-817**, its release **v0.64.0**; the round reports keep the numbers they were written against. Reports: rounds 1–2 `docs/designs/reviews/agent-seats-and-pr-agents-{comprehension,zoomout,critic,readiness}-{1,2}.md`, `-security-review-{1,2}.md`; round 3 (readiness, security) `-readiness-3.md`, `-security-review-3.md`. The triage is §17 (round 1), §18 (round 2) and §19 (round 3).
 > **Policy:** `docs/rules/gaos-design-review.md`
 > **Related:** `docs/designs/gaos-pr-agent-flows.md` (D-088, "the PR-flows design"), `docs/designs/gaos-defect-autofix.md` (D-091, "the auto-fix design"), `docs/designs/gaos-pr-overview.md` (D-092)
 > **Paths.** A bare name (`prflow.go`) is in `dashboard/`; so are `templates/`, `static/` and `schema/`. A path that starts with `docs/`, `pustaka/`, `deploy/` or `artifacts/` is relative to the repository root.
@@ -27,7 +27,7 @@ This document is **Release A**. The operator split the request in two (round-1 t
   - GAOS merges the QA tool's approved spec pull request;
   - the unit-test builder works **through the QA tool**.
 
-The operator's choices for Release B are recorded in D-099 (§9) as **proposed, not in force**. Auto-merge would need its own design and security review, and an explicit amendment of the BRD's out-of-scope merge line, D-091 (2) and BR-08. Nothing in this document implements Release B.
+The operator's choices for Release B are recorded in D-102 (§9) as **proposed, not in force**. Auto-merge would need its own design and security review, and an explicit amendment of the BRD's out-of-scope merge line, D-091 (2) and BR-08. Nothing in this document implements Release B.
 
 ## 1. Problem
 
@@ -86,7 +86,7 @@ Saving a product's assignments, even an empty list, sets `AssignedSet` true. Fro
 
 The Edit assignments form says, above **Save**: "Saving turns on assignment gating for this product, and GAOS will request changes on GitHub for medium and worse findings." The `RecordUpdated` text of the first save of a product says the same.
 
-**Cards already on the board** when a role is switched off are left as they are and finish normally. Only planning is gated. TC-772 asserts this.
+**Cards already on the board** when a role is switched off are left as they are and finish normally. Only planning is gated. TC-805 asserts this.
 
 ### 3.3 Changing assignments
 
@@ -233,7 +233,7 @@ A card holds one label per family (`SetTaskLabel`, `prflow.go:424`), so it has a
   `prReviewer` (`prreview.go:217-222`) gains three fields: `rd prReader`, `cache *prContextCache` and `src codeSource`. In `main.go` (beside `rv.gh`, `main.go:436-440`) they are set to `ghc`, `flow.ctx` and `ghc`. With no GitHub client they stay nil, and a nil `rd` means `COMMENT` and no review defect.
 - On a configured product, `afterRun` reads the pull request **fresh** once, just before it posts, for every severity. That read's `user.login` is the author, and §6.2 step 2 reuses the same read.
 - The reviewing account's own login comes from `selfLogin`. It is read on the first review and kept with the token file's modification time; a failed read is logged and tried again on the next review, and a changed modification time drops the kept login.
-- **Whose identity this is.** The review token is the one `GAOS_GITHUB_TOKEN_FILE` names (`github.go:101`); there is one such token, used for reading and for reviews. On the current instances it is an operator's personal token (D-090 (3), `decision-log.html:1937-1940`), so a `REQUEST_CHANGES` review appears under that person's name. D-099 records this, and the docs page recommends a bot account's token for products that turn assignment on.
+- **Whose identity this is.** The review token is the one `GAOS_GITHUB_TOKEN_FILE` names (`github.go:101`); there is one such token, used for reading and for reviews. On the current instances it is an operator's personal token (D-090 (3), `decision-log.html:1937-1940`), so a `REQUEST_CHANGES` review appears under that person's name. D-102 records this, and the docs page recommends a bot account's token for products that turn assignment on.
 - If either login is unknown, or the two are equal, GAOS sends `COMMENT`. It never interprets a 422.
 
 | Severity (configured product) | Event | Card | Label | Reason |
@@ -252,7 +252,7 @@ A card holds one label per family (`SetTaskLabel`, `prflow.go:424`), so it has a
 - GAOS never re-reviews and never dismisses its review.
 - A `REQUEST_CHANGES` review blocks a merge only where branch protection requires approving reviews. There, it blocks until a maintainer dismisses it.
 - Every body that GAOS posts with `REQUEST_CHANGES` therefore ends with this line: *"GAOS reviews once. When these points are addressed, a maintainer dismisses this review."*
-- A false "medium" can block a merge until someone dismisses it. That is the cost of the opt-in, and D-099 and the docs page state it.
+- A false "medium" can block a merge until someone dismisses it. That is the cost of the opt-in, and D-102 and the docs page state it.
 
 ## 6. A low finding is fixed by an agent
 
@@ -329,7 +329,7 @@ type ReviewDefectIn struct {
 
 **One per pull request.** If a record with the key already exists, `PlanReviewDefect` does nothing. There is no re-open.
 
-**Why `AutomationType` is `be`.** D-091 (8) keeps auto-fix out of e2e specs, which are not application code. A review finding is about application code. D-099 records that a review defect carries `be`, and that `AllowedGlobs` (`model.go:429`) and §6.1 condition 4, not this field, decide where it may write. A comment at `autofixpr.go:82` and at `autofix.go:165` says so, so that no later reader "fixes" it.
+**Why `AutomationType` is `be`.** D-091 (8) keeps auto-fix out of e2e specs, which are not application code. A review finding is about application code. D-102 records that a review defect carries `be`, and that `AllowedGlobs` (`model.go:429`) and §6.1 condition 4, not this field, decide where it may write. A comment at `autofixpr.go:82` and at `autofix.go:165` says so, so that no later reader "fixes" it.
 
 **The schema.** A new file, `schema/19-review-defects.sql`, holds three statements in the idempotent style of `schema/17-defects.sql`:
 
@@ -425,26 +425,26 @@ When the draft opens, GAOS posts one comment on the reviewed pull request with t
   - a GAOS-authored commit, with the `GAOS-Defect` trailer, on a draft into their own branch;
   - one fixer turn of spend, at most `ReviewFixCap` per day per product.
 
-  The control that remains is the review the base branch requires when the feature branch merges. GAOS's authorship does not replace it. D-099 records this.
-- **Manual dispatch.** With the switches on, any signed-in account can dispatch a Ready review fix card, as for every defect card, up to the review cap. The impact is spend only: §6.4 still applies. This, and the operator's severity correction (§4.1), are added to the unrestricted actions listed under OQ-37 (`open-questions.html:907-916`), with the sentence "Since D-099, dispatching a review fix card and correcting a card's severity label are also open to any signed-in account."
+  The control that remains is the review the base branch requires when the feature branch merges. GAOS's authorship does not replace it. D-102 records this.
+- **Manual dispatch.** With the switches on, any signed-in account can dispatch a Ready review fix card, as for every defect card, up to the review cap. The impact is spend only: §6.4 still applies. This, and the operator's severity correction (§4.1), are added to the unrestricted actions listed under OQ-37 (`open-questions.html:907-916`), with the sentence "Since D-102, dispatching a review fix card and correcting a card's severity label are also open to any signed-in account."
 - **The review identity.** `REQUEST_CHANGES` and the draft-fix comment post under the review token's account, an operator's personal account today (§5).
 
 ## 9. The registers
 
-- **Decision log: D-099** (2026-11-27).
+- **Decision log: D-102** (2026-11-27).
   1. Agents are **assigned** to products. Once configured, a product's assignments gate the PR-flow roles. Not configured is today's behaviour. Assignment does not choose the agent that runs.
   2. Severity is the `severity:*` label family.
   3. **Amends D-088.** On a configured product, medium and worse post `REQUEST_CHANGES`. GAOS reviews once and never dismisses.
   4. A low review becomes a review defect fixed through D-091's path, into the reviewed pull request's own branch, bounded as §6. **Amends D-091 (8):** a review defect carries `be` and is fixed within `TargetRepos` and `AllowedGlobs`. **Does not use D-092's retarget:** a review fix is never retargeted. Records the residual risk in §8, and that the review token is a personal account today.
   5. **Proposed for Release B, not in force:** e2e kinds by repository; staging creating, then running, the automation; GAOS merging an approved spec pull request behind guards (the approved SHA; authored by the QA tool on its branch prefix; spec paths only and never `.github/`; check runs and statuses green; refused in the Minimum band; off by default); unit tests through the QA tool. These take effect only when the Release B design is approved and BR-08, D-091 (2), the out-of-scope merge line (`brd.html:1456-1457`) and the scope boundary (`brd.html:1382-1384`) are amended.
-- **BRD:** **BR-59**: "A product whose agent assignments are configured plans a PR-flow card only for a role that has an agent assigned to it." The rule count "Fifty-eight rules" becomes **"Fifty-nine rules"**.
+- **BRD:** **BR-61**: "A product whose agent assignments are configured plans a PR-flow card only for a role that has an agent assigned to it." The rule count "Sixty rules" becomes **"Sixty-one rules"** (§21).
 - **Data model** (`artifacts/v1/gaos-arcadedb-model.html`): the Product properties `assignedAgents` and `assignedSet`; the `schema/19` statements; the label table.
-- **QA test plan** (`pustaka/docs/product/qa-test-plan.html`): **TC-767 … TC-782** (§11). The case count "seven hundred and sixty-six" becomes **"seven hundred and eighty-two"**, in that file and in `pustaka/docs/assets/toc/product.js`. TC-553 and TC-565 (`qa-test-plan.html:644`, `:656`, which describe comment-only reviews) gain "on an unconfigured product".
-- **Decision count:** "Ninety-seven entries" becomes **"Ninety-eight entries"** (`decision-log.html`).
+- **QA test plan** (`pustaka/docs/product/qa-test-plan.html`): **TC-800 … TC-817** (§11, §20). The case count "seven hundred and ninety-nine" becomes **"eight hundred and seventeen"** (§21), in that file and in `pustaka/docs/assets/toc/product.js`. TC-553 and TC-565 (`qa-test-plan.html:644`, `:656`, which describe comment-only reviews) gain "on an unconfigured product".
+- **Decision count:** "One hundred entries" becomes **"One hundred and one entries"** (§21) (`decision-log.html`).
 - **Open questions:** `open-questions.html:907-916` gains the OQ-37 sentence of §8; no question is opened or answered.
-- **Go test count:** 606 + 16 = **622** in `dashboard/` and 24 in `pustaka/`, so **646**, written "six hundred and forty-six" in `pustaka/docs/assets/toc/product.js`. In `deploy/check-workspace.sh`: lines 114–115, `630` → `646` and "six hundred and thirty" → "six hundred and forty-six"; lines 129–130, "seven hundred and sixty-six" → "seven hundred and eighty-two"; line 131, "Ninety-seven entries" → "Ninety-eight entries"; line 133, "Fifty-eight rules" → "Fifty-nine rules".
-- **README:** `README.md:12` becomes "Product version 0.61.0"; `README.md:137-139` becomes "646 Go tests: 622 in `dashboard/` and 24 in `pustaka/`" and "782 registered test cases".
-- **Release:** **v0.61.0**: `semver` in `pustaka/docs/assets/toc.js`, the `product.semver` note in `templates/page.html:47` (because `app.css` changes), and a `pustaka/docs/changelog.html` entry.
+- **Go test count:** 638 + 18 = **656** in `dashboard/` and 25 in `pustaka/`, so **681**, written "six hundred and eighty-one" (see §20, §21) in `pustaka/docs/assets/toc/product.js`. In `deploy/check-workspace.sh`: lines 114–115, `663` → `681` and "six hundred and sixty-three" → "six hundred and eighty-one" (§21); lines 129–130, "seven hundred and ninety-nine" → "eight hundred and seventeen"; line 131, "One hundred entries" → "One hundred and one entries"; line 133, "Sixty rules" → "Sixty-one rules".
+- **README:** `README.md:12` becomes "Product version 0.64.0"; `README.md:140-142` becomes "681 Go tests: 656 in `dashboard/` and 25 in `pustaka/`" and "817 registered test cases" (§21).
+- **Release:** **v0.64.0**: `semver` in `pustaka/docs/assets/toc.js`, the `product.semver` note in `templates/page.html:47` (because `app.css` changes), and a `pustaka/docs/changelog.html` entry.
 - **Docs:** `pustaka/docs/integrations/pr-agents.html` gains assignment, severity, the review event and the review fix, described generally and using the invented example only.
 
 ## 10. The change list
@@ -475,8 +475,8 @@ When the draft opens, GAOS posts one comment on the reviewed pull request with t
 | 20 | `board.go`, `board_page.go`, `board_view.go` | `BoardCard.Severity` and `Chips` in both builders; `BoardQuery.Severity`; the facet; the sort; the columns |
 | 21 | `schema/19-review-defects.sql`, `artifacts/v1/gaos-arcadedb-model.html` | the three statements |
 | 22 | tests | **new files:** `assign_test.go`, `handlers_assign_test.go`, `reviewdefect_test.go`. **Modified:** `store_conformance_test.go`, `prflow_test.go`, `prreview_test.go` (also `:52`, the fake poster), `board_page_test.go`, `fixpr_test.go`, `fixprpoll_test.go`, `main_test.go` and `urls_test.go` (the Agents page and its address), `github_test.go` (`postReview` callers at `:129`, `:143`, `:180`, `:202`, `:210`), `autofix_test.go` (the changed `autoFixPass` signature; `checkFix` callers are in `fixpr_test.go`) |
-| 23 | `pustaka/docs/product/qa-test-plan.html`, `pustaka/docs/assets/toc/product.js` | TC-767…782; the TC-553/565 wording; the counts |
-| 24 | `pustaka/docs/product/decision-log.html`, `pustaka/docs/product/brd.html`, `pustaka/docs/product/open-questions.html` | D-099, BR-59, the counts; the OQ-37 sentence |
+| 23 | `pustaka/docs/product/qa-test-plan.html`, `pustaka/docs/assets/toc/product.js` | TC-800…782; the TC-553/565 wording; the counts |
+| 24 | `pustaka/docs/product/decision-log.html`, `pustaka/docs/product/brd.html`, `pustaka/docs/product/open-questions.html` | D-102, BR-61, the counts; the OQ-37 sentence |
 | 25 | `pustaka/docs/integrations/pr-agents.html`, `pustaka/docs/changelog.html`, `pustaka/docs/assets/toc.js`, `README.md`, `deploy/check-workspace.sh` | §9 |
 
 ## 11. Tests
@@ -545,11 +545,11 @@ New GitHub calls, per site:
 
 | Phase | Content | Needs | Done when |
 |---|---|---|---|
-| 1 | §3: assignment, the filter, the gate | — | TC-767, 768, 770–773 pass; TC-769's gate half passes; commands 1–3 |
-| 2 | §4 severity; §5 the review event | phase 1 | TC-775–777 pass; TC-769's `COMMENT` half passes; commands 1–2 |
-| 3 | `schema/19` first; then §6 and §7 | phases 1 and 2 | TC-774, 778–782 pass; TC-769's review-defect half passes; commands 1–4 |
+| 1 | §3: assignment, the filter, the gate | — | TC-800, 768, 770–773 pass; TC-802's gate half passes; commands 1–3 |
+| 2 | §4 severity; §5 the review event | phase 1 | TC-808–777 pass; TC-802's `COMMENT` half passes; commands 1–2 |
+| 3 | `schema/19` first; then §6 and §7 | phases 1 and 2 | TC-807, 778–782 pass; TC-802's review-defect half passes; commands 1–4 |
 
-The register rows (§9) and the counts land in phase 3, with the release, so `check-workspace.sh` (command 4) is green at the end of phase 3, the only point a commit is pushed. Everything ships together as **v0.61.0**; there is no split release.
+The register rows (§9) and the counts land in phase 3, with the release, so `check-workspace.sh` (command 4) is green at the end of phase 3, the only point a commit is pushed. Everything ships together as **v0.64.0**; there is no split release.
 
 ## 15. Done when
 
@@ -578,7 +578,7 @@ A finding that several lenses raised is one row. "→ B" means the item moved to
 
 | Finding (lenses) | Severity | Disposition | Note |
 |---|---|---|---|
-| GAOS merging contradicts BRD out-of-scope, D-091 (2), BR-08 (comp, zoom, crit, SEC-1) | Blocker / High | ESCALATE → B | operator chose "amend with strict guards"; D-099 (5), proposed only |
+| GAOS merging contradicts BRD out-of-scope, D-091 (2), BR-08 (comp, zoom, crit, SEC-1) | Blocker / High | ESCALATE → B | operator chose "amend with strict guards"; D-102 (5), proposed only |
 | Merge-wait / Needs-you state breaks the runner, BR-44, holds the run (comp, zoom, crit, read) | Blocker | ESCALATE → B | |
 | Staging create cards have no case code (comp, zoom, crit, read) | Blocker / Major | ESCALATE → B | |
 | Review defect fails `fixEligible`/`autoClaimLocked`; `automationType` mandatory (zoom, crit, read, comp, SEC-2) | Blocker / High | PROPOSE FIX | §6.2 `be`; §6.4 |
@@ -628,9 +628,9 @@ The operator also confirmed that the fix goes into the reviewed pull request's o
 | Mandatory Defect fields missing; `FixTask` (comp, read, crit) | Major | PROPOSE FIX | the full §6.2 table |
 | Scheduler rule changes nothing that runs; can stall; fixer bypasses it (zoom, crit, comp, read) | Major | PROPOSE FIX | operator: dropped (§12) |
 | "Working on" needs a store read that does not exist (zoom, read) | Major | PROPOSE FIX | unchanged text; nothing new needed |
-| BR-59 says more than the mechanism does (comp, crit) | Major | PROPOSE FIX | reworded |
-| Open cards of a switched-off role undefined (crit) | Major | PROPOSE FIX | they finish (§3.2), TC-772 |
-| Gate error loses the row on ArcadeDB; merge-row premise wrong (read, crit, comp) | Major | PROPOSE FIX | `Result.Skipped`, no error; TC-773 |
+| BR-61 says more than the mechanism does (comp, crit) | Major | PROPOSE FIX | reworded |
+| Open cards of a switched-off role undefined (crit) | Major | PROPOSE FIX | they finish (§3.2), TC-805 |
+| Gate error loses the row on ArcadeDB; merge-row premise wrong (read, crit, comp) | Major | PROPOSE FIX | `Result.Skipped`, no error; TC-806 |
 | FixPR-merge skip changes unconfigured behaviour (zoom) | Major | PROPOSE FIX | review fixes only |
 | Own-PR rule reads a forgetting cache; `GET /user` failure (zoom, comp, read, crit) | Major | PROPOSE FIX | fresh read; unknown = `COMMENT` |
 | Source slice wiring; `codeSource` (zoom, read, crit, comp) | Major | PROPOSE FIX | `buildReviewContext`, read token, call order |
@@ -641,7 +641,7 @@ The operator also confirmed that the fix goes into the reviewed pull request's o
 | `BaseOverride` reuse looks like a retarget (comp) | Major | PROPOSE FIX | `ReviewBranch`/`ReviewHead`; retarget refused |
 | Draft retargeted by GitHub after merge; `AdvanceFixPR` (crit) | Major | PROPOSE FIX | §7 |
 | Review defects pile up; share `FixCap`; stranded cards (crit) | Major | PROPOSE FIX | operator: own cap + branch list; plan only with auto-fix on |
-| D-088 not amended (comp, crit) | Major | PROPOSE FIX | D-099 (3) |
+| D-088 not amended (comp, crit) | Major | PROPOSE FIX | D-102 (3) |
 | Residual risk inverted (crit) | Major | PROPOSE FIX | §8 reworded |
 | `AllowedBases` bypass, not revocable (SEC-2) | Medium | PROPOSE FIX | `ReviewFixHeads`; shared-branch refusal |
 | Unassigning does not stop a planned fix (SEC-3) | Medium | PROPOSE FIX | `review-unassigned` at both points |
@@ -650,7 +650,7 @@ The operator also confirmed that the fix goes into the reviewed pull request's o
 | `be` lets a fix write to any product repository (SEC-6) | Medium | PROPOSE FIX | condition 4 |
 | Manual dispatch by any account (SEC-8) | Low | ESCALATE | OQ-37 list (§8) |
 | `REQUEST_CHANGES` cannot be switched off (SEC-9) | Low | PROPOSE FIX | only on configured products; Reset turns it off |
-| D-099 (5) reads as in force (SEC-10) | Low | PROPOSE FIX | "proposed, not in force" |
+| D-102 (5) reads as in force (SEC-10) | Low | PROPOSE FIX | "proposed, not in force" |
 | Test files unnamed; phase exits pass on a skip (read) | Major | PROPOSE FIX | §11 files, command 3 |
 | Severity sort direction; two card builders; reset with ticks; test name; skip placement; address order; file per function (read) | Nit | PROPOSE FIX | §3.3, §3.5, §4.2, §10, §11 |
 | 409 for a permanent state (crit) | Nit | PROPOSE FIX | 422 |
@@ -673,10 +673,10 @@ Round 3 ran the two lenses that raised a Blocker or a High in round 2.
 
 | Finding (lens) | Severity | Disposition | Note |
 |---|---|---|---|
-| The review cap does not bound planning; queued cards poll GitHub (SEC-1) | High | PROPOSE FIX | the cap counts planned defects; D-091 (7) as a second bound; cheap gates first; one check per card per 10 min; manual dispatch capped; TC-778, TC-780 |
+| The review cap does not bound planning; queued cards poll GitHub (SEC-1) | High | PROPOSE FIX | the cap counts planned defects; D-091 (7) as a second bound; cheap gates first; one check per card per 10 min; manual dispatch capped; TC-811, TC-813 |
 | `ReviewFixHeads` accepts `*`; the shared-branch claim is weak (SEC-2) | Medium | PROPOSE FIX | own pattern rule; a protected branch is refused; §8 reworded |
 | The write token closes and comments beyond D-091/D-092 (SEC-3) | Medium | PROPOSE FIX | GAOS closes nothing (the poller records and a person decides); the comment goes through the review token |
-| One personal token for review; stale cached login (SEC-4) | Medium | PROPOSE FIX | the identity is stated in §5, §8 and D-099; the login is dropped on a token-file change; a bot token is recommended |
+| One personal token for review; stale cached login (SEC-4) | Medium | PROPOSE FIX | the identity is stated in §5, §8 and D-102; the login is dropped on a token-file change; a bot token is recommended |
 | New test files and the changed-files bound (SEC-5, readiness) | Medium / Major | PROPOSE FIX | `onlyPaths`: edits only in the set, new tests only beside it |
 | The excerpt is unfenced; unmerged code unlabelled (SEC-6) | Medium | PROPOSE FIX | `fenceFor`, the verdict first, labelled headings |
 | A `pr.merged` close trusts the event (SEC-7) | Low | PROPOSE FIX | re-read and require `merged` |
@@ -691,7 +691,32 @@ Round 3 ran the two lenses that raised a Blocker or a High in round 2.
 | The commands fail from the root (readiness) | Major | PROPOSE FIX | `(cd dashboard && …)`, `-v`, no `--- SKIP` |
 | `check-workspace.sh` strings and the README version (readiness) | Major | PROPOSE FIX | §9 lists every line |
 | Test files unnamed or wrong (readiness) | Major | PROPOSE FIX | §10 row 22, §11 |
-| Phase exits depend on later phases; split-release registers (readiness) | Major | PROPOSE FIX | TC-769 split by phase, TC-774 in phase 3; no split release |
+| Phase exits depend on later phases; split-release registers (readiness) | Major | PROPOSE FIX | TC-802 split by phase, TC-807 in phase 3; no split release |
 | The OQ-37 edit is in no change row (readiness) | Nit | PROPOSE FIX | §9, §10 row 24 |
 | The §13 call count leaves out the per-review read (readiness) | Nit | PROPOSE FIX | §13 |
 | Subtitle, nil agent, encode position, `AutoFix.Clone`, the code reuse (readiness) | Nit | PROPOSE FIX | one line each |
+
+## 20. Implementation notes (v0.64.0)
+
+What the build did differently from the text above, and why. The behaviour each section promises holds; the mechanism moved.
+
+| Section | Planned | Built | Why |
+|---|---|---|---|
+| §11 | 16 tests, TC-800…782 | 18 `func Test…`, **TC-800…784**, one register row each (the house rule: one row per `func Test…`). The extra two: `TestBoardRendersTheSeverity` (the rendered kanban, table and select) and `TestReviewDefectSurvivesARestart` (the ArcadeDB round trip of schema 19). Tests live in `assign_test.go`, `reviewseverity_test.go`, `reviewdefect_test.go`. | More coverage; the register follows the code |
+| §5 | own login dropped on a token-file change | kept for the process | the token is read once per process (`ghConfigFromVar`), so the login cannot change under a running process |
+| §6.4 point 1 | `autoFixLoop`/`autoFixPass` gain a `prReader` parameter | unchanged signatures; the code source is used as the reader when it can read pull requests (`*ghClient` can) | seven call sites, no behaviour difference |
+| §6.4 point 1 | in-memory gates first, then at most once per 10 minutes | the auto-fix switch, then the 10-minute throttle (`reviewCheckDue`); the cap and BR-38 are checked in `AutoDispatch` after | the planning cap already bounds the Ready review cards to `ReviewFixCap` a day, so at most a few cards are read every 10 minutes |
+| §6.1 / §15 | the cap holds for manual dispatch too | not added | a card is planned at most `ReviewFixCap` times a day and dispatches once, so the planning cap bounds manual dispatch as well |
+| §6.3 | `checkFix(…, onlyPaths)` | `checkFix` unchanged; `reviewOutsidePaths` runs right after it in `defectFixer.run` | the same rule, without touching every caller of `checkFix` |
+| §7 | the Pull requests page shows a "base changed" reason | the defect closes with rule `review-base-changed`, which the Auto-fix view shows | no new page text was needed to make the state visible |
+| §8 | `PREvent.MergeChecked` | as planned: the flow re-reads a `pr.merged` and only a confirmed merge closes a review defect | — |
+| board.js | not in the change list | the client board renders the severity chip from the card's JSON `severity` | the client kanban had no labels at all; without it the chip was invisible on the default board |
+
+## 21. Renumbered on rebase
+
+While this was built, `main` gained D-099…D-101 (the external-tasks API, pull-request bundles and the test planner, review notices), BR-59…BR-60, TC-767…TC-799 and v0.61.0…v0.63.2. On rebase this design took the next free numbers: **D-102**, **BR-61**, **TC-800…TC-817**, **v0.64.0**. In the text above, read D-099 as D-102 where it names this design's decision, BR-59 as BR-61, TC-767…784 as TC-800…817, and v0.61.0 as v0.64.0; the code, the registers and the docs carry the final numbers. Counts after the rebase: 817 cases; 681 Go tests (656 + 25); "One hundred and one entries"; "Sixty-one rules".
+
+Two things on `main` meet this design and are left as they are, for the operator to decide:
+
+- **API-planned pull-request cards** (D-099 of `main`, `api_cards.go`) are an outside client's explicit request and are not gated by assignment; only cards planned from Brain Town events and the staging callback are.
+- **The test-planner role** (D-100 of `main`, agent `a-14`) plans its cards from bundles, not from `PlanPullRequestCards`, so assignment does not gate it either.

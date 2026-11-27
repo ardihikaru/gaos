@@ -30,7 +30,7 @@ const (
 	// LabelUnitTest is the unit test builder and runner.
 	LabelUnitTest = "unit:test"
 
-	// The severity family (D-099): what the PR reviewer found. The reviewer
+	// The severity family (D-102): what the PR reviewer found. The reviewer
 	// sets it; an operator may correct it. It never changes who works a card.
 	LabelSeverityNone     = "severity:none"
 	LabelSeverityLow      = "severity:low"
@@ -49,7 +49,7 @@ const (
 // labelFamilyDefect is the planner-only family.
 const labelFamilyDefect = "defect"
 
-// labelFamilySeverity is the reviewer's severity (D-099).
+// labelFamilySeverity is the reviewer's severity (D-102).
 const labelFamilySeverity = "severity"
 
 // severityOf is a card's severity level from its labels, or "".

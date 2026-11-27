@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// Review defects (D-099 §6, §7). The product, repository and branch names are
+// Review defects (D-102 §6, §7). The product, repository and branch names are
 // invented, as D-085 requires.
 
 const (
@@ -57,7 +57,7 @@ func rvOpenPR(head string) ghPR {
 	return pr
 }
 
-// TC-778
+// TC-811
 func TestLowReviewPlansAReviewDefectOnlyWhenBounded(t *testing.T) {
 	ctx := context.Background()
 	s, pid := reviewStore(t)
@@ -146,7 +146,7 @@ func TestLowReviewPlansAReviewDefectOnlyWhenBounded(t *testing.T) {
 	}
 }
 
-// TC-778, ArcadeDB: the record and its two new properties survive a reopen.
+// TC-811, ArcadeDB: the record and its two new properties survive a reopen.
 func TestReviewDefectSurvivesARestart(t *testing.T) {
 	arc := arcadeTestTarget(t)
 	ctx := t.Context()
@@ -185,7 +185,7 @@ func (f fakeCode) fileAt(_ context.Context, _, _, p, _ string) (ghBlob, bool, er
 	return ghBlob{SHA: "b-" + p, Text: t}, ok, nil
 }
 
-// TC-779
+// TC-812
 func TestReviewDefectPinsTheReviewedHead(t *testing.T) {
 	ctx := context.Background()
 	key := "loop/laundry-api#9:" + prJobReviewer
@@ -248,7 +248,7 @@ func TestReviewDefectPinsTheReviewedHead(t *testing.T) {
 	}
 }
 
-// TC-780
+// TC-813
 func TestReviewFixRefusals(t *testing.T) {
 	m := Master{ID: "p-1", AssignedSet: true, Assigned: []string{"a-13"}, AutoFix: reviewAF()}
 	d := Defect{Kind: DefectKindReview, Repo: defRepo, ReviewBranch: rvBranch, ReviewHead: rvHead}
@@ -351,7 +351,7 @@ func (f *fakePoster2) postComment(_ context.Context, _, _ string, n int, body st
 	return nil
 }
 
-// TC-781
+// TC-814
 func TestReviewFixOpensADraftIntoTheReviewedBranch(t *testing.T) {
 	e, d, rc := reviewFixEnv(t, nil)
 	e.run(fixReplyText(goodFix()))
@@ -417,7 +417,7 @@ func TestReviewFixOpensADraftIntoTheReviewedBranch(t *testing.T) {
 	}
 }
 
-// TC-782 and TC-774
+// TC-815 and TC-807
 func TestReviewFixLifecycle(t *testing.T) {
 	ctx := context.Background()
 	owner, repo, _ := ghOwnerRepo(defRepo)
@@ -462,7 +462,7 @@ func TestReviewFixLifecycle(t *testing.T) {
 	if rec, _ := s2.DefectByKey(ctx, pid, d2.Key); rec.State != DefectStateClosed {
 		t.Errorf("a base change left the record %s", rec.State)
 	}
-	// GAOS's own review fix merging into the feature branch plans nothing (TC-774).
+	// GAOS's own review fix merging into the feature branch plans nothing (TC-807).
 	own := PREvent{Type: prTypeMerged, Org: owner, Repo: repo, PRNumber: 120, MergeChecked: true}
 	if planned, _, r, err := s2.PlanPullRequestCards(ctx, pid, own); err != nil || len(planned) != 0 || r.Skipped != "own-fix" {
 		t.Errorf("own fix merge planned %v skipped %q err %v", planned, r.Skipped, err)
@@ -501,7 +501,7 @@ func TestReviewFixLifecycle(t *testing.T) {
 		t.Errorf("a retarget answered %v", err)
 	}
 
-	// A D-091 fix pull request's merge still plans its unit-test card (TC-774).
+	// A D-091 fix pull request's merge still plans its unit-test card (TC-807).
 	s4, _ := qaFixtureRepo(t)
 	report(t, s4, pid, defItem(DefectKindXfail, "DEF-101", defCase1))
 	if _, err := s4.UpsertFixPR(ctx, FixPR{ID: "fx-x", ProductID: pid, DefectKey: pid + "/DEF-101", Repo: defRepo, Number: 130,

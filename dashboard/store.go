@@ -197,9 +197,9 @@ type Store interface {
 	ExpireExcerpts(ctx context.Context, now int64) (Result, error)
 	AutoFixOf(ctx context.Context, productID string) (AutoFix, error)
 	SetAutoFix(ctx context.Context, productID string, a AutoFix, actor, tokenKind string) (Result, error)
-	// SetAssigned saves (set) or resets the agents assigned to a product (D-099, assign.go).
+	// SetAssigned saves (set) or resets the agents assigned to a product (D-102, assign.go).
 	SetAssigned(ctx context.Context, productID string, agentIDs []string, set bool, actor string) (Result, error)
-	// Review defects (D-099, reviewdefect.go).
+	// Review defects (D-102, reviewdefect.go).
 	ReviewPlanRefusal(ctx context.Context, productID, repo, branch string) string
 	PlanReviewDefect(ctx context.Context, productID string, in ReviewDefectIn) (Result, error)
 	CloseReviewDefect(ctx context.Context, productID, key, rule string) (Result, error)

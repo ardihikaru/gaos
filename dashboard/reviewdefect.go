@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Review defects (D-099, docs/designs/agent-seats-and-pr-agents.md §6, §7).
+// Review defects (D-102, docs/designs/agent-seats-and-pr-agents.md §6, §7).
 //
 // A low PR-review finding becomes a Defect of kind "review", already triaged
 // easy, and the D-091 auto-fix pipeline turns it into a draft pull request
@@ -163,7 +163,7 @@ func (s *MemStore) PlanReviewDefect(ctx context.Context, productID string, in Re
 	ref := owner + "/" + repo + "#" + strconv.Itoa(in.Number)
 	d := &Defect{
 		Key: key, ProductID: productID, CaseID: reviewCaseID(owner, repo, in.Number), Kind: DefectKindReview,
-		// "be" passes D-091's backend-only gates by decision (D-099 (4)): a review
+		// "be" passes D-091's backend-only gates by decision (D-102 (4)): a review
 		// finding is about application code; AllowedGlobs and the target list decide
 		// where it may write.
 		AutomationType: "be",
@@ -425,7 +425,7 @@ func reviewOutsidePaths(plan fixPlan, only []string) string {
 // code, each labelled untrusted.
 func renderReviewDefectPacket(d Defect) string {
 	var sb strings.Builder
-	sb.WriteString("# A review fix (D-099)\n\n")
+	sb.WriteString("# A review fix (D-102)\n\n")
 	fmt.Fprintf(&sb, "## The triage verdict\n\nDifficulty: %s\nClass: %s\nRepository: %s\nBranch: %s (head %s)\nFiles you may edit: %s\n"+
 		"You may add a test file only in a directory of one of those files. Fix only what the findings below describe.\n",
 		d.Difficulty, d.Class, d.Repo, d.ReviewBranch, shortSHA(d.ReviewHead), strings.Join(d.Files, ", "))

@@ -36,6 +36,17 @@
   <div class="clog">
 
     <section class="rel rv">
+      <h3 id="v0-64-0">v0.64.0 <time datetime="2026-11-27">2026-11-27</time> <span class="bump minor">minor</span></h3>
+      <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">Agents are assigned to products, the reviewer&rsquo;s severity is on the board, and a low finding can be fixed by an agent (<a href="product/decision-log.html#d-102">D-102</a>).</p>
+      <ul>
+        <li><span class="chg add">Added</span> <strong>Assignment.</strong> An admin assigns agents to products on the Agents page, which filters by product; once a product&rsquo;s assignments are saved, a pull-request flow runs only for a role with an assigned agent. An unconfigured product behaves as before.</li>
+        <li><span class="chg add">Added</span> <strong>Severity on the board.</strong> The reviewer&rsquo;s finding is a <code>severity:*</code> label: a chip on the kanban, a Severity column and a Labels column in the table, a Severity filter with <em>Medium or worse</em>.</li>
+        <li><span class="chg change">Changed</span> On a configured product a medium or worse finding is posted as <em>changes requested</em>, never an approval; GAOS reviews once and asks a maintainer to dismiss the review once addressed.</li>
+        <li><span class="chg add">Added</span> <strong>Review fixes.</strong> A low finding can become a draft pull request into the reviewed pull request&rsquo;s own branch, bounded by an allowed-branch list, a daily cap and checks made twice before anything is written. TC-800 &hellip; TC-817.</li>
+      </ul>
+    </section>
+
+    <section class="rel rv">
       <h3 id="v0-63-2">v0.63.2 <time datetime="2026-11-27">2026-11-27</time> <span class="bump patch">patch</span></h3>
       <p style="color:var(--faint); font-size:13.5px; margin:0 0 10px">The deploy accepts the two new secret directories inside its tag worktree.</p>
       <ul>

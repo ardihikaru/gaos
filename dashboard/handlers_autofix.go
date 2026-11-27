@@ -93,7 +93,7 @@ func autoFixFromForm(r *http.Request) (AutoFix, error) {
 		// An omitted field clears the list, like every field of this form (the whole record is replaced).
 		AllowedBases:    formLines(r.PostFormValue("allowedBases")),
 		AutomationRepos: formLines(r.PostFormValue("automationRepos")),
-		// D-099: the review fix's branch patterns and its daily cap.
+		// D-102: the review fix's branch patterns and its daily cap.
 		ReviewFixHeads: formLines(r.PostFormValue("reviewFixHeads")),
 		ReviewFixCap:   review,
 	}, nil

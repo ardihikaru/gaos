@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // BoardColView is one column as the template prints it.
@@ -49,8 +50,8 @@ type BoardView struct {
 	// The bar.
 	Text                                   string
 	RoleOpts, StoryOpts, LabelOpts, WfOpts []AFOpt
-	SevOpts                                []AFOpt // D-099
-	Filtered                               bool // a filter or a search narrows the board
+	SevOpts                                []AFOpt // D-102
+	Filtered                               bool    // a filter or a search narrows the board
 	LiveURL                                string
 	BoardGet, BoardHref                    string
 	TableGet, TableHref                    string
@@ -94,12 +95,12 @@ func boardView(p BoardPage, slug string, timelineN int) *BoardView {
 		return v
 	}, q.Role)
 	bv.LabelOpts = boardOpts("Every label", p.Facets.Labels, same, q.Label)
-	// The Severity select always offers medium+, the cards a person must read (D-099).
+	// The Severity select always offers medium+, the cards a person must read (D-102).
 	bv.SevOpts = boardOpts("Every severity", append(append([]string{}, p.Facets.Severities...), severityMediumPlus), func(v string) string {
 		if v == severityMediumPlus {
 			return "Medium or worse"
 		}
-		return v
+		return strings.ToUpper(v[:1]) + v[1:]
 	}, q.Severity)
 	bv.WfOpts = boardOpts("Every workflow", p.Facets.Workflows, same, q.Workflow)
 	bv.StoryOpts = []AFOpt{{Value: "", Label: "Every story", On: q.Story == ""}}

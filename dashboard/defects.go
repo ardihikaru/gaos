@@ -37,7 +37,7 @@ const (
 	DefectKindXfail = "xfail"
 	DefectKindFail  = "fail"
 	DefectKindXpass = "xpass"
-	// DefectKindReview is a low PR-review finding (D-099, reviewdefect.go). It
+	// DefectKindReview is a low PR-review finding (D-102, reviewdefect.go). It
 	// never arrives from the QA tool: validateDefectItem refuses it.
 	DefectKindReview = "review"
 )
@@ -107,7 +107,7 @@ type Defect struct {
 	// change, and checked against AutoFix.AllowedBases at use.
 	BaseOverride string
 	// ReviewBranch and ReviewHead are a review defect's branch and pinned head
-	// (D-099): the fix goes into that branch, on top of that commit. Empty on
+	// (D-102): the fix goes into that branch, on top of that commit. Empty on
 	// every other defect.
 	ReviewBranch string
 	ReviewHead   string

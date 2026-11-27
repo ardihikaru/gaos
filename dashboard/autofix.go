@@ -184,7 +184,7 @@ func (s *MemStore) autoClaimLocked(productID string, t *TaskRecord, stamp bool) 
 	if job == defectJobFix {
 		limit = fixCap
 	}
-	// A review fix has its own cap (D-099 §6.1); FixCap counts QA defects only.
+	// A review fix has its own cap (D-102 §6.1); FixCap counts QA defects only.
 	isReview := func(dedup string) bool {
 		k, _, _, ok := parseDefectCardKey(dedup)
 		if !ok {
@@ -322,7 +322,7 @@ func autoFixPass(ctx context.Context, st Store, src codeSource) int {
 				}
 			}
 			if job == defectJobFix {
-				// A review fix (D-099 §6.4, check point 1): fresh reads before the model
+				// A review fix (D-102 §6.4, check point 1): fresh reads before the model
 				// turn, at most once per card per reviewCheckEvery. The reader is the code
 				// source when it can read pull requests (*ghClient can); without one the
 				// card waits.
@@ -394,7 +394,7 @@ func (s *MemStore) fixerPartsLocked(t TaskRecord) []PacketPart {
 	if d == nil {
 		return nil
 	}
-	if d.Kind == DefectKindReview { // D-099 §6.3: the verdict first, the findings fenced
+	if d.Kind == DefectKindReview { // D-102 §6.3: the verdict first, the findings fenced
 		return []PacketPart{{Path: ".gaos/packet/context/defect.md", Kind: KindContext, Body: renderReviewDefectPacket(*d)}}
 	}
 	var sb strings.Builder

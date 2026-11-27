@@ -571,7 +571,7 @@
       <td class="mono cell-id" title="{{.ID}}">{{.ID}}</td>
       <td class="af-defect"><span class="board-row-title">{{.Label}}</span>{{with .Reason}} <span class="mono card-reason">blocked: {{.}}</span>{{end}}</td>
       <td class="mono">{{if eq .Status "AWAITING_INPUT"}}<button type="button" class="needs-badge" id="nb-{{.ID}}" data-answer-open="ui/answer/{{$id}}/{{.ID}}?from=board" aria-label="Needs you — answer the agent on {{.ID}}">Needs you</button>{{else}}{{.Status}}{{end}}</td>
-      <td class="mono">{{if .Severity}}<span class="card-labels"><span class="card-label sev-{{.Severity}}">{{.Severity}}</span></span>{{end}}</td>
+      <td class="mono">{{if eq .Severity "none"}}<span class="tm-line" title="Review severity: none">none</span>{{else if .Severity}}<span class="card-labels"><span class="card-label sev-{{.Severity}}" title="Review severity: {{.Severity}}">{{.Severity}}</span></span>{{end}}</td>
       <td class="mono">{{.Role}}{{if .Vendor}} {{template "vendor-badge" .Vendor}}{{end}}</td>
       <td>{{with .Chips}}<span class="mono card-labels">{{range .}} <span class="card-label">{{.}}</span>{{end}}</span>{{end}}</td>
       <td class="mono">{{if .Story}}{{.Story}}{{else}}Plan{{end}}</td>
@@ -830,7 +830,7 @@
 
 {{define "bo-agents"}}
 <header><div><span class="eyebrow">access</span><h2>{{.Title}}</h2><p>{{.Sub}}</p></div></header>
-{{/* D-099: the product filter, the same parts as the Pull requests filter. */}}
+{{/* D-102: the product filter, the same parts as the Pull requests filter. */}}
 <div class="block">
   <form class="af-form" method="get" action="ui/bo/agents" hx-get="ui/bo/agents" hx-trigger="change" hx-target="#sink" hx-swap="innerHTML">
     <label><span class="sr-only">Product</span>
@@ -839,37 +839,38 @@
     {{if .Assign.Product}}<a class="af-reset" href="{{pagehref "agents"}}" hx-get="ui/bo/agents" hx-target="#sink" hx-swap="innerHTML">Clear filter</a>{{end}}
   </form>
   {{if .Assign.Product}}
-  <p class="mono" style="margin:8px 0 0;color:var(--ink-3);font-size:12px">{{if .Assign.Configured}}Roles with no assigned agent do not run their PR flow in {{.Assign.ProductName}}.{{else}}Assignments not configured for {{.Assign.ProductName}} — every PR flow runs.{{end}}</p>
+  <p class="tm-line">{{if not .Assign.Configured}}Assignments not configured for {{.Assign.ProductName}} — every PR flow runs.{{else if .Assign.None}}No agent is assigned to {{.Assign.ProductName}}: no PR flow runs there.{{else}}Roles with no assigned agent do not run their PR flow in {{.Assign.ProductName}}.{{end}}</p>
   {{end}}
 </div>
 <div class="block">
   {{range .Agents}}
-  <div class="proj" style="padding:8px 0">
-    <span style="display:flex;align-items:center;gap:9px;font-family:var(--font-body);font-size:13px;color:var(--ink);min-width:0;flex-wrap:wrap">
-      <em style="{{.Style}};width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700">{{.Short}}</em>
+  <div class="proj agent-row">
+    <span class="agent-who">
+      <em style="{{.Style}};width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-family:var(--font-mono);font-size:9px;color:#15120C;font-weight:700;flex-shrink:0">{{.Short}}</em>
       {{.Name}} · {{.Label}}
       {{with .Assigned}}<span class="mono card-labels">{{range .}} <span class="card-label" title="Assigned to {{.Name}}">{{.Name}}</span>{{end}}</span>{{end}}
     </span>
     <b class="{{if .IsOn}}seated{{end}}">{{.Seated}}</b>
   </div>
   {{else}}
-  <p style="margin:0;color:var(--ink-3);font-size:13px">No agent is assigned to this product.</p>
+  <p class="tm-line">{{if .Assign.Product}}No agent is assigned to {{.Assign.ProductName}}.{{if .Assign.Admin}} Tick agents under Edit assignments below.{{end}}{{else}}No agent is registered yet.{{end}}</p>
   {{end}}
 </div>
 {{template "pager" .Pager}}
 {{with .Assign}}{{if and .Admin .Product}}
-<details class="block">
+<details class="board-help"{{if .Open}} open{{end}}>
   <summary>Edit assignments for {{.ProductName}}</summary>
-  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" style="margin-top:8px">
+  <form hx-post="agents/assign" hx-target="#sink" hx-swap="innerHTML" class="agent-editor">
     <input type="hidden" name="product" value="{{.Product}}">
     {{range .Picks}}
-    <label style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px">
-      <input type="checkbox" name="agent" value="{{.ID}}"{{if .On}} checked{{end}}> {{.Name}} · {{.Label}}{{if .Gated}} <span class="mono" style="color:var(--ink-3);font-size:11px">PR flow</span>{{end}}
+    <label class="agent-pick">
+      <input type="checkbox" name="agent" value="{{.ID}}"{{if .On}} checked{{end}}> {{.Name}} · {{.Label}}{{if .Gated}} <span class="mono tm-line">PR flow</span>{{end}}
     </label>
     {{end}}
-    <p style="margin:8px 0;color:var(--ink-3);font-size:12px">Saving turns on assignment gating for this product, and GAOS will request changes on GitHub for medium and worse findings.</p>
-    <button class="btn" type="submit" name="action" value="save">Save</button>
-    {{if .Configured}}<button class="btn" type="submit" name="action" value="reset">Reset</button>{{end}}
+    <p class="tm-line">Saving turns on assignment gating for this product, and GAOS will request changes on GitHub for medium and worse findings.</p>
+    <button class="btn btn-primary" type="submit" name="action" value="save">Save</button>
+    {{if .Configured}}<button class="btn" type="submit" name="action" value="reset">Stop gating</button>
+    <p class="tm-line">Stop gating forgets these assignments; every PR flow runs in {{.ProductName}} again.</p>{{end}}
   </form>
 </details>
 {{end}}{{end}}

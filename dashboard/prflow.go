@@ -264,7 +264,7 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 			}
 		}
 	}
-	// ... and so does its review fix, if the fix has not started (D-099 §7).
+	// ... and so does its review fix, if the fix has not started (D-102 §7).
 	var closed []Defect
 	if ev.Type == prTypeMerged && ev.MergeChecked {
 		if d := s.defects[reviewDefectKey(productID, ev.Org, ev.Repo, ev.PRNumber)]; d != nil && !defectFinal(d.State) {
@@ -281,7 +281,7 @@ func (s *MemStore) PlanPullRequestCards(ctx context.Context, productID string, e
 	// before the early return, so a repeated event fills a missing row. A pull request refused by
 	// the cap below has no card and so no row.
 	rows := s.reviewRowLocked(m, ev)
-	// The assignment gate (D-099 §3.4): on a configured product a role with no
+	// The assignment gate (D-102 §3.4): on a configured product a role with no
 	// assigned agent plans no card. It runs after the merge cancel and the row,
 	// and it is not an error, so the row above is persisted with the result.
 	fresh, skipped := gateUnassigned(*m, fresh)
@@ -445,7 +445,7 @@ func (f *prFlow) handle(ctx context.Context, ev PREvent) flowOutcome {
 		}
 		var pr ghPR
 		if ev.Type == prTypeMerged && f.gh != nil {
-			// The event alone never closes a review defect (D-099 §7): GitHub must agree.
+			// The event alone never closes a review defect (D-102 §7): GitHub must agree.
 			if got, err := f.gh.pullRequest(ctx, ev.Org, ev.Repo, ev.PRNumber); err == nil && got.Merged {
 				ev.MergeChecked = true
 			}

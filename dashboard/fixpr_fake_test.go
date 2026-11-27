@@ -32,7 +32,7 @@ type fakeGHW struct {
 	labels     map[string]bool
 	seq        int
 	lastCommit string
-	// D-099: the reviewed pull request a review fix reads.
+	// D-102: the reviewed pull request a review fix reads.
 	pull      map[string]any
 	pullFiles []map[string]any
 	protected map[string]bool

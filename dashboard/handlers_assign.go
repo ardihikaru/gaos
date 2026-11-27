@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// The Agents page's product filter and the assignment route (D-099 §3.3, §3.5).
+// The Agents page's product filter and the assignment route (D-102 §3.3, §3.5).
 
 // agentsHref is the Agents page's address: the product first, the page last.
 func agentsHref(base, product string, page int) string {
@@ -71,6 +71,7 @@ func agentAssignView(r *http.Request, masters []Master, products []Product, rost
 	}
 	if m != nil {
 		a.Product, a.ProductName, a.Configured = m.ID, productNameOf(products, m.ID), m.AssignedSet
+		a.None = m.AssignedSet && len(m.Assigned) == 0
 		a.Opts[0].On = false
 	}
 	for _, p := range products {
@@ -91,7 +92,7 @@ func agentAssignView(r *http.Request, masters []Master, products []Product, rost
 }
 
 // handleAssign is POST /agents/assign: an admin saves or resets the agents
-// assigned to one product (D-099 §3.3). It answers the refreshed Agents view.
+// assigned to one product (D-102 §3.3). It answers the refreshed Agents view.
 func (s *server) handleAssign(w http.ResponseWriter, r *http.Request) {
 	ss, ok := sessionOf(r)
 	if !ok || ss.Email == "" {
@@ -125,5 +126,8 @@ func (s *server) handleAssign(w http.ResponseWriter, r *http.Request) {
 	}
 	v := s.applyResult(r, res)
 	s.sheet(w, r, v, "agents", id, "brd")
+	if v.BO != nil {
+		v.BO.Assign.Open = true // the admin keeps sight of what was just saved
+	}
 	s.rend.RenderWithChrome(w, "bo-main-oob", v)
 }

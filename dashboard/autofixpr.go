@@ -107,7 +107,7 @@ type defectFixer struct {
 	st Store
 	gh *ghWriter // nil: the write token is not configured
 	// review posts the "draft fix" line on a reviewed pull request with the
-	// review token (D-099 §6.4); nil: no line.
+	// review token (D-102 §6.4); nil: no line.
 	review interface {
 		postComment(ctx context.Context, owner, repo string, number int, body string) error
 	}
@@ -181,7 +181,7 @@ func (p *defectFixer) afterRun(ctx context.Context, t TaskRecord, reply string) 
 	p.run(ctx, t, d, af, fr, FixPR{})
 }
 
-// refuseReview is a review fix's refusal (D-099 §6.4): the defect is closed
+// refuseReview is a review fix's refusal (D-102 §6.4): the defect is closed
 // with the refusal as its rule, then the card is blocked with it as its reason.
 func (p *defectFixer) refuseReview(ctx context.Context, t TaskRecord, rec FixPR, d Defect, why string) {
 	_, _ = p.st.CloseReviewDefect(ctx, d.ProductID, d.Key, why)
@@ -237,7 +237,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 		baseName = d.BaseOverride
 	}
 	review := d.Kind == DefectKindReview
-	if review { // a review fix goes into the reviewed pull request's own branch (D-099 §6.3)
+	if review { // a review fix goes into the reviewed pull request's own branch (D-102 §6.3)
 		baseName = d.ReviewBranch
 	}
 	base, head, err := p.gh.head(ctx, owner, repo, baseName)
@@ -312,7 +312,7 @@ func (p *defectFixer) run(ctx context.Context, t TaskRecord, d Defect, af AutoFi
 
 	created := false
 	if rec.Number == 0 && review {
-		// Check point 2 (D-099 §6.4): fresh reads with the write token's client,
+		// Check point 2 (D-102 §6.4): fresh reads with the write token's client,
 		// before any branch exists, so a refusal leaves nothing behind.
 		m, _ := configuredProduct(ctx, p.st, d.ProductID)
 		why, err := checkReviewFix(ctx, p.gh, d, m)

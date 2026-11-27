@@ -445,7 +445,7 @@ func serve(addr string, dev bool, seed uint64, root string) error {
 		go poller.Run(ctx)
 		if ghc != nil {
 			rv.gh = ghc
-			rv.rd = ghc     // D-099: the fresh read before posting, and the review fix's reads
+			rv.rd = ghc     // D-102: the fresh read before posting, and the review fix's reads
 			fx.review = ghc // the "draft fix" line, with the review token
 		}
 		tp := &testPlanner{st: store, logf: log.Printf, notify: nt.Notify}
@@ -575,7 +575,7 @@ func (s *server) routes() http.Handler {
 	handle("POST /products/{id}/board/cards/{taskId}/label", s.handleSetLabel)     // D-088
 	handle("POST /products/{id}/autofix", s.handleSaveAutoFix)                     // D-091
 	handle("POST /products/{id}/defects/{ref}/close", s.handleCloseDefect)         // D-091
-	handle("POST /agents/assign", s.handleAssign)                                  // D-099
+	handle("POST /agents/assign", s.handleAssign)                                  // D-102
 	handle("POST /contacts", s.handleContactSave)                                  // D-088
 	handle("POST /contacts/delete", s.handleContactDelete)                         // D-088
 	handle("POST /products/{id}/board/cards", s.handleCardRefused)

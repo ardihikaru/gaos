@@ -153,7 +153,7 @@ function gateFace(product, card) {
   return out;
 }
 
-// severityChip is the reviewer's severity (D-099): the level as text, the
+// severityChip is the reviewer's severity (D-102): the level as text, the
 // colour only repeating it. "none" has no chip.
 function severityChip(card) {
   if (!card.severity || card.severity === "none") return null;

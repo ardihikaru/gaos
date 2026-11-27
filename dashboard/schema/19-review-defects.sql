@@ -1,4 +1,4 @@
--- 19 · Review defects (D-099; docs/designs/agent-seats-and-pr-agents.md §6.2).
+-- 19 · Review defects (D-102; docs/designs/agent-seats-and-pr-agents.md §6.2).
 --
 -- A low PR-review finding becomes a Defect of kind "review", fixed through the
 -- D-091 auto-fix path into the reviewed pull request's own branch. reviewBranch

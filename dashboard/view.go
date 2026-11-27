@@ -157,19 +157,21 @@ type AgentRow struct {
 	Label  string
 	Seated string
 	IsOn   bool
-	// Assigned are the products the agent is assigned to (D-099), by name.
+	// Assigned are the products the agent is assigned to (D-102), by name.
 	Assigned []AgentProduct
 }
 
 // AgentProduct is one product an agent is assigned to.
 type AgentProduct struct{ ID, Name string }
 
-// AgentAssign is the Agents page's product filter and assignment editor (D-099).
+// AgentAssign is the Agents page's product filter and assignment editor (D-102).
 type AgentAssign struct {
 	Product     string // the validated ?product=, or ""
 	ProductName string
 	Configured  bool // the product's AssignedSet
 	Admin       bool // the signed-in account may edit (GAOS_AUTOFIX_ADMINS)
+	None        bool // configured with no agent: no PR flow runs
+	Open        bool // the editor is shown open (after a save)
 	Opts        []AFOpt
 	Picks       []AgentPick // the editor: every agent, gated roles first
 }

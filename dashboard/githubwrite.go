@@ -167,7 +167,7 @@ func newGHWriter(cfg ghConfig) *ghWriter {
 	return &ghWriter{c: c}
 }
 
-// The reads a review fix's check point 2 makes with this token's client (D-099
+// The reads a review fix's check point 2 makes with this token's client (D-102
 // §6.4). They read; they change nothing.
 func (w *ghWriter) pullRequest(ctx context.Context, owner, repo string, n int) (ghPR, error) {
 	return w.c.pullRequest(ctx, owner, repo, n)

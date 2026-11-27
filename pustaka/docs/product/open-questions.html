@@ -913,7 +913,7 @@
   operator can change that matter more than most: a card's label (<code>pr-review:manual</code> stops an automated
   review) and a contact's destination (where a finding is sent). Both are recorded &mdash; the label change as a
   <code>TaskLabeled</code> event naming the actor's alias, the contact change as a log line &mdash; but neither is
-  restricted.</p>
+  restricted. Since <a href="decision-log.html#d-102">D-102</a>, dispatching a review fix card and correcting a card&rsquo;s severity label are also open to any signed-in account; saving a product&rsquo;s agent assignments is restricted to the auto-fix admins.</p>
   <p><strong>The options:</strong> a role per account in the accounts file, with a label and contact right held by
   one of them; or leave it, because the accounts are the operator's own and the actions are recorded.</p>
   <p><strong>What it blocks:</strong> nothing today; it grows more pressing with every account added.</p>

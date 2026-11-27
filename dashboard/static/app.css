@@ -1682,13 +1682,22 @@ details.answer-ctx p{margin:8px 0 0;max-height:30vh;overflow:auto;white-space:pr
    modal's own (modal-anim), reduced-motion rule included. */
 .card-reason{margin-top:4px;font-size:10px;line-height:14px;color:var(--ink-3);overflow-wrap:anywhere}
 /* The task's labels (D-088): a closed vocabulary, so they are chips and not free text. */
-.card-labels .card-label{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:0 4px;margin:1px 0 0 2px;color:var(--ink-3)}
-/* D-099: the reviewer's severity. The level is always written as text; the
+.card-labels .card-label{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:0 4px;margin:1px 0 0 2px;color:var(--ink-3);max-width:100%;overflow-wrap:anywhere}
+.board-row td>.card-labels{margin-left:0}
+/* D-102: the Agents page rows and the assignment editor */
+.agent-row{padding:8px 0;align-items:flex-start}
+.agent-who{display:flex;align-items:flex-start;gap:9px;flex-wrap:wrap;min-width:0;font-family:var(--font-body);font-size:13px;color:var(--ink)}
+.agent-row b{flex-shrink:0;white-space:nowrap;margin-left:12px}
+.agent-editor{padding:4px 12px 12px}
+.agent-pick{display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px}
+/* D-102: the reviewer's severity. The level is always written as text; the
    colour only repeats it. none has no chip on the kanban. */
+/* the client board renders the chip outside .card-labels: give it the chip box too */
+.card-label[class*="sev-"]{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:0 4px}
 .card-label.sev-none{color:var(--ink-3)}
 .card-label.sev-low{color:var(--done);border-color:color-mix(in srgb,var(--done) 45%,var(--line))}
-.card-label.sev-medium{color:var(--block);border-color:color-mix(in srgb,var(--block) 55%,var(--line))}
-.card-label.sev-high{color:var(--fail);border-color:color-mix(in srgb,var(--fail) 60%,var(--line))}
+.card-label.sev-medium{font-weight:600;color:var(--block);border-color:color-mix(in srgb,var(--block) 55%,var(--line))}
+.card-label.sev-high{font-weight:600;color:var(--fail);border-color:color-mix(in srgb,var(--fail) 60%,var(--line))}
 .card-label.sev-critical{color:var(--bg);background:var(--fail);border-color:var(--fail);font-weight:600}
 .card-sendback{margin-top:5px;font-size:10px;padding:2px 6px}
 .sfb-card-content .card-sendback{display:flex;width:max-content}

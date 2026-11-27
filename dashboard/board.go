@@ -50,7 +50,7 @@ type BoardCard struct {
 	// Labels say what kind of work the card is (D-088): a closed vocabulary,
 	// rendered as chips. Empty on a card that predates it.
 	Labels []string `json:"labels,omitempty"`
-	// Severity is the reviewer's level from the severity:* label (D-099), and
+	// Severity is the reviewer's level from the severity:* label (D-102), and
 	// Chips the labels without it, for the templates. JSON keeps Labels whole.
 	Severity string   `json:"severity,omitempty"`
 	Chips    []string `json:"-"`

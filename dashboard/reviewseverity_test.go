@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The reviewer's severity on the card and the review event (D-099 §4, §5).
+// The reviewer's severity on the card and the review event (D-102 §4, §5).
 
 // fakeReader is a prReader whose answers a test sets.
 type fakeReader struct {
@@ -53,7 +53,7 @@ func configure(t *testing.T, st *MemStore, ids ...string) {
 	}
 }
 
-// TC-775
+// TC-808
 func TestReviewSetsTheSeverityLabelBeforePosting(t *testing.T) {
 	for _, tc := range []struct {
 		name, sev, body string
@@ -87,7 +87,7 @@ func TestReviewSetsTheSeverityLabelBeforePosting(t *testing.T) {
 	}
 }
 
-// TC-777 and the COMMENT half of TC-769
+// TC-810 and the COMMENT half of TC-802
 func TestReviewEventBySeverityAndAuthor(t *testing.T) {
 	run := func(t *testing.T, sev string, configured bool, rd *fakeReader) (*fakePoster, TaskRecord) {
 		t.Helper()
@@ -110,7 +110,7 @@ func TestReviewEventBySeverityAndAuthor(t *testing.T) {
 	}
 	other := func() *fakeReader { return &fakeReader{pr: authoredBy("someone"), self: "gaos-bot"} }
 
-	// An unconfigured product only ever comments (TC-769).
+	// An unconfigured product only ever comments (TC-802).
 	for _, sev := range prSeverities {
 		if fp, _ := run(t, sev, false, other()); fp.events[0] != ghEventComment {
 			t.Errorf("unconfigured %s sent %s", sev, fp.events[0])
@@ -158,7 +158,7 @@ func TestReviewEventBySeverityAndAuthor(t *testing.T) {
 	}
 }
 
-// TC-776
+// TC-809
 func TestBoardSeverityFilterSortAndMediumPlus(t *testing.T) {
 	t.Setenv("GAOS_PR_MAX_OPEN", "50")
 	ctx := context.Background()
@@ -250,7 +250,7 @@ func TestBoardSeverityFilterSortAndMediumPlus(t *testing.T) {
 	}
 }
 
-// TC-776, rendered: the chip on the kanban, the two table columns, the select.
+// TC-809, rendered: the chip on the kanban, the two table columns, the select.
 func TestBoardRendersTheSeverity(t *testing.T) {
 	srv, st := newTestServer(t)
 	ctx := context.Background()
@@ -270,7 +270,7 @@ func TestBoardRendersTheSeverity(t *testing.T) {
 		t.Error("the Severity select is missing")
 	}
 	table := boardHX(t, srv, "GET", "/products/p-1/board/live?view=table", nil).Body.String()
-	for _, want := range []string{">Severity<", ">Labels<", `sev-critical">critical<`, ">pr-review:auto<"} {
+	for _, want := range []string{">Severity<", ">Labels<", `sev-critical" title="Review severity: critical">critical<`, ">pr-review:auto<"} {
 		if !strings.Contains(table, want) {
 			t.Errorf("the table lacks %q", want)
 		}
